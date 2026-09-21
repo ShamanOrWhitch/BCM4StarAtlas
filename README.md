@@ -21,5 +21,6 @@ npm run dev
 
 ## Медиа кораблей
 
-Папка `public/ships/` (~190 МБ фото) не залита в git из-за размера.
-Возьми её из архива `1space-station-star-atlas.zip` и положи в `public/ships/`.
+Галереи грузятся с официального CDN Star Atlas (`storage.googleapis.com/nft-assets`),
+как в Galactic Marketplace / [Galaxy API](https://galaxy.staratlas.com/nfts).
+Локальная папка `public/ships/` не нужна.
