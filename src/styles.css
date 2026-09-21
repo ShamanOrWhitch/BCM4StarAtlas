@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #07090e;
+  --color-surface: #10141c;
+  --color-surface-2: #171d28;
+  --color-fg: #e8eef2;
+  --color-muted: #8b96a3;
+  --color-faint: #5c6673;
+  --color-line: color-mix(in oklab, var(--color-fg) 12%, transparent);
+  --color-brass: #c4a35a;
+  --color-brass-dim: #8a7340;
+  --color-ice: #9eb6c4;
+  --color-danger: #c45c4a;
+  --color-ok: #7a9a7e;
+  --color-tensor-anomaly: #d4788a;
+  --color-tensor-legend: #c4a35a;
+  --color-tensor-epic: #8a96b8;
+  --color-tensor-rare: #6a8caf;
+  --color-tensor-uncommon: #7a9a7e;
+  --color-tensor-common: #5c6673;
+  --font-display: "Rajdhani", "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 18px;
+  --radius-xl: 26px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html,
+  body,
+  #app {
+    height: 100%;
+    background: var(--color-bg);
+    color: var(--color-fg);
+  }
+
+  html {
+    font-family: var(--font-sans);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
