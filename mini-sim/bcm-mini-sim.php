@@ -18,7 +18,7 @@ function bcm_mini_sim_enqueue_assets() {
     if (file_exists(BCM_MINI_SIM_PATH . 'door.png')) {
         $door_texture = BCM_MINI_SIM_URL . 'door.png';
     } elseif (file_exists(dirname(BCM_MINI_SIM_PATH) . '/door.png')) {
-        $door_texture = plugins_url('door.png', dirname(BCM_MINI_SIM_PATH) . '/placeholder.php');
+        $door_texture = BCM_MINI_SIM_URL . '../door.png';
     }
 
     wp_enqueue_style(
