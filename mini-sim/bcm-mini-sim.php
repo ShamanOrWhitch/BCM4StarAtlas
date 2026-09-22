@@ -2,14 +2,14 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained Descent-style 6DOF space-labyrinth test for WordPress.
- * Version: 0.3.6
+ * Version: 0.3.7
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BCM_MINI_SIM_VERSION', '0.3.6');
+define('BCM_MINI_SIM_VERSION', '0.3.7');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -118,19 +118,36 @@ function bcm_mini_sim_enqueue_assets() {
         'image'
     );
 
+    $music_candidates = array(
+        'starbase ost.mp3',
+        'starbase-ost.mp3',
+        'starbase_ost.mp3',
+        'background.mp3',
+        'music.mp3',
+        'menu.mp3',
+        'ost.mp3'
+    );
+
     $music_url = bcm_mini_sim_pick_asset(
         $assets,
-        array(
-            'starbase ost.mp3',
-            'starbase-ost.mp3',
-            'starbase_ost.mp3',
-            'background.mp3',
-            'music.mp3',
-            'menu.mp3',
-            'ost.mp3'
-        ),
+        $music_candidates,
         'audio'
     );
+
+    // Also accept the same OST beside bcm-mini-sim.php. This is useful when
+    // the project archive was uploaded with the music at plugin root.
+    if (!$music_url) {
+        foreach ($music_candidates as $candidate) {
+            if (file_exists(BCM_MINI_SIM_PATH . $candidate)) {
+                $music_url = BCM_MINI_SIM_URL . str_replace(
+                    '%2F',
+                    '/',
+                    rawurlencode($candidate)
+                );
+                break;
+            }
+        }
+    }
 
     wp_enqueue_style(
         'bcm-mini-sim',
@@ -207,6 +224,7 @@ function bcm_mini_sim_shortcode($atts = array()) {
             <button data-control="rollRight">↷</button>
             <button data-control="shield">🛡</button>
             <button data-control="route">↕</button>
+            <button data-control="tilt">TILT</button>
             <button data-control="portal">G</button>
         </div>
     </div>
