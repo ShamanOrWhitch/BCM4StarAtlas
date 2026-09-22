@@ -594,6 +594,66 @@
         }
     }
 
+    const testTunnel = {
+        minX: -5.35,
+        maxX: 5.35,
+        minY: -3.55,
+        maxY: 3.55,
+        minZ: -31.55,
+        maxZ: 5.55,
+        doorZ: -18,
+        doorHalfWidth: 3.0,
+        doorHalfHeight: 3.0
+    };
+
+    function resolveTestTunnelCollision() {
+        const radius = 0.32;
+
+        if (ship.position.x < testTunnel.minX + radius) {
+            ship.position.x = testTunnel.minX + radius;
+            if (ship.velocity.x < 0) ship.velocity.x *= -0.2;
+        } else if (ship.position.x > testTunnel.maxX - radius) {
+            ship.position.x = testTunnel.maxX - radius;
+            if (ship.velocity.x > 0) ship.velocity.x *= -0.2;
+        }
+
+        if (ship.position.y < testTunnel.minY + radius) {
+            ship.position.y = testTunnel.minY + radius;
+            if (ship.velocity.y < 0) ship.velocity.y *= -0.2;
+        } else if (ship.position.y > testTunnel.maxY - radius) {
+            ship.position.y = testTunnel.maxY - radius;
+            if (ship.velocity.y > 0) ship.velocity.y *= -0.2;
+        }
+
+        if (ship.position.z > testTunnel.maxZ - radius) {
+            ship.position.z = testTunnel.maxZ - radius;
+            if (ship.velocity.z > 0) ship.velocity.z *= -0.2;
+        }
+
+        // The door occupies the middle of the forward corridor. It behaves
+        // as a blocker until the sliding leaves are mostly open.
+        const doorBlocking =
+            testDoor.state !== 'OPEN' &&
+            testDoor.progress < 0.85 &&
+            Math.abs(ship.position.x) < testTunnel.doorHalfWidth &&
+            Math.abs(ship.position.y) < testTunnel.doorHalfHeight;
+
+        if (
+            doorBlocking &&
+            ship.position.z < testTunnel.doorZ + radius &&
+            ship.position.z > testTunnel.doorZ - 1.25 &&
+            ship.velocity.z < 0
+        ) {
+            ship.position.z = testTunnel.doorZ + radius;
+            ship.velocity.z = Math.max(0, ship.velocity.z * -0.08);
+        }
+
+        if (ship.position.z < testTunnel.minZ + radius) {
+            ship.position.z = testTunnel.minZ + radius;
+            if (ship.velocity.z < 0) ship.velocity.z *= -0.2;
+        }
+    }
+
     function toggleShield() {
         shipSystems.shieldOn = !shipSystems.shieldOn;
     }
@@ -662,6 +722,7 @@
         }
 
         ship.position.addScaledVector(ship.velocity, dt);
+        resolveTestTunnelCollision();
 
         // Angular inertia.
         const angularInput = new THREE.Vector3(
@@ -684,7 +745,8 @@
             ship.angularVelocity.y *= 0.98;
         }
 
-        // Basic bounds for the first prototype.
+        // Test-tunnel collisions are resolved above; the global bounds below
+        // remain only as a safety net for the prototype.
         const limit = 47;
         ['x','y','z'].forEach(axis => {
             if (ship.position[axis] > limit) {
