@@ -2,7 +2,7 @@
 
 ## Current test version
 
-**0.3.4**
+**0.3.5**
 
 The mini sim is a self-contained WordPress plugin test. Three.js r128 is bundled locally and is the fixed engine baseline because r128 is already proven working in the target site.
 
@@ -24,9 +24,10 @@ PHP scans `mini-sim/assets/` recursively and exposes supported media as a local 
 Supported:
 
 - PNG/JPG/JPEG/WebP/GIF images.
-- MP4/WebM/OGG video.
+- MP4/WebM video.
+- MP3/M4A/WAV/OGG audio.
 
-The simulator uses local URLs from this manifest. This makes future asset additions extendable without adding another PHP mapping block.
+The resolver prefers a same-base WebP/JPG/JPEG variant when one exists, so heavy PNG textures can be replaced later without changing the scene code.
 
 Current local assets include:
 
@@ -38,13 +39,14 @@ Current local assets include:
 - portal2.mp4
 - portal3.mp4
 - perference bg.png
+- optional background.mp3
 - door.png
 
 ## Current visual test room
 
 The first-person pilot starts in a textured test corridor.
 
-The five station wall textures are deliberately visible on separate real surfaces instead of merely being preloaded:
+The five station wall textures are deliberately visible on separate real surfaces:
 
 - wall1 → floor
 - wall2 → ceiling
@@ -52,9 +54,9 @@ The five station wall textures are deliberately visible on separate real surface
 - wall4 → right wall
 - wall5 → structural/rear surfaces
 
-A chamber behind the door repeats these materials so texture mapping can be inspected at different angles.
+The chamber reuses those loaded materials, so its floor, ceiling and walls are real textured geometry as well.
 
-The current background image is displayed on a station monitor in the chamber.
+The current background image is the HTML menu backdrop. It sits above the WebGL canvas before gameplay starts, so it is visible under the menu while the engine is loading.
 
 ## Door
 
@@ -72,13 +74,18 @@ The current door movement is intentionally procedural. Future cinematic doors ca
 
 ## Portals
 
-Existing routing is preserved exactly:
+The three portals are now front-facing physical station openings rather than side-mounted image planes.
 
-- portal point 1 uses `portal.png`; transition 1 → 2 uses `portal2.mp4`.
-- portal point 2 uses `portal2.png`; transitions 2 → 1 and 2 → 3 use `portal1.mp4` and `portal3.mp4`.
-- portal point 3 uses `portal3.png`.
+Routing is unchanged:
 
-In version 0.3.4 the pilot activates the matching local MP4 with G as a full-screen transition. When the video finishes, the pilot is placed at the mapped destination point and velocity is reset. The routing remains 1 → 2 via portal2.mp4, 2 → 1 via portal1.mp4 and 2 → 3 via portal3.mp4.
+- point 1 → 2 uses `portal2.mp4`.
+- point 2 → 1 uses `portal1.mp4`.
+- point 2 → 3 uses `portal3.mp4`.
+- point 3 is an endpoint with no outbound route.
+
+Portal images are loaded when the door begins opening, instead of waiting for an arbitrary camera Z threshold. The frames remain visible even if an image file fails.
+
+At point 2, T/mobile ↕ cycles the selected route. G/mobile G activates it. The transition video is full-screen; after it ends, the pilot is placed at that route's specific destination and velocity is reset.
 
 ## Flight model
 
@@ -87,13 +94,23 @@ Single-player first:
 - pilot only
 - inertial linear movement
 - free pitch/yaw from mouse
-- roll from Q/E
+- touch drag pitch/yaw on mobile
+- roll from Q/E or controller shoulder buttons
 - local thrust / strafe / vertical thrust
 - gentle linear drag
 - speed cap
 - shield toggle
+- standard Gamepad API input
 
 No weapon subsystem is required for the current test.
+
+## Music
+
+The plugin supports a local background track at:
+
+`mini-sim/assets/background.mp3`
+
+Playback is attempted immediately and is retried from a user gesture when browser autoplay policy rejects the first attempt. The same track remains active after gameplay starts.
 
 ## Collision scope
 
