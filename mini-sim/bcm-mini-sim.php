@@ -2,14 +2,14 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Lightweight Descent-style 6DOF space-labyrinth simulation for WordPress.
- * Version: 0.2.4
+ * Version: 0.2.5
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BCM_MINI_SIM_VERSION', '0.2.4');
+define('BCM_MINI_SIM_VERSION', '0.2.5');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -31,9 +31,9 @@ function bcm_mini_sim_enqueue_assets() {
     // Three.js is used only as the lightweight WebGL renderer/geometry layer.
     wp_enqueue_script(
         'bcm-three',
-        'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.min.js',
+        'https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js',
         array(),
-        '0.180.0',
+        '0.159.0',
         false
     );
 
