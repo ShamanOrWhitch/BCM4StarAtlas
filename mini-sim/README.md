@@ -4,7 +4,7 @@ Self-contained WordPress test of a Descent-style 6DOF space-labyrinth.
 
 ## Version
 
-**0.3.3**
+**0.3.4**
 
 Three.js **r128** is bundled locally in:
 
@@ -43,7 +43,7 @@ Optional:
 - Local asset manifest generated automatically by PHP from `assets/`.
 - Missing image files are reported without stopping the whole simulator.
 
-The current portal test **previews the mapped transition video but does not teleport the pilot**. This leaves the existing 1 → 2, 2 → 1 and 2 → 3 routing unchanged while the 6DOF control model is being tested.
+The portal test now plays the mapped local MP4 as a full-screen transition and then moves the pilot to the mapped destination point. The existing 1 → 2, 2 → 1 and 2 → 3 routing is preserved.
 
 ## Controls
 
