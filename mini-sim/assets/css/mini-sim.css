@@ -67,3 +67,8 @@
     .bcm-mini-sim-help{display:none}
     .bcm-mini-sim-start{padding:16px 22px}
 }
+
+.bcm-mini-sim-hud .bcm-mini-sim-status{
+    font-variant-numeric:tabular-nums;
+    letter-spacing:.35px;
+}
