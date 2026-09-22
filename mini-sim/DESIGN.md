@@ -2,130 +2,103 @@
 
 ## Current test version
 
-**0.3.7**
+**0.4.0**
 
-The mini sim is a self-contained WordPress plugin test. Three.js r128 is bundled locally and is the fixed engine baseline because r128 is already proven working in the target site.
+The current test is intentionally a minimal proof:
 
-## Runtime dependency rule
+**one portal station and two rooms**
 
-The plugin must not require:
+The aim is to verify textures, portal media, controller input and mobile orientation before multiplying locations.
 
-- the active WordPress theme's Three.js;
-- jsDelivr;
-- unpkg;
-- another external runtime engine file.
+## Texture rule
 
-Everything required for the current test belongs inside `mini-sim/`.
+Original PNG files are preserved.
 
-## Asset model
+The runtime does not use RepeatWrapping for the supplied 720p images. This is important because ordinary 1280×720 images are non-power-of-two textures.
 
-PHP scans `mini-sim/assets/` recursively.
+Textures use ClampToEdge with no mipmap generation. An image larger than 2048 px can be downscaled into a temporary canvas for the GPU copy only. The repository source remains unchanged.
 
-Supported:
+Same-base WebP/JPG/JPEG files are accepted as lighter variants.
 
-- PNG/JPG/JPEG/WebP/GIF images.
-- MP4/WebM video.
-- MP3/M4A/WAV/OGG audio.
+## Room 1
 
-Same-base WebP/JPG/JPEG files are preferred over PNG when available. Original PNG files remain valid.
+The first room is a 12×8 flight corridor with:
 
-For oversized images, the JS loader can create a downscaled **GPU-side copy** capped at 2048 px on the longest side. The repository files themselves are untouched.
+- wall1 on floor
+- wall2 on ceiling
+- wall3 on left wall
+- wall4 on right wall
+- wall5 on the structural/portal surround
 
-## Current visual test room
+The room contains one sliding door and one portal.
 
-The first-person pilot starts in a textured test corridor.
+## Room 2
 
-The five supplied wall textures are assigned to real geometry:
+Room 2 is the same general scale but visually distinct through:
 
-- wall1 → floor
-- wall2 → ceiling
-- wall3 → left wall
-- wall4 → right wall
-- wall5 → structural/rear surfaces
+- different wall-texture assignment
+- different structural colour
+- different support pattern
+- independent arrival zone
 
-The chamber reuses those actual wall materials.
+The portal transition places the pilot at the start of Room 2 with zero velocity.
 
-The menu background is `perference bg.png` as an HTML layer over the WebGL canvas before gameplay starts.
+## Portal
 
-## Door
+Only:
 
-The test door is a two-leaf sliding door using the local `door.png`.
+- `portal.png`
+- `portal2.mp4`
 
-Remote activation:
+are active in version 0.4.0.
 
-- R key
-- yellow ◆ UI button
+The physical station is front-facing and sits at the far end of Room 1.
 
-The door also opens automatically when the pilot approaches while facing it.
+The old `portal2.png`, `portal3.png`, `portal1.mp4` and `portal3.mp4` remain stored for later development but are deliberately inactive to avoid ambiguous player routing.
 
-Opening the door starts chamber-media loading immediately.
-
-## Portals
-
-There are three front-facing physical portal openings.
-
-Routing is unchanged:
-
-- point 1 → 2 = `portal2.mp4`
-- point 2 → 1 = `portal1.mp4`
-- point 2 → 3 = `portal3.mp4`
-- point 3 has no outbound route
-
-Point 2 has two selectable routes. T / mobile ↕ cycles the selected route; G / mobile G activates it.
-
-The local MP4 is played full-screen and the pilot is moved to that route's specific destination after the video ends.
-
-## Controls
+## Flight controls
 
 Desktop:
 
-- WASD + mouse flight
+- WASD movement
+- mouse pitch/yaw
 - Q/E roll
-- F shield
-- R/◆ door
-- G portal
-- T portal route
 
 Gamepad:
 
-- standard browser Gamepad API
-- left stick flight
-- right stick look
-- shoulders roll
-- triggers vertical
-- face buttons for door/route/shield/portal
+- left stick movement
+- right stick yaw/pitch
+- inverted vertical pitch
+- shoulder-button roll
+- trigger vertical thrust
 
-Android:
+Rotation rate is slightly higher than the previous 0.3.x test.
 
-- device orientation controls thrust/reverse and strafe
-- TILT button calibrates the current neutral position
-- right-half touch drag controls look
-- on-screen buttons provide remaining actions
+## Android
 
-## Music
+Landscape is the target orientation.
 
-Preferred file:
+Device orientation has three responsibilities:
 
-`mini-sim/assets/starbase ost.mp3`
+- beta/gamma, remapped for the current landscape angle, control thrust and strafe;
+- alpha controls yaw relative to the calibrated neutral direction;
+- the TILT button requests sensor permission where required and calibrates the current device position.
 
-Fallback names are also recognized. The same names are accepted beside `bcm-mini-sim.php`.
+Touch buttons are compact edge controls instead of a large virtual joystick.
 
-The current repository snapshot does not contain the Starbase OST file, so **MUSIC MISSING** is expected until it is added.
+The browser landscape lock is requested after user interaction where supported.
 
-## Texture recommendation
+## Media
 
-The PNGs are not inherently a problem because of their storage size alone. The important runtime cost is decoded pixels and GPU texture memory.
+The active menu/game OST is `starbase ost.mp3`.
 
-For this game architecture, use two asset classes:
+The active portal transition is `portal2.mp4`.
 
-1. **Tileable room textures** — square 512×512 to 1024×1024 WebP/JPG for repeating metal, floor, ceiling and wall panels.
-2. **Unique cinematic/portal/menu images** — roughly 1536–2048 px on the long side; PNG can be retained where lossless transparency/details matter.
+The transition video is not muted so an existing soundtrack/dialogue track in the MP4 can play after the player action that starts the transition.
 
-The loader keeps PNG support and automatically picks lighter same-base formats.
+## Collision
 
-## Collision scope
-
-The current collision volume is intentionally limited to the corridor and portal chamber. It is the control-test shell, not yet the final procedural labyrinth collision system.
+The current shell covers the test corridor and both rooms. The door remains a blocking gate until opened.
 
 ## Later procedural map
 
@@ -139,4 +112,4 @@ Target reusable module set:
 - airlock/docking room
 - mission objectives and return/drop loop
 
-The final generator should consume the same local wall/door/portal asset registry rather than hard-coding filenames into game logic.
+This is deliberately postponed until the 1→2 test is visually and interactively stable.
