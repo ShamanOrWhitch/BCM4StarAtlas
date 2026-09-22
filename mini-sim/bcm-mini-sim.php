@@ -2,14 +2,14 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained Descent-style 6DOF space-labyrinth test for WordPress.
- * Version: 0.3.7
+ * Version: 0.4.0
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BCM_MINI_SIM_VERSION', '0.3.7');
+define('BCM_MINI_SIM_VERSION', '0.4.0');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -191,15 +191,18 @@ function bcm_mini_sim_shortcode($atts = array()) {
 
         <div class="bcm-mini-sim-menu-backdrop" aria-hidden="true"></div>
         <div class="bcm-mini-sim-menu-shade" aria-hidden="true"></div>
+        <div class="bcm-mini-sim-landscape-warning" aria-hidden="true">
+            ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО
+        </div>
 
         <div class="bcm-mini-sim-hud">
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — PLAYABLE TEST 0.37</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — PLAYABLE TEST 0.40</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
             <div class="bcm-mini-sim-help">
                 <span>W/S</span> thrust · <span>A/D</span> strafe · <span>Space/Ctrl</span> vertical ·
-                <span>Mouse</span> look · <span>Q</span> clockwise roll · <span>E</span> counter-clockwise roll ·
-                <span>F</span> shield · <span>R/◆</span> door crystal · <span>G</span> portal · <span>T</span> alternate portal route
+                <span>Mouse</span> look · <span>Q</span>/<span>E</span> roll ·
+                <span>F</span> shield · <span>R/◆</span> door crystal · <span>G</span> portal
             </div>
         </div>
 
@@ -214,18 +217,21 @@ function bcm_mini_sim_shortcode($atts = array()) {
         <audio class="bcm-mini-sim-music-audio" preload="none" loop></audio>
 
         <div class="bcm-mini-sim-mobile" aria-hidden="true">
-            <button data-control="thrust">▲</button>
-            <button data-control="brake">▼</button>
-            <button data-control="left">◀</button>
-            <button data-control="right">▶</button>
-            <button data-control="up">↟</button>
-            <button data-control="down">↡</button>
-            <button data-control="rollLeft">↶</button>
-            <button data-control="rollRight">↷</button>
-            <button data-control="shield">🛡</button>
-            <button data-control="route">↕</button>
-            <button data-control="tilt">TILT</button>
-            <button data-control="portal">G</button>
+            <div class="bcm-mini-sim-mobile-left">
+                <button data-control="thrust">▲</button>
+                <button data-control="brake">▼</button>
+                <button data-control="rollLeft">↶</button>
+                <button data-control="rollRight">↷</button>
+            </div>
+            <div class="bcm-mini-sim-mobile-right">
+                <button data-control="up">↟</button>
+                <button data-control="down">↡</button>
+                <button data-control="yawLeft">◀</button>
+                <button data-control="yawRight">▶</button>
+                <button data-control="shield">🛡</button>
+                <button data-control="tilt">TILT</button>
+                <button data-control="portal">G</button>
+            </div>
         </div>
     </div>
     <?php
