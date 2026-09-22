@@ -14,6 +14,7 @@
 
     const assets = Array.isArray(config.assets) ? config.assets : [];
     const assetByName = Object.create(null);
+    const textureRecords = Object.create(null);
     assets.forEach(asset => {
         if (asset && asset.name && asset.url) {
             assetByName[asset.name] = asset;
@@ -102,51 +103,68 @@
 
     function makeTexture(name, onReady, onError) {
         const url = imageName(name);
+
         if (!url) {
             if (onError) onError();
             return null;
         }
 
-        if (textures[name]) {
-            if (onReady) onReady(textures[name]);
-            return textures[name];
+        const existing = textureRecords[name];
+        if (existing) {
+            if (existing.texture) {
+                if (onReady) onReady(existing.texture);
+            } else if (onError && existing.failed) {
+                onError();
+            } else if (onReady || onError) {
+                existing.callbacks.push({ onReady, onError });
+            }
+            return existing.texture || null;
         }
 
+        const record = {
+            texture: null,
+            failed: false,
+            callbacks: []
+        };
+
+        if (onReady || onError) {
+            record.callbacks.push({ onReady, onError });
+        }
+
+        textureRecords[name] = record;
         assetProgress.total++;
+        updateAssetStatus();
+
         const loader = new THREE.TextureLoader();
-        const texture = loader.load(
+
+        loader.load(
             url,
             loaded => {
                 setTextureColor(loaded);
-                textures[name] = loaded;
+                record.texture = loaded;
                 assetProgress.done++;
                 updateAssetStatus();
-                if (onReady) onReady(loaded);
+
+                record.callbacks.forEach(callback => {
+                    if (callback.onReady) callback.onReady(loaded);
+                });
+                record.callbacks.length = 0;
             },
             undefined,
             () => {
+                record.failed = true;
                 assetProgress.done++;
                 assetProgress.failed++;
                 updateAssetStatus();
-                if (onError) onError();
+
+                record.callbacks.forEach(callback => {
+                    if (callback.onError) callback.onError();
+                });
+                record.callbacks.length = 0;
             }
         );
 
-        return texture;
-    }
-
-    function updateAssetStatus() {
-        const total = assetProgress.total;
-        if (!assetStatus) return;
-
-        if (!total) {
-            assetStatus.textContent = 'LOCAL ASSETS: 0';
-            return;
-        }
-
-        assetStatus.textContent =
-            'LOCAL ASSETS: ' + assetProgress.done + '/' + total +
-            (assetProgress.failed ? ' · FAILED ' + assetProgress.failed : '');
+        return null;
     }
 
     function loadKnownTexture(name) {
@@ -253,17 +271,24 @@
             roughness: 0.5
         });
 
-        addBox(parent, 0, 0.3, -31.78, 5.9, 3.8, 0.28, frameMat);
+        // Keep the background display on a side wall so it never covers
+        // the rear portal station.
+        const frame = new THREE.Mesh(
+            new THREE.BoxGeometry(0.28, 3.8, 5.9),
+            frameMat
+        );
+        frame.position.set(-5.48, 1.1, -28.8);
+        parent.add(frame);
 
         const screen = new THREE.Mesh(
-            new THREE.PlaneGeometry(5.3, 3.2),
+            new THREE.PlaneGeometry(3.2, 5.3),
             new THREE.MeshBasicMaterial({
                 color: 0xffffff,
                 side: THREE.DoubleSide
             })
         );
-        screen.position.set(0, 0.3, -31.61);
-        screen.rotation.y = Math.PI;
+        screen.position.set(-5.31, 1.1, -28.8);
+        screen.rotation.y = Math.PI / 2;
         parent.add(screen);
 
         makeTexture(
@@ -309,7 +334,6 @@
             material
         );
         surface.position.z = -0.16;
-        surface.rotation.y = Math.PI;
         group.add(surface);
 
         const glow = new THREE.Mesh(
@@ -384,7 +408,7 @@
             point: 'POINT 2 · OUTBOUND',
             image: 'portal2.png',
             routes: [{ label: '2 → 3', video: 'portal3.mp4' }],
-            position: new THREE.Vector3(0, 0, -31.7),
+            position: new THREE.Vector3(0, 0, -31.35),
             rotationY: 0
         });
 
@@ -392,7 +416,7 @@
             point: 'POINT 3',
             image: 'portal3.png',
             routes: [],
-            position: new THREE.Vector3(0, 0, -19.05),
+            position: new THREE.Vector3(0, 0, -20.2),
             rotationY: Math.PI
         });
     }
@@ -576,13 +600,6 @@
             roughness: 0.42,
             emissive: 0x000000
         });
-
-        const parts = [
-            [0, 3.325, 7.2, 0.55, 0.75],
-            [0, -3.325, 7.2, 0.55, 0.75],
-            [-3.325, 0, 0.55, 6.1, 0.75],
-            [3.325, 0, 0.55, 6.1, 0.75]
-        ];
 
         const top = new THREE.Mesh(
             new THREE.BoxGeometry(7.2, 0.55, 0.75),
