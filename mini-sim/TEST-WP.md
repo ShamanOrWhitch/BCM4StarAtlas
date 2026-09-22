@@ -2,30 +2,19 @@
 
 ## Current version
 
-**0.3.5**
-
-This test is self-contained.
-
-Three.js **r128** is shipped inside the plugin:
-
-```
-mini-sim/assets/js/three.min.js
-```
-
-No CDN is required and the theme's Three.js file is not used.
+**0.3.7**
 
 ## Install
 
-1. Download the current repository ZIP from GitHub.
+1. Download the current repository ZIP.
 2. Extract it.
-3. Copy only the complete `mini-sim` folder to:
-   `/wp-content/plugins/`
-4. In WordPress → Plugins, activate **BCM Mini Space Simulation**.
+3. Copy the complete `mini-sim` folder into `/wp-content/plugins/`.
+4. Activate **BCM Mini Space Simulation**.
 5. Put `[bcm_mini_sim]` on the existing test page.
-6. For menu music, place the existing MP3 at `mini-sim/assets/background.mp3`.
-7. Hard-refresh the page after replacing the old folder.
+6. Put the real Starbase OST at `mini-sim/assets/starbase ost.mp3`.
+7. Hard-refresh after replacing the plugin.
 
-## What should appear
+## Expected result
 
 Before starting:
 
@@ -33,61 +22,69 @@ Before starting:
 ENGINE READY · LOCAL THREE.JS r128
 ```
 
-and a local asset counter.
+The menu shows `perference bg.png` as the full-screen background.
 
-The menu should show `perference bg.png` as the full-screen background under the menu controls.
+After **ИГРАТЬ**:
 
-After clicking **ИГРАТЬ**:
-
-- first-person 6DOF flight starts;
-- five wall textures are visible in corridor/chamber;
+- desktop WASD + mouse flight works;
+- Q/E roll works;
+- five wall textures appear on corridor/chamber surfaces;
 - the textured two-part door is ahead;
-- three front-facing portal openings are visible after the door;
-- G activates the nearest mapped portal transition;
-- T or mobile ↕ changes the selected route at point 2;
-- R or the yellow crystal remotely opens the door;
-- desktop gamepad axes/buttons control flight and actions;
-- Android touch drag controls pilot view.
+- opening the door loads the chamber media;
+- three front-facing portal openings show their PNG artwork;
+- G activates the nearest portal;
+- T / mobile ↕ changes the selected route at point 2;
+- portal MP4 ends by moving the pilot to the mapped destination;
+- gamepad controls flight/actions;
+- Android TILT provides movement from device inclination;
+- right-half touch drag controls look.
+
+## Texture check
+
+The asset line reports local asset counts and failed loads.
+
+The loader accepts PNG and can automatically prefer a same-base WebP/JPG/JPEG.
+
+For heavy source PNGs, the current loader can create a 2048 px maximum GPU copy without replacing the repository file.
+
+Recommended room texture source for future additions:
+
+```
+wallX.webp
+```
+
+with a tileable square image around 1024×1024.
+
+## Music check
+
+Expected:
+
+`mini-sim/assets/starbase ost.mp3`
+
+The PHP resolver also recognizes common Starbase OST/background names and checks beside `bcm-mini-sim.php`.
+
+If no file is present, the status line says **MUSIC MISSING**.
+
+Browser autoplay restrictions can delay actual playback until the first interaction.
 
 ## Portal mapping
-
-The test keeps the existing mapping:
 
 - 1 → 2 = `portal2.mp4`
 - 2 → 1 = `portal1.mp4`
 - 2 → 3 = `portal3.mp4`
 
-After the local MP4 finishes, the pilot is moved to that route's mapped destination and flight resumes with zeroed velocity.
+This mapping must not be changed while testing.
 
-## Music
+## If textures still do not appear
 
-Expected file:
-
-`mini-sim/assets/background.mp3`
-
-Without it the asset/status line reports **MUSIC MISSING** and the music button is hidden. Browser autoplay restrictions can delay playback until the first page interaction.
-
-## Texture formats
-
-The existing PNG files remain supported. No conversion is required for the current code.
-
-For lighter future assets, place a same-base WebP/JPG/JPEG variant beside the PNG:
-
-```
-wall1.png
-wall1.webp
-```
-
-The simulator prefers the lighter variant automatically.
+The important diagnostic is the **FAILED** count in the upper-right asset status line and the browser console error for the named image. The current loader has a separate image decode path specifically to avoid silently failing large-image WebGL uploads.
 
 ## If the engine does not start
 
-The first check is that the installed plugin contains:
+Check:
 
 ```
 mini-sim/assets/js/three.min.js
 ```
 
-It is the current bundled r128 file.
-
-If the page reports an old version after replacing the folder, hard-refresh again so the versioned CSS/JS URLs invalidate WordPress/browser caches.
+It must be the bundled r128 file.
