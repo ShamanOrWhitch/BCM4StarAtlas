@@ -2,11 +2,13 @@
     'use strict';
 
     const root = document.querySelector('.bcm-mini-sim');
-    if (!root || !window.THREE) return;
+    if (!root) return;
 
     const canvas = root.querySelector('.bcm-mini-sim-canvas');
     const startButton = root.querySelector('.bcm-mini-sim-start');
     const status = root.querySelector('.bcm-mini-sim-status');
+
+    function startSimulator() {
 
     const renderer = new THREE.WebGLRenderer({
         canvas,
@@ -871,4 +873,30 @@
     }
 
     requestAnimationFrame(frame);
+    }
+
+    if (window.THREE) {
+        startSimulator();
+    } else {
+        status.textContent = 'Loading Three.js…';
+
+        const fallback = document.createElement('script');
+        fallback.src = 'https://unpkg.com/three@0.180.0/build/three.min.js';
+        fallback.async = false;
+
+        fallback.onload = () => {
+            if (window.THREE) {
+                startSimulator();
+            } else {
+                status.textContent = 'ERROR: Three.js loaded but window.THREE is missing';
+            }
+        };
+
+        fallback.onerror = () => {
+            status.textContent = 'ERROR: Three.js CDN blocked/unavailable';
+            if (startButton) startButton.disabled = true;
+        };
+
+        document.head.appendChild(fallback);
+    }
 })();
