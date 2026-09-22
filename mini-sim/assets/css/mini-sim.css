@@ -181,81 +181,169 @@
 .bcm-mini-sim-mobile{
     display:none;
     position:absolute;
-    inset:auto 12px 12px;
+    inset:0;
     z-index:7;
-    grid-template-columns:repeat(4,1fr);
-    gap:8px;
+    pointer-events:none;
+    user-select:none;
+}
+
+.bcm-mini-sim-mobile-left,
+.bcm-mini-sim-mobile-right{
+    position:absolute;
+    bottom:max(10px, env(safe-area-inset-bottom));
+    display:flex;
+    flex-direction:column;
+    gap:5px;
     pointer-events:none;
 }
+
+.bcm-mini-sim-mobile-left{
+    left:max(8px, env(safe-area-inset-left));
+}
+
+.bcm-mini-sim-mobile-right{
+    right:max(8px, env(safe-area-inset-right));
+}
+
+.bcm-mini-sim-mobile button{
+    width:36px;
+    height:36px;
+    min-width:36px;
+    min-height:36px;
+    max-width:36px;
+    max-height:36px;
+    padding:0;
+    border:1px solid rgba(255,255,255,.24);
+    border-radius:7px;
+    background:rgba(8,13,21,.48);
+    color:#fff;
+    font-size:16px;
+    line-height:34px;
+    text-align:center;
+    pointer-events:auto;
+    touch-action:none;
+    -webkit-tap-highlight-color:transparent;
+    box-shadow:0 1px 5px rgba(0,0,0,.28);
+}
+
+.bcm-mini-sim-mobile button:active{
+    transform:scale(.94);
+    background:rgba(30,42,56,.72);
+}
+
 .bcm-mini-sim-mobile button[data-control="tilt"]{
-    border-color:rgba(120,210,255,.55);
-    color:#b8e7ff;
+    width:52px;
+    max-width:52px;
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:.5px;
+    border-color:rgba(120,210,255,.48);
+    color:#bfe9ff;
+}
+
+.bcm-mini-sim-mobile button[data-control="tilt"].active{
+    border-color:rgba(255,225,110,.86);
+    color:#ffe27a;
+}
+
+.bcm-mini-sim-mobile button[data-control="shield"]{
+    font-size:15px;
+}
+
+.bcm-mini-sim-mobile button[data-control="portal"]{
     font-size:13px;
     font-weight:700;
+    border-color:rgba(120,190,255,.5);
+    color:#b7e0ff;
 }
-.bcm-mini-sim-mobile button[data-control="tilt"].active{
-    border-color:rgba(255,225,110,.85);
-    color:#ffe27a;
-    box-shadow:0 0 14px rgba(255,210,70,.18);
-}
-.bcm-mini-sim-mobile button{
-    pointer-events:auto;
-    min-height:48px;
-    max-height:58px;
-    border:1px solid rgba(255,255,255,.22);
-    background:rgba(10,15,25,.55);
+
+.bcm-mini-sim-landscape-warning{
+    display:none;
+    position:absolute;
+    inset:0;
+    z-index:40;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    text-align:center;
+    background:#020308;
     color:#fff;
-    border-radius:8px;
-    font-size:20px;
-    touch-action:none;
+    font:700 16px/1.4 Arial,sans-serif;
+    letter-spacing:1.4px;
 }
-.bcm-mini-sim-mobile button:last-child{
-    border-color:rgba(120,190,255,.48);
-    color:#a8d7ff;
-    font-size:15px;
-    font-weight:700;
-}
+
 @media (pointer:coarse){
     .bcm-mini-sim{
-        min-height:460px;
+        min-height:0;
     }
+
     .bcm-mini-sim-mobile{
-        display:grid;
+        display:block;
     }
+
     .bcm-mini-sim-help{
         display:none;
     }
+
     .bcm-mini-sim-title{
         font-size:11px;
         letter-spacing:1.2px;
     }
+
     .bcm-mini-sim-status{
-        max-width:70vw;
-        line-height:1.35;
+        max-width:58vw;
+        line-height:1.3;
     }
+
     .bcm-mini-sim-interaction{
-        max-width:78vw;
+        max-width:58vw;
         font-size:11px;
     }
-    .bcm-mini-sim-music{
-        right:66px;
-        top:40px;
-        width:38px;
-        height:38px;
-        font-size:17px;
-    }
+
     .bcm-mini-sim-asset-status{
-        top:42px;
-        right:14px;
-        max-width:44%;
+        top:12px;
+        right:10px;
+        max-width:36%;
         font-size:8px;
+        letter-spacing:.7px;
     }
-    .bcm-mini-sim-start{
-        padding:16px 22px;
+
+    .bcm-mini-sim-music{
+        right:54px;
+        top:10px;
+        width:34px;
+        height:34px;
+        font-size:15px;
     }
+
     .bcm-mini-sim-crystal-main{
-        right:14px;
-        bottom:132px;
+        right:54px;
+        bottom:66px;
+        width:42px;
+        height:42px;
+        font-size:19px;
+    }
+
+    .bcm-mini-sim-start{
+        min-width:150px;
+        padding:12px 18px;
+        font-size:12px;
+    }
+}
+
+@media (pointer:coarse) and (orientation:portrait){
+    .bcm-mini-sim-landscape-warning{
+        display:flex;
+    }
+
+    .bcm-mini-sim-mobile{
+        display:none;
+    }
+
+    .bcm-mini-sim-start,
+    .bcm-mini-sim-crystal-main,
+    .bcm-mini-sim-music{
+        display:none;
     }
 }
 
