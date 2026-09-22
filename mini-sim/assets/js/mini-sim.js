@@ -100,6 +100,25 @@
         pulseUntil: 0
     };
 
+    function updateAssetStatus() {
+        if (!assetStatus) return;
+
+        const manifestImages = assets.filter(asset => asset && asset.type === 'image').length;
+        const manifestVideos = assets.filter(asset => asset && asset.type === 'video').length;
+
+        if (assetProgress.total === 0) {
+            assetStatus.textContent =
+                'LOCAL ASSETS: ' + assets.length +
+                ' FILES · ' + manifestImages + ' IMG · ' + manifestVideos + ' VIDEO';
+            return;
+        }
+
+        assetStatus.textContent =
+            'LOCAL ASSETS: ' + assetProgress.done + '/' + assetProgress.total +
+            ' · FILES ' + assets.length +
+            (assetProgress.failed ? ' · FAILED ' + assetProgress.failed : '');
+    }
+
     function makeTexture(name, onReady, onError) {
         const url = imageName(name);
 
