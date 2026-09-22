@@ -1,128 +1,114 @@
-# BCM Mini Space Simulation — current design
+# BCM Mini Sim — Design
 
-This file records the latest agreed direction for the playable prototype so the implementation does not drift between iterations.
+## Current test version
 
-## Core feel
+**0.3.0**
 
-The star-base mission uses a first-person 6DOF pilot simulator inspired by the feeling of older space maze games:
+The mini sim is a self-contained WordPress plugin test. Three.js r128 is bundled locally and is the fixed engine baseline because r128 is already proven working in the target site.
 
-- inertial movement rather than instant stopping;
-- free pitch / yaw / roll;
-- small hand-built room modules assembled into a procedural route;
-- old-school compact scenes rather than one huge world;
-- doors and cinematic transitions can hide loading between mission sections.
+## Runtime dependency rule
 
-The prototype is a control test first. It does not need final art, final balancing or a complete mission yet.
+The plugin must not require:
 
-## Player
+- the active WordPress theme's Three.js;
+- jsDelivr;
+- unpkg;
+- another external runtime engine file.
 
-There is one active role: the pilot.
+Everything required for the current test belongs inside `mini-sim/`.
 
-The pilot controls the ship directly. In a future two-controller mode there is still no separate shield operator or separate aiming/operator role.
+## Asset model
 
-Current controls:
+PHP scans `mini-sim/assets/` recursively and exposes supported media as a local manifest.
 
-- W/S — forward / reverse thrust;
-- A/D — strafe;
-- Space/Ctrl — vertical movement;
-- mouse — pilot view;
-- Q/E — roll;
-- F — shield ON/OFF;
-- R / yellow crystal — remote door activation when the door is in front of the ship and within range.
+Supported:
 
-The ship starts stationary so the control model can be judged directly.
+- PNG/JPG/JPEG/WebP/GIF images.
+- MP4/WebM/OGG video.
 
-## Shield and crew
+The simulator uses local URLs from this manifest. This makes future asset additions extendable without adding another PHP mapping block.
 
-Shield management is deliberately simple at this stage: ON/OFF.
+Current local assets include:
 
-Crew health is represented by hearts. The state supports whole and half-heart values for later mission logic; the prototype does not yet implement crew loss, wounds or rescue missions.
+- wall1.png … wall5.png
+- portal.png
+- portal2.png
+- portal3.png
+- portal1.mp4
+- portal2.mp4
+- portal3.mp4
+- perference bg.png
+- door.png
 
-## Door test
+## Current visual test room
 
-The first real interaction is a test door:
+The first-person pilot starts in a textured test corridor.
 
-- four separate frame rails leave a real passage;
-- two leaves slide apart;
-- a local close-range opening is available;
-- a yellow crystal provides a remote activation;
-- the remote activation requires the door to be in front of the ship and inside a limited range;
-- the test tunnel has simple collision boundaries;
-- the door behaves as a blocker until it is mostly open.
+The five station wall textures are deliberately visible on separate real surfaces instead of merely being preloaded:
 
-The yellow crystal is an interaction device, not a weapon subsystem.
+- wall1 → floor
+- wall2 → ceiling
+- wall3 → left wall
+- wall4 → right wall
+- wall5 → structural/rear surfaces
 
-## Labyrinth
+A chamber behind the door repeats these materials so texture mapping can be inspected at different angles.
 
-The current shell contains six generated sectors around a hub as a cheap prototype of a larger modular labyrinth.
+The current background image is displayed on a station monitor in the chamber.
 
-The long-term module vocabulary discussed so far:
+## Door
 
-- square rooms;
-- circular transitions;
-- ventilation turns / straight pipe sections;
-- random dead ends;
-- a key-locked door;
-- an airlock / docking room;
-- mission-specific rooms for cargo drop, exit and system objectives.
+The test door is a two-leaf sliding door using the local `door.png`.
 
-Procedural generation should choose compatible connection points while story-critical objectives remain guaranteed.
+Remote activation:
 
-## Mission logic later
+- R key
+- yellow crystal UI button
+- only when the door is ahead and within range
 
-The same labyrinth can host different objectives rather than becoming a collection of unrelated mini-games:
+Local activation also opens the door when the pilot approaches while facing it.
 
-- find a keycard and reach the exit;
-- restore systems with required components;
-- find fuel and return to the ship;
-- collect materials and unload them at a cargo/elevator room;
-- reach an airlock / docking room;
-- transition through a short cinematic into the next mission mode.
+The current door movement is intentionally procedural. Future cinematic doors can use MP4 opening animations without changing the generic room architecture.
 
-Crew composition can later affect ship characteristics, but that is not part of the current control test.
+## Portals
 
-## Portal / cinematic direction
+Existing routing is preserved exactly:
 
-Portal assets and their existing relationships are kept unchanged.
+- portal point 1 uses `portal.png`; transition 1 → 2 uses `portal2.mp4`.
+- portal point 2 uses `portal2.png`; transitions 2 → 1 and 2 → 3 use `portal1.mp4` and `portal3.mp4`.
+- portal point 3 uses `portal3.png`.
 
-The intended architecture is:
+In version 0.3 the pilot can preview the matching video with G. The pilot is **not teleported** yet. The video preview is a test surface for the existing media/routing assets, not a change to their routing.
 
-1. approach the special passage;
-2. start a short pre-rendered transition;
-3. load the next small scene while the transition hides the swap;
-4. finish on a stable closed-door / arrival frame;
-5. continue the next gameplay mode.
+## Flight model
 
-PNG/static images are preferred for ordinary surfaces. MP4 is reserved for cinematic transitions and other genuinely animated surfaces.
+Single-player first:
 
-## Current implementation status
+- pilot only
+- inertial linear movement
+- free pitch/yaw from mouse
+- roll from Q/E
+- local thrust / strafe / vertical thrust
+- gentle linear drag
+- speed cap
+- shield toggle
 
-Implemented:
+No weapon subsystem is required for the current test.
 
-- WordPress shortcode entry point;
-- PLAY / ИГРАТЬ button;
-- Three.js WebGL scene;
-- inertial 6DOF movement;
-- mouse look and roll;
-- shield toggle;
-- procedural sector shell;
-- test corridor;
-- test door with two sliding leaves;
-- local door opening;
-- remote yellow-crystal door activation;
-- simple test-tunnel collision;
-- mobile control buttons;
-- local wall textures;
-- low-cost renderer settings.
+## Collision scope
 
-Not yet final:
+The current collision volume is intentionally limited to the corridor and portal chamber. It is the control-test shell, not yet the final procedural labyrinth collision system.
 
-- full room-to-room collision;
-- proper module socket generator;
-- mission objectives and inventory;
-- docking / airlock transition;
-- gamepad support;
-- device-orientation support;
-- final ship model and cockpit;
-- quality presets;
-- installable plugin packaging as a finished release.
+## Later procedural map
+
+Target reusable module set:
+
+- 6 square rooms
+- 7 circular transitions
+- 3 ventilation turns with straight pipe
+- 15 random dead ends
+- key door
+- airlock/docking room
+- mission objectives and return/drop loop
+
+The final generator should consume the same local wall/door/portal asset registry rather than hard-coding filenames into game logic.
