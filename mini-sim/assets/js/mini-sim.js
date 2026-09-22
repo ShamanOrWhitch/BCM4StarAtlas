@@ -62,10 +62,20 @@
     const testDoor = {
         state: 'CLOSED',
         openDistance: 8,
+        remoteDistance: 32,
+        remoteFacing: 0.90,
         progress: 0,
         speed: 1.8,
         mesh: null,
-        texture: null
+        texture: null,
+        leftPanel: null,
+        rightPanel: null,
+        frameParts: []
+    };
+
+    const doorCrystal = {
+        cooldown: 0,
+        pulseUntil: 0
     };
     let pointerLocked = false;
     let last = performance.now();
@@ -422,46 +432,141 @@
         const group = new THREE.Group();
         group.position.set(0, 0, -18);
 
-        const frame = new THREE.Mesh(
-            new THREE.BoxGeometry(7.2, 7.2, 0.55),
-            new THREE.MeshStandardMaterial({
-                color: 0x222831,
-                metalness: 0.7,
-                roughness: 0.45
-            })
-        );
-        group.add(frame);
+        const frameMaterial = new THREE.MeshStandardMaterial({
+            color: 0x222831,
+            metalness: 0.7,
+            roughness: 0.45
+        });
 
-        const material = new THREE.MeshBasicMaterial({
+        // Four rails form a real opening; the old solid frame blocked it.
+        const frameTop = new THREE.Mesh(
+            new THREE.BoxGeometry(7.2, 0.55, 0.75),
+            frameMaterial
+        );
+        frameTop.position.y = 3.325;
+
+        const frameBottom = new THREE.Mesh(
+            new THREE.BoxGeometry(7.2, 0.55, 0.75),
+            frameMaterial
+        );
+        frameBottom.position.y = -3.325;
+
+        const frameLeft = new THREE.Mesh(
+            new THREE.BoxGeometry(0.55, 6.1, 0.75),
+            frameMaterial
+        );
+        frameLeft.position.x = -3.325;
+
+        const frameRight = new THREE.Mesh(
+            new THREE.BoxGeometry(0.55, 6.1, 0.75),
+            frameMaterial
+        );
+        frameRight.position.x = 3.325;
+
+        [frameTop, frameBottom, frameLeft, frameRight].forEach(part => group.add(part));
+        testDoor.frameParts = [frameTop, frameBottom, frameLeft, frameRight];
+
+        const leftMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+        const rightMaterial = new THREE.MeshBasicMaterial({
             color: 0xffffff,
             transparent: true,
             side: THREE.DoubleSide
         });
 
-        const door = new THREE.Mesh(new THREE.PlaneGeometry(6.5, 6.5), material);
-        door.position.z = -0.31;
-        group.add(door);
+        const leftDoor = new THREE.Mesh(
+            new THREE.PlaneGeometry(3.05, 6.1),
+            leftMaterial
+        );
+        const rightDoor = new THREE.Mesh(
+            new THREE.PlaneGeometry(3.05, 6.1),
+            rightMaterial
+        );
+
+        leftDoor.position.set(-1.525, 0, -0.39);
+        rightDoor.position.set(1.525, 0, -0.39);
+        group.add(leftDoor, rightDoor);
 
         if (url) {
-            testDoor.texture = loader.load(url);
-            material.map = testDoor.texture;
-            material.needsUpdate = true;
+            testDoor.texture = loader.load(url, texture => {
+                texture.wrapS = THREE.ClampToEdgeWrapping;
+                texture.wrapT = THREE.ClampToEdgeWrapping;
+
+                const leftTexture = texture.clone();
+                const rightTexture = texture.clone();
+                leftTexture.needsUpdate = true;
+                rightTexture.needsUpdate = true;
+
+                leftTexture.repeat.set(0.5, 1);
+                leftTexture.offset.set(0, 0);
+
+                rightTexture.repeat.set(0.5, 1);
+                rightTexture.offset.set(0.5, 0);
+
+                leftMaterial.map = leftTexture;
+                rightMaterial.map = rightTexture;
+                leftMaterial.needsUpdate = true;
+                rightMaterial.needsUpdate = true;
+            });
         }
 
         scene.add(group);
         testDoor.mesh = group;
-        testDoor.doorPanel = door;
-        testDoor.frame = frame;
+        testDoor.leftPanel = leftDoor;
+        testDoor.rightPanel = rightDoor;
+    }
+    buildTestDoor();
+
+    function beginDoorOpening(reason) {
+        if (testDoor.state !== 'CLOSED') return false;
+
+        testDoor.state = 'OPENING';
+        doorCrystal.pulseUntil = performance.now() + 360;
+
+        status.textContent = reason === 'REMOTE'
+            ? 'DOOR CRYSTAL · REMOTE OPEN'
+            : 'DOOR · AUTO OPEN';
+
+        return true;
     }
 
-    buildTestDoor();
+    function tryRemoteDoor() {
+        if (!running || !testDoor.mesh || testDoor.state !== 'CLOSED') return false;
+        const now = performance.now();
+        if (now < doorCrystal.cooldown) return false;
+
+        const toDoor = testDoor.mesh.position.clone().sub(ship.position);
+        const distance = toDoor.length();
+        if (distance > testDoor.remoteDistance || distance < 0.001) {
+            status.textContent = 'DOOR CRYSTAL · OUT OF RANGE';
+            return false;
+        }
+
+        const forward = new THREE.Vector3(0, 0, -1)
+            .applyQuaternion(ship.quaternion)
+            .normalize();
+        const facing = forward.dot(toDoor.normalize());
+
+        if (facing < testDoor.remoteFacing) {
+            status.textContent = 'DOOR CRYSTAL · AIM AT DOOR';
+            return false;
+        }
+
+        doorCrystal.cooldown = now + 650;
+        return beginDoorOpening('REMOTE');
+    }
 
     function updateTestDoor(dt) {
         if (!testDoor.mesh) return;
 
         const toDoor = testDoor.mesh.position.clone().sub(ship.position);
         const distance = toDoor.length();
-        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(ship.quaternion).normalize();
+        const forward = new THREE.Vector3(0, 0, -1)
+            .applyQuaternion(ship.quaternion)
+            .normalize();
         const facing = distance > 0 ? forward.dot(toDoor.normalize()) : -1;
 
         if (
@@ -469,14 +574,23 @@
             facing > 0.72 &&
             testDoor.state === 'CLOSED'
         ) {
-            testDoor.state = 'OPENING';
+            beginDoorOpening('LOCAL');
         }
 
         if (testDoor.state === 'OPENING') {
             testDoor.progress = Math.min(1, testDoor.progress + dt * testDoor.speed);
-            // Simple two-leaf opening: the test image splits sideways.
-            testDoor.doorPanel.scale.x = Math.max(0.02, 1 - testDoor.progress);
-            if (testDoor.progress >= 1) testDoor.state = 'OPEN';
+            const slide = testDoor.progress * 3.1;
+
+            if (testDoor.leftPanel) {
+                testDoor.leftPanel.position.x = -1.525 - slide;
+            }
+            if (testDoor.rightPanel) {
+                testDoor.rightPanel.position.x = 1.525 + slide;
+            }
+
+            if (testDoor.progress >= 1) {
+                testDoor.state = 'OPEN';
+            }
         }
     }
 
@@ -594,6 +708,13 @@
         const shield = shipSystems.shieldOn ? 'ON' : 'OFF';
         const door = testDoor.state;
 
+        const crystalPulse = doorCrystal.pulseUntil > performance.now();
+        testDoor.frameParts.forEach(part => {
+            if (!part.material || !part.material.emissive) return;
+            part.material.emissive.setHex(crystalPulse ? 0x8a5a00 : 0x000000);
+            part.material.emissiveIntensity = crystalPulse ? 0.9 : 0;
+        });
+
         status.textContent =
             'SPD ' + ship.velocity.length().toFixed(1) +
             '  |  6DOF  |  PILOT' +
@@ -618,6 +739,10 @@
     window.addEventListener('keydown', e => {
         keys[e.code] = true;
         if (['Space','ControlLeft'].includes(e.code)) e.preventDefault();
+        if (e.code === 'KeyR') {
+            e.preventDefault();
+            tryRemoteDoor();
+        }
     });
     window.addEventListener('keyup', e => keys[e.code] = false);
 
@@ -644,6 +769,7 @@
             e.preventDefault();
             touch[control] = true;
             if (control === 'shield') toggleShield();
+            if (control === 'remoteDoor') tryRemoteDoor();
         };
         const up = e => {
             e.preventDefault();
