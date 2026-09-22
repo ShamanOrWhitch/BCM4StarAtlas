@@ -1,130 +1,100 @@
-# Как запустить тест BCM Mini Space Simulation в WordPress
+# WordPress test — BCM Mini Space Simulation
 
-## Вариант 1 — самый быстрый
+## Current version
 
-Этот вариант рассчитан на текущий репозиторий. Используй архив **после последнего коммита**; текущая версия теста — **0.2.4**.
+**0.3.0**
 
-1. На GitHub открой репозиторий и скачай ZIP через **Code → Download ZIP**.
-2. Распакуй архив.
-3. Найди папку:
+This test is self-contained.
 
-```
-mini-sim
-```
-
-4. Скопируй **всю папку `mini-sim`** на сервер WordPress в:
+Three.js **r128** is shipped inside the plugin:
 
 ```
-wp-content/plugins/
+mini-sim/assets/js/three.min.js
 ```
 
-В результате должно быть:
+No CDN is required and the theme's Three.js file is not used.
+
+## Install
+
+1. Download the current repository ZIP from GitHub.
+2. Extract it.
+3. Copy only the complete `mini-sim` folder to:
 
 ```
-wp-content/
-└── plugins/
-    └── mini-sim/
-        ├── bcm-mini-sim.php
-        ├── door.png
-        ├── README.md
-        ├── DESIGN.md
-        └── assets/
-            ├── wall1.png
-            ├── wall2.png
-            ├── wall3.png
-            ├── wall4.png
-            ├── wall5.png
-            ├── css/
-            │   └── mini-sim.css
-            └── js/
-                └── mini-sim.js
+/wp-content/plugins/
 ```
 
-5. В админке WordPress открой **Плагины**.
-6. Активируй **BCM Mini Space Simulation**.
-7. Создай обычную страницу WordPress.
-8. Вставь shortcode:
+4. In WordPress → Plugins, activate **BCM Mini Space Simulation**.
+5. Keep the existing test page and shortcode:
 
 ```
 [bcm_mini_sim]
 ```
 
-9. Опубликуй/обнови страницу и открой её.
+6. Hard-refresh the page after replacing the old folder.
 
-Нажми **ИГРАТЬ**.
+## What should appear
 
-Если вместо этого появляется `ERROR: Three.js CDN blocked/unavailable`, проблема уже не в кнопке или плагине: браузер не получил библиотеку Three.js. При нормальной загрузке кнопка активируется сразу.
-
-## Вариант 2 — если папку плагинов редактируешь по FTP
-
-Скопируй `mini-sim/` целиком в:
+Before starting:
 
 ```
-/wp-content/plugins/mini-sim/
+ENGINE READY · LOCAL THREE.JS r128
 ```
 
-Затем активируй плагин в WordPress и вставь:
+and a local asset counter.
+
+After clicking **ИГРАТЬ**:
+
+- first-person 6DOF flight starts;
+- five wall textures are visible in the corridor/chamber;
+- the textured two-part door is ahead;
+- portal point 1/2/3 surfaces are visible in the chamber;
+- the local station background is visible;
+- G previews the nearest mapped portal transition video;
+- R or the yellow crystal remotely opens the door.
+
+## Portal mapping
+
+The test keeps the existing mapping:
+
+- 1 → 2 = `portal2.mp4`
+- 2 → 1 = `portal1.mp4`
+- 2 → 3 = `portal3.mp4`
+
+The video preview does not teleport the pilot yet.
+
+## If the engine does not start
+
+The first check is that the installed plugin contains:
 
 ```
-[bcm_mini_sim]
+mini-sim/assets/js/three.min.js
 ```
 
-## Что тестировать первым
+It must be the current bundled r128 file.
 
-После кнопки **ИГРАТЬ**:
+The page must report:
 
-- W/S — движение вперёд/назад;
-- A/D — страйф;
-- Space/Ctrl — вверх/вниз;
-- мышь — поворот;
-- Q/E — крен;
-- F — щит;
-- жёлтый **◆** внизу справа — дистанционное открытие двери;
-- R — тот же дистанционный активатор с клавиатуры.
+```
+ERROR: Local Three.js file missing/unavailable
+```
 
-Корабль стартует неподвижно.
+only when that file was not successfully loaded.
 
-Подлети к двери и проверь два режима:
+If the error does not match this text, the browser is probably still receiving an older cached copy of the plugin.
 
-**1. Ближнее открытие:** подлети близко к закрытой двери и смотри прямо на неё.
+## Asset rule
 
-**2. Дистанционное открытие:** отлети дальше, наведи корабль прямо на дверь и нажми **◆** или **R**.
+Add future textures/media under:
 
-После открытия попробуй действительно пролететь через проём.
+```
+mini-sim/assets/
+```
 
-## Если не работает
+The plugin scans the folder automatically for:
 
-Первое, что нужно проверить:
+```
+png, jpg, jpeg, webp, gif, mp4, webm, ogg
+```
 
-- активирован ли плагин;
-- вставлен ли именно `[bcm_mini_sim]`;
-- загружается ли Three.js с CDN;
-- есть ли в папке плагина `door.png` и `assets/wall1.png ... wall5.png`.
-
-Для теста не нужно ставить Node.js, npm или собирать Vite-приложение: текущий mini-sim запускается как обычный WordPress shortcode-плагин.
-
-## Важно
-
-Это пока **игровой тест управления**, а не законченная игра.
-
-Уже проверяем:
-
-- 6DOF и инерцию;
-- ощущение полёта;
-- свободный поворот;
-- щит;
-- дверь;
-- дистанционный кристалл;
-- столкновения тестовой кабины.
-
-Пока не считаем финальными:
-
-- процедурный лабиринт;
-- полноценные комнаты;
-- миссии;
-- инвентарь;
-- шлюзы и посадку;
-- переходы через видео;
-- gamepad;
-- мобильный gyro.
-
+New images are automatically eligible for the test gallery without another hard-coded PHP list.
