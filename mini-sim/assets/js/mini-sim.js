@@ -178,29 +178,25 @@
             failureText;
     }
 
-    function setImageTexture(texture, image, targetWidth, targetHeight, repeat = null) {
-        texture.wrapS = repeat ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
-        texture.wrapT = repeat ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
+    function setImageTexture(texture, image, targetWidth, targetHeight) {
+        // All supplied 720p/NPOT images use safe WebGL-compatible wrapping.
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
         texture.generateMipmaps = false;
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
 
-        if (repeat) {
-            texture.repeat.set(repeat.x, repeat.y);
-            texture.offset.set(0, 0);
-        } else {
-            const sourceAspect = image.width / image.height;
-            const targetAspect = targetWidth / targetHeight;
+        const sourceAspect = image.width / image.height;
+        const targetAspect = targetWidth / targetHeight;
 
-            if (sourceAspect > targetAspect) {
-                const visibleX = targetAspect / sourceAspect;
-                texture.repeat.set(visibleX, 1);
-                texture.offset.set((1 - visibleX) / 2, 0);
-            } else {
-                const visibleY = sourceAspect / targetAspect;
-                texture.repeat.set(1, visibleY);
-                texture.offset.set(0, (1 - visibleY) / 2);
-            }
+        if (sourceAspect > targetAspect) {
+            const visibleX = targetAspect / sourceAspect;
+            texture.repeat.set(visibleX, 1);
+            texture.offset.set((1 - visibleX) / 2, 0);
+        } else {
+            const visibleY = sourceAspect / targetAspect;
+            texture.repeat.set(1, visibleY);
+            texture.offset.set(0, (1 - visibleY) / 2);
         }
 
         if ('encoding' in texture && THREE.sRGBEncoding !== undefined) {
@@ -569,7 +565,7 @@
                     right.material.needsUpdate = true;
                 },
                 null,
-                { repeat: null, targetWidth: 3.05, targetHeight: 6.1 }
+                { targetWidth: 3.05, targetHeight: 6.1 }
             );
         }
 
