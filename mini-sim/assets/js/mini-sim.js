@@ -48,6 +48,29 @@
     const keys = Object.create(null);
     const touch = Object.create(null);
     let running = false;
+
+    // ---- Pilot systems: one-player control first ----
+    const shipSystems = {
+        shieldOn: true,
+        shieldToggleKey: 'KeyF',
+        blasterCharge: 1,
+        blasterMax: 1,
+        blasterChargeRate: 0.22,
+        shotCost: 0.25,
+        shotCooldown: 0.16,
+        nextShotAt: 0,
+        hearts: 4,
+        halfHeart: false
+    };
+
+    const testDoor = {
+        state: 'CLOSED',
+        openDistance: 8,
+        progress: 0,
+        speed: 1.8,
+        mesh: null,
+        texture: null
+    };
     let pointerLocked = false;
     let last = performance.now();
 
@@ -360,6 +383,94 @@
 
     buildLabyrinth();
 
+    function buildTestDoor() {
+        const loader = new THREE.TextureLoader();
+        const url = (window.BCMMiniSimConfig && window.BCMMiniSimConfig.doorTexture) || '';
+        const group = new THREE.Group();
+        group.position.set(0, 0, -11);
+
+        const frame = new THREE.Mesh(
+            new THREE.BoxGeometry(7.2, 7.2, 0.55),
+            new THREE.MeshStandardMaterial({
+                color: 0x222831,
+                metalness: 0.7,
+                roughness: 0.45
+            })
+        );
+        group.add(frame);
+
+        const material = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        const door = new THREE.Mesh(new THREE.PlaneGeometry(6.5, 6.5), material);
+        door.position.z = -0.31;
+        group.add(door);
+
+        if (url) {
+            testDoor.texture = loader.load(url);
+            material.map = testDoor.texture;
+            material.needsUpdate = true;
+        }
+
+        scene.add(group);
+        testDoor.mesh = group;
+        testDoor.doorPanel = door;
+        testDoor.frame = frame;
+    }
+
+    buildTestDoor();
+
+    function updateTestDoor(dt) {
+        if (!testDoor.mesh) return;
+
+        const distance = ship.position.distanceTo(testDoor.mesh.position);
+
+        if (distance < testDoor.openDistance && testDoor.state === 'CLOSED') {
+            testDoor.state = 'OPENING';
+        }
+
+        if (testDoor.state === 'OPENING') {
+            testDoor.progress = Math.min(1, testDoor.progress + dt * testDoor.speed);
+            // Simple two-leaf opening: the test image splits sideways.
+            testDoor.doorPanel.scale.x = Math.max(0.02, 1 - testDoor.progress);
+            if (testDoor.progress >= 1) testDoor.state = 'OPEN';
+        }
+    }
+
+    function createShot() {
+        const now = performance.now() / 1000;
+        if (shipSystems.shieldOn || now < shipSystems.nextShotAt) return false;
+        if (shipSystems.blasterCharge + 0.0001 < shipSystems.shotCost) return false;
+
+        shipSystems.blasterCharge = Math.max(0, shipSystems.blasterCharge - shipSystems.shotCost);
+        shipSystems.nextShotAt = now + shipSystems.shotCooldown;
+
+        const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(ship.quaternion).normalize();
+        const start = ship.position.clone().addScaledVector(direction, 1.5);
+        const end = start.clone().addScaledVector(direction, 55);
+
+        const beam = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([start, end]),
+            new THREE.LineBasicMaterial({ color: 0xffd27a, transparent: true })
+        );
+        scene.add(beam);
+
+        window.setTimeout(() => {
+            scene.remove(beam);
+            beam.geometry.dispose();
+            beam.material.dispose();
+        }, 70);
+
+        return true;
+    }
+
+    function toggleShield() {
+        shipSystems.shieldOn = !shipSystems.shieldOn;
+    }
+
     // Tiny star field; cheap enough for mobile.
     const stars = new THREE.BufferGeometry();
     const points = [];
@@ -404,7 +515,25 @@
 
     function updatePhysics(dt) {
         updatePortal(performance.now());
+        updateTestDoor(dt);
+
         const input = axisInput();
+
+        if (keys[shipSystems.shieldToggleKey]) {
+            toggleShield();
+            keys[shipSystems.shieldToggleKey] = false;
+        }
+
+        if (!shipSystems.shieldOn) {
+            shipSystems.blasterCharge = Math.min(
+                shipSystems.blasterMax,
+                shipSystems.blasterCharge + shipSystems.blasterChargeRate * dt
+            );
+        }
+
+        if (keys.MouseLeft || touch.fire) {
+            createShot();
+        }
 
         const accel = new THREE.Vector3(
             input.strafe * ship.strafeThrust,
@@ -466,9 +595,17 @@
 
         light.position.copy(ship.position);
 
+        const charge = Math.round(shipSystems.blasterCharge * 100);
+        const shield = shipSystems.shieldOn ? 'ON' : 'OFF';
+        const door = testDoor.state;
+
         status.textContent =
             'SPD ' + ship.velocity.length().toFixed(1) +
-            '  |  6DOF  |  INERTIA';
+            '  |  6DOF  |  SHIELD ' + shield +
+            '  |  BLASTERS ' + charge + '%' +
+            '  |  ♥'.repeat(shipSystems.hearts) +
+            (shipSystems.halfHeart ? '½' : '') +
+            '  |  DOOR ' + door;
     }
 
     function resize() {
@@ -488,6 +625,17 @@
         if (['Space','ControlLeft'].includes(e.code)) e.preventDefault();
     });
     window.addEventListener('keyup', e => keys[e.code] = false);
+
+    window.addEventListener('mousedown', e => {
+        if (e.button === 0) {
+            keys.MouseLeft = true;
+            if (running) createShot();
+        }
+    });
+
+    window.addEventListener('mouseup', e => {
+        if (e.button === 0) keys.MouseLeft = false;
+    });
 
     canvas.addEventListener('click', () => {
         if (!running) return;
@@ -510,6 +658,8 @@
         const down = e => {
             e.preventDefault();
             touch[control] = true;
+            if (control === 'shield') toggleShield();
+            if (control === 'fire') createShot();
         };
         const up = e => {
             e.preventDefault();
