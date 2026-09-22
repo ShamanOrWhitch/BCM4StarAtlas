@@ -110,6 +110,9 @@
     }
 
     const shipMesh = makeShip();
+    // First-person pilot camera sits inside the ship. Keep the exterior
+    // placeholder out of the pilot render so it cannot occlude the view.
+    shipMesh.visible = false;
     scene.add(shipMesh);
 
     function wallMaterial(texture) {
