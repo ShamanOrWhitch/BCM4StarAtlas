@@ -187,6 +187,17 @@
     gap:8px;
     pointer-events:none;
 }
+.bcm-mini-sim-mobile button[data-control="tilt"]{
+    border-color:rgba(120,210,255,.55);
+    color:#b8e7ff;
+    font-size:13px;
+    font-weight:700;
+}
+.bcm-mini-sim-mobile button[data-control="tilt"].active{
+    border-color:rgba(255,225,110,.85);
+    color:#ffe27a;
+    box-shadow:0 0 14px rgba(255,210,70,.18);
+}
 .bcm-mini-sim-mobile button{
     pointer-events:auto;
     min-height:48px;
