@@ -72,18 +72,7 @@
         failed: 0
     };
 
-    const ship = {
-        position: new THREE.Vector3(0, 0, 0),
-        velocity: new THREE.Vector3(),
-        angularVelocity: new THREE.Vector3(),
-        quaternion: new THREE.Quaternion(),
-        thrust: 14,
-        strafeThrust: 9,
-        verticalThrust: 9,
-        linearDrag: 0.08,
-        angularDrag: 0.55,
-        maxSpeed: 38
-    };
+    let ship = null;
 
     const shipSystems = {
         shieldOn: true,
@@ -1100,6 +1089,26 @@
         if (renderer) return;
 
         try {
+            // IMPORTANT: this is the first place in the file where the
+            // THREE namespace is required. This keeps the script safe even
+            // when a WordPress optimizer reorders the two local scripts.
+            if (!window.THREE) {
+                throw new Error('Three.js r128 is not available yet');
+            }
+
+            ship = {
+                position: new THREE.Vector3(0, 0, 0),
+                velocity: new THREE.Vector3(),
+                angularVelocity: new THREE.Vector3(),
+                quaternion: new THREE.Quaternion(),
+                thrust: 14,
+                strafeThrust: 9,
+                verticalThrust: 9,
+                linearDrag: 0.08,
+                angularDrag: 0.55,
+                maxSpeed: 38
+            };
+
             renderer = new THREE.WebGLRenderer({
                 canvas,
                 antialias: false,
@@ -1172,7 +1181,7 @@
             return;
         }
 
-        status.textContent = 'ENGINE LOADING...';
+        status.textContent = 'ENGINE LOADING LOCAL r128...';
 
         const localEngine = document.createElement('script');
         localEngine.src = config.threeUrl || '';
@@ -1180,6 +1189,7 @@
 
         localEngine.onload = () => {
             if (window.THREE) {
+                status.textContent = 'ENGINE FOUND · STARTING LOCAL r128...';
                 startSimulator();
             } else {
                 status.textContent = 'ERROR: Three.js file loaded but window.THREE is missing';
