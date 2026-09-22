@@ -2,7 +2,7 @@
 
 ## Current version
 
-**0.3.2**
+**0.3.3**
 
 This test is self-contained.
 
