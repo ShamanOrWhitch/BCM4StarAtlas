@@ -85,3 +85,14 @@
     font-variant-numeric:tabular-nums;
     letter-spacing:.35px;
 }
+
+.bcm-mini-sim-mobile .bcm-mini-sim-crystal{
+    border-color:rgba(255,210,70,.65);
+    color:#ffd84d;
+    font-size:24px;
+    text-shadow:0 0 10px rgba(255,210,70,.85);
+}
+.bcm-mini-sim-mobile .bcm-mini-sim-crystal:active{
+    background:rgba(80,55,5,.72);
+    transform:scale(.96);
+}
