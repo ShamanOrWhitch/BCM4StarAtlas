@@ -2,7 +2,7 @@
 
 ## Current version
 
-**0.3.4**
+**0.3.5**
 
 This test is self-contained.
 
@@ -19,19 +19,11 @@ No CDN is required and the theme's Three.js file is not used.
 1. Download the current repository ZIP from GitHub.
 2. Extract it.
 3. Copy only the complete `mini-sim` folder to:
-
-```
-/wp-content/plugins/
-```
-
+   `/wp-content/plugins/`
 4. In WordPress → Plugins, activate **BCM Mini Space Simulation**.
-5. Keep the existing test page and shortcode:
-
-```
-[bcm_mini_sim]
-```
-
-6. Hard-refresh the page after replacing the old folder.
+5. Put `[bcm_mini_sim]` on the existing test page.
+6. For menu music, place the existing MP3 at `mini-sim/assets/background.mp3`.
+7. Hard-refresh the page after replacing the old folder.
 
 ## What should appear
 
@@ -43,15 +35,19 @@ ENGINE READY · LOCAL THREE.JS r128
 
 and a local asset counter.
 
+The menu should show `perference bg.png` as the full-screen background under the menu controls.
+
 After clicking **ИГРАТЬ**:
 
 - first-person 6DOF flight starts;
-- five wall textures are visible in the corridor/chamber;
+- five wall textures are visible in corridor/chamber;
 - the textured two-part door is ahead;
-- portal point 1/2/3 surfaces are visible in the chamber;
-- the local station background is visible;
+- three front-facing portal openings are visible after the door;
 - G activates the nearest mapped portal transition;
-- R or the yellow crystal remotely opens the door.
+- T or mobile ↕ changes the selected route at point 2;
+- R or the yellow crystal remotely opens the door;
+- desktop gamepad axes/buttons control flight and actions;
+- Android touch drag controls pilot view.
 
 ## Portal mapping
 
@@ -61,7 +57,28 @@ The test keeps the existing mapping:
 - 2 → 1 = `portal1.mp4`
 - 2 → 3 = `portal3.mp4`
 
-The video preview does not teleport the pilot yet.
+After the local MP4 finishes, the pilot is moved to that route's mapped destination and flight resumes with zeroed velocity.
+
+## Music
+
+Expected file:
+
+`mini-sim/assets/background.mp3`
+
+Without it the asset/status line reports **MUSIC MISSING** and the music button is hidden. Browser autoplay restrictions can delay playback until the first page interaction.
+
+## Texture formats
+
+The existing PNG files remain supported. No conversion is required for the current code.
+
+For lighter future assets, place a same-base WebP/JPG/JPEG variant beside the PNG:
+
+```
+wall1.png
+wall1.webp
+```
+
+The simulator prefers the lighter variant automatically.
 
 ## If the engine does not start
 
@@ -71,30 +88,6 @@ The first check is that the installed plugin contains:
 mini-sim/assets/js/three.min.js
 ```
 
-It must be the current bundled r128 file.
+It is the current bundled r128 file.
 
-The page must report:
-
-```
-ERROR: Local Three.js file missing/unavailable
-```
-
-only when that file was not successfully loaded.
-
-If the error does not match this text, the browser is probably still receiving an older cached copy of the plugin.
-
-## Asset rule
-
-Add future textures/media under:
-
-```
-mini-sim/assets/
-```
-
-The plugin scans the folder automatically for:
-
-```
-png, jpg, jpeg, webp, gif, mp4, webm, ogg
-```
-
-New images are automatically eligible for the test gallery without another hard-coded PHP list.
+If the page reports an old version after replacing the folder, hard-refresh again so the versioned CSS/JS URLs invalidate WordPress/browser caches.
