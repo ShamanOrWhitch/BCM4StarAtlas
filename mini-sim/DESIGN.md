@@ -2,7 +2,7 @@
 
 ## Current test version
 
-**0.3.2**
+**0.3.3**
 
 The mini sim is a self-contained WordPress plugin test. Three.js r128 is bundled locally and is the fixed engine baseline because r128 is already proven working in the target site.
 
