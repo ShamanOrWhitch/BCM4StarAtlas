@@ -64,11 +64,11 @@ function bcm_mini_sim_shortcode($atts = array()) {
         <canvas class="bcm-mini-sim-canvas"></canvas>
 
         <div class="bcm-mini-sim-hud">
-            <div class="bcm-mini-sim-title">SPACE FLIGHT TEST</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — PILOT TEST</div>
             <div class="bcm-mini-sim-status">Loading...</div>
             <div class="bcm-mini-sim-help">
                 <span>W/S</span> thrust · <span>A/D</span> strafe · <span>Space/Ctrl</span> vertical ·
-                <span>Mouse</span> look · <span>Left click</span> fire · <span>F</span> shield · <span>Q/E</span> roll
+                <span>Mouse</span> look · <span>F</span> shield · <span>Q/E</span> roll · <span>W/S</span> thrust
             </div>
         </div>
 
@@ -83,7 +83,6 @@ function bcm_mini_sim_shortcode($atts = array()) {
             <button data-control="down">↡</button>
             <button data-control="rollLeft">↶</button>
             <button data-control="rollRight">↷</button>
-            <button data-control="fire">✦</button>
             <button data-control="shield">🛡</button>
         </div>
     </div>
