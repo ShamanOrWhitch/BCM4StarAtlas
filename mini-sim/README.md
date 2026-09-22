@@ -4,7 +4,7 @@ Self-contained WordPress test of a Descent-style 6DOF space-labyrinth.
 
 ## Version
 
-**0.3.5**
+**0.3.7**
 
 Three.js **r128** is bundled locally in:
 
@@ -14,39 +14,26 @@ assets/js/three.min.js
 
 The plugin does not depend on the WordPress theme's Three.js file and does not use a CDN.
 
-## Shortcode
+## Current test
 
-```
-[bcm_mini_sim]
-```
-
-Optional:
-
-```
-[bcm_mini_sim height="800px"]
-```
-
-## What the 0.3.5 test contains
-
-- Real first-person 6DOF flight with inertia.
-- Five supplied wall textures used on the test corridor and chamber.
-- Current door texture used on a two-leaf test door.
-- Three visible front-facing portal openings:
-  - `portal.png` = point 1.
-  - `portal2.png` = point 2.
-  - `portal3.png` = point 3.
-- Portal transition videos:
-  - `portal2.mp4` = 1 → 2.
-  - `portal1.mp4` = 2 → 1.
-  - `portal3.mp4` = 2 → 3.
-- `perference bg.png` as the full-screen menu background.
-- Local background music support through `background.mp3`.
+- First-person 6DOF flight with inertia.
+- WASD + mouse remain the primary desktop controls.
+- Q/E roll.
 - Standard browser Gamepad API support.
-- Android/mobile touch-look by dragging the play area plus on-screen flight controls.
-- Automatic lighter image variants: WebP/JPG/JPEG can replace the same-base PNG without code changes.
-- Local asset manifest generated automatically by PHP from `assets/`.
-
-Portal G activates the mapped local MP4 as a full-screen transition and then moves the pilot to that route's own destination. Point 2 has both 2 → 1 and 2 → 3; T (or mobile ↕) changes the selected route.
+- Android/mobile device-tilt movement: lean forward/back for thrust/reverse and left/right for strafe.
+- Mobile touch-look is optional and limited to the right half of the play area.
+- Five supplied wall textures are assigned to real corridor/chamber geometry.
+- Textures are loaded through an image-to-Three texture path that can downscale only the GPU copy to 2048 px when needed; original files are never modified.
+- Same-base WebP/JPG/JPEG variants are preferred automatically when supplied.
+- Three visible front-facing portal openings.
+- Portal routing:
+  - 1 → 2 = `portal2.mp4`
+  - 2 → 1 = `portal1.mp4`
+  - 2 → 3 = `portal3.mp4`
+- Point 2 has two selectable routes; T / mobile ↕ changes the route.
+- `perference bg.png` is the full-screen menu background.
+- Background OST support for `starbase ost.mp3`.
+- Local media manifest is generated automatically from `mini-sim/assets/`.
 
 ## Controls
 
@@ -57,14 +44,14 @@ Desktop:
 - Space/Ctrl — vertical movement
 - Mouse — pilot view
 - Q/E — roll
-- F — shield ON/OFF
+- F — shield
 - R / yellow ◆ — remote door crystal
-- G — activate the nearest portal
-- T — change the selected route when a portal has more than one
+- G — activate portal
+- T — change route at point 2
 
 Gamepad:
 
-- Left stick — thrust / reverse + strafe
+- Left stick — thrust/reverse + strafe
 - Right stick — pilot look
 - LB/RB — roll
 - LT/RT — vertical down/up
@@ -73,56 +60,83 @@ Gamepad:
 - X — shield
 - Y — portal
 
-Android/mobile:
+Android:
 
-- Swipe/drag the play area — pilot look
-- On-screen buttons — thrust, strafe, vertical, roll, shield, route and portal
-
-The door also opens automatically when the pilot approaches it while facing it.
+- Tap **TILT** while holding the phone in the desired neutral position.
+- Lean forward/back — thrust/reverse.
+- Lean left/right — strafe.
+- Drag the right half of the play area — pilot look.
+- Bottom controls — vertical, roll, shield, route and portal actions.
 
 ## Menu music
 
-Put the existing project MP3 here:
+Preferred filename:
 
 ```
-mini-sim/assets/background.mp3
+mini-sim/assets/starbase ost.mp3
 ```
 
-The plugin attempts autoplay. Browsers that block autoplay start the same music after the first user interaction, and it continues while the simulator runs. The music button in the upper-right toggles mute.
+Also accepted:
 
-The current repository does not contain this MP3 yet; without it the simulator reports **MUSIC MISSING** and hides the music button.
+```
+starbase-ost.mp3
+starbase_ost.mp3
+background.mp3
+music.mp3
+menu.mp3
+ost.mp3
+```
 
-## Adding more assets
+The plugin also checks for these names beside `bcm-mini-sim.php`.
 
-Put new local media assets inside:
+The repository currently does **not** contain `starbase ost.mp3`. The simulator therefore shows **MUSIC MISSING** until the real file is present. Browser autoplay policy can postpone playback until the first user interaction; the plugin retries from that gesture.
+
+## Textures: recommended format
+
+Do not throw away the original PNG files.
+
+For repeating room materials such as walls/floor/ceiling, the practical format is:
+
+```
+wall1.webp
+wall2.webp
+wall3.webp
+wall4.webp
+wall5.webp
+```
+
+Use tileable square images around **1024×1024** for ordinary room panels. For large one-shot portal/menu artwork, use **1536–2048 px on the long side**. PNG remains accepted for source/master assets.
+
+The current plugin automatically prefers a same-base WebP/JPG/JPEG when available and otherwise uses the PNG.
+
+## Assets
+
+Put local media in:
 
 ```
 mini-sim/assets/
 ```
 
-Supported automatically by the PHP asset scanner:
+Supported:
 
 ```
 png, jpg, jpeg, webp, gif, mp4, webm, ogg, mp3, m4a, wav
 ```
 
-For an existing texture such as `wall1.png`, a lighter `wall1.webp` is automatically preferred. This means the current PNG files do not need to be replaced just to test the scene.
-
 ## WordPress installation
 
-1. Copy only the `mini-sim` directory into:
-   `/wp-content/plugins/`
-2. In WordPress → Plugins, activate **BCM Mini Space Simulation**.
-3. Put `[bcm_mini_sim]` on the existing test page.
-4. For music, place the existing MP3 at `mini-sim/assets/background.mp3`.
-5. Hard-refresh the page after replacing the plugin folder.
+1. Copy the complete `mini-sim` folder into `/wp-content/plugins/`.
+2. Activate **BCM Mini Space Simulation**.
+3. Put `[bcm_mini_sim]` on the test page.
+4. Add the OST as `mini-sim/assets/starbase ost.mp3`.
+5. Hard-refresh after replacing the plugin folder.
 
-The plugin enqueues its CSS and simulator loader locally. Three.js r128 is loaded from `mini-sim/assets/js/three.min.js`; no theme runtime and no CDN are required.
+No theme Three.js file and no CDN are required.
 
 ## Next stages
 
 1. Convert reusable room modules into the procedural labyrinth.
-2. Extend physical collision volumes to generated modules.
-3. Connect the portal transition system to mission state.
-4. Add future door animation assets, including optional MP4 opening sequences.
-5. Add remaining station textures and room modules as local assets.
+2. Extend collision volumes to generated modules.
+3. Connect portal transitions to mission state.
+4. Add future door/cinematic media.
+5. Add the remaining room textures and geometry modules.
