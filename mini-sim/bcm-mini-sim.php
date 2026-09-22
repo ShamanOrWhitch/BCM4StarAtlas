@@ -2,14 +2,14 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained Descent-style 6DOF space-labyrinth test for WordPress.
- * Version: 0.3.2
+ * Version: 0.3.3
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BCM_MINI_SIM_VERSION', '0.3.2');
+define('BCM_MINI_SIM_VERSION', '0.3.3');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -72,17 +72,9 @@ function bcm_mini_sim_enqueue_assets() {
         BCM_MINI_SIM_VERSION
     );
 
-    // Three.js r128 is bundled with the plugin. No CDN, theme or dependency
-    // handle is required for startup. The simulator also has a local fallback
-    // loader in JS so a theme/script optimizer cannot break the dependency chain.
-    wp_enqueue_script(
-        'bcm-mini-sim-three-r128',
-        BCM_MINI_SIM_URL . 'assets/js/three.min.js',
-        array(),
-        'r128-bcm1',
-        false
-    );
-
+    // Only the simulator loader is enqueued here. It dynamically loads the
+    // bundled Three.js r128 itself, so Autoptimize/script reordering cannot
+    // execute mini-sim.js before the engine is available.
     wp_enqueue_script(
         'bcm-mini-sim',
         BCM_MINI_SIM_URL . 'assets/js/mini-sim.js',
