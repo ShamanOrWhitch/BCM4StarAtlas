@@ -193,7 +193,8 @@
         const material = new THREE.MeshStandardMaterial({
             color: fallbackColor || 0x4a505b,
             roughness: 0.88,
-            metalness: 0.16
+            metalness: 0.16,
+            side: THREE.DoubleSide
         });
 
         makeTexture(
@@ -380,6 +381,7 @@
             image: options.image,
             routes: options.routes || [],
             routeIndex: 0,
+            target: options.target || null,
             video: null,
             videoTexture: null,
             playing: false
@@ -409,7 +411,8 @@
             image: 'portal.png',
             routes: [{ label: '1 → 2', video: 'portal2.mp4' }],
             position: new THREE.Vector3(-4.65, 0, -23.7),
-            rotationY: Math.PI / 2
+            rotationY: Math.PI / 2,
+            target: { x: 4.0, y: 0, z: -23.7, yaw: -Math.PI / 2 }
         });
 
         createPortalStation({
@@ -417,7 +420,8 @@
             image: 'portal2.png',
             routes: [{ label: '2 → 1', video: 'portal1.mp4' }],
             position: new THREE.Vector3(4.65, 0, -23.7),
-            rotationY: -Math.PI / 2
+            rotationY: -Math.PI / 2,
+            target: { x: -4.0, y: 0, z: -23.7, yaw: Math.PI / 2 }
         });
 
         createPortalStation({
@@ -425,7 +429,8 @@
             image: 'portal2.png',
             routes: [{ label: '2 → 3', video: 'portal3.mp4' }],
             position: new THREE.Vector3(0, 0, -31.35),
-            rotationY: 0
+            rotationY: 0,
+            target: { x: 0, y: 0, z: -20.2, yaw: Math.PI }
         });
 
         createPortalStation({
@@ -433,87 +438,155 @@
             image: 'portal3.png',
             routes: [],
             position: new THREE.Vector3(0, 0, -20.2),
-            rotationY: Math.PI
+            rotationY: Math.PI,
+            target: null
         });
     }
 
-    function createVideoForStation(station) {
-        const route = station.routes[station.routeIndex];
-        if (!route || !route.video) return false;
 
-        const url = findAsset(route.video);
-        if (!url) return false;
+    let portalTransition = null;
+    let portalTransitionBusy = false;
 
-        if (station.video) {
-            station.video.pause();
-            station.video.removeAttribute('src');
-            station.video.load();
-        }
+    function createPortalTransitionUI() {
+        if (portalTransition) return;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'bcm-mini-sim-transition';
+        wrapper.hidden = true;
 
         const video = document.createElement('video');
-        video.src = url;
-        video.preload = 'metadata';
+        video.className = 'bcm-mini-sim-transition-video';
         video.muted = true;
-        video.loop = false;
         video.playsInline = true;
         video.setAttribute('playsinline', '');
         video.setAttribute('webkit-playsinline', '');
-        video.addEventListener('ended', () => {
-            station.playing = false;
-            station.surface.material.map = textures[station.image] || null;
-            station.surface.material.needsUpdate = true;
-            status.textContent = route.label + ' · TRANSITION COMPLETE · NO TELEPORT IN TEST';
+        video.preload = 'none';
+
+        const label = document.createElement('div');
+        label.className = 'bcm-mini-sim-transition-label';
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'bcm-mini-sim-transition-close';
+        close.textContent = '×';
+        close.title = 'Закрыть переход';
+        close.addEventListener('click', () => {
+            if (portalTransitionBusy) return;
+            wrapper.hidden = true;
+            video.pause();
+            video.removeAttribute('src');
+            video.load();
         });
 
-        const videoTexture = new THREE.VideoTexture(video);
-        if (THREE.sRGBEncoding !== undefined) {
-            videoTexture.encoding = THREE.sRGBEncoding;
+        wrapper.appendChild(video);
+        wrapper.appendChild(label);
+        wrapper.appendChild(close);
+        root.appendChild(wrapper);
+
+        portalTransition = { wrapper, video, label };
+    }
+
+    function finishPortalTransition(station, success) {
+        if (!portalTransition) return;
+
+        const video = portalTransition.video;
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+        portalTransition.wrapper.hidden = true;
+
+        if (success && station && station.target) {
+            ship.position.set(
+                station.target.x,
+                station.target.y,
+                station.target.z
+            );
+            ship.velocity.set(0, 0, 0);
+            ship.angularVelocity.set(0, 0, 0);
+            ship.quaternion.setFromAxisAngle(
+                new THREE.Vector3(0, 1, 0),
+                station.target.yaw || 0
+            );
+
+            camera.position.copy(ship.position);
+            camera.quaternion.copy(ship.quaternion);
+            light.position.copy(ship.position);
+
+            status.textContent =
+                station.point + ' · ARRIVED · ' +
+                (station.routes[station.routeIndex]
+                    ? station.routes[station.routeIndex].label
+                    : 'PORTAL');
         }
 
-        station.video = video;
-        station.videoTexture = videoTexture;
+        portalTransitionBusy = false;
+    }
 
-        video.addEventListener('loadeddata', () => {
-            station.surface.material.map = videoTexture;
-            station.surface.material.needsUpdate = true;
-        });
+    function startPortalTransition(station) {
+        if (portalTransitionBusy || !station || !station.routes.length) return false;
 
+        const route = station.routes[station.routeIndex];
+        const url = findAsset(route.video);
+
+        if (!url) {
+            status.textContent = route.label + ' · VIDEO ASSET MISSING';
+            return false;
+        }
+
+        createPortalTransitionUI();
+
+        portalTransitionBusy = true;
+        portalTransition.wrapper.hidden = false;
+        portalTransition.label.textContent =
+            station.point + '  ·  ' + route.label;
+
+        const video = portalTransition.video;
+        video.pause();
+        video.removeAttribute('src');
         video.load();
+        video.src = url;
+        video.load();
+
+        const onEnded = () => {
+            video.removeEventListener('ended', onEnded);
+            finishPortalTransition(station, true);
+        };
+
+        const onError = () => {
+            video.removeEventListener('error', onError);
+            status.textContent = route.label + ' · VIDEO FAILED TO LOAD';
+            finishPortalTransition(station, false);
+        };
+
+        video.addEventListener('ended', onEnded);
+        video.addEventListener('error', onError);
+
+        video.play().then(() => {
+            status.textContent =
+                station.point + ' · ' + route.label + ' · TRANSITION PLAYING';
+        }).catch(() => {
+            video.removeEventListener('ended', onEnded);
+            video.removeEventListener('error', onError);
+            status.textContent =
+                route.label + ' · BROWSER BLOCKED VIDEO START';
+            finishPortalTransition(station, false);
+        });
 
         return true;
     }
 
     function activatePortal(station) {
         if (!station || !station.routes.length) {
-            status.textContent = (station ? station.point : 'PORTAL') + ' · NO TEST ROUTE';
-            return;
+            status.textContent =
+                (station ? station.point : 'PORTAL') + ' · ENDPOINT / NO ROUTE';
+            return false;
         }
 
-        const route = station.routes[station.routeIndex];
-        if (!route) return;
-
-        if (!createVideoForStation(station)) {
-            status.textContent = route.label + ' · VIDEO ASSET MISSING';
-            return;
-        }
-
-        station.playing = true;
-        station.glow.material.opacity = 0.22;
-        station.video.play().then(() => {
-            status.textContent =
-                station.point + ' · ' + route.label + ' · VIDEO TRANSITION PLAYING';
-        }).catch(() => {
-            status.textContent =
-                station.point + ' · ' + route.label + ' · CLICK/KEYBOARD START BLOCKED VIDEO';
-        });
-
-        window.setTimeout(() => {
-            station.glow.material.opacity = 0.08;
-        }, 420);
+        return startPortalTransition(station);
     }
 
     function tryPortalAction() {
-        if (!running) return false;
+        if (!running || portalTransitionBusy) return false;
 
         let best = null;
         let bestDistance = Infinity;
@@ -1208,6 +1281,7 @@
 
             buildWorld();
             buildDoor();
+            createPortalTransitionUI();
             setupInput();
             resize();
 
