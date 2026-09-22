@@ -35,12 +35,25 @@
     top:50%;
     transform:translate(-50%,-50%);
     z-index:8;
-    border:1px solid rgba(255,255,255,.45);
-    background:rgba(0,0,0,.72);
+    border:1px solid rgba(255,255,255,.55);
+    background:rgba(0,0,0,.78);
     color:#fff;
-    padding:14px 24px;
+    min-width:190px;
+    padding:15px 28px;
     cursor:pointer;
-    letter-spacing:2px;
+    letter-spacing:3px;
+    font-weight:700;
+    font-size:14px;
+    box-shadow:0 0 24px rgba(90,170,255,.14);
+    transition:background .15s,transform .15s,border-color .15s;
+}
+.bcm-mini-sim-start:hover{
+    background:rgba(20,30,45,.9);
+    border-color:rgba(255,255,255,.9);
+    transform:translate(-50%,-52%);
+}
+.bcm-mini-sim-start:active{
+    transform:translate(-50%,-49%);
 }
 .bcm-mini-sim-start.hidden{display:none}
 .bcm-mini-sim-mobile{
