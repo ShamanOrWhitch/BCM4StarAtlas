@@ -2,21 +2,25 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained Descent-style 6DOF space-labyrinth test for WordPress.
- * Version: 0.3.4
+ * Version: 0.3.5
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BCM_MINI_SIM_VERSION', '0.3.4');
+define('BCM_MINI_SIM_VERSION', '0.3.5');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
 function bcm_mini_sim_get_assets() {
     $assets = array();
     $base_path = BCM_MINI_SIM_PATH . 'assets/';
-    $allowed = array('png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'ogg');
+    $allowed = array(
+        'png', 'jpg', 'jpeg', 'webp', 'gif',
+        'mp4', 'webm', 'ogg',
+        'mp3', 'm4a', 'wav'
+    );
 
     if (!is_dir($base_path)) {
         return $assets;
@@ -36,10 +40,18 @@ function bcm_mini_sim_get_assets() {
 
             if (!in_array($extension, $allowed, true)) continue;
 
+            if (in_array($extension, array('mp4', 'webm'), true)) {
+                $type = 'video';
+            } elseif (in_array($extension, array('mp3', 'm4a', 'wav', 'ogg'), true)) {
+                $type = 'audio';
+            } else {
+                $type = 'image';
+            }
+
             $assets[] = array(
                 'name' => $relative,
                 'url' => BCM_MINI_SIM_URL . str_replace('%2F', '/', rawurlencode(str_replace('\\', '/', $relative))),
-                'type' => in_array($extension, array('mp4', 'webm', 'ogg'), true) ? 'video' : 'image',
+                'type' => $type,
                 'extension' => $extension,
             );
         }
@@ -54,6 +66,41 @@ function bcm_mini_sim_get_assets() {
     return $assets;
 }
 
+function bcm_mini_sim_pick_asset($assets, $names, $type) {
+    $wanted = array_map('strtolower', (array) $names);
+
+    foreach ($wanted as $wanted_name) {
+        foreach ($assets as $asset) {
+            if (
+                isset($asset['name'], $asset['type']) &&
+                $asset['type'] === $type &&
+                strtolower($asset['name']) === $wanted_name
+            ) {
+                return $asset['url'];
+            }
+        }
+    }
+
+    foreach ($assets as $asset) {
+        if (
+            !isset($asset['name'], $asset['type']) ||
+            $asset['type'] !== $type
+        ) {
+            continue;
+        }
+
+        $basename = strtolower(pathinfo($asset['name'], PATHINFO_FILENAME));
+        foreach ($wanted as $wanted_name) {
+            $wanted_base = strtolower(pathinfo($wanted_name, PATHINFO_FILENAME));
+            if ($basename === $wanted_base) {
+                return $asset['url'];
+            }
+        }
+    }
+
+    return '';
+}
+
 function bcm_mini_sim_enqueue_assets() {
     $door_texture = '';
 
@@ -64,6 +111,18 @@ function bcm_mini_sim_enqueue_assets() {
     }
 
     $assets = bcm_mini_sim_get_assets();
+
+    $menu_background = bcm_mini_sim_pick_asset(
+        $assets,
+        array('perference bg.png'),
+        'image'
+    );
+
+    $music_url = bcm_mini_sim_pick_asset(
+        $assets,
+        array('background.mp3', 'music.mp3', 'menu.mp3'),
+        'audio'
+    );
 
     wp_enqueue_style(
         'bcm-mini-sim',
@@ -86,6 +145,8 @@ function bcm_mini_sim_enqueue_assets() {
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
         'threeUrl' => BCM_MINI_SIM_URL . 'assets/js/three.min.js',
         'doorTexture' => $door_texture,
+        'menuBackgroundUrl' => $menu_background,
+        'musicUrl' => $music_url,
         'assets' => $assets,
         'version' => BCM_MINI_SIM_VERSION,
     ));
@@ -103,22 +164,29 @@ function bcm_mini_sim_shortcode($atts = array()) {
     <div class="bcm-mini-sim" style="--bcm-sim-height:<?php echo esc_attr($atts['height']); ?>;">
         <canvas class="bcm-mini-sim-canvas" tabindex="0"></canvas>
 
+        <div class="bcm-mini-sim-menu-backdrop" aria-hidden="true"></div>
+        <div class="bcm-mini-sim-menu-shade" aria-hidden="true"></div>
+
         <div class="bcm-mini-sim-hud">
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — PLAYABLE TEST 0.3</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — PLAYABLE TEST 0.35</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
+            <div class="bcm-mini-sim-interaction"></div>
             <div class="bcm-mini-sim-help">
                 <span>W/S</span> thrust · <span>A/D</span> strafe · <span>Space/Ctrl</span> vertical ·
-                <span>Mouse</span> look · <span>Q</span> rotate clockwise · <span>E</span> rotate counter-clockwise ·
-                <span>F</span> shield · <span>R/◆</span> door crystal · <span>G</span> portal transition
+                <span>Mouse</span> look · <span>Q</span> clockwise roll · <span>E</span> counter-clockwise roll ·
+                <span>F</span> shield · <span>R/◆</span> door crystal · <span>G</span> portal · <span>T</span> alternate portal route
             </div>
         </div>
 
         <div class="bcm-mini-sim-asset-status">LOCAL ASSETS: SCANNING...</div>
 
         <button class="bcm-mini-sim-start" type="button">ИГРАТЬ</button>
+        <button class="bcm-mini-sim-music" type="button" aria-label="Музыка" title="Музыка">♫</button>
 
         <button class="bcm-mini-sim-crystal bcm-mini-sim-crystal-main" type="button"
                 aria-label="Remote door crystal" title="Дистанционно открыть дверь">◆</button>
+
+        <audio class="bcm-mini-sim-music-audio" preload="none" loop></audio>
 
         <div class="bcm-mini-sim-mobile" aria-hidden="true">
             <button data-control="thrust">▲</button>
@@ -130,6 +198,7 @@ function bcm_mini_sim_shortcode($atts = array()) {
             <button data-control="rollLeft">↶</button>
             <button data-control="rollRight">↷</button>
             <button data-control="shield">🛡</button>
+            <button data-control="route">↕</button>
             <button data-control="portal">G</button>
         </div>
     </div>
