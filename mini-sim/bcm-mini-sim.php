@@ -2,18 +2,25 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Lightweight Descent-style 6DOF space-labyrinth simulation for WordPress.
- * Version: 0.2.0
+ * Version: 0.2.1
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BCM_MINI_SIM_VERSION', '0.2.0');
+define('BCM_MINI_SIM_VERSION', '0.2.1');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
 function bcm_mini_sim_enqueue_assets() {
+    $door_texture = '';
+    if (file_exists(BCM_MINI_SIM_PATH . 'door.png')) {
+        $door_texture = BCM_MINI_SIM_URL . 'door.png';
+    } elseif (file_exists(dirname(BCM_MINI_SIM_PATH) . '/door.png')) {
+        $door_texture = plugins_url('door.png', dirname(BCM_MINI_SIM_PATH) . '/placeholder.php');
+    }
+
     wp_enqueue_style(
         'bcm-mini-sim',
         BCM_MINI_SIM_URL . 'assets/css/mini-sim.css',
@@ -39,14 +46,14 @@ function bcm_mini_sim_enqueue_assets() {
     );
 
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
-        'textureBase' => BCM_MINI_SIM_URL . 'assets/textures/',
-        'doorTexture' => BCM_MINI_SIM_URL . 'door.png',
+        'textureBase' => BCM_MINI_SIM_URL . 'assets/',
+        'doorTexture' => $door_texture,
         'remoteTextures' => array(
-            BCM_MINI_SIM_URL . 'assets/textures/wall-1.png',
-            BCM_MINI_SIM_URL . 'assets/textures/wall-2.png',
-            BCM_MINI_SIM_URL . 'assets/textures/wall-3.png',
-            BCM_MINI_SIM_URL . 'assets/textures/wall-4.png',
-            BCM_MINI_SIM_URL . 'assets/textures/wall-5.png',
+            BCM_MINI_SIM_URL . 'assets/wall1.png',
+            BCM_MINI_SIM_URL . 'assets/wall2.png',
+            BCM_MINI_SIM_URL . 'assets/wall3.png',
+            BCM_MINI_SIM_URL . 'assets/wall4.png',
+            BCM_MINI_SIM_URL . 'assets/wall5.png',
         ),
     ));
 }
@@ -68,7 +75,7 @@ function bcm_mini_sim_shortcode($atts = array()) {
             <div class="bcm-mini-sim-status">Loading...</div>
             <div class="bcm-mini-sim-help">
                 <span>W/S</span> thrust · <span>A/D</span> strafe · <span>Space/Ctrl</span> vertical ·
-                <span>Mouse</span> look · <span>F</span> shield · <span>Q/E</span> roll
+                <span>Mouse</span> look · <span>F</span> shield · <span>Q/E</span> roll · <span>R</span> door crystal
             </div>
         </div>
 
@@ -84,6 +91,7 @@ function bcm_mini_sim_shortcode($atts = array()) {
             <button data-control="rollLeft">↶</button>
             <button data-control="rollRight">↷</button>
             <button data-control="shield">🛡</button>
+            <button class="bcm-mini-sim-crystal" data-control="remoteDoor" aria-label="Remote door crystal" title="Remote door crystal">◆</button>
         </div>
     </div>
     <?php
