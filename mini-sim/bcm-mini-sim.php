@@ -2,14 +2,14 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained Descent-style 6DOF space-labyrinth test for WordPress.
- * Version: 0.3.5
+ * Version: 0.3.6
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BCM_MINI_SIM_VERSION', '0.3.5');
+define('BCM_MINI_SIM_VERSION', '0.3.6');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -120,7 +120,15 @@ function bcm_mini_sim_enqueue_assets() {
 
     $music_url = bcm_mini_sim_pick_asset(
         $assets,
-        array('background.mp3', 'music.mp3', 'menu.mp3'),
+        array(
+            'starbase ost.mp3',
+            'starbase-ost.mp3',
+            'starbase_ost.mp3',
+            'background.mp3',
+            'music.mp3',
+            'menu.mp3',
+            'ost.mp3'
+        ),
         'audio'
     );
 
