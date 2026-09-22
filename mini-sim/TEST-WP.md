@@ -2,7 +2,7 @@
 
 ## Current version
 
-**0.3.7**
+**0.4.0**
 
 ## Install
 
@@ -10,74 +10,90 @@
 2. Extract it.
 3. Copy the complete `mini-sim` folder into `/wp-content/plugins/`.
 4. Activate **BCM Mini Space Simulation**.
-5. Put `[bcm_mini_sim]` on the existing test page.
-6. Put the real Starbase OST at `mini-sim/assets/starbase ost.mp3`.
-7. Hard-refresh after replacing the plugin.
+5. Keep `[bcm_mini_sim]` on the existing test page.
+6. Hard-refresh after replacing the old plugin folder.
+
+The plugin folder now contains the actual project OST:
+
+`mini-sim/assets/starbase ost.mp3`
 
 ## Expected result
 
 Before starting:
 
 ```
-ENGINE READY · LOCAL THREE.JS r128
+ENGINE READY · TEXTURE TEST · LOCAL r128
 ```
 
-The menu shows `perference bg.png` as the full-screen background.
+The menu shows `perference bg.png`.
 
-After **ИГРАТЬ**:
+Desktop:
 
-- desktop WASD + mouse flight works;
-- Q/E roll works;
-- five wall textures appear on corridor/chamber surfaces;
-- the textured two-part door is ahead;
-- opening the door loads the chamber media;
-- three front-facing portal openings show their PNG artwork;
-- G activates the nearest portal;
-- T / mobile ↕ changes the selected route at point 2;
-- portal MP4 ends by moving the pilot to the mapped destination;
-- gamepad controls flight/actions;
-- Android TILT provides movement from device inclination;
-- right-half touch drag controls look.
+- WASD + mouse flight
+- Q/E roll
+- R/◆ door
+- G portal
+
+Gamepad:
+
+- left stick movement
+- right stick look
+- down on the right stick produces aircraft-style nose-up pitch
+- LB/RB roll
+- LT/RT vertical
+- Y portal
+
+Android:
+
+- use landscape/horizontal orientation;
+- press TILT to calibrate;
+- tilt forward/back for thrust/reverse;
+- tilt left/right for strafe;
+- rotate the phone around its vertical axis for horizontal look;
+- use the small controls at the screen edges for roll, yaw, vertical, shield and portal.
 
 ## Texture check
 
-The asset line reports local asset counts and failed loads.
+The status line should show texture loading progress.
 
-The loader accepts PNG and can automatically prefer a same-base WebP/JPG/JPEG.
+The five wall images must visibly appear in Room 1.
 
-For heavy source PNGs, the current loader can create a 2048 px maximum GPU copy without replacing the repository file.
+The loader supports the supplied 720p PNGs without requiring power-of-two dimensions. Clamp-to-edge is used instead of repeat wrapping.
 
-Recommended room texture source for future additions:
+For lighter future assets, add same-base WebP/JPG/JPEG beside the PNG.
 
-```
-wallX.webp
-```
+## Portal test
 
-with a tileable square image around 1024×1024.
+There is only one active portal.
 
-## Music check
+Approach and face the portal, then press G (or gamepad Y / mobile G).
+
+Expected sequence:
+
+1. Portal image is visible.
+2. `portal2.mp4` plays full-screen.
+3. After the video finishes, the ship appears in Room 2.
+4. Room 2 uses a different arrangement of the wall textures.
+
+There is no competing point-2/point-3 selector in this test.
+
+## Music test
 
 Expected:
 
 `mini-sim/assets/starbase ost.mp3`
 
-The PHP resolver also recognizes common Starbase OST/background names and checks beside `bcm-mini-sim.php`.
+The menu music button should be visible when the file is present.
 
-If no file is present, the status line says **MUSIC MISSING**.
+Autoplay may be postponed until the first user interaction.
 
-Browser autoplay restrictions can delay actual playback until the first interaction.
+## If textures fail
 
-## Portal mapping
+The upper-right status line reports `TEXTURES loaded/total` and failed image names.
 
-- 1 → 2 = `portal2.mp4`
-- 2 → 1 = `portal1.mp4`
-- 2 → 3 = `portal3.mp4`
+This build intentionally avoids RepeatWrapping for the supplied 720p images.
 
-This mapping must not be changed while testing.
-
-## If textures still do not appear
-
-The important diagnostic is the **FAILED** count in the upper-right asset status line and the browser console error for the named image. The current loader has a separate image decode path specifically to avoid silently failing large-image WebGL uploads.
+The original PNG files are not modified by the loader.
 
 ## If the engine does not start
 
@@ -87,4 +103,4 @@ Check:
 mini-sim/assets/js/three.min.js
 ```
 
-It must be the bundled r128 file.
+It must be the bundled Three.js r128 file.
