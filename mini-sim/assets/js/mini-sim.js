@@ -327,7 +327,7 @@
         image.src = url;
     }
 
-    function wallMaterial(name, fallback = 0x58616c) {
+    function wallMaterial(name, fallback = 0x58616c, targetWidth = 1, targetHeight = 1) {
         const material = new THREE.MeshBasicMaterial({
             color: fallback,
             side: THREE.DoubleSide,
@@ -358,7 +358,8 @@
                 material.needsUpdate = true;
             },
             {
-                repeat: { x: 1, y: 1 }
+                targetWidth,
+                targetHeight
             }
         );
 
@@ -390,10 +391,30 @@
     }
 
     function buildTexturedRoom(parent, options) {
-        const floorMat = wallMaterial(options.floor, options.floorColor);
-        const ceilingMat = wallMaterial(options.ceiling, options.ceilingColor);
-        const leftMat = wallMaterial(options.left, options.leftColor);
-        const rightMat = wallMaterial(options.right, options.rightColor);
+        const floorMat = wallMaterial(
+            options.floor,
+            options.floorColor,
+            options.width,
+            options.length
+        );
+        const ceilingMat = wallMaterial(
+            options.ceiling,
+            options.ceilingColor,
+            options.width,
+            options.length
+        );
+        const leftMat = wallMaterial(
+            options.left,
+            options.leftColor,
+            options.length,
+            options.height
+        );
+        const rightMat = wallMaterial(
+            options.right,
+            options.rightColor,
+            options.length,
+            options.height
+        );
 
         addPlane(parent, 0, -3.5, options.centerZ, options.width, options.length, -Math.PI / 2, 0, 0, floorMat);
         addPlane(parent, 0, 3.5, options.centerZ, options.width, options.length, Math.PI / 2, 0, 0, ceilingMat);
@@ -414,7 +435,9 @@
 
         const accent = wallMaterial(
             options.accent,
-            options.accentColor
+            options.accentColor,
+            options.width,
+            options.height
         );
 
         addPlane(
@@ -475,7 +498,12 @@
 
         // Room 1 back wall around the single portal: actual hole, not three
         // conflicting portal surfaces.
-        const wallMaterial5 = wallMaterial('wall5.png', 0x58616c);
+        const wallMaterial5 = wallMaterial(
+            'wall5.png',
+            0x58616c,
+            2.8,
+            7.5
+        );
         addBeam(world, -4.6, 0, -32.0, 2.8, 7.5, 0.5, wallMaterial5);
         addBeam(world, 4.6, 0, -32.0, 2.8, 7.5, 0.5, wallMaterial5);
         addBeam(world, 0, 2.95, -32.0, 6.2, 1.0, 0.5, wallMaterial5);
@@ -677,6 +705,22 @@
 
     function startPortalTransition() {
         if (!running || transitionBusy) return false;
+
+        const distance = ship.position.distanceTo(portal.position);
+
+        const forward = new THREE.Vector3(0, 0, -1)
+            .applyQuaternion(ship.quaternion)
+            .normalize();
+
+        const toPortal = portal.position.clone().sub(ship.position);
+        const facing = toPortal.length()
+            ? forward.dot(toPortal.normalize())
+            : 1;
+
+        if (distance > 9.5 || facing < 0.30) {
+            status.textContent = 'PORTAL · APPROACH AND FACE THE GATE';
+            return false;
+        }
 
         const url = findExactAsset(portal.video);
 
@@ -1136,9 +1180,19 @@
         const portalDistance = ship.position.distanceTo(portal.position);
 
         if (portalDistance < 9.0) {
-            interaction.textContent =
-                'PORTAL → ROOM 2 · G / Y ACTIVATE';
-            return;
+            const forward = new THREE.Vector3(0, 0, -1)
+                .applyQuaternion(ship.quaternion)
+                .normalize();
+            const toPortal = portal.position.clone().sub(ship.position);
+            const facing = toPortal.length()
+                ? forward.dot(toPortal.normalize())
+                : 1;
+
+            if (facing > 0.35) {
+                interaction.textContent =
+                    'PORTAL → ROOM 2 · G / Y ACTIVATE';
+                return;
+            }
         }
 
         if (
@@ -1221,10 +1275,10 @@
         document.addEventListener('mousemove', event => {
             if (!pointerLocked) return;
 
-            const sensitivity = 0.00265;
+            const sensitivity = 0.0029;
 
             ship.angularVelocity.y -= event.movementX * sensitivity;
-            ship.angularVelocity.x -= event.movementY * (sensitivity * 1.08);
+            ship.angularVelocity.x -= event.movementY * (sensitivity * 1.18);
         });
 
         root.querySelectorAll('.bcm-mini-sim-mobile button').forEach(button => {
@@ -1390,7 +1444,6 @@
         // Gamepad right stick: down = nose up, as requested for aircraft-style
         // inverted vertical pitch. Raise sensitivity above the mouse axis.
         if (gamepad.pad) {
-            ship.angularVelocity.y += input.yaw * 1.0 * dt;
             ship.angularVelocity.x += gamepad.rightY * 2.0 * dt;
         }
 
@@ -1417,8 +1470,8 @@
 
         const angularInput = new THREE.Vector3(
             0,
-            input.yaw * 1.65,
-            input.roll * 2.5
+            input.yaw * 1.85,
+            input.roll * 2.7
         );
 
         ship.angularVelocity.addScaledVector(angularInput, dt);
@@ -1442,6 +1495,7 @@
 
         status.textContent =
             roomText +
+            (tilt.enabled ? ' · TILT' : '') +
             ' · SPD ' + ship.velocity.length().toFixed(1) +
             ' · 6DOF · SHIELD ' + shieldText +
             ' · DOOR ' + testDoor.state;
