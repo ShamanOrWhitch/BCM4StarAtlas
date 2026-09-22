@@ -2,14 +2,14 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Lightweight Descent-style 6DOF space-labyrinth simulation for WordPress.
- * Version: 0.1.0
+ * Version: 0.2.0
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BCM_MINI_SIM_VERSION', '0.1.0');
+define('BCM_MINI_SIM_VERSION', '0.2.0');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -60,11 +60,11 @@ function bcm_mini_sim_shortcode($atts = array()) {
 
     ob_start();
     ?>
-    <div class="bcm-mini-sim" data-height="<?php echo esc_attr($atts['height']); ?>">
+    <div class="bcm-mini-sim" style="--bcm-sim-height:<?php echo esc_attr($atts['height']); ?>;">
         <canvas class="bcm-mini-sim-canvas"></canvas>
 
         <div class="bcm-mini-sim-hud">
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — PILOT TEST</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — PLAYABLE TEST</div>
             <div class="bcm-mini-sim-status">Loading...</div>
             <div class="bcm-mini-sim-help">
                 <span>W/S</span> thrust · <span>A/D</span> strafe · <span>Space/Ctrl</span> vertical ·
@@ -72,7 +72,7 @@ function bcm_mini_sim_shortcode($atts = array()) {
             </div>
         </div>
 
-        <button class="bcm-mini-sim-start" type="button">START FLIGHT</button>
+        <button class="bcm-mini-sim-start" type="button">ИГРАТЬ</button>
 
         <div class="bcm-mini-sim-mobile" aria-hidden="true">
             <button data-control="thrust">▲</button>
