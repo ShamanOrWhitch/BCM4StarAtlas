@@ -32,7 +32,7 @@
     // ---- Ship state: deliberately simple, but true 6DOF/inertial ----
     const ship = {
         position: new THREE.Vector3(0, 0, 0),
-        velocity: new THREE.Vector3(0, 0, -5),
+        velocity: new THREE.Vector3(0, 0, 0),
         localAcceleration: new THREE.Vector3(),
         angularVelocity: new THREE.Vector3(),
         quaternion: new THREE.Quaternion(),
@@ -50,15 +50,11 @@
     let running = false;
 
     // ---- Pilot systems: one-player control first ----
+    // Only the pilot is active in this prototype. Shield is the one extra
+    // system control; crew/heart state is kept for later mission logic.
     const shipSystems = {
         shieldOn: true,
         shieldToggleKey: 'KeyF',
-        blasterCharge: 1,
-        blasterMax: 1,
-        blasterChargeRate: 0.22,
-        shotCost: 0.25,
-        shotCooldown: 0.16,
-        nextShotAt: 0,
         hearts: 4,
         halfHeart: false
     };
@@ -383,6 +379,43 @@
 
     buildLabyrinth();
 
+    function buildTestTunnel() {
+        const material = new THREE.MeshStandardMaterial({
+            color: 0x343a44,
+            roughness: 0.9,
+            metalness: 0.2
+        });
+        const group = new THREE.Group();
+
+        const length = 38;
+        const width = 12;
+        const height = 8;
+        const zCenter = -13;
+
+        const add = (x, y, z, sx, sy, sz) => {
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), material);
+            mesh.position.set(x, y, z);
+            group.add(mesh);
+        };
+
+        add(0, -height / 2, zCenter, width, 0.65, length);
+        add(0, height / 2, zCenter, width, 0.65, length);
+        add(-width / 2, 0, zCenter, 0.65, height, length);
+        add(width / 2, 0, zCenter, 0.65, height, length);
+
+        // Open end at the door: the pilot can fly through after it opens.
+        const rear = new THREE.Mesh(
+            new THREE.BoxGeometry(width, height, 0.65),
+            material
+        );
+        rear.position.set(0, 0, 6);
+        group.add(rear);
+
+        scene.add(group);
+    }
+
+    buildTestTunnel();
+
     function buildTestDoor() {
         const loader = new THREE.TextureLoader();
         const url = (window.BCMMiniSimConfig && window.BCMMiniSimConfig.doorTexture) || '';
@@ -447,33 +480,6 @@
         }
     }
 
-    function createShot() {
-        const now = performance.now() / 1000;
-        if (shipSystems.shieldOn || now < shipSystems.nextShotAt) return false;
-        if (shipSystems.blasterCharge + 0.0001 < shipSystems.shotCost) return false;
-
-        shipSystems.blasterCharge = Math.max(0, shipSystems.blasterCharge - shipSystems.shotCost);
-        shipSystems.nextShotAt = now + shipSystems.shotCooldown;
-
-        const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(ship.quaternion).normalize();
-        const start = ship.position.clone().addScaledVector(direction, 1.5);
-        const end = start.clone().addScaledVector(direction, 55);
-
-        const beam = new THREE.Line(
-            new THREE.BufferGeometry().setFromPoints([start, end]),
-            new THREE.LineBasicMaterial({ color: 0xffd27a, transparent: true })
-        );
-        scene.add(beam);
-
-        window.setTimeout(() => {
-            scene.remove(beam);
-            beam.geometry.dispose();
-            beam.material.dispose();
-        }, 70);
-
-        return true;
-    }
-
     function toggleShield() {
         shipSystems.shieldOn = !shipSystems.shieldOn;
     }
@@ -510,14 +516,8 @@
         const group = labyrinth && labyrinth.group;
         if (!labyrinth || !group || !group.userData.switchPortal) return;
 
-        if (dtNow >= labyrinth.nextSwitchAt) {
-            let next = Math.floor(Math.random() * labyrinth.sectors);
-            if (labyrinth.sectors > 1 && next === labyrinth.activeSector) {
-                next = (next + 1 + Math.floor(Math.random() * (labyrinth.sectors - 1))) % labyrinth.sectors;
-            }
-
-            group.userData.switchPortal(next, dtNow);
-        }
+        // Portal routing is deliberately static during the control test.
+        // Later this function will become the sector/mission transition point.
     }
 
     function updatePhysics(dt) {
@@ -530,14 +530,6 @@
             toggleShield();
             keys[shipSystems.shieldToggleKey] = false;
         }
-
-        if (!shipSystems.shieldOn) {
-            shipSystems.blasterCharge = Math.min(
-                shipSystems.blasterMax,
-                shipSystems.blasterCharge + shipSystems.blasterChargeRate * dt
-            );
-        }
-
 
         const accel = new THREE.Vector3(
             input.strafe * ship.strafeThrust,
@@ -599,7 +591,6 @@
 
         light.position.copy(ship.position);
 
-        const charge = Math.round(shipSystems.blasterCharge * 100);
         const shield = shipSystems.shieldOn ? 'ON' : 'OFF';
         const door = testDoor.state;
 
@@ -607,7 +598,6 @@
             'SPD ' + ship.velocity.length().toFixed(1) +
             '  |  6DOF  |  PILOT' +
             '  |  SHIELD ' + shield +
-            '  |  SYSTEM CHARGE ' + charge + '%' +
             '  |  ♥'.repeat(shipSystems.hearts) +
             (shipSystems.halfHeart ? '½' : '') +
             '  |  DOOR ' + door;
@@ -654,7 +644,6 @@
             e.preventDefault();
             touch[control] = true;
             if (control === 'shield') toggleShield();
-            if (control === 'fire') createShot();
         };
         const up = e => {
             e.preventDefault();
@@ -670,7 +659,8 @@
         running = true;
         startButton.classList.add('hidden');
         canvas.focus();
-        status.textContent = 'FLIGHT ACTIVE';
+        status.textContent = 'FLIGHT ACTIVE · 6DOF READY';
+        if (canvas.requestPointerLock) canvas.requestPointerLock();
     });
 
     function frame(now) {
