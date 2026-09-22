@@ -1,3 +1,28 @@
+.bcm-mini-sim-menu-backdrop{
+    position:absolute;
+    inset:0;
+    z-index:1;
+    background-color:#020308;
+    background-position:center;
+    background-repeat:no-repeat;
+    background-size:cover;
+    opacity:1;
+    transition:opacity .25s ease;
+    pointer-events:none;
+}
+.bcm-mini-sim-menu-shade{
+    position:absolute;
+    inset:0;
+    z-index:2;
+    background:linear-gradient(180deg,rgba(0,0,0,.18),rgba(0,0,0,.48) 68%,rgba(0,0,0,.72));
+    pointer-events:none;
+}
+.bcm-mini-sim.game-active .bcm-mini-sim-menu-backdrop,
+.bcm-mini-sim.game-active .bcm-mini-sim-menu-shade{
+    opacity:0;
+    visibility:hidden;
+}
+
 .bcm-mini-sim{
     position:relative;
     width:100%;
@@ -38,6 +63,14 @@
     font-variant-numeric:tabular-nums;
     letter-spacing:.35px;
 }
+.bcm-mini-sim-interaction{
+    margin-top:8px;
+    min-height:15px;
+    font-size:12px;
+    letter-spacing:.5px;
+    color:#ffe27a;
+    text-shadow:0 2px 6px #000;
+}
 .bcm-mini-sim-help{
     margin-top:10px;
     font-size:11px;
@@ -48,6 +81,30 @@
 .bcm-mini-sim-help span{
     font-weight:700;
     opacity:1;
+}
+.bcm-mini-sim-music{
+    position:absolute;
+    right:88px;
+    top:14px;
+    z-index:8;
+    width:42px;
+    height:42px;
+    border:1px solid rgba(255,255,255,.30);
+    border-radius:50%;
+    background:rgba(0,0,0,.58);
+    color:#fff;
+    font-size:19px;
+    line-height:1;
+    cursor:pointer;
+    text-shadow:0 0 10px rgba(255,255,255,.65);
+    touch-action:manipulation;
+}
+.bcm-mini-sim-music:hover{
+    background:rgba(25,30,38,.85);
+    border-color:rgba(255,255,255,.78);
+}
+.bcm-mini-sim-music[hidden]{
+    display:none;
 }
 .bcm-mini-sim-asset-status{
     position:absolute;
@@ -126,13 +183,14 @@
     position:absolute;
     inset:auto 12px 12px;
     z-index:7;
-    grid-template-columns:repeat(5,1fr);
+    grid-template-columns:repeat(4,1fr);
     gap:8px;
     pointer-events:none;
 }
 .bcm-mini-sim-mobile button{
     pointer-events:auto;
     min-height:48px;
+    max-height:58px;
     border:1px solid rgba(255,255,255,.22);
     background:rgba(10,15,25,.55);
     color:#fff;
@@ -163,6 +221,17 @@
     .bcm-mini-sim-status{
         max-width:70vw;
         line-height:1.35;
+    }
+    .bcm-mini-sim-interaction{
+        max-width:78vw;
+        font-size:11px;
+    }
+    .bcm-mini-sim-music{
+        right:66px;
+        top:40px;
+        width:38px;
+        height:38px;
+        font-size:17px;
     }
     .bcm-mini-sim-asset-status{
         top:42px;
