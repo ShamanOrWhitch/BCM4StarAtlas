@@ -831,7 +831,6 @@
             e.preventDefault();
             touch[control] = true;
             if (control === 'shield') toggleShield();
-            if (control === 'remoteDoor') tryRemoteDoor();
         };
         const up = e => {
             e.preventDefault();
@@ -842,6 +841,14 @@
         btn.addEventListener('pointercancel', up);
         btn.addEventListener('pointerleave', up);
     });
+
+    const crystalButton = root.querySelector('.bcm-mini-sim-crystal-main');
+    if (crystalButton) {
+        crystalButton.addEventListener('click', e => {
+            e.preventDefault();
+            tryRemoteDoor();
+        });
+    }
 
     startButton.addEventListener('click', () => {
         running = true;
