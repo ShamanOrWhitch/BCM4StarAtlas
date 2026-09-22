@@ -92,9 +92,34 @@
         });
     }
 
+    // ---- Procedural 6DOF room prototype ----
+    // The room is assembled from reusable sectors. One central portal opens
+    // exactly one sector at a time. The active opening changes after a random
+    // interval, so the player never knows which section will be available next.
+    const labyrinthState = {
+        activeSector: 0,
+        nextSwitchAt: 0,
+        minSwitchMs: 3200,
+        maxSwitchMs: 7800,
+        sectors: 6,
+        seed: Math.floor(Math.random() * 0x7fffffff)
+    };
+
+    function seededRandom(seed) {
+        let x = seed >>> 0;
+        return function () {
+            x += 0x6D2B79F5;
+            let t = x;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
     function buildLabyrinth() {
         const group = new THREE.Group();
         const loader = new THREE.TextureLoader();
+        const random = seededRandom(labyrinthState.seed);
 
         const urls = (window.BCMMiniSimConfig && window.BCMMiniSimConfig.remoteTextures) || [];
         const textures = urls.map((url) => {
@@ -107,43 +132,230 @@
 
         const materials = textures.length
             ? textures.map(wallMaterial)
-            : [new THREE.MeshStandardMaterial({color:0x3a3f48,roughness:0.9})];
+            : [
+                new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 0.9 }),
+                new THREE.MeshStandardMaterial({ color: 0x4b525d, roughness: 0.85 }),
+                new THREE.MeshStandardMaterial({ color: 0x303741, roughness: 0.92 })
+            ];
 
-        const cell = 10;
-        const half = 50;
-        const wallThickness = 0.7;
         const wallHeight = 7;
+        const wallThickness = 0.7;
+        const radius = 15;
+        const sectionLength = 13;
+        const sectionWidth = 9;
 
-        function wall(x, y, z, sx, sy, sz, materialIndex) {
+        function addBox(x, y, z, sx, sy, sz, materialIndex, parent = group) {
             const geo = new THREE.BoxGeometry(sx, sy, sz);
             const mesh = new THREE.Mesh(geo, materials[materialIndex % materials.length]);
             mesh.position.set(x, y, z);
-            group.add(mesh);
+            parent.add(mesh);
+            return mesh;
         }
 
-        // Outer shell + deliberately irregular internal passages.
-        wall(0, 0, -half, 2 * half, wallHeight, wallThickness, 0);
-        wall(0, 0, half, 2 * half, wallHeight, wallThickness, 1);
-        wall(-half, 0, 0, wallThickness, wallHeight, 2 * half, 2);
-        wall(half, 0, 0, wallThickness, wallHeight, 2 * half, 3);
+        // Central room: a six-sided hub with a circular portal in the middle.
+        addBox(0, -wallHeight / 2, 0, 34, wallThickness, 34, 0);
+        addBox(0, wallHeight / 2, 0, 34, wallThickness, 34, 1);
 
-        const layout = [
-            [-30,-35,1],[0,-35,0],[25,-35,2],
-            [-30,-15,3],[-10,-15,1],[15,-15,4],
-            [-30,5,2],[-5,5,0],[25,5,3],
-            [-30,25,1],[0,25,4],[25,25,0]
-        ];
+        const hubRadius = 7.5;
+        const hubRing = new THREE.Mesh(
+            new THREE.TorusGeometry(hubRadius, 0.32, 8, 32),
+            new THREE.MeshStandardMaterial({
+                color: 0x68727d,
+                metalness: 0.75,
+                roughness: 0.32
+            })
+        );
+        hubRing.rotation.x = Math.PI / 2;
+        hubRing.position.y = -3.15;
+        group.add(hubRing);
 
-        layout.forEach(([x,z,m]) => {
-            wall(x, 0, z, 7, wallHeight, wallThickness, m);
-        });
+        // Six sectors around the hub. Their geometry is static; only the
+        // portal connection changes. This is the first step toward a larger
+        // room/module generator.
+        const sectorGroups = [];
 
-        // A few perpendicular walls make the route genuinely 3D.
-        wall(-15, 3.5, -25, wallThickness, 7, 14, 2);
-        wall(20, -3.5, -5, wallThickness, 7, 16, 3);
-        wall(-20, 3.5, 18, 18, 7, wallThickness, 1);
+        for (let i = 0; i < labyrinthState.sectors; i++) {
+            const angle = (Math.PI * 2 * i) / labyrinthState.sectors;
+            const sector = new THREE.Group();
+            sector.userData.angle = angle;
+            sector.userData.index = i;
+
+            const dirX = Math.cos(angle);
+            const dirZ = Math.sin(angle);
+            const sideX = -dirZ;
+            const sideZ = dirX;
+
+            const centerDist = radius + sectionLength * 0.5;
+            const cx = dirX * centerDist;
+            const cz = dirZ * centerDist;
+
+            // Floor/ceiling of the sector.
+            addBox(cx, -wallHeight / 2, cz, sectionLength, wallThickness, sectionWidth, 2, sector);
+            addBox(cx, wallHeight / 2, cz, sectionLength, wallThickness, sectionWidth, 1, sector);
+
+            // Side walls.
+            addBox(
+                cx + sideX * (sectionWidth / 2),
+                0,
+                cz + sideZ * (sectionWidth / 2),
+                sectionLength,
+                wallHeight,
+                wallThickness,
+                i % 3,
+                sector
+            );
+            addBox(
+                cx - sideX * (sectionWidth / 2),
+                0,
+                cz - sideZ * (sectionWidth / 2),
+                sectionLength,
+                wallHeight,
+                wallThickness,
+                (i + 1) % 3,
+                sector
+            );
+
+            // Random internal obstacle: cheap geometry, but each generated
+            // section is slightly different.
+            if (random() > 0.35) {
+                const obstacle = addBox(
+                    cx - dirX * 1.5 + sideX * ((random() - 0.5) * 3),
+                    -1.4,
+                    cz - dirZ * 1.5 + sideZ * ((random() - 0.5) * 3),
+                    2.2,
+                    2.8 + random() * 1.8,
+                    2.2,
+                    i + 2,
+                    sector
+                );
+                obstacle.userData.generatedObstacle = true;
+            }
+
+            // Back wall closes the far end of the sector.
+            const backX = cx + dirX * (sectionLength / 2);
+            const backZ = cz + dirZ * (sectionLength / 2);
+            addBox(
+                backX,
+                0,
+                backZ,
+                wallThickness,
+                wallHeight,
+                sectionWidth,
+                (i + 2) % 3,
+                sector
+            );
+
+            group.add(sector);
+            sectorGroups.push(sector);
+        }
+
+        // Portal mechanism. It is a visual/logic gate, not a heavy video
+        // surface. Only one aperture is active at any moment.
+        const portal = new THREE.Group();
+        portal.position.set(0, 0, 0);
+        group.add(portal);
+
+        const portalCore = new THREE.Mesh(
+            new THREE.CylinderGeometry(2.8, 2.8, 0.45, 24),
+            new THREE.MeshStandardMaterial({
+                color: 0x10151b,
+                emissive: 0x06121c,
+                emissiveIntensity: 0.8,
+                metalness: 0.45,
+                roughness: 0.25
+            })
+        );
+        portalCore.rotation.x = Math.PI / 2;
+        portalCore.position.y = -2.75;
+        portal.add(portalCore);
+
+        const apertureRing = new THREE.Mesh(
+            new THREE.TorusGeometry(3.1, 0.42, 8, 32),
+            new THREE.MeshStandardMaterial({
+                color: 0x8997a5,
+                emissive: 0x17232e,
+                emissiveIntensity: 1.0,
+                metalness: 0.8,
+                roughness: 0.24
+            })
+        );
+        apertureRing.rotation.x = Math.PI / 2;
+        apertureRing.position.y = -2.5;
+        portal.add(apertureRing);
+
+        const aperture = new THREE.Mesh(
+            new THREE.CircleGeometry(2.65, 24),
+            new THREE.MeshBasicMaterial({
+                color: 0x0a1620,
+                transparent: true,
+                opacity: 0.9,
+                side: THREE.DoubleSide
+            })
+        );
+        aperture.rotation.x = Math.PI / 2;
+        aperture.position.y = -2.47;
+        portal.add(aperture);
+
+        const connector = new THREE.Mesh(
+            new THREE.CylinderGeometry(2.15, 2.15, 1.0, 20, 1, true),
+            new THREE.MeshStandardMaterial({
+                color: 0x5c6977,
+                emissive: 0x101b24,
+                emissiveIntensity: 0.8,
+                metalness: 0.65,
+                roughness: 0.35,
+                side: THREE.DoubleSide
+            })
+        );
+        connector.rotation.x = Math.PI / 2;
+        connector.position.y = -2.48;
+        portal.add(connector);
+
+        const portalLight = new THREE.PointLight(0x7ec8ff, 5, 22);
+        portalLight.position.set(0, -1.2, 0);
+        portal.add(portalLight);
+
+        const switchPortal = (index, now) => {
+            labyrinthState.activeSector = index;
+            labyrinthState.nextSwitchAt = now + labyrinthState.minSwitchMs +
+                Math.random() * (labyrinthState.maxSwitchMs - labyrinthState.minSwitchMs);
+
+            const angle = (Math.PI * 2 * index) / labyrinthState.sectors;
+
+            // Rotate the central portal toward the selected hole.
+            portal.rotation.y = angle;
+
+            sectorGroups.forEach((sector, sectorIndex) => {
+                const active = sectorIndex === index;
+                sector.userData.portalOpen = active;
+
+                // Slightly brighten the currently connected sector.
+                sector.traverse((object) => {
+                    if (!object.isMesh || !object.material || Array.isArray(object.material)) return;
+                    if (!object.userData.baseOpacity) {
+                        object.userData.baseOpacity = object.material.opacity;
+                    }
+                    object.material.emissiveIntensity = active ? 0.16 : 0.02;
+                });
+            });
+
+            status.textContent =
+                'SECTOR ' + (index + 1) + '/' + labyrinthState.sectors +
+                '  |  PORTAL ROTATING  |  NEXT CONNECTION RANDOM';
+        };
+
+        group.userData.portal = portal;
+        group.userData.switchPortal = switchPortal;
+        group.userData.sectors = sectorGroups;
 
         scene.add(group);
+
+        // First connection is deterministic for reproducibility; subsequent
+        // changes are random in time and never reuse the same sector twice
+        // in a row.
+        switchPortal(Math.floor(random() * labyrinthState.sectors), performance.now());
+        window.BCMMiniSimLabyrinth = labyrinthState;
+        window.BCMMiniSimLabyrinth.group = group;
     }
 
     buildLabyrinth();
@@ -175,7 +387,23 @@
         return { thrust: thrust - reverse, strafe, vertical, roll };
     }
 
+    function updatePortal(dtNow) {
+        const labyrinth = window.BCMMiniSimLabyrinth;
+        const group = labyrinth && labyrinth.group;
+        if (!labyrinth || !group || !group.userData.switchPortal) return;
+
+        if (dtNow >= labyrinth.nextSwitchAt) {
+            let next = Math.floor(Math.random() * labyrinth.sectors);
+            if (labyrinth.sectors > 1 && next === labyrinth.activeSector) {
+                next = (next + 1 + Math.floor(Math.random() * (labyrinth.sectors - 1))) % labyrinth.sectors;
+            }
+
+            group.userData.switchPortal(next, dtNow);
+        }
+    }
+
     function updatePhysics(dt) {
+        updatePortal(performance.now());
         const input = axisInput();
 
         const accel = new THREE.Vector3(
