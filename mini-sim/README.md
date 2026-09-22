@@ -32,8 +32,12 @@ Desktop controls:
 - Mouse — pilot view
 - Q/E — roll
 - F — shield ON/OFF
+- R / yellow crystal — remote door activation when the door is in front of the ship and within range
+- approaching a closed door while facing it also opens it automatically
 
 The ship starts stationary so the first thing being tested is the control model itself: acceleration, inertia, 6DOF orientation and drift.
+
+The current test door is deliberately simple: two sliding leaves, four-frame rails, local proximity opening and a remote yellow-crystal activator. No weapon subsystem is required for this interaction.
 
 ## Current prototype
 
