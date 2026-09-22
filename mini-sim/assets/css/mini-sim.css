@@ -79,6 +79,7 @@
     .bcm-mini-sim-mobile{display:grid}
     .bcm-mini-sim-help{display:none}
     .bcm-mini-sim-start{padding:16px 22px}
+    .bcm-mini-sim-crystal-main{right:14px;bottom:132px}
 }
 
 .bcm-mini-sim-hud .bcm-mini-sim-status{
@@ -95,4 +96,30 @@
 .bcm-mini-sim-mobile .bcm-mini-sim-crystal:active{
     background:rgba(80,55,5,.72);
     transform:scale(.96);
+}
+
+.bcm-mini-sim-crystal-main{
+    position:absolute;
+    right:22px;
+    bottom:22px;
+    z-index:8;
+    width:58px;
+    height:58px;
+    border:1px solid rgba(255,210,70,.68);
+    border-radius:50%;
+    background:rgba(30,22,6,.72);
+    color:#ffd84d;
+    font-size:27px;
+    line-height:1;
+    cursor:pointer;
+    text-shadow:0 0 12px rgba(255,210,70,.95);
+    box-shadow:0 0 24px rgba(255,210,70,.15);
+    touch-action:manipulation;
+}
+.bcm-mini-sim-crystal-main:hover{
+    background:rgba(70,52,8,.88);
+    border-color:rgba(255,225,110,.95);
+}
+.bcm-mini-sim-crystal-main:active{
+    transform:scale(.95);
 }
