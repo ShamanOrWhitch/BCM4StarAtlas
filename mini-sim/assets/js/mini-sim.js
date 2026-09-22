@@ -881,7 +881,7 @@
         status.textContent = 'Loading Three.js…';
 
         const fallback = document.createElement('script');
-        fallback.src = 'https://unpkg.com/three@0.180.0/build/three.min.js';
+        fallback.src = 'https://unpkg.com/three@0.159.0/build/three.min.js';
         fallback.async = false;
 
         fallback.onload = () => {
