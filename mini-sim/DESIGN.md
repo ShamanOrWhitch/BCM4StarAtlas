@@ -2,7 +2,7 @@
 
 ## Current test version
 
-**0.3.5**
+**0.3.7**
 
 The mini sim is a self-contained WordPress plugin test. Three.js r128 is bundled locally and is the fixed engine baseline because r128 is already proven working in the target site.
 
@@ -19,7 +19,7 @@ Everything required for the current test belongs inside `mini-sim/`.
 
 ## Asset model
 
-PHP scans `mini-sim/assets/` recursively and exposes supported media as a local manifest.
+PHP scans `mini-sim/assets/` recursively.
 
 Supported:
 
@@ -27,26 +27,15 @@ Supported:
 - MP4/WebM video.
 - MP3/M4A/WAV/OGG audio.
 
-The resolver prefers a same-base WebP/JPG/JPEG variant when one exists, so heavy PNG textures can be replaced later without changing the scene code.
+Same-base WebP/JPG/JPEG files are preferred over PNG when available. Original PNG files remain valid.
 
-Current local assets include:
-
-- wall1.png … wall5.png
-- portal.png
-- portal2.png
-- portal3.png
-- portal1.mp4
-- portal2.mp4
-- portal3.mp4
-- perference bg.png
-- optional background.mp3
-- door.png
+For oversized images, the JS loader can create a downscaled **GPU-side copy** capped at 2048 px on the longest side. The repository files themselves are untouched.
 
 ## Current visual test room
 
 The first-person pilot starts in a textured test corridor.
 
-The five station wall textures are deliberately visible on separate real surfaces:
+The five supplied wall textures are assigned to real geometry:
 
 - wall1 → floor
 - wall2 → ceiling
@@ -54,9 +43,9 @@ The five station wall textures are deliberately visible on separate real surface
 - wall4 → right wall
 - wall5 → structural/rear surfaces
 
-The chamber reuses those loaded materials, so its floor, ceiling and walls are real textured geometry as well.
+The chamber reuses those actual wall materials.
 
-The current background image is the HTML menu backdrop. It sits above the WebGL canvas before gameplay starts, so it is visible under the menu while the engine is loading.
+The menu background is `perference bg.png` as an HTML layer over the WebGL canvas before gameplay starts.
 
 ## Door
 
@@ -65,52 +54,74 @@ The test door is a two-leaf sliding door using the local `door.png`.
 Remote activation:
 
 - R key
-- yellow crystal UI button
-- only when the door is ahead and within range
+- yellow ◆ UI button
 
-Local activation also opens the door when the pilot approaches while facing it.
+The door also opens automatically when the pilot approaches while facing it.
 
-The current door movement is intentionally procedural. Future cinematic doors can use MP4 opening animations without changing the generic room architecture.
+Opening the door starts chamber-media loading immediately.
 
 ## Portals
 
-The three portals are now front-facing physical station openings rather than side-mounted image planes.
+There are three front-facing physical portal openings.
 
 Routing is unchanged:
 
-- point 1 → 2 uses `portal2.mp4`.
-- point 2 → 1 uses `portal1.mp4`.
-- point 2 → 3 uses `portal3.mp4`.
-- point 3 is an endpoint with no outbound route.
+- point 1 → 2 = `portal2.mp4`
+- point 2 → 1 = `portal1.mp4`
+- point 2 → 3 = `portal3.mp4`
+- point 3 has no outbound route
 
-Portal images are loaded when the door begins opening, instead of waiting for an arbitrary camera Z threshold. The frames remain visible even if an image file fails.
+Point 2 has two selectable routes. T / mobile ↕ cycles the selected route; G / mobile G activates it.
 
-At point 2, T/mobile ↕ cycles the selected route. G/mobile G activates it. The transition video is full-screen; after it ends, the pilot is placed at that route's specific destination and velocity is reset.
+The local MP4 is played full-screen and the pilot is moved to that route's specific destination after the video ends.
 
-## Flight model
+## Controls
 
-Single-player first:
+Desktop:
 
-- pilot only
-- inertial linear movement
-- free pitch/yaw from mouse
-- touch drag pitch/yaw on mobile
-- roll from Q/E or controller shoulder buttons
-- local thrust / strafe / vertical thrust
-- gentle linear drag
-- speed cap
-- shield toggle
-- standard Gamepad API input
+- WASD + mouse flight
+- Q/E roll
+- F shield
+- R/◆ door
+- G portal
+- T portal route
 
-No weapon subsystem is required for the current test.
+Gamepad:
+
+- standard browser Gamepad API
+- left stick flight
+- right stick look
+- shoulders roll
+- triggers vertical
+- face buttons for door/route/shield/portal
+
+Android:
+
+- device orientation controls thrust/reverse and strafe
+- TILT button calibrates the current neutral position
+- right-half touch drag controls look
+- on-screen buttons provide remaining actions
 
 ## Music
 
-The plugin supports a local background track at:
+Preferred file:
 
-`mini-sim/assets/background.mp3`
+`mini-sim/assets/starbase ost.mp3`
 
-Playback is attempted immediately and is retried from a user gesture when browser autoplay policy rejects the first attempt. The same track remains active after gameplay starts.
+Fallback names are also recognized. The same names are accepted beside `bcm-mini-sim.php`.
+
+The current repository snapshot does not contain the Starbase OST file, so **MUSIC MISSING** is expected until it is added.
+
+## Texture recommendation
+
+The PNGs are not inherently a problem because of their storage size alone. The important runtime cost is decoded pixels and GPU texture memory.
+
+For this game architecture, use two asset classes:
+
+1. **Tileable room textures** — square 512×512 to 1024×1024 WebP/JPG for repeating metal, floor, ceiling and wall panels.
+2. **Unique cinematic/portal/menu images** — roughly 1536–2048 px on the long side; PNG can be retained where lossless transparency/details matter.
+
+The loader keeps PNG support and automatically picks lighter same-base formats.
 
 ## Collision scope
 
