@@ -80,6 +80,8 @@ function bcm_mini_sim_shortcode($atts = array()) {
         </div>
 
         <button class="bcm-mini-sim-start" type="button">ИГРАТЬ</button>
+        <button class="bcm-mini-sim-crystal bcm-mini-sim-crystal-main" type="button"
+                aria-label="Remote door crystal" title="Дистанционно открыть дверь">◆</button>
 
         <div class="bcm-mini-sim-mobile" aria-hidden="true">
             <button data-control="thrust">▲</button>
@@ -91,7 +93,6 @@ function bcm_mini_sim_shortcode($atts = array()) {
             <button data-control="rollLeft">↶</button>
             <button data-control="rollRight">↷</button>
             <button data-control="shield">🛡</button>
-            <button class="bcm-mini-sim-crystal" data-control="remoteDoor" aria-label="Remote door crystal" title="Remote door crystal">◆</button>
         </div>
     </div>
     <?php
