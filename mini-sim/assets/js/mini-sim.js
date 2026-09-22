@@ -12,6 +12,7 @@
     const menuBackdrop = root.querySelector('.bcm-mini-sim-menu-backdrop');
     const musicButton = root.querySelector('.bcm-mini-sim-music');
     const musicAudio = root.querySelector('.bcm-mini-sim-music-audio');
+    const tiltButton = root.querySelector('[data-control="tilt"]');
     const config = window.BCMMiniSimConfig || {};
 
     const TEXTURE_MAX_DIMENSION = 2048;
@@ -1120,6 +1121,7 @@
             tiltFrame.neutralGamma = tiltFrame.gamma;
             tiltFrame.enabled = true;
 
+            if (tiltButton) tiltButton.classList.add('active');
             status.textContent = 'TILT CONTROL · CALIBRATED';
             return true;
         } catch (error) {
@@ -1453,6 +1455,14 @@
             if (!running) return;
 
             if (event.pointerType === 'touch' || event.pointerType === 'pen') {
+                const rect = canvas.getBoundingClientRect();
+
+                // Mobile look is intentionally limited to the right half of
+                // the flight area. Movement itself is handled by device tilt.
+                if (event.clientX < rect.left + rect.width * 0.48) {
+                    return;
+                }
+
                 activeTouchPointerId = event.pointerId;
                 touchLookX = event.clientX;
                 touchLookY = event.clientY;
