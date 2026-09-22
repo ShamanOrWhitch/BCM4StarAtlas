@@ -2,14 +2,14 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Lightweight Descent-style 6DOF space-labyrinth simulation for WordPress.
- * Version: 0.2.5
+ * Version: 0.2.6
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BCM_MINI_SIM_VERSION', '0.2.5');
+define('BCM_MINI_SIM_VERSION', '0.2.6');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -28,10 +28,12 @@ function bcm_mini_sim_enqueue_assets() {
         BCM_MINI_SIM_VERSION
     );
 
-    // Three.js is used only as the lightweight WebGL renderer/geometry layer.
+    // Three.js is bundled locally so the plugin has no external runtime dependency.
+    $three_js_url = BCM_MINI_SIM_URL . 'assets/js/three.min.js';
+
     wp_enqueue_script(
         'bcm-three',
-        'https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js',
+        $three_js_url,
         array(),
         '0.159.0',
         false
@@ -48,6 +50,7 @@ function bcm_mini_sim_enqueue_assets() {
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
         'textureBase' => BCM_MINI_SIM_URL . 'assets/',
         'doorTexture' => $door_texture,
+        'threeUrl' => $three_js_url,
         'remoteTextures' => array(
             BCM_MINI_SIM_URL . 'assets/wall1.png',
             BCM_MINI_SIM_URL . 'assets/wall2.png',
