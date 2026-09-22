@@ -8,6 +8,10 @@
     const startButton = root.querySelector('.bcm-mini-sim-start');
     const status = root.querySelector('.bcm-mini-sim-status');
     const assetStatus = root.querySelector('.bcm-mini-sim-asset-status');
+    const interaction = root.querySelector('.bcm-mini-sim-interaction');
+    const menuBackdrop = root.querySelector('.bcm-mini-sim-menu-backdrop');
+    const musicButton = root.querySelector('.bcm-mini-sim-music');
+    const musicAudio = root.querySelector('.bcm-mini-sim-music-audio');
     const config = window.BCMMiniSimConfig || {};
 
     if (!canvas || !startButton || !status) return;
@@ -22,11 +26,30 @@
     });
 
     function findAsset(name) {
-        if (assetByName[name]) return assetByName[name].url;
+        const requested = String(name);
+        if (assetByName[requested]) return assetByName[requested].url;
 
-        const wanted = String(name).toLowerCase();
-        const key = Object.keys(assetByName).find(path => path.toLowerCase() === wanted);
-        return key ? assetByName[key].url : '';
+        const wanted = requested.toLowerCase();
+        const exactKey = Object.keys(assetByName).find(path => path.toLowerCase() === wanted);
+        if (exactKey) return assetByName[exactKey].url;
+
+        const extensionMatch = wanted.match(/\.([a-z0-9]+)$/i);
+        if (!extensionMatch) return '';
+
+        const imageExtensions = ['webp', 'jpg', 'jpeg', 'png', 'gif'];
+        if (!imageExtensions.includes(extensionMatch[1].toLowerCase())) {
+            return '';
+        }
+
+        const base = wanted.slice(0, -extensionMatch[0].length);
+
+        for (const extension of imageExtensions) {
+            const candidate = base + '.' + extension;
+            const key = Object.keys(assetByName).find(path => path.toLowerCase() === candidate);
+            if (key) return assetByName[key].url;
+        }
+
+        return '';
     }
 
     function imageName(name) {
@@ -105,11 +128,12 @@
 
         const manifestImages = assets.filter(asset => asset && asset.type === 'image').length;
         const manifestVideos = assets.filter(asset => asset && asset.type === 'video').length;
+        const manifestAudio = assets.filter(asset => asset && asset.type === 'audio').length;
 
         if (assetProgress.total === 0) {
             assetStatus.textContent =
                 'LOCAL ASSETS: ' + assets.length +
-                ' FILES · ' + manifestImages + ' IMG · ' + manifestVideos + ' VIDEO';
+                ' FILES · ' + manifestImages + ' IMG · ' + manifestVideos + ' VIDEO · ' + manifestAudio + ' AUDIO';
             return;
         }
 
@@ -213,7 +237,8 @@
         const material = new THREE.MeshStandardMaterial({
             color: fallbackColor || 0x4a505b,
             roughness: 0.88,
-            metalness: 0.16
+            metalness: 0.16,
+            side: THREE.DoubleSide
         });
         material.userData = material.userData || {};
         material.userData.lazyAsset = name;
@@ -273,11 +298,11 @@
         addBeam(world, 3.55, 0, -18, 0.55, 6.55, 0.8, trim);
 
         // Portal chamber beyond the door.
-        const chamberFloor = lazyTexturedMaterial('wall1.png', 0x39414b);
-        const chamberCeiling = lazyTexturedMaterial('wall2.png', 0x4b535e);
-        const chamberLeft = lazyTexturedMaterial('wall3.png', 0x343b45);
-        const chamberRight = lazyTexturedMaterial('wall4.png', 0x2d343d);
-        const chamberBack = lazyTexturedMaterial('wall5.png', 0x565e68);
+        const chamberFloor = wall1;
+        const chamberCeiling = wall2;
+        const chamberLeft = wall3;
+        const chamberRight = wall4;
+        const chamberBack = wall5;
 
         addBox(world, 0, -3.65, -25.5, 11.2, 0.6, 13.4, chamberFloor);
         addBox(world, 0, 3.65, -25.5, 11.2, 0.6, 13.4, chamberCeiling);
@@ -286,42 +311,8 @@
         addBox(world, 0, 0, -32.2, 11.2, 7.3, 0.6, chamberBack);
 
         scene.add(world);
-        buildBackgroundDisplay(world, wall5);
         buildPortalStations(world);
         buildAssetGallery(world);
-    }
-
-    function buildBackgroundDisplay(parent, material) {
-        const url = findAsset('perference bg.png');
-        if (!url) return;
-
-        const frameMat = new THREE.MeshStandardMaterial({
-            color: 0x161b22,
-            metalness: 0.55,
-            roughness: 0.5
-        });
-
-        // Keep the background display on a side wall so it never covers
-        // the rear portal station.
-        const frame = new THREE.Mesh(
-            new THREE.BoxGeometry(0.28, 3.8, 5.9),
-            frameMat
-        );
-        frame.position.set(-5.48, 1.1, -28.8);
-        parent.add(frame);
-
-        const screen = new THREE.Mesh(
-            new THREE.PlaneGeometry(3.2, 5.3),
-            new THREE.MeshBasicMaterial({
-                color: 0xffffff,
-                side: THREE.DoubleSide
-            })
-        );
-        screen.position.set(-5.31, 1.1, -28.8);
-        screen.rotation.y = Math.PI / 2;
-        parent.add(screen);
-
-        screen.userData.lazyAsset = 'perference bg.png';
     }
 
     function portalFrameMaterial() {
@@ -334,43 +325,42 @@
         });
     }
 
-    function createPortalStation(options) {
+    function createPortalStation(options, parent) {
         const group = new THREE.Group();
         group.position.copy(options.position);
         group.rotation.y = options.rotationY || 0;
 
         const frame = portalFrameMaterial();
-        const width = 4.8;
-        const height = 6.2;
+        const width = 3.2;
+        const height = 5.7;
 
-        addBox(group, 0, height / 2 + 0.3, 0, width, 0.55, 0.38, frame);
-        addBox(group, 0, -height / 2 - 0.3, 0, width, 0.55, 0.38, frame);
-        addBox(group, -width / 2 - 0.3, 0, 0, 0.55, height, 0.38, frame);
-        addBox(group, width / 2 + 0.3, 0, 0, 0.55, height, 0.38, frame);
+        addBox(group, 0, height / 2 + 0.28, 0, width, 0.5, 0.42, frame);
+        addBox(group, 0, -height / 2 - 0.28, 0, width, 0.5, 0.42, frame);
+        addBox(group, -width / 2 - 0.28, 0, 0, 0.5, height, 0.42, frame);
+        addBox(group, width / 2 + 0.28, 0, 0, 0.5, height, 0.42, frame);
 
-        const material = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
+        const openingMaterial = new THREE.MeshBasicMaterial({
+            color: 0x07111c,
             side: THREE.DoubleSide
         });
 
         const surface = new THREE.Mesh(
             new THREE.PlaneGeometry(width, height),
-            material
+            openingMaterial
         );
-        surface.position.z = -0.16;
+        surface.position.z = -0.18;
         group.add(surface);
 
         const glow = new THREE.Mesh(
-            new THREE.PlaneGeometry(width + 0.22, height + 0.22),
+            new THREE.PlaneGeometry(width + 0.16, height + 0.16),
             new THREE.MeshBasicMaterial({
                 color: 0x6ebcff,
                 transparent: true,
-                opacity: 0.08,
+                opacity: 0.13,
                 side: THREE.DoubleSide
             })
         );
         glow.position.z = -0.24;
-        glow.rotation.y = Math.PI;
         group.add(glow);
 
         const station = {
@@ -381,9 +371,6 @@
             image: options.image,
             routes: options.routes || [],
             routeIndex: 0,
-            target: options.target || null,
-            video: null,
-            videoTexture: null,
             playing: false
         };
 
@@ -391,56 +378,52 @@
 
         surface.userData.lazyAsset = options.image;
         group.userData.portalStation = station;
-        parentAdd(group);
+        parent.add(group);
 
         return station;
     }
 
-    function parentAdd(group) {
-        scene.add(group);
-    }
-
     function buildPortalStations(parent) {
-        // Routing is deliberately preserved:
-        // point 1 -> 2 = portal2.mp4
-        // point 2 -> 1 = portal1.mp4
-        // point 2 -> 3 = portal3.mp4
-        // point 3 is represented visually by portal3.png.
+        // Three clearly visible front-facing openings.
+        // Existing routes are unchanged: 1→2, 2→1 and 2→3.
         createPortalStation({
             point: 'POINT 1',
             image: 'portal.png',
-            routes: [{ label: '1 → 2', video: 'portal2.mp4' }],
-            position: new THREE.Vector3(-4.45, 0, -23.0),
-            rotationY: Math.PI / 2,
-            target: { x: 4.0, y: 0, z: -23.7, yaw: -Math.PI / 2 }
-        });
+            routes: [{
+                label: '1 → 2',
+                video: 'portal2.mp4',
+                target: { x: 0, y: 0, z: -29.35, yaw: 0 }
+            }],
+            position: new THREE.Vector3(-3.75, 0, -29.55),
+            rotationY: 0
+        }, parent);
 
         createPortalStation({
-            point: 'POINT 2 · RETURN',
+            point: 'POINT 2',
             image: 'portal2.png',
-            routes: [{ label: '2 → 1', video: 'portal1.mp4' }],
-            position: new THREE.Vector3(4.45, 0, -23.0),
-            rotationY: -Math.PI / 2,
-            target: { x: -4.0, y: 0, z: -23.7, yaw: Math.PI / 2 }
-        });
+            routes: [
+                {
+                    label: '2 → 1',
+                    video: 'portal1.mp4',
+                    target: { x: -3.75, y: 0, z: -29.35, yaw: 0 }
+                },
+                {
+                    label: '2 → 3',
+                    video: 'portal3.mp4',
+                    target: { x: 3.75, y: 0, z: -29.35, yaw: 0 }
+                }
+            ],
+            position: new THREE.Vector3(0, 0, -29.55),
+            rotationY: 0
+        }, parent);
 
         createPortalStation({
-            point: 'POINT 2 · OUTBOUND',
-            image: 'portal2.png',
-            routes: [{ label: '2 → 3', video: 'portal3.mp4' }],
-            position: new THREE.Vector3(0, 0, -30.9),
-            rotationY: 0,
-            target: { x: 2.8, y: 0, z: -30.9, yaw: Math.PI / 2 }
-        });
-
-        createPortalStation({
-            point: 'POINT 3 · ENDPOINT',
+            point: 'POINT 3',
             image: 'portal3.png',
             routes: [],
-            position: new THREE.Vector3(4.45, 0, -30.9),
-            rotationY: -Math.PI / 2,
-            target: null
-        });
+            position: new THREE.Vector3(3.75, 0, -29.55),
+            rotationY: 0
+        }, parent);
     }
 
 
@@ -495,17 +478,21 @@
         video.load();
         portalTransition.wrapper.hidden = true;
 
-        if (success && station && station.target) {
+        const route = station && station.routes
+            ? station.routes[station.routeIndex]
+            : null;
+
+        if (success && route && route.target) {
             ship.position.set(
-                station.target.x,
-                station.target.y,
-                station.target.z
+                route.target.x,
+                route.target.y,
+                route.target.z
             );
             ship.velocity.set(0, 0, 0);
             ship.angularVelocity.set(0, 0, 0);
             ship.quaternion.setFromAxisAngle(
                 new THREE.Vector3(0, 1, 0),
-                station.target.yaw || 0
+                route.target.yaw || 0
             );
 
             camera.position.copy(ship.position);
@@ -586,11 +573,12 @@
         return startPortalTransition(station);
     }
 
-    function tryPortalAction() {
-        if (!running || portalTransitionBusy) return false;
+    function getNearestPortal(maxDistance = 9.5, minimumFacing = 0.35) {
+        if (!ship) return null;
 
         let best = null;
         let bestDistance = Infinity;
+
         const forward = new THREE.Vector3(0, 0, -1)
             .applyQuaternion(ship.quaternion)
             .normalize();
@@ -598,18 +586,49 @@
         portalStations.forEach(station => {
             const worldPos = new THREE.Vector3();
             station.group.getWorldPosition(worldPos);
+
             const to = worldPos.sub(ship.position);
             const distance = to.length();
-            if (!distance || distance > 7.5) return;
+
+            if (!distance || distance > maxDistance) return;
 
             const facing = forward.dot(to.normalize());
-            if (facing < 0.50) return;
+            if (facing < minimumFacing) return;
 
             if (distance < bestDistance) {
                 best = station;
                 bestDistance = distance;
             }
         });
+
+        return best;
+    }
+
+    function cyclePortalRoute() {
+        if (!running || portalTransitionBusy) return false;
+
+        const station = getNearestPortal(10, 0.30);
+
+        if (!station || station.routes.length < 2) {
+            if (station) {
+                status.textContent = station.point + ' · ONLY ONE ROUTE';
+            }
+            return false;
+        }
+
+        station.routeIndex = (station.routeIndex + 1) % station.routes.length;
+
+        status.textContent =
+            station.point + ' · ROUTE ' +
+            station.routes[station.routeIndex].label;
+
+        return true;
+    }
+
+    function tryPortalAction() {
+        if (!running || portalTransitionBusy) return false;
+
+        const best = getNearestPortal();
 
         if (!best) {
             status.textContent = 'PORTAL · OUT OF RANGE / TURN TOWARD A PORTAL';
@@ -869,6 +888,7 @@
 
         testDoor.state = 'OPENING';
         doorCrystal.pulseUntil = performance.now() + 360;
+        loadChamberVisuals();
 
         status.textContent = reason === 'REMOTE'
             ? 'DOOR CRYSTAL · REMOTE OPEN'
@@ -992,7 +1012,114 @@
         shipSystems.shieldOn = !shipSystems.shieldOn;
     }
 
+    const gamepadFrame = {
+        pad: null,
+        leftX: 0,
+        leftY: 0,
+        rightX: 0,
+        rightY: 0,
+        roll: 0,
+        vertical: 0
+    };
+
+    let gamepadIndex = -1;
+    let previousGamepadButtons = [];
+
+    function applyDeadzone(value, deadzone) {
+        if (Math.abs(value) <= deadzone) return 0;
+
+        const sign = value < 0 ? -1 : 1;
+        const scaled = (Math.abs(value) - deadzone) / (1 - deadzone);
+        return sign * Math.min(1, scaled);
+    }
+
+    function getActiveGamepad() {
+        if (!navigator.getGamepads) return null;
+
+        let pads;
+
+        try {
+            pads = navigator.getGamepads();
+        } catch (error) {
+            return null;
+        }
+
+        if (gamepadIndex >= 0 && pads[gamepadIndex]) {
+            return pads[gamepadIndex];
+        }
+
+        for (let i = 0; i < pads.length; i++) {
+            if (pads[i]) {
+                gamepadIndex = i;
+                return pads[i];
+            }
+        }
+
+        gamepadIndex = -1;
+        return null;
+    }
+
+    function gamepadButtonPressed(pad, index) {
+        return !!(
+            pad &&
+            pad.buttons &&
+            pad.buttons[index] &&
+            (pad.buttons[index].pressed || pad.buttons[index].value > 0.55)
+        );
+    }
+
+    function updateGamepad() {
+        gamepadFrame.pad = getActiveGamepad();
+
+        if (!gamepadFrame.pad) {
+            gamepadFrame.leftX = 0;
+            gamepadFrame.leftY = 0;
+            gamepadFrame.rightX = 0;
+            gamepadFrame.rightY = 0;
+            gamepadFrame.roll = 0;
+            gamepadFrame.vertical = 0;
+            previousGamepadButtons = [];
+            return;
+        }
+
+        const pad = gamepadFrame.pad;
+        const axes = pad.axes || [];
+
+        gamepadFrame.leftX = applyDeadzone(axes[0] || 0, 0.14);
+        gamepadFrame.leftY = applyDeadzone(axes[1] || 0, 0.14);
+        gamepadFrame.rightX = applyDeadzone(axes[2] || 0, 0.14);
+        gamepadFrame.rightY = applyDeadzone(axes[3] || 0, 0.14);
+
+        gamepadFrame.roll =
+            (gamepadButtonPressed(pad, 5) ? 1 : 0) -
+            (gamepadButtonPressed(pad, 4) ? 1 : 0);
+
+        gamepadFrame.vertical =
+            (gamepadButtonPressed(pad, 7) ? 1 : 0) -
+            (gamepadButtonPressed(pad, 6) ? 1 : 0);
+
+        const actions = [
+            [0, tryRemoteDoor],
+            [1, cyclePortalRoute],
+            [2, toggleShield],
+            [3, tryPortalAction]
+        ];
+
+        actions.forEach(([buttonIndex, action]) => {
+            const pressed = gamepadButtonPressed(pad, buttonIndex);
+            const wasPressed = previousGamepadButtons[buttonIndex] === true;
+
+            if (pressed && !wasPressed && running) {
+                action();
+            }
+
+            previousGamepadButtons[buttonIndex] = pressed;
+        });
+    }
+
     function inputAxes() {
+        updateGamepad();
+
         const thrust = keys.KeyW || touch.thrust ? 1 : 0;
         const reverse = keys.KeyS || touch.brake ? 1 : 0;
         const strafe =
@@ -1006,11 +1133,43 @@
             (keys.KeyQ || touch.rollLeft ? 1 : 0);
 
         return {
-            thrust: thrust - reverse,
-            strafe,
-            vertical,
-            roll
+            thrust: thrust - reverse - gamepadFrame.leftY,
+            strafe: strafe + gamepadFrame.leftX,
+            vertical: vertical + gamepadFrame.vertical,
+            roll: roll + gamepadFrame.roll
         };
+    }
+
+    function updateInteractionHint() {
+        if (!interaction || !ship) return;
+
+        const portal = getNearestPortal(10, 0.30);
+
+        if (portal) {
+            const route = portal.routes[portal.routeIndex];
+
+            interaction.textContent = route
+                ? portal.point + ' · G → ' + route.label +
+                    (portal.routes.length > 1 ? ' · T/↕ сменить' : '')
+                : portal.point + ' · ENDPOINT';
+            return;
+        }
+
+        if (testDoor.mesh) {
+            const toDoor = testDoor.mesh.position.clone().sub(ship.position);
+            const distance = toDoor.length();
+            const forward = new THREE.Vector3(0, 0, -1)
+                .applyQuaternion(ship.quaternion)
+                .normalize();
+            const facing = distance > 0 ? forward.dot(toDoor.normalize()) : -1;
+
+            if (testDoor.state === 'CLOSED' && distance < 34 && facing > 0.70) {
+                interaction.textContent = 'DOOR · R / ◆ OPEN';
+                return;
+            }
+        }
+
+        interaction.textContent = '';
     }
 
     function updatePhysics(dt) {
@@ -1030,6 +1189,14 @@
         }
 
         const input = inputAxes();
+
+        if (gamepadFrame.pad) {
+            const padLookSensitivity = 1.15;
+            ship.angularVelocity.y -= gamepadFrame.rightX * padLookSensitivity * dt;
+            ship.angularVelocity.x -= gamepadFrame.rightY * padLookSensitivity * dt;
+        }
+
+        updateInteractionHint();
 
         if (keys[shipSystems.shieldToggleKey]) {
             toggleShield();
@@ -1106,6 +1273,7 @@
 
     function handleKeyDown(event) {
         keys[event.code] = true;
+        startMusic();
 
         if (event.code === 'Space' || event.code === 'ControlLeft') {
             event.preventDefault();
@@ -1120,31 +1288,90 @@
             event.preventDefault();
             tryPortalAction();
         }
+
+        if (event.code === 'KeyT') {
+            event.preventDefault();
+            cyclePortalRoute();
+        }
     }
 
     function handleKeyUp(event) {
         keys[event.code] = false;
     }
 
+    let activeTouchPointerId = null;
+    let touchLookX = 0;
+    let touchLookY = 0;
+
     function setupInput() {
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
-
         window.addEventListener('resize', resize);
 
-        canvas.addEventListener('click', () => {
+        window.addEventListener('gamepadconnected', event => {
+            if (gamepadIndex < 0) {
+                gamepadIndex = event.gamepad.index;
+            }
+        });
+
+        window.addEventListener('gamepaddisconnected', event => {
+            if (event.gamepad.index === gamepadIndex) {
+                gamepadIndex = -1;
+            }
+        });
+
+        canvas.addEventListener('pointerdown', event => {
             if (!running) return;
-            if (canvas.requestPointerLock) {
+
+            if (event.pointerType === 'touch' || event.pointerType === 'pen') {
+                activeTouchPointerId = event.pointerId;
+                touchLookX = event.clientX;
+                touchLookY = event.clientY;
+
+                if (canvas.setPointerCapture) {
+                    canvas.setPointerCapture(event.pointerId);
+                }
+
+                event.preventDefault();
+                startMusic();
+                return;
+            }
+
+            if (event.pointerType === 'mouse' && canvas.requestPointerLock) {
                 canvas.requestPointerLock();
             }
         });
+
+        canvas.addEventListener('pointermove', event => {
+            if (event.pointerId !== activeTouchPointerId || !ship) return;
+
+            const dx = event.clientX - touchLookX;
+            const dy = event.clientY - touchLookY;
+
+            touchLookX = event.clientX;
+            touchLookY = event.clientY;
+
+            const sensitivity = 0.0052;
+            ship.angularVelocity.y -= dx * sensitivity;
+            ship.angularVelocity.x -= dy * sensitivity;
+
+            event.preventDefault();
+        });
+
+        const endTouchLook = event => {
+            if (event.pointerId !== activeTouchPointerId) return;
+            activeTouchPointerId = null;
+        };
+
+        canvas.addEventListener('pointerup', endTouchLook);
+        canvas.addEventListener('pointercancel', endTouchLook);
 
         document.addEventListener('pointerlockchange', () => {
             pointerLocked = document.pointerLockElement === canvas;
         });
 
         document.addEventListener('mousemove', event => {
-            if (!pointerLocked) return;
+            if (!pointerLocked || !ship) return;
 
             const sensitivity = 0.0022;
             ship.angularVelocity.y -= event.movementX * sensitivity;
@@ -1156,6 +1383,9 @@
 
             const down = event => {
                 event.preventDefault();
+                startMusic();
+
+                if (!running) return;
 
                 if (control === 'shield') {
                     toggleShield();
@@ -1164,6 +1394,11 @@
 
                 if (control === 'portal') {
                     tryPortalAction();
+                    return;
+                }
+
+                if (control === 'route') {
+                    cyclePortalRoute();
                     return;
                 }
 
@@ -1182,15 +1417,35 @@
         });
 
         const crystalButton = root.querySelector('.bcm-mini-sim-crystal-main');
+
         if (crystalButton) {
             crystalButton.addEventListener('click', event => {
                 event.preventDefault();
+                startMusic();
                 tryRemoteDoor();
             });
         }
 
+        if (musicButton) {
+            musicButton.addEventListener('click', event => {
+                event.preventDefault();
+
+                if (!musicAudio || !config.musicUrl) return;
+
+                musicAudio.muted = !musicAudio.muted;
+
+                if (!musicAudio.muted) {
+                    startMusic();
+                }
+
+                updateMusicButton();
+            });
+        }
+
         startButton.addEventListener('click', () => {
+            startMusic();
             running = true;
+            root.classList.add('game-active');
             startButton.classList.add('hidden');
             status.textContent = 'FLIGHT ACTIVE · 6DOF READY';
 
@@ -1200,6 +1455,70 @@
 
             canvas.focus();
         });
+
+        // Any first interaction is a valid browser gesture for audio.
+        root.addEventListener('pointerdown', startMusic);
+    }
+
+    function updateMusicButton() {
+        if (!musicButton || !musicAudio) return;
+
+        musicButton.textContent = musicAudio.muted ? '🔇' : '♫';
+        musicButton.setAttribute(
+            'aria-label',
+            musicAudio.muted ? 'Включить музыку' : 'Выключить музыку'
+        );
+        musicButton.title = musicAudio.muted ? 'Включить музыку' : 'Выключить музыку';
+    }
+
+    function startMusic() {
+        if (!musicAudio || !config.musicUrl || musicAudio.muted) return;
+
+        if (!musicAudio.src) {
+            musicAudio.src = config.musicUrl;
+        }
+
+        musicAudio.loop = true;
+        musicAudio.preload = 'auto';
+        musicAudio.volume = 0.42;
+
+        const promise = musicAudio.play();
+
+        if (promise && typeof promise.catch === 'function') {
+            promise.catch(() => {
+                // Browser autoplay policy may require a user gesture.
+            });
+        }
+
+        updateMusicButton();
+    }
+
+    function setupMedia() {
+        if (menuBackdrop && config.menuBackgroundUrl) {
+            const safeUrl = String(config.menuBackgroundUrl).replace(/"/g, '\\\"');
+            menuBackdrop.style.backgroundImage = 'url("' + safeUrl + '")';
+        }
+
+        if (!musicAudio || !config.musicUrl) {
+            if (musicButton) musicButton.hidden = true;
+            return;
+        }
+
+        musicAudio.src = config.musicUrl;
+        musicAudio.loop = true;
+        musicAudio.preload = 'auto';
+        musicAudio.volume = 0.42;
+        musicAudio.setAttribute('playsinline', '');
+
+        updateMusicButton();
+
+        const promise = musicAudio.play();
+
+        if (promise && typeof promise.catch === 'function') {
+            promise.catch(() => {
+                // Expected until the browser receives a user gesture.
+            });
+        }
     }
 
     function renderFrame(now) {
@@ -1290,6 +1609,7 @@
             buildWorld();
             buildDoor();
             createPortalTransitionUI();
+            setupMedia();
             setupInput();
             resize();
 
