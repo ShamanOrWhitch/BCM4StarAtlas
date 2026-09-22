@@ -4,7 +4,7 @@ Self-contained WordPress test of a Descent-style 6DOF space-labyrinth.
 
 ## Version
 
-**0.3.2**
+**0.3.3**
 
 Three.js **r128** is bundled locally in:
 
