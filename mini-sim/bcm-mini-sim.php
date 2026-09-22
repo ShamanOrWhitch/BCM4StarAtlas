@@ -108,8 +108,8 @@ function bcm_mini_sim_shortcode($atts = array()) {
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-help">
                 <span>W/S</span> thrust · <span>A/D</span> strafe · <span>Space/Ctrl</span> vertical ·
-                <span>Mouse</span> look · <span>Q/E</span> roll · <span>F</span> shield ·
-                <span>R/◆</span> door crystal · <span>G</span> portal preview
+                <span>Mouse</span> look · <span>Q</span> rotate clockwise · <span>E</span> rotate counter-clockwise ·
+                <span>F</span> shield · <span>R/◆</span> door crystal · <span>G</span> portal transition
             </div>
         </div>
 
