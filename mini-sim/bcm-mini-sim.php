@@ -68,7 +68,7 @@ function bcm_mini_sim_shortcode($atts = array()) {
             <div class="bcm-mini-sim-status">Loading...</div>
             <div class="bcm-mini-sim-help">
                 <span>W/S</span> thrust · <span>A/D</span> strafe · <span>Space/Ctrl</span> vertical ·
-                <span>Mouse</span> look · <span>F</span> shield · <span>Q/E</span> roll · <span>W/S</span> thrust
+                <span>Mouse</span> look · <span>F</span> shield · <span>Q/E</span> roll
             </div>
         </div>
 
