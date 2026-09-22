@@ -1,6 +1,6 @@
 # BCM Mini Space Simulation
 
-Lightweight Descent-style 6DOF space-flight prototype for WordPress.
+Playable first test of a Descent-inspired 6DOF space-labyrinth shell for WordPress.
 
 ## Shortcode
 
@@ -13,6 +13,27 @@ Optional:
 ```
 [bcm_mini_sim height="800px"]
 ```
+
+## Playable test
+
+Insert the shortcode into a WordPress page:
+
+```
+[bcm_mini_sim]
+```
+
+The test opens behind the **ИГРАТЬ** button.
+
+Desktop controls:
+
+- W/S — thrust / reverse
+- A/D — strafe
+- Space/Ctrl — vertical movement
+- Mouse — pilot view
+- Q/E — roll
+- F — shield ON/OFF
+
+The ship starts stationary so the first thing being tested is the control model itself: acceleration, inertia, 6DOF orientation and drift.
 
 ## Current prototype
 
@@ -44,8 +65,8 @@ For the first prototype the texture URLs can be mapped to the five supplied stat
 ## Next stages
 
 1. Proper corridor/room collision volumes.
-2. Procedural labyrinth generator.
-3. Better 6DOF angular dynamics.
+2. Door → room/sector transition.
+3. Procedural module generator using reusable rooms and connections.
 4. Mobile device-orientation controls with permission handling.
 5. Gamepad API support.
 6. Optional Star Atlas ship GLB models.
