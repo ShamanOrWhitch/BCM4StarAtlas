@@ -130,16 +130,20 @@
         const manifestVideos = assets.filter(asset => asset && asset.type === 'video').length;
         const manifestAudio = assets.filter(asset => asset && asset.type === 'audio').length;
 
+        const musicState = config.musicUrl ? ' · MUSIC READY' : ' · MUSIC MISSING';
+
         if (assetProgress.total === 0) {
             assetStatus.textContent =
                 'LOCAL ASSETS: ' + assets.length +
-                ' FILES · ' + manifestImages + ' IMG · ' + manifestVideos + ' VIDEO · ' + manifestAudio + ' AUDIO';
+                ' FILES · ' + manifestImages + ' IMG · ' + manifestVideos +
+                ' VIDEO · ' + manifestAudio + ' AUDIO' + musicState;
             return;
         }
 
         assetStatus.textContent =
             'LOCAL ASSETS: ' + assetProgress.done + '/' + assetProgress.total +
             ' · FILES ' + assets.length +
+            musicState +
             (assetProgress.failed ? ' · FAILED ' + assetProgress.failed : '');
     }
 
@@ -1184,10 +1188,6 @@
 
         // The chamber holds the portal and background media. Do not decode
         // those large images until the pilot is actually approaching it.
-        if (!chamberVisualsLoaded && ship.position.z < -14.5) {
-            loadChamberVisuals();
-        }
-
         const input = inputAxes();
 
         if (gamepadFrame.pad) {
