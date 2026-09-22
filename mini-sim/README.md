@@ -54,7 +54,7 @@ The current test door is deliberately simple: two sliding leaves, four-frame rai
 
 ## Textures
 
-The current prototype uses the local files already present in the repository:
+The plugin folder is now self-contained for the current test, including the door asset. The current prototype uses these local files:
 
 ```
 assets/wall1.png
