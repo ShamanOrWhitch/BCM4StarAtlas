@@ -35,11 +35,19 @@
 
     function setTextureColor(texture) {
         if (!texture) return;
+
+        // Keep texture memory low on older GPUs. No mipmap pyramid is
+        // generated because the test is a first-person close-range scene.
         texture.wrapS = THREE.ClampToEdgeWrapping;
         texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.generateMipmaps = false;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+
         if ('encoding' in texture && THREE.sRGBEncoding !== undefined) {
             texture.encoding = THREE.sRGBEncoding;
         }
+
         texture.needsUpdate = true;
     }
 
@@ -55,6 +63,8 @@
     const touch = Object.create(null);
     const textures = Object.create(null);
     const portalStations = [];
+    let chamberVisualsLoaded = false;
+    let chamberVisualsLoading = false;
 
     const assetProgress = {
         total: 0,
@@ -291,13 +301,7 @@
         screen.rotation.y = Math.PI / 2;
         parent.add(screen);
 
-        makeTexture(
-            'perference bg.png',
-            texture => {
-                screen.material.map = texture;
-                screen.material.needsUpdate = true;
-            }
-        );
+        screen.userData.lazyAsset = 'perference bg.png';
     }
 
     function portalFrameMaterial() {
@@ -364,14 +368,7 @@
 
         portalStations.push(station);
 
-        makeTexture(
-            options.image,
-            texture => {
-                material.map = texture;
-                material.needsUpdate = true;
-            }
-        );
-
+        surface.userData.lazyAsset = options.image;
         group.userData.portalStation = station;
         parentAdd(group);
 
@@ -580,12 +577,55 @@
             screen.rotation.y = col ? -Math.PI / 2 : Math.PI / 2;
             parent.add(screen);
 
+            screen.userData.lazyAsset = asset.name;
+        });
+    }
+
+
+    function loadChamberVisuals() {
+        if (chamberVisualsLoaded || chamberVisualsLoading) return;
+
+        chamberVisualsLoading = true;
+
+        const targets = [];
+
+        scene.traverse(object => {
+            if (!object.isMesh || !object.userData || !object.userData.lazyAsset) return;
+            targets.push(object);
+        });
+
+        let remaining = targets.length;
+
+        if (!remaining) {
+            chamberVisualsLoaded = true;
+            chamberVisualsLoading = false;
+            return;
+        }
+
+        const done = () => {
+            remaining--;
+
+            if (remaining <= 0) {
+                chamberVisualsLoaded = true;
+                chamberVisualsLoading = false;
+                status.textContent = 'CHAMBER VISUALS READY · LOCAL ASSETS';
+            }
+        };
+
+        targets.forEach(object => {
+            const assetName = object.userData.lazyAsset;
+            delete object.userData.lazyAsset;
+
             makeTexture(
-                asset.name,
+                assetName,
                 texture => {
-                    screen.material.map = texture;
-                    screen.material.needsUpdate = true;
-                }
+                    if (object.material) {
+                        object.material.map = texture;
+                        object.material.needsUpdate = true;
+                    }
+                    done();
+                },
+                done
             );
         });
     }
@@ -865,6 +905,12 @@
     function updatePhysics(dt) {
         updateDoor(dt);
 
+        // The chamber holds the portal and background media. Do not decode
+        // those large images until the pilot is actually approaching it.
+        if (!chamberVisualsLoaded && ship.position.z < -14.5) {
+            loadChamberVisuals();
+        }
+
         const input = inputAxes();
 
         if (keys[shipSystems.shieldToggleKey]) {
@@ -1120,10 +1166,40 @@
 
     updateAssetStatus();
 
-    if (window.THREE) {
-        startSimulator();
-    } else {
-        status.textContent = 'ERROR: Local Three.js file missing/unavailable';
-        startButton.disabled = true;
+    function bootThree() {
+        if (window.THREE) {
+            startSimulator();
+            return;
+        }
+
+        status.textContent = 'ENGINE LOADING...';
+
+        const localEngine = document.createElement('script');
+        localEngine.src = config.threeUrl || '';
+        localEngine.async = false;
+
+        localEngine.onload = () => {
+            if (window.THREE) {
+                startSimulator();
+            } else {
+                status.textContent = 'ERROR: Three.js file loaded but window.THREE is missing';
+                startButton.disabled = true;
+            }
+        };
+
+        localEngine.onerror = () => {
+            status.textContent = 'ERROR: Local Three.js r128 could not be loaded';
+            startButton.disabled = true;
+        };
+
+        if (!localEngine.src) {
+            status.textContent = 'ERROR: Local Three.js path is missing';
+            startButton.disabled = true;
+            return;
+        }
+
+        document.head.appendChild(localEngine);
     }
+
+    bootThree();
 })();
