@@ -54,21 +54,21 @@ The current test door is deliberately simple: two sliding leaves, four-frame rai
 
 ## Textures
 
-The production plugin should contain local copies in:
+The current prototype uses the local files already present in the repository:
 
 ```
-assets/textures/wall-1.png
-assets/textures/wall-2.png
-assets/textures/wall-3.png
-assets/textures/wall-4.png
-assets/textures/wall-5.png
+assets/wall1.png
+assets/wall2.png
+assets/wall3.png
+assets/wall4.png
+assets/wall5.png
 ```
 
 For the first prototype the texture URLs can be mapped to the five supplied station images.
 
 ## Next stages
 
-1. Proper corridor/room collision volumes.
+1. Extend collision volumes from the test tunnel to generated room modules.
 2. Door → room/sector transition.
 3. Procedural module generator using reusable rooms and connections.
 4. Mobile device-orientation controls with permission handling.
