@@ -14,6 +14,16 @@
     const musicAudio = root.querySelector('.bcm-mini-sim-music-audio');
     const config = window.BCMMiniSimConfig || {};
 
+    const TEXTURE_MAX_DIMENSION = 2048;
+    const tiltFrame = {
+        enabled: false,
+        available: false,
+        beta: 0,
+        gamma: 0,
+        neutralBeta: 0,
+        neutralGamma: 0
+    };
+
     if (!canvas || !startButton || !status) return;
 
     const assets = Array.isArray(config.assets) ? config.assets : [];
@@ -27,29 +37,29 @@
 
     function findAsset(name) {
         const requested = String(name);
+        const lower = requested.toLowerCase();
+        const imageMatch = lower.match(/^(.*)\\.(png|jpg|jpeg|webp|gif)$/i);
+
+        if (imageMatch) {
+            const base = imageMatch[1];
+
+            for (const extension of ['webp', 'jpg', 'jpeg', 'png', 'gif']) {
+                const candidate = base + '.' + extension;
+                const key = Object.keys(assetByName).find(path =>
+                    path.toLowerCase() === candidate
+                );
+
+                if (key) return assetByName[key].url;
+            }
+        }
+
         if (assetByName[requested]) return assetByName[requested].url;
 
-        const wanted = requested.toLowerCase();
-        const exactKey = Object.keys(assetByName).find(path => path.toLowerCase() === wanted);
-        if (exactKey) return assetByName[exactKey].url;
+        const exactKey = Object.keys(assetByName).find(path =>
+            path.toLowerCase() === lower
+        );
 
-        const extensionMatch = wanted.match(/\.([a-z0-9]+)$/i);
-        if (!extensionMatch) return '';
-
-        const imageExtensions = ['webp', 'jpg', 'jpeg', 'png', 'gif'];
-        if (!imageExtensions.includes(extensionMatch[1].toLowerCase())) {
-            return '';
-        }
-
-        const base = wanted.slice(0, -extensionMatch[0].length);
-
-        for (const extension of imageExtensions) {
-            const candidate = base + '.' + extension;
-            const key = Object.keys(assetByName).find(path => path.toLowerCase() === candidate);
-            if (key) return assetByName[key].url;
-        }
-
-        return '';
+        return exactKey ? assetByName[exactKey].url : '';
     }
 
     function imageName(name) {
@@ -147,23 +157,85 @@
             (assetProgress.failed ? ' · FAILED ' + assetProgress.failed : '');
     }
 
-    function makeTexture(name, onReady, onError) {
-        const url = imageName(name);
+    function finalizeTexture(name, image) {
+        const record = textureRecords[name];
+        if (!record) return;
 
-        if (!url) {
-            if (onError) onError();
-            return null;
+        try {
+            let source = image;
+            let width = image.naturalWidth || image.width || 0;
+            let height = image.naturalHeight || image.height || 0;
+
+            if (!width || !height) {
+                throw new Error('IMAGE_DIMENSIONS_MISSING');
+            }
+
+            const maxDimension = Math.min(
+                TEXTURE_MAX_DIMENSION,
+                renderer && renderer.capabilities
+                    ? renderer.capabilities.maxTextureSize
+                    : TEXTURE_MAX_DIMENSION
+            );
+
+            if (Math.max(width, height) > maxDimension) {
+                const scale = maxDimension / Math.max(width, height);
+                width = Math.max(1, Math.round(width * scale));
+                height = Math.max(1, Math.round(height * scale));
+
+                const sourceCanvas = document.createElement('canvas');
+                sourceCanvas.width = width;
+                sourceCanvas.height = height;
+
+                const context = sourceCanvas.getContext('2d');
+
+                if (!context) {
+                    throw new Error('TEXTURE_CANVAS_UNAVAILABLE');
+                }
+
+                context.imageSmoothingEnabled = true;
+                context.imageSmoothingQuality = 'high';
+                context.drawImage(image, 0, 0, width, height);
+                source = sourceCanvas;
+            }
+
+            const texture = new THREE.Texture(source);
+            setTextureColor(texture);
+            texture.needsUpdate = true;
+
+            record.texture = texture;
+            record.failed = false;
+            assetProgress.done++;
+            updateAssetStatus();
+
+            record.callbacks.forEach(callback => {
+                if (callback.onReady) callback.onReady(texture);
+            });
+            record.callbacks.length = 0;
+        } catch (error) {
+            record.failed = true;
+            assetProgress.done++;
+            assetProgress.failed++;
+            updateAssetStatus();
+
+            record.callbacks.forEach(callback => {
+                if (callback.onError) callback.onError(error);
+            });
+            record.callbacks.length = 0;
         }
+    }
 
+    function loadImageTexture(name, url, onReady, onError) {
         const existing = textureRecords[name];
+
         if (existing) {
             if (existing.texture) {
                 if (onReady) onReady(existing.texture);
-            } else if (onError && existing.failed) {
-                onError();
+            } else if (existing.failed) {
+                if (onError) onError(new Error('IMAGE_ASSET_FAILED'));
             } else if (onReady || onError) {
                 existing.callbacks.push({ onReady, onError });
             }
+
             return existing.texture || null;
         }
 
@@ -181,36 +253,37 @@
         assetProgress.total++;
         updateAssetStatus();
 
-        const loader = new THREE.TextureLoader();
+        const image = new Image();
+        image.decoding = 'async';
 
-        loader.load(
-            url,
-            loaded => {
-                setTextureColor(loaded);
-                record.texture = loaded;
-                assetProgress.done++;
-                updateAssetStatus();
+        image.onload = () => finalizeTexture(name, image);
 
-                record.callbacks.forEach(callback => {
-                    if (callback.onReady) callback.onReady(loaded);
-                });
-                record.callbacks.length = 0;
-            },
-            undefined,
-            () => {
-                record.failed = true;
-                assetProgress.done++;
-                assetProgress.failed++;
-                updateAssetStatus();
+        image.onerror = () => {
+            record.failed = true;
+            assetProgress.done++;
+            assetProgress.failed++;
+            updateAssetStatus();
 
-                record.callbacks.forEach(callback => {
-                    if (callback.onError) callback.onError();
-                });
-                record.callbacks.length = 0;
-            }
-        );
+            record.callbacks.forEach(callback => {
+                if (callback.onError) callback.onError(new Error('IMAGE_LOAD_FAILED'));
+            });
+            record.callbacks.length = 0;
+        };
+
+        image.src = url;
 
         return null;
+    }
+
+    function makeTexture(name, onReady, onError) {
+        const url = imageName(name);
+
+        if (!url) {
+            if (onError) onError(new Error('IMAGE_ASSET_MISSING'));
+            return null;
+        }
+
+        return loadImageTexture(name, url, onReady, onError);
     }
 
     function loadKnownTexture(name) {
@@ -830,15 +903,12 @@
         group.add(leftDoor, rightDoor);
 
         const url = config.doorTexture || '';
-        if (url) {
-            const loader = new THREE.TextureLoader();
-            assetProgress.total++;
 
-            loader.load(
+        if (url) {
+            loadImageTexture(
+                '__door_texture__',
                 url,
                 texture => {
-                    setTextureColor(texture);
-
                     const leftTexture = texture.clone();
                     const rightTexture = texture.clone();
 
@@ -854,15 +924,6 @@
                     rightMaterial.map = rightTexture;
                     leftMaterial.needsUpdate = true;
                     rightMaterial.needsUpdate = true;
-
-                    assetProgress.done++;
-                    updateAssetStatus();
-                },
-                undefined,
-                () => {
-                    assetProgress.done++;
-                    assetProgress.failed++;
-                    updateAssetStatus();
                 }
             );
         }
@@ -1016,6 +1077,71 @@
         shipSystems.shieldOn = !shipSystems.shieldOn;
     }
 
+    function handleDeviceOrientation(event) {
+        if (typeof event.beta !== 'number' || typeof event.gamma !== 'number') {
+            return;
+        }
+
+        tiltFrame.available = true;
+        tiltFrame.beta = event.beta;
+        tiltFrame.gamma = event.gamma;
+    }
+
+    async function enableTiltControl() {
+        try {
+            if (
+                typeof DeviceOrientationEvent !== 'undefined' &&
+                typeof DeviceOrientationEvent.requestPermission === 'function'
+            ) {
+                const permission = await DeviceOrientationEvent.requestPermission();
+
+                if (permission !== 'granted') {
+                    status.textContent = 'TILT · SENSOR PERMISSION DENIED';
+                    return false;
+                }
+            }
+
+            if (!tiltFrame.available) {
+                window.addEventListener(
+                    'deviceorientation',
+                    handleDeviceOrientation,
+                    true
+                );
+
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+
+            if (!tiltFrame.available) {
+                status.textContent = 'TILT · SENSOR NOT AVAILABLE';
+                return false;
+            }
+
+            tiltFrame.neutralBeta = tiltFrame.beta;
+            tiltFrame.neutralGamma = tiltFrame.gamma;
+            tiltFrame.enabled = true;
+
+            status.textContent = 'TILT CONTROL · CALIBRATED';
+            return true;
+        } catch (error) {
+            status.textContent = 'TILT · SENSOR ERROR';
+            return false;
+        }
+    }
+
+    function tiltAxes() {
+        if (!tiltFrame.enabled || !tiltFrame.available) {
+            return { thrust: 0, strafe: 0 };
+        }
+
+        const forward = (tiltFrame.beta - tiltFrame.neutralBeta) / 28;
+        const side = (tiltFrame.gamma - tiltFrame.neutralGamma) / 24;
+
+        return {
+            thrust: applyDeadzone(forward, 0.10),
+            strafe: applyDeadzone(side, 0.10)
+        };
+    }
+
     const gamepadFrame = {
         pad: null,
         leftX: 0,
@@ -1136,9 +1262,11 @@
             (keys.KeyE || touch.rollRight ? 1 : 0) -
             (keys.KeyQ || touch.rollLeft ? 1 : 0);
 
+        const tilt = tiltAxes();
+
         return {
-            thrust: thrust - reverse - gamepadFrame.leftY,
-            strafe: strafe + gamepadFrame.leftX,
+            thrust: thrust - reverse - gamepadFrame.leftY + tilt.thrust,
+            strafe: strafe + gamepadFrame.leftX + tilt.strafe,
             vertical: vertical + gamepadFrame.vertical,
             roll: roll + gamepadFrame.roll
         };
@@ -1186,8 +1314,8 @@
 
         updateDoor(dt);
 
-        // The chamber holds the portal and background media. Do not decode
-        // those large images until the pilot is actually approaching it.
+        // Chamber media are loaded when the door is opened, so there is no
+        // second arbitrary distance trigger.
         const input = inputAxes();
 
         if (gamepadFrame.pad) {
@@ -1307,6 +1435,7 @@
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
         window.addEventListener('resize', resize);
+        window.addEventListener('deviceorientation', handleDeviceOrientation, true);
 
         window.addEventListener('gamepadconnected', event => {
             if (gamepadIndex < 0) {
@@ -1399,6 +1528,11 @@
 
                 if (control === 'route') {
                     cyclePortalRoute();
+                    return;
+                }
+
+                if (control === 'tilt') {
+                    enableTiltControl();
                     return;
                 }
 
