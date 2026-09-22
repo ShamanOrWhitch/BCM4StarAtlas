@@ -2,7 +2,7 @@
 
 ## Current test version
 
-**0.3.3**
+**0.3.4**
 
 The mini sim is a self-contained WordPress plugin test. Three.js r128 is bundled locally and is the fixed engine baseline because r128 is already proven working in the target site.
 
@@ -78,7 +78,7 @@ Existing routing is preserved exactly:
 - portal point 2 uses `portal2.png`; transitions 2 → 1 and 2 → 3 use `portal1.mp4` and `portal3.mp4`.
 - portal point 3 uses `portal3.png`.
 
-In version 0.3 the pilot can preview the matching video with G. The pilot is **not teleported** yet. The video preview is a test surface for the existing media/routing assets, not a change to their routing.
+In version 0.3.4 the pilot activates the matching local MP4 with G as a full-screen transition. When the video finishes, the pilot is placed at the mapped destination point and velocity is reset. The routing remains 1 → 2 via portal2.mp4, 2 → 1 via portal1.mp4 and 2 → 3 via portal3.mp4.
 
 ## Flight model
 
