@@ -189,6 +189,17 @@
         return material;
     }
 
+    function lazyTexturedMaterial(name, fallbackColor) {
+        const material = new THREE.MeshStandardMaterial({
+            color: fallbackColor || 0x4a505b,
+            roughness: 0.88,
+            metalness: 0.16
+        });
+        material.userData = material.userData || {};
+        material.userData.lazyAsset = name;
+        return material;
+    }
+
     function addBox(parent, x, y, z, sx, sy, sz, material) {
         const mesh = new THREE.Mesh(
             new THREE.BoxGeometry(sx, sy, sz),
@@ -242,11 +253,11 @@
         addBeam(world, 3.55, 0, -18, 0.55, 6.55, 0.8, trim);
 
         // Portal chamber beyond the door.
-        const chamberFloor = texturedMaterial('wall1.png', 0x39414b);
-        const chamberCeiling = texturedMaterial('wall2.png', 0x4b535e);
-        const chamberLeft = texturedMaterial('wall3.png', 0x343b45);
-        const chamberRight = texturedMaterial('wall4.png', 0x2d343d);
-        const chamberBack = texturedMaterial('wall5.png', 0x565e68);
+        const chamberFloor = lazyTexturedMaterial('wall1.png', 0x39414b);
+        const chamberCeiling = lazyTexturedMaterial('wall2.png', 0x4b535e);
+        const chamberLeft = lazyTexturedMaterial('wall3.png', 0x343b45);
+        const chamberRight = lazyTexturedMaterial('wall4.png', 0x2d343d);
+        const chamberBack = lazyTexturedMaterial('wall5.png', 0x565e68);
 
         addBox(world, 0, -3.65, -25.5, 11.2, 0.6, 13.4, chamberFloor);
         addBox(world, 0, 3.65, -25.5, 11.2, 0.6, 13.4, chamberCeiling);
@@ -579,8 +590,22 @@
         const targets = [];
 
         scene.traverse(object => {
-            if (!object.isMesh || !object.userData || !object.userData.lazyAsset) return;
-            targets.push(object);
+            if (!object.isMesh || !object.material) return;
+
+            if (object.userData && object.userData.lazyAsset) {
+                targets.push({ object, asset: object.userData.lazyAsset });
+                delete object.userData.lazyAsset;
+                return;
+            }
+
+            const material = Array.isArray(object.material)
+                ? object.material[0]
+                : object.material;
+
+            if (material && material.userData && material.userData.lazyAsset) {
+                targets.push({ object, asset: material.userData.lazyAsset });
+                delete material.userData.lazyAsset;
+            }
         });
 
         let remaining = targets.length;
@@ -601,16 +626,20 @@
             }
         };
 
-        targets.forEach(object => {
-            const assetName = object.userData.lazyAsset;
-            delete object.userData.lazyAsset;
+        targets.forEach(target => {
+            const object = target.object;
+            const assetName = target.asset;
 
             makeTexture(
                 assetName,
                 texture => {
                     if (object.material) {
-                        object.material.map = texture;
-                        object.material.needsUpdate = true;
+                        const material = Array.isArray(object.material)
+                            ? object.material[0]
+                            : object.material;
+                        material.map = texture;
+                        if (material.color) material.color.set(0xffffff);
+                        material.needsUpdate = true;
                     }
                     done();
                 },
