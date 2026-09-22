@@ -2,7 +2,7 @@
 
 ## Current version
 
-**0.3.3**
+**0.3.4**
 
 This test is self-contained.
 
@@ -50,7 +50,7 @@ After clicking **ИГРАТЬ**:
 - the textured two-part door is ahead;
 - portal point 1/2/3 surfaces are visible in the chamber;
 - the local station background is visible;
-- G previews the nearest mapped portal transition video;
+- G activates the nearest mapped portal transition;
 - R or the yellow crystal remotely opens the door.
 
 ## Portal mapping
