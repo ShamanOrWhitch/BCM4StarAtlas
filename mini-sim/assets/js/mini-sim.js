@@ -881,7 +881,9 @@
         status.textContent = 'Loading Three.js…';
 
         const fallback = document.createElement('script');
-        fallback.src = 'https://unpkg.com/three@0.159.0/build/three.min.js';
+        fallback.src = (window.BCMMiniSimConfig && window.BCMMiniSimConfig.threeUrl)
+            ? window.BCMMiniSimConfig.threeUrl
+            : 'assets/js/three.min.js';
         fallback.async = false;
 
         fallback.onload = () => {
@@ -893,7 +895,7 @@
         };
 
         fallback.onerror = () => {
-            status.textContent = 'ERROR: Three.js CDN blocked/unavailable';
+            status.textContent = 'ERROR: Local Three.js file missing/unavailable';
             if (startButton) startButton.disabled = true;
         };
 
