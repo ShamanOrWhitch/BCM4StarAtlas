@@ -40,6 +40,7 @@ function bcm_mini_sim_enqueue_assets() {
 
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
         'textureBase' => BCM_MINI_SIM_URL . 'assets/textures/',
+        'doorTexture' => BCM_MINI_SIM_URL . 'door.png',
         'remoteTextures' => array(
             BCM_MINI_SIM_URL . 'assets/textures/wall-1.png',
             BCM_MINI_SIM_URL . 'assets/textures/wall-2.png',
@@ -67,7 +68,7 @@ function bcm_mini_sim_shortcode($atts = array()) {
             <div class="bcm-mini-sim-status">Loading...</div>
             <div class="bcm-mini-sim-help">
                 <span>W/S</span> thrust · <span>A/D</span> strafe · <span>Space/Ctrl</span> vertical ·
-                <span>Mouse</span> look · <span>Q/E</span> roll
+                <span>Mouse</span> look · <span>Left click</span> fire · <span>F</span> shield · <span>Q/E</span> roll
             </div>
         </div>
 
@@ -82,6 +83,8 @@ function bcm_mini_sim_shortcode($atts = array()) {
             <button data-control="down">↡</button>
             <button data-control="rollLeft">↶</button>
             <button data-control="rollRight">↷</button>
+            <button data-control="fire">✦</button>
+            <button data-control="shield">🛡</button>
         </div>
     </div>
     <?php
