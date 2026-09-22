@@ -410,7 +410,7 @@
             point: 'POINT 1',
             image: 'portal.png',
             routes: [{ label: '1 → 2', video: 'portal2.mp4' }],
-            position: new THREE.Vector3(-4.65, 0, -23.7),
+            position: new THREE.Vector3(-4.45, 0, -23.0),
             rotationY: Math.PI / 2,
             target: { x: 4.0, y: 0, z: -23.7, yaw: -Math.PI / 2 }
         });
@@ -419,7 +419,7 @@
             point: 'POINT 2 · RETURN',
             image: 'portal2.png',
             routes: [{ label: '2 → 1', video: 'portal1.mp4' }],
-            position: new THREE.Vector3(4.65, 0, -23.7),
+            position: new THREE.Vector3(4.45, 0, -23.0),
             rotationY: -Math.PI / 2,
             target: { x: -4.0, y: 0, z: -23.7, yaw: Math.PI / 2 }
         });
@@ -428,17 +428,17 @@
             point: 'POINT 2 · OUTBOUND',
             image: 'portal2.png',
             routes: [{ label: '2 → 3', video: 'portal3.mp4' }],
-            position: new THREE.Vector3(0, 0, -31.35),
+            position: new THREE.Vector3(0, 0, -30.9),
             rotationY: 0,
-            target: { x: 0, y: 0, z: -20.2, yaw: Math.PI }
+            target: { x: 2.8, y: 0, z: -30.9, yaw: Math.PI / 2 }
         });
 
         createPortalStation({
-            point: 'POINT 3',
+            point: 'POINT 3 · ENDPOINT',
             image: 'portal3.png',
             routes: [],
-            position: new THREE.Vector3(0, 0, -20.2),
-            rotationY: Math.PI,
+            position: new THREE.Vector3(4.45, 0, -30.9),
+            rotationY: -Math.PI / 2,
             target: null
         });
     }
@@ -545,6 +545,7 @@
         video.removeAttribute('src');
         video.load();
         video.src = url;
+        video.preload = 'auto';
         video.load();
 
         const onEnded = () => {
@@ -1013,6 +1014,13 @@
     }
 
     function updatePhysics(dt) {
+        if (portalTransitionBusy) {
+            camera.position.copy(ship.position);
+            camera.quaternion.copy(ship.quaternion);
+            light.position.copy(ship.position);
+            return;
+        }
+
         updateDoor(dt);
 
         // The chamber holds the portal and background media. Do not decode
