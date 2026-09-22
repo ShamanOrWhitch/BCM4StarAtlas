@@ -1,25 +1,69 @@
 <?php
 /**
  * Plugin Name: BCM Mini Space Simulation
- * Description: Lightweight Descent-style 6DOF space-labyrinth simulation for WordPress.
- * Version: 0.2.7
+ * Description: Self-contained Descent-style 6DOF space-labyrinth test for WordPress.
+ * Version: 0.3.0
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BCM_MINI_SIM_VERSION', '0.2.7');
+define('BCM_MINI_SIM_VERSION', '0.3.0');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
+function bcm_mini_sim_get_assets() {
+    $assets = array();
+    $base_path = BCM_MINI_SIM_PATH . 'assets/';
+    $allowed = array('png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'ogg');
+
+    if (!is_dir($base_path)) {
+        return $assets;
+    }
+
+    try {
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($base_path, FilesystemIterator::SKIP_DOTS)
+        );
+
+        foreach ($iterator as $file) {
+            if (!$file->isFile()) continue;
+
+            $path = $file->getPathname();
+            $relative = ltrim(str_replace($base_path, '', $path), '/\\');
+            $extension = strtolower(pathinfo($relative, PATHINFO_EXTENSION));
+
+            if (!in_array($extension, $allowed, true)) continue;
+
+            $assets[] = array(
+                'name' => $relative,
+                'url' => BCM_MINI_SIM_URL . str_replace('%2F', '/', rawurlencode(str_replace('\\', '/', $relative))),
+                'type' => in_array($extension, array('mp4', 'webm', 'ogg'), true) ? 'video' : 'image',
+                'extension' => $extension,
+            );
+        }
+    } catch (Exception $e) {
+        // Keep the plugin usable even when directory iteration is unavailable.
+    }
+
+    usort($assets, function($a, $b) {
+        return strcasecmp($a['name'], $b['name']);
+    });
+
+    return $assets;
+}
+
 function bcm_mini_sim_enqueue_assets() {
     $door_texture = '';
+
     if (file_exists(BCM_MINI_SIM_PATH . 'door.png')) {
         $door_texture = BCM_MINI_SIM_URL . 'door.png';
     } elseif (file_exists(dirname(BCM_MINI_SIM_PATH) . '/door.png')) {
         $door_texture = BCM_MINI_SIM_URL . '../door.png';
     }
+
+    $assets = bcm_mini_sim_get_assets();
 
     wp_enqueue_style(
         'bcm-mini-sim',
@@ -28,14 +72,12 @@ function bcm_mini_sim_enqueue_assets() {
         BCM_MINI_SIM_VERSION
     );
 
-    // Three.js is bundled locally so the plugin has no external runtime dependency.
-    $three_js_url = BCM_MINI_SIM_URL . 'assets/js/three.min.js';
-
+    // Three.js r128 is bundled with the plugin. No CDN or theme dependency.
     wp_enqueue_script(
         'bcm-three',
-        $three_js_url,
+        BCM_MINI_SIM_URL . 'assets/js/three.min.js',
         array(),
-        '0.128',
+        'r128',
         false
     );
 
@@ -48,16 +90,9 @@ function bcm_mini_sim_enqueue_assets() {
     );
 
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
-        'textureBase' => BCM_MINI_SIM_URL . 'assets/',
         'doorTexture' => $door_texture,
-        'threeUrl' => $three_js_url,
-        'remoteTextures' => array(
-            BCM_MINI_SIM_URL . 'assets/wall1.png',
-            BCM_MINI_SIM_URL . 'assets/wall2.png',
-            BCM_MINI_SIM_URL . 'assets/wall3.png',
-            BCM_MINI_SIM_URL . 'assets/wall4.png',
-            BCM_MINI_SIM_URL . 'assets/wall5.png',
-        ),
+        'assets' => $assets,
+        'version' => BCM_MINI_SIM_VERSION,
     ));
 }
 
@@ -71,18 +106,22 @@ function bcm_mini_sim_shortcode($atts = array()) {
     ob_start();
     ?>
     <div class="bcm-mini-sim" style="--bcm-sim-height:<?php echo esc_attr($atts['height']); ?>;">
-        <canvas class="bcm-mini-sim-canvas"></canvas>
+        <canvas class="bcm-mini-sim-canvas" tabindex="0"></canvas>
 
         <div class="bcm-mini-sim-hud">
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — PLAYABLE TEST</div>
-            <div class="bcm-mini-sim-status">Loading...</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — PLAYABLE TEST 0.3</div>
+            <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-help">
                 <span>W/S</span> thrust · <span>A/D</span> strafe · <span>Space/Ctrl</span> vertical ·
-                <span>Mouse</span> look · <span>F</span> shield · <span>Q/E</span> roll · <span>R</span> door crystal
+                <span>Mouse</span> look · <span>Q/E</span> roll · <span>F</span> shield ·
+                <span>R/◆</span> door crystal · <span>G</span> portal preview
             </div>
         </div>
 
+        <div class="bcm-mini-sim-asset-status">LOCAL ASSETS: SCANNING...</div>
+
         <button class="bcm-mini-sim-start" type="button">ИГРАТЬ</button>
+
         <button class="bcm-mini-sim-crystal bcm-mini-sim-crystal-main" type="button"
                 aria-label="Remote door crystal" title="Дистанционно открыть дверь">◆</button>
 
@@ -96,6 +135,7 @@ function bcm_mini_sim_shortcode($atts = array()) {
             <button data-control="rollLeft">↶</button>
             <button data-control="rollRight">↷</button>
             <button data-control="shield">🛡</button>
+            <button data-control="portal">G</button>
         </div>
     </div>
     <?php
