@@ -387,7 +387,7 @@
         const loader = new THREE.TextureLoader();
         const url = (window.BCMMiniSimConfig && window.BCMMiniSimConfig.doorTexture) || '';
         const group = new THREE.Group();
-        group.position.set(0, 0, -11);
+        group.position.set(0, 0, -18);
 
         const frame = new THREE.Mesh(
             new THREE.BoxGeometry(7.2, 7.2, 0.55),
@@ -426,9 +426,16 @@
     function updateTestDoor(dt) {
         if (!testDoor.mesh) return;
 
-        const distance = ship.position.distanceTo(testDoor.mesh.position);
+        const toDoor = testDoor.mesh.position.clone().sub(ship.position);
+        const distance = toDoor.length();
+        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(ship.quaternion).normalize();
+        const facing = distance > 0 ? forward.dot(toDoor.normalize()) : -1;
 
-        if (distance < testDoor.openDistance && testDoor.state === 'CLOSED') {
+        if (
+            distance < testDoor.openDistance &&
+            facing > 0.72 &&
+            testDoor.state === 'CLOSED'
+        ) {
             testDoor.state = 'OPENING';
         }
 
@@ -531,9 +538,6 @@
             );
         }
 
-        if (keys.MouseLeft || touch.fire) {
-            createShot();
-        }
 
         const accel = new THREE.Vector3(
             input.strafe * ship.strafeThrust,
@@ -601,8 +605,9 @@
 
         status.textContent =
             'SPD ' + ship.velocity.length().toFixed(1) +
-            '  |  6DOF  |  SHIELD ' + shield +
-            '  |  BLASTERS ' + charge + '%' +
+            '  |  6DOF  |  PILOT' +
+            '  |  SHIELD ' + shield +
+            '  |  SYSTEM CHARGE ' + charge + '%' +
             '  |  ♥'.repeat(shipSystems.hearts) +
             (shipSystems.halfHeart ? '½' : '') +
             '  |  DOOR ' + door;
@@ -626,16 +631,6 @@
     });
     window.addEventListener('keyup', e => keys[e.code] = false);
 
-    window.addEventListener('mousedown', e => {
-        if (e.button === 0) {
-            keys.MouseLeft = true;
-            if (running) createShot();
-        }
-    });
-
-    window.addEventListener('mouseup', e => {
-        if (e.button === 0) keys.MouseLeft = false;
-    });
 
     canvas.addEventListener('click', () => {
         if (!running) return;
