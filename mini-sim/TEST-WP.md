@@ -2,7 +2,7 @@
 
 ## Current version
 
-**0.4.0**
+**0.5.2**
 
 ## Install
 
@@ -56,7 +56,7 @@ Android:
 
 The status line should show texture loading progress.
 
-The five wall images must visibly appear in Room 1.
+The wall images must visibly appear in all three rooms. Ceilings use roof*.png by segments; roofa*.png appears at room ends and at roof texture junction seams.
 
 The loader supports the supplied 720p PNGs without requiring power-of-two dimensions. Clamp-to-edge is used instead of repeat wrapping.
 
@@ -64,9 +64,7 @@ For lighter future assets, add same-base WebP/JPG/JPEG beside the PNG.
 
 ## Portal test
 
-There is only one active portal.
-
-Approach and face the portal, then press G (or gamepad Y / mobile G).
+There are three physical portal squares. Portal 1 is in the starting room. Portal 2 is in Room 2. Portal 3 is in Room 3. Approach the active square; at 69% visible area the transition starts automatically. G / Y / Android PORTAL remains manual fallback.
 
 Expected sequence:
 
@@ -76,6 +74,16 @@ Expected sequence:
 4. Room 2 uses a different arrangement of the wall textures.
 
 There is no competing point-2/point-3 selector in this test.
+
+## Door and pipe test
+
+The door randomly uses door.png through door5.png and randomizes opening mode/speed. It closes 4 seconds after the pilot has moved more than 5 units away.
+
+Long mostly-straight pipes with different diameters/positions should be visible.
+
+## Video test
+
+Portal videos also have a same-origin WordPress stream endpoint with explicit video MIME and HTTP Range support.
 
 ## Music test
 
