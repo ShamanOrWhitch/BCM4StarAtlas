@@ -1453,15 +1453,17 @@
             settingsState.historyPushed = true;
         }
 
-        if (
-            !settingsState.open &&
-            !fromHistory &&
-            settingsState.historyPushed &&
-            history.state &&
-            history.state.bcmMiniSimSettings
-        ) {
+        if (!settingsState.open && settingsState.historyPushed) {
+            const shouldGoBack =
+                !fromHistory &&
+                history.state &&
+                history.state.bcmMiniSimSettings;
+
             settingsState.historyPushed = false;
-            history.back();
+
+            if (shouldGoBack) {
+                history.back();
+            }
         }
     }
 
