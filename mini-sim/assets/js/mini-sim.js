@@ -1,3 +1,80 @@
+    function buildTexturedCeiling(parent, options) {
+        const segmentLength = 6;
+        const seamWidth = 0.42;
+        const startZ = options.centerZ - options.length / 2;
+        const endZ = options.centerZ + options.length / 2;
+        const count = Math.ceil(options.length / segmentLength);
+        const roofs = options.ceilingRoofs || [];
+        const ends = options.ceilingEnds || [];
+
+        for (let i = 0; i < count; i++) {
+            const z0 = startZ + i * segmentLength;
+            const z1 = Math.min(z0 + segmentLength, endZ);
+            const length = Math.max(0.25, z1 - z0);
+            const isFirst = i === 0;
+            const isLast = i === count - 1;
+
+            const textureName = (isFirst || isLast)
+                ? (ends.length
+                    ? ends[(isFirst ? 0 : 1) % ends.length]
+                    : (roofs.length ? roofs[i % roofs.length] : ''))
+                : (roofs.length ? roofs[i % roofs.length] : '');
+
+            const material = textureName
+                ? wallMaterial(
+                    textureName,
+                    options.ceilingColor,
+                    options.width,
+                    length
+                )
+                : new THREE.MeshBasicMaterial({
+                    color: options.ceilingColor,
+                    side: THREE.DoubleSide,
+                    fog: false
+                });
+
+            addPlane(
+                parent,
+                0,
+                3.5,
+                (z0 + z1) / 2,
+                options.width,
+                length,
+                Math.PI / 2,
+                0,
+                0,
+                material
+            );
+
+            // The new roofa* assets are seam/corner pieces: put a narrow
+            // cap over every internal texture junction so the supplied
+            // junction artwork is actually tested, not only room ends.
+            if (i < count - 1 && ends.length) {
+                const seamZ = z1;
+                const seamTexture = ends[(i - 1 + ends.length) % ends.length];
+                const seamMaterial = wallMaterial(
+                    seamTexture,
+                    options.ceilingColor,
+                    options.width,
+                    seamWidth
+                );
+
+                addPlane(
+                    parent,
+                    0,
+                    3.505,
+                    seamZ,
+                    options.width,
+                    seamWidth,
+                    Math.PI / 2,
+                    0,
+                    0,
+                    seamMaterial
+                );
+            }
+        }
+    }
+
 (() => {
     'use strict';
 
@@ -111,6 +188,8 @@
         speed: 1.8,
         mode: 'split',
         textureName: '',
+        closeDelay: 4,
+        awayTimer: 0,
         mesh: null,
         leftPanel: null,
         rightPanel: null,
@@ -251,6 +330,8 @@
     };
 
     let nearestPortal = null;
+    let shieldEnabled = true;
+    let introHintUntil = 0;
 
     function updateAssetStatus() {
         if (!assetStatus) return;
@@ -695,8 +776,11 @@
     }
 
     function addPipe(parent, points, radius, color) {
-        const curve = new THREE.CatmullRomCurve3(points);
-        const segments = Math.max(28, points.length * 12);
+        const curve = points.length === 2
+            ? new THREE.LineCurve3(points[0], points[1])
+            : new THREE.CatmullRomCurve3(points);
+
+        const segments = Math.max(36, points.length * 12);
         const geometry = new THREE.TubeGeometry(
             curve,
             segments,
@@ -709,6 +793,7 @@
             metalness: 0.82,
             roughness: 0.27
         });
+
         parent.add(new THREE.Mesh(geometry, material));
     }
 
@@ -720,44 +805,32 @@
                 radius: 0.13,
                 color: 0x77818b,
                 points: [
-                    new THREE.Vector3(-5.1, 2.5, c + 15),
-                    new THREE.Vector3(-4.7, 2.3, c + 8),
-                    new THREE.Vector3(-3.9, 2.2, c),
-                    new THREE.Vector3(-4.2, 1.9, c - 10),
-                    new THREE.Vector3(-5.0, 2.1, c - 16)
+                    new THREE.Vector3(-5.1, 2.45, c + 18),
+                    new THREE.Vector3(-5.1, 2.45, c - 18)
                 ]
             },
             {
                 radius: 0.18,
                 color: 0x8a6c49,
                 points: [
-                    new THREE.Vector3(4.9, 2.0, c + 17),
-                    new THREE.Vector3(4.2, 1.6, c + 9),
-                    new THREE.Vector3(3.5, 1.2, c + 1),
-                    new THREE.Vector3(3.9, 1.9, c - 7),
-                    new THREE.Vector3(4.8, 2.4, c - 16)
+                    new THREE.Vector3(4.9, 2.0, c + 18),
+                    new THREE.Vector3(4.7, 1.8, c - 18)
                 ]
             },
             {
                 radius: 0.10,
                 color: 0x4f6f77,
                 points: [
-                    new THREE.Vector3(-3.8, -2.5, c + 17),
-                    new THREE.Vector3(-1.5, -2.1, c + 10),
-                    new THREE.Vector3(-1.0, -2.6, c + 1),
-                    new THREE.Vector3(-2.3, -2.9, c - 9),
-                    new THREE.Vector3(-3.9, -2.3, c - 17)
+                    new THREE.Vector3(-3.8, -2.5, c + 18),
+                    new THREE.Vector3(1.2, -2.5, c - 18)
                 ]
             },
             {
                 radius: 0.22,
                 color: 0x6e6260,
                 points: [
-                    new THREE.Vector3(2.4, 2.8, c + 17),
-                    new THREE.Vector3(1.2, 2.6, c + 11),
-                    new THREE.Vector3(1.8, 2.2, c + 3),
-                    new THREE.Vector3(2.8, 2.7, c - 7),
-                    new THREE.Vector3(2.0, 2.4, c - 17)
+                    new THREE.Vector3(2.4, 2.8, c + 18),
+                    new THREE.Vector3(2.4, 2.65, c - 18)
                 ]
             }
         ];
@@ -767,11 +840,8 @@
                 radius: 0.08,
                 color: 0x687a56,
                 points: [
-                    new THREE.Vector3(-5.0, -1.9, c + 15),
-                    new THREE.Vector3(-2.8, -1.4, c + 7),
-                    new THREE.Vector3(-3.2, -0.8, c - 2),
-                    new THREE.Vector3(-4.8, -1.6, c - 12),
-                    new THREE.Vector3(-5.1, -1.2, c - 17)
+                    new THREE.Vector3(-5.0, -1.9, c + 18),
+                    new THREE.Vector3(-4.2, -1.4, c - 18)
                 ]
             });
         }
@@ -1724,8 +1794,29 @@
 
             if (testDoor.progress >= 1) {
                 testDoor.state = 'OPEN';
+                testDoor.awayTimer = 0;
+            }
+        } else if (testDoor.state === 'OPEN') {
+            if (distance > 5) {
+                testDoor.awayTimer += dt;
+
+                if (testDoor.awayTimer >= testDoor.closeDelay) {
+                    testDoor.state = 'CLOSED';
+                    testDoor.progress = 0;
+                    testDoor.awayTimer = 0;
+                    resetDoorVisual();
+                    status.textContent = 'DOOR · CLOSED · READY';
+                }
+            } else {
+                testDoor.awayTimer = 0;
             }
         }
+    }
+
+    function toggleShield() {
+        shieldEnabled = !shieldEnabled;
+        status.textContent = 'SHIELD · ' + (shieldEnabled ? 'ON' : 'OFF');
+        return shieldEnabled;
     }
 
     function beginDoorOpening(reason) {
@@ -1864,6 +1955,12 @@
     function updateInteraction() {
         if (!interaction) return;
 
+        if (performance.now() < introHintUntil) {
+            interaction.textContent =
+                'ПОРТАЛ · ПОДЛЕТИТЕ К СВЕТЯЩЕМУСЯ КВАДРАТУ · 69% ВИДИМОСТИ = АВТОПЕРЕХОД · G / Y / PORTAL';
+            return;
+        }
+
         const activePortal = portals.find(
             candidate => candidate.roomIndex === getCurrentRoomIndex()
         );
@@ -1872,11 +1969,14 @@
             const metrics = getPortalScreenMetrics(activePortal);
 
             if (metrics && metrics.distance < 18 && metrics.facing > 0.20) {
+                const percent = Math.round(metrics.visibleRatio * 100);
                 interaction.textContent =
                     activePortal.point +
-                    ' · VIEW ' +
-                    Math.round(metrics.visibleRatio * 100) +
-                    '% · G/Y';
+                    ' · VIEW ' + percent + '%' +
+                    (percent >= 69
+                        ? ' · AUTO NOW'
+                        : ' · NEED 69%') +
+                    ' · G / Y / PORTAL';
                 return;
             }
         }
@@ -1920,6 +2020,11 @@
         if (event.code === 'KeyR') {
             event.preventDefault();
             tryRemoteDoor();
+        }
+
+        if (event.code === 'KeyF') {
+            event.preventDefault();
+            toggleShield();
         }
 
         if (event.code === 'KeyG') {
@@ -2052,7 +2157,7 @@
                 screen.orientation.lock('landscape').catch(() => {});
             }
 
-            status.textContent = 'FLIGHT ACTIVE · 6DOF READY';
+            status.textContent = 'FLIGHT ACTIVE · FIND PORTAL 1 · AUTO AT 69%';
 
             canvas.focus();
 
@@ -2196,7 +2301,7 @@
 
         updateInteraction();
 
-        const shieldText = keys.KeyF ? 'OFF' : 'ON';
+        const shieldText = shieldEnabled ? 'ON' : 'OFF';
         const roomText = rooms[room.current] ? rooms[room.current].id : 'ROOM ?';
 
         status.textContent =
@@ -2234,6 +2339,8 @@
             room.current = 0;
             nearestPortal = null;
             transitionBusy = false;
+            shieldEnabled = true;
+            introHintUntil = performance.now() + 8500;
 
             renderer = new THREE.WebGLRenderer({
                 canvas,
