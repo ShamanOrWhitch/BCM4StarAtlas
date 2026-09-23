@@ -123,15 +123,20 @@
         {
             id: '1',
             point: 'PORTAL 1 → ROOM 2',
-            image: 'portal.png',
+            image: 'portal1.png',
             video: 'portal1.mp4',
             roomIndex: 0,
             targetRoom: 1,
             position: null,
             targetPosition: [0, 0, -40],
+            randomImages: ['portal1.png', 'portal2.png', 'portal3.png'],
+            randomVideos: ['portal1.mp4', 'portal2.mp4', 'portal3.mp4'],
+            randomTargets: [1, 2, 0],
+            size: 4.8,
+            randomIndex: 0,
+            randomReady: false,
             mesh: null,
-            surface: null,
-            size: 4.8
+            surface: null
         },
         {
             id: '2',
@@ -255,6 +260,8 @@
     let nearestPortal = null;
     let shieldEnabled = true;
     let introHintUntil = 0;
+    let portalRandomTimer = 0;
+    let portalTextureSerial = 0;
 
     function updateAssetStatus() {
         if (!assetStatus) return;
@@ -872,23 +879,162 @@
 
         scene.add(group);
 
-        const url = findImageAsset(portalState.image);
+        applyPortalAppearance(
+            portalState,
+            portalState.image,
+            portalState.video,
+            portalState.targetRoom
+        );
 
-        if (url) {
-            loadImageTexture(
-                'portal-image-' + portalState.id,
-                url,
-                texture => {
-                    surface.material.map = texture;
-                    surface.material.color.set(0xffffff);
-                    surface.material.needsUpdate = true;
-                },
-                null,
-                {
-                    targetWidth: size,
-                    targetHeight: size
+        if (portalState.id === '1') {
+            portalState.randomIndex = 0;
+        }
+    }
+
+    function applyPortalAppearance(portalState, imageName, videoName, targetRoom) {
+        portalState.image = imageName;
+        portalState.video = videoName;
+        portalState.targetRoom = targetRoom;
+        portalState.point =
+            'PORTAL ' + portalState.id +
+            ' → ROOM ' + (targetRoom + 1);
+
+        const url = findImageAsset(imageName);
+
+        if (!url) {
+            portalState.randomReady = !!findAsset(videoName);
+
+            if (portalState.surface) {
+                portalState.surface.material.map = null;
+                portalState.surface.material.color.set(0xffffff);
+                portalState.surface.material.needsUpdate = true;
+            }
+
+            status.textContent =
+                'PORTAL ' + portalState.id +
+                ' · IMAGE MISSING: ' + imageName;
+
+            return false;
+        }
+
+        portalState.randomReady = !!findAsset(videoName);
+        const serial = ++portalTextureSerial;
+
+        loadImageTexture(
+            'portal-image-' + portalState.id + '-' + serial,
+            url,
+            texture => {
+                if (portalState.id === '1' && serial !== portalTextureSerial) {
+                    return;
                 }
+
+                portalState.surface.material.map = texture;
+                portalState.surface.material.color.set(0xffffff);
+                portalState.surface.material.needsUpdate = true;
+            },
+            () => {
+                status.textContent =
+                    'PORTAL ' + portalState.id +
+                    ' · IMAGE LOAD FAILED: ' + imageName;
+            },
+            {
+                targetWidth: portalState.size,
+                targetHeight: portalState.size
+            }
+        );
+
+        return portalState.randomReady;
+    }
+
+    function randomizeStartPortal(forceInitial = false) {
+        const portalState = portals[0];
+
+        if (!portalState || room.current !== 0 || transitionBusy) {
+            return false;
+        }
+
+        if (forceInitial) {
+            portalState.randomIndex = 0;
+
+            applyPortalAppearance(
+                portalState,
+                'portal1.png',
+                'portal1.mp4',
+                1
             );
+
+            if (!findImageAsset('portal1.png')) {
+                status.textContent =
+                    'PORTAL 1 · НУЖЕН portal1.png · portal1.mp4 READY';
+            }
+
+            return true;
+        }
+
+        const candidates = [];
+
+        for (let i = 0; i < portalState.randomImages.length; i++) {
+            if (
+                findImageAsset(portalState.randomImages[i]) &&
+                findAsset(portalState.randomVideos[i])
+            ) {
+                candidates.push(i);
+            }
+        }
+
+        if (!candidates.length) {
+            status.textContent =
+                'PORTAL 1 · НЕТ ГОТОВЫХ КАРТИНОК/ВИДЕО';
+            return false;
+        }
+
+        let nextIndex =
+            candidates[Math.floor(Math.random() * candidates.length)];
+
+        if (
+            candidates.length > 1 &&
+            nextIndex === portalState.randomIndex
+        ) {
+            const alternatives = candidates.filter(
+                index => index !== portalState.randomIndex
+            );
+
+            nextIndex =
+                alternatives[
+                    Math.floor(Math.random() * alternatives.length)
+                ];
+        }
+
+        portalState.randomIndex = nextIndex;
+
+        applyPortalAppearance(
+            portalState,
+            portalState.randomImages[nextIndex],
+            portalState.randomVideos[nextIndex],
+            portalState.randomTargets[nextIndex]
+        );
+
+        status.textContent =
+            'PORTAL 1 · ' +
+            portalState.image.toUpperCase() +
+            ' · ' +
+            portalState.video.toUpperCase() +
+            ' · ROOM ' +
+            (portalState.targetRoom + 1);
+
+        return true;
+    }
+
+    function updateStartPortalRandomizer(dt) {
+        if (!running || transitionBusy || room.current !== 0) {
+            return;
+        }
+
+        portalRandomTimer += dt;
+
+        if (portalRandomTimer >= 4) {
+            portalRandomTimer = 0;
+            randomizeStartPortal(false);
         }
     }
 
@@ -1552,19 +1698,42 @@
                 testDoor.state = 'OPEN';
                 testDoor.awayTimer = 0;
             }
-        } else if (testDoor.state === 'OPEN') {
+
+            return;
+        }
+
+        if (testDoor.state === 'OPEN') {
             if (distance > 5) {
                 testDoor.awayTimer += dt;
 
                 if (testDoor.awayTimer >= testDoor.closeDelay) {
-                    testDoor.state = 'CLOSED';
-                    testDoor.progress = 0;
-                    testDoor.awayTimer = 0;
-                    resetDoorVisual();
-                    status.textContent = 'DOOR · CLOSED · READY';
+                    testDoor.state = 'CLOSING';
+                    testDoor.closeSpeed = Math.max(
+                        1.5,
+                        testDoor.speed * 1.2
+                    );
+                    status.textContent = 'DOOR · CLOSING';
                 }
             } else {
                 testDoor.awayTimer = 0;
+            }
+
+            return;
+        }
+
+        if (testDoor.state === 'CLOSING') {
+            testDoor.progress = Math.max(
+                0,
+                testDoor.progress - dt * testDoor.closeSpeed
+            );
+
+            applyDoorAnimation(testDoor.progress);
+
+            if (testDoor.progress <= 0) {
+                testDoor.state = 'CLOSED';
+                testDoor.awayTimer = 0;
+                resetDoorVisual();
+                status.textContent = 'DOOR · CLOSED · READY';
             }
         }
     }
@@ -1779,7 +1948,15 @@
 
         if (event.code === 'KeyG') {
             event.preventDefault();
-            startPortalTransition();
+
+            try {
+                startPortalTransition();
+            } catch (error) {
+                console.error('BCM portal G error:', error);
+                transitionBusy = false;
+                root.classList.remove('transition-active');
+                status.textContent = 'PORTAL · ERROR · FLIGHT CONTINUES';
+            }
         }
     }
 
@@ -1982,6 +2159,7 @@
 
         room.current = getCurrentRoomIndex();
         updateDoor(dt);
+        updateStartPortalRandomizer(dt);
 
         const input = inputAxes();
 
@@ -2083,6 +2261,7 @@
             shieldEnabled = true;
             introHintUntil = 0;
             transitionBusy = false;
+            portalRandomTimer = 0;
 
             renderer = new THREE.WebGLRenderer({
                 canvas,
@@ -2141,13 +2320,14 @@
             ));
 
             buildWorld();
-            buildSecondRoomArrivalMarker();
+            randomizeStartPortal(true);
             createPortalTransitionUI();
             setupMedia();
             setupInput();
             resize();
 
-            status.textContent = 'ENGINE READY · TEXTURE TEST · LOCAL r128';
+            status.textContent =
+                'ENGINE READY · PORTAL1 · RANDOM 4S · AUTO 69%';
             updateAssetStatus();
 
             requestAnimationFrame(render);
