@@ -69,7 +69,18 @@
     away: 0,
     style: "slide"
   };
-  const portal = { mesh: null, coverage: 0, z: -24.2, triggerFrontZ: -22.8, triggerBackZ: -25.8, direction: "FORWARD" };
+  const portal = { mesh: null, backMesh: null, coverage: 0, z: -24.2, triggerFrontZ: -22.8, triggerBackZ: -25.8, direction: "FORWARD" };
+  const returnDoor = {
+    state: "CLOSED",
+    progress: 0,
+    speed: 1.7,
+    mesh: null,
+    left: null,
+    right: null,
+    away: 0,
+    style: "slide"
+  };
+  const videoPanel = { el: null, texture: null, mesh: null, active: false };
   const tilt = {
     enabled: false,
     available: false,
@@ -107,10 +118,10 @@
     tex.needsUpdate = true;
   }
 
-  function textured(name, fallback) {
+  function textured(name, fallback, side) {
     const mat = new THREE.MeshBasicMaterial({
       color: fallback || 0x66707a,
-      side: THREE.DoubleSide,
+      side: side || THREE.DoubleSide,
       fog: false
     });
     const url = assetUrl(name);
@@ -198,7 +209,7 @@
       leftColor: 0x3b444f, rightColor: 0x343d47
     });
     buildRoom(world, {
-      z: -62, w: 12, len: 26, h: 8,
+      z: -66, w: 12, len: 34, h: 8,
       floor: "wall2.png", ceiling: "roof1.png",
       left: "wall5.png", right: "wall1.png",
       floorColor: 0x343d48, ceilingColor: 0x7c838c,
@@ -220,6 +231,7 @@
     portal.dock = dock;
 
     const frame = new THREE.MeshStandardMaterial({ color: 0x242a32, metalness: 0.7, roughness: 0.4 });
+
     const group = new THREE.Group();
     group.position.set(0, 0, -22);
     box(group, 0, 3.3, 0, 7.2, 0.5, 0.7, frame);
@@ -233,32 +245,87 @@
     scene.add(group);
     door.mesh = group;
 
+    const returnGroup = new THREE.Group();
+    returnGroup.position.set(0, 0, -27.2);
+    box(returnGroup, 0, 3.3, 0, 7.2, 0.5, 0.7, frame);
+    box(returnGroup, 0, -3.3, 0, 7.2, 0.5, 0.7, frame);
+    box(returnGroup, -3.3, 0, 0, 0.5, 6.1, 0.7, frame);
+    box(returnGroup, 3.3, 0, 0, 0.5, 6.1, 0.7, frame);
+    const rmatL = textured("door2.png", 0xffffff);
+    const rmatR = textured("door2.png", 0xffffff);
+    returnDoor.left = plane(returnGroup, -1.52, 0, 0.35, 3.05, 6.1, 0, Math.PI, 0, rmatL);
+    returnDoor.right = plane(returnGroup, 1.52, 0, 0.35, 3.05, 6.1, 0, Math.PI, 0, rmatR);
+    scene.add(returnGroup);
+    returnDoor.mesh = returnGroup;
+
     const pgroup = new THREE.Group();
     pgroup.position.set(0, 0, portal.z);
-    const pmat = textured("portal.png", 0x88aacc);
-    portal.mesh = plane(pgroup, 0, 0, 0, 5.2, 5.8, 0, 0, 0, pmat);
+    const pmatFront = textured("portal.png", 0x88aacc, THREE.FrontSide);
+    const pmatBack = textured("portal2.png", 0x88aacc, THREE.FrontSide);
+    portal.mesh = plane(pgroup, 0, 0, 0.01, 5.2, 5.8, 0, 0, 0, pmatFront);
+    portal.backMesh = plane(pgroup, 0, 0, -0.01, 5.2, 5.8, 0, Math.PI, 0, pmatBack);
     scene.add(pgroup);
+
+    const panelVideo = document.createElement("video");
+    panelVideo.src = assetUrl("portal3.mp4");
+    panelVideo.crossOrigin = "anonymous";
+    panelVideo.muted = true;
+    panelVideo.loop = true;
+    panelVideo.playsInline = true;
+    panelVideo.preload = "auto";
+    panelVideo.addEventListener("error", () => {
+      videoPanel.active = false;
+    });
+    videoPanel.el = panelVideo;
+
+    if (panelVideo.src) {
+      const panelTexture = new THREE.VideoTexture(panelVideo);
+      panelTexture.minFilter = THREE.LinearFilter;
+      panelTexture.magFilter = THREE.LinearFilter;
+      panelTexture.generateMipmaps = false;
+      if ("encoding" in panelTexture && THREE.sRGBEncoding !== undefined) {
+        panelTexture.encoding = THREE.sRGBEncoding;
+      }
+      videoPanel.texture = panelTexture;
+
+      const panelMat = new THREE.MeshBasicMaterial({
+        map: panelTexture,
+        side: THREE.FrontSide,
+        fog: false
+      });
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 2.8), panelMat);
+      panel.position.set(5.86, 0.2, -60);
+      panel.rotation.y = -Math.PI / 2;
+      panel.name = "moving-video-panel";
+      scene.add(panel);
+      videoPanel.mesh = panel;
+    }
 
     scene.add(world);
   }
 
-  function applyDoor(p) {
-    if (!door.left || !door.right) return;
+  function applyDoorUnit(unit, p) {
+    if (!unit.left || !unit.right) return;
     const t = Math.max(0, Math.min(1, p));
-    door.left.position.set(-1.52, 0, -0.35);
-    door.right.position.set(1.52, 0, -0.35);
-    door.left.scale.set(1, 1, 1);
-    door.right.scale.set(1, 1, 1);
-    if (door.style === "iris") {
-      const s = Math.max(0.02, 1 - t);
-      door.left.scale.set(s, s, 1);
-      door.right.scale.set(s, s, 1);
-    } else if (door.style === "wipe") {
-      door.left.position.y = 3.2 * t;
-      door.right.position.y = -3.2 * t;
+    const baseZ = unit === returnDoor ? 0.35 : -0.35;
+    unit.left.position.set(-1.52, 0, baseZ);
+    unit.right.position.set(1.52, 0, baseZ);
+    unit.left.scale.set(1, 1, 1);
+    unit.right.scale.set(1, 1, 1);
+
+    if (unit.style === "iris") {
+      const sc = Math.max(0.02, 1 - t);
+      unit.left.scale.set(sc, sc, 1);
+      unit.right.scale.set(sc, sc, 1);
+    } else if (unit.style === "wipe") {
+      unit.left.position.y = 3.2 * t;
+      unit.right.position.y = -3.2 * t;
+    } else if (unit === returnDoor) {
+      unit.left.position.x = -1.52 + 3.1 * t;
+      unit.right.position.x = 1.52 - 3.1 * t;
     } else {
-      door.left.position.x = -1.52 - 3.1 * t;
-      door.right.position.x = 1.52 + 3.1 * t;
+      unit.left.position.x = -1.52 - 3.1 * t;
+      unit.right.position.x = 1.52 + 3.1 * t;
     }
   }
 
@@ -270,32 +337,50 @@
     setStatus((reason === "REMOTE" ? "DOOR REMOTE · " : "DOOR OPEN · ") + door.style);
   }
 
-  function updateDoor(dt) {
-    if (!door.mesh) return;
-    const dist = door.mesh.position.distanceTo(ship.position);
+  function updateDoorUnit(unit, dt, label, reverseFacing) {
+    if (!unit.mesh) return;
+    const dist = unit.mesh.position.distanceTo(ship.position);
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(ship.quaternion);
-    const to = door.mesh.position.clone().sub(ship.position);
-    const facing = to.length() ? fwd.dot(to.normalize()) : -1;
-    if (door.state === "CLOSED" && dist < 8 && facing > 0.7) openDoor("LOCAL");
-    if (door.state === "OPENING") {
-      door.progress = Math.min(1, door.progress + dt * door.speed);
-      applyDoor(door.progress);
-      if (door.progress >= 1) door.state = "OPEN";
+    const to = unit.mesh.position.clone().sub(ship.position);
+    const rawFacing = to.length() ? fwd.dot(to.normalize()) : -1;
+    const facing = reverseFacing ? -rawFacing : rawFacing;
+
+    if (unit.state === "CLOSED" && dist < 8 && facing > 0.7) {
+      unit.style = ["slide", "wipe", "iris"][Math.floor(Math.random() * 3)];
+      unit.state = "OPENING";
+      unit.progress = 0;
+      unit.away = 0;
+      setStatus(label + " · " + unit.style);
     }
-    if (door.state === "OPEN") {
+
+    if (unit.state === "OPENING") {
+      unit.progress = Math.min(1, unit.progress + dt * unit.speed);
+      applyDoorUnit(unit, unit.progress);
+      if (unit.progress >= 1) unit.state = "OPEN";
+    }
+
+    if (unit.state === "OPEN") {
       if (dist > 5) {
-        door.away += dt;
-        if (door.away >= 4) door.state = "CLOSING";
-      } else door.away = 0;
-    }
-    if (door.state === "CLOSING") {
-      door.progress = Math.max(0, door.progress - dt * door.speed);
-      applyDoor(door.progress);
-      if (door.progress <= 0) {
-        door.state = "CLOSED";
-        door.away = 0;
+        unit.away += dt;
+        if (unit.away >= 4) unit.state = "CLOSING";
+      } else {
+        unit.away = 0;
       }
     }
+
+    if (unit.state === "CLOSING") {
+      unit.progress = Math.max(0, unit.progress - dt * unit.speed);
+      applyDoorUnit(unit, unit.progress);
+      if (unit.progress <= 0) {
+        unit.state = "CLOSED";
+        unit.away = 0;
+      }
+    }
+  }
+
+  function updateDoor(dt) {
+    updateDoorUnit(door, dt, "DOOR OPEN", false);
+    if (ship.position.z < -24.8) updateDoorUnit(returnDoor, dt, "RETURN GATE", true);
   }
 
   function portalCoverage() {
@@ -341,12 +426,14 @@
     }
 
     if (direction === "BACK") {
+      stopVideoPanel();
       ship.position.set(0, 0, 2);
       ship.velocity.set(0, 0, 0);
       ship.angularVelocity.set(0, 0, 0);
       ship.quaternion.set(0, 0, 0, 1);
       setStatus("ROOM 1 · RETURN COMPLETE");
     } else {
+      startVideoPanel();
       ship.position.set(0, 0, -52);
       ship.velocity.set(0, 0, 0);
       ship.angularVelocity.set(0, 0, 0);
@@ -552,6 +639,21 @@
     if (settings.open && document.exitPointerLock) document.exitPointerLock();
   }
 
+  function startVideoPanel() {
+    if (!videoPanel.el || !videoPanel.texture) return;
+    videoPanel.el.muted = true;
+    videoPanel.el.loop = true;
+    videoPanel.active = true;
+    const p = videoPanel.el.play();
+    if (p && p.catch) p.catch(() => {});
+  }
+
+  function stopVideoPanel() {
+    if (!videoPanel.el) return;
+    videoPanel.el.pause();
+    videoPanel.active = false;
+  }
+
   function startMusic() {
     if (!musicAllowed || !musicAudio || !config.musicUrl) return;
     if (!musicAudio.src) musicAudio.src = config.musicUrl;
@@ -667,6 +769,7 @@
       running = true;
       musicAllowed = true;
       startMusic();
+      startVideoPanel();
       root.classList.add("game-active");
       startButton.classList.add("hidden");
       canvas.focus();
@@ -700,7 +803,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.5.3");
+      setStatus("ENGINE READY · LOCAL r128 · 0.5.4");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
