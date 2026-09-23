@@ -109,20 +109,55 @@
         remoteFacing: 0.88,
         progress: 0,
         speed: 1.8,
+        mode: 'split',
+        textureName: '',
         mesh: null,
         leftPanel: null,
         rightPanel: null,
         frameParts: []
     };
 
-    const portal = {
-        point: 'PORTAL 1 → ROOM 2',
-        image: 'portal.png',
-        video: 'portal2.mp4',
-        position: null,
-        mesh: null,
-        surface: null
-    };
+    const portals = [
+        {
+            id: '1',
+            point: 'PORTAL 1 → ROOM 2',
+            image: 'portal.png',
+            video: 'portal1.mp4',
+            roomIndex: 0,
+            targetRoom: 1,
+            position: null,
+            targetPosition: [0, 0, -40],
+            mesh: null,
+            surface: null,
+            size: 4.8
+        },
+        {
+            id: '2',
+            point: 'PORTAL 2 → ROOM 3',
+            image: 'portal2.png',
+            video: 'portal2.mp4',
+            roomIndex: 1,
+            targetRoom: 2,
+            position: null,
+            targetPosition: [0, 0, -80],
+            mesh: null,
+            surface: null,
+            size: 4.8
+        },
+        {
+            id: '3',
+            point: 'PORTAL 3 → ROOM 1',
+            image: 'portal3.png',
+            video: 'portal3.mp4',
+            roomIndex: 2,
+            targetRoom: 0,
+            position: null,
+            targetPosition: [0, 0, -10],
+            mesh: null,
+            surface: null,
+            size: 4.8
+        }
+    ];
 
     const tilt = {
         enabled: false,
@@ -148,15 +183,74 @@
         previousButtons: []
     };
 
+    const rooms = [
+        {
+            id: 'ROOM 1',
+            centerZ: -13,
+            length: 38,
+            width: 12,
+            height: 8,
+            minZ: -32,
+            maxZ: 6,
+            floor: 'wall1.png',
+            ceilingRoofs: ['roof.png', 'roof1.png', 'roof3.png'],
+            ceilingEnds: ['roofa.png', 'roofa1.png', 'roofa2.png'],
+            left: 'wall3.png',
+            right: 'wall4.png',
+            accent: 'wall5.png',
+            floorColor: 0x46505b,
+            leftColor: 0x3b444f,
+            rightColor: 0x343d47,
+            accentColor: 0x59636e,
+            structureColor: 0x202731
+        },
+        {
+            id: 'ROOM 2',
+            centerZ: -53,
+            length: 38,
+            width: 12,
+            height: 8,
+            minZ: -72,
+            maxZ: -34,
+            floor: 'wall4.png',
+            ceilingRoofs: ['roof1.png', 'roof3.png', 'roof.png'],
+            ceilingEnds: ['roofa1.png', 'roofa2.png', 'roofa.png'],
+            left: 'wall5.png',
+            right: 'wall2.png',
+            accent: 'wall3.png',
+            floorColor: 0x343d48,
+            leftColor: 0x48535e,
+            rightColor: 0x3a444f,
+            accentColor: 0x69727d,
+            structureColor: 0x161d25
+        },
+        {
+            id: 'ROOM 3',
+            centerZ: -93,
+            length: 38,
+            width: 12,
+            height: 8,
+            minZ: -112,
+            maxZ: -74,
+            floor: 'wall3.png',
+            ceilingRoofs: ['roof3.png', 'roof.png', 'roof1.png'],
+            ceilingEnds: ['roofa2.png', 'roofa.png', 'roofa1.png'],
+            left: 'wall2.png',
+            right: 'wall4.png',
+            accent: 'wall5.png',
+            floorColor: 0x3b4650,
+            leftColor: 0x414d58,
+            rightColor: 0x303a44,
+            accentColor: 0x5e6974,
+            structureColor: 0x18212a
+        }
+    ];
+
     const room = {
-        firstMinZ: -32.0,
-        firstMaxZ: 6.0,
-        secondMinZ: -74.0,
-        secondMaxZ: -42.0,
-        portalZ: -32.0,
-        roomJoinZ: -41.0,
-        backZ: -73.5
+        current: 0
     };
+
+    let nearestPortal = null;
 
     function updateAssetStatus() {
         if (!assetStatus) return;
@@ -450,65 +544,343 @@
         );
     }
 
+    function buildTexturedCeiling(parent, options) {
+        const segmentLength = 6;
+        const startZ = options.centerZ - options.length / 2;
+        const count = Math.ceil(options.length / segmentLength);
+
+        for (let i = 0; i < count; i++) {
+            const z0 = startZ + i * segmentLength;
+            const z1 = Math.min(z0 + segmentLength, options.centerZ + options.length / 2);
+            const length = Math.max(0.25, z1 - z0);
+            const isFirst = i === 0;
+            const isLast = i === count - 1;
+
+            let textureName;
+            if (isFirst || isLast) {
+                const ends = options.ceilingEnds || [];
+                textureName = ends.length
+                    ? ends[i % ends.length]
+                    : (options.ceilingRoofs || [])[i % (options.ceilingRoofs || []).length];
+            } else {
+                const roofs = options.ceilingRoofs || [];
+                textureName = roofs.length
+                    ? roofs[i % roofs.length]
+                    : '';
+            }
+
+            const material = textureName
+                ? wallMaterial(
+                    textureName,
+                    options.ceilingColor,
+                    options.width,
+                    length
+                )
+                : new THREE.MeshBasicMaterial({
+                    color: options.ceilingColor,
+                    side: THREE.DoubleSide,
+                    fog: false
+                });
+
+            addPlane(
+                parent,
+                0,
+                3.5,
+                (z0 + z1) / 2,
+                options.width,
+                length,
+                Math.PI / 2,
+                0,
+                0,
+                material
+            );
+        }
+    }
+
+    function buildTexturedRoom(parent, options) {
+        const floorMat = wallMaterial(
+            options.floor,
+            options.floorColor,
+            options.width,
+            options.length
+        );
+        const leftMat = wallMaterial(
+            options.left,
+            options.leftColor,
+            options.length,
+            options.height
+        );
+        const rightMat = wallMaterial(
+            options.right,
+            options.rightColor,
+            options.length,
+            options.height
+        );
+
+        addPlane(
+            parent,
+            0,
+            -3.5,
+            options.centerZ,
+            options.width,
+            options.length,
+            -Math.PI / 2,
+            0,
+            0,
+            floorMat
+        );
+
+        buildTexturedCeiling(parent, options);
+
+        addPlane(
+            parent,
+            -options.width / 2,
+            0,
+            options.centerZ,
+            options.length,
+            options.height,
+            0,
+            Math.PI / 2,
+            0,
+            leftMat
+        );
+        addPlane(
+            parent,
+            options.width / 2,
+            0,
+            options.centerZ,
+            options.length,
+            options.height,
+            0,
+            -Math.PI / 2,
+            0,
+            rightMat
+        );
+
+        const structure = new THREE.MeshStandardMaterial({
+            color: options.structureColor,
+            metalness: 0.82,
+            roughness: 0.28
+        });
+
+        for (
+            let z = options.centerZ - options.length / 2 + 2;
+            z < options.centerZ + options.length / 2;
+            z += 6
+        ) {
+            addBeam(parent, 0, 3.05, z, options.width, 0.26, 0.42, structure);
+            addBeam(parent, -options.width / 2 + 0.18, 0, z, 0.32, options.height, 0.32, structure);
+            addBeam(parent, options.width / 2 - 0.18, 0, z, 0.32, options.height, 0.32, structure);
+        }
+
+        const accent = wallMaterial(
+            options.accent,
+            options.accentColor,
+            options.width,
+            options.height
+        );
+
+        addPlane(
+            parent,
+            0,
+            0,
+            options.centerZ + options.length / 2 - 0.28,
+            options.width,
+            options.height,
+            0,
+            0,
+            0,
+            accent
+        );
+    }
+
+    function addPipe(parent, points, radius, color) {
+        const curve = new THREE.CatmullRomCurve3(points);
+        const segments = Math.max(28, points.length * 12);
+        const geometry = new THREE.TubeGeometry(
+            curve,
+            segments,
+            radius,
+            8,
+            false
+        );
+        const material = new THREE.MeshStandardMaterial({
+            color,
+            metalness: 0.82,
+            roughness: 0.27
+        });
+        parent.add(new THREE.Mesh(geometry, material));
+    }
+
+    function buildPipes(parent, options, index) {
+        const c = options.centerZ;
+
+        const variants = [
+            {
+                radius: 0.13,
+                color: 0x77818b,
+                points: [
+                    new THREE.Vector3(-5.1, 2.5, c + 15),
+                    new THREE.Vector3(-4.7, 2.3, c + 8),
+                    new THREE.Vector3(-3.9, 2.2, c),
+                    new THREE.Vector3(-4.2, 1.9, c - 10),
+                    new THREE.Vector3(-5.0, 2.1, c - 16)
+                ]
+            },
+            {
+                radius: 0.18,
+                color: 0x8a6c49,
+                points: [
+                    new THREE.Vector3(4.9, 2.0, c + 17),
+                    new THREE.Vector3(4.2, 1.6, c + 9),
+                    new THREE.Vector3(3.5, 1.2, c + 1),
+                    new THREE.Vector3(3.9, 1.9, c - 7),
+                    new THREE.Vector3(4.8, 2.4, c - 16)
+                ]
+            },
+            {
+                radius: 0.10,
+                color: 0x4f6f77,
+                points: [
+                    new THREE.Vector3(-3.8, -2.5, c + 17),
+                    new THREE.Vector3(-1.5, -2.1, c + 10),
+                    new THREE.Vector3(-1.0, -2.6, c + 1),
+                    new THREE.Vector3(-2.3, -2.9, c - 9),
+                    new THREE.Vector3(-3.9, -2.3, c - 17)
+                ]
+            },
+            {
+                radius: 0.22,
+                color: 0x6e6260,
+                points: [
+                    new THREE.Vector3(2.4, 2.8, c + 17),
+                    new THREE.Vector3(1.2, 2.6, c + 11),
+                    new THREE.Vector3(1.8, 2.2, c + 3),
+                    new THREE.Vector3(2.8, 2.7, c - 7),
+                    new THREE.Vector3(2.0, 2.4, c - 17)
+                ]
+            }
+        ];
+
+        if (index === 1) {
+            variants.push({
+                radius: 0.08,
+                color: 0x687a56,
+                points: [
+                    new THREE.Vector3(-5.0, -1.9, c + 15),
+                    new THREE.Vector3(-2.8, -1.4, c + 7),
+                    new THREE.Vector3(-3.2, -0.8, c - 2),
+                    new THREE.Vector3(-4.8, -1.6, c - 12),
+                    new THREE.Vector3(-5.1, -1.2, c - 17)
+                ]
+            });
+        }
+
+        variants.forEach(v => addPipe(parent, v.points, v.radius, v.color));
+    }
+
+    function buildEndWall(parent, z, material) {
+        addPlane(
+            parent,
+            0,
+            0,
+            z,
+            12,
+            8,
+            0,
+            0,
+            0,
+            material
+        );
+    }
+
+    function buildPortalWall(parent, z, material) {
+        const portalWidth = 5.6;
+        const portalHeight = 6.4;
+
+        addBeam(parent, -4.65, 0, z, 2.7, 7.5, 0.5, material);
+        addBeam(parent, 4.65, 0, z, 2.7, 7.5, 0.5, material);
+        addBeam(parent, 0, (portalHeight / 2) + 0.62, z, 6.6, 1.0, 0.5, material);
+        addBeam(parent, 0, -(portalHeight / 2) - 0.62, z, 6.6, 1.0, 0.5, material);
+        return portalWidth;
+    }
+
     function buildWorld() {
         const world = new THREE.Group();
 
-        // Room 1: the pilot test corridor.
-        buildTexturedRoom(world, {
-            centerZ: -13,
-            width: 12,
-            length: 38,
-            height: 8,
-            floor: 'wall1.png',
-            ceiling: 'wall2.png',
-            left: 'wall3.png',
-            right: 'wall4.png',
-            accent: 'wall5.png',
-            floorColor: 0x46505b,
-            ceilingColor: 0x53606a,
-            leftColor: 0x3b444f,
-            rightColor: 0x343d47,
-            accentColor: 0x59636e,
-            structureColor: 0x202731
-        });
+        rooms.forEach((roomOptions, index) => {
+            buildTexturedRoom(world, roomOptions);
+            buildPipes(world, roomOptions, index);
 
-        // Room 2: same scale, intentionally different texture assignment
-        // and structural pattern to make the transition visibly meaningful.
-        buildTexturedRoom(world, {
-            centerZ: -58,
-            width: 12,
-            length: 32,
-            height: 8,
-            floor: 'wall4.png',
-            ceiling: 'wall1.png',
-            left: 'wall5.png',
-            right: 'wall2.png',
-            accent: 'wall3.png',
-            floorColor: 0x343d48,
-            ceilingColor: 0x5a636e,
-            leftColor: 0x48535e,
-            rightColor: 0x3a444f,
-            accentColor: 0x69727d,
-            structureColor: 0x161d25
-        });
+            const wallMaterialName = roomOptions.accent;
+            const wallMaterialObject = wallMaterial(
+                wallMaterialName,
+                roomOptions.accentColor,
+                12,
+                8
+            );
 
-        // Room 1 back wall around the single portal: actual hole, not three
-        // conflicting portal surfaces.
-        const wallMaterial5 = wallMaterial(
-            'wall5.png',
-            0x58616c,
-            2.8,
-            7.5
-        );
-        addBeam(world, -4.6, 0, -32.0, 2.8, 7.5, 0.5, wallMaterial5);
-        addBeam(world, 4.6, 0, -32.0, 2.8, 7.5, 0.5, wallMaterial5);
-        addBeam(world, 0, 2.95, -32.0, 6.2, 1.0, 0.5, wallMaterial5);
-        addBeam(world, 0, -2.95, -32.0, 6.2, 1.0, 0.5, wallMaterial5);
+            const endWall = wallMaterial(
+                roomOptions.right,
+                roomOptions.rightColor,
+                12,
+                8
+            );
+
+            if (index === 0 || index === 1 || index === 2) {
+                buildPortalWall(world, roomOptions.minZ, wallMaterialObject);
+            }
+
+            buildEndWall(world, roomOptions.maxZ, endWall);
+        });
 
         scene.add(world);
 
         buildDoor();
-        buildPortal();
+        portals.forEach(buildPortal);
+    }
+
+    function pickDoorTexture() {
+        const candidates = ['door.png', 'door1.png', 'door2.png', 'door3.png', 'door4.png', 'door5.png']
+            .filter(name => findImageAsset(name));
+
+        if (!candidates.length) {
+            return '';
+        }
+
+        return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    function resetDoorVisual() {
+        if (!testDoor.leftPanel || !testDoor.rightPanel) return;
+
+        testDoor.leftPanel.position.set(-1.525, 0, -0.39);
+        testDoor.rightPanel.position.set(1.525, 0, -0.39);
+        testDoor.leftPanel.scale.set(1, 1, 1);
+        testDoor.rightPanel.scale.set(1, 1, 1);
+    }
+
+    function applyDoorAnimation(progress) {
+        if (!testDoor.leftPanel || !testDoor.rightPanel) return;
+
+        const slide = progress * 3.15;
+
+        if (testDoor.mode === 'vertical') {
+            testDoor.leftPanel.position.set(-1.525, slide, -0.39);
+            testDoor.rightPanel.position.set(1.525, -slide, -0.39);
+        } else if (testDoor.mode === 'pocket') {
+            testDoor.leftPanel.position.set(-1.525 - slide, 0, -0.39);
+            testDoor.rightPanel.position.set(1.525 - slide, 0, -0.39);
+        } else if (testDoor.mode === 'shrink') {
+            testDoor.leftPanel.position.set(-1.525, 0, -0.39);
+            testDoor.rightPanel.position.set(1.525, 0, -0.39);
+            const scale = Math.max(0.02, 1 - progress);
+            testDoor.leftPanel.scale.x = scale;
+            testDoor.rightPanel.scale.x = scale;
+        } else {
+            testDoor.leftPanel.position.set(-1.525 - slide, 0, -0.39);
+            testDoor.rightPanel.position.set(1.525 + slide, 0, -0.39);
+        }
     }
 
     function buildDoor() {
@@ -530,18 +902,25 @@
 
         const leftMaterial = new THREE.MeshBasicMaterial({
             color: 0xffffff,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            fog: false
         });
-
         const rightMaterial = new THREE.MeshBasicMaterial({
             color: 0xffffff,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            fog: false
         });
 
         const left = addPlane(group, -1.525, 0, -0.39, 3.05, 6.1, 0, 0, 0, leftMaterial);
         const right = addPlane(group, 1.525, 0, -0.39, 3.05, 6.1, 0, 0, 0, rightMaterial);
 
-        const doorUrl = config.doorTexture || '';
+        const chosen = pickDoorTexture();
+        testDoor.textureName = chosen;
+
+        const doorUrl =
+            (chosen && findImageAsset(chosen)) ||
+            config.doorTexture ||
+            '';
 
         if (doorUrl) {
             loadImageTexture(
@@ -565,9 +944,14 @@
                     right.material.needsUpdate = true;
                 },
                 null,
-                { targetWidth: 3.05, targetHeight: 6.1 }
+                {
+                    targetWidth: 3.05,
+                    targetHeight: 6.1
+                }
             );
         }
+
+        resetDoorVisual();
 
         scene.add(group);
         testDoor.mesh = group;
@@ -575,44 +959,58 @@
         testDoor.rightPanel = right;
     }
 
-    function buildPortal() {
+    function buildPortal(portalState) {
         const group = new THREE.Group();
-        group.position.set(0, 0, -31.72);
+        const roomOptions = rooms[portalState.roomIndex];
+        const portalZ = roomOptions.minZ + 0.28;
+
+        group.position.set(0, 0, portalZ);
 
         const frameMaterial = new THREE.MeshStandardMaterial({
             color: 0x5d6874,
             metalness: 0.88,
             roughness: 0.2,
             emissive: 0x09121b,
-            emissiveIntensity: 0.75
+            emissiveIntensity: 0.9
         });
 
-        const width = 3.8;
-        const height = 6.1;
+        const size = portalState.size;
 
-        addBeam(group, 0, 3.32, 0, 4.5, 0.52, 0.45, frameMaterial);
-        addBeam(group, 0, -3.32, 0, 4.5, 0.52, 0.45, frameMaterial);
-        addBeam(group, -2.16, 0, 0, 0.52, 6.1, 0.45, frameMaterial);
-        addBeam(group, 2.16, 0, 0, 0.52, 6.1, 0.45, frameMaterial);
+        addBeam(group, 0, size / 2 + 0.28, 0, size + 0.72, 0.46, 0.45, frameMaterial);
+        addBeam(group, 0, -(size / 2 + 0.28), 0, size + 0.72, 0.46, 0.45, frameMaterial);
+        addBeam(group, -(size / 2 + 0.28), 0, 0, 0.46, size + 0.72, 0.45, frameMaterial);
+        addBeam(group, size / 2 + 0.28, 0, 0, 0.46, size + 0.72, 0.45, frameMaterial);
 
         const opening = new THREE.MeshBasicMaterial({
-            color: 0x03070c,
-            side: THREE.DoubleSide
+            color: 0xffffff,
+            side: THREE.DoubleSide,
+            fog: false
         });
 
-        const surface = addPlane(group, 0, 0, -0.18, width, height, 0, 0, 0, opening);
+        const surface = addPlane(
+            group,
+            0,
+            0,
+            -0.18,
+            size,
+            size,
+            0,
+            0,
+            0,
+            opening
+        );
 
-        portal.position = new THREE.Vector3(0, 0, -31.72);
-        portal.mesh = group;
-        portal.surface = surface;
+        portalState.position = new THREE.Vector3(0, 0, portalZ);
+        portalState.mesh = group;
+        portalState.surface = surface;
 
         scene.add(group);
 
-        const url = findImageAsset(portal.image);
+        const url = findImageAsset(portalState.image);
 
         if (url) {
             loadImageTexture(
-                'portal-image',
+                'portal-image-' + portalState.id,
                 url,
                 texture => {
                     surface.material.map = texture;
@@ -621,47 +1019,8 @@
                 },
                 null,
                 {
-                    targetWidth: width,
-                    targetHeight: height
-                }
-            );
-        }
-    }
-
-    function buildSecondRoomArrivalMarker() {
-        const material = new THREE.MeshBasicMaterial({
-            color: 0x0b121b,
-            side: THREE.DoubleSide
-        });
-
-        const plate = addPlane(
-            scene,
-            0,
-            0,
-            -73.0,
-            7.0,
-            5.5,
-            0,
-            0,
-            0,
-            material
-        );
-
-        const url = findImageAsset('wall5.png');
-
-        if (url) {
-            loadImageTexture(
-                'room2-end',
-                url,
-                texture => {
-                    plate.material.map = texture;
-                    plate.material.color.set(0xffffff);
-                    plate.material.needsUpdate = true;
-                },
-                null,
-                {
-                    targetWidth: 7,
-                    targetHeight: 5.5
+                    targetWidth: size,
+                    targetHeight: size
                 }
             );
         }
@@ -699,93 +1058,414 @@
     let transitionUI = null;
     let transitionBusy = false;
 
-    function startPortalTransition() {
-        if (!running || transitionBusy) return false;
+    function createPortalTransitionUI() {
+        if (root.querySelector('.bcm-mini-sim-transition')) {
+            return {
+                wrapper: root.querySelector('.bcm-mini-sim-transition'),
+                video: root.querySelector('.bcm-mini-sim-transition-video'),
+                label: root.querySelector('.bcm-mini-sim-transition-label')
+            };
+        }
 
-        const distance = ship.position.distanceTo(portal.position);
+        const wrapper = document.createElement('div');
+        wrapper.className = 'bcm-mini-sim-transition';
+        wrapper.hidden = true;
+
+        const video = document.createElement('video');
+        video.className = 'bcm-mini-sim-transition-video';
+        video.playsInline = true;
+        video.setAttribute('playsinline', '');
+        video.setAttribute('webkit-playsinline', '');
+        video.preload = 'auto';
+        video.controls = false;
+        video.setAttribute('disablepictureinpicture', '');
+        video.setAttribute('controlslist', 'nodownload noplaybackrate');
+
+        const label = document.createElement('div');
+        label.className = 'bcm-mini-sim-transition-label';
+
+        wrapper.appendChild(video);
+        wrapper.appendChild(label);
+        root.appendChild(wrapper);
+
+        return {
+            wrapper,
+            video,
+            label
+        };
+    }
+
+    function getCurrentRoomIndex() {
+        const z = ship.position.z;
+
+        for (let i = 0; i < rooms.length; i++) {
+            if (z <= rooms[i].maxZ && z >= rooms[i].minZ) {
+                return i;
+            }
+        }
+
+        return room.current;
+    }
+
+    function polygonArea(points) {
+        let area = 0;
+
+        for (let i = 0; i < points.length; i++) {
+            const a = points[i];
+            const b = points[(i + 1) % points.length];
+            area += (a.x * b.y) - (b.x * a.y);
+        }
+
+        return Math.abs(area) * 0.5;
+    }
+
+    function clipPolygonAgainstEdge(points, edge) {
+        if (!points.length) return [];
+
+        const output = [];
+
+        const inside = point => {
+            if (edge === 'left') return point.x >= -1;
+            if (edge === 'right') return point.x <= 1;
+            if (edge === 'top') return point.y <= 1;
+            return point.y >= -1;
+        };
+
+        const intersect = (a, b) => {
+            let t = 0;
+
+            if (edge === 'left' || edge === 'right') {
+                const x = edge === 'left' ? -1 : 1;
+                const dx = b.x - a.x;
+                t = Math.abs(dx) > 0.000001 ? (x - a.x) / dx : 0;
+                return {
+                    x,
+                    y: a.y + (b.y - a.y) * t
+                };
+            }
+
+            const y = edge === 'top' ? 1 : -1;
+            const dy = b.y - a.y;
+            t = Math.abs(dy) > 0.000001 ? (y - a.y) / dy : 0;
+
+            return {
+                x: a.x + (b.x - a.x) * t,
+                y
+            };
+        };
+
+        let previous = points[points.length - 1];
+        let previousInside = inside(previous);
+
+        points.forEach(current => {
+            const currentInside = inside(current);
+
+            if (currentInside !== previousInside) {
+                output.push(intersect(previous, current));
+            }
+
+            if (currentInside) {
+                output.push(current);
+            }
+
+            previous = current;
+            previousInside = currentInside;
+        });
+
+        return output;
+    }
+
+    function getPortalScreenMetrics(portalState) {
+        if (
+            !portalState ||
+            !portalState.surface ||
+            !camera ||
+            !renderer ||
+            !portalState.position
+        ) {
+            return null;
+        }
+
+        const half = portalState.size / 2;
+        const corners = [
+            new THREE.Vector3(-half, -half, 0),
+            new THREE.Vector3(half, -half, 0),
+            new THREE.Vector3(half, half, 0),
+            new THREE.Vector3(-half, half, 0)
+        ];
+
+        portalState.surface.updateMatrixWorld(true);
+
+        const points = corners.map(corner =>
+            corner.clone()
+                .applyMatrix4(portalState.surface.matrixWorld)
+                .project(camera)
+        );
+
+        const fullArea = polygonArea(points);
+
+        if (!Number.isFinite(fullArea) || fullArea <= 0.000001) {
+            return null;
+        }
+
+        let clipped = points;
+        ['left', 'right', 'top', 'bottom'].forEach(edge => {
+            clipped = clipPolygonAgainstEdge(clipped, edge);
+        });
+
+        const visibleArea = polygonArea(clipped);
+        const visibleRatio = Math.max(
+            0,
+            Math.min(1, visibleArea / fullArea)
+        );
+
+        const screenFill = Math.max(
+            0,
+            Math.min(1, visibleArea / 4)
+        );
+
+        const toPortal = portalState.position.clone().sub(ship.position);
+        const distance = toPortal.length();
+
+        if (distance <= 0.000001) {
+            return {
+                distance: 0,
+                facing: 1,
+                visibleRatio,
+                screenFill
+            };
+        }
 
         const forward = new THREE.Vector3(0, 0, -1)
             .applyQuaternion(ship.quaternion)
             .normalize();
 
-        const toPortal = portal.position.clone().sub(ship.position);
+        const facing = forward.dot(toPortal.normalize());
+
+        return {
+            distance,
+            facing,
+            visibleRatio,
+            screenFill
+        };
+    }
+
+    function getNearestPortalForManualActivation() {
+        const currentRoom = getCurrentRoomIndex();
+        let best = null;
+        let bestDistance = Infinity;
+
+        portals.forEach(portalState => {
+            if (portalState.roomIndex !== currentRoom) return;
+
+            const distance = ship.position.distanceTo(portalState.position);
+
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = portalState;
+            }
+        });
+
+        return best;
+    }
+
+    function getAutoPortalCandidate() {
+        const currentRoom = getCurrentRoomIndex();
+        const portalState = portals.find(
+            candidate => candidate.roomIndex === currentRoom
+        );
+
+        if (!portalState) return null;
+
+        const metrics = getPortalScreenMetrics(portalState);
+
+        if (!metrics) return null;
+
+        if (
+            metrics.distance <= 9.5 &&
+            metrics.facing >= 0.38 &&
+            metrics.visibleRatio >= 0.69
+        ) {
+            return {
+                portal: portalState,
+                metrics
+            };
+        }
+
+        return null;
+    }
+
+    function startPortalTransition(portalState = null, source = 'MANUAL') {
+        if (!running || transitionBusy) return false;
+
+        const targetPortal = portalState || getNearestPortalForManualActivation();
+
+        if (!targetPortal) {
+            status.textContent = 'PORTAL · NO ACTIVE GATE IN THIS ZONE';
+            return false;
+        }
+
+        const distance = ship.position.distanceTo(targetPortal.position);
+
+        if (source !== 'AUTO' && distance > 12) {
+            status.textContent = 'PORTAL · APPROACH THE GATE';
+            return false;
+        }
+
+        const forward = new THREE.Vector3(0, 0, -1)
+            .applyQuaternion(ship.quaternion)
+            .normalize();
+        const toPortal = targetPortal.position.clone().sub(ship.position);
         const facing = toPortal.length()
             ? forward.dot(toPortal.normalize())
             : 1;
 
-        if (distance > 9.5 || facing < 0.30) {
-            status.textContent = 'PORTAL · APPROACH AND FACE THE GATE';
+        if (source !== 'AUTO' && facing < 0.30) {
+            status.textContent = 'PORTAL · FACE THE GATE';
             return false;
         }
 
-        const url = findExactAsset(portal.video);
+        const asset = (targetPortal.video && findAsset(targetPortal.video))
+            ? assets.find(item => item && item.name === targetPortal.video)
+            : null;
+        const url = findAsset(targetPortal.video);
 
         if (!url) {
-            status.textContent = 'PORTAL · VIDEO ASSET MISSING';
+            status.textContent = 'PORTAL ' + targetPortal.id + ' · VIDEO ASSET MISSING';
             return false;
         }
 
         transitionUI = transitionUI || createPortalTransitionUI();
 
         transitionBusy = true;
+        nearestPortal = targetPortal;
+        root.classList.add('transition-active');
         transitionUI.wrapper.hidden = false;
-        transitionUI.label.textContent = 'ПЕРЕХОД · ROOM 1 → ROOM 2';
+        transitionUI.label.textContent =
+            'ПЕРЕХОД · ' + targetPortal.point +
+            ' · ' + (source === 'AUTO' ? '69% AUTO' : 'MANUAL');
+
+        if (document.pointerLockElement === canvas && document.exitPointerLock) {
+            document.exitPointerLock();
+        }
+
+        Object.keys(keys).forEach(key => {
+            keys[key] = false;
+        });
 
         const video = transitionUI.video;
 
         video.pause();
         video.removeAttribute('src');
-        video.load();
-        video.src = url;
+        while (video.firstChild) {
+            video.removeChild(video.firstChild);
+        }
         video.currentTime = 0;
+
+        video.muted = source === 'AUTO';
+        video.src = url;
         video.preload = 'auto';
-        video.muted = false;
         video.load();
 
+        let playbackStarted = false;
+        let finished = false;
+
+        const cleanup = () => {
+            video.removeEventListener('ended', onEnded);
+            video.removeEventListener('error', onError);
+            video.removeEventListener('stalled', onStalled);
+            video.removeEventListener('loadeddata', onReady);
+            video.removeEventListener('canplay', onReady);
+        };
+
         const finish = success => {
+            if (finished) return;
+            finished = true;
+            cleanup();
+
             video.pause();
             video.removeAttribute('src');
             video.load();
             transitionUI.wrapper.hidden = true;
 
             if (success) {
-                ship.position.set(0, 0, -47.0);
+                ship.position.set(
+                    targetPortal.targetPosition[0],
+                    targetPortal.targetPosition[1],
+                    targetPortal.targetPosition[2]
+                );
                 ship.velocity.set(0, 0, 0);
                 ship.angularVelocity.set(0, 0, 0);
                 ship.quaternion.identity();
-
-                status.textContent = 'ROOM 2 · ARRIVED';
+                room.current = targetPortal.targetRoom;
+                status.textContent = rooms[room.current].id + ' · ARRIVED VIA PORTAL ' + targetPortal.id;
             } else {
-                status.textContent = 'PORTAL · VIDEO FAILED';
+                status.textContent = 'PORTAL ' + targetPortal.id + ' · VIDEO FAILED';
             }
 
+            root.classList.remove('transition-active');
             transitionBusy = false;
         };
 
-        const onEnded = () => {
-            video.removeEventListener('ended', onEnded);
-            video.removeEventListener('error', onError);
-            finish(true);
+        const onEnded = () => finish(true);
+
+        const onError = () => finish(false);
+
+        const onStalled = () => {
+            status.textContent = 'PORTAL ' + targetPortal.id + ' · BUFFERING…';
         };
 
-        const onError = () => {
-            video.removeEventListener('ended', onEnded);
-            video.removeEventListener('error', onError);
-            finish(false);
+        const tryPlay = () => {
+            if (finished || playbackStarted) return;
+
+            playbackStarted = true;
+
+            const promise = video.play();
+
+            if (promise && typeof promise.then === 'function') {
+                promise
+                    .then(() => {
+                        status.textContent =
+                            'PORTAL ' + targetPortal.id +
+                            ' · VIDEO PLAYING · CONTROLS LOCKED';
+                    })
+                    .catch(() => {
+                        playbackStarted = false;
+
+                        if (!video.muted) {
+                            video.muted = true;
+                            tryPlay();
+                        } else {
+                            finish(false);
+                            status.textContent =
+                                'PORTAL ' + targetPortal.id +
+                                ' · BROWSER CANNOT START VIDEO';
+                        }
+                    });
+            }
         };
+
+        const onReady = () => tryPlay();
 
         video.addEventListener('ended', onEnded, { once: true });
         video.addEventListener('error', onError, { once: true });
+        video.addEventListener('stalled', onStalled);
+        video.addEventListener('loadeddata', onReady, { once: true });
+        video.addEventListener('canplay', onReady, { once: true });
 
-        const promise = video.play();
+        // Start immediately; if metadata is still loading the ready events above retry.
+        tryPlay();
 
-        if (promise && typeof promise.catch === 'function') {
-            promise.catch(() => {
-                video.removeEventListener('ended', onEnded);
-                video.removeEventListener('error', onError);
-                finish(false);
-                status.textContent = 'PORTAL · BROWSER BLOCKED VIDEO';
-            });
+        window.setTimeout(() => {
+            if (!finished && !playbackStarted) {
+                tryPlay();
+            }
+        }, 900);
+
+        if (asset && asset.streamUrl) {
+            video.dataset.streamUrl = asset.streamUrl;
+        } else {
+            delete video.dataset.streamUrl;
         }
 
         return true;
@@ -989,7 +1669,9 @@
         const oneShot = [
             [0, tryRemoteDoor],
             [2, toggleShield],
-            [3, startPortalTransition]
+            [3, () => {
+                if (!transitionBusy) startPortalTransition();
+            }]
         ];
 
         oneShot.forEach(([index, action]) => {
@@ -1039,7 +1721,7 @@
     }
 
     function updateDoor(dt) {
-        if (!testDoor.mesh) return;
+        if (!testDoor.mesh || room.current !== 0) return;
 
         const toDoor = testDoor.mesh.position.clone().sub(ship.position);
         const distance = toDoor.length();
@@ -1053,6 +1735,7 @@
             : -1;
 
         if (
+            !transitionBusy &&
             testDoor.state === 'CLOSED' &&
             distance < testDoor.openDistance &&
             facing > 0.72
@@ -1066,10 +1749,7 @@
                 testDoor.progress + dt * testDoor.speed
             );
 
-            const slide = testDoor.progress * 3.1;
-
-            testDoor.leftPanel.position.x = -1.525 - slide;
-            testDoor.rightPanel.position.x = 1.525 + slide;
+            applyDoorAnimation(testDoor.progress);
 
             if (testDoor.progress >= 1) {
                 testDoor.state = 'OPEN';
@@ -1078,19 +1758,37 @@
     }
 
     function beginDoorOpening(reason) {
-        if (testDoor.state !== 'CLOSED') return false;
+        if (transitionBusy || testDoor.state !== 'CLOSED') return false;
 
+        const modes = ['split', 'vertical', 'pocket', 'shrink'];
+        testDoor.mode = modes[Math.floor(Math.random() * modes.length)];
+        testDoor.speed = 1.15 + Math.random() * 1.35;
+        testDoor.progress = 0;
+        resetDoorVisual();
         testDoor.state = 'OPENING';
 
-        status.textContent = reason === 'REMOTE'
-            ? 'DOOR CRYSTAL · REMOTE OPEN'
-            : 'DOOR · AUTO OPEN';
+        const textureLabel = testDoor.textureName
+            ? ' · ' + testDoor.textureName.toUpperCase()
+            : '';
+
+        status.textContent =
+            (reason === 'REMOTE'
+                ? 'DOOR CRYSTAL · REMOTE OPEN'
+                : 'DOOR · AUTO OPEN') +
+            ' · ' + testDoor.mode.toUpperCase() +
+            textureLabel;
 
         return true;
     }
 
     function tryRemoteDoor() {
-        if (!running || !testDoor.mesh || testDoor.state !== 'CLOSED') {
+        if (
+            !running ||
+            transitionBusy ||
+            !testDoor.mesh ||
+            testDoor.state !== 'CLOSED' ||
+            room.current !== 0
+        ) {
             return false;
         }
 
@@ -1122,6 +1820,9 @@
         const xLimit = 5.35;
         const yLimit = 3.25;
         const radius = 0.32;
+        const activeRoom = rooms[room.current];
+
+        if (!activeRoom) return;
 
         if (ship.position.x < -xLimit) {
             ship.position.x = -xLimit;
@@ -1143,17 +1844,18 @@
             if (ship.velocity.y > 0) ship.velocity.y *= -0.2;
         }
 
-        if (ship.position.z > room.firstMaxZ - radius) {
-            ship.position.z = room.firstMaxZ - radius;
+        if (ship.position.z > activeRoom.maxZ - radius) {
+            ship.position.z = activeRoom.maxZ - radius;
             if (ship.velocity.z > 0) ship.velocity.z *= -0.2;
         }
 
-        if (ship.position.z < room.backZ + radius) {
-            ship.position.z = room.backZ + radius;
+        if (ship.position.z < activeRoom.minZ + radius) {
+            ship.position.z = activeRoom.minZ + radius;
             if (ship.velocity.z < 0) ship.velocity.z *= -0.2;
         }
 
         const inDoor =
+            room.current === 0 &&
             Math.abs(ship.position.x) < 3.0 &&
             Math.abs(ship.position.y) < 3.0;
 
@@ -1170,30 +1872,48 @@
         }
     }
 
+    function updatePortalActivation() {
+        if (!running || transitionBusy) return false;
+
+        const candidate = getAutoPortalCandidate();
+
+        if (!candidate) return false;
+
+        nearestPortal = candidate.portal;
+
+        status.textContent =
+            candidate.portal.point +
+            ' · VIEW ' +
+            Math.round(candidate.metrics.visibleRatio * 100) +
+            '%';
+
+        return startPortalTransition(candidate.portal, 'AUTO');
+    }
+
     function updateInteraction() {
         if (!interaction) return;
 
-        const portalDistance = ship.position.distanceTo(portal.position);
+        const activePortal = portals.find(
+            candidate => candidate.roomIndex === getCurrentRoomIndex()
+        );
 
-        if (portalDistance < 9.0) {
-            const forward = new THREE.Vector3(0, 0, -1)
-                .applyQuaternion(ship.quaternion)
-                .normalize();
-            const toPortal = portal.position.clone().sub(ship.position);
-            const facing = toPortal.length()
-                ? forward.dot(toPortal.normalize())
-                : 1;
+        if (activePortal) {
+            const metrics = getPortalScreenMetrics(activePortal);
 
-            if (facing > 0.35) {
+            if (metrics && metrics.distance < 18 && metrics.facing > 0.20) {
                 interaction.textContent =
-                    'PORTAL → ROOM 2 · G / Y ACTIVATE';
+                    activePortal.point +
+                    ' · VIEW ' +
+                    Math.round(metrics.visibleRatio * 100) +
+                    '% · G/Y';
                 return;
             }
         }
 
         if (
             testDoor.mesh &&
-            testDoor.state === 'CLOSED'
+            testDoor.state === 'CLOSED' &&
+            room.current === 0
         ) {
             const doorDistance = ship.position.distanceTo(testDoor.mesh.position);
 
@@ -1233,7 +1953,9 @@
 
         if (event.code === 'KeyG') {
             event.preventDefault();
-            startPortalTransition();
+            if (!transitionBusy) {
+                startPortalTransition();
+            }
         }
     }
 
@@ -1297,7 +2019,9 @@
                 }
 
                 if (control === 'portal') {
-                    startPortalTransition();
+                    if (!transitionBusy) {
+                        startPortalTransition();
+                    }
                     return;
                 }
 
@@ -1433,12 +2157,18 @@
             return;
         }
 
+        room.current = getCurrentRoomIndex();
         updateDoor(dt);
+
+        if (updatePortalActivation()) {
+            camera.position.copy(ship.position);
+            camera.quaternion.copy(ship.quaternion);
+            light.position.copy(ship.position);
+            return;
+        }
 
         const input = inputAxes();
 
-        // Gamepad right stick: down = nose up, as requested for aircraft-style
-        // inverted vertical pitch. Raise sensitivity above the mouse axis.
         if (gamepad.pad) {
             ship.angularVelocity.x += gamepad.rightY * 2.0 * dt;
         }
@@ -1459,6 +2189,15 @@
 
         ship.position.addScaledVector(ship.velocity, dt);
         resolveCollision();
+
+        room.current = getCurrentRoomIndex();
+
+        if (updatePortalActivation()) {
+            camera.position.copy(ship.position);
+            camera.quaternion.copy(ship.quaternion);
+            light.position.copy(ship.position);
+            return;
+        }
 
         ship.angularVelocity.x *= Math.max(0, 1 - ship.angularDrag * dt);
         ship.angularVelocity.y *= Math.max(0, 1 - ship.angularDrag * dt);
@@ -1487,7 +2226,7 @@
         updateInteraction();
 
         const shieldText = keys.KeyF ? 'OFF' : 'ON';
-        const roomText = ship.position.z < room.roomJoinZ ? 'ROOM 2' : 'ROOM 1';
+        const roomText = rooms[room.current] ? rooms[room.current].id : 'ROOM ?';
 
         status.textContent =
             roomText +
@@ -1521,6 +2260,9 @@
             ship.velocity = new THREE.Vector3();
             ship.angularVelocity = new THREE.Vector3();
             ship.quaternion = new THREE.Quaternion();
+            room.current = 0;
+            nearestPortal = null;
+            transitionBusy = false;
 
             renderer = new THREE.WebGLRenderer({
                 canvas,
