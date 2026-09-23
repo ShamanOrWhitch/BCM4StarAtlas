@@ -83,7 +83,9 @@
   const cinema = {
     zones: [],
     nearest: null,
-    mute: false
+    focus: null,
+    mute: false,
+    portalSafeRadius: 12
   };
   const tilt = {
     enabled: false,
@@ -314,6 +316,21 @@
         visible: false,
         distance: 99
       };
+
+      video.addEventListener("loadedmetadata", () => {
+        if (!item.mesh || !video.videoWidth || !video.videoHeight) return;
+        const maxW = zone.maxWidth || 6.8;
+        const maxH = zone.maxHeight || 4.4;
+        const aspect = video.videoWidth / video.videoHeight;
+        let w = maxW;
+        let h = w / aspect;
+        if (h > maxH) {
+          h = maxH;
+          w = h * aspect;
+        }
+        item.mesh.geometry.dispose();
+        item.mesh.geometry = new THREE.PlaneGeometry(w, h);
+      });
 
       video.addEventListener("error", () => {
         item.active = false;
@@ -623,7 +640,9 @@
 
   function updateCinemaZones() {
     if (!cinema.zones.length) {
-      if (musicAudio) musicAudio.volume = settings.volume;
+      if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume;
+      cinema.nearest = null;
+      cinema.focus = null;
       return;
     }
 
@@ -631,10 +650,30 @@
 
     cinema.zones.forEach((zone) => {
       zone.distance = zone.mesh.position.distanceTo(ship.position);
-      zone.visible = zone.distance <= zone.radius && zoneIsOnScreen(zone);
+      const portalDistance = zone.mesh.position.distanceTo(
+        portal.mesh ? portal.mesh.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(0, 0, portal.z)
+      );
+      const portalSafe = portalDistance >= cinema.portalSafeRadius;
 
-      if (zone.visible && running && !transitionBusy && !settings.open) {
-        candidates.push(zone);
+      zone.visible = portalSafe &&
+        zone.distance <= zone.radius &&
+        zoneIsOnScreen(zone) &&
+        running &&
+        !transitionBusy &&
+        !settings.open;
+
+      if (zone.visible) candidates.push(zone);
+    });
+
+    candidates.sort((a, b) => a.distance - b.distance);
+    const nearest = candidates.length ? candidates[0] : null;
+    cinema.nearest = nearest;
+
+    // Only the nearest visible zone is allowed to decode/play.
+    cinema.zones.forEach((zone) => {
+      if (!zone.el) return;
+
+      if (zone === nearest) {
         if (!zone.active) {
           zone.active = true;
           zone.el.loop = true;
@@ -643,29 +682,19 @@
           if (p && p.catch) {
             p.catch(() => {
               zone.el.muted = true;
-              zone.active = true;
             });
           }
         }
-      } else if (!zone.visible && zone.active) {
-        zone.el.pause();
+      } else {
+        if (zone.active) zone.el.pause();
         zone.el.volume = 0;
         zone.active = false;
       }
     });
 
-    candidates.sort((a, b) => a.distance - b.distance);
-    const nearest = candidates.length ? candidates[0] : null;
-    cinema.nearest = nearest;
-
-    // Only the nearest visible video gets sound. Other visible loops remain silent.
-    cinema.zones.forEach((zone) => {
-      if (!zone.el) return;
-      zone.el.volume = 0;
-    });
-
     if (!nearest) {
-      if (musicAudio) musicAudio.volume = settings.volume;
+      if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume;
+      if (cinema.focus) cinema.focus = null;
       return;
     }
 
@@ -674,18 +703,54 @@
     const d = Math.max(near, Math.min(radius, nearest.distance));
     const t = (d - near) / (radius - near);
 
-    // Film rises toward the screen; OST falls faster for the local film zone.
+    // Film rises toward the screen; OST falls much faster.
     const filmGain = Math.pow(1 - t, 0.5);
     const ostGain = Math.pow(t, 2.6);
 
     if (!cinema.mute) nearest.el.volume = Math.max(0, Math.min(1, settings.volume * filmGain));
-    if (musicAudio) musicAudio.volume = settings.volume * ostGain;
+    if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume * ostGain;
 
+    if (cinema.focus && cinema.focus !== nearest) cinema.focus = nearest;
     if (interaction) {
       interaction.textContent = nearest.distance <= near
         ? "CINEMA · 100% · OST 0%"
         : "CINEMA · " + Math.round(filmGain * 100) + "% · OST " + Math.round(ostGain * 100) + "%";
     }
+  }
+
+  function toggleCinemaFocus() {
+    const target = cinema.focus || cinema.nearest;
+    if (!target) {
+      setStatus("CINEMA · APPROACH A SCREEN");
+      return;
+    }
+
+    if (cinema.focus) {
+      cinema.focus = null;
+      setStatus("CINEMA FOCUS OFF");
+      return;
+    }
+
+    cinema.focus = target;
+    setStatus("CINEMA FOCUS ON · F TO RELEASE");
+  }
+
+  function updateCinemaFocus() {
+    if (!cinema.focus || !cinema.focus.mesh || !cinema.focus.active) return;
+    if (cinema.focus.distance > cinema.focus.radius) {
+      cinema.focus = null;
+      return;
+    }
+
+    const target = cinema.focus.mesh.getWorldPosition(new THREE.Vector3());
+    const matrix = new THREE.Matrix4().lookAt(
+      ship.position,
+      target,
+      new THREE.Vector3(0, 1, 0)
+    );
+    ship.quaternion.setFromRotationMatrix(matrix);
+    ship.angularVelocity.multiplyScalar(0.15);
+    camera.quaternion.copy(ship.quaternion);
   }
 
   function input() {
@@ -740,6 +805,7 @@
     camera.quaternion.copy(ship.quaternion);
     light.position.copy(ship.position);
     updateCinemaZones();
+    updateCinemaFocus();
 
     portal.coverage = portalCoverage();
     if (interaction) {
@@ -831,6 +897,7 @@
       if (settings.open) return;
       keys[e.code] = true;
       if (e.code === "KeyG") { e.preventDefault(); tryPortal(); }
+      if (e.code === "KeyF") { e.preventDefault(); toggleCinemaFocus(); }
       if (e.code === "KeyR") { e.preventDefault(); openDoor("REMOTE"); }
     });
     window.addEventListener("keyup", (e) => { keys[e.code] = false; });
@@ -920,7 +987,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.5.7");
+      setStatus("ENGINE READY · LOCAL r128 · 0.5.8");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
