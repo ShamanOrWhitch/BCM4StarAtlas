@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.5.6
+# BCM Mini-Sim 0.5.7
 
 ## STOP — read this before another GPT rewrite
 
@@ -9,7 +9,7 @@ Engine: **bundled Three.js r128 only** (`assets/js/three.min.js`, 603445 bytes).
 ### Why 0.4.1 looked “not applied”
 - PHP was updated to 0.4.1 (`?ver=0.4.1`).
 - **JS on the server stayed the old 48890-byte 0.4.0 file.**
-- Always check file size / first comment / HUD title `SPACE LABYRINTH — 0.5.6`.
+- Always check file size / first comment / HUD title `SPACE LABYRINTH — 0.5.7`.
 - After upload purge LiteSpeed **and** Autoptimize. Exclude `mini-sim.js` and `three.min.js` from Autoptimize JS.
 
 ### Asset URLs (the real 404 bug)
@@ -54,9 +54,9 @@ Shortcode: `[bcm_mini_sim]`
 
 ### Verify after deploy
 Network tab:
-- 200 `.../mini-sim/assets/js/mini-sim.js?ver=0.5.6` (about 24KB, not 48890)
+- 200 `.../mini-sim/assets/js/mini-sim.js?ver=0.5.7` (about 24KB, not 48890)
 - 200 `.../assets/wall1.png`, `roof.png`, `door1.png`, `portal2.mp4`
-- HUD: `ENGINE READY · LOCAL r128 · 0.5.6`
+- HUD: `ENGINE READY · LOCAL r128 · 0.5.7`
 - Click ИГРАТЬ → OST starts. Refresh page → OST silent until click.
 
 ### Do not
@@ -69,21 +69,21 @@ Network tab:
 Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into one JS file.
 
 
-### Portal travel 0.5.6
+### Portal travel 0.5.7
 - Forward: Room 1 → Room 2 uses `portal2.mp4`.
 - Return: Room 2 → Room 1 uses `portal1.mp4` from the back side of the portal.
 - Return teleport lands at the original start position `(0, 0, 2)` facing the initial door.
 - The back-side trigger has priority in Room 2 and cannot accidentally use the forward portal trigger.
 
 
-### 0.5.6 scene additions
+### 0.5.7 scene additions
 - The portal has separate front and rear textures: `portal.png` and `portal2.png`.
 - Room 2 is extended from 26 to 34 units.
 - A second return gate uses `door2.png` and opens while approaching from Room 2.
 - A looping `VideoTexture` uses `portal3.mp4` as a live wall panel in Room 2. Replace that filename with another MP4 in `assets/` for different moving content.
 
 
-### 0.5.6
+### 0.5.7
 - Restored the portal to static image textures; the test VideoTexture panel is removed.
 - Front portal face: `portal.png`; rear portal face: `portal2.png`.
 - First gate now tests `door2.png`; the return gate tests `door3.png`.
