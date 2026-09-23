@@ -1143,10 +1143,6 @@
 
         const tiltLook = getTiltLook();
 
-        const pitch =
-            tiltLook.pitch +
-            (gamepad.rightY * (settingsState.invertPitch ? 1 : -1));
-
         const yaw =
             yawButtons +
             tiltLook.yaw +
@@ -1157,7 +1153,6 @@
             strafe: strafe + gamepad.leftX,
             vertical: vertical + gamepad.vertical,
             roll: roll + gamepad.roll,
-            pitch,
             yaw
         };
     }
@@ -1707,6 +1702,12 @@
         let input;
         try { input = inputAxes(); } catch (error) { console.warn('BCM input/gamepad error:', error); input = { thrust: 0, strafe: 0, vertical: 0, roll: 0, yaw: 0 }; }
 
+        // Preserve the original aircraft-style right-stick Y:
+        // physical stick DOWN => look UP; physical stick UP => look DOWN.
+        if (gamepad.pad) {
+            ship.angularVelocity.x += gamepad.rightY * 2.0 * dt;
+        }
+
         const localAcceleration = new THREE.Vector3(
             input.strafe * ship.strafeThrust,
             input.vertical * ship.verticalThrust,
@@ -1729,7 +1730,7 @@
         ship.angularVelocity.z *= Math.max(0, 1 - ship.angularDrag * dt);
 
         const angularInput = new THREE.Vector3(
-            input.pitch * 2.0,
+            0,
             input.yaw * 1.85,
             input.roll * 2.7
         );
