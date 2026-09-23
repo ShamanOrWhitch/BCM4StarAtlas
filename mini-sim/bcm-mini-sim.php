@@ -349,6 +349,7 @@ function bcm_mini_sim_shortcode($atts = array()) {
         <div class="bcm-mini-sim-asset-status">LOCAL ASSETS: SCANNING...</div>
 
         <button class="bcm-mini-sim-start" type="button">ИГРАТЬ</button>
+        <div class="bcm-mini-sim-start-hint">Портал уже есть в стартовой секции. Подлетите к светящемуся квадрату: при 69% видимости переход начнётся автоматически. G / Y / PORTAL — ручной запуск.</div>
         <button class="bcm-mini-sim-music" type="button" aria-label="Музыка" title="Музыка">♫</button>
 
         <button class="bcm-mini-sim-crystal bcm-mini-sim-crystal-main" type="button"
