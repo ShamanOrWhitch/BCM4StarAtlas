@@ -295,8 +295,10 @@
       const material = new THREE.MeshBasicMaterial({
         map: texture,
         side: THREE.DoubleSide,
-        fog: false
+        fog: false,
+        toneMapped: false
       });
+      material.color.setRGB(1.14, 1.14, 1.14);
 
       const mesh = new THREE.Mesh(
         new THREE.PlaneGeometry(zone.width || 5.8, zone.height || 3.4),
@@ -987,7 +989,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.5.8");
+      setStatus("ENGINE READY · LOCAL r128 · 0.5.9");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
