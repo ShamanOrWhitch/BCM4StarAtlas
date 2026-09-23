@@ -4,7 +4,7 @@ Self-contained WordPress test of a Descent-style 6DOF space-labyrinth.
 
 ## Version
 
-**0.4.0**
+**0.5.0**
 
 Three.js **r128** is bundled locally in:
 
@@ -18,11 +18,11 @@ The plugin does not depend on the WordPress theme's Three.js file and does not u
 
 The test is intentionally reduced to one readable gameplay flow:
 
-**ROOM 1 → door → one portal → portal video → ROOM 2**
+**ROOM 1 → door → portal 1/video → ROOM 2 → portal 2/video → ROOM 3 → portal 3/video → ROOM 1**
 
 Room 2 keeps the same scale and flight model but uses a different assignment of the supplied wall textures and a different structural pattern.
 
-The five supplied wall textures are loaded as actual WebGL textures. The loader keeps the original PNGs intact and uses a maximum 2048-pixel GPU copy only when an image is larger than that. It does not require power-of-two images.
+The supplied wall textures are loaded as actual WebGL textures. The loader keeps the original PNGs intact and uses a maximum 2048-pixel GPU copy only when an image is larger than that. It does not require power-of-two images.
 
 ## Portal
 
@@ -37,6 +37,16 @@ There are no competing point-2/point-3 portal controls in this build.
 G on desktop, Y on gamepad, or the mobile G button activates the portal when the pilot is close and facing it. The 480p local MP4 plays full-screen, then the ship is placed inside Room 2.
 
 The other original portal video/image files remain in the repository for later stages, but they are not active in this test.
+
+## Roof and seam test
+
+Ceilings are now segmented along the room length to test the new `roof*.png` set. The `roofa*.png` images are used on the first/last ceiling sections so the corner/end artwork is tested at texture junctions instead of being ignored.
+
+## Door pack and pipes
+
+The door now selects one of `door.png` through `door5.png` from the local pack. Each opening uses a randomly selected opening mode and speed, so the animation is no longer permanently identical.
+
+Longer TubeGeometry pipe runs were added with several diameters and paths per zone. They are visual test geometry only at this stage.
 
 ## Desktop controls
 
@@ -125,6 +135,10 @@ Put plugin assets under:
 ```
 mini-sim/assets/
 ```
+
+## Video streaming fallback
+
+Video assets are also exposed through a small WordPress streaming endpoint with `video/mp4`/`video/webm` content type and HTTP Range support. The browser uses this URL first for portal videos, which avoids failures caused by incorrect server MIME handling or missing byte-range delivery.
 
 ## WordPress
 
