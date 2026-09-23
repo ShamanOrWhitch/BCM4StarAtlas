@@ -69,6 +69,8 @@
     away: 0,
     style: "slide"
   };
+  const DEEP_SPACE_Z = -83;
+  const DEEP_SPACE_MIN_Z = -230;
   const portal = { mesh: null, backMesh: null, coverage: 0, z: -24.2, triggerFrontZ: -22.8, triggerBackZ: -25.8, direction: "FORWARD" };
   const returnDoor = {
     state: "CLOSED",
@@ -223,9 +225,17 @@
     });
 
     const spaceMat = new THREE.MeshBasicMaterial({ color: 0x05060a, side: THREE.BackSide });
+
+    // Local void between the portal and Room 2.
     const voidBox = new THREE.Mesh(new THREE.BoxGeometry(80, 50, 28), spaceMat);
     voidBox.position.set(0, 0, -36);
     world.add(voidBox);
+
+    // Large free-flight exterior space after the end of Room 2.
+    const deepSpaceBox = new THREE.Mesh(new THREE.BoxGeometry(140, 90, 294), spaceMat);
+    deepSpaceBox.position.set(0, 0, -230);
+    deepSpaceBox.name = "deep-space-shell";
+    world.add(deepSpaceBox);
 
     const dock = new THREE.Mesh(
       new THREE.BoxGeometry(1.4, 1.4, 0.12),
@@ -770,12 +780,23 @@
 
   function collide() {
     if (ship.position.z > -24.5) {
+      // Room 1 / front corridor.
       ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
       ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
-    } else if (ship.position.z < -49) {
-      ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
-      ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
+      return;
     }
+
+    if (ship.position.z >= DEEP_SPACE_Z) {
+      // Portal chamber + Room 2 remain corridor-like.
+      ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
+      ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
+      return;
+    }
+
+    // Past Room 2 there is real free flight in a large 3D volume.
+    ship.position.x = Math.max(-58, Math.min(58, ship.position.x));
+    ship.position.y = Math.max(-34, Math.min(34, ship.position.y));
+    ship.position.z = Math.max(DEEP_SPACE_MIN_Z, Math.min(DEEP_SPACE_Z - 0.1, ship.position.z));
   }
 
   function updatePhysics(dt) {
@@ -818,7 +839,9 @@
     if (portalSide() === "FRONT" && portal.coverage >= 0.69) tryPortal();
     if (portalSide() === "BACK" && portalTriggerDistance("BACK") <= 7.5) tryPortal();
 
-    const room = ship.position.z < -48 ? "ROOM 2" : (ship.position.z < -28 ? "SPACE" : "ROOM 1");
+    const room = ship.position.z < DEEP_SPACE_Z
+      ? "DEEP SPACE"
+      : (ship.position.z < -48 ? "ROOM 2" : (ship.position.z < -28 ? "SPACE" : "ROOM 1"));
     setStatus(room + " · SPD " + ship.velocity.length().toFixed(1) + " · DOOR " + door.state);
   }
 
@@ -983,13 +1006,13 @@
       ship.quaternion = new THREE.Quaternion();
       const stars = new THREE.BufferGeometry();
       const pts = [];
-      for (let i = 0; i < 400; i++) pts.push((Math.random() - 0.5) * 300, (Math.random() - 0.5) * 300, (Math.random() - 0.5) * 300);
+      for (let i = 0; i < 700; i++) pts.push((Math.random() - 0.5) * 500, (Math.random() - 0.5) * 320, (Math.random() - 0.5) * 520);
       stars.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
       scene.add(new THREE.Points(stars, new THREE.PointsMaterial({ color: 0xffffff, size: 0.6 })));
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.5.10");
+      setStatus("ENGINE READY · LOCAL r128 · 0.6.0");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
