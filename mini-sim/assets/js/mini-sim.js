@@ -13,8 +13,6 @@
     const musicButton = root.querySelector('.bcm-mini-sim-music');
     const musicAudio = root.querySelector('.bcm-mini-sim-music-audio');
     const tiltButton = root.querySelector('[data-control="tilt"]');
-    const settingsPanel = root.querySelector('.bcm-mini-sim-settings');
-    const settingsCloseButton = root.querySelector('[data-setting="close"]');
     const config = window.BCMMiniSimConfig || {};
 
     if (!canvas || !startButton || !status) return;
@@ -77,7 +75,6 @@
     let scene;
     let camera;
     let light;
-    let starfield = null;
     let running = false;
     let pointerLocked = false;
     let last = performance.now();
@@ -153,18 +150,6 @@
         previousButtons: []
     };
 
-    const settingsState = {
-        open: false,
-        volume: 42,
-        quality: 'high',
-        effects: true,
-        invertPitch: true,
-        invertYaw: false,
-        historyPushed: false
-    };
-
-    let shieldEnabled = true;
-
     const room = {
         firstMinZ: -32.0,
         firstMaxZ: 6.0,
@@ -195,7 +180,7 @@
             failureText;
     }
 
-    function setImageTexture(texture, image, targetWidth, targetHeight, cover = true) {
+    function setImageTexture(texture, image, targetWidth, targetHeight) {
         // All supplied 720p/NPOT images use safe WebGL-compatible wrapping.
         texture.wrapS = THREE.ClampToEdgeWrapping;
         texture.wrapT = THREE.ClampToEdgeWrapping;
@@ -203,22 +188,17 @@
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
 
-        if (!cover) {
-            texture.repeat.set(1, 1);
-            texture.offset.set(0, 0);
-        } else {
-            const sourceAspect = image.width / image.height;
-            const targetAspect = targetWidth / targetHeight;
+        const sourceAspect = image.width / image.height;
+        const targetAspect = targetWidth / targetHeight;
 
-            if (sourceAspect > targetAspect) {
-                const visibleX = targetAspect / sourceAspect;
-                texture.repeat.set(visibleX, 1);
-                texture.offset.set((1 - visibleX) / 2, 0);
-            } else {
-                const visibleY = sourceAspect / targetAspect;
-                texture.repeat.set(1, visibleY);
-                texture.offset.set(0, (1 - visibleY) / 2);
-            }
+        if (sourceAspect > targetAspect) {
+            const visibleX = targetAspect / sourceAspect;
+            texture.repeat.set(visibleX, 1);
+            texture.offset.set((1 - visibleX) / 2, 0);
+        } else {
+            const visibleY = sourceAspect / targetAspect;
+            texture.repeat.set(1, visibleY);
+            texture.offset.set(0, (1 - visibleY) / 2);
         }
 
         if ('encoding' in texture && THREE.sRGBEncoding !== undefined) {
@@ -294,13 +274,11 @@
                 }
 
                 const texture = new THREE.Texture(source);
-                setImageTexture(
-                    texture,
-                    image,
-                    options.targetWidth || width,
-                    options.targetHeight || height,
-                    options.cover !== false
-                );
+                if (options.repeat) {
+                    setImageTexture(texture, image, options.targetWidth || 1, options.targetHeight || 1, options.repeat);
+                } else {
+                    setImageTexture(texture, image, options.targetWidth || width, options.targetHeight || height);
+                }
 
                 record.texture = texture;
                 record.image = {
@@ -347,7 +325,7 @@
         image.src = url;
     }
 
-    function wallMaterial(name, fallback = 0x58616c, targetWidth = 1, targetHeight = 1, textureOptions = {}) {
+    function wallMaterial(name, fallback = 0x58616c, targetWidth = 1, targetHeight = 1) {
         const material = new THREE.MeshBasicMaterial({
             color: fallback,
             side: THREE.DoubleSide,
@@ -379,8 +357,7 @@
             },
             {
                 targetWidth,
-                targetHeight,
-                ...textureOptions
+                targetHeight
             }
         );
 
@@ -418,9 +395,12 @@
             options.width,
             options.length
         );
-        const ceilingNames = Array.isArray(options.ceiling)
-            ? options.ceiling
-            : [options.ceiling || 'roof.png'];
+        const ceilingMat = wallMaterial(
+            options.ceiling || 'roof.png',
+            options.ceilingColor,
+            options.width,
+            options.length
+        );
         const leftMat = wallMaterial(
             options.left,
             options.leftColor,
@@ -435,35 +415,7 @@
         );
 
         addPlane(parent, 0, -3.5, options.centerZ, options.width, options.length, -Math.PI / 2, 0, 0, floorMat);
-
-        const ceilingSegmentLength = options.length / ceilingNames.length;
-        ceilingNames.forEach((name, index) => {
-            const segmentZ =
-                options.centerZ -
-                options.length / 2 +
-                ceilingSegmentLength * (index + 0.5);
-
-            const ceilingMat = wallMaterial(
-                name,
-                options.ceilingColor,
-                options.width,
-                ceilingSegmentLength,
-                { cover: false }
-            );
-
-            addPlane(
-                parent,
-                0,
-                3.40,
-                segmentZ,
-                options.width,
-                ceilingSegmentLength,
-                Math.PI / 2,
-                0,
-                0,
-                ceilingMat
-            );
-        });
+        addPlane(parent, 0, 3.5, options.centerZ, options.width, options.length, Math.PI / 2, 0, 0, ceilingMat);
         addPlane(parent, -options.width / 2, 0, options.centerZ, options.length, options.height, 0, Math.PI / 2, 0, leftMat);
         addPlane(parent, options.width / 2, 0, options.centerZ, options.length, options.height, 0, -Math.PI / 2, 0, rightMat);
 
@@ -500,66 +452,12 @@
         );
 
 
-        const cornerA = wallMaterial(
-            options.roofCornerA || 'roofa.png',
-            options.ceilingColor,
-            0.9,
-            options.length,
-            { cover: false }
-        );
-        const cornerB = wallMaterial(
-            options.roofCornerB || 'roofa1.png',
-            options.ceilingColor,
-            0.9,
-            options.length,
-            { cover: false }
-        );
-        const cornerEnd = wallMaterial(
-            options.roofCornerEnd || 'roofa2.png',
-            options.ceilingColor,
-            options.width,
-            0.9,
-            { cover: false }
-        );
-
-        addPlane(
-            parent,
-            -options.width / 2 + 0.45,
-            3.36,
-            options.centerZ,
-            0.9,
-            options.length,
-            Math.PI / 2,
-            0,
-            0,
-            cornerA
-        );
-
-        addPlane(
-            parent,
-            options.width / 2 - 0.45,
-            3.36,
-            options.centerZ,
-            0.9,
-            options.length,
-            Math.PI / 2,
-            0,
-            0,
-            cornerB
-        );
-
-        addPlane(
-            parent,
-            0,
-            3.36,
-            options.centerZ + options.length / 2 - 0.45,
-            options.width,
-            0.9,
-            Math.PI / 2,
-            0,
-            0,
-            cornerEnd
-        );
+        const cornerA = wallMaterial(options.roofCornerA || 'roofa.png', options.ceilingColor, 0.9, options.length);
+        const cornerB = wallMaterial(options.roofCornerB || 'roofa1.png', options.ceilingColor, 0.9, options.length);
+        const cornerEnd = wallMaterial(options.roofCornerEnd || 'roofa2.png', options.ceilingColor, options.width, 0.9);
+        addPlane(parent, -options.width / 2 + 0.45, 3.34, options.centerZ, 0.9, options.length, 0, 0, 0, cornerA);
+        addPlane(parent, options.width / 2 - 0.45, 3.34, options.centerZ, 0.9, options.length, 0, 0, 0, cornerB);
+        addPlane(parent, 0, 3.34, options.centerZ + options.length / 2 - 0.45, options.width, 0.9, 0, 0, 0, cornerEnd);
     }
 
     function buildWorld() {
@@ -572,7 +470,7 @@
             length: 38,
             height: 8,
             floor: 'wall1.png',
-            ceiling: ['roof.png', 'roof1.png', 'roof3.png'],
+            ceiling: 'roof.png',
             roofCornerA: 'roofa.png',
             roofCornerB: 'roofa1.png',
             roofCornerEnd: 'roofa2.png',
@@ -595,7 +493,7 @@
             length: 32,
             height: 8,
             floor: 'wall4.png',
-            ceiling: ['roof1.png', 'roof3.png', 'roof.png'],
+            ceiling: 'roof1.png',
             roofCornerA: 'roofa1.png',
             roofCornerB: 'roofa2.png',
             roofCornerEnd: 'roofa.png',
@@ -659,7 +557,7 @@
         const left = addPlane(group, -1.525, 0, -0.39, 3.05, 6.1, 0, 0, 0, leftMaterial);
         const right = addPlane(group, 1.525, 0, -0.39, 3.05, 6.1, 0, 0, 0, rightMaterial);
 
-        const doorUrl = config.doorTexture || findImageAsset('door.png') || findImageAsset('door1.png');
+        const doorUrl = config.doorTexture || '';
 
         if (doorUrl) {
             loadImageTexture(
@@ -718,7 +616,7 @@
             side: THREE.DoubleSide
         });
 
-        const surface = addPlane(group, 0, 0, 0.06, width, height, 0, 0, 0, opening);
+        const surface = addPlane(group, 0, 0, -0.18, width, height, 0, 0, 0, opening);
 
         portal.position = new THREE.Vector3(0, 0, -31.72);
         portal.mesh = group;
@@ -817,7 +715,7 @@
     let transitionUI = null;
     let transitionBusy = false;
 
-    function startPortalTransition(fromUserGesture = false) {
+    function startPortalTransition() {
         if (!running || transitionBusy) return false;
 
         const distance = ship.position.distanceTo(portal.position);
@@ -850,18 +748,17 @@
         transitionUI.label.textContent = 'ПЕРЕХОД · ROOM 1 → ROOM 2';
 
         const video = transitionUI.video;
-        let finished = false;
-        let watchdog = null;
+
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+        video.src = url;
+        video.currentTime = 0;
+        video.preload = 'auto';
+        video.muted = false;
+        video.load();
 
         const finish = success => {
-            if (finished) return;
-            finished = true;
-
-            if (watchdog) {
-                clearTimeout(watchdog);
-                watchdog = null;
-            }
-
             video.pause();
             video.removeAttribute('src');
             video.load();
@@ -872,6 +769,7 @@
                 ship.velocity.set(0, 0, 0);
                 ship.angularVelocity.set(0, 0, 0);
                 ship.quaternion.identity();
+
                 status.textContent = 'ROOM 2 · ARRIVED';
             } else {
                 status.textContent = 'PORTAL · VIDEO FAILED';
@@ -881,62 +779,34 @@
         };
 
         const onEnded = () => {
+            video.removeEventListener('ended', onEnded);
+            video.removeEventListener('error', onError);
             finish(true);
         };
 
         const onError = () => {
+            video.removeEventListener('ended', onEnded);
+            video.removeEventListener('error', onError);
             finish(false);
         };
 
-        video.pause();
-        video.removeAttribute('src');
-        video.load();
-        video.src = url;
-        video.preload = 'auto';
-        video.controls = false;
-        video.playsInline = true;
-
-        // A gamepad press is not a browser media user-activation. Start muted there
-        // so Chromium/Brave cannot reject the play and leave the simulator frozen.
-        // Keyboard/touch starts are genuine user gestures and may start with audio.
-        video.muted = !fromUserGesture;
-
         video.addEventListener('ended', onEnded, { once: true });
         video.addEventListener('error', onError, { once: true });
-
-        watchdog = setTimeout(() => {
-            if (!finished && video.readyState < 2) {
-                finish(false);
-                status.textContent = 'PORTAL · VIDEO DID NOT START';
-            }
-        }, 7000);
 
         const promise = video.play();
 
         if (promise && typeof promise.catch === 'function') {
             promise.catch(() => {
-                if (finished) return;
-
-                if (!video.muted) {
-                    video.muted = true;
-
-                    const retry = video.play();
-
-                    if (retry && typeof retry.catch === 'function') {
-                        retry.catch(() => {
-                            finish(false);
-                            status.textContent = 'PORTAL · BROWSER BLOCKED VIDEO';
-                        });
-                    }
-                } else {
-                    finish(false);
-                    status.textContent = 'PORTAL · BROWSER BLOCKED VIDEO';
-                }
+                video.removeEventListener('ended', onEnded);
+                video.removeEventListener('error', onError);
+                finish(false);
+                status.textContent = 'PORTAL · BROWSER BLOCKED VIDEO';
             });
         }
 
         return true;
     }
+
     function normalizeAngleDegrees(value) {
         let result = value % 360;
         if (result > 180) result -= 360;
@@ -1017,10 +887,11 @@
         return normalized;
     }
 
-    function getTiltLook() {
+    function getTiltMotion() {
         if (!tilt.enabled || !tilt.available) {
             return {
-                pitch: 0,
+                thrust: 0,
+                strafe: 0,
                 yaw: 0
             };
         }
@@ -1031,21 +902,26 @@
 
         if (angle === 90) {
             forwardDelta = tilt.gamma - tilt.neutralGamma;
-            sideDelta = tilt.beta - tilt.neutralBeta;
+            sideDelta = -(tilt.beta - tilt.neutralBeta);
         } else if (angle === 270) {
             forwardDelta = -(tilt.gamma - tilt.neutralGamma);
-            sideDelta = -(tilt.beta - tilt.neutralBeta);
+            sideDelta = tilt.beta - tilt.neutralBeta;
         } else if (angle === 180) {
             forwardDelta = -(tilt.beta - tilt.neutralBeta);
-            sideDelta = tilt.gamma - tilt.neutralGamma;
+            sideDelta = -(tilt.gamma - tilt.neutralGamma);
         } else {
             forwardDelta = tilt.beta - tilt.neutralBeta;
             sideDelta = tilt.gamma - tilt.neutralGamma;
         }
 
+        const neutralAlphaDelta = normalizeAngleDegrees(
+            tilt.alpha - tilt.neutralAlpha
+        );
+
         return {
-            pitch: applyDeadzone(forwardDelta / 20, 0.055),
-            yaw: applyDeadzone(sideDelta / 18, 0.055)
+            thrust: applyDeadzone(forwardDelta / 24, 0.08),
+            strafe: applyDeadzone(sideDelta / 22, 0.08),
+            yaw: applyDeadzone(neutralAlphaDelta / 22, 0.06)
         };
     }
 
@@ -1129,9 +1005,7 @@
         const oneShot = [
             [0, tryRemoteDoor],
             [2, toggleShield],
-            [3, () => startPortalTransition(false)],
-            [8, toggleSettings],
-            [9, toggleSettings]
+            [3, startPortalTransition]
         ];
 
         oneShot.forEach(([index, action]) => {
@@ -1169,20 +1043,14 @@
             (touch.yawRight ? 1 : 0) -
             (touch.yawLeft ? 1 : 0);
 
-        const tiltLook = getTiltLook();
-
-        const yaw =
-            yawButtons +
-            tiltLook.yaw +
-            (gamepad.rightX * (settingsState.invertYaw ? -1 : 1));
+        const motion = getTiltMotion();
 
         return {
-            thrust: thrust - gamepad.leftY,
-            strafe: strafe + gamepad.leftX,
+            thrust: thrust - gamepad.leftY + motion.thrust,
+            strafe: strafe + gamepad.leftX + motion.strafe,
             vertical: vertical + gamepad.vertical,
             roll: roll + gamepad.roll,
-            yaw,
-            tiltPitch: tiltLook.pitch
+            yaw: yawButtons + motion.yaw + (gamepad.rightX * -1)
         };
     }
 
@@ -1366,25 +1234,7 @@
     function handleKeyDown(event) {
         keys[event.code] = true;
 
-        if (event.code === 'Escape') {
-            if (document.pointerLockElement === canvas && document.exitPointerLock) {
-                document.exitPointerLock();
-            }
-            pointerLocked = false;
-            return;
-        }
-
-        if (event.code === 'Enter' && !event.repeat) {
-            event.preventDefault();
-            toggleSettings();
-            return;
-        }
-
-        if (event.code === 'KeyF' && !event.repeat) {
-            event.preventDefault();
-            toggleShield();
-            return;
-        }
+        if (event.code === 'Escape') { if (document.pointerLockElement === canvas && document.exitPointerLock) document.exitPointerLock(); pointerLocked = false; return; }
 
         if (event.code === 'Space' || event.code === 'ControlLeft') {
             event.preventDefault();
@@ -1397,143 +1247,12 @@
 
         if (event.code === 'KeyG') {
             event.preventDefault();
-            startPortalTransition(true);
+            startPortalTransition();
         }
     }
 
     function handleKeyUp(event) {
         keys[event.code] = false;
-    }
-
-    function toggleShield() {
-        shieldEnabled = !shieldEnabled;
-        status.textContent = shieldEnabled ? 'SHIELD · ON' : 'SHIELD · OFF';
-        return shieldEnabled;
-    }
-
-    function applyGraphicsQuality() {
-        if (!renderer) return;
-
-        const dpr = window.devicePixelRatio || 1;
-
-        if (settingsState.quality === 'low') {
-            renderer.setPixelRatio(Math.min(dpr, 0.85));
-        } else if (settingsState.quality === 'medium') {
-            renderer.setPixelRatio(Math.min(dpr, 1.0));
-        } else {
-            renderer.setPixelRatio(Math.min(dpr, 1.5));
-        }
-
-        resize();
-    }
-
-    function updateSettingsControls() {
-        if (!settingsPanel) return;
-
-        const volume = settingsPanel.querySelector('[data-setting="volume"]');
-        const quality = settingsPanel.querySelector('[data-setting="quality"]');
-        const effects = settingsPanel.querySelector('[data-setting="effects"]');
-        const invertPitch = settingsPanel.querySelector('[data-setting="invertPitch"]');
-        const invertYaw = settingsPanel.querySelector('[data-setting="invertYaw"]');
-
-        if (volume) volume.value = String(settingsState.volume);
-        if (quality) quality.value = settingsState.quality;
-        if (effects) effects.checked = settingsState.effects;
-        if (invertPitch) invertPitch.checked = settingsState.invertPitch;
-        if (invertYaw) invertYaw.checked = settingsState.invertYaw;
-
-        if (musicAudio) {
-            musicAudio.volume = settingsState.volume / 100;
-        }
-
-        if (starfield) {
-            starfield.visible = settingsState.effects;
-        }
-
-        applyGraphicsQuality();
-    }
-
-    function setSettingsOpen(open, fromHistory = false) {
-        if (!settingsPanel) return;
-
-        settingsState.open = !!open;
-
-        settingsPanel.hidden = !settingsState.open;
-        root.classList.toggle('settings-open', settingsState.open);
-        updateSettingsControls();
-
-        if (
-            settingsState.open &&
-            !fromHistory &&
-            window.history &&
-            history.pushState &&
-            !(history.state && history.state.bcmMiniSimSettings)
-        ) {
-            history.pushState(
-                { bcmMiniSimSettings: true },
-                '',
-                window.location.href
-            );
-            settingsState.historyPushed = true;
-        }
-
-        if (!settingsState.open && settingsState.historyPushed) {
-            const shouldGoBack =
-                !fromHistory &&
-                history.state &&
-                history.state.bcmMiniSimSettings;
-
-            settingsState.historyPushed = false;
-
-            if (shouldGoBack) {
-                history.back();
-            }
-        }
-    }
-
-    function toggleSettings() {
-        setSettingsOpen(!settingsState.open);
-    }
-
-    function setupSettings() {
-        if (!settingsPanel) return;
-
-        updateSettingsControls();
-
-        settingsPanel.querySelectorAll('[data-setting]').forEach(control => {
-            if (control.getAttribute('data-setting') === 'close') return;
-
-            control.addEventListener('input', () => {
-                const key = control.getAttribute('data-setting');
-
-                if (key === 'volume') {
-                    settingsState.volume = Number(control.value) || 0;
-                } else if (key === 'quality') {
-                    settingsState.quality = control.value;
-                } else if (key === 'effects') {
-                    settingsState.effects = !!control.checked;
-                } else if (key === 'invertPitch') {
-                    settingsState.invertPitch = !!control.checked;
-                } else if (key === 'invertYaw') {
-                    settingsState.invertYaw = !!control.checked;
-                }
-
-                updateSettingsControls();
-            });
-        });
-
-        if (settingsCloseButton) {
-            settingsCloseButton.addEventListener('click', event => {
-                event.preventDefault();
-                setSettingsOpen(false);
-            });
-        }
-
-        window.addEventListener('popstate', () => {
-            if (settingsState.open) {
-                setSettingsOpen(false, true);
-            }
-        });
     }
 
     function setupInput() {
@@ -1591,7 +1310,7 @@
                 }
 
                 if (control === 'portal') {
-                    startPortalTransition(true);
+                    startPortalTransition();
                     return;
                 }
 
@@ -1679,7 +1398,7 @@
         }
 
         musicAudio.loop = true;
-        musicAudio.volume = settingsState.volume / 100;
+        musicAudio.volume = 0.42;
         musicAudio.preload = 'auto';
 
         const promise = musicAudio.play();
@@ -1704,7 +1423,7 @@
 
         musicAudio.src = config.musicUrl;
         musicAudio.loop = true;
-        musicAudio.volume = settingsState.volume / 100;
+        musicAudio.volume = 0.42;
         musicAudio.preload = 'auto';
 
         updateMusicButton();
@@ -1712,14 +1431,6 @@
     }
 
     function updatePhysics(dt) {
-        if (settingsState.open) {
-            updateGamepad();
-            camera.position.copy(ship.position);
-            camera.quaternion.copy(ship.quaternion);
-            light.position.copy(ship.position);
-            return;
-        }
-
         if (transitionBusy) {
             camera.position.copy(ship.position);
             camera.quaternion.copy(ship.quaternion);
@@ -1730,17 +1441,13 @@
         updateDoor(dt);
 
         let input;
-        try { input = inputAxes(); } catch (error) { console.warn('BCM input/gamepad error:', error); input = { thrust: 0, strafe: 0, vertical: 0, roll: 0, yaw: 0, tiltPitch: 0 }; }
+        try { input = inputAxes(); } catch (error) { console.warn('BCM input/gamepad error:', error); input = { thrust: 0, strafe: 0, vertical: 0, roll: 0, yaw: 0 }; }
 
-        // Preserve the original aircraft-style right-stick Y:
-        // physical stick DOWN => look UP; physical stick UP => look DOWN.
+        // Gamepad right stick: down = nose up, as requested for aircraft-style
+        // inverted vertical pitch. Raise sensitivity above the mouse axis.
         if (gamepad.pad) {
-            // Aircraft-style Y is intentionally preserved:
-            // stick DOWN = look UP, stick UP = look DOWN.
             ship.angularVelocity.x += gamepad.rightY * 2.0 * dt;
         }
-
-        ship.angularVelocity.x += input.tiltPitch * 2.0 * dt;
 
         const localAcceleration = new THREE.Vector3(
             input.strafe * ship.strafeThrust,
@@ -1785,7 +1492,7 @@
 
         updateInteraction();
 
-        const shieldText = shieldEnabled ? 'ON' : 'OFF';
+        const shieldText = keys.KeyF ? 'OFF' : 'ON';
         const roomText = ship.position.z < room.roomJoinZ ? 'ROOM 2' : 'ROOM 1';
 
         status.textContent =
@@ -1868,25 +1575,23 @@
                 new THREE.Float32BufferAttribute(points, 3)
             );
 
-            starfield = new THREE.Points(
+            scene.add(new THREE.Points(
                 stars,
                 new THREE.PointsMaterial({
                     color: 0xffffff,
                     size: 0.7,
                     sizeAttenuation: true
                 })
-            );
-            scene.add(starfield);
+            ));
 
             buildWorld();
             buildSecondRoomArrivalMarker();
             createPortalTransitionUI();
             setupMedia();
-            setupSettings();
             setupInput();
             resize();
 
-            status.textContent = 'ENGINE READY · LOCAL r128 · 0.5.1';
+            status.textContent = 'ENGINE READY · LOCAL r128 · 0.5.2';
             updateAssetStatus();
 
             requestAnimationFrame(render);

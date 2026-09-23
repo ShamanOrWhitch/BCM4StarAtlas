@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.5.1 — GPT handoff
+# BCM Mini-Sim 0.5.2 — GPT handoff
 
 ## STOP — read this before another GPT rewrite
 
@@ -11,8 +11,8 @@ Engine: **bundled Three.js r128 only** (`assets/js/three.min.js`, 603445 bytes).
 ### Why 0.4.1 looked "not applied"
 - PHP was updated to 0.4.1 (`?ver=0.4.1`).
 - **JS on the server stayed the old 48890-byte 0.4.0 file.**
-- GitHub also temporarily contained a 0.5.0 README while the actual PHP/JS files were still 0.4.1. Do not trust the README alone: inspect the actual three source files and their commit.
-- Current target is 0.5.1. HUD must show `ENGINE READY · LOCAL r128 · 0.5.1`.
+- GitHub also temporarily contained a 0.5.2 README while the actual PHP/JS files were still 0.4.1. Do not trust the README alone: inspect the actual three source files and their commit.
+- Current target is 0.5.2. HUD must show `ENGINE READY · LOCAL r128 · 0.5.2`.
 - After upload purge LiteSpeed **and** Autoptimize. Exclude `mini-sim.js` and `three.min.js` from Autoptimize JS.
 
 ### Asset URLs (the real 404 bug)
@@ -30,7 +30,7 @@ Do **not** hardcode plugin-root paths.
 Walls: wall1–wall5.png
 Ceilings: roof.png, roof1.png, roof3.png
 Ceiling corner joints: roofa.png, roofa1.png, roofa2.png
-Doors: `door.png` is **the preferred first door**. `door1.png` remains fallback. Also door2–door5.png
+Doors: `door1.png` is **the first door and must be used**. Also door.png, door2–door5.png
 Portals: portal.png / portal2.png / portal3.png
 Videos: portal1.mp4, portal2.mp4, portal3.mp4
 Music: `starbase ost.mp3` (space in the name)
@@ -47,33 +47,6 @@ Old root `mini-sim/door.png` is leftover. Prefer `assets/door1.png`.
 7. Between rooms is open space + starfield. White cube there is the future docking trainer target. Do not delete it.
 8. Keep r128 APIs: MeshBasicMaterial + Texture from Image. ClampToEdge, no mipmaps on NPOT art.
 
-## Build lineage — do not break this order
-
-The current working engine is not a standalone 0.5.0 snapshot. The working source was assembled as:
-
-1. final working mini-sim base;
-2. Grok 0.4.1 patch applied to that base;
-3. Grok 0.5.0 patch applied on top of 0.4.1;
-4. current 0.5.1 fixes applied on top of that merged result.
-
-The two original Grok archives remain at repository root:
-- mini-sim-0.4.1-patch.zip
-- mini-sim-0.5.0-patch.zip
-
-They are reference snapshots, not files to copy blindly over the current engine.
-
-### 0.5.1 architectural fixes
-
-- door.png is now the preferred first door texture; door1.png remains fallback.
-- The ceiling is real geometry: Room 1 and Room 2 use roof.png, roof1.png, and roof3.png as horizontal ceiling panels.
-- roofa.png, roofa1.png, and roofa2.png are used as horizontal ceiling/corner joint strips.
-- Ceiling textures use uncropped UVs so the roof artwork cannot disappear because of the extreme corridor aspect ratio.
-- TILT is a look controller, not thrust/strafe: the current device pose is calibrated as neutral, device pitch changes view pitch, and lateral device tilt changes view yaw.
-- Gamepad right-stick X is normal by default; yaw reversal is only a settings option. Right-stick Y keeps aircraft-style pitch by default.
-- Enter / Start / Select opens settings. Android/browser Back can close the settings state without replacing normal page navigation.
-- The settings panel now actually changes volume, quality, extra-effects visibility, and pitch/yaw inversion.
-- Shield toggle is wired instead of calling a missing function.
-
 ### What to replace on WordPress
 Only these three files (do not re-upload 3–6MB png/mp4 unless missing):
 - `mini-sim/bcm-mini-sim.php`
@@ -84,9 +57,9 @@ Shortcode: `[bcm_mini_sim]`
 
 ### Verify after deploy
 Network tab:
-- 200 `.../mini-sim/assets/js/mini-sim.js?ver=0.5.0` (about 24KB, not 48890)
-- 200 `.../assets/wall1.png`, `roof.png`, `roof1.png`, `roof3.png`, `roofa.png`, `door.png`, `portal2.mp4`, `starbase%20ost.mp3`
-- HUD: `ENGINE READY · LOCAL r128 · 0.5.0`
+- 200 `.../mini-sim/assets/js/mini-sim.js?ver=0.5.2` (about 24KB, not 48890)
+- 200 `.../assets/wall1.png`, `roof.png`, `roofa.png`, `door1.png`, `portal2.mp4`, `starbase%20ost.mp3`
+- HUD: `ENGINE READY · LOCAL r128 · 0.5.2`
 - Click ИГРАТЬ → OST starts. Refresh page → OST silent until click.
 
 ### Do not
@@ -104,7 +77,7 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - Start by reading this README and the actual current `bcm-mini-sim.php`, `assets/js/mini-sim.js`, and `assets/css/mini-sim.css` from GitHub. Do not continue from a pasted old patch.
 - The asset directory is authoritative. Textures are under `mini-sim/assets/`; PHP builds the registry from that directory.
 - Main ceiling textures are `roof.png`, `roof1.png`, `roof3.png`. Ceiling corner/joint textures are `roofa.png`, `roofa1.png`, `roofa2.png`. They are not wall textures and must not be silently replaced with `wall*.png`.
-- The first door is `assets/door.png`. `assets/door1.png` remains a fallback. Do not use a plugin-root door path.
+- The first door is `assets/door1.png`. Do not use the old plugin-root `door.png` path.
 - OST is `assets/starbase ost.mp3`. It may be assigned to the audio element during initialization, but `.play()` must only happen after the `ИГРАТЬ` click has set `running = true`.
 - If a requested change is already present in GitHub, verify the live WordPress copy before rewriting code. The site may still contain an older manually uploaded JS file or cache.
 - Do not rewrite Three.js. This project uses the bundled `assets/js/three.min.js` r128.
