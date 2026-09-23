@@ -397,3 +397,62 @@
 .bcm-mini-sim-transition-close:hover{
     background:rgba(30,30,30,.82);
 }
+
+.bcm-mini-sim-settings{
+    position:absolute;
+    inset:0;
+    z-index:30;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    background:rgba(2,3,8,.42);
+}
+.bcm-mini-sim-settings[hidden]{display:none;}
+.bcm-mini-sim-settings-card{
+    width:min(420px,92vw);
+    padding:18px 20px;
+    border:1px solid rgba(255,255,255,.22);
+    background:rgba(6,10,16,.78);
+    color:#fff;
+    box-shadow:0 12px 40px rgba(0,0,0,.45);
+}
+.bcm-mini-sim-settings-card h2{
+    margin:0 0 12px;
+    font-size:14px;
+    letter-spacing:2px;
+}
+.bcm-mini-sim-settings-card label{
+    display:block;
+    margin:8px 0;
+    font-size:13px;
+}
+.bcm-mini-sim-settings-card input[type="range"],
+.bcm-mini-sim-settings-card select{
+    width:100%;
+    margin-top:4px;
+}
+.bcm-mini-sim-settings-card p{
+    font-size:11px;
+    opacity:.7;
+    line-height:1.4;
+}
+.bcm-mini-sim-settings-card button{
+    margin-top:8px;
+    padding:8px 14px;
+    border:1px solid rgba(255,255,255,.4);
+    background:#111;
+    color:#fff;
+    cursor:pointer;
+}
+.bcm-mini-sim.menu-open .bcm-mini-sim-menu-backdrop,
+.bcm-mini-sim.menu-open .bcm-mini-sim-menu-shade{
+    opacity:1;
+    visibility:visible;
+}
+.bcm-mini-sim.menu-open .bcm-mini-sim-menu-backdrop{
+    z-index:25;
+}
+.bcm-mini-sim.menu-open .bcm-mini-sim-menu-shade{
+    z-index:26;
+}
