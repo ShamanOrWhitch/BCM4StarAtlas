@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.5.0 — GPT handoff
+# BCM Mini-Sim 0.5.1 — GPT handoff
 
 ## STOP — read this before another GPT rewrite
 
@@ -12,7 +12,7 @@ Engine: **bundled Three.js r128 only** (`assets/js/three.min.js`, 603445 bytes).
 - PHP was updated to 0.4.1 (`?ver=0.4.1`).
 - **JS on the server stayed the old 48890-byte 0.4.0 file.**
 - GitHub also temporarily contained a 0.5.0 README while the actual PHP/JS files were still 0.4.1. Do not trust the README alone: inspect the actual three source files and their commit.
-- Current target is 0.5.0. HUD must show `ENGINE READY · LOCAL r128 · 0.5.0`.
+- Current target is 0.5.1. HUD must show `ENGINE READY · LOCAL r128 · 0.5.1`.
 - After upload purge LiteSpeed **and** Autoptimize. Exclude `mini-sim.js` and `three.min.js` from Autoptimize JS.
 
 ### Asset URLs (the real 404 bug)
@@ -46,6 +46,33 @@ Old root `mini-sim/door.png` is leftover. Prefer `assets/door1.png`.
 6. Door: first door uses door1.png. Random open/close style (slide/wipe/iris). If player range > 5 for 4 seconds, close. Never leave the door permanently OPEN.
 7. Between rooms is open space + starfield. White cube there is the future docking trainer target. Do not delete it.
 8. Keep r128 APIs: MeshBasicMaterial + Texture from Image. ClampToEdge, no mipmaps on NPOT art.
+
+## Build lineage — do not break this order
+
+The current working engine is not a standalone 0.5.0 snapshot. The working source was assembled as:
+
+1. final working mini-sim base;
+2. Grok 0.4.1 patch applied to that base;
+3. Grok 0.5.0 patch applied on top of 0.4.1;
+4. current 0.5.1 fixes applied on top of that merged result.
+
+The two original Grok archives remain at repository root:
+- mini-sim-0.4.1-patch.zip
+- mini-sim-0.5.0-patch.zip
+
+They are reference snapshots, not files to copy blindly over the current engine.
+
+### 0.5.1 architectural fixes
+
+- door.png is now the preferred first door texture; door1.png remains fallback.
+- The ceiling is real geometry: Room 1 and Room 2 use roof.png, roof1.png, and roof3.png as horizontal ceiling panels.
+- roofa.png, roofa1.png, and roofa2.png are used as horizontal ceiling/corner joint strips.
+- Ceiling textures use uncropped UVs so the roof artwork cannot disappear because of the extreme corridor aspect ratio.
+- TILT is a look controller, not thrust/strafe: the current device pose is calibrated as neutral, device pitch changes view pitch, and lateral device tilt changes view yaw.
+- Gamepad right-stick X is normal by default; yaw reversal is only a settings option. Right-stick Y keeps aircraft-style pitch by default.
+- Enter / Start / Select opens settings. Android/browser Back can close the settings state without replacing normal page navigation.
+- The settings panel now actually changes volume, quality, extra-effects visibility, and pitch/yaw inversion.
+- Shield toggle is wired instead of calling a missing function.
 
 ### What to replace on WordPress
 Only these three files (do not re-upload 3–6MB png/mp4 unless missing):
