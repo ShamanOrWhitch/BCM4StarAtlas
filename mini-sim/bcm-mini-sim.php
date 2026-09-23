@@ -53,6 +53,9 @@ function bcm_mini_sim_get_assets() {
                 'url' => BCM_MINI_SIM_URL . 'assets/' . str_replace('%2F', '/', rawurlencode(str_replace('\\', '/', $relative))),
                 'type' => $type,
                 'extension' => $extension,
+                'streamUrl' => in_array($extension, array('mp4', 'webm', 'ogg'), true)
+                    ? add_query_arg('bcm_mini_sim_video', $relative, home_url('/'))
+                    : '',
             );
         }
     } catch (Exception $e) {
@@ -100,6 +103,147 @@ function bcm_mini_sim_pick_asset($assets, $names, $type) {
 
     return '';
 }
+
+/**
+ * Stream mini-sim video assets with byte-range support.
+ */
+function bcm_mini_sim_stream_video() {
+    if (empty($_GET['bcm_mini_sim_video'])) {
+        return;
+    }
+
+    $relative = wp_unslash($_GET['bcm_mini_sim_video']);
+    $relative = str_replace('\\', '/', $relative);
+    $relative = ltrim($relative, '/');
+
+    $base_path = realpath(BCM_MINI_SIM_PATH . 'assets/');
+    $file_path = realpath(BCM_MINI_SIM_PATH . 'assets/' . $relative);
+
+    if (
+        !$base_path ||
+        !$file_path ||
+        !is_file($file_path) ||
+        (
+            strpos($file_path, $base_path . DIRECTORY_SEPARATOR) !== 0 &&
+            $file_path !== $base_path
+        )
+    ) {
+        status_header(404);
+        exit;
+    }
+
+    $extension = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
+    $mime_map = array(
+        'mp4' => 'video/mp4',
+        'webm' => 'video/webm',
+        'ogg' => 'video/ogg',
+    );
+
+    if (!isset($mime_map[$extension])) {
+        status_header(415);
+        exit;
+    }
+
+    $size = filesize($file_path);
+
+    if ($size === false) {
+        status_header(500);
+        exit;
+    }
+
+    $start = 0;
+    $end = $size - 1;
+    $status_code = 200;
+
+    if (!empty($_SERVER['HTTP_RANGE'])) {
+        $range = trim((string) $_SERVER['HTTP_RANGE']);
+
+        if (preg_match('/bytes=(\d*)-(\d*)/i', $range, $matches)) {
+            if ($matches[1] === '' && $matches[2] !== '') {
+                $suffix = (int) $matches[2];
+                $start = max(0, $size - $suffix);
+            } else {
+                $start = (int) $matches[1];
+
+                if ($matches[2] !== '') {
+                    $end = (int) $matches[2];
+                }
+            }
+
+            if ($start < 0 || $start >= $size || $end < $start) {
+                status_header(416);
+                header('Content-Range: bytes */' . $size);
+                exit;
+            }
+
+            $end = min($end, $size - 1);
+            $status_code = 206;
+        }
+    }
+
+    $length = $end - $start + 1;
+
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+
+    nocache_headers();
+    status_header($status_code);
+
+    header('Content-Type: ' . $mime_map[$extension]);
+    header('Content-Length: ' . $length);
+    header('Accept-Ranges: bytes');
+    header('Content-Disposition: inline; filename="' . basename($file_path) . '"');
+    header('X-Content-Type-Options: nosniff');
+
+    if ($status_code === 206) {
+        header('Content-Range: bytes ' . $start . '-' . $end . '/' . $size);
+    }
+
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'HEAD') {
+        exit;
+    }
+
+    $handle = fopen($file_path, 'rb');
+
+    if (!$handle) {
+        status_header(500);
+        exit;
+    }
+
+    ignore_user_abort(true);
+    set_time_limit(0);
+
+    if (fseek($handle, $start, SEEK_SET) !== 0) {
+        fclose($handle);
+        status_header(500);
+        exit;
+    }
+
+    $remaining = $length;
+    $chunk_size = 1024 * 1024;
+
+    while ($remaining > 0 && !feof($handle)) {
+        $read_size = min($chunk_size, $remaining);
+        $buffer = fread($handle, $read_size);
+
+        if ($buffer === false || $buffer === '') {
+            break;
+        }
+
+        echo $buffer;
+        $remaining -= strlen($buffer);
+
+        if (function_exists('flush')) {
+            flush();
+        }
+    }
+
+    fclose($handle);
+    exit;
+}
+
+add_action('template_redirect', 'bcm_mini_sim_stream_video');
 
 function bcm_mini_sim_enqueue_assets() {
     $door_texture = '';
