@@ -94,7 +94,7 @@
     assetStatus.textContent =
       "TEX " + stats.loaded + "/" + stats.total +
       (stats.failed ? " FAIL " + stats.failed + " " + stats.last : "") +
-      (config.musicUrl ? " Â· OST" : " Â· NO OST");
+      (config.musicUrl ? " · OST" : " · NO OST");
   }
 
   function applyTex(tex) {
@@ -267,7 +267,7 @@
     door.style = ["slide", "wipe", "iris"][Math.floor(Math.random() * 3)];
     door.state = "OPENING";
     door.away = 0;
-    setStatus((reason === "REMOTE" ? "DOOR REMOTE Â· " : "DOOR OPEN Â· ") + door.style);
+    setStatus((reason === "REMOTE" ? "DOOR REMOTE · " : "DOOR OPEN · ") + door.style);
   }
 
   function updateDoor(dt) {
@@ -323,7 +323,7 @@
     ship.velocity.set(0, 0, 0);
     ship.angularVelocity.set(0, 0, 0);
     ship.quaternion.set(0, 0, 0, 1);
-    setStatus("ROOM 2 Â· TELEPORT COMPLETE");
+    setStatus("ROOM 2 · TELEPORT COMPLETE");
   }
 
   function playPortalVideo() {
@@ -336,13 +336,13 @@
     }
     transitionBusy = true;
     transitionRoot.hidden = false;
-    if (transitionLabel) transitionLabel.textContent = "CUTSCENE Â· ROOM 1 â ROOM 2";
+    if (transitionLabel) transitionLabel.textContent = "CUTSCENE · ROOM 1 → ROOM 2";
     transitionVideo.muted = true;
     transitionVideo.playsInline = true;
     transitionVideo.src = url;
     transitionVideo.onended = finishTeleport;
     transitionVideo.onerror = () => {
-      setStatus("PORTAL MP4 ERROR Â· SKIP");
+      setStatus("PORTAL MP4 ERROR · SKIP");
       finishTeleport();
     };
     const p = transitionVideo.play();
@@ -358,7 +358,7 @@
     if (!running || transitionBusy) return;
     const dist = portal.mesh ? portal.mesh.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position) : 99;
     if (dist > 10 && portal.coverage < 0.69) {
-      setStatus("PORTAL Â· APPROACH / FILL 69%");
+      setStatus("PORTAL · APPROACH / FILL 69%");
       return;
     }
     playPortalVideo();
@@ -467,13 +467,13 @@
     portal.coverage = portalCoverage();
     if (interaction) {
       interaction.textContent = portal.coverage >= 0.69
-        ? "PORTAL LOCK 69% Â· CUTSCENE"
+        ? "PORTAL LOCK 69% · CUTSCENE"
         : "PORTAL " + Math.round(portal.coverage * 100) + "%";
     }
     if (portal.coverage >= 0.69) tryPortal();
 
     const room = ship.position.z < -48 ? "ROOM 2" : (ship.position.z < -28 ? "SPACE" : "ROOM 1");
-    setStatus(room + " Â· SPD " + ship.velocity.length().toFixed(1) + " Â· DOOR " + door.state);
+    setStatus(room + " · SPD " + ship.velocity.length().toFixed(1) + " · DOOR " + door.state);
   }
 
   function render(now) {
@@ -509,7 +509,7 @@
       tilt.na = tilt.a; tilt.nb = tilt.b; tilt.ng = tilt.g;
       tilt.enabled = true;
       if (tiltButton) tiltButton.classList.add("active");
-      setStatus("TILT CALIBRATED Â· THIS POSE IS NEUTRAL");
+      setStatus("TILT CALIBRATED · THIS POSE IS NEUTRAL");
     };
     const on = (ev) => {
       if (typeof ev.beta !== "number") return;
@@ -520,7 +520,7 @@
     };
     const boot = () => {
       window.addEventListener("deviceorientation", on, true);
-      setTimeout(() => { if (tilt.available) apply(); else setStatus("TILT Â· NO SENSOR"); }, 250);
+      setTimeout(() => { if (tilt.available) apply(); else setStatus("TILT · NO SENSOR"); }, 250);
     };
     if (window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) {
       DeviceOrientationEvent.requestPermission().then((p) => {
@@ -643,7 +643,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY Â· LOCAL r128 Â· 0.5.2");
+      setStatus("ENGINE READY · LOCAL r128 · 0.5.2");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
