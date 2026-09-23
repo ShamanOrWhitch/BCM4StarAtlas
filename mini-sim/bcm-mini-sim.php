@@ -102,13 +102,13 @@ function bcm_mini_sim_pick_asset($assets, $names, $type) {
 }
 
 function bcm_mini_sim_enqueue_assets() {
+    $assets = bcm_mini_sim_get_assets();
+
     $door_texture = bcm_mini_sim_pick_asset(
         $assets,
         array('door1.png', 'door.png', 'door2.png'),
         'image'
     );
-
-    $assets = bcm_mini_sim_get_assets();
 
     $menu_background = bcm_mini_sim_pick_asset(
         $assets,
