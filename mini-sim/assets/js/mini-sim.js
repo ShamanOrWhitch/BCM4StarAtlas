@@ -1271,10 +1271,21 @@
         const asset = targetPortal.video
             ? assets.find(item => item && item.name === targetPortal.video)
             : null;
-        const url = (asset && asset.streamUrl) || findAsset(targetPortal.video);
+        const imageUrl = findImageAsset(targetPortal.image);
+        const directUrl = findAsset(targetPortal.video);
+        const url = (asset && asset.streamUrl) || directUrl;
 
-        if (!url) {
-            status.textContent = 'PORTAL ' + targetPortal.id + ' · VIDEO ASSET MISSING';
+        if (!imageUrl) {
+            status.textContent =
+                'PORTAL ' + targetPortal.id +
+                ' · IMAGE NOT READY · G CANCELLED';
+            return false;
+        }
+
+        if (!directUrl) {
+            status.textContent =
+                'PORTAL ' + targetPortal.id +
+                ' · VIDEO MISSING · G CANCELLED';
             return false;
         }
 
