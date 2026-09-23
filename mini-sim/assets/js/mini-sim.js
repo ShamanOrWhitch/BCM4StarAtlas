@@ -485,6 +485,7 @@
 
     transitionBusy = true;
     pauseAllCinemaVideos();
+    if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume;
     transitionRoot.hidden = false;
     if (transitionLabel) {
       transitionLabel.textContent = portal.direction === "BACK"
@@ -611,6 +612,7 @@
       Math.max(zone.mesh.geometry.parameters.width || 6, zone.mesh.geometry.parameters.height || 3) * 0.8
     );
     const frustum = new THREE.Frustum();
+    camera.updateMatrixWorld(true);
     const projection = new THREE.Matrix4().multiplyMatrices(
       camera.projectionMatrix,
       camera.matrixWorldInverse
