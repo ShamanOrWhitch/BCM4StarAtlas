@@ -2,14 +2,14 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained Descent-style 6DOF space-labyrinth test for WordPress.
- * Version: 0.4.1
+ * Version: 0.5.0
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BCM_MINI_SIM_VERSION', '0.4.1');
+define('BCM_MINI_SIM_VERSION', '0.5.0');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -102,13 +102,11 @@ function bcm_mini_sim_pick_asset($assets, $names, $type) {
 }
 
 function bcm_mini_sim_enqueue_assets() {
-    $door_texture = '';
-
-    if (file_exists(BCM_MINI_SIM_PATH . 'door.png')) {
-        $door_texture = BCM_MINI_SIM_URL . 'door.png';
-    } elseif (file_exists(BCM_MINI_SIM_PATH . 'assets/door.png')) {
-        $door_texture = BCM_MINI_SIM_URL . 'assets/door.png';
-    }
+    $door_texture = bcm_mini_sim_pick_asset(
+        $assets,
+        array('door1.png', 'door.png', 'door2.png'),
+        'image'
+    );
 
     $assets = bcm_mini_sim_get_assets();
 
@@ -187,7 +185,7 @@ function bcm_mini_sim_shortcode($atts = array()) {
         </div>
 
         <div class="bcm-mini-sim-hud">
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — PLAYABLE TEST 0.41</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — PLAYABLE TEST 0.5.0</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
             <div class="bcm-mini-sim-help">
