@@ -442,12 +442,14 @@
     }
 
     if (direction === "BACK") {
+      stopCinema();
       ship.position.set(0, 0, 2);
       ship.velocity.set(0, 0, 0);
       ship.angularVelocity.set(0, 0, 0);
       ship.quaternion.set(0, 0, 0, 1);
       setStatus("ROOM 1 · RETURN COMPLETE");
     } else {
+      startCinema();
       ship.position.set(0, 0, -52);
       ship.velocity.set(0, 0, 0);
       ship.angularVelocity.set(0, 0, 0);
@@ -471,6 +473,8 @@
     }
 
     transitionBusy = true;
+    if (cinema.el) cinema.el.volume = 0;
+    if (musicAudio) musicAudio.volume = 0;
     transitionRoot.hidden = false;
     if (transitionLabel) {
       transitionLabel.textContent = portal.direction === "BACK"
@@ -573,6 +577,7 @@
     if (!cinema.el || !cinema.texture || !cinema.el.src) return;
     cinema.el.loop = true;
     cinema.el.muted = cinema.mute;
+    cinema.el.volume = 0;
     cinema.active = true;
     const p = cinema.el.play();
     if (p && p.catch) {
@@ -584,6 +589,13 @@
     }
   }
 
+  function stopCinema() {
+    if (!cinema.el) return;
+    cinema.el.pause();
+    cinema.el.volume = 0;
+    cinema.active = false;
+  }
+
   function setAudioMute(value) {
     cinema.mute = !!value;
     if (musicAudio) musicAudio.muted = cinema.mute;
@@ -592,6 +604,11 @@
 
   function updateCinemaAudio() {
     if (!cinema.mesh || !cinema.el) return;
+    if (!cinema.active) {
+      cinema.el.volume = 0;
+      if (musicAudio) musicAudio.volume = settings.volume;
+      return;
+    }
 
     cinema.distance = cinema.mesh.position.distanceTo(ship.position);
     const radius = cinema.radius;
@@ -815,7 +832,6 @@
       running = true;
       musicAllowed = true;
       startMusic();
-      startCinema();
       root.classList.add("game-active");
       startButton.classList.add("hidden");
       canvas.focus();
