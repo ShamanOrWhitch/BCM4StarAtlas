@@ -718,7 +718,7 @@
             side: THREE.DoubleSide
         });
 
-        const surface = addPlane(group, 0, 0, -0.18, width, height, 0, 0, 0, opening);
+        const surface = addPlane(group, 0, 0, 0.06, width, height, 0, 0, 0, opening);
 
         portal.position = new THREE.Vector3(0, 0, -31.72);
         portal.mesh = group;
@@ -817,7 +817,7 @@
     let transitionUI = null;
     let transitionBusy = false;
 
-    function startPortalTransition() {
+    function startPortalTransition(fromUserGesture = false) {
         if (!running || transitionBusy) return false;
 
         const distance = ship.position.distanceTo(portal.position);
@@ -850,17 +850,18 @@
         transitionUI.label.textContent = 'ПЕРЕХОД · ROOM 1 → ROOM 2';
 
         const video = transitionUI.video;
-
-        video.pause();
-        video.removeAttribute('src');
-        video.load();
-        video.src = url;
-        video.currentTime = 0;
-        video.preload = 'auto';
-        video.muted = false;
-        video.load();
+        let finished = false;
+        let watchdog = null;
 
         const finish = success => {
+            if (finished) return;
+            finished = true;
+
+            if (watchdog) {
+                clearTimeout(watchdog);
+                watchdog = null;
+            }
+
             video.pause();
             video.removeAttribute('src');
             video.load();
@@ -871,7 +872,6 @@
                 ship.velocity.set(0, 0, 0);
                 ship.angularVelocity.set(0, 0, 0);
                 ship.quaternion.identity();
-
                 status.textContent = 'ROOM 2 · ARRIVED';
             } else {
                 status.textContent = 'PORTAL · VIDEO FAILED';
@@ -881,34 +881,62 @@
         };
 
         const onEnded = () => {
-            video.removeEventListener('ended', onEnded);
-            video.removeEventListener('error', onError);
             finish(true);
         };
 
         const onError = () => {
-            video.removeEventListener('ended', onEnded);
-            video.removeEventListener('error', onError);
             finish(false);
         };
 
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+        video.src = url;
+        video.preload = 'auto';
+        video.controls = false;
+        video.playsInline = true;
+
+        // A gamepad press is not a browser media user-activation. Start muted there
+        // so Chromium/Brave cannot reject the play and leave the simulator frozen.
+        // Keyboard/touch starts are genuine user gestures and may start with audio.
+        video.muted = !fromUserGesture;
+
         video.addEventListener('ended', onEnded, { once: true });
         video.addEventListener('error', onError, { once: true });
+
+        watchdog = setTimeout(() => {
+            if (!finished && video.readyState < 2) {
+                finish(false);
+                status.textContent = 'PORTAL · VIDEO DID NOT START';
+            }
+        }, 7000);
 
         const promise = video.play();
 
         if (promise && typeof promise.catch === 'function') {
             promise.catch(() => {
-                video.removeEventListener('ended', onEnded);
-                video.removeEventListener('error', onError);
-                finish(false);
-                status.textContent = 'PORTAL · BROWSER BLOCKED VIDEO';
+                if (finished) return;
+
+                if (!video.muted) {
+                    video.muted = true;
+
+                    const retry = video.play();
+
+                    if (retry && typeof retry.catch === 'function') {
+                        retry.catch(() => {
+                            finish(false);
+                            status.textContent = 'PORTAL · BROWSER BLOCKED VIDEO';
+                        });
+                    }
+                } else {
+                    finish(false);
+                    status.textContent = 'PORTAL · BROWSER BLOCKED VIDEO';
+                }
             });
         }
 
         return true;
     }
-
     function normalizeAngleDegrees(value) {
         let result = value % 360;
         if (result > 180) result -= 360;
@@ -1101,7 +1129,7 @@
         const oneShot = [
             [0, tryRemoteDoor],
             [2, toggleShield],
-            [3, startPortalTransition],
+            [3, () => startPortalTransition(false)],
             [8, toggleSettings],
             [9, toggleSettings]
         ];
@@ -1153,7 +1181,8 @@
             strafe: strafe + gamepad.leftX,
             vertical: vertical + gamepad.vertical,
             roll: roll + gamepad.roll,
-            yaw
+            yaw,
+            tiltPitch: tiltLook.pitch
         };
     }
 
@@ -1368,7 +1397,7 @@
 
         if (event.code === 'KeyG') {
             event.preventDefault();
-            startPortalTransition();
+            startPortalTransition(true);
         }
     }
 
@@ -1562,7 +1591,7 @@
                 }
 
                 if (control === 'portal') {
-                    startPortalTransition();
+                    startPortalTransition(true);
                     return;
                 }
 
@@ -1684,6 +1713,7 @@
 
     function updatePhysics(dt) {
         if (settingsState.open) {
+            updateGamepad();
             camera.position.copy(ship.position);
             camera.quaternion.copy(ship.quaternion);
             light.position.copy(ship.position);
@@ -1700,13 +1730,17 @@
         updateDoor(dt);
 
         let input;
-        try { input = inputAxes(); } catch (error) { console.warn('BCM input/gamepad error:', error); input = { thrust: 0, strafe: 0, vertical: 0, roll: 0, yaw: 0 }; }
+        try { input = inputAxes(); } catch (error) { console.warn('BCM input/gamepad error:', error); input = { thrust: 0, strafe: 0, vertical: 0, roll: 0, yaw: 0, tiltPitch: 0 }; }
 
         // Preserve the original aircraft-style right-stick Y:
         // physical stick DOWN => look UP; physical stick UP => look DOWN.
         if (gamepad.pad) {
+            // Aircraft-style Y is intentionally preserved:
+            // stick DOWN = look UP, stick UP = look DOWN.
             ship.angularVelocity.x += gamepad.rightY * 2.0 * dt;
         }
+
+        ship.angularVelocity.x += input.tiltPitch * 2.0 * dt;
 
         const localAcceleration = new THREE.Vector3(
             input.strafe * ship.strafeThrust,
