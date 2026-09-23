@@ -108,7 +108,9 @@
         remoteDistance: 32,
         remoteFacing: 0.88,
         progress: 0,
+        closeTimer: 0,
         speed: 1.8,
+        style: 'slide',
         mesh: null,
         leftPanel: null,
         rightPanel: null,
@@ -394,7 +396,7 @@
             options.length
         );
         const ceilingMat = wallMaterial(
-            options.ceiling,
+            options.ceiling || 'roof.png',
             options.ceilingColor,
             options.width,
             options.length
@@ -448,6 +450,14 @@
             0,
             accent
         );
+
+
+        const cornerA = wallMaterial(options.roofCornerA || 'roofa.png', options.ceilingColor, 0.9, options.length);
+        const cornerB = wallMaterial(options.roofCornerB || 'roofa1.png', options.ceilingColor, 0.9, options.length);
+        const cornerEnd = wallMaterial(options.roofCornerEnd || 'roofa2.png', options.ceilingColor, options.width, 0.9);
+        addPlane(parent, -options.width / 2 + 0.45, 3.34, options.centerZ, 0.9, options.length, 0, 0, 0, cornerA);
+        addPlane(parent, options.width / 2 - 0.45, 3.34, options.centerZ, 0.9, options.length, 0, 0, 0, cornerB);
+        addPlane(parent, 0, 3.34, options.centerZ + options.length / 2 - 0.45, options.width, 0.9, 0, 0, 0, cornerEnd);
     }
 
     function buildWorld() {
@@ -460,7 +470,10 @@
             length: 38,
             height: 8,
             floor: 'wall1.png',
-            ceiling: 'wall2.png',
+            ceiling: 'roof.png',
+            roofCornerA: 'roofa.png',
+            roofCornerB: 'roofa1.png',
+            roofCornerEnd: 'roofa2.png',
             left: 'wall3.png',
             right: 'wall4.png',
             accent: 'wall5.png',
@@ -480,7 +493,10 @@
             length: 32,
             height: 8,
             floor: 'wall4.png',
-            ceiling: 'wall1.png',
+            ceiling: 'roof1.png',
+            roofCornerA: 'roofa1.png',
+            roofCornerB: 'roofa2.png',
+            roofCornerEnd: 'roofa.png',
             left: 'wall5.png',
             right: 'wall2.png',
             accent: 'wall3.png',
@@ -1038,86 +1054,83 @@
         };
     }
 
-    function updateDoor(dt) {
-        if (!testDoor.mesh) return;
-
-        const toDoor = testDoor.mesh.position.clone().sub(ship.position);
-        const distance = toDoor.length();
-
-        const forward = new THREE.Vector3(0, 0, -1)
-            .applyQuaternion(ship.quaternion)
-            .normalize();
-
-        const facing = distance > 0
-            ? forward.dot(toDoor.normalize())
-            : -1;
-
-        if (
-            testDoor.state === 'CLOSED' &&
-            distance < testDoor.openDistance &&
-            facing > 0.72
-        ) {
-            beginDoorOpening('LOCAL');
-        }
-
-        if (testDoor.state === 'OPENING') {
-            testDoor.progress = Math.min(
-                1,
-                testDoor.progress + dt * testDoor.speed
-            );
-
-            const slide = testDoor.progress * 3.1;
-
+    function applyDoorVisual() {
+        if (!testDoor.leftPanel || !testDoor.rightPanel) return;
+        const p = Math.max(0, Math.min(1, testDoor.progress));
+        const closed = 1 - p;
+        testDoor.leftPanel.position.set(-1.525, 0, -0.39);
+        testDoor.rightPanel.position.set(1.525, 0, -0.39);
+        testDoor.leftPanel.scale.set(1, 1, 1);
+        testDoor.rightPanel.scale.set(1, 1, 1);
+        if (testDoor.style === 'slide') {
+            const slide = p * 3.1;
             testDoor.leftPanel.position.x = -1.525 - slide;
             testDoor.rightPanel.position.x = 1.525 + slide;
+        } else if (testDoor.style === 'wipe') {
+            testDoor.leftPanel.scale.x = closed;
+            testDoor.rightPanel.scale.x = closed;
+            testDoor.leftPanel.position.x = -1.525 + 0.7625 * p;
+            testDoor.rightPanel.position.x = 1.525 - 0.7625 * p;
+        } else {
+            testDoor.leftPanel.scale.set(closed, closed, 1);
+            testDoor.rightPanel.scale.set(closed, closed, 1);
+        }
+    }
 
-            if (testDoor.progress >= 1) {
-                testDoor.state = 'OPEN';
-            }
+    function updateDoor(dt) {
+        if (!testDoor.mesh) return;
+        const toDoor = testDoor.mesh.position.clone().sub(ship.position);
+        const distance = toDoor.length();
+        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(ship.quaternion).normalize();
+        const facing = distance > 0 ? forward.dot(toDoor.normalize()) : -1;
+        if (testDoor.state === 'CLOSED' && distance < testDoor.openDistance && facing > 0.72) beginDoorOpening('LOCAL');
+        if (testDoor.state === 'OPENING') {
+            testDoor.progress = Math.min(1, testDoor.progress + dt * testDoor.speed);
+            applyDoorVisual();
+            if (testDoor.progress >= 1) { testDoor.state = 'OPEN'; testDoor.closeTimer = 0; }
+            return;
+        }
+        if (testDoor.state === 'OPEN') {
+            if (distance > 5) { testDoor.closeTimer += dt; if (testDoor.closeTimer >= 4) beginDoorClosing(); }
+            else testDoor.closeTimer = 0;
+            return;
+        }
+        if (testDoor.state === 'CLOSING') {
+            if (distance <= 5) { testDoor.state = 'OPEN'; testDoor.closeTimer = 0; return; }
+            testDoor.progress = Math.max(0, testDoor.progress - dt * testDoor.speed);
+            applyDoorVisual();
+            if (testDoor.progress <= 0) { testDoor.state = 'CLOSED'; testDoor.closeTimer = 0; applyDoorVisual(); }
         }
     }
 
     function beginDoorOpening(reason) {
         if (testDoor.state !== 'CLOSED') return false;
-
         testDoor.state = 'OPENING';
+        testDoor.closeTimer = 0;
+        testDoor.style = ['slide', 'wipe', 'iris'][Math.floor(Math.random() * 3)];
+        applyDoorVisual();
+        status.textContent = reason === 'REMOTE' ? 'DOOR CRYSTAL · REMOTE OPEN · ' + testDoor.style.toUpperCase() : 'DOOR · AUTO OPEN · ' + testDoor.style.toUpperCase();
+        return true;
+    }
 
-        status.textContent = reason === 'REMOTE'
-            ? 'DOOR CRYSTAL · REMOTE OPEN'
-            : 'DOOR · AUTO OPEN';
-
+    function beginDoorClosing() {
+        if (testDoor.state !== 'OPEN') return false;
+        testDoor.state = 'CLOSING';
+        testDoor.closeTimer = 0;
+        status.textContent = 'DOOR · CLOSING · ' + testDoor.style.toUpperCase();
         return true;
     }
 
     function tryRemoteDoor() {
-        if (!running || !testDoor.mesh || testDoor.state !== 'CLOSED') {
-            return false;
-        }
-
+        if (!running || !testDoor.mesh || testDoor.state !== 'CLOSED') return false;
         const toDoor = testDoor.mesh.position.clone().sub(ship.position);
         const distance = toDoor.length();
-
-        if (distance > testDoor.remoteDistance) {
-            status.textContent = 'DOOR CRYSTAL · OUT OF RANGE';
-            return false;
-        }
-
-        const forward = new THREE.Vector3(0, 0, -1)
-            .applyQuaternion(ship.quaternion)
-            .normalize();
-
-        const facing = distance > 0
-            ? forward.dot(toDoor.normalize())
-            : -1;
-
-        if (facing < testDoor.remoteFacing) {
-            status.textContent = 'DOOR CRYSTAL · AIM AT DOOR';
-            return false;
-        }
-
+        if (distance > testDoor.remoteDistance) { status.textContent = 'DOOR CRYSTAL · OUT OF RANGE'; return false; }
+        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(ship.quaternion).normalize();
+        const facing = distance > 0 ? forward.dot(toDoor.normalize()) : -1;
+        if (facing < testDoor.remoteFacing) { status.textContent = 'DOOR CRYSTAL · AIM AT DOOR'; return false; }
         return beginDoorOpening('REMOTE');
     }
-
     function resolveCollision() {
         const xLimit = 5.35;
         const yLimit = 3.25;
@@ -1220,7 +1233,8 @@
 
     function handleKeyDown(event) {
         keys[event.code] = true;
-        startMusic();
+
+        if (event.code === 'Escape') { if (document.pointerLockElement === canvas && document.exitPointerLock) document.exitPointerLock(); pointerLocked = false; return; }
 
         if (event.code === 'Space' || event.code === 'ControlLeft') {
             event.preventDefault();
@@ -1282,7 +1296,6 @@
 
             const down = event => {
                 event.preventDefault();
-                startMusic();
 
                 if (!running && control !== 'tilt') return;
 
@@ -1320,7 +1333,6 @@
         if (crystalButton) {
             crystalButton.addEventListener('click', event => {
                 event.preventDefault();
-                startMusic();
                 tryRemoteDoor();
             });
         }
@@ -1329,7 +1341,7 @@
             musicButton.addEventListener('click', event => {
                 event.preventDefault();
 
-                if (!musicAudio || !config.musicUrl) return;
+                if (!running || !musicAudio || !config.musicUrl) return;
 
                 musicAudio.muted = !musicAudio.muted;
 
@@ -1342,11 +1354,10 @@
         }
 
         startButton.addEventListener('click', async () => {
-            startMusic();
-
             if (!renderer) return;
 
             running = true;
+            startMusic();
             root.classList.add('game-active');
             startButton.classList.add('hidden');
 
@@ -1366,7 +1377,6 @@
             }
         });
 
-        root.addEventListener('pointerdown', startMusic);
     }
 
     function updateMusicButton() {
@@ -1379,7 +1389,7 @@
     }
 
     function startMusic() {
-        if (!musicAudio || !config.musicUrl || musicAudio.muted) {
+        if (!running || !musicAudio || !config.musicUrl || musicAudio.muted) {
             return;
         }
 
@@ -1417,12 +1427,7 @@
         musicAudio.preload = 'auto';
 
         updateMusicButton();
-
-        const promise = musicAudio.play();
-
-        if (promise && typeof promise.catch === 'function') {
-            promise.catch(() => {});
-        }
+        // OST starts only from the Play button.
     }
 
     function updatePhysics(dt) {
@@ -1435,7 +1440,8 @@
 
         updateDoor(dt);
 
-        const input = inputAxes();
+        let input;
+        try { input = inputAxes(); } catch (error) { console.warn('BCM input/gamepad error:', error); input = { thrust: 0, strafe: 0, vertical: 0, roll: 0, yaw: 0 }; }
 
         // Gamepad right stick: down = nose up, as requested for aircraft-style
         // inverted vertical pitch. Raise sensitivity above the mouse axis.
@@ -1585,7 +1591,7 @@
             setupInput();
             resize();
 
-            status.textContent = 'ENGINE READY · TEXTURE TEST · LOCAL r128';
+            status.textContent = 'ENGINE READY · LOCAL r128 · 0.5.0';
             updateAssetStatus();
 
             requestAnimationFrame(render);
