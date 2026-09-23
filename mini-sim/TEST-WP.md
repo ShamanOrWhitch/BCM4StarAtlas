@@ -2,7 +2,7 @@
 
 ## Current version
 
-**0.4.0**
+**0.5.0**
 
 ## Install
 
@@ -56,7 +56,7 @@ Android:
 
 The status line should show texture loading progress.
 
-The five wall images must visibly appear in Room 1.
+The wall images must visibly appear in all three rooms. Ceilings now use the new roof*.png set by segments; roofa*.png must appear at the first/last ceiling sections where each room terminates. This is the seam/junction test.
 
 The loader supports the supplied 720p PNGs without requiring power-of-two dimensions. Clamp-to-edge is used instead of repeat wrapping.
 
@@ -64,18 +64,31 @@ For lighter future assets, add same-base WebP/JPG/JPEG beside the PNG.
 
 ## Portal test
 
-There is only one active portal.
+Three physical portal squares must be visible:
 
-Approach and face the portal, then press G (or gamepad Y / mobile G).
+1. portal.png + portal1.mp4 → Room 2.
+2. portal2.png + portal2.mp4 → Room 3.
+3. portal3.png + portal3.mp4 → Room 1.
+
+Approach the active portal. When at least 69% of its projected square is visible and the ship is close/facing the gate, the transition starts automatically. G / gamepad Y / mobile G still provides manual activation.
 
 Expected sequence:
 
-1. Portal image is visible.
-2. `portal2.mp4` plays full-screen.
-3. After the video finishes, the ship appears in Room 2.
-4. Room 2 uses a different arrangement of the wall textures.
+1. The square portal texture is visible.
+2. The matching MP4 opens inside the game and covers the flight view.
+3. Flight input is locked and pointer lock is released during playback.
+4. On ended, the ship is teleported to the next room and flight resumes.
+5. No reverse portal animation is required; the static portal image is the pre-transition state.
 
-There is no competing point-2/point-3 selector in this test.
+## Door and pipe test
+
+The door randomly chooses from door.png through door5.png and randomly selects an opening mode/speed. Reload the test page to get another random door variant.
+
+Long pipe runs with different diameters/path shapes should be visible along the rooms.
+
+## Video test
+
+The plugin also provides a same-origin WordPress video-stream URL with explicit video MIME type and HTTP Range support. If direct MP4 playback fails because of server MIME/range handling, the transition should still use the stream URL.
 
 ## Music test
 
