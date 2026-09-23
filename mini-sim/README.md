@@ -4,7 +4,7 @@ Self-contained WordPress test of a Descent-style 6DOF space-labyrinth.
 
 ## Version
 
-**0.4.0**
+**0.5.2**
 
 Three.js **r128** is bundled locally in:
 
@@ -18,25 +18,34 @@ The plugin does not depend on the WordPress theme's Three.js file and does not u
 
 The test is intentionally reduced to one readable gameplay flow:
 
-**ROOM 1 → door → one portal → portal video → ROOM 2**
+**ROOM 1 → door → portal 1/video → ROOM 2 → portal 2/video → ROOM 3 → portal 3/video → ROOM 1**
 
 Room 2 keeps the same scale and flight model but uses a different assignment of the supplied wall textures and a different structural pattern.
 
 The five supplied wall textures are loaded as actual WebGL textures. The loader keeps the original PNGs intact and uses a maximum 2048-pixel GPU copy only when an image is larger than that. It does not require power-of-two images.
 
-## Portal
+## Portals
 
-Only one portal is active in this test:
+Three physical portal stations are present, one at the end of each test room:
 
-- point 1 = `portal.png`
-- transition = `portal2.mp4`
-- destination = Room 2
+- portal 1 = `portal.png` + `portal1.mp4` → Room 2
+- portal 2 = `portal2.png` + `portal2.mp4` → Room 3
+- portal 3 = `portal3.png` + `portal3.mp4` → Room 1
 
-There are no competing point-2/point-3 portal controls in this build.
+The portal surface is a square. If its texture cannot load, the same surface remains as a white square, making a missing-asset test immediately visible.
 
-G on desktop, Y on gamepad, or the mobile G button activates the portal when the pilot is close and facing it. The 480p local MP4 plays full-screen, then the ship is placed inside Room 2.
+Automatic activation is the main path: when the active portal is close, faced, and at least 69% of its projected square is visible inside the viewport, the transition starts automatically. G, gamepad Y, or the Android PORTAL button remains available as a manual fallback.
 
-The other original portal video/image files remain in the repository for later stages, but they are not active in this test.
+During video playback flight input is locked and pointer lock is released. The ship moves to the configured destination only after the video fires `ended`.
+## Roof and seam test
+
+Ceilings are segmented to use the new `roof*.png` set. The `roofa*.png` set is used on the room-end caps and as narrow seam pieces at every roof texture junction.
+
+## Door and pipe test
+
+The door randomly selects from `door.png` through `door5.png`; each opening also randomizes its animation mode and speed. After the pilot moves more than 5 units away, the open door closes after 4 seconds so another randomized opening can be tested.
+
+Long, mostly straight pipe runs with different diameters and positions are present in each room.
 
 ## Desktop controls
 
@@ -125,6 +134,10 @@ Put plugin assets under:
 ```
 mini-sim/assets/
 ```
+
+## Video streaming fallback
+
+Portal videos receive same-origin WordPress stream URLs with explicit video MIME type and HTTP Range support. The game prefers those URLs over direct asset URLs.
 
 ## WordPress
 

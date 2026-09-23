@@ -2,16 +2,155 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained Descent-style 6DOF space-labyrinth test for WordPress.
- * Version: 0.4.1
+ * Version: 0.5.3
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BCM_MINI_SIM_VERSION', '0.4.1');
+define('BCM_MINI_SIM_VERSION', '0.5.3');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
+
+function bcm_mini_sim_video_mime($extension) {
+    $map = array(
+        'mp4' => 'video/mp4',
+        'webm' => 'video/webm',
+        'ogg' => 'video/ogg',
+    );
+
+    return isset($map[$extension]) ? $map[$extension] : '';
+}
+
+function bcm_mini_sim_stream_video() {
+    if (!isset($_GET['bcm_mini_sim_video'])) {
+        return;
+    }
+
+    $relative = wp_unslash($_GET['bcm_mini_sim_video']);
+
+    if (!is_string($relative) || $relative === '' || strpos($relative, '..') !== false) {
+        status_header(400);
+        exit;
+    }
+
+    $relative = str_replace('\\', '/', ltrim($relative, '/'));
+    $base_path = realpath(BCM_MINI_SIM_PATH . 'assets');
+    $file_path = realpath(BCM_MINI_SIM_PATH . 'assets/' . $relative);
+
+    if (
+        !$base_path ||
+        !$file_path ||
+        strpos($file_path, $base_path . DIRECTORY_SEPARATOR) !== 0 ||
+        !is_file($file_path)
+    ) {
+        status_header(404);
+        exit;
+    }
+
+    $extension = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
+    $mime = bcm_mini_sim_video_mime($extension);
+
+    if (!$mime) {
+        status_header(404);
+        exit;
+    }
+
+    $size = filesize($file_path);
+
+    if ($size === false || $size < 1) {
+        status_header(404);
+        exit;
+    }
+
+    $start = 0;
+    $end = $size - 1;
+    $status = 200;
+
+    if (!empty($_SERVER['HTTP_RANGE'])) {
+        $range = trim($_SERVER['HTTP_RANGE']);
+
+        if (preg_match('/bytes=(\d*)-(\d*)/i', $range, $matches)) {
+            if ($matches[1] === '' && $matches[2] === '') {
+                status_header(416);
+                header('Content-Range: bytes */' . $size);
+                exit;
+            }
+
+            if ($matches[1] === '') {
+                $suffix = (int) $matches[2];
+                $start = max(0, $size - $suffix);
+            } else {
+                $start = (int) $matches[1];
+            }
+
+            if ($matches[2] !== '') {
+                $end = (int) $matches[2];
+            }
+
+            if ($end >= $size) {
+                $end = $size - 1;
+            }
+
+            if ($start < 0 || $start >= $size || $start > $end) {
+                status_header(416);
+                header('Content-Range: bytes */' . $size);
+                exit;
+            }
+
+            $status = 206;
+        }
+    }
+
+    $length = $end - $start + 1;
+
+    status_header($status);
+    header('Content-Type: ' . $mime);
+    header('Content-Length: ' . $length);
+    header('Accept-Ranges: bytes');
+    header('Content-Range: bytes ' . $start . '-' . $end . '/' . $size);
+    header('Cache-Control: public, max-age=31536000, immutable');
+    header('Content-Disposition: inline; filename="' . basename($file_path) . '"');
+    header('X-Content-Type-Options: nosniff');
+
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+
+    $handle = fopen($file_path, 'rb');
+
+    if (!$handle) {
+        status_header(500);
+        exit;
+    }
+
+    fseek($handle, $start);
+
+    $remaining = $length;
+    $chunk_size = 1024 * 1024;
+
+    while ($remaining > 0 && !feof($handle)) {
+        $read_length = min($chunk_size, $remaining);
+        $buffer = fread($handle, $read_length);
+
+        if ($buffer === false) {
+            break;
+        }
+
+        echo $buffer;
+        $remaining -= strlen($buffer);
+
+        if (function_exists('flush')) {
+            flush();
+        }
+    }
+
+    fclose($handle);
+    exit;
+}
+
+add_action('template_redirect', 'bcm_mini_sim_stream_video', 0);
 
 function bcm_mini_sim_get_assets() {
     $assets = array();
@@ -48,12 +187,22 @@ function bcm_mini_sim_get_assets() {
                 $type = 'image';
             }
 
-            $assets[] = array(
+            $asset = array(
                 'name' => $relative,
                 'url' => BCM_MINI_SIM_URL . 'assets/' . str_replace('%2F', '/', rawurlencode(str_replace('\\', '/', $relative))),
                 'type' => $type,
                 'extension' => $extension,
             );
+
+            if ($type === 'video') {
+                $asset['streamUrl'] = add_query_arg(
+                    'bcm_mini_sim_video',
+                    str_replace('\\', '/', $relative),
+                    home_url('/')
+                );
+            }
+
+            $assets[] = $asset;
         }
     } catch (Exception $e) {
         // Keep the plugin usable even when directory iteration is unavailable.
@@ -187,19 +336,20 @@ function bcm_mini_sim_shortcode($atts = array()) {
         </div>
 
         <div class="bcm-mini-sim-hud">
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — PLAYABLE TEST 0.41</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — PLAYABLE TEST 0.52</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
             <div class="bcm-mini-sim-help">
                 <span>W/S</span> thrust · <span>A/D</span> strafe · <span>Space/Ctrl</span> vertical ·
                 <span>Mouse</span> look · <span>Q</span>/<span>E</span> roll ·
-                <span>Enter</span> меню · <span>F</span> shield · <span>R/◆</span> дверь · <span>G</span> портал
+                <span>Enter</span> меню · <span>F</span> shield · <span>R/◆</span> дверь · <span>G</span> портал / AUTO 69%
             </div>
         </div>
 
         <div class="bcm-mini-sim-asset-status">LOCAL ASSETS: SCANNING...</div>
 
         <button class="bcm-mini-sim-start" type="button">ИГРАТЬ</button>
+        <div class="bcm-mini-sim-start-hint">Портал уже есть в стартовой секции. Подлетите к светящемуся квадрату: при 69% видимости переход начнётся автоматически. G / Y / PORTAL — ручной запуск.</div>
         <button class="bcm-mini-sim-music" type="button" aria-label="Музыка" title="Музыка">♫</button>
 
         <button class="bcm-mini-sim-crystal bcm-mini-sim-crystal-main" type="button"
@@ -221,7 +371,7 @@ function bcm_mini_sim_shortcode($atts = array()) {
                 <label><input type="checkbox" data-setting="effects" checked> Доп. эффекты</label>
                 <label><input type="checkbox" data-setting="invertPitch" checked> Авиа-питч (вниз устройства = вверх взгляда)</label>
                 <label><input type="checkbox" data-setting="invertYaw"> Реверс лево/право</label>
-                <p>Enter / Start / Назад — меню. G у портала — видео. Дверь закроется через 4с если отойти > 5.</p>
+                <p>Портал запускается сам при 69% видимости квадрата. G / Y / PORTAL — ручной запуск. Во время видео полёт заблокирован, после ended — телепорт.</p>
                 <button type="button" data-setting="close">Закрыть</button>
             </div>
         </div>
@@ -240,7 +390,7 @@ function bcm_mini_sim_shortcode($atts = array()) {
                 <button data-control="yawRight">▶</button>
                 <button data-control="shield">🛡</button>
                 <button data-control="tilt">TILT</button>
-                <button data-control="portal">G</button>
+                <button data-control="portal" aria-label="Портал">PORTAL</button>
             </div>
         </div>
     </div>
