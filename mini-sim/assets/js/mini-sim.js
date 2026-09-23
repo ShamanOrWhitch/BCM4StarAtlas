@@ -905,17 +905,34 @@
             return point.project(camera);
         });
 
-        const xs = projected.map(p => p.x);
-        const ys = projected.map(p => p.y);
+        const minX = Math.min(...projected.map(p => p.x));
+        const maxX = Math.max(...projected.map(p => p.x));
+        const minY = Math.min(...projected.map(p => p.y));
+        const maxY = Math.max(...projected.map(p => p.y));
 
-        const width = Math.max(0, Math.min(1, (Math.min(1, Math.max(...xs)) - Math.max(-1, Math.min(...xs))) / 2));
-        const height = Math.max(0, Math.min(1, (Math.min(1, Math.max(...ys)) - Math.max(-1, Math.min(...ys))) / 2));
+        const fullWidth = Math.max(0.0001, maxX - minX);
+        const fullHeight = Math.max(0.0001, maxY - minY);
+
+        const clippedWidth = Math.max(
+            0,
+            Math.min(1, maxX) - Math.max(-1, minX)
+        );
+        const clippedHeight = Math.max(
+            0,
+            Math.min(1, maxY) - Math.max(-1, minY)
+        );
 
         return {
-            visibleRatio: width * height
+            visibleRatio: Math.max(
+                0,
+                Math.min(
+                    1,
+                    (clippedWidth / fullWidth) *
+                    (clippedHeight / fullHeight)
+                )
+            )
         };
     }
-
     function getAutoPortalCandidate() {
         if (
             room.current !== 0 ||
@@ -1319,9 +1336,6 @@
 
         gamepad.leftX = applyDeadzone(axes[0] || 0, 0.14);
         gamepad.leftY = applyDeadzone(axes[1] || 0, 0.14);
-
-        // Right stick is the viewing/yoke control:
-        // X = yaw, Y = aviation pitch.
         gamepad.rightX = applyDeadzone(axes[2] || 0, 0.12);
         gamepad.rightY = applyDeadzone(axes[3] || 0, 0.12);
 
@@ -1333,25 +1347,48 @@
             (buttonPressed(pad, 7) ? 1 : 0) -
             (buttonPressed(pad, 6) ? 1 : 0);
 
-        // A = door, X = shield, Y = portal, Start/Select = menu.
-        const oneShot = [
-            [0, tryRemoteDoor],
-            [2, toggleShield],
-            [3, startPortalTransition],
-            [8, toggleSettings],
-            [9, toggleSettings]
-        ];
+        const startPressed = buttonPressed(pad, 9);
+        const startWasPressed = gamepad.previousButtons[9] === true;
 
-        oneShot.forEach(([index, action]) => {
-            const pressed = buttonPressed(pad, index);
-            const wasPressed = gamepad.previousButtons[index] === true;
+        if (startPressed && !startWasPressed) {
+            toggleSettings();
+        }
 
-            if (pressed && !wasPressed) {
-                action();
+        const selectPressed = buttonPressed(pad, 8);
+        const selectWasPressed = gamepad.previousButtons[8] === true;
+
+        if (selectPressed && !selectWasPressed) {
+            toggleSettings();
+        }
+
+        const aPressed = buttonPressed(pad, 0);
+        const aWasPressed = gamepad.previousButtons[0] === true;
+
+        if (aPressed && !aWasPressed) {
+            if (!running && menuState.open) {
+                beginPlay();
+            } else if (running) {
+                tryRemoteDoor();
             }
+        }
 
-            gamepad.previousButtons[index] = pressed;
-        });
+        const xPressed = buttonPressed(pad, 2);
+        const xWasPressed = gamepad.previousButtons[2] === true;
+
+        if (xPressed && !xWasPressed && running) {
+            toggleShield();
+        }
+
+        const yPressed = buttonPressed(pad, 3);
+        const yWasPressed = gamepad.previousButtons[3] === true;
+
+        if (yPressed && !yWasPressed && running) {
+            startPortalTransition('GAMEPAD');
+        }
+
+        for (let i = 0; i <= 9; i++) {
+            gamepad.previousButtons[i] = buttonPressed(pad, i);
+        }
     }
     function inputAxes() {
         updateGamepad();
@@ -1378,18 +1415,36 @@
 
         const look = getTiltMotion();
 
+        const invertPitchControl =
+            root.querySelector('[data-setting="invertPitch"]')?.checked !== false;
+
+        const invertYawControl =
+            !!root.querySelector('[data-setting="invertYaw"]')?.checked;
+
+        let yaw =
+            yawButtons -
+            (gamepad.rightX * 0.95) +
+            look.yaw;
+
+        let pitch =
+            (gamepad.rightY * 0.95) +
+            look.pitch;
+
+        if (!invertPitchControl) {
+            pitch *= -1;
+        }
+
+        if (invertYawControl) {
+            yaw *= -1;
+        }
+
         return {
             thrust: Math.max(-1, Math.min(1, thrust - gamepad.leftY)),
             strafe: Math.max(-1, Math.min(1, strafe + gamepad.leftX)),
             vertical: Math.max(-1, Math.min(1, vertical + gamepad.vertical)),
             roll: Math.max(-1, Math.min(1, roll + gamepad.roll)),
-            yaw:
-                yawButtons -
-                (gamepad.rightX * 0.95) +
-                look.yaw,
-            pitch:
-                (gamepad.rightY * 0.95) +
-                look.pitch
+            yaw,
+            pitch
         };
     }
     function updateDoor(dt) {
@@ -1419,6 +1474,12 @@
                 1,
                 testDoor.progress + dt * testDoor.speed
             );
+
+            if (testDoor.progress >= 1) {
+                testDoor.progress = 1;
+                testDoor.state = 'OPEN';
+                testDoor.awayTimer = 0;
+            }
         }
 
         if (testDoor.state === 'OPEN') {
@@ -1452,7 +1513,6 @@
 
         applyDoorAnimation();
     }
-
     function applyDoorAnimation() {
         if (!testDoor.leftPanel || !testDoor.rightPanel) return;
 
@@ -1757,6 +1817,14 @@
         status.textContent = 'FLIGHT ACTIVE · 6DOF READY';
     }
 
+    function toggleShield() {
+        // Shield is a gameplay placeholder for now, but the control is fully
+        // wired so gamepad/mobile/menu input cannot throw a ReferenceError.
+        const enabled = !root.dataset.shieldDisabled;
+        root.dataset.shieldDisabled = enabled ? '1' : '';
+        status.textContent = enabled ? 'SHIELD · OFF' : 'SHIELD · ON';
+    }
+
     function setupInput() {
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
@@ -1788,10 +1856,26 @@
             if (!pointerLocked || !running || menuState.open) return;
 
             const sensitivity = 0.0026;
+            const invertPitch =
+                root.querySelector('[data-setting="invertPitch"]')?.checked !== false;
+            const invertYaw =
+                !!root.querySelector('[data-setting="invertYaw"]')?.checked;
 
-            // Mouse = direct yoke/look input: right is right, up is nose up.
-            ship.angularVelocity.y -= event.movementX * sensitivity;
-            ship.angularVelocity.x -= event.movementY * (sensitivity * 1.12);
+            let yaw = -event.movementX * sensitivity;
+            let pitch = -event.movementY * (sensitivity * 1.12);
+
+            if (!invertYaw) {
+                // normal mouse left/right
+            } else {
+                yaw *= -1;
+            }
+
+            if (!invertPitch) {
+                pitch *= -1;
+            }
+
+            ship.angularVelocity.y += yaw;
+            ship.angularVelocity.x += pitch;
         });
 
         root.querySelectorAll('.bcm-mini-sim-mobile button').forEach(button => {
@@ -1846,13 +1930,13 @@
 
                 if (!musicAudio || !config.musicUrl) return;
 
-                if (!musicStarted) {
-                    musicStarted = true;
-                    musicAudio.muted = false;
+                musicStarted = true;
+                musicAudio.muted = !musicAudio.muted;
+
+                if (!musicAudio.muted) {
                     startMusic();
                 } else {
-                    musicAudio.muted = !musicAudio.muted;
-                    if (!musicAudio.muted) startMusic();
+                    musicAudio.pause();
                 }
 
                 updateMusicButton();
@@ -1881,14 +1965,6 @@
                 if (control.dataset.setting === 'effects') {
                     graphicsSettings.effects = !!control.checked;
                 }
-
-                if (control.dataset.setting === 'invertPitch') {
-                    control.dataset.applied = control.checked ? '1' : '0';
-                }
-
-                if (control.dataset.setting === 'invertYaw') {
-                    control.dataset.applied = control.checked ? '1' : '0';
-                }
             });
         });
 
@@ -1898,8 +1974,13 @@
         }
 
         window.addEventListener('popstate', () => {
-            if (running || menuState.open) {
+            if (menuState.historyArmed) {
                 openSettings();
+                window.history.pushState(
+                    { bcmMiniSim: true },
+                    '',
+                    window.location.href
+                );
             }
         });
 
