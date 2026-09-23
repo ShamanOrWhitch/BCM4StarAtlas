@@ -102,7 +102,7 @@ function bcm_mini_sim_enqueue_assets()
         'musicUrl' => bcm_mini_sim_pick_asset($assets, array('starbase ost.mp3', 'starbase-ost.mp3', 'ost.mp3'), 'audio'),
         'spaceVideoZones' => array(
             // Only one clip in the portal/open-space room.
-            array('url' => 'https://walkingyog.com/wp-content/uploads/2025/11/30Сек43-1.mp4', 'x' => 0, 'y' => 2.0, 'z' => -35.5, 'radius' => 9, 'maxWidth' => 7.2, 'maxHeight' => 4.5),
+            array('url' => 'https://walkingyog.com/wp-content/uploads/2025/11/30Сек43-1.mp4', 'x' => 0, 'y' => 2.0, 'z' => -38.5, 'radius' => 9, 'maxWidth' => 7.2, 'maxHeight' => 4.5),
 
             // The remaining clips are beyond Room 2 in the large exterior space.
             array('url' => 'https://walkingyog.com/wp-content/uploads/2025/12/Jah-Love-480P.mp4', 'x' => -18, 'y' => 7, 'z' => -105, 'radius' => 16, 'maxWidth' => 8.0, 'maxHeight' => 5.0),
