@@ -989,7 +989,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.5.9");
+      setStatus("ENGINE READY · LOCAL r128 · 0.5.10");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
