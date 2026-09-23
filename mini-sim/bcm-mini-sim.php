@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.5.6
+ * Version: 0.5.7
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.5.6');
+define('BCM_MINI_SIM_VERSION', '0.5.7');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -100,7 +100,12 @@ function bcm_mini_sim_enqueue_assets()
         'doorTexture' => $door,
         'menuBackgroundUrl' => bcm_mini_sim_pick_asset($assets, array('perference bg.png'), 'image'),
         'musicUrl' => bcm_mini_sim_pick_asset($assets, array('starbase ost.mp3', 'starbase-ost.mp3', 'ost.mp3'), 'audio'),
-        'spaceVideoUrl' => 'https://walkingyog.com/wp-content/uploads/2025/11/30Сек43-1.mp4',
+        'spaceVideoZones' => array(
+            array('url' => 'https://walkingyog.com/wp-content/uploads/2025/11/30Сек43-1.mp4', 'x' => 13, 'y' => 2, 'z' => -32, 'radius' => 18, 'width' => 6.8, 'height' => 3.9),
+            array('url' => 'https://walkingyog.com/wp-content/uploads/2025/12/Jah-Love-480P.mp4', 'x' => -13, 'y' => -1, 'z' => -39, 'radius' => 18, 'width' => 6.8, 'height' => 3.9),
+            array('url' => 'https://walkingyog.com/wp-content/uploads/2026/09/We-gonna-rockit-копия-копия27.mp4', 'x' => 12, 'y' => 3, 'z' => -46, 'radius' => 18, 'width' => 6.8, 'height' => 3.9),
+            array('url' => 'https://walkingyog.com/wp-content/uploads/2026/05/Speed-reshade-rasta-dance61.mp4', 'x' => -5.8, 'y' => 1.2, 'z' => -61, 'radius' => 15, 'width' => 6.8, 'height' => 3.9),
+        ),
         'assets' => $assets,
         'version' => BCM_MINI_SIM_VERSION,
     ));
@@ -118,7 +123,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-menu-shade" aria-hidden="true"></div>
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.5.6</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.5.7</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
             <div class="bcm-mini-sim-help">
