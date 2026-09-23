@@ -80,6 +80,15 @@
     away: 0,
     style: "slide"
   };
+  const cinema = {
+    el: null,
+    texture: null,
+    mesh: null,
+    active: false,
+    distance: 99,
+    radius: 16,
+    mute: false
+  };
   const tilt = {
     enabled: false,
     available: false,
@@ -264,6 +273,44 @@
     portal.mesh = plane(pgroup, 0, 0, 0.01, 5.2, 5.8, 0, 0, 0, pmatFront);
     portal.backMesh = plane(pgroup, 0, 0, -0.01, 5.2, 5.8, 0, Math.PI, 0, pmatBack);
     scene.add(pgroup);
+
+    const cinemaVideo = document.createElement("video");
+    cinemaVideo.src = config.spaceVideoUrl || "";
+    cinemaVideo.crossOrigin = "anonymous";
+    cinemaVideo.muted = false;
+    cinemaVideo.loop = true;
+    cinemaVideo.playsInline = true;
+    cinemaVideo.preload = "auto";
+    cinemaVideo.volume = 0;
+    cinemaVideo.addEventListener("error", () => {
+      cinema.active = false;
+      cinema.distance = 99;
+      setStatus("CINEMA VIDEO ERROR");
+    });
+    cinema.el = cinemaVideo;
+
+    if (cinemaVideo.src) {
+      const cinemaTexture = new THREE.VideoTexture(cinemaVideo);
+      cinemaTexture.minFilter = THREE.LinearFilter;
+      cinemaTexture.magFilter = THREE.LinearFilter;
+      cinemaTexture.generateMipmaps = false;
+      if ("encoding" in cinemaTexture && THREE.sRGBEncoding !== undefined) {
+        cinemaTexture.encoding = THREE.sRGBEncoding;
+      }
+      cinema.texture = cinemaTexture;
+
+      const cinemaMat = new THREE.MeshBasicMaterial({
+        map: cinemaTexture,
+        side: THREE.FrontSide,
+        fog: false
+      });
+      const cinemaMesh = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 3.3), cinemaMat);
+      cinemaMesh.position.set(5.35, 0.1, -37.5);
+      cinemaMesh.rotation.y = -Math.PI / 2;
+      cinemaMesh.name = "space-cinema-loop";
+      scene.add(cinemaMesh);
+      cinema.mesh = cinemaMesh;
+    }
 
     scene.add(world);
   }
@@ -522,6 +569,53 @@
     };
   }
 
+  function startCinema() {
+    if (!cinema.el || !cinema.texture || !cinema.el.src) return;
+    cinema.el.loop = true;
+    cinema.el.muted = cinema.mute;
+    cinema.active = true;
+    const p = cinema.el.play();
+    if (p && p.catch) {
+      p.catch(() => {
+        cinema.el.muted = true;
+        cinema.mute = true;
+        if (musicButton) musicButton.title = "MUTE";
+      });
+    }
+  }
+
+  function setAudioMute(value) {
+    cinema.mute = !!value;
+    if (musicAudio) musicAudio.muted = cinema.mute;
+    if (cinema.el) cinema.el.muted = cinema.mute;
+  }
+
+  function updateCinemaAudio() {
+    if (!cinema.mesh || !cinema.el) return;
+
+    cinema.distance = cinema.mesh.position.distanceTo(ship.position);
+    const radius = cinema.radius;
+    const near = 2.5;
+    const d = Math.max(near, Math.min(radius, cinema.distance));
+    const t = (d - near) / (radius - near);
+
+    // Film audio arrives earlier on approach; OST is ducked much faster.
+    const filmGain = Math.pow(1 - t, 0.5);
+    const ostGain = Math.pow(t, 2.6);
+
+    cinema.el.volume = Math.max(0, Math.min(1, settings.volume * filmGain));
+    if (musicAudio) musicAudio.volume = settings.volume * ostGain;
+
+    if (cinema.distance <= radius && cinema.active) {
+      if (interaction) {
+        const pct = Math.round(filmGain * 100);
+        interaction.textContent = cinema.distance <= near
+          ? "CINEMA · 100% · OST 0%"
+          : "CINEMA · " + pct + "% · OST " + Math.round(ostGain * 100) + "%";
+      }
+    }
+  }
+
   function input() {
     readPad();
     const look = tiltLook();
@@ -573,6 +667,7 @@
     camera.position.copy(ship.position);
     camera.quaternion.copy(ship.quaternion);
     light.position.copy(ship.position);
+    updateCinemaAudio();
 
     portal.coverage = portalCoverage();
     if (interaction) {
@@ -696,8 +791,7 @@
     const crystal = root.querySelector(".bcm-mini-sim-crystal-main");
     if (crystal) crystal.addEventListener("click", () => openDoor("REMOTE"));
     if (musicButton) musicButton.addEventListener("click", () => {
-      if (!musicAudio) return;
-      musicAudio.muted = !musicAudio.muted;
+      setAudioMute(!cinema.mute);
     });
     if (transitionRoot) {
       const close = transitionRoot.querySelector(".bcm-mini-sim-transition-close");
@@ -721,6 +815,7 @@
       running = true;
       musicAllowed = true;
       startMusic();
+      startCinema();
       root.classList.add("game-active");
       startButton.classList.add("hidden");
       canvas.focus();
@@ -754,7 +849,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.5.5");
+      setStatus("ENGINE READY · LOCAL r128 · 0.5.6");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
