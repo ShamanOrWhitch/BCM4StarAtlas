@@ -1026,35 +1026,6 @@
         }
     }
 
-    function createPortalTransitionUI() {
-        if (root.querySelector('.bcm-mini-sim-transition')) return;
-
-        const wrapper = document.createElement('div');
-        wrapper.className = 'bcm-mini-sim-transition';
-        wrapper.hidden = true;
-
-        const video = document.createElement('video');
-        video.className = 'bcm-mini-sim-transition-video';
-        video.playsInline = true;
-        video.setAttribute('playsinline', '');
-        video.setAttribute('webkit-playsinline', '');
-        video.preload = 'metadata';
-        video.controls = false;
-
-        const label = document.createElement('div');
-        label.className = 'bcm-mini-sim-transition-label';
-
-        wrapper.appendChild(video);
-        wrapper.appendChild(label);
-        root.appendChild(wrapper);
-
-        return {
-            wrapper,
-            video,
-            label
-        };
-    }
-
     let transitionUI = null;
     let transitionBusy = false;
 
@@ -1325,10 +1296,10 @@
             return false;
         }
 
-        const asset = (targetPortal.video && findAsset(targetPortal.video))
+        const asset = targetPortal.video
             ? assets.find(item => item && item.name === targetPortal.video)
             : null;
-        const url = findAsset(targetPortal.video);
+        const url = (asset && asset.streamUrl) || findAsset(targetPortal.video);
 
         if (!url) {
             status.textContent = 'PORTAL ' + targetPortal.id + ' · VIDEO ASSET MISSING';
