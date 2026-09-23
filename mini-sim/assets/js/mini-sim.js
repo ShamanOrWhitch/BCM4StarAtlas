@@ -69,7 +69,7 @@
     away: 0,
     style: "slide"
   };
-  const portal = { mesh: null, coverage: 0 };
+  const portal = { mesh: null, coverage: 0, z: -24.2, triggerFrontZ: -22.8, triggerBackZ: -25.8, direction: "FORWARD" };
   const tilt = {
     enabled: false,
     available: false,
@@ -234,7 +234,7 @@
     door.mesh = group;
 
     const pgroup = new THREE.Group();
-    pgroup.position.set(0, 0, -24.2);
+    pgroup.position.set(0, 0, portal.z);
     const pmat = textured("portal.png", 0x88aacc);
     portal.mesh = plane(pgroup, 0, 0, 0, 5.2, 5.8, 0, 0, 0, pmat);
     scene.add(pgroup);
@@ -311,7 +311,27 @@
     return Math.max(0, Math.min(1, approx));
   }
 
+  function portalSide() {
+    if (!portal.mesh) return "UNKNOWN";
+    const z = ship.position.z;
+    const frontDistance = Math.abs(z - portal.triggerFrontZ);
+    const backDistance = Math.abs(z - portal.triggerBackZ);
+    if (z > portal.z + 0.45) return "FRONT";
+    if (z < portal.z - 0.45) return "BACK";
+    return backDistance < frontDistance ? "BACK" : "FRONT";
+  }
+
+  function portalTriggerDistance(side) {
+    const targetZ = side === "BACK" ? portal.triggerBackZ : portal.triggerFrontZ;
+    return Math.sqrt(
+      ship.position.x * ship.position.x +
+      ship.position.y * ship.position.y +
+      (ship.position.z - targetZ) * (ship.position.z - targetZ)
+    );
+  }
+
   function finishTeleport() {
+    const direction = portal.direction;
     transitionBusy = false;
     if (transitionRoot) transitionRoot.hidden = true;
     if (transitionVideo) {
@@ -319,24 +339,43 @@
       transitionVideo.removeAttribute("src");
       transitionVideo.load();
     }
-    ship.position.set(0, 0, -52);
-    ship.velocity.set(0, 0, 0);
-    ship.angularVelocity.set(0, 0, 0);
-    ship.quaternion.set(0, 0, 0, 1);
-    setStatus("ROOM 2 · TELEPORT COMPLETE");
+
+    if (direction === "BACK") {
+      ship.position.set(0, 0, 2);
+      ship.velocity.set(0, 0, 0);
+      ship.angularVelocity.set(0, 0, 0);
+      ship.quaternion.set(0, 0, 0, 1);
+      setStatus("ROOM 1 · RETURN COMPLETE");
+    } else {
+      ship.position.set(0, 0, -52);
+      ship.velocity.set(0, 0, 0);
+      ship.angularVelocity.set(0, 0, 0);
+      ship.quaternion.set(0, 0, 0, 1);
+      setStatus("ROOM 2 · TELEPORT COMPLETE");
+    }
   }
 
-  function playPortalVideo() {
+  function playPortalVideo(direction) {
     if (transitionBusy) return;
-    const url = assetUrl("portal2.mp4") || assetUrl("portal1.mp4") || assetUrl("portal3.mp4");
+
+    portal.direction = direction === "BACK" ? "BACK" : "FORWARD";
+    const url = portal.direction === "BACK"
+      ? (assetUrl("portal1.mp4") || assetUrl("portal3.mp4") || assetUrl("portal2.mp4"))
+      : (assetUrl("portal2.mp4") || assetUrl("portal3.mp4") || assetUrl("portal1.mp4"));
+
     if (!url || !transitionVideo || !transitionRoot) {
       setStatus("PORTAL VIDEO MISSING");
       finishTeleport();
       return;
     }
+
     transitionBusy = true;
     transitionRoot.hidden = false;
-    if (transitionLabel) transitionLabel.textContent = "CUTSCENE · ROOM 1 → ROOM 2";
+    if (transitionLabel) {
+      transitionLabel.textContent = portal.direction === "BACK"
+        ? "CUTSCENE · ROOM 2 → ROOM 1"
+        : "CUTSCENE · ROOM 1 → ROOM 2";
+    }
     transitionVideo.muted = true;
     transitionVideo.playsInline = true;
     transitionVideo.src = url;
@@ -356,12 +395,29 @@
 
   function tryPortal() {
     if (!running || transitionBusy) return;
-    const dist = portal.mesh ? portal.mesh.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position) : 99;
+
+    const side = portalSide();
+    const triggerDistance = portalTriggerDistance(side);
+    const isBack = side === "BACK";
+
+    if (isBack) {
+      if (triggerDistance > 7.5) {
+        setStatus("PORTAL RETURN · APPROACH");
+        return;
+      }
+      playPortalVideo("BACK");
+      return;
+    }
+
+    const dist = portal.mesh
+      ? portal.mesh.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position)
+      : 99;
+
     if (dist > 10 && portal.coverage < 0.69) {
       setStatus("PORTAL · APPROACH / FILL 69%");
       return;
     }
-    playPortalVideo();
+    playPortalVideo("FORWARD");
   }
 
   function dz(v, d) {
@@ -470,7 +526,8 @@
         ? "PORTAL LOCK 69% · CUTSCENE"
         : "PORTAL " + Math.round(portal.coverage * 100) + "%";
     }
-    if (portal.coverage >= 0.69) tryPortal();
+    if (portalSide() === "FRONT" && portal.coverage >= 0.69) tryPortal();
+    if (portalSide() === "BACK" && portalTriggerDistance("BACK") <= 7.5) tryPortal();
 
     const room = ship.position.z < -48 ? "ROOM 2" : (ship.position.z < -28 ? "SPACE" : "ROOM 1");
     setStatus(room + " · SPD " + ship.velocity.length().toFixed(1) + " · DOOR " + door.state);
@@ -643,7 +700,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.5.2");
+      setStatus("ENGINE READY · LOCAL r128 · 0.5.3");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
