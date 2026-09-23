@@ -1980,12 +1980,11 @@
             return;
         }
 
+        room.current = getCurrentRoomIndex();
         updateDoor(dt);
 
         const input = inputAxes();
 
-        // Gamepad right stick: down = nose up, as requested for aircraft-style
-        // inverted vertical pitch. Raise sensitivity above the mouse axis.
         if (gamepad.pad) {
             ship.angularVelocity.x += gamepad.rightY * 2.0 * dt;
         }
@@ -2006,6 +2005,15 @@
 
         ship.position.addScaledVector(ship.velocity, dt);
         resolveCollision();
+
+        room.current = getCurrentRoomIndex();
+
+        if (updatePortalActivation()) {
+            camera.position.copy(ship.position);
+            camera.quaternion.copy(ship.quaternion);
+            light.position.copy(ship.position);
+            return;
+        }
 
         ship.angularVelocity.x *= Math.max(0, 1 - ship.angularDrag * dt);
         ship.angularVelocity.y *= Math.max(0, 1 - ship.angularDrag * dt);
@@ -2034,7 +2042,9 @@
         updateInteraction();
 
         const shieldText = shieldEnabled ? 'ON' : 'OFF';
-        const roomText = ship.position.z < room.roomJoinZ ? 'ROOM 2' : 'ROOM 1';
+        const roomText = rooms[room.current]
+            ? rooms[room.current].id
+            : 'ROOM ?';
 
         status.textContent =
             roomText +
