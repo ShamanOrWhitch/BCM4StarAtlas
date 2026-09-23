@@ -1,0 +1,733 @@
+[
+  {
+    "id": "jetjet",
+    "name": "Opal Jetjet",
+    "size": "x-small",
+    "spec": "racer",
+    "rarity": "uncommon",
+    "maker": "Opal",
+    "length": 11.4,
+    "crew": 2,
+    "crewSlots": [
+      {
+        "type": "Pilot",
+        "n": 1
+      },
+      {
+        "type": "Navigator",
+        "n": 1
+      }
+    ],
+    "images": [
+      "/ships/jetjet/0.jpg",
+      "/ships/jetjet/product.jpg",
+      "/ships/jetjet/1.jpg",
+      "/ships/jetjet/2.jpg",
+      "/ships/jetjet/3.jpg",
+      "/ships/jetjet/4.jpg",
+      "/ships/jetjet/5.jpg",
+      "/ships/jetjet/6.jpg"
+    ]
+  },
+  {
+    "id": "greenader",
+    "name": "Fimbul ECOS Greenader",
+    "size": "large",
+    "spec": "bomber",
+    "rarity": "epic",
+    "maker": "Fimbul ECOS",
+    "length": 131,
+    "crew": 20,
+    "crewSlots": [
+      {
+        "type": "Captain",
+        "n": 1
+      },
+      {
+        "type": "Pilot",
+        "n": 1
+      },
+      {
+        "type": "Navigator",
+        "n": 1
+      },
+      {
+        "type": "Engineering Officer",
+        "n": 1
+      },
+      {
+        "type": "Medical Officer",
+        "n": 1
+      },
+      {
+        "type": "Science Officer",
+        "n": 1
+      },
+      {
+        "type": "Security Officer",
+        "n": 4
+      },
+      {
+        "type": "Rig Operator",
+        "n": 1
+      },
+      {
+        "type": "Weapons Operator",
+        "n": 6
+      },
+      {
+        "type": "Operations Foreman",
+        "n": 1
+      },
+      {
+        "type": "Janitor",
+        "n": 2
+      }
+    ],
+    "images": [
+      "/ships/greenader/0.jpg",
+      "/ships/greenader/product.jpg",
+      "/ships/greenader/1.jpg",
+      "/ships/greenader/2.jpg",
+      "/ships/greenader/3.jpg",
+      "/ships/greenader/4.jpg",
+      "/ships/greenader/5.jpg",
+      "/ships/greenader/6.jpg",
+      "/ships/greenader/7.jpg",
+      "/ships/greenader/8.jpg",
+      "/ships/greenader/9.jpg",
+      "/ships/greenader/10.jpg",
+      "/ships/greenader/11.jpg",
+      "/ships/greenader/12.jpg",
+      "/ships/greenader/13.jpg",
+      "/ships/greenader/14.jpg",
+      "/ships/greenader/15.jpg",
+      "/ships/greenader/16.jpg",
+      "/ships/greenader/17.jpg",
+      "/ships/greenader/18.jpg",
+      "/ships/greenader/19.jpg",
+      "/ships/greenader/20.jpg",
+      "/ships/greenader/21.jpg",
+      "/ships/greenader/22.jpg",
+      "/ships/greenader/23.jpg",
+      "/ships/greenader/24.jpg",
+      "/ships/greenader/25.jpg",
+      "/ships/greenader/26.jpg",
+      "/ships/greenader/27.jpg"
+    ]
+  },
+  {
+    "id": "r8",
+    "name": "Pearce R8",
+    "size": "large",
+    "spec": "refuel/repair",
+    "rarity": "epic",
+    "maker": "Pearce",
+    "length": 140,
+    "crew": 15,
+    "crewSlots": [
+      {
+        "type": "Captain",
+        "n": 1
+      },
+      {
+        "type": "Pilot",
+        "n": 1
+      },
+      {
+        "type": "Navigator",
+        "n": 1
+      },
+      {
+        "type": "Engineering Officer",
+        "n": 2
+      },
+      {
+        "type": "Science Officer",
+        "n": 1
+      },
+      {
+        "type": "Security Officer",
+        "n": 2
+      },
+      {
+        "type": "Rig Operator",
+        "n": 3
+      },
+      {
+        "type": "Weapons Operator",
+        "n": 2
+      },
+      {
+        "type": "Operations Foreman",
+        "n": 1
+      },
+      {
+        "type": "Janitor",
+        "n": 1
+      }
+    ],
+    "images": [
+      "/ships/r8/0.jpg",
+      "/ships/r8/product.jpg",
+      "/ships/r8/1.jpg",
+      "/ships/r8/2.jpg",
+      "/ships/r8/3.jpg",
+      "/ships/r8/4.jpg",
+      "/ships/r8/5.jpg",
+      "/ships/r8/6.jpg",
+      "/ships/r8/7.jpg",
+      "/ships/r8/8.jpg",
+      "/ships/r8/9.jpg",
+      "/ships/r8/10.jpg",
+      "/ships/r8/11.jpg",
+      "/ships/r8/12.jpg",
+      "/ships/r8/13.jpg",
+      "/ships/r8/14.jpg",
+      "/ships/r8/15.jpg",
+      "/ships/r8/16.jpg",
+      "/ships/r8/17.jpg"
+    ]
+  },
+  {
+    "id": "chi",
+    "name": "Rainbow Chi",
+    "size": "small",
+    "spec": "fighter",
+    "rarity": "epic",
+    "maker": "Rainbow",
+    "length": 35,
+    "crew": 1,
+    "crewSlots": [
+      {
+        "type": "Pilot",
+        "n": 1
+      }
+    ],
+    "images": [
+      "/ships/chi/0.jpg",
+      "/ships/chi/product.jpg",
+      "/ships/chi/1.jpg",
+      "/ships/chi/2.jpg",
+      "/ships/chi/3.jpg",
+      "/ships/chi/4.jpg",
+      "/ships/chi/5.jpg",
+      "/ships/chi/6.jpg",
+      "/ships/chi/7.jpg",
+      "/ships/chi/8.jpg",
+      "/ships/chi/9.jpg",
+      "/ships/chi/10.jpg",
+      "/ships/chi/11.jpg"
+    ]
+  },
+  {
+    "id": "om",
+    "name": "Rainbow Om",
+    "size": "medium",
+    "spec": "freighter",
+    "rarity": "epic",
+    "maker": "Rainbow",
+    "length": 38.5,
+    "crew": 4,
+    "crewSlots": [
+      {
+        "type": "Pilot",
+        "n": 1
+      },
+      {
+        "type": "Navigator",
+        "n": 1
+      },
+      {
+        "type": "Weapons Operator",
+        "n": 2
+      }
+    ],
+    "images": [
+      "/ships/om/0.jpg",
+      "/ships/om/product.jpg",
+      "/ships/om/1.jpg",
+      "/ships/om/2.jpg",
+      "/ships/om/3.jpg",
+      "/ships/om/4.jpg",
+      "/ships/om/5.jpg",
+      "/ships/om/6.jpg",
+      "/ships/om/7.jpg",
+      "/ships/om/8.jpg"
+    ]
+  },
+  {
+    "id": "compakt",
+    "name": "Calico Compakt Hero",
+    "size": "medium",
+    "spec": "multi-role",
+    "rarity": "rare",
+    "maker": "Calico",
+    "length": 46.6,
+    "crew": 4,
+    "crewSlots": [
+      {
+        "type": "Pilot",
+        "n": 1
+      },
+      {
+        "type": "Navigator",
+        "n": 1
+      },
+      {
+        "type": "Weapons Operator",
+        "n": 2
+      }
+    ],
+    "images": [
+      "/ships/compakt/0.jpg",
+      "/ships/compakt/product.jpg",
+      "/ships/compakt/1.jpg",
+      "/ships/compakt/2.jpg",
+      "/ships/compakt/3.jpg",
+      "/ships/compakt/4.jpg",
+      "/ships/compakt/5.jpg",
+      "/ships/compakt/6.jpg",
+      "/ships/compakt/7.jpg",
+      "/ships/compakt/8.jpg",
+      "/ships/compakt/9.jpg",
+      "/ships/compakt/10.jpg",
+      "/ships/compakt/11.jpg",
+      "/ships/compakt/12.jpg",
+      "/ships/compakt/13.jpg",
+      "/ships/compakt/14.jpg",
+      "/ships/compakt/15.jpg",
+      "/ships/compakt/16.jpg",
+      "/ships/compakt/17.jpg",
+      "/ships/compakt/18.jpg"
+    ]
+  },
+  {
+    "id": "x4",
+    "name": "Pearce X4",
+    "size": "xx-small",
+    "spec": "fighter",
+    "rarity": "common",
+    "maker": "Pearce",
+    "length": 5,
+    "crew": 1,
+    "crewSlots": [
+      {
+        "type": "Pilot",
+        "n": 1
+      }
+    ],
+    "images": [
+      "/ships/x4/0.jpg",
+      "/ships/x4/product.jpg",
+      "/ships/x4/1.jpg",
+      "/ships/x4/2.jpg",
+      "/ships/x4/3.jpg",
+      "/ships/x4/4.jpg",
+      "/ships/x4/5.jpg",
+      "/ships/x4/6.jpg",
+      "/ships/x4/7.jpg",
+      "/ships/x4/8.jpg",
+      "/ships/x4/9.jpg",
+      "/ships/x4/10.jpg",
+      "/ships/x4/11.jpg"
+    ]
+  },
+  {
+    "id": "tufa",
+    "name": "Tufa Feist",
+    "size": "small",
+    "spec": "fighter",
+    "rarity": "epic",
+    "maker": "Tufa",
+    "length": 20.9,
+    "crew": 2,
+    "crewSlots": [
+      {
+        "type": "Pilot",
+        "n": 1
+      },
+      {
+        "type": "Navigator",
+        "n": 1
+      }
+    ],
+    "images": [
+      "/ships/tufa/0.jpg",
+      "/ships/tufa/product.jpg",
+      "/ships/tufa/1.jpg",
+      "/ships/tufa/2.jpg",
+      "/ships/tufa/3.jpg",
+      "/ships/tufa/4.jpg",
+      "/ships/tufa/5.jpg",
+      "/ships/tufa/6.jpg",
+      "/ships/tufa/7.jpg",
+      "/ships/tufa/8.jpg",
+      "/ships/tufa/9.jpg",
+      "/ships/tufa/10.jpg"
+    ]
+  },
+  {
+    "id": "airbike",
+    "name": "Fimbul Airbike",
+    "size": "xx-small",
+    "spec": "racer",
+    "rarity": "common",
+    "maker": "Fimbul",
+    "length": 3.3,
+    "crew": 1,
+    "crewSlots": [
+      {
+        "type": "Pilot",
+        "n": 1
+      }
+    ],
+    "images": [
+      "/ships/airbike/0.jpg",
+      "/ships/airbike/product.jpg",
+      "/ships/airbike/1.jpg",
+      "/ships/airbike/2.jpg",
+      "/ships/airbike/3.jpg",
+      "/ships/airbike/4.jpg",
+      "/ships/airbike/5.jpg",
+      "/ships/airbike/6.jpg",
+      "/ships/airbike/7.jpg",
+      "/ships/airbike/8.jpg",
+      "/ships/airbike/9.jpg",
+      "/ships/airbike/10.jpg",
+      "/ships/airbike/11.jpg",
+      "/ships/airbike/12.jpg",
+      "/ships/airbike/13.jpg",
+      "/ships/airbike/14.jpg",
+      "/ships/airbike/15.jpg",
+      "/ships/airbike/16.jpg",
+      "/ships/airbike/17.jpg"
+    ]
+  },
+  {
+    "id": "unibomba",
+    "name": "Fimbul ECOS Unibomba",
+    "size": "xx-small",
+    "spec": "bomber",
+    "rarity": "epic",
+    "maker": "Fimbul ECOS",
+    "length": 4.67,
+    "crew": 1,
+    "crewSlots": [
+      {
+        "type": "Pilot",
+        "n": 1
+      }
+    ],
+    "images": [
+      "/ships/unibomba/0.jpg",
+      "/ships/unibomba/product.jpg",
+      "/ships/unibomba/1.jpg",
+      "/ships/unibomba/2.jpg",
+      "/ships/unibomba/3.jpg",
+      "/ships/unibomba/4.jpg"
+    ]
+  },
+  {
+    "id": "arc",
+    "name": "Rainbow Arc",
+    "size": "large",
+    "spec": "freighter",
+    "rarity": "epic",
+    "maker": "Rainbow",
+    "length": 130,
+    "crew": 14,
+    "crewSlots": [
+      {
+        "type": "Captain",
+        "n": 1
+      },
+      {
+        "type": "Pilot",
+        "n": 1
+      },
+      {
+        "type": "Navigator",
+        "n": 1
+      },
+      {
+        "type": "Engineering Officer",
+        "n": 2
+      },
+      {
+        "type": "Security Officer",
+        "n": 2
+      },
+      {
+        "type": "Rig Operator",
+        "n": 1
+      },
+      {
+        "type": "Weapons Operator",
+        "n": 2
+      },
+      {
+        "type": "Operations Foreman",
+        "n": 3
+      },
+      {
+        "type": "Janitor",
+        "n": 1
+      }
+    ],
+    "images": [
+      "/ships/arc/0.jpg",
+      "/ships/arc/product.jpg",
+      "/ships/arc/1.jpg",
+      "/ships/arc/2.jpg",
+      "/ships/arc/3.jpg",
+      "/ships/arc/4.jpg",
+      "/ships/arc/5.jpg",
+      "/ships/arc/6.jpg",
+      "/ships/arc/7.jpg",
+      "/ships/arc/8.jpg",
+      "/ships/arc/9.jpg",
+      "/ships/arc/10.jpg",
+      "/ships/arc/11.jpg",
+      "/ships/arc/12.jpg",
+      "/ships/arc/13.jpg",
+      "/ships/arc/14.jpg",
+      "/ships/arc/15.jpg",
+      "/ships/arc/16.jpg",
+      "/ships/arc/17.jpg",
+      "/ships/arc/18.jpg",
+      "/ships/arc/19.jpg",
+      "/ships/arc/20.jpg",
+      "/ships/arc/21.jpg",
+      "/ships/arc/22.jpg"
+    ]
+  },
+  {
+    "id": "bitboat",
+    "name": "Opal Bitboat",
+    "size": "large",
+    "spec": "transport",
+    "rarity": "epic",
+    "maker": "Opal",
+    "length": 125,
+    "crew": 21,
+    "crewSlots": [
+      {
+        "type": "Captain",
+        "n": 1
+      },
+      {
+        "type": "Pilot",
+        "n": 1
+      },
+      {
+        "type": "Navigator",
+        "n": 1
+      },
+      {
+        "type": "Engineering Officer",
+        "n": 1
+      },
+      {
+        "type": "Medical Officer",
+        "n": 1
+      },
+      {
+        "type": "Security Officer",
+        "n": 4
+      },
+      {
+        "type": "Rig Operator",
+        "n": 1
+      },
+      {
+        "type": "Weapons Operator",
+        "n": 2
+      },
+      {
+        "type": "Operations Foreman",
+        "n": 1
+      },
+      {
+        "type": "Hospitality Manager",
+        "n": 2
+      },
+      {
+        "type": "Chef",
+        "n": 1
+      },
+      {
+        "type": "Janitor",
+        "n": 3
+      },
+      {
+        "type": "Mixologist",
+        "n": 2
+      }
+    ],
+    "images": [
+      "/ships/bitboat/0.jpg",
+      "/ships/bitboat/product.png",
+      "/ships/bitboat/1.jpg",
+      "/ships/bitboat/2.jpg",
+      "/ships/bitboat/3.png",
+      "/ships/bitboat/4.jpg",
+      "/ships/bitboat/5.jpg",
+      "/ships/bitboat/6.jpg",
+      "/ships/bitboat/7.png",
+      "/ships/bitboat/8.png",
+      "/ships/bitboat/9.png",
+      "/ships/bitboat/10.png",
+      "/ships/bitboat/11.png"
+    ]
+  },
+  {
+    "id": "sunpaa",
+    "name": "Ogrika Sunpaa",
+    "size": "large",
+    "spec": "freighter",
+    "rarity": "epic",
+    "maker": "Ogrika",
+    "length": 128,
+    "crew": 19,
+    "crewSlots": [
+      {
+        "type": "Captain",
+        "n": 1
+      },
+      {
+        "type": "Pilot",
+        "n": 1
+      },
+      {
+        "type": "Navigator",
+        "n": 1
+      },
+      {
+        "type": "Engineering Officer",
+        "n": 2
+      },
+      {
+        "type": "Medical Officer",
+        "n": 1
+      },
+      {
+        "type": "Security Officer",
+        "n": 3
+      },
+      {
+        "type": "Rig Operator",
+        "n": 1
+      },
+      {
+        "type": "Weapons Operator",
+        "n": 4
+      },
+      {
+        "type": "Operations Foreman",
+        "n": 3
+      },
+      {
+        "type": "Janitor",
+        "n": 1
+      },
+      {
+        "type": "Mixologist",
+        "n": 1
+      }
+    ],
+    "images": [
+      "/ships/sunpaa/0.jpg",
+      "/ships/sunpaa/product.jpg",
+      "/ships/sunpaa/1.jpg",
+      "/ships/sunpaa/2.jpg",
+      "/ships/sunpaa/3.jpg",
+      "/ships/sunpaa/4.jpg",
+      "/ships/sunpaa/5.jpg",
+      "/ships/sunpaa/6.jpg",
+      "/ships/sunpaa/7.jpg",
+      "/ships/sunpaa/8.jpg",
+      "/ships/sunpaa/9.jpg",
+      "/ships/sunpaa/10.jpg",
+      "/ships/sunpaa/11.jpg",
+      "/ships/sunpaa/12.jpg",
+      "/ships/sunpaa/13.jpg",
+      "/ships/sunpaa/14.jpg",
+      "/ships/sunpaa/15.jpg",
+      "/ships/sunpaa/16.jpg",
+      "/ships/sunpaa/17.jpg",
+      "/ships/sunpaa/18.jpg"
+    ]
+  },
+  {
+    "id": "mamba-ex",
+    "name": "Fimbul Mamba EX",
+    "size": "medium",
+    "spec": "bounty hunter",
+    "rarity": "epic",
+    "maker": "Fimbul",
+    "length": 43,
+    "crew": 5,
+    "crewSlots": [
+      {
+        "type": "Pilot",
+        "n": 1
+      },
+      {
+        "type": "Navigator",
+        "n": 1
+      },
+      {
+        "type": "Security Officer",
+        "n": 1
+      },
+      {
+        "type": "Weapons Operator",
+        "n": 2
+      }
+    ],
+    "images": [
+      "/ships/mamba-ex/0.jpg",
+      "/ships/mamba-ex/product.jpg",
+      "/ships/mamba-ex/1.jpg",
+      "/ships/mamba-ex/2.jpg",
+      "/ships/mamba-ex/3.jpg",
+      "/ships/mamba-ex/4.jpg",
+      "/ships/mamba-ex/5.jpg",
+      "/ships/mamba-ex/6.jpg",
+      "/ships/mamba-ex/7.jpg",
+      "/ships/mamba-ex/8.jpg",
+      "/ships/mamba-ex/9.jpg"
+    ]
+  },
+  {
+    "id": "ruch",
+    "name": "Ogrika Ruch",
+    "size": "xx-small",
+    "spec": "racer",
+    "rarity": "common",
+    "maker": "Ogrika",
+    "length": 11,
+    "crew": 1,
+    "crewSlots": [
+      {
+        "type": "Pilot",
+        "n": 1
+      }
+    ],
+    "images": [
+      "/ships/ruch/0.jpg",
+      "/ships/ruch/product.jpg",
+      "/ships/ruch/1.jpg",
+      "/ships/ruch/2.jpg",
+      "/ships/ruch/3.jpg",
+      "/ships/ruch/4.jpg",
+      "/ships/ruch/5.jpg",
+      "/ships/ruch/6.jpg",
+      "/ships/ruch/7.jpg",
+      "/ships/ruch/8.jpg",
+      "/ships/ruch/9.jpg",
+      "/ships/ruch/10.jpg"
+    ]
+  }
+]
