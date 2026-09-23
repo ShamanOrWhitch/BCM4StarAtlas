@@ -397,3 +397,70 @@
 .bcm-mini-sim-transition-close:hover{
     background:rgba(30,30,30,.82);
 }
+
+
+/* 0.5.1 settings layer: PHP already provides the menu markup. */
+.bcm-mini-sim-settings{
+    position:absolute;
+    inset:0;
+    z-index:40;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    box-sizing:border-box;
+    background:rgba(0,0,0,.72);
+    backdrop-filter:blur(3px);
+}
+.bcm-mini-sim-settings[hidden]{
+    display:none !important;
+}
+.bcm-mini-sim-settings-card{
+    width:min(520px,92%);
+    max-height:90%;
+    overflow:auto;
+    box-sizing:border-box;
+    padding:26px;
+    border:1px solid rgba(255,255,255,.28);
+    border-radius:4px;
+    background:rgba(8,12,18,.96);
+    color:#fff;
+    box-shadow:0 20px 70px rgba(0,0,0,.65);
+}
+.bcm-mini-sim-settings-card h2{
+    margin:0 0 22px;
+    font-size:20px;
+    letter-spacing:3px;
+}
+.bcm-mini-sim-settings-card label{
+    display:block;
+    margin:0 0 16px;
+    font-size:13px;
+    line-height:1.45;
+}
+.bcm-mini-sim-settings-card input[type="range"],
+.bcm-mini-sim-settings-card select{
+    width:100%;
+    margin-top:8px;
+    box-sizing:border-box;
+}
+.bcm-mini-sim-settings-card input[type="checkbox"]{
+    margin-right:8px;
+    vertical-align:middle;
+}
+.bcm-mini-sim-settings-card p{
+    margin:18px 0;
+    font-size:11px;
+    line-height:1.5;
+    opacity:.7;
+}
+.bcm-mini-sim-settings-card button{
+    padding:9px 16px;
+    border:1px solid rgba(255,255,255,.35);
+    background:rgba(255,255,255,.06);
+    color:#fff;
+    cursor:pointer;
+}
+.bcm-mini-sim-settings-card button:hover{
+    background:rgba(255,255,255,.12);
+}
