@@ -27,48 +27,79 @@
         }
     });
 
-    function findExactAsset(name) {
-        const exact = assetByName[name];
-        if (exact) return exact.url;
-
+    function findAssetRecord(name, type) {
         const wanted = String(name).toLowerCase();
-        const key = Object.keys(assetByName).find(path =>
-            path.toLowerCase() === wanted
-        );
+        const keys = Object.keys(assetByName);
 
-        return key ? assetByName[key].url : '';
+        for (const key of keys) {
+            const asset = assetByName[key];
+            if (
+                key.toLowerCase() === wanted &&
+                (!type || asset.type === type)
+            ) {
+                return asset;
+            }
+        }
+
+        const wantedBase = wanted.replace(/\.[^.]+$/i, '');
+
+        for (const key of keys) {
+            const asset = assetByName[key];
+            if (type && asset.type !== type) continue;
+
+            const base = key
+                .toLowerCase()
+                .replace(/\.[^.]+$/i, '');
+
+            if (base === wantedBase) {
+                return asset;
+            }
+        }
+
+        return null;
+    }
+
+    function findExactAsset(name) {
+        const asset = findAssetRecord(name);
+        return asset ? asset.url : '';
     }
 
     function findImageAsset(name) {
         const requested = String(name);
-        const lower = requested.toLowerCase();
-        const match = lower.match(/^(.*)\\.(png|jpg|jpeg|webp|gif)$/i);
+        const exact = findAssetRecord(requested, 'image');
 
-        if (!match) {
-            return findExactAsset(requested);
-        }
+        if (exact) return exact.url;
 
-        const base = match[1];
+        const base = requested.replace(/\.[^.]+$/i, '');
         const extensions = ['webp', 'jpg', 'jpeg', 'png', 'gif'];
 
-        // Prefer WebP/JPG/JPEG as optional light variants, but keep PNG as
-        // the canonical fallback supplied by the project.
         for (const extension of extensions) {
-            const candidate = base + '.' + extension;
-            const key = Object.keys(assetByName).find(path =>
-                path.toLowerCase() === candidate
-            );
-
-            if (key) return assetByName[key].url;
+            const asset = findAssetRecord(base + '.' + extension, 'image');
+            if (asset) return asset.url;
         }
 
         return '';
     }
 
+    function findVideoAsset(name) {
+        const asset = findAssetRecord(name, 'video');
+        if (!asset) return null;
+
+        return {
+            record: asset,
+            url: asset.streamUrl || asset.url,
+            directUrl: asset.url
+        };
+    }
+
     function findAsset(name) {
-        return /\\.(png|jpg|jpeg|webp|gif)$/i.test(String(name))
-            ? findImageAsset(name)
-            : findExactAsset(name);
+        const image = findAssetRecord(name, 'image');
+        if (image) return image.url;
+
+        const video = findAssetRecord(name, 'video');
+        if (video) return video.url;
+
+        return findExactAsset(name);
     }
 
     let renderer;
@@ -112,16 +143,31 @@
         mesh: null,
         leftPanel: null,
         rightPanel: null,
-        frameParts: []
+        frameParts: [],
+        mode: 'slide',
+        closeSpeed: 2.2,
+        awayTimer: 0
     };
 
     const portal = {
         point: 'PORTAL 1 → ROOM 2',
-        image: 'portal.png',
-        video: 'portal2.mp4',
+        image: 'portal1.png',
+        video: 'portal1.mp4',
         position: null,
         mesh: null,
-        surface: null
+        surface: null,
+        width: 4.8,
+        height: 6.0,
+        targetRoom: 1,
+        targetPosition: [0, 0, -47.0],
+        randomPairs: [
+            { image: 'portal1.png', video: 'portal1.mp4', label: 'PORTAL 1' },
+            { image: 'portal2.png', video: 'portal2.mp4', label: 'PORTAL 2' },
+            { image: 'portal3.png', video: 'portal3.mp4', label: 'PORTAL 3' }
+        ],
+        serial: 0,
+        randomTimer: 0,
+        lastRandomKey: ''
     };
 
     const tilt = {
@@ -136,6 +182,19 @@
         yawOffset: 0
     };
 
+    const graphicsSettings = {
+        quality: 'high',
+        effects: true
+    };
+
+    const menuState = {
+        open: false,
+        historyArmed: false
+    };
+
+    let musicStarted = false;
+    let mediaTransitionSerial = 0;
+
     const gamepad = {
         pad: null,
         index: -1,
@@ -149,6 +208,7 @@
     };
 
     const room = {
+        current: 0,
         firstMinZ: -32.0,
         firstMaxZ: 6.0,
         secondMinZ: -74.0,
@@ -209,23 +269,49 @@
     function loadImageTexture(name, url, onReady, onError, options = {}) {
         const existing = textureRecords[name];
 
+        const makeTexture = (source, imageMeta) => {
+            const texture = new THREE.Texture(source);
+
+            if (options.repeat) {
+                setImageTexture(
+                    texture,
+                    imageMeta,
+                    options.targetWidth || 1,
+                    options.targetHeight || 1,
+                    options.repeat
+                );
+            } else {
+                setImageTexture(
+                    texture,
+                    imageMeta,
+                    options.targetWidth || imageMeta.width,
+                    options.targetHeight || imageMeta.height
+                );
+            }
+
+            return texture;
+        };
+
         if (existing) {
-            if (existing.texture) {
-                if (onReady) onReady(existing.texture, existing.image);
+            if (existing.source) {
+                if (onReady) onReady(
+                    makeTexture(existing.source, existing.image),
+                    existing.image
+                );
             } else if (existing.failed) {
                 if (onError) onError(new Error('IMAGE_ASSET_FAILED'));
             } else {
-                existing.callbacks.push({ onReady, onError });
+                existing.callbacks.push({ onReady, onError, options });
             }
 
             return;
         }
 
         const record = {
-            texture: null,
+            source: null,
             image: null,
             failed: false,
-            callbacks: [{ onReady, onError }]
+            callbacks: [{ onReady, onError, options }]
         };
 
         textureRecords[name] = record;
@@ -234,6 +320,21 @@
 
         const image = new Image();
         image.decoding = 'async';
+        image.crossOrigin = 'anonymous';
+
+        const fail = error => {
+            record.failed = true;
+            textureStats.failed++;
+            textureStats.loaded++;
+            textureStats.failedNames.push(name);
+            updateAssetStatus();
+
+            record.callbacks.forEach(callback => {
+                if (callback.onError) callback.onError(error);
+            });
+            record.callbacks.length = 0;
+        };
+
         image.onload = () => {
             try {
                 let source = image;
@@ -244,11 +345,18 @@
                     throw new Error('IMAGE_DIMENSIONS_MISSING');
                 }
 
+                const qualityMax =
+                    graphicsSettings.quality === 'low'
+                        ? 768
+                        : graphicsSettings.quality === 'medium'
+                            ? 1280
+                            : 2048;
+
                 const maxDimension = Math.min(
-                    2048,
+                    qualityMax,
                     renderer && renderer.capabilities
                         ? renderer.capabilities.maxTextureSize
-                        : 2048
+                        : qualityMax
                 );
 
                 if (Math.max(width, height) > maxDimension) {
@@ -266,63 +374,39 @@
                     }
 
                     context.imageSmoothingEnabled = true;
-                    context.imageSmoothingQuality = 'high';
+                    context.imageSmoothingQuality =
+                        graphicsSettings.quality === 'low' ? 'medium' : 'high';
                     context.drawImage(image, 0, 0, width, height);
                     source = scaled;
                 }
 
-                const texture = new THREE.Texture(source);
-                if (options.repeat) {
-                    setImageTexture(texture, image, options.targetWidth || 1, options.targetHeight || 1, options.repeat);
-                } else {
-                    setImageTexture(texture, image, options.targetWidth || width, options.targetHeight || height);
-                }
-
-                record.texture = texture;
-                record.image = {
-                    width,
-                    height
-                };
+                record.source = source;
+                record.image = { width, height };
                 record.failed = false;
 
                 textureStats.loaded++;
                 updateAssetStatus();
 
                 record.callbacks.forEach(callback => {
-                    if (callback.onReady) callback.onReady(texture, record.image);
+                    if (callback.onReady) {
+                        callback.onReady(
+                            makeTexture(source, record.image),
+                            record.image
+                        );
+                    }
                 });
                 record.callbacks.length = 0;
             } catch (error) {
-                record.failed = true;
-                textureStats.failed++;
-                textureStats.loaded++;
-                textureStats.failedNames.push(name);
-
-                updateAssetStatus();
-
-                record.callbacks.forEach(callback => {
-                    if (callback.onError) callback.onError(error);
-                });
-                record.callbacks.length = 0;
+                fail(error);
             }
         };
 
         image.onerror = () => {
-            record.failed = true;
-            textureStats.failed++;
-            textureStats.loaded++;
-            textureStats.failedNames.push(name);
-            updateAssetStatus();
-
-            record.callbacks.forEach(callback => {
-                if (callback.onError) callback.onError(new Error('IMAGE_LOAD_FAILED'));
-            });
-            record.callbacks.length = 0;
+            fail(new Error('IMAGE_LOAD_FAILED'));
         };
 
         image.src = url;
     }
-
     function wallMaterial(name, fallback = 0x58616c, targetWidth = 1, targetHeight = 1) {
         const material = new THREE.MeshBasicMaterial({
             color: fallback,
@@ -393,12 +477,6 @@
             options.width,
             options.length
         );
-        const ceilingMat = wallMaterial(
-            options.ceiling,
-            options.ceilingColor,
-            options.width,
-            options.length
-        );
         const leftMat = wallMaterial(
             options.left,
             options.leftColor,
@@ -412,10 +490,73 @@
             options.height
         );
 
-        addPlane(parent, 0, -3.5, options.centerZ, options.width, options.length, -Math.PI / 2, 0, 0, floorMat);
-        addPlane(parent, 0, 3.5, options.centerZ, options.width, options.length, Math.PI / 2, 0, 0, ceilingMat);
-        addPlane(parent, -options.width / 2, 0, options.centerZ, options.length, options.height, 0, Math.PI / 2, 0, leftMat);
-        addPlane(parent, options.width / 2, 0, options.centerZ, options.length, options.height, 0, -Math.PI / 2, 0, rightMat);
+        addPlane(
+            parent,
+            0,
+            -3.5,
+            options.centerZ,
+            options.width,
+            options.length,
+            -Math.PI / 2,
+            0,
+            0,
+            floorMat
+        );
+
+        const hasRoof = ['roof.png', 'roof1.png', 'roof2.png', 'roof3.png']
+            .some(name => !!findImageAsset(name));
+
+        const roofNames = hasRoof
+            ? ['roof.png', 'roof1.png', 'roof2.png', 'roof3.png']
+            : [options.ceiling];
+
+        const roofEndNames = [
+            'roofa.png',
+            'roofa1.png',
+            'roofa2.png',
+            'roofa3.png'
+        ];
+
+        const segmentLength = 6;
+        const startZ = options.centerZ - options.length / 2;
+        const endZ = options.centerZ + options.length / 2;
+        let index = 0;
+
+        for (let z = startZ + segmentLength / 2; z < endZ - 0.01; z += segmentLength) {
+            const remaining = endZ - z;
+            const len = Math.min(segmentLength, remaining + segmentLength / 2);
+            const isFirst = index === 0;
+            const isLast = z + segmentLength / 2 >= endZ - 0.01;
+
+            const desired =
+                isFirst || isLast
+                    ? roofEndNames[index % roofEndNames.length]
+                    : roofNames[index % roofNames.length];
+
+            const roofName = findImageAsset(desired)
+                ? desired
+                : roofNames[index % roofNames.length];
+
+            addPlane(
+                parent,
+                0,
+                3.5,
+                z,
+                options.width,
+                Math.max(0.4, Math.min(segmentLength, len)),
+                Math.PI / 2,
+                0,
+                0,
+                wallMaterial(
+                    roofName,
+                    options.ceilingColor,
+                    options.width,
+                    Math.max(0.4, Math.min(segmentLength, len))
+                )
+            );
+
+            index++;
+        }
 
         const structure = new THREE.MeshStandardMaterial({
             color: options.structureColor,
@@ -423,7 +564,11 @@
             roughness: 0.28
         });
 
-        for (let z = options.centerZ - options.length / 2 + 2; z < options.centerZ + options.length / 2; z += 6) {
+        for (
+            let z = startZ + 2;
+            z < endZ;
+            z += 6
+        ) {
             addBeam(parent, 0, 3.05, z, options.width, 0.26, 0.42, structure);
             addBeam(parent, -options.width / 2 + 0.18, 0, z, 0.32, options.height, 0.32, structure);
             addBeam(parent, options.width / 2 - 0.18, 0, z, 0.32, options.height, 0.32, structure);
@@ -440,7 +585,7 @@
             parent,
             0,
             0,
-            options.centerZ + options.length / 2 - 0.28,
+            endZ - 0.28,
             options.width,
             options.height,
             0,
@@ -449,11 +594,9 @@
             accent
         );
     }
-
     function buildWorld() {
         const world = new THREE.Group();
 
-        // Room 1: the pilot test corridor.
         buildTexturedRoom(world, {
             centerZ: -13,
             width: 12,
@@ -472,8 +615,6 @@
             structureColor: 0x202731
         });
 
-        // Room 2: same scale, intentionally different texture assignment
-        // and structural pattern to make the transition visibly meaningful.
         buildTexturedRoom(world, {
             centerZ: -58,
             width: 12,
@@ -492,14 +633,13 @@
             structureColor: 0x161d25
         });
 
-        // Room 1 back wall around the single portal: actual hole, not three
-        // conflicting portal surfaces.
         const wallMaterial5 = wallMaterial(
             'wall5.png',
             0x58616c,
             2.8,
             7.5
         );
+
         addBeam(world, -4.6, 0, -32.0, 2.8, 7.5, 0.5, wallMaterial5);
         addBeam(world, 4.6, 0, -32.0, 2.8, 7.5, 0.5, wallMaterial5);
         addBeam(world, 0, 2.95, -32.0, 6.2, 1.0, 0.5, wallMaterial5);
@@ -510,7 +650,6 @@
         buildDoor();
         buildPortal();
     }
-
     function buildDoor() {
         const group = new THREE.Group();
         group.position.set(0, 0, -18);
@@ -530,12 +669,16 @@
 
         const leftMaterial = new THREE.MeshBasicMaterial({
             color: 0xffffff,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 1
         });
 
         const rightMaterial = new THREE.MeshBasicMaterial({
             color: 0xffffff,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 1
         });
 
         const left = addPlane(group, -1.525, 0, -0.39, 3.05, 6.1, 0, 0, 0, leftMaterial);
@@ -573,8 +716,9 @@
         testDoor.mesh = group;
         testDoor.leftPanel = left;
         testDoor.rightPanel = right;
-    }
 
+        applyDoorAnimation();
+    }
     function buildPortal() {
         const group = new THREE.Group();
         group.position.set(0, 0, -31.72);
@@ -587,47 +731,40 @@
             emissiveIntensity: 0.75
         });
 
-        const width = 3.8;
-        const height = 6.1;
+        const width = portal.width;
+        const height = portal.height;
 
         addBeam(group, 0, 3.32, 0, 4.5, 0.52, 0.45, frameMaterial);
         addBeam(group, 0, -3.32, 0, 4.5, 0.52, 0.45, frameMaterial);
-        addBeam(group, -2.16, 0, 0, 0.52, 6.1, 0.45, frameMaterial);
-        addBeam(group, 2.16, 0, 0, 0.52, 6.1, 0.45, frameMaterial);
+        addBeam(group, -2.42, 0, 0, 0.52, 6.1, 0.45, frameMaterial);
+        addBeam(group, 2.42, 0, 0, 0.52, 6.1, 0.45, frameMaterial);
 
         const opening = new THREE.MeshBasicMaterial({
-            color: 0x03070c,
+            color: 0xffffff,
             side: THREE.DoubleSide
         });
 
-        const surface = addPlane(group, 0, 0, -0.18, width, height, 0, 0, 0, opening);
+        const surface = addPlane(
+            group,
+            0,
+            0,
+            -0.18,
+            width,
+            height,
+            0,
+            0,
+            0,
+            opening
+        );
 
-        portal.position = new THREE.Vector3(0, 0, -31.72);
+        portal.position = group.position.clone();
         portal.mesh = group;
         portal.surface = surface;
 
         scene.add(group);
 
-        const url = findImageAsset(portal.image);
-
-        if (url) {
-            loadImageTexture(
-                'portal-image',
-                url,
-                texture => {
-                    surface.material.map = texture;
-                    surface.material.color.set(0xffffff);
-                    surface.material.needsUpdate = true;
-                },
-                null,
-                {
-                    targetWidth: width,
-                    targetHeight: height
-                }
-            );
-        }
+        applyPortalAppearance();
     }
-
     function buildSecondRoomArrivalMarker() {
         const material = new THREE.MeshBasicMaterial({
             color: 0x0b121b,
@@ -667,6 +804,147 @@
         }
     }
 
+    function applyPortalAppearance() {
+        if (!portal.surface) return;
+
+        portal.serial++;
+        const serial = portal.serial;
+        const imageUrl = findImageAsset(portal.image);
+        const imageName = portal.image;
+
+        portal.surface.material.map = null;
+        portal.surface.material.color.set(0xffffff);
+        portal.surface.material.needsUpdate = true;
+
+        if (!imageUrl) {
+            status.textContent =
+                'PORTAL · ' + imageName + ' MISSING · WAITING / FALLBACK AVAILABLE';
+            return;
+        }
+
+        loadImageTexture(
+            'portal-image-source',
+            imageUrl,
+            texture => {
+                if (serial !== portal.serial || portal.surface === null) return;
+
+                portal.surface.material.map = texture;
+                portal.surface.material.color.set(0xffffff);
+                portal.surface.material.needsUpdate = true;
+            },
+            () => {
+                if (serial !== portal.serial) return;
+                portal.surface.material.map = null;
+                portal.surface.material.color.set(0xffffff);
+                portal.surface.material.needsUpdate = true;
+            },
+            {
+                targetWidth: portal.width,
+                targetHeight: portal.height
+            }
+        );
+    }
+
+    function availablePortalPairs() {
+        return portal.randomPairs.filter(pair =>
+            !!findAssetRecord(pair.image, 'image') &&
+            !!findAssetRecord(pair.video, 'video')
+        );
+    }
+
+    function randomizeStartPortal(forceInitial) {
+        const ready = availablePortalPairs();
+
+        if (!ready.length) {
+            portal.image = 'portal1.png';
+            portal.video = 'portal1.mp4';
+            applyPortalAppearance();
+            return false;
+        }
+
+        let selected = ready[0];
+
+        if (!forceInitial) {
+            const choices = ready.filter(pair => {
+                const key = pair.image + '|' + pair.video;
+                return key !== portal.lastRandomKey;
+            });
+
+            const pool = choices.length ? choices : ready;
+            selected = pool[Math.floor(Math.random() * pool.length)];
+        }
+
+        portal.image = selected.image;
+        portal.video = selected.video;
+        portal.point = selected.label + ' → ROOM 2';
+        portal.lastRandomKey = selected.image + '|' + selected.video;
+        applyPortalAppearance();
+        return true;
+    }
+
+    function getPortalScreenMetrics() {
+        if (!portal.surface || !camera) {
+            return { visibleRatio: 0 };
+        }
+
+        const geometry = portal.surface.geometry;
+        geometry.computeBoundingBox();
+
+        const min = geometry.boundingBox.min;
+        const max = geometry.boundingBox.max;
+
+        const corners = [
+            new THREE.Vector3(min.x, min.y, 0),
+            new THREE.Vector3(max.x, min.y, 0),
+            new THREE.Vector3(max.x, max.y, 0),
+            new THREE.Vector3(min.x, max.y, 0)
+        ];
+
+        const projected = corners.map(point => {
+            portal.surface.localToWorld(point);
+            return point.project(camera);
+        });
+
+        const xs = projected.map(p => p.x);
+        const ys = projected.map(p => p.y);
+
+        const width = Math.max(0, Math.min(1, (Math.min(1, Math.max(...xs)) - Math.max(-1, Math.min(...xs))) / 2));
+        const height = Math.max(0, Math.min(1, (Math.min(1, Math.max(...ys)) - Math.max(-1, Math.min(...ys))) / 2));
+
+        return {
+            visibleRatio: width * height
+        };
+    }
+
+    function getAutoPortalCandidate() {
+        if (
+            room.current !== 0 ||
+            !portal.position ||
+            transitionBusy ||
+            !findAssetRecord(portal.image, 'image') ||
+            !findAssetRecord(portal.video, 'video')
+        ) {
+            return false;
+        }
+
+        const toPortal = portal.position.clone().sub(ship.position);
+        const distance = toPortal.length();
+
+        if (distance > 9.5) return false;
+
+        const forward = new THREE.Vector3(0, 0, -1)
+            .applyQuaternion(ship.quaternion)
+            .normalize();
+
+        const facing = distance
+            ? forward.dot(toPortal.normalize())
+            : 1;
+
+        if (facing < 0.38) return false;
+
+        return getPortalScreenMetrics().visibleRatio >= 0.69;
+    }
+
     function createPortalTransitionUI() {
         if (root.querySelector('.bcm-mini-sim-transition')) return;
 
@@ -699,8 +977,9 @@
     let transitionUI = null;
     let transitionBusy = false;
 
-    function startPortalTransition() {
+    function startPortalTransition(reason = 'G') {
         if (!running || transitionBusy) return false;
+        if (!portal.position) return false;
 
         const distance = ship.position.distanceTo(portal.position);
 
@@ -714,83 +993,164 @@
             : 1;
 
         if (distance > 9.5 || facing < 0.30) {
-            status.textContent = 'PORTAL · APPROACH AND FACE THE GATE';
+            if (reason !== 'AUTO') {
+                status.textContent = 'PORTAL · APPROACH AND FACE THE GATE';
+            }
             return false;
         }
 
-        const url = findExactAsset(portal.video);
+        const videoAsset = findVideoAsset(portal.video);
 
-        if (!url) {
-            status.textContent = 'PORTAL · VIDEO ASSET MISSING';
+        if (!videoAsset) {
+            status.textContent = 'PORTAL · VIDEO ' + portal.video + ' MISSING';
             return false;
         }
 
         transitionUI = transitionUI || createPortalTransitionUI();
 
         transitionBusy = true;
+        mediaTransitionSerial++;
+        const serial = mediaTransitionSerial;
+
         transitionUI.wrapper.hidden = false;
-        transitionUI.label.textContent = 'ПЕРЕХОД · ROOM 1 → ROOM 2';
+        transitionUI.label.textContent =
+            'ПЕРЕХОД · ' + portal.point + (reason === 'AUTO' ? ' · AUTO 69%' : '');
 
         const video = transitionUI.video;
+        const directUrl = videoAsset.directUrl;
+        let activeUrl = videoAsset.url;
+        let fallbackUsed = false;
+        let settled = false;
+        let timer = null;
 
-        video.pause();
-        video.removeAttribute('src');
-        video.load();
-        video.src = url;
-        video.currentTime = 0;
-        video.preload = 'auto';
-        video.muted = false;
-        video.load();
+        const cleanup = () => {
+            if (timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
+
+            video.removeEventListener('ended', onEnded);
+            video.removeEventListener('error', onError);
+        };
 
         const finish = success => {
+            if (settled || serial !== mediaTransitionSerial) return;
+            settled = true;
+            cleanup();
+
             video.pause();
             video.removeAttribute('src');
             video.load();
             transitionUI.wrapper.hidden = true;
 
             if (success) {
-                ship.position.set(0, 0, -47.0);
+                ship.position.set(
+                    portal.targetPosition[0],
+                    portal.targetPosition[1],
+                    portal.targetPosition[2]
+                );
                 ship.velocity.set(0, 0, 0);
                 ship.angularVelocity.set(0, 0, 0);
                 ship.quaternion.identity();
+                room.current = portal.targetRoom;
 
-                status.textContent = 'ROOM 2 · ARRIVED';
+                status.textContent = 'ROOM 2 · ARRIVED · VIDEO COMPLETE';
             } else {
-                status.textContent = 'PORTAL · VIDEO FAILED';
+                status.textContent = 'PORTAL · VIDEO FAILED · FLIGHT CONTINUES';
             }
 
             transitionBusy = false;
+            updateInteraction();
         };
 
-        const onEnded = () => {
-            video.removeEventListener('ended', onEnded);
-            video.removeEventListener('error', onError);
-            finish(true);
-        };
+        const onEnded = () => finish(true);
 
         const onError = () => {
-            video.removeEventListener('ended', onEnded);
-            video.removeEventListener('error', onError);
+            if (!fallbackUsed && activeUrl !== directUrl && directUrl) {
+                fallbackUsed = true;
+                activeUrl = directUrl;
+                video.src = directUrl;
+                video.load();
+                playVideo();
+                return;
+            }
+
             finish(false);
         };
 
-        video.addEventListener('ended', onEnded, { once: true });
-        video.addEventListener('error', onError, { once: true });
+        const playVideo = () => {
+            if (settled) return;
 
-        const promise = video.play();
+            const promise = video.play();
 
-        if (promise && typeof promise.catch === 'function') {
-            promise.catch(() => {
-                video.removeEventListener('ended', onEnded);
-                video.removeEventListener('error', onError);
-                finish(false);
-                status.textContent = 'PORTAL · BROWSER BLOCKED VIDEO';
-            });
+            if (promise && typeof promise.catch === 'function') {
+                promise.catch(() => {
+                    if (!video.muted) {
+                        video.muted = true;
+                        const retry = video.play();
+
+                        if (retry && typeof retry.catch === 'function') {
+                            retry.catch(() => finish(false));
+                        }
+                        return;
+                    }
+
+                    if (!fallbackUsed && activeUrl !== directUrl && directUrl) {
+                        fallbackUsed = true;
+                        activeUrl = directUrl;
+                        video.src = directUrl;
+                        video.load();
+                        setTimeout(playVideo, 80);
+                        return;
+                    }
+
+                    finish(false);
+                });
+            }
+        };
+
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+
+        video.preload = 'auto';
+        video.playsInline = true;
+        video.setAttribute('playsinline', '');
+        video.setAttribute('webkit-playsinline', '');
+        video.muted = reason === 'AUTO';
+        video.src = activeUrl;
+
+        video.addEventListener('ended', onEnded);
+        video.addEventListener('error', onError);
+
+        try {
+            video.currentTime = 0;
+        } catch (error) {
+            // Metadata has not arrived yet; the next load starts at 0 anyway.
         }
+
+        status.textContent =
+            'PORTAL VIDEO · ' + portal.video +
+            (reason === 'AUTO' ? ' · AUTO' : ' · PLAYING');
+
+        video.load();
+        setTimeout(playVideo, 0);
+
+        timer = setTimeout(() => {
+            if (!video.readyState && !fallbackUsed && activeUrl !== directUrl && directUrl) {
+                fallbackUsed = true;
+                activeUrl = directUrl;
+                video.src = directUrl;
+                video.load();
+                setTimeout(playVideo, 80);
+                return;
+            }
+
+            if (!settled) finish(false);
+        }, 15000);
 
         return true;
     }
-
     function normalizeAngleDegrees(value) {
         let result = value % 360;
         if (result > 180) result -= 360;
@@ -829,8 +1189,7 @@
 
             window.addEventListener('deviceorientation', handleDeviceOrientation, true);
 
-            // Let a few sensor samples arrive before calibration.
-            await new Promise(resolve => setTimeout(resolve, 280));
+            await new Promise(resolve => setTimeout(resolve, 180));
 
             if (!tilt.available) {
                 status.textContent = 'TILT · SENSOR NOT AVAILABLE';
@@ -845,21 +1204,13 @@
 
             if (tiltButton) tiltButton.classList.add('active');
 
-            if (
-                screen.orientation &&
-                screen.orientation.lock
-            ) {
-                screen.orientation.lock('landscape').catch(() => {});
-            }
-
-            status.textContent = 'TILT CONTROL · LANDSCAPE · CALIBRATED';
+            status.textContent = 'TILT · NEUTRAL POSITION CALIBRATED';
             return true;
         } catch (error) {
             status.textContent = 'TILT · SENSOR ERROR';
             return false;
         }
     }
-
     function getScreenAngle() {
         const angle =
             screen.orientation && typeof screen.orientation.angle === 'number'
@@ -873,42 +1224,35 @@
 
     function getTiltMotion() {
         if (!tilt.enabled || !tilt.available) {
-            return {
-                thrust: 0,
-                strafe: 0,
-                yaw: 0
-            };
+            return { pitch: 0, yaw: 0 };
         }
 
         const angle = getScreenAngle();
-        let forwardDelta;
-        let sideDelta;
+        let pitchDelta;
+        let yawDelta;
 
         if (angle === 90) {
-            forwardDelta = tilt.gamma - tilt.neutralGamma;
-            sideDelta = -(tilt.beta - tilt.neutralBeta);
+            pitchDelta = tilt.gamma - tilt.neutralGamma;
+            yawDelta = tilt.beta - tilt.neutralBeta;
         } else if (angle === 270) {
-            forwardDelta = -(tilt.gamma - tilt.neutralGamma);
-            sideDelta = tilt.beta - tilt.neutralBeta;
+            pitchDelta = -(tilt.gamma - tilt.neutralGamma);
+            yawDelta = -(tilt.beta - tilt.neutralBeta);
         } else if (angle === 180) {
-            forwardDelta = -(tilt.beta - tilt.neutralBeta);
-            sideDelta = -(tilt.gamma - tilt.neutralGamma);
+            pitchDelta = -(tilt.beta - tilt.neutralBeta);
+            yawDelta = -(tilt.gamma - tilt.neutralGamma);
         } else {
-            forwardDelta = tilt.beta - tilt.neutralBeta;
-            sideDelta = tilt.gamma - tilt.neutralGamma;
+            pitchDelta = tilt.beta - tilt.neutralBeta;
+            yawDelta = tilt.gamma - tilt.neutralGamma;
         }
 
-        const neutralAlphaDelta = normalizeAngleDegrees(
-            tilt.alpha - tilt.neutralAlpha
-        );
-
         return {
-            thrust: applyDeadzone(forwardDelta / 24, 0.08),
-            strafe: applyDeadzone(sideDelta / 22, 0.08),
-            yaw: applyDeadzone(neutralAlphaDelta / 22, 0.06)
+            // Aviation-style pitch: moving the top/front of the phone
+            // downward produces positive pitch (nose up).
+            pitch: applyDeadzone(-pitchDelta / 18, 0.06) * 1.55,
+            // Normal left/right: tilt right means look right.
+            yaw: applyDeadzone(-yawDelta / 18, 0.06) * 1.55
         };
     }
-
     function applyDeadzone(value, deadzone) {
         if (Math.abs(value) <= deadzone) return 0;
 
@@ -975,6 +1319,9 @@
 
         gamepad.leftX = applyDeadzone(axes[0] || 0, 0.14);
         gamepad.leftY = applyDeadzone(axes[1] || 0, 0.14);
+
+        // Right stick is the viewing/yoke control:
+        // X = yaw, Y = aviation pitch.
         gamepad.rightX = applyDeadzone(axes[2] || 0, 0.12);
         gamepad.rightY = applyDeadzone(axes[3] || 0, 0.12);
 
@@ -986,24 +1333,26 @@
             (buttonPressed(pad, 7) ? 1 : 0) -
             (buttonPressed(pad, 6) ? 1 : 0);
 
+        // A = door, X = shield, Y = portal, Start/Select = menu.
         const oneShot = [
             [0, tryRemoteDoor],
             [2, toggleShield],
-            [3, startPortalTransition]
+            [3, startPortalTransition],
+            [8, toggleSettings],
+            [9, toggleSettings]
         ];
 
         oneShot.forEach(([index, action]) => {
             const pressed = buttonPressed(pad, index);
             const wasPressed = gamepad.previousButtons[index] === true;
 
-            if (pressed && !wasPressed && running) {
+            if (pressed && !wasPressed) {
                 action();
             }
 
             gamepad.previousButtons[index] = pressed;
         });
     }
-
     function inputAxes() {
         updateGamepad();
 
@@ -1027,17 +1376,22 @@
             (touch.yawRight ? 1 : 0) -
             (touch.yawLeft ? 1 : 0);
 
-        const motion = getTiltMotion();
+        const look = getTiltMotion();
 
         return {
-            thrust: thrust - gamepad.leftY + motion.thrust,
-            strafe: strafe + gamepad.leftX + motion.strafe,
-            vertical: vertical + gamepad.vertical,
-            roll: roll + gamepad.roll,
-            yaw: yawButtons + motion.yaw + (gamepad.rightX * -1)
+            thrust: Math.max(-1, Math.min(1, thrust - gamepad.leftY)),
+            strafe: Math.max(-1, Math.min(1, strafe + gamepad.leftX)),
+            vertical: Math.max(-1, Math.min(1, vertical + gamepad.vertical)),
+            roll: Math.max(-1, Math.min(1, roll + gamepad.roll)),
+            yaw:
+                yawButtons -
+                (gamepad.rightX * 0.95) +
+                look.yaw,
+            pitch:
+                (gamepad.rightY * 0.95) +
+                look.pitch
         };
     }
-
     function updateDoor(dt) {
         if (!testDoor.mesh) return;
 
@@ -1065,30 +1419,98 @@
                 1,
                 testDoor.progress + dt * testDoor.speed
             );
+        }
 
-            const slide = testDoor.progress * 3.1;
+        if (testDoor.state === 'OPEN') {
+            if (distance > 5.0) {
+                testDoor.awayTimer = (testDoor.awayTimer || 0) + dt;
 
-            testDoor.leftPanel.position.x = -1.525 - slide;
-            testDoor.rightPanel.position.x = 1.525 + slide;
-
-            if (testDoor.progress >= 1) {
-                testDoor.state = 'OPEN';
+                if (testDoor.awayTimer >= 4.0) {
+                    testDoor.state = 'CLOSING';
+                    testDoor.closeSpeed = Math.max(
+                        1.0,
+                        testDoor.speed * 1.35
+                    );
+                }
+            } else {
+                testDoor.awayTimer = 0;
             }
         }
+
+        if (testDoor.state === 'CLOSING') {
+            testDoor.progress = Math.max(
+                0,
+                testDoor.progress - dt * (testDoor.closeSpeed || 1.8)
+            );
+
+            if (testDoor.progress <= 0) {
+                testDoor.progress = 0;
+                testDoor.state = 'CLOSED';
+                testDoor.awayTimer = 0;
+            }
+        }
+
+        applyDoorAnimation();
     }
 
+    function applyDoorAnimation() {
+        if (!testDoor.leftPanel || !testDoor.rightPanel) return;
+
+        const p = Math.max(0, Math.min(1, testDoor.progress));
+        const mode = testDoor.mode || 'slide';
+
+        testDoor.leftPanel.position.set(-1.525, 0, -0.39);
+        testDoor.rightPanel.position.set(1.525, 0, -0.39);
+        testDoor.leftPanel.rotation.set(0, 0, 0);
+        testDoor.rightPanel.rotation.set(0, 0, 0);
+        testDoor.leftPanel.scale.set(1, 1, 1);
+        testDoor.rightPanel.scale.set(1, 1, 1);
+
+        if (mode === 'slide') {
+            testDoor.leftPanel.position.x -= p * 3.1;
+            testDoor.rightPanel.position.x += p * 3.1;
+        } else if (mode === 'vertical') {
+            testDoor.leftPanel.position.y += p * 3.2;
+            testDoor.rightPanel.position.y -= p * 3.2;
+        } else if (mode === 'wipe') {
+            testDoor.leftPanel.rotation.z = -p * Math.PI * 0.5;
+            testDoor.rightPanel.rotation.z = p * Math.PI * 0.5;
+            testDoor.leftPanel.position.x -= p * 1.2;
+            testDoor.rightPanel.position.x += p * 1.2;
+        } else if (mode === 'iris' || mode === 'shrink') {
+            const scale = Math.max(0.06, 1 - p);
+            testDoor.leftPanel.scale.set(scale, scale, 1);
+            testDoor.rightPanel.scale.set(scale, scale, 1);
+        } else if (mode === 'fade') {
+            testDoor.leftPanel.material.opacity = 1 - p;
+            testDoor.rightPanel.material.opacity = 1 - p;
+        }
+
+        const visibleOpacity = mode === 'fade' ? 1 - p : 1;
+        testDoor.leftPanel.material.opacity = visibleOpacity;
+        testDoor.rightPanel.material.opacity = visibleOpacity;
+        testDoor.leftPanel.material.transparent = true;
+        testDoor.rightPanel.material.transparent = true;
+        testDoor.leftPanel.material.needsUpdate = true;
+        testDoor.rightPanel.material.needsUpdate = true;
+    }
     function beginDoorOpening(reason) {
         if (testDoor.state !== 'CLOSED') return false;
 
+        const modes = ['slide', 'vertical', 'wipe', 'iris', 'fade'];
+        testDoor.mode = modes[Math.floor(Math.random() * modes.length)];
+        testDoor.speed = 1.45 + Math.random() * 1.0;
+        testDoor.closeSpeed = testDoor.speed * 1.35;
+        testDoor.awayTimer = 0;
+        testDoor.progress = 0;
         testDoor.state = 'OPENING';
 
         status.textContent = reason === 'REMOTE'
-            ? 'DOOR CRYSTAL · REMOTE OPEN'
-            : 'DOOR · AUTO OPEN';
+            ? 'DOOR · RANDOM ' + testDoor.mode.toUpperCase() + ' · REMOTE'
+            : 'DOOR · RANDOM ' + testDoor.mode.toUpperCase() + ' · AUTO';
 
         return true;
     }
-
     function tryRemoteDoor() {
         if (!running || !testDoor.mesh || testDoor.state !== 'CLOSED') {
             return false;
@@ -1219,8 +1641,13 @@
     }
 
     function handleKeyDown(event) {
+        if (event.code === 'Enter' || event.code === 'Escape') {
+            event.preventDefault();
+            toggleSettings();
+            return;
+        }
+
         keys[event.code] = true;
-        startMusic();
 
         if (event.code === 'Space' || event.code === 'ControlLeft') {
             event.preventDefault();
@@ -1233,12 +1660,101 @@
 
         if (event.code === 'KeyG') {
             event.preventDefault();
-            startPortalTransition();
+            startPortalTransition('G');
+        }
+    }
+    function handleKeyUp(event) {
+        keys[event.code] = false;
+    }
+
+    function openSettings(forceOpen = true) {
+        const panel = root.querySelector('.bcm-mini-sim-settings');
+        if (!panel) return;
+
+        menuState.open = forceOpen;
+        panel.hidden = !forceOpen;
+        menuBackdrop && menuBackdrop.classList.toggle('menu-visible', forceOpen);
+
+        if (forceOpen) {
+            running = false;
+
+            if (document.pointerLockElement === canvas && document.exitPointerLock) {
+                document.exitPointerLock();
+            }
+
+            root.classList.remove('game-active');
+            startButton.classList.remove('hidden');
+            canvas.blur();
+            status.textContent = 'MENU · SETTINGS';
         }
     }
 
-    function handleKeyUp(event) {
-        keys[event.code] = false;
+    function toggleSettings(force) {
+        if (typeof force === 'boolean') {
+            if (force) {
+                openSettings(true);
+            } else {
+                closeSettings();
+            }
+            return;
+        }
+
+        if (menuState.open) {
+            closeSettings();
+        } else {
+            openSettings(true);
+        }
+    }
+
+    function closeSettings() {
+        const panel = root.querySelector('.bcm-mini-sim-settings');
+        if (!panel) return;
+
+        panel.hidden = true;
+        menuState.open = false;
+        root.classList.add('game-active');
+        startButton.classList.add('hidden');
+        status.textContent = 'FLIGHT PAUSED · PRESS ENTER TO OPEN MENU';
+    }
+
+    function beginPlay() {
+        if (!renderer) return;
+
+        running = true;
+        menuState.open = false;
+
+        const panel = root.querySelector('.bcm-mini-sim-settings');
+        if (panel) panel.hidden = true;
+
+        root.classList.add('game-active');
+        startButton.classList.add('hidden');
+
+        if (!musicStarted) {
+            musicStarted = true;
+            if (musicAudio) musicAudio.muted = false;
+            startMusic();
+        }
+
+        if (
+            !menuState.historyArmed &&
+            window.history &&
+            typeof window.history.pushState === 'function'
+        ) {
+            window.history.pushState(
+                { bcmMiniSim: true },
+                '',
+                window.location.href
+            );
+            menuState.historyArmed = true;
+        }
+
+        canvas.focus();
+
+        if (canvas.requestPointerLock && !('ontouchstart' in window)) {
+            canvas.requestPointerLock();
+        }
+
+        status.textContent = 'FLIGHT ACTIVE · 6DOF READY';
     }
 
     function setupInput() {
@@ -1260,7 +1776,7 @@
         });
 
         canvas.addEventListener('click', () => {
-            if (!running || !canvas.requestPointerLock) return;
+            if (!running || !canvas.requestPointerLock || menuState.open) return;
             canvas.requestPointerLock();
         });
 
@@ -1269,25 +1785,25 @@
         });
 
         document.addEventListener('mousemove', event => {
-            if (!pointerLocked) return;
+            if (!pointerLocked || !running || menuState.open) return;
 
-            const sensitivity = 0.0029;
+            const sensitivity = 0.0026;
 
+            // Mouse = direct yoke/look input: right is right, up is nose up.
             ship.angularVelocity.y -= event.movementX * sensitivity;
-            ship.angularVelocity.x -= event.movementY * (sensitivity * 1.18);
+            ship.angularVelocity.x -= event.movementY * (sensitivity * 1.12);
         });
 
         root.querySelectorAll('.bcm-mini-sim-mobile button').forEach(button => {
             const control = button.dataset.control;
 
-            const down = event => {
+            const down = async event => {
                 event.preventDefault();
-                startMusic();
 
                 if (!running && control !== 'tilt') return;
 
                 if (control === 'tilt') {
-                    enableTiltControl();
+                    await enableTiltControl();
                     return;
                 }
 
@@ -1297,7 +1813,7 @@
                 }
 
                 if (control === 'portal') {
-                    startPortalTransition();
+                    startPortalTransition('MOBILE');
                     return;
                 }
 
@@ -1320,7 +1836,6 @@
         if (crystalButton) {
             crystalButton.addEventListener('click', event => {
                 event.preventDefault();
-                startMusic();
                 tryRemoteDoor();
             });
         }
@@ -1331,44 +1846,67 @@
 
                 if (!musicAudio || !config.musicUrl) return;
 
-                musicAudio.muted = !musicAudio.muted;
-
-                if (!musicAudio.muted) {
+                if (!musicStarted) {
+                    musicStarted = true;
+                    musicAudio.muted = false;
                     startMusic();
+                } else {
+                    musicAudio.muted = !musicAudio.muted;
+                    if (!musicAudio.muted) startMusic();
                 }
 
                 updateMusicButton();
             });
         }
 
-        startButton.addEventListener('click', async () => {
-            startMusic();
+        startButton.addEventListener('click', () => {
+            beginPlay();
+        });
 
-            if (!renderer) return;
+        root.querySelectorAll('[data-setting]').forEach(control => {
+            control.addEventListener('change', () => {
+                if (control.dataset.setting === 'volume') {
+                    if (musicAudio) {
+                        musicAudio.volume = Number(control.value) / 100;
+                    }
+                }
 
-            running = true;
-            root.classList.add('game-active');
-            startButton.classList.add('hidden');
+                if (control.dataset.setting === 'quality') {
+                    graphicsSettings.quality = control.value;
+                    status.textContent =
+                        'QUALITY · ' + control.value.toUpperCase() +
+                        ' · NEW TEXTURES USE THIS LEVEL';
+                }
 
-            if (
-                screen.orientation &&
-                screen.orientation.lock
-            ) {
-                screen.orientation.lock('landscape').catch(() => {});
-            }
+                if (control.dataset.setting === 'effects') {
+                    graphicsSettings.effects = !!control.checked;
+                }
 
-            status.textContent = 'FLIGHT ACTIVE · 6DOF READY';
+                if (control.dataset.setting === 'invertPitch') {
+                    control.dataset.applied = control.checked ? '1' : '0';
+                }
 
-            canvas.focus();
+                if (control.dataset.setting === 'invertYaw') {
+                    control.dataset.applied = control.checked ? '1' : '0';
+                }
+            });
+        });
 
-            if (canvas.requestPointerLock && !('ontouchstart' in window)) {
-                canvas.requestPointerLock();
+        const closeButton = root.querySelector('[data-setting="close"]');
+        if (closeButton) {
+            closeButton.addEventListener('click', () => toggleSettings(false));
+        }
+
+        window.addEventListener('popstate', () => {
+            if (running || menuState.open) {
+                openSettings();
             }
         });
 
-        root.addEventListener('pointerdown', startMusic);
+        window.addEventListener('beforeunload', () => {
+            if (musicAudio) musicAudio.pause();
+        });
     }
-
     function updateMusicButton() {
         if (!musicButton || !musicAudio) return;
 
@@ -1379,7 +1917,11 @@
     }
 
     function startMusic() {
-        if (!musicAudio || !config.musicUrl || musicAudio.muted) {
+        if (
+            !musicAudio ||
+            !config.musicUrl ||
+            musicStarted === false
+        ) {
             return;
         }
 
@@ -1388,18 +1930,21 @@
         }
 
         musicAudio.loop = true;
-        musicAudio.volume = 0.42;
-        musicAudio.preload = 'auto';
+        musicAudio.volume = (Number(
+            root.querySelector('[data-setting="volume"]')?.value || 42
+        ) / 100);
 
         const promise = musicAudio.play();
 
         if (promise && typeof promise.catch === 'function') {
-            promise.catch(() => {});
+            promise.catch(() => {
+                // Browser policy can reject a programmatic retry. The next
+                // explicit Play/music click will try again.
+            });
         }
 
         updateMusicButton();
     }
-
     function setupMedia() {
         if (menuBackdrop && config.menuBackgroundUrl) {
             menuBackdrop.style.backgroundImage =
@@ -1414,19 +1959,14 @@
         musicAudio.src = config.musicUrl;
         musicAudio.loop = true;
         musicAudio.volume = 0.42;
-        musicAudio.preload = 'auto';
+        musicAudio.preload = 'none';
+        musicAudio.muted = false;
 
+        // Do NOT call play() here. Audio starts only after Play/music action.
         updateMusicButton();
-
-        const promise = musicAudio.play();
-
-        if (promise && typeof promise.catch === 'function') {
-            promise.catch(() => {});
-        }
     }
-
     function updatePhysics(dt) {
-        if (transitionBusy) {
+        if (transitionBusy || menuState.open || !running) {
             camera.position.copy(ship.position);
             camera.quaternion.copy(ship.quaternion);
             light.position.copy(ship.position);
@@ -1435,12 +1975,25 @@
 
         updateDoor(dt);
 
+        portal.randomTimer += dt;
+        if (room.current === 0 && portal.randomTimer >= 4.0) {
+            portal.randomTimer = 0;
+            randomizeStartPortal(false);
+        }
+
         const input = inputAxes();
 
-        // Gamepad right stick: down = nose up, as requested for aircraft-style
-        // inverted vertical pitch. Raise sensitivity above the mouse axis.
-        if (gamepad.pad) {
-            ship.angularVelocity.x += gamepad.rightY * 2.0 * dt;
+        const angularInput = new THREE.Vector3(
+            input.pitch * 2.1,
+            input.yaw * 1.9,
+            input.roll * 2.7
+        );
+
+        ship.angularVelocity.addScaledVector(angularInput, dt);
+
+        const maxAngularSpeed = 3.6;
+        if (ship.angularVelocity.length() > maxAngularSpeed) {
+            ship.angularVelocity.setLength(maxAngularSpeed);
         }
 
         const localAcceleration = new THREE.Vector3(
@@ -1464,14 +2017,6 @@
         ship.angularVelocity.y *= Math.max(0, 1 - ship.angularDrag * dt);
         ship.angularVelocity.z *= Math.max(0, 1 - ship.angularDrag * dt);
 
-        const angularInput = new THREE.Vector3(
-            0,
-            input.yaw * 1.85,
-            input.roll * 2.7
-        );
-
-        ship.angularVelocity.addScaledVector(angularInput, dt);
-
         if (ship.angularVelocity.lengthSq() > 0.0000001) {
             const angle = ship.angularVelocity.length() * dt;
             const axis = ship.angularVelocity.clone().normalize();
@@ -1484,19 +2029,25 @@
         camera.quaternion.copy(ship.quaternion);
         light.position.copy(ship.position);
 
+        if (
+            getAutoPortalCandidate() &&
+            !transitionBusy
+        ) {
+            startPortalTransition('AUTO');
+            return;
+        }
+
         updateInteraction();
 
-        const shieldText = keys.KeyF ? 'OFF' : 'ON';
-        const roomText = ship.position.z < room.roomJoinZ ? 'ROOM 2' : 'ROOM 1';
+        const roomText = room.current === 0 ? 'ROOM 1' : 'ROOM 2';
 
         status.textContent =
             roomText +
-            (tilt.enabled ? ' · TILT' : '') +
+            (tilt.enabled ? ' · TILT LOOK' : '') +
             ' · SPD ' + ship.velocity.length().toFixed(1) +
-            ' · 6DOF · SHIELD ' + shieldText +
-            ' · DOOR ' + testDoor.state;
+            ' · 6DOF · DOOR ' + testDoor.state +
+            ' · PORTAL ' + portal.point;
     }
-
     function render(now) {
         const dt = Math.min((now - last) / 1000, 0.033);
         last = now;
@@ -1505,10 +2056,12 @@
             updatePhysics(dt);
         }
 
-        renderer.render(scene, camera);
+        if (renderer && scene && camera) {
+            renderer.render(scene, camera);
+        }
+
         requestAnimationFrame(render);
     }
-
     function startSimulator() {
         if (renderer) return;
 
@@ -1521,6 +2074,9 @@
             ship.velocity = new THREE.Vector3();
             ship.angularVelocity = new THREE.Vector3();
             ship.quaternion = new THREE.Quaternion();
+            room.current = 0;
+            portal.randomTimer = 0;
+            portal.lastRandomKey = '';
 
             renderer = new THREE.WebGLRenderer({
                 canvas,
@@ -1549,25 +2105,18 @@
             light.position.copy(ship.position);
             scene.add(light);
 
-            // Keep fog off in this texture diagnostic stage. Supplied 720p
-            // artwork must remain visible at the end of the corridor.
             scene.fog = null;
 
             const stars = new THREE.BufferGeometry();
             const points = [];
 
-            for (let i = 0; i < 300; i++) {
+            for (let i = 0; i < 240; i++) {
                 points.push(
                     (Math.random() - 0.5) * 400,
                     (Math.random() - 0.5) * 400,
                     (Math.random() - 0.5) * 400
                 );
             }
-
-            stars.setAttribute(
-                'position',
-                new THREE.Float32BufferAttribute(points, 3)
-            );
 
             scene.add(new THREE.Points(
                 stars,
@@ -1578,6 +2127,11 @@
                 })
             ));
 
+            stars.setAttribute(
+                'position',
+                new THREE.Float32BufferAttribute(points, 3)
+            );
+
             buildWorld();
             buildSecondRoomArrivalMarker();
             createPortalTransitionUI();
@@ -1585,7 +2139,9 @@
             setupInput();
             resize();
 
-            status.textContent = 'ENGINE READY · TEXTURE TEST · LOCAL r128';
+            randomizeStartPortal(true);
+
+            status.textContent = 'ENGINE READY · LOCAL THREE.JS r128 · 0.4.2';
             updateAssetStatus();
 
             requestAnimationFrame(render);
@@ -1597,36 +2153,5 @@
                     : 'ENGINE START FAILED');
             startButton.disabled = true;
         }
-    }
-
-    // The portal is deliberately one station now. No old point-2 route
-    // selector remains in this test build.
-    setupMedia();
-    updateAssetStatus();
-
-    if (window.THREE) {
-        startSimulator();
-    } else {
-        status.textContent = 'ENGINE LOADING LOCAL r128...';
-
-        const localEngine = document.createElement('script');
-        localEngine.src = config.threeUrl || '';
-        localEngine.async = false;
-
-        localEngine.onload = () => {
-            if (window.THREE) {
-                startSimulator();
-            } else {
-                status.textContent = 'ERROR: Three.js r128 did not initialize';
-                startButton.disabled = true;
-            }
-        };
-
-        localEngine.onerror = () => {
-            status.textContent = 'ERROR: Local Three.js r128 could not be loaded';
-            startButton.disabled = true;
-        };
-
-        document.head.appendChild(localEngine);
     }
 })();
