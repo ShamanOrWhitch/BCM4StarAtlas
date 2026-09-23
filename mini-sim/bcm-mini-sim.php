@@ -115,49 +115,49 @@ function bcm_mini_sim_shortcode($atts = array())
         <canvas class="bcm-mini-sim-canvas" tabindex="0"></canvas>
         <div class="bcm-mini-sim-menu-backdrop" aria-hidden="true"></div>
         <div class="bcm-mini-sim-menu-shade" aria-hidden="true"></div>
-        <div class="bcm-mini-sim-landscape-warning">ÐÐÐÐÐ ÐÐÐ¢Ð Ð£Ð¡Ð¢Ð ÐÐÐ¡Ð¢ÐÐ ÐÐÐ ÐÐÐÐÐ¢ÐÐÐ¬ÐÐ</div>
+        <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH â 0.5.2</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.5.2</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
             <div class="bcm-mini-sim-help">
-                <span>W/S</span> thrust Â· <span>A/D</span> strafe Â· <span>Mouse</span> look Â·
-                <span>Enter</span> menu Â· <span>Esc</span> release mouse Â·
+                <span>W/S</span> thrust · <span>A/D</span> strafe · <span>Mouse</span> look ·
+                <span>Enter</span> menu · <span>Esc</span> release mouse ·
                 <span>G</span> portal video
             </div>
         </div>
         <div class="bcm-mini-sim-asset-status">LOCAL ASSETS: SCANNING...</div>
-        <button class="bcm-mini-sim-start" type="button">ÐÐÐ ÐÐ¢Ð¬</button>
-        <button class="bcm-mini-sim-music" type="button" hidden>â«</button>
-        <button class="bcm-mini-sim-crystal bcm-mini-sim-crystal-main" type="button">â</button>
+        <button class="bcm-mini-sim-start" type="button">ИГРАТЬ</button>
+        <button class="bcm-mini-sim-music" type="button" hidden>♫</button>
+        <button class="bcm-mini-sim-crystal bcm-mini-sim-crystal-main" type="button">◆</button>
         <audio class="bcm-mini-sim-music-audio" preload="none" loop></audio>
         <div class="bcm-mini-sim-transition" hidden>
             <video class="bcm-mini-sim-transition-video" playsinline></video>
             <div class="bcm-mini-sim-transition-label">PORTAL</div>
-            <button class="bcm-mini-sim-transition-close" type="button">Ã</button>
+            <button class="bcm-mini-sim-transition-close" type="button">×</button>
         </div>
         <div class="bcm-mini-sim-settings" hidden>
             <div class="bcm-mini-sim-settings-card">
                 <h2>SETTINGS</h2>
-                <label>ÐÑÐ¾Ð¼ÐºÐ¾ÑÑÑ <input type="range" min="0" max="100" value="42" data-setting="volume"></label>
-                <label><input type="checkbox" data-setting="invertPitch" checked> ÐÐ²Ð¸Ð°-Ð¿Ð¸ÑÑ (Ð²Ð½Ð¸Ð· = Ð²Ð²ÐµÑÑ Ð²Ð·Ð³Ð»ÑÐ´Ð°)</label>
-                <label><input type="checkbox" data-setting="invertYaw"> Ð ÐµÐ²ÐµÑÑ Ð»ÐµÐ²Ð¾/Ð¿ÑÐ°Ð²Ð¾</label>
-                <p>ÐÑÐ·ÑÐºÐ° ÑÐ¾Ð»ÑÐºÐ¾ Ð¿Ð¾ÑÐ»Ðµ Â«ÐÐ³ÑÐ°ÑÑÂ». Esc Ð¾ÑÐ¿ÑÑÐºÐ°ÐµÑ Ð¼ÑÑÑ Ð¸ Ð½Ðµ Ð²ÐµÑÐ°ÐµÑ ÑÐ¸ÐºÐ». G Ð¸Ð»Ð¸ 69% Ð¿Ð¾ÑÑÐ°Ð»Ð° â mp4, Ð·Ð°ÑÐµÐ¼ ÐºÐ¾Ð¼Ð½Ð°ÑÐ° 2.</p>
-                <button type="button" data-setting="close">ÐÐ°ÐºÑÑÑÑ</button>
+                <label>Громкость <input type="range" min="0" max="100" value="42" data-setting="volume"></label>
+                <label><input type="checkbox" data-setting="invertPitch" checked> Авиа-питч (вниз = вверх взгляда)</label>
+                <label><input type="checkbox" data-setting="invertYaw"> Реверс лево/право</label>
+                <p>Музыка только после «Играть». Esc отпускает мышь и не вешает цикл. G или 69% портала — mp4, затем комната 2.</p>
+                <button type="button" data-setting="close">Закрыть</button>
             </div>
         </div>
         <div class="bcm-mini-sim-mobile" aria-hidden="true">
             <div class="bcm-mini-sim-mobile-left">
-                <button data-control="thrust">â²</button>
-                <button data-control="brake">â¼</button>
-                <button data-control="rollLeft">â¶</button>
-                <button data-control="rollRight">â·</button>
+                <button data-control="thrust">▲</button>
+                <button data-control="brake">▼</button>
+                <button data-control="rollLeft">↶</button>
+                <button data-control="rollRight">↷</button>
             </div>
             <div class="bcm-mini-sim-mobile-right">
-                <button data-control="up">â</button>
-                <button data-control="down">â¡</button>
-                <button data-control="yawLeft">â</button>
-                <button data-control="yawRight">â¶</button>
+                <button data-control="up">↟</button>
+                <button data-control="down">↡</button>
+                <button data-control="yawLeft">◀</button>
+                <button data-control="yawRight">▶</button>
                 <button data-control="tilt">TILT</button>
                 <button data-control="portal">G</button>
             </div>
