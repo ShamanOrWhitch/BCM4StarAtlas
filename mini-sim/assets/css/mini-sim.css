@@ -350,7 +350,7 @@
 .bcm-mini-sim-transition{
     position:absolute;
     inset:0;
-    z-index:20;
+    z-index:30;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -396,4 +396,14 @@
 }
 .bcm-mini-sim-transition-close:hover{
     background:rgba(30,30,30,.82);
+}
+
+
+.bcm-mini-sim.transition-active .bcm-mini-sim-mobile,
+.bcm-mini-sim.transition-active .bcm-mini-sim-crystal-main{
+    pointer-events:none;
+}
+.bcm-mini-sim.transition-active .bcm-mini-sim-hud,
+.bcm-mini-sim.transition-active .bcm-mini-sim-asset-status{
+    opacity:.35;
 }
