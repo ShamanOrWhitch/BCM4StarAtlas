@@ -30,7 +30,7 @@ Do **not** hardcode plugin-root paths.
 Walls: wall1–wall5.png
 Ceilings: roof.png, roof1.png, roof3.png
 Ceiling corner joints: roofa.png, roofa1.png, roofa2.png
-Doors: `door1.png` is **the first door and must be used**. Also door.png, door2–door5.png
+Doors: `door.png` is **the preferred first door**. `door1.png` remains fallback. Also door2–door5.png
 Portals: portal.png / portal2.png / portal3.png
 Videos: portal1.mp4, portal2.mp4, portal3.mp4
 Music: `starbase ost.mp3` (space in the name)
@@ -85,7 +85,7 @@ Shortcode: `[bcm_mini_sim]`
 ### Verify after deploy
 Network tab:
 - 200 `.../mini-sim/assets/js/mini-sim.js?ver=0.5.0` (about 24KB, not 48890)
-- 200 `.../assets/wall1.png`, `roof.png`, `roofa.png`, `door1.png`, `portal2.mp4`, `starbase%20ost.mp3`
+- 200 `.../assets/wall1.png`, `roof.png`, `roof1.png`, `roof3.png`, `roofa.png`, `door.png`, `portal2.mp4`, `starbase%20ost.mp3`
 - HUD: `ENGINE READY · LOCAL r128 · 0.5.0`
 - Click ИГРАТЬ → OST starts. Refresh page → OST silent until click.
 
@@ -104,7 +104,7 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - Start by reading this README and the actual current `bcm-mini-sim.php`, `assets/js/mini-sim.js`, and `assets/css/mini-sim.css` from GitHub. Do not continue from a pasted old patch.
 - The asset directory is authoritative. Textures are under `mini-sim/assets/`; PHP builds the registry from that directory.
 - Main ceiling textures are `roof.png`, `roof1.png`, `roof3.png`. Ceiling corner/joint textures are `roofa.png`, `roofa1.png`, `roofa2.png`. They are not wall textures and must not be silently replaced with `wall*.png`.
-- The first door is `assets/door1.png`. Do not use the old plugin-root `door.png` path.
+- The first door is `assets/door.png`. `assets/door1.png` remains a fallback. Do not use a plugin-root door path.
 - OST is `assets/starbase ost.mp3`. It may be assigned to the audio element during initialization, but `.play()` must only happen after the `ИГРАТЬ` click has set `running = true`.
 - If a requested change is already present in GitHub, verify the live WordPress copy before rewriting code. The site may still contain an older manually uploaded JS file or cache.
 - Do not rewrite Three.js. This project uses the bundled `assets/js/three.min.js` r128.
