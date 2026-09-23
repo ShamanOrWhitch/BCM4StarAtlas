@@ -80,7 +80,6 @@
     away: 0,
     style: "slide"
   };
-  const videoPanel = { el: null, texture: null, mesh: null, active: false };
   const tilt = {
     enabled: false,
     available: false,
@@ -238,8 +237,8 @@
     box(group, 0, -3.3, 0, 7.2, 0.5, 0.7, frame);
     box(group, -3.3, 0, 0, 0.5, 6.1, 0.7, frame);
     box(group, 3.3, 0, 0, 0.5, 6.1, 0.7, frame);
-    const dmatL = textured("door1.png", 0xffffff);
-    const dmatR = textured("door1.png", 0xffffff);
+    const dmatL = textured("door2.png", 0xffffff);
+    const dmatR = textured("door2.png", 0xffffff);
     door.left = plane(group, -1.52, 0, -0.35, 3.05, 6.1, 0, 0, 0, dmatL);
     door.right = plane(group, 1.52, 0, -0.35, 3.05, 6.1, 0, 0, 0, dmatR);
     scene.add(group);
@@ -251,8 +250,8 @@
     box(returnGroup, 0, -3.3, 0, 7.2, 0.5, 0.7, frame);
     box(returnGroup, -3.3, 0, 0, 0.5, 6.1, 0.7, frame);
     box(returnGroup, 3.3, 0, 0, 0.5, 6.1, 0.7, frame);
-    const rmatL = textured("door2.png", 0xffffff);
-    const rmatR = textured("door2.png", 0xffffff);
+    const rmatL = textured("door3.png", 0xffffff);
+    const rmatR = textured("door3.png", 0xffffff);
     returnDoor.left = plane(returnGroup, -1.52, 0, 0.35, 3.05, 6.1, 0, Math.PI, 0, rmatL);
     returnDoor.right = plane(returnGroup, 1.52, 0, 0.35, 3.05, 6.1, 0, Math.PI, 0, rmatR);
     scene.add(returnGroup);
@@ -265,41 +264,6 @@
     portal.mesh = plane(pgroup, 0, 0, 0.01, 5.2, 5.8, 0, 0, 0, pmatFront);
     portal.backMesh = plane(pgroup, 0, 0, -0.01, 5.2, 5.8, 0, Math.PI, 0, pmatBack);
     scene.add(pgroup);
-
-    const panelVideo = document.createElement("video");
-    panelVideo.src = assetUrl("portal3.mp4");
-    panelVideo.crossOrigin = "anonymous";
-    panelVideo.muted = true;
-    panelVideo.loop = true;
-    panelVideo.playsInline = true;
-    panelVideo.preload = "auto";
-    panelVideo.addEventListener("error", () => {
-      videoPanel.active = false;
-    });
-    videoPanel.el = panelVideo;
-
-    if (panelVideo.src) {
-      const panelTexture = new THREE.VideoTexture(panelVideo);
-      panelTexture.minFilter = THREE.LinearFilter;
-      panelTexture.magFilter = THREE.LinearFilter;
-      panelTexture.generateMipmaps = false;
-      if ("encoding" in panelTexture && THREE.sRGBEncoding !== undefined) {
-        panelTexture.encoding = THREE.sRGBEncoding;
-      }
-      videoPanel.texture = panelTexture;
-
-      const panelMat = new THREE.MeshBasicMaterial({
-        map: panelTexture,
-        side: THREE.FrontSide,
-        fog: false
-      });
-      const panel = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 2.8), panelMat);
-      panel.position.set(5.86, 0.2, -60);
-      panel.rotation.y = -Math.PI / 2;
-      panel.name = "moving-video-panel";
-      scene.add(panel);
-      videoPanel.mesh = panel;
-    }
 
     scene.add(world);
   }
@@ -320,9 +284,6 @@
     } else if (unit.style === "wipe") {
       unit.left.position.y = 3.2 * t;
       unit.right.position.y = -3.2 * t;
-    } else if (unit === returnDoor) {
-      unit.left.position.x = -1.52 + 3.1 * t;
-      unit.right.position.x = 1.52 - 3.1 * t;
     } else {
       unit.left.position.x = -1.52 - 3.1 * t;
       unit.right.position.x = 1.52 + 3.1 * t;
@@ -337,15 +298,23 @@
     setStatus((reason === "REMOTE" ? "DOOR REMOTE · " : "DOOR OPEN · ") + door.style);
   }
 
-  function updateDoorUnit(unit, dt, label, reverseFacing) {
+  function updateDoorUnit(unit, dt, label) {
     if (!unit.mesh) return;
     const dist = unit.mesh.position.distanceTo(ship.position);
-    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(ship.quaternion);
     const to = unit.mesh.position.clone().sub(ship.position);
-    const rawFacing = to.length() ? fwd.dot(to.normalize()) : -1;
-    const facing = reverseFacing ? -rawFacing : rawFacing;
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(ship.quaternion);
+    const facing = to.length() ? fwd.dot(to.normalize()) : -1;
 
-    if (unit.state === "CLOSED" && dist < 8 && facing > 0.7) {
+    let shouldOpen = false;
+    if (unit === returnDoor) {
+      // Return gate opens only when approached from Room 2 / back side.
+      shouldOpen = ship.position.z < unit.mesh.position.z + 0.5 && dist < 8;
+    } else {
+      // First gate keeps the original facing requirement.
+      shouldOpen = dist < 8 && facing > 0.7;
+    }
+
+    if (unit.state === "CLOSED" && shouldOpen) {
       unit.style = ["slide", "wipe", "iris"][Math.floor(Math.random() * 3)];
       unit.state = "OPENING";
       unit.progress = 0;
@@ -379,8 +348,8 @@
   }
 
   function updateDoor(dt) {
-    updateDoorUnit(door, dt, "DOOR OPEN", false);
-    if (ship.position.z < -24.8) updateDoorUnit(returnDoor, dt, "RETURN GATE", true);
+    updateDoorUnit(door, dt, "DOOR OPEN");
+    updateDoorUnit(returnDoor, dt, "RETURN GATE");
   }
 
   function portalCoverage() {
@@ -426,14 +395,12 @@
     }
 
     if (direction === "BACK") {
-      stopVideoPanel();
       ship.position.set(0, 0, 2);
       ship.velocity.set(0, 0, 0);
       ship.angularVelocity.set(0, 0, 0);
       ship.quaternion.set(0, 0, 0, 1);
       setStatus("ROOM 1 · RETURN COMPLETE");
     } else {
-      startVideoPanel();
       ship.position.set(0, 0, -52);
       ship.velocity.set(0, 0, 0);
       ship.angularVelocity.set(0, 0, 0);
@@ -639,21 +606,6 @@
     if (settings.open && document.exitPointerLock) document.exitPointerLock();
   }
 
-  function startVideoPanel() {
-    if (!videoPanel.el || !videoPanel.texture) return;
-    videoPanel.el.muted = true;
-    videoPanel.el.loop = true;
-    videoPanel.active = true;
-    const p = videoPanel.el.play();
-    if (p && p.catch) p.catch(() => {});
-  }
-
-  function stopVideoPanel() {
-    if (!videoPanel.el) return;
-    videoPanel.el.pause();
-    videoPanel.active = false;
-  }
-
   function startMusic() {
     if (!musicAllowed || !musicAudio || !config.musicUrl) return;
     if (!musicAudio.src) musicAudio.src = config.musicUrl;
@@ -769,7 +721,6 @@
       running = true;
       musicAllowed = true;
       startMusic();
-      startVideoPanel();
       root.classList.add("game-active");
       startButton.classList.add("hidden");
       canvas.focus();
@@ -803,7 +754,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.5.4");
+      setStatus("ENGINE READY · LOCAL r128 · 0.5.5");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
