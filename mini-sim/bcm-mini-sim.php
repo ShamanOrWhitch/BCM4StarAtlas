@@ -2,14 +2,14 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained Descent-style 6DOF space-labyrinth test for WordPress.
- * Version: 0.4.1
+ * Version: 0.4.2
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('BCM_MINI_SIM_VERSION', '0.4.1');
+define('BCM_MINI_SIM_VERSION', '0.4.2');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -331,13 +331,13 @@ function bcm_mini_sim_shortcode($atts = array()) {
         </div>
 
         <div class="bcm-mini-sim-hud">
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — PLAYABLE TEST 0.41</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — PLAYABLE TEST 0.42</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
             <div class="bcm-mini-sim-help">
                 <span>W/S</span> thrust · <span>A/D</span> strafe · <span>Space/Ctrl</span> vertical ·
                 <span>Mouse</span> look · <span>Q</span>/<span>E</span> roll ·
-                <span>Enter</span> меню · <span>F</span> shield · <span>R/◆</span> дверь · <span>G</span> портал
+                <span>Enter/Esc</span> меню · <span>F</span> shield · <span>R/◆</span> дверь · <span>G</span> портал · <span>AUTO 69%</span>
             </div>
         </div>
 
