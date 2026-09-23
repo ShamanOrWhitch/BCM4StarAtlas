@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import type { MarketSnap, ResourceRow, TokenQuote, WalletItem, WalletScan, WalletTrait } from "./desk-types";
+import type { Candle, FleetPeek, MarketSnap, ProfilePeek, ResourceRow, TapePoint, TokenQuote, WalletItem, WalletScan, WalletTrait } from "./desk-types";
 
 const RPC_URL = "https://api.mainnet-beta.solana.com";
 const GM = "traderDnaR5w6Tcoi3NFm53i48FTDNbGjBSZwWXDRrg";
@@ -36,7 +36,17 @@ let catalogCache: { at: number; byMint: Map<string, CatItem> } | null = null;
 const MARKET_TTL = 120_000;
 const CATALOG_TTL = 10 * 60_000;
 
+const RPCS = [RPC_URL, "https://solana-rpc.publicnode.com"];
+const PROFILE = "pprofELXjL5Kck7Jn5hCpwAL82DpTkSYBENzahVtbc9";
+const SAGE = "SAGE2HAwep459SNq61LHvjxPk4pLPEJLoMETef7f7EE";
+const GAME = "GAMEzqJehF8yAnKiTARUuhZMvLvkZVAsCVri5vSfemLr";
+const KNOWN_FUNGIBLE: Record<string, { name: string; symbol: string }> = {
+  [ATLAS]: { name: "ATLAS", symbol: "ATLAS" },
+  [POLIS]: { name: "POLIS", symbol: "POLIS" },
+};
+
 const connection = new Connection(RPC_URL, "confirmed");
+const serverTape: TapePoint[] = [];
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { headers: { accept: "application/json" } });
@@ -106,10 +116,41 @@ function readBook(rows: ReadonlyArray<{ account: { data: Uint8Array } }>, atlasH
   return book;
 }
 
+async function atlasCandles(): Promise<Candle[]> {
+  try {
+    const rows = await getJson<unknown[][]>("https://api.mexc.com/api/v3/klines?symbol=ATLASUSDT&interval=4h&limit=42");
+    return rows
+      .map((row) => ({
+        t: Number(row[0]),
+        o: Number(row[1]),
+        h: Number(row[2]),
+        l: Number(row[3]),
+        c: Number(row[4]),
+      }))
+      .filter((candle) => Number.isFinite(candle.c) && candle.c > 0);
+  } catch {
+    return [];
+  }
+}
+
+function pushTape(resources: ResourceRow[]): TapePoint[] {
+  const asks: Record<string, number> = {};
+  for (const row of resources) {
+    if (row.ask != null) asks[row.mint] = row.ask;
+  }
+  const last = serverTape.at(-1);
+  const now = Date.now();
+  if (!last || now - last.t >= 90_000) {
+    serverTape.push({ t: now, asks });
+    if (serverTape.length > 48) serverTape.shift();
+  }
+  return serverTape.map((point) => ({ t: point.t, asks: { ...point.asks } }));
+}
+
 export async function buildMarket(): Promise<MarketSnap> {
   if (marketCache && Date.now() - marketCache.at < MARKET_TTL) return marketCache.data;
   const atlasHex = new PublicKey(ATLAS).toBuffer().toString("hex");
-  const [nfts, atlasTok, polisTok, prices, orders] = await Promise.all([
+  const [nfts, atlasTok, polisTok, prices, orders, candles] = await Promise.all([
     loadCatalog(),
     getJson<Record<string, number | string>>("https://galaxy.staratlas.com/tokens/atlas").catch(() => null),
     getJson<Record<string, number | string>>("https://galaxy.staratlas.com/tokens/polis").catch(() => null),
@@ -121,6 +162,7 @@ export async function buildMarket(): Promise<MarketSnap> {
       dataSlice: { offset: 40, length: 153 },
       filters: [{ dataSize: 201 }],
     }),
+    atlasCandles(),
   ]);
 
   const book = readBook(orders, atlasHex);
@@ -165,7 +207,9 @@ export async function buildMarket(): Promise<MarketSnap> {
     atlas,
     polis,
     resources,
-    note: "Лучшая продажа и покупка — стакан Galactic Marketplace (traderDna…), котировка ATLAS. Каталог — Galaxy GET /nfts. USD — Jupiter. Снимки для дельты хранятся в этом браузере.",
+    candles,
+    tape: pushTape(resources),
+    note: "Свечи ATLAS — общий рынок MEXC, 4 часа. Это не ноль внутри браузера. Ресурсы: лучшая цена стакана Galactic Marketplace в ATLAS. У Galaxy нет истории стакана, поэтому Δ ресурсов копится общим снимком сервера. USD — Jupiter.",
   };
   marketCache = { at: Date.now(), data };
   return data;
@@ -178,24 +222,35 @@ function num(value: unknown): number | null {
 
 type ParsedToken = { mint: string; amount: number; decimals: number };
 
+async function rpc<T>(method: string, params: unknown[]): Promise<T> {
+  let last = "RPC не ответил";
+  for (const url of RPCS) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+        signal: AbortSignal.timeout(18_000),
+      });
+      const json = (await res.json()) as { result?: T; error?: { message?: string } };
+      if (json.error) {
+        last = json.error.message || "RPC ошибка";
+        continue;
+      }
+      if (json.result !== undefined) return json.result;
+    } catch (err) {
+      last = err instanceof Error ? err.message : last;
+    }
+  }
+  throw new Error(last);
+}
+
 async function tokensOf(owner: PublicKey, programId: string): Promise<ParsedToken[]> {
-  const body = {
-    jsonrpc: "2.0",
-    id: 1,
-    method: "getTokenAccountsByOwner",
-    params: [owner.toBase58(), { programId }, { encoding: "jsonParsed" }],
-  };
-  const res = await fetch(RPC_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error("RPC кошелька недоступен");
-  const json = (await res.json()) as {
-    result?: { value?: Array<{ account: { data: { parsed?: { info?: { mint?: string; tokenAmount?: { uiAmount?: number; decimals?: number; amount?: string } } } } } }> };
-  };
+  const result = await rpc<{
+    value?: Array<{ account: { data: { parsed?: { info?: { mint?: string; tokenAmount?: { uiAmount?: number; decimals?: number } } } } } }>;
+  }>("getTokenAccountsByOwner", [owner.toBase58(), { programId }, { encoding: "jsonParsed" }]);
   const out: ParsedToken[] = [];
-  for (const row of json.result?.value ?? []) {
+  for (const row of result.value ?? []) {
     const info = row.account.data.parsed?.info;
     const mint = info?.mint;
     const ui = info?.tokenAmount?.uiAmount;
@@ -203,6 +258,69 @@ async function tokensOf(owner: PublicKey, programId: string): Promise<ParsedToke
     out.push({ mint, amount: ui, decimals: info?.tokenAmount?.decimals ?? 0 });
   }
   return out;
+}
+
+function labelOf(raw: Buffer): string {
+  const text = raw.toString("utf8").replace(/\0/g, "").trim();
+  return text || "флот";
+}
+
+async function fleetsOf(profile: string): Promise<FleetPeek[]> {
+  const rows = await rpc<Array<{ account: { data: [string, string] } }>>("getProgramAccounts", [
+    SAGE,
+    {
+      encoding: "base64",
+      dataSlice: { offset: 169, length: 33 },
+      filters: [
+        { memcmp: { offset: 9, bytes: GAME } },
+        { memcmp: { offset: 41, bytes: profile } },
+      ],
+    },
+  ]);
+  const fleets: FleetPeek[] = [];
+  for (const row of rows.slice(0, 12)) {
+    const buf = Buffer.from(row.account.data[0] ?? "", "base64");
+    if (buf.length < 2) continue;
+    fleets.push({ faction: buf[0] ?? 0, name: labelOf(buf.subarray(1)) });
+  }
+  return fleets;
+}
+
+async function profilesOf(owner: string): Promise<{ profiles: ProfilePeek[]; warning: string }> {
+  const found = new Map<string, number>();
+  let warning = "";
+  await Promise.all(
+    [30, 110, 190].map(async (offset) => {
+      try {
+        const rows = await rpc<Array<{ pubkey: string; account: { data: [string, string] } }>>("getProgramAccounts", [
+          PROFILE,
+          {
+            encoding: "base64",
+            dataSlice: { offset: 28, length: 2 },
+            filters: [{ memcmp: { offset, bytes: owner } }],
+          },
+        ]);
+        for (const row of rows) {
+          const buf = Buffer.from(row.account.data[0] ?? "", "base64");
+          const keys = buf.length >= 2 ? buf.readUInt16LE(0) : 0;
+          found.set(row.pubkey, keys);
+        }
+      } catch (err) {
+        warning = err instanceof Error ? err.message : "Профиль не прочитался";
+      }
+    }),
+  );
+  const profiles: ProfilePeek[] = [];
+  for (const [profile, keys] of [...found.entries()].slice(0, 4)) {
+    let fleets: FleetPeek[] = [];
+    try {
+      fleets = await fleetsOf(profile);
+    } catch (err) {
+      warning = err instanceof Error ? err.message : warning;
+    }
+    profiles.push({ profile, keys, fleets });
+  }
+  return { profiles, warning };
 }
 
 function readBorshString(buf: Buffer, offset: number): { value: string; next: number } {
@@ -283,8 +401,11 @@ export async function scanWallet(ownerText: string): Promise<WalletScan> {
     throw new Error("Это не публичный ключ Solana.");
   }
   const catalog = await loadCatalog();
-  const [a, b] = await Promise.all([tokensOf(owner, TOKEN), tokensOf(owner, TOKEN_22)]);
-  const held = [...a, ...b];
+  const [heldPair, game] = await Promise.all([
+    Promise.all([tokensOf(owner, TOKEN), tokensOf(owner, TOKEN_22)]),
+    profilesOf(owner.toBase58()),
+  ]);
+  const held = [...heldPair[0], ...heldPair[1]];
   const items: WalletItem[] = [];
   const pending: ParsedToken[] = [];
 
@@ -300,6 +421,21 @@ export async function scanWallet(ownerText: string): Promise<WalletScan> {
         className: known.className,
         rarity: known.rarity,
         spec: known.spec,
+        traits: [],
+      });
+      continue;
+    }
+    const fungible = KNOWN_FUNGIBLE[token.mint];
+    if (fungible) {
+      items.push({
+        mint: token.mint,
+        amount: token.amount,
+        name: fungible.name,
+        kind: "resource",
+        image: "",
+        className: "currency",
+        rarity: "",
+        spec: fungible.symbol,
         traits: [],
       });
       continue;
@@ -336,8 +472,8 @@ export async function scanWallet(ownerText: string): Promise<WalletScan> {
         }
         const known = catalog.get(token.mint);
         const kind: WalletItem["kind"] = known?.kind && known.kind !== "other" ? known.kind : traits.length || parsed ? "nft" : "nft";
-        const crewish = /crew|pilot|operator|hospitality|engineering|ustur|gummy|sogmian/i.test(
-          `${name} ${traits.map((t) => t.trait).join(" ")}`,
+        const crewish = /crew|pilot|operator|hospitality|engineering|ustur|gummy|sogmian|hair|openness|ocean/i.test(
+          `${name} ${traits.map((t) => `${t.trait} ${t.value}`).join(" ")}`,
         );
         return {
           mint: token.mint,
@@ -363,6 +499,8 @@ export async function scanWallet(ownerText: string): Promise<WalletScan> {
     at: Date.now(),
     items,
     skippedMeta,
-    note: "Кошелёк читается только на просмотр: токен-аккаунты SPL и Token-2022. Корабли и ресурсы сверяются с Galaxy /nfts. Уникальный экипаж не входит в этот каталог — имя и способности берутся из Metaplex metadata NFT. Груз в Cargo и Profile Vault на кошельке не лежит.",
+    profiles: game.profiles,
+    rpcWarning: game.warning,
+    note: "Подпись транзакции не нужна. Phantom только называет публичный адрес, реестр и так открыт. Здесь то, что лежит на ключе: SPL, Token-2022, ATLAS и POLIS. Уникальный экипаж — из метадаты NFT, не из Galaxy /nfts. Корабли и груз SAGE сидят во флоте и Cargo: ниже профили, если этот ключ записан первым, вторым или третьим. Содержимое трюма без отдельного разбора Cargo-аккаунта не видно.",
   };
 }

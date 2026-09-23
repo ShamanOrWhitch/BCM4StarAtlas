@@ -6,6 +6,10 @@ export type TokenQuote = {
   lockedSupply: number | null;
 };
 
+export type Candle = { t: number; o: number; h: number; l: number; c: number };
+
+export type TapePoint = { t: number; asks: Record<string, number> };
+
 export type ResourceRow = {
   mint: string;
   name: string;
@@ -23,6 +27,8 @@ export type MarketSnap = {
   atlas: TokenQuote;
   polis: TokenQuote;
   resources: ResourceRow[];
+  candles: Candle[];
+  tape: TapePoint[];
   note: string;
 };
 
@@ -40,10 +46,16 @@ export type WalletItem = {
   traits: WalletTrait[];
 };
 
+export type FleetPeek = { name: string; faction: number };
+
+export type ProfilePeek = { profile: string; keys: number; fleets: FleetPeek[] };
+
 export type WalletScan = {
   owner: string;
   at: number;
   items: WalletItem[];
   skippedMeta: number;
+  profiles: ProfilePeek[];
+  rpcWarning: string;
   note: string;
 };

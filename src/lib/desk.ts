@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { MarketSnap, WalletScan } from "./desk-types";
 
-export type { MarketSnap, ResourceRow, TokenQuote, WalletItem, WalletScan, WalletTrait } from "./desk-types";
+export type { MarketSnap, ResourceRow, TokenQuote, WalletItem, WalletScan, WalletTrait, Candle, TapePoint, FleetPeek, ProfilePeek } from "./desk-types";
 
 export const loadMarket = createServerFn({ method: "GET" }).handler(async (): Promise<MarketSnap> => {
   const { buildMarket } = await import("./desk.impl.ts");

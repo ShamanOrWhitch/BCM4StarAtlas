@@ -59,3 +59,22 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+@keyframes galia-hop {
+  0% {
+    filter: hue-rotate(0deg);
+    box-shadow: 0 0 0 0 transparent;
+  }
+  40% {
+    filter: hue-rotate(48deg);
+    box-shadow: 0 0 16px 1px color-mix(in oklab, var(--color-brass) 50%, transparent);
+  }
+  100% {
+    filter: hue-rotate(0deg);
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.galia-hop {
+  animation: galia-hop 1.15s var(--ease-out) 1;
+}

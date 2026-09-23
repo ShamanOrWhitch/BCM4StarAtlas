@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppChrome } from "@/components/app-chrome";
-import { loadMarket, type MarketSnap, type ResourceRow } from "@/lib/desk";
-import { deltaPct, loadTape, recordTape, type TapePoint } from "@/lib/price-tape";
+import { loadMarket, type Candle, type MarketSnap, type ResourceRow, type TapePoint } from "@/lib/desk";
+import { deltaPct } from "@/lib/price-tape";
 
 export const Route = createFileRoute("/market")({ component: MarketPage });
 
@@ -57,17 +57,13 @@ function MarketPage() {
   const [query, setQuery] = useState("");
   const [tape, setTape] = useState<TapePoint[]>([]);
 
-  async function pull(forceTape: boolean) {
+  async function pull(_force: boolean) {
     setLoading(true);
     setError("");
     try {
       const data = await loadMarket();
       setSnap(data);
-      const asks: Record<string, number> = {};
-      for (const row of data.resources) {
-        if (row.ask != null) asks[row.mint] = row.ask;
-      }
-      setTape(recordTape(asks, data.atlas.usd, forceTape));
+      setTape(data.tape);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Стакан не ответил");
     } finally {
@@ -76,7 +72,6 @@ function MarketPage() {
   }
 
   useEffect(() => {
-    setTape(loadTape());
     void pull(false);
   }, []);
 
@@ -112,10 +107,11 @@ function MarketPage() {
             <TokenCard name="ATLAS" quote={snap?.atlas} />
             <TokenCard name="POLIS" quote={snap?.polis} />
           </div>
+          <CandleChart candles={snap?.candles ?? []} />
 
           <div className="grid gap-3 sm:grid-cols-3">
             {pinned.map((row) => (
-              <article key={row.mint} className="rounded-xl border border-line bg-surface p-3">
+              <article key={row.mint} className="galia-hop rounded-xl border border-line bg-surface p-3">
                 <p className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{row.name}</p>
                 <p className="mt-1 font-mono text-xl text-fg">{fmtAtlas(row.ask)}</p>
                 <p className="text-sm text-muted">
@@ -167,8 +163,8 @@ function MarketPage() {
           ) : (
             <p className="text-sm text-muted">
               {tape.length < 2
-                ? "Первый снимок записан в браузер. Следующий, не раньше чем через 15 минут или по кнопке, покажет изменение."
-                : "Между снимками стакан почти не сдвинулся."}
+                ? "Свечи ATLAS уже с общего рынка. По ресурсам Galaxy историю не отдаёт: первый общий снимок сервера записан, следующий покажет Δ, не внутренний ноль."
+                : `Общих снимков сервера: ${tape.length}. Ноль значит, что стакан между ними не сдвинулся.`}
             </p>
           )}
 
@@ -208,6 +204,45 @@ function MarketPage() {
         </div>
       </div>
     </AppChrome>
+  );
+}
+
+function CandleChart({ candles }: { candles: Candle[] }) {
+  if (candles.length < 2) return null;
+  const w = 640;
+  const h = 112;
+  const pad = 6;
+  const min = Math.min(...candles.map((c) => c.l));
+  const max = Math.max(...candles.map((c) => c.h));
+  const span = max - min || 1;
+  const slot = (w - pad * 2) / candles.length;
+  const y = (v: number) => pad + (1 - (v - min) / span) * (h - pad * 2);
+  const first = candles[0]?.o ?? 0;
+  const last = candles[candles.length - 1]?.c ?? 0;
+  const move = first ? ((last - first) / first) * 100 : null;
+  return (
+    <figure className="rounded-xl border border-line bg-surface p-3">
+      <figcaption className="mb-2 flex items-baseline justify-between gap-3">
+        <span className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">ATLAS · свечи 4ч</span>
+        <span className={`font-mono text-sm ${move != null && move < 0 ? "text-danger" : "text-ok"}`}>{fmtPct(move)}</span>
+      </figcaption>
+      <svg viewBox={`0 0 ${w} ${h}`} className="h-28 w-full" role="img" aria-label="Свечи ATLAS">
+        {candles.map((candle, index) => {
+          const x = pad + index * slot + slot / 2;
+          const up = candle.c >= candle.o;
+          const color = up ? "#7a9a7e" : "#c45c4a";
+          const top = y(Math.max(candle.o, candle.c));
+          const bot = y(Math.min(candle.o, candle.c));
+          return (
+            <g key={candle.t}>
+              <line x1={x} x2={x} y1={y(candle.h)} y2={y(candle.l)} stroke={color} strokeWidth="1.2" />
+              <rect x={x - Math.max(1.2, slot * 0.28)} y={top} width={Math.max(2, slot * 0.56)} height={Math.max(1.2, bot - top)} fill={color} />
+            </g>
+          );
+        })}
+      </svg>
+      <p className="mt-1 text-sm text-muted">Общий рынок MEXC, не снимок этого браузера. Ресурсы ниже — стакан Galactic Marketplace.</p>
+    </figure>
   );
 }
 

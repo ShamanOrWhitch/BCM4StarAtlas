@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppChrome } from "@/components/app-chrome";
 import { scanDeskWallet, type WalletItem, type WalletScan } from "@/lib/desk";
+import { influenceFromTraits } from "@/lib/crew-score";
 
 export const Route = createFileRoute("/wallet")({ component: WalletPage });
 
@@ -42,6 +43,7 @@ function WalletPage() {
     setHasPhantom(true);
     const res = await provider.connect();
     setOwner(res.publicKey.toString());
+    await run(res.publicKey.toString());
   }
 
   async function run(address = owner) {
@@ -69,10 +71,10 @@ function WalletPage() {
       <div className="h-full overflow-y-auto">
         <div className="mx-auto flex max-w-5xl flex-col gap-4 px-3 py-4 md:px-6">
           <p className="max-w-3xl text-sm text-muted">
-            Официально личность — это Player Profile, а ключ кошелька только один из ProfileKey. Здесь читается то,
-            что лежит прямо на адресе: SPL и Token-2022. Корабли и ресурсы сверяются с каталогом Galaxy. Способности
-            уникального экипажа берутся из метадаты NFT, не из общего списка /nfts — там всего 13 старых карточек.
-            Груз SAGE сидит в Cargo и Profile Vault, его этот экран не показывает.
+            Подпись транзакции не открывает трюм. Phantom только подтверждает, что сайт видит публичный адрес — реестр Solana и так
+            читается без неё. На ключе видны SPL, Token-2022, ATLAS, POLIS и NFT. Корабли и груз, которые уже в SAGE, лежат во флоте и
+            Cargo. Если ключ записан в Player Profile первым, вторым или третьим, ниже появятся флот и его имя. OCEAN и причёска берутся
+            из метадаты NFT и меряются формулой симулятора, не скрытым бонусом SAGE.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <input
@@ -97,9 +99,41 @@ function WalletPage() {
           {scan ? (
             <>
               <p className="font-mono text-xs text-faint">
-                {scan.owner} · {scan.items.length} позиций
+                {scan.owner} · {scan.items.length} на ключе
                 {scan.skippedMeta ? ` · ещё ${scan.skippedMeta} NFT не открыты за один проход` : ""}
               </p>
+              {scan.rpcWarning ? <p className="text-sm text-danger">{scan.rpcWarning}</p> : null}
+              {scan.profiles.length ? (
+                <section className="flex flex-col gap-2">
+                  <h2 className="font-display text-sm tracking-[0.16em] text-brass uppercase">В игре</h2>
+                  {scan.profiles.map((profile) => (
+                    <article key={profile.profile} className="rounded-xl border border-line bg-surface p-3">
+                      <p className="font-mono text-xs text-faint">{profile.profile}</p>
+                      <p className="mt-1 text-sm text-muted">ключей на профиле: {profile.keys || "—"}</p>
+                      {profile.fleets.length ? (
+                        <ul className="mt-2 flex flex-col gap-1">
+                          {profile.fleets.map((fleet) => (
+                            <li key={`${profile.profile}-${fleet.name}`} className="text-sm text-fg">
+                              {fleet.name}
+                              <span className="text-muted"> · фракция {fleet.faction}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-2 text-sm text-muted">Флотов SAGE на этом профиле не видно.</p>
+                      )}
+                    </article>
+                  ))}
+                </section>
+              ) : (
+                <p className="text-sm text-muted">
+                  Профиль по этому ключу не найден среди первых трёх ProfileKey. Либо ключ не привязан, либо он четвёртый и дальше. Пустой
+                  список токенов при этом нормален: игра держит корабли и ресурсы не на адресе.
+                </p>
+              )}
+              {!scan.items.length ? (
+                <p className="text-sm text-muted">На самом ключе токенов Star Atlas нет. Это не отказ сайта и не отсутствие подписи.</p>
+              ) : null}
               {groups.map((kind) => {
                 const rows = scan.items.filter((item) => item.kind === kind);
                 if (!rows.length) return null;
@@ -108,7 +142,7 @@ function WalletPage() {
                     <h2 className="mb-2 font-display text-sm tracking-[0.16em] text-brass uppercase">{KIND[kind]}</h2>
                     <div className="grid gap-3 sm:grid-cols-2">
                       {rows.map((item) => (
-                        <article key={`${item.mint}-${item.amount}`} className="flex gap-3 rounded-xl border border-line bg-surface p-3">
+                        <article key={`${item.mint}-${item.amount}`} className="galia-hop flex gap-3 rounded-xl border border-line bg-surface p-3">
                           {item.image ? (
                             <img src={item.image} alt="" className="size-16 shrink-0 rounded-lg bg-surface-2 object-cover" />
                           ) : (
@@ -122,15 +156,7 @@ function WalletPage() {
                               {item.rarity ? ` · ${item.rarity}` : ""}
                               {item.spec ? ` · ${item.spec}` : ""}
                             </p>
-                            {item.traits.length ? (
-                              <ul className="mt-1 space-y-0.5 text-sm text-ice">
-                                {item.traits.slice(0, 8).map((trait) => (
-                                  <li key={trait.trait}>
-                                    {trait.trait}: {trait.value}
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : null}
+                            <TraitBlock item={item} />
                           </div>
                         </article>
                       ))}
@@ -144,5 +170,33 @@ function WalletPage() {
         </div>
       </div>
     </AppChrome>
+  );
+}
+
+function TraitBlock({ item }: { item: WalletItem }) {
+  const influence = item.kind === "crew" || item.traits.length ? influenceFromTraits(item.traits) : null;
+  return (
+    <>
+      {item.traits.length ? (
+        <ul className="mt-1 space-y-0.5 text-sm text-ice">
+          {item.traits.slice(0, 8).map((trait) => (
+            <li key={trait.trait}>
+              {trait.trait}: {trait.value}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {influence && (influence.ocean || influence.helm || influence.hull || influence.scan || influence.mission) ? (
+        <p className="mt-1 text-sm text-fg">
+          задание {influence.mission}% · штурвал {influence.helm}% · корпус {influence.hull}% · сенсор {influence.scan}%
+        </p>
+      ) : null}
+      {influence?.hair || influence?.skin ? (
+        <p className="mt-1 text-sm text-brass">
+          {influence.hair ? `волосы ${influence.hair}` : ""}
+          {influence.skin ? ` · скин ${influence.skin}` : ""}. Скин — слот рядом с бортом, не второй плагин.
+        </p>
+      ) : null}
+    </>
   );
 }

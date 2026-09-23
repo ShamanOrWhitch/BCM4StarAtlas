@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Galia Desk
- * Description: Цены ресурсов Star Atlas и чтение кошелька. Шорткод [galia_desk]. Карта Galia остаётся в приложении.
- * Version: 0.1.0
+ * Description: Цены, свечи ATLAS, сейф и флот SAGE. Один шорткод [galia_desk]. Карта Galia остаётся в приложении.
+ * Version: 0.2.0
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -191,6 +191,8 @@ function galia_desk_market() {
         'atlas' => galia_desk_token($atlas, $prices, GALIA_DESK_ATLAS),
         'polis' => galia_desk_token($polis, $prices, GALIA_DESK_POLIS),
         'resources' => $resources,
+        'candles' => galia_desk_candles(),
+        'tape' => galia_desk_push_tape($resources),
         'gmp' => function_exists('gmp_init') || function_exists('bcadd'),
     );
     set_transient('galia_desk_market', $payload, 3 * MINUTE_IN_SECONDS);
@@ -241,6 +243,49 @@ function galia_desk_b58_decode($text) {
     return str_repeat("\0", $zeros) . $bin;
 }
 
+function galia_desk_candles() {
+    $rows = galia_desk_remote_json('https://api.mexc.com/api/v3/klines?symbol=ATLASUSDT&interval=4h&limit=42');
+    $out = array();
+    if (!is_array($rows)) {
+        return $out;
+    }
+    foreach ($rows as $row) {
+        if (!is_array($row) || count($row) < 5) {
+            continue;
+        }
+        $out[] = array(
+            't' => (int) $row[0],
+            'o' => (float) $row[1],
+            'h' => (float) $row[2],
+            'l' => (float) $row[3],
+            'c' => (float) $row[4],
+        );
+    }
+    return $out;
+}
+
+function galia_desk_push_tape($resources) {
+    $tape = get_option('galia_desk_tape', array());
+    if (!is_array($tape)) {
+        $tape = array();
+    }
+    $asks = array();
+    foreach ($resources as $row) {
+        if (isset($row['ask']) && $row['ask'] !== null && isset($row['mint'])) {
+            $asks[$row['mint']] = $row['ask'];
+        }
+    }
+    $last = end($tape);
+    if (!is_array($last) || !isset($last['t']) || (time() - (int) $last['t']) >= 120) {
+        $tape[] = array('t' => time(), 'asks' => $asks);
+    }
+    if (count($tape) > 48) {
+        $tape = array_slice($tape, -48);
+    }
+    update_option('galia_desk_tape', $tape, false);
+    return $tape;
+}
+
 function galia_desk_token($supply, $prices, $mint) {
     $quote = isset($prices[$mint]) && is_array($prices[$mint]) ? $prices[$mint] : array();
     return array(
@@ -270,28 +315,120 @@ function galia_desk_wallet($owner) {
                 continue;
             }
             $mint = $info['mint'];
+            $decimals = isset($info['tokenAmount']['decimals']) ? (int) $info['tokenAmount']['decimals'] : 0;
             $known = isset($catalog[$mint]) ? $catalog[$mint] : null;
-            if (!$known) {
+            $currency = null;
+            if ($mint === GALIA_DESK_ATLAS) {
+                $currency = array('name' => 'ATLAS', 'symbol' => 'ATLAS');
+            } elseif ($mint === GALIA_DESK_POLIS) {
+                $currency = array('name' => 'POLIS', 'symbol' => 'POLIS');
+            }
+            if (!$known && !$currency && $decimals !== 0) {
+                continue;
+            }
+            if (!$known && !$currency && count($items) > 40) {
                 continue;
             }
             $items[] = array(
                 'mint' => $mint,
                 'amount' => $amount,
-                'name' => $known ? $known['name'] : substr($mint, 0, 4) . '…' . substr($mint, -4),
-                'kind' => $known ? $known['kind'] : 'nft',
+                'name' => $known ? $known['name'] : ($currency ? $currency['name'] : substr($mint, 0, 4) . '…' . substr($mint, -4)),
+                'kind' => $known ? $known['kind'] : ($currency ? 'resource' : 'nft'),
                 'className' => $known ? $known['className'] : '',
                 'rarity' => $known ? $known['rarity'] : '',
-                'spec' => $known ? $known['spec'] : '',
+                'spec' => $known ? $known['spec'] : ($currency ? $currency['symbol'] : ''),
                 'image' => $known ? $known['image'] : '',
                 'traits' => array(),
             );
         }
     }
+    $game = galia_desk_game($owner);
     return array(
         'owner' => $owner,
         'items' => $items,
-        'note' => 'На сайте читается кошелёк и каталог Galaxy. Уникальные способности экипажа из метадаты NFT смотри в приложении Galia, вкладка Сейф: там Metaplex. Cargo и Profile Vault сюда не входят.',
+        'profiles' => $game['profiles'],
+        'note' => 'Подпись не нужна: адрес публичный. Пустой список на ключе значит, что корабли и груз уже в SAGE, не в кошельке. '
+            . $game['note'],
     );
+}
+
+function galia_desk_game($owner) {
+    $profiles = array();
+    $seen = array();
+    $warning = '';
+    foreach (array(30, 110, 190) as $offset) {
+        $json = galia_desk_rpc('getProgramAccounts', array(
+            'pprofELXjL5Kck7Jn5hCpwAL82DpTkSYBENzahVtbc9',
+            array(
+                'encoding' => 'base64',
+                'dataSlice' => array('offset' => 28, 'length' => 2),
+                'filters' => array(array('memcmp' => array('offset' => $offset, 'bytes' => $owner))),
+            ),
+        ));
+        if (!is_array($json) || isset($json['error'])) {
+            $warning = isset($json['error']['message']) ? $json['error']['message'] : 'Профиль не прочитался';
+            continue;
+        }
+        $rows = isset($json['result']) && is_array($json['result']) ? $json['result'] : array();
+        foreach ($rows as $row) {
+            if (empty($row['pubkey']) || isset($seen[$row['pubkey']])) {
+                continue;
+            }
+            $seen[$row['pubkey']] = true;
+            $keys = 0;
+            if (!empty($row['account']['data'][0])) {
+                $raw = base64_decode($row['account']['data'][0]);
+                if (is_string($raw) && strlen($raw) >= 2) {
+                    $keys = unpack('v', substr($raw, 0, 2))[1];
+                }
+            }
+            $profiles[] = array(
+                'profile' => $row['pubkey'],
+                'keys' => $keys,
+                'fleets' => galia_desk_fleets($row['pubkey']),
+            );
+            if (count($profiles) >= 4) {
+                break 2;
+            }
+        }
+    }
+    $note = $warning !== '' ? $warning . '. ' : '';
+    $note .= 'Игровой трюм Cargo этим списком не подменяется: видны профиль и имена флотов SAGE.';
+    return array('profiles' => $profiles, 'note' => $note);
+}
+
+function galia_desk_fleets($profile) {
+    $json = galia_desk_rpc('getProgramAccounts', array(
+        'SAGE2HAwep459SNq61LHvjxPk4pLPEJLoMETef7f7EE',
+        array(
+            'encoding' => 'base64',
+            'dataSlice' => array('offset' => 169, 'length' => 33),
+            'filters' => array(
+                array('memcmp' => array('offset' => 9, 'bytes' => 'GAMEzqJehF8yAnKiTARUuhZMvLvkZVAsCVri5vSfemLr')),
+                array('memcmp' => array('offset' => 41, 'bytes' => $profile)),
+            ),
+        ),
+    ));
+    $out = array();
+    $rows = isset($json['result']) && is_array($json['result']) ? $json['result'] : array();
+    foreach ($rows as $row) {
+        if (empty($row['account']['data'][0])) {
+            continue;
+        }
+        $raw = base64_decode($row['account']['data'][0]);
+        if (!is_string($raw) || strlen($raw) < 2) {
+            continue;
+        }
+        $name = rtrim(substr($raw, 1), "\0");
+        if ($name === '') {
+            $name = 'флот';
+        }
+        $out[] = array('name' => $name, 'faction' => ord($raw[0]));
+        if (count($out) >= 12) {
+            break;
+        }
+    }
+    return $out;
 }
 
 function galia_desk_ajax_market() {
@@ -321,12 +458,13 @@ function galia_desk_shortcode() {
     <div class="galia-desk">
       <p class="galia-desk-kicker">Star Atlas · Galia</p>
       <h2 class="galia-desk-title">Стол цен</h2>
-      <p class="galia-desk-note">Ресурсы — лучшая цена стакана Galactic Marketplace в ATLAS. ATLAS и POLIS в долларах — Jupiter, оборот — Galaxy /tokens. Летающая карта Galia этим блоком не заменяется.</p>
+      <p class="galia-desk-note">Свечи ATLAS — общий рынок, не ноль браузера. Ресурсы — стакан Galactic Marketplace. Подпись кошелька не нужна: пустой адрес значит, что груз уже в игре. Лабиринт mini-sim остаётся своим шорткодом, этот блок его не заменяет.</p>
       <div class="galia-desk-row">
         <button type="button" data-galia-refresh>Обновить</button>
         <span data-galia-status>Загрузка…</span>
       </div>
       <div class="galia-desk-tokens" data-galia-tokens></div>
+      <div data-galia-chart></div>
       <div class="galia-desk-table" data-galia-table></div>
       <h3 class="galia-desk-title">Сейф</h3>
       <form class="galia-desk-row" data-galia-wallet>
@@ -372,13 +510,43 @@ function galia_desk_shortcode() {
             var q = data[key] || {};
             return '<div class="galia-desk-card"><strong>' + key.toUpperCase() + '</strong> $' + num(q.usd) + ' · 24ч ' + num(q.change24h) + '% · оборот ' + num(q.circulating) + '</div>';
           }).join("");
+          root.querySelector("[data-galia-chart]").innerHTML = candlesSvg(data.candles || []);
+          var tape = data.tape || [];
+          var prev = tape.length >= 2 ? tape[tape.length - 2].asks || {} : {};
           var rows = (data.resources || []).filter(function (row) { return row.ask != null; });
-          var html = '<table><thead><tr><th>Ресурс</th><th>Класс</th><th>Продажа</th><th>Покупка</th></tr></thead><tbody>';
+          var html = '<table><thead><tr><th>Ресурс</th><th>Класс</th><th>Продажа</th><th>Покупка</th><th>Δ</th></tr></thead><tbody>';
           rows.forEach(function (row) {
-            html += '<tr><td>' + row.name + '</td><td>' + row.className + '</td><td>' + num(row.ask) + '</td><td>' + num(row.bid) + '</td></tr>';
+            var d = "—";
+            if (prev[row.mint]) {
+              var pct = ((row.ask - prev[row.mint]) / prev[row.mint]) * 100;
+              d = (pct > 0 ? "+" : "") + pct.toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + "%";
+            }
+            html += '<tr><td>' + row.name + '</td><td>' + row.className + '</td><td>' + num(row.ask) + '</td><td>' + num(row.bid) + '</td><td>' + d + '</td></tr>';
           });
           root.querySelector("[data-galia-table]").innerHTML = html + '</tbody></table>';
-          status.textContent = data.gmp === false ? 'На сервере нет GMP — цены стакана не посчитались.' : ('Ордеров ' + (data.orderCount || 0));
+          var tapeNote = tape.length < 2 ? " Первый общий снимок ресурсов записан на сайте." : " Снимков ресурса на сайте: " + tape.length + ".";
+          status.textContent = (data.gmp === false ? "На сервере нет GMP — цены стакана не посчитались." : ("Ордеров " + (data.orderCount || 0))) + tapeNote;
+        }
+        function candlesSvg(candles) {
+          if (!candles || candles.length < 2) return "";
+          var w = 640, h = 96, pad = 6;
+          var min = candles[0].l, max = candles[0].h;
+          candles.forEach(function (c) { if (c.l < min) min = c.l; if (c.h > max) max = c.h; });
+          var span = (max - min) || 1;
+          var slot = (w - pad * 2) / candles.length;
+          function y(v) { return pad + (1 - (v - min) / span) * (h - pad * 2); }
+          var first = candles[0].o, last = candles[candles.length - 1].c;
+          var move = first ? ((last - first) / first) * 100 : 0;
+          var body = candles.map(function (c, i) {
+            var x = pad + i * slot + slot / 2;
+            var up = c.c >= c.o;
+            var color = up ? "#7a9a7e" : "#c45c4a";
+            var top = y(Math.max(c.o, c.c));
+            var bot = y(Math.min(c.o, c.c));
+            return '<line x1="' + x + '" x2="' + x + '" y1="' + y(c.h) + '" y2="' + y(c.l) + '" stroke="' + color + '" stroke-width="1.2"/>'
+              + '<rect x="' + (x - Math.max(1.2, slot * 0.28)) + '" y="' + top + '" width="' + Math.max(2, slot * 0.56) + '" height="' + Math.max(1.2, bot - top) + '" fill="' + color + '"/>';
+          }).join("");
+          return '<div class="galia-desk-card"><strong>ATLAS · свечи 4ч</strong> ' + move.toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + '%<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:96px;display:block;margin-top:.4rem">' + body + '</svg><span class="galia-desk-note">Общий рынок MEXC.</span></div>';
         }
         function load() {
           status.textContent = "Снимаю стакан…";
@@ -396,9 +564,18 @@ function galia_desk_shortcode() {
           post("galia_desk_wallet", { owner: owner }).then(function (res) { return res.json(); }).then(function (json) {
             if (!json.success) throw new Error((json.data && json.data.message) || "wallet");
             var items = json.data.items || [];
-            hold.innerHTML = items.map(function (item) {
+            var profiles = json.data.profiles || [];
+            var html = profiles.map(function (profile) {
+              var fleets = (profile.fleets || []).map(function (fleet) {
+                return fleet.name + " · фракция " + fleet.faction;
+              }).join(", ") || "флотов не видно";
+              return '<div class="galia-desk-card"><strong>В игре</strong><br>' + profile.profile + '<br>' + fleets + '</div>';
+            }).join("");
+            html += items.map(function (item) {
               return '<div class="galia-desk-card"><strong>' + item.name + '</strong> ×' + num(item.amount) + ' · ' + item.kind + (item.spec ? ' · ' + item.spec : '') + '</div>';
-            }).join("") || "<p>На адресе нет токенов Star Atlas.</p>";
+            }).join("");
+            if (!items.length) html += "<p>На ключе нет токенов Star Atlas. Подпись это не лечит: груз игры лежит во флоте.</p>";
+            hold.innerHTML = html;
             hold.insertAdjacentHTML("beforeend", "<p class='galia-desk-note'>" + (json.data.note || "") + "</p>");
           }).catch(function (err) { hold.textContent = err.message || "Кошелёк не прочитался."; });
         });

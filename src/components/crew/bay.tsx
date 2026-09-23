@@ -19,6 +19,7 @@ import { EMPTY_QUERY, PRESETS, filterCrew, houses, type CrewQuery, type SortKey 
 import { loadStars, saveStars } from "@/lib/crew-stars";
 import { CrewPortrait } from "@/components/crew/portrait";
 import { packetOf } from "@/data/packets";
+import { influenceFromRoster } from "@/lib/crew-score";
 import { AppChrome } from "@/components/app-chrome";
 
 const TIER_LABEL: Record<TensorTier | "unknown", string> = {
@@ -436,6 +437,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
 function Detail({ crew, starred, onStar }: { crew: Crew; starred: boolean; onStar: () => void }) {
   const t = tensorTier(crew.tensorRank);
   const gem = diamondRecipe(crew.official);
+  const influence = influenceFromRoster(crew);
   return (
     <div className="flex flex-col p-5">
       <div className="flex items-start justify-between gap-2">
@@ -487,6 +489,15 @@ function Detail({ crew, starred, onStar }: { crew: Crew; starred: boolean; onSta
         <Bar label="E экстра" value={crew.e} />
         <Bar label="A согласие" value={crew.a} />
       </ul>
+
+      <p className="mt-5 font-display text-xs tracking-wide text-muted uppercase">На борт</p>
+      <dl className="mt-2 grid grid-cols-2 gap-2">
+        <Stat k="Задание" v={`${influence.mission}%`} />
+        <Stat k="Штурвал" v={`${influence.helm}%`} />
+        <Stat k="Корпус" v={`${influence.hull}%`} />
+        <Stat k="Сенсор" v={`${influence.scan}%`} />
+      </dl>
+      <p className="mt-2 text-sm leading-snug text-muted">{influence.line}</p>
 
       <p className="mt-5 font-display text-xs tracking-wide text-muted uppercase">Слоты</p>
       <p className="mt-2 font-display text-sm text-ice">{seats(crew).join(" · ") || "—"}</p>
