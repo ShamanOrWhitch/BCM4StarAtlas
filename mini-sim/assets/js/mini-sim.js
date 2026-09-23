@@ -1762,9 +1762,9 @@
         const panel = root.querySelector('.bcm-mini-sim-settings');
         if (!panel) return;
 
+        menuState.wasRunning = running;
         menuState.open = forceOpen;
         panel.hidden = !forceOpen;
-        menuBackdrop && menuBackdrop.classList.toggle('menu-visible', forceOpen);
 
         if (forceOpen) {
             running = false;
@@ -1775,11 +1775,9 @@
 
             root.classList.remove('game-active');
             startButton.classList.remove('hidden');
-            canvas.blur();
             status.textContent = 'MENU · SETTINGS';
         }
     }
-
     function toggleSettings(force) {
         if (typeof force === 'boolean') {
             if (force) {
@@ -1803,11 +1801,19 @@
 
         panel.hidden = true;
         menuState.open = false;
-        root.classList.add('game-active');
-        startButton.classList.add('hidden');
-        status.textContent = 'FLIGHT PAUSED · PRESS ENTER TO OPEN MENU';
-    }
 
+        if (menuState.wasRunning) {
+            running = true;
+            root.classList.add('game-active');
+            startButton.classList.add('hidden');
+            status.textContent = 'FLIGHT ACTIVE · 6DOF READY';
+        } else {
+            running = false;
+            root.classList.remove('game-active');
+            startButton.classList.remove('hidden');
+            status.textContent = 'ENGINE READY · PRESS PLAY';
+        }
+    }
     function beginPlay() {
         if (!renderer) return;
 
