@@ -854,10 +854,42 @@
 
     function randomizeStartPortal(forceInitial) {
         const ready = availablePortalPairs();
+        const canonicalFirst = portal.randomPairs[0];
+
+        const firstReady =
+            !!findAssetRecord(canonicalFirst.image, 'image') &&
+            !!findAssetRecord(canonicalFirst.video, 'video');
+
+        if (forceInitial && firstReady) {
+            portal.image = canonicalFirst.image;
+            portal.video = canonicalFirst.video;
+            portal.point = canonicalFirst.label + ' → ROOM 2';
+            portal.lastRandomKey = portal.image + '|' + portal.video;
+            portal.randomTimer = 0;
+            applyPortalAppearance();
+            return true;
+        }
+
+        if (forceInitial) {
+            const legacyImage = findAssetRecord('portal.png', 'image');
+            const legacyVideo = findAssetRecord('portal2.mp4', 'video');
+
+            if (legacyImage && legacyVideo) {
+                portal.image = legacyImage.name;
+                portal.video = legacyVideo.name;
+                portal.point = 'PORTAL 1 FALLBACK → ROOM 2';
+                portal.lastRandomKey = portal.image + '|' + portal.video;
+                portal.randomTimer = 0;
+                applyPortalAppearance();
+                return true;
+            }
+        }
 
         if (!ready.length) {
-            portal.image = 'portal1.png';
-            portal.video = 'portal1.mp4';
+            portal.image = canonicalFirst.image;
+            portal.video = canonicalFirst.video;
+            portal.point = canonicalFirst.label + ' → ROOM 2';
+            portal.randomTimer = 0;
             applyPortalAppearance();
             return false;
         }
@@ -877,11 +909,11 @@
         portal.image = selected.image;
         portal.video = selected.video;
         portal.point = selected.label + ' → ROOM 2';
-        portal.lastRandomKey = selected.image + '|' + selected.video;
+        portal.lastRandomKey = portal.image + '|' + portal.video;
+        portal.randomTimer = 0;
         applyPortalAppearance();
         return true;
     }
-
     function getPortalScreenMetrics() {
         if (!portal.surface || !camera) {
             return { visibleRatio: 0 };
@@ -961,7 +993,6 @@
 
         return getPortalScreenMetrics().visibleRatio >= 0.69;
     }
-
     function createPortalTransitionUI() {
         if (root.querySelector('.bcm-mini-sim-transition')) return;
 
@@ -1853,7 +1884,7 @@
         });
 
         document.addEventListener('mousemove', event => {
-            if (!pointerLocked || !running || menuState.open) return;
+            if (!pointerLocked || !running || menuState.open || transitionBusy) return;
 
             const sensitivity = 0.0026;
             const invertPitch =
@@ -1884,7 +1915,7 @@
             const down = async event => {
                 event.preventDefault();
 
-                if (!running && control !== 'tilt') return;
+                if ((!running || transitionBusy) && control !== 'tilt') return;
 
                 if (control === 'tilt') {
                     await enableTiltControl();
