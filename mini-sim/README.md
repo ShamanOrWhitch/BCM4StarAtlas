@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.6.4
+# BCM Mini-Sim 0.6.5
 
 ## STOP — read this before another GPT rewrite
 
@@ -76,14 +76,14 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - The back-side trigger has priority in Room 2 and cannot accidentally use the forward portal trigger.
 
 
-### 0.6.4 scene/media additions
+### 0.6.5 scene/media additions
 - Live wall: `wall.mp4` is used as a full wall panel with `wall1.png` as a first-frame fallback until the video is decoded.
 - Cinema clips now use `i-dance-fin.mp4` and `Reshade-Rasta-Dance3.mp4` in place of the older clips.
 - Exterior starbase: a lightweight skeleton surrounds the open-space departure path with segmented outer panels using `back*.png` textures.
 - The exterior panels reuse a small set of loaded textures and periodically shuffle their assignments to create a camouflage effect.
 - The six backside PNGs belong in `mini-sim/assets/`; the root copies are not used.
 
-### 0.6.4
+### 0.6.5
 - The portal remains on the r128 implementation.
 - Front portal face: `portal.png`; rear portal face: `portal2.png`.
 - The first and return gates keep the existing door logic.
