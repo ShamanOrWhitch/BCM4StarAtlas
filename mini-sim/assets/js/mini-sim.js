@@ -1064,7 +1064,6 @@
         ? "CINEMA · 100% · OST 0%"
         : "CINEMA · " + Math.round(filmGain * 100) + "% · OST " + Math.round(ostGain * 100) + "%";
     }
-    updateLiveWall();
   }
 
   function toggleCinemaFocus() {
@@ -1168,6 +1167,7 @@
     camera.quaternion.copy(ship.quaternion);
     light.position.copy(ship.position);
     updateCinemaZones();
+    updateLiveWall();
     updateCinemaFocus();
     if (ship.visual) {
       ship.visual.position.copy(ship.position);
