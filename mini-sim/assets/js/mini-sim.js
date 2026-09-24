@@ -104,6 +104,7 @@
   let pointerLocked = false;
   let last = performance.now();
   let transitionBusy = false;
+  let transitionLoading = false;
   let musicAllowed = false;
 
   function setStatus(text) {
@@ -591,6 +592,7 @@
   function finishTeleport() {
     const direction = portal.direction;
     transitionBusy = false;
+    transitionLoading = false;
     if (transitionRoot) {
       transitionRoot.classList.remove("ready");
       transitionRoot.hidden = true;
@@ -620,7 +622,7 @@
   }
 
   function playPortalVideo(direction) {
-    if (transitionBusy) return;
+    if (transitionBusy || transitionLoading) return;
 
     portal.direction = direction === "BACK" ? "BACK" : "FORWARD";
     const url = portal.direction === "BACK"
@@ -633,48 +635,80 @@
       return;
     }
 
-    transitionBusy = true;
-    pauseAllCinemaVideos();
+    // Start loading while the player keeps flying. Controls are locked only
+    // after the first decoded frame is ready to be shown.
+    transitionLoading = true;
     if (transitionRoot) {
       transitionRoot.classList.remove("ready");
-      transitionRoot.hidden = false;
+      transitionRoot.hidden = true;
     }
-    if (transitionVideo) {
-      transitionVideo.style.opacity = "0";
-      transitionVideo.onloadeddata = () => {
+    transitionVideo.style.opacity = "0";
+    transitionVideo.muted = true;
+    transitionVideo.playsInline = true;
+    transitionVideo.preload = "auto";
+
+    const revealFirstFrame = () => {
+      if (!transitionLoading) return;
+
+      // Hold the decoded opening frame over the live scene first.
+      transitionLoading = false;
+      transitionBusy = true;
+      pauseAllCinemaVideos();
+
+      if (transitionRoot) {
+        transitionRoot.hidden = false;
         transitionRoot.classList.add("ready");
-        transitionVideo.play().catch(() => {});
-      };
-      transitionVideo.onplaying = () => {
+      }
+      transitionVideo.style.opacity = "1";
+
+      const p = transitionVideo.play();
+      if (p && p.catch) {
+        p.catch(finishTeleport);
+      }
+    };
+
+    transitionVideo.onloadedmetadata = () => {
+      try {
+        transitionVideo.currentTime = 0;
+      } catch (e) {}
+    };
+    transitionVideo.onloadeddata = revealFirstFrame;
+    transitionVideo.onplaying = () => {
+      if (transitionRoot && transitionBusy) {
+        transitionRoot.hidden = false;
         transitionRoot.classList.add("ready");
-      };
-    }
-    if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume;
+      }
+    };
+    transitionVideo.onended = finishTeleport;
+    transitionVideo.onerror = () => {
+      transitionLoading = false;
+      if (transitionRoot) {
+        transitionRoot.classList.remove("ready");
+        transitionRoot.hidden = true;
+      }
+      setStatus("PORTAL MP4 ERROR · SKIP");
+      finishTeleport();
+    };
+
     if (transitionLabel) {
       transitionLabel.textContent = portal.direction === "BACK"
         ? "CUTSCENE · ROOM 2 → ROOM 1"
         : "CUTSCENE · ROOM 1 → ROOM 2";
     }
-    transitionVideo.muted = true;
-    transitionVideo.playsInline = true;
+
     transitionVideo.src = url;
-    transitionVideo.onended = finishTeleport;
-    transitionVideo.onerror = () => {
-      if (transitionRoot) transitionRoot.classList.remove("ready");
-      setStatus("PORTAL MP4 ERROR · SKIP");
-      finishTeleport();
-    };
+    transitionVideo.load();
+
+    // Kick decoding immediately. Failure here does not stop the live scene;
+    // the loadeddata handler takes over when the first frame arrives.
     const p = transitionVideo.play();
     if (p && p.catch) {
-      p.catch(() => {
-        transitionVideo.muted = true;
-        transitionVideo.play().catch(finishTeleport);
-      });
+      p.catch(() => {});
     }
   }
 
   function tryPortal() {
-    if (!running || transitionBusy) return;
+    if (!running || transitionBusy || transitionLoading) return;
 
     const side = portalSide();
     const triggerDistance = portalTriggerDistance(side);
@@ -1207,7 +1241,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.6.2");
+      setStatus("ENGINE READY · LOCAL r128 · 0.6.3");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
