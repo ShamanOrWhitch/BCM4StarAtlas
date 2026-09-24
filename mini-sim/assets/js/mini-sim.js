@@ -1560,7 +1560,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.6.4");
+      setStatus("ENGINE READY · LOCAL r128 · 0.6.5");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
