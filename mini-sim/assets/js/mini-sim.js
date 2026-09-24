@@ -90,6 +90,20 @@
     mute: false,
     portalSafeRadius: 12
   };
+  const liveWall = {
+    el: null,
+    texture: null,
+    mesh: null,
+    material: null,
+    url: "",
+    fallbackUrl: "",
+    radius: 24,
+    distance: 99,
+    ready: false,
+    primed: false,
+    active: false,
+    error: false
+  };
   const tilt = {
     enabled: false,
     available: false,
@@ -452,6 +466,138 @@
     });
 
     scene.add(world);
+    createLiveWall();
+  }
+
+  function createLiveWall() {
+    if (liveWall.mesh) return;
+    const cfg = config.liveWall || {};
+    if (!cfg.url) return;
+
+    const fallbackUrl = cfg.fallback || assetUrl("wall1.png");
+    const fallbackMaterial = new THREE.MeshBasicMaterial({
+      color: 0x46505b,
+      side: THREE.DoubleSide,
+      fog: false,
+      toneMapped: false
+    });
+
+    if (fallbackUrl) {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const tex = new THREE.Texture(img);
+        applyTex(tex);
+        fallbackMaterial.map = tex;
+        fallbackMaterial.color.set(0xffffff);
+        fallbackMaterial.needsUpdate = true;
+      };
+      img.src = fallbackUrl;
+    }
+
+    const video = document.createElement("video");
+    video.crossOrigin = "anonymous";
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    video.volume = 0;
+    video.src = cfg.url;
+
+    const texture = new THREE.VideoTexture(video);
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = false;
+    if ("encoding" in texture && THREE.sRGBEncoding !== undefined) {
+      texture.encoding = THREE.sRGBEncoding;
+    }
+
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(Number(cfg.width) || 28, Number(cfg.height) || 8),
+      fallbackMaterial
+    );
+    mesh.position.set(
+      Number(cfg.x) || 0,
+      Number(cfg.y) || 0,
+      Number(cfg.z) || -10
+    );
+    mesh.rotation.y = Number(cfg.rotationY) || 0;
+    mesh.name = "live-wall-video";
+    scene.add(mesh);
+
+    liveWall.el = video;
+    liveWall.texture = texture;
+    liveWall.mesh = mesh;
+    liveWall.material = fallbackMaterial;
+    liveWall.url = cfg.url;
+    liveWall.fallbackUrl = fallbackUrl || "";
+    liveWall.radius = Number(cfg.radius) || 24;
+
+    const revealFirstFrame = () => {
+      if (liveWall.ready || liveWall.error) return;
+      liveWall.ready = true;
+      fallbackMaterial.map = texture;
+      fallbackMaterial.color.set(0xffffff);
+      fallbackMaterial.needsUpdate = true;
+      liveWall.active = !video.paused;
+      if (!running) {
+        video.pause();
+        liveWall.primed = true;
+      }
+    };
+
+    video.addEventListener("loadeddata", revealFirstFrame);
+    video.addEventListener("canplay", revealFirstFrame);
+    video.addEventListener("error", () => {
+      liveWall.error = true;
+      liveWall.active = false;
+    });
+
+    // Prime decoding early; until the first decoded frame the fallback image remains visible.
+    video.load();
+    const p = video.play();
+    if (p && p.catch) p.catch(() => {});
+  }
+
+  function liveWallOnScreen() {
+    if (!liveWall.mesh || !camera) return false;
+
+    const wallPos = liveWall.mesh.getWorldPosition(new THREE.Vector3());
+    const toCamera = camera.position.clone().sub(wallPos).normalize();
+    const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(liveWall.mesh.quaternion);
+    const facingWall = normal.dot(toCamera);
+
+    const viewDir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const toWall = wallPos.clone().sub(camera.position).normalize();
+    const lookAtWall = viewDir.dot(toWall);
+
+    return facingWall > 0.12 && lookAtWall > 0.12 && zoneIsOnScreen({ mesh: liveWall.mesh });
+  }
+
+  function updateLiveWall() {
+    if (!liveWall.el || !liveWall.mesh) return;
+
+    liveWall.distance = liveWall.mesh.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position);
+    const visible = running &&
+      !transitionBusy &&
+      !settings.open &&
+      liveWall.distance <= liveWall.radius &&
+      liveWallOnScreen();
+
+    if (visible) {
+      if (liveWall.ready && liveWall.el.paused) {
+        const p = liveWall.el.play();
+        if (p && p.catch) p.catch(() => {});
+      }
+      liveWall.active = true;
+    } else {
+      if (!liveWall.el.paused) liveWall.el.pause();
+      liveWall.active = false;
+    }
+
+    if (interaction && liveWall.ready && visible) {
+      interaction.textContent = "LIVE WALL · " + Math.round(Math.max(0, 100 - (liveWall.distance / liveWall.radius) * 100)) + "%";
+    }
   }
 
   function applyDoorUnit(unit, p) {
@@ -794,6 +940,10 @@
       zone.active = false;
       zone.visible = false;
     });
+    if (liveWall.el) {
+      liveWall.el.pause();
+      liveWall.active = false;
+    }
     cinema.nearest = null;
   }
 
@@ -914,6 +1064,7 @@
         ? "CINEMA · 100% · OST 0%"
         : "CINEMA · " + Math.round(filmGain * 100) + "% · OST " + Math.round(ostGain * 100) + "%";
     }
+    updateLiveWall();
   }
 
   function toggleCinemaFocus() {
@@ -1054,7 +1205,15 @@
     settings.open = !settings.open;
     if (settingsRoot) settingsRoot.hidden = !settings.open;
     root.classList.toggle("menu-open", settings.open);
-    if (settings.open && document.exitPointerLock) document.exitPointerLock();
+    if (settings.open) {
+      if (document.exitPointerLock) document.exitPointerLock();
+      if (liveWall.el) {
+        liveWall.el.pause();
+        liveWall.active = false;
+      }
+    } else {
+      updateLiveWall();
+    }
   }
 
   function startMusic() {
@@ -1207,6 +1366,11 @@
       running = true;
       musicAllowed = true;
       startMusic();
+      if (liveWall.el && liveWall.ready) {
+        const wallPlay = liveWall.el.play();
+        if (wallPlay && wallPlay.catch) wallPlay.catch(() => {});
+      }
+      updateLiveWall();
       root.classList.add("game-active");
       startButton.classList.add("hidden");
       canvas.focus();
@@ -1241,7 +1405,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.6.3");
+      setStatus("ENGINE READY · LOCAL r128 · 0.6.4");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
