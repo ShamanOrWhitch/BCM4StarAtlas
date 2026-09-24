@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Galia Desk
- * Description: Цены, свечи ATLAS, сейф и флот SAGE. Один шорткод [galia_desk]. Карта Galia остаётся в приложении.
- * Version: 0.2.0
+ * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
+ * Version: 0.3.0
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -587,3 +587,88 @@ function galia_desk_shortcode() {
 }
 
 add_shortcode('galia_desk', 'galia_desk_shortcode');
+
+function galia_desk_app_url($override = '') {
+    $raw = trim($override !== '' ? $override : (string) get_option('galia_app_url', ''));
+    if (!preg_match('#^https://#i', $raw)) {
+        return '';
+    }
+    return esc_url_raw($raw);
+}
+
+function galia_desk_sanitize_app_url($value) {
+    return galia_desk_app_url(is_string($value) ? $value : '');
+}
+
+function galia_desk_register_settings() {
+    register_setting('galia_desk_settings', 'galia_app_url', array(
+        'type' => 'string',
+        'sanitize_callback' => 'galia_desk_sanitize_app_url',
+        'default' => '',
+    ));
+}
+add_action('admin_init', 'galia_desk_register_settings');
+
+function galia_desk_settings_page() {
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+    $url = galia_desk_app_url();
+    echo '<div class="wrap"><h1>Galia Desk</h1>';
+    echo '<p>Глобус, экипаж, флот, рынок и сейф — это опубликованное приложение. WordPress только открывает его на весь экран. PHP сам этот вид не рисует.</p>';
+    echo '<form method="post" action="options.php">';
+    settings_fields('galia_desk_settings');
+    echo '<table class="form-table"><tr><th scope="row"><label for="galia_app_url">Адрес приложения</label></th><td>';
+    echo '<input name="galia_app_url" id="galia_app_url" type="url" class="regular-text" placeholder="https://" value="' . esc_attr($url) . '" />';
+    echo '<p class="description">Только https. Страница с шаблоном «Galia — полный экран» или шорткод [galia_app]. Стол цен по-прежнему [galia_desk]. Лабиринт не трогается.</p>';
+    echo '</td></tr></table>';
+    submit_button('Сохранить');
+    echo '</form></div>';
+}
+
+function galia_desk_admin_menu() {
+    add_options_page('Galia Desk', 'Galia Desk', 'manage_options', 'galia-desk', 'galia_desk_settings_page');
+}
+add_action('admin_menu', 'galia_desk_admin_menu');
+
+function galia_desk_page_templates($templates) {
+    $templates['galia-app-template.php'] = 'Galia — полный экран';
+    return $templates;
+}
+add_filter('theme_page_templates', 'galia_desk_page_templates');
+
+function galia_desk_template_include($template) {
+    if (!is_page()) {
+        return $template;
+    }
+    if (get_page_template_slug() !== 'galia-app-template.php') {
+        return $template;
+    }
+    $file = plugin_dir_path(__FILE__) . 'galia-app-template.php';
+    return file_exists($file) ? $file : $template;
+}
+add_filter('template_include', 'galia_desk_template_include');
+
+function galia_app_shortcode($atts) {
+    $atts = shortcode_atts(array('url' => ''), $atts, 'galia_app');
+    $url = galia_desk_app_url(isset($atts['url']) ? (string) $atts['url'] : '');
+    if ($url === '') {
+        return '<p class="galia-desk-note">Адрес Galia не задан. Настройки → Galia Desk, либо [galia_app url="https://…"].</p>';
+    }
+    $src = esc_url($url);
+    ob_start();
+    ?>
+    <div class="galia-app-frame">
+      <iframe title="Galia" src="<?php echo $src; ?>" allow="fullscreen" allowfullscreen></iframe>
+      <p class="galia-desk-note"><a href="<?php echo $src; ?>">Открыть Galia отдельно</a> — так кошелёк Phantom цепляется надёжнее, чем внутри рамки.</p>
+    </div>
+    <style>
+      .galia-app-frame{width:100vw;max-width:100vw;margin-left:calc(50% - 50vw);background:#07090e}
+      .galia-app-frame iframe{display:block;width:100%;height:100dvh;border:0;background:#07090e}
+      .galia-app-frame a{color:#c4a35a}
+    </style>
+    <?php
+    return ob_get_clean();
+}
+add_shortcode('galia_app', 'galia_app_shortcode');
+
