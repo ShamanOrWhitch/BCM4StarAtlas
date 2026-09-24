@@ -354,7 +354,8 @@
     display:flex;
     align-items:center;
     justify-content:center;
-    background:#000;
+    background:transparent;
+    pointer-events:none;
 }
 .bcm-mini-sim-transition[hidden]{
     display:none;
@@ -364,8 +365,12 @@
     height:100%;
     object-fit:cover;
     display:block;
-    background:#000;
+    background:transparent;
+    opacity:0;
+    transition:opacity .12s linear;
 }
+.bcm-mini-sim-transition.ready .bcm-mini-sim-transition-video{opacity:1;}
+.bcm-mini-sim-transition.ready{background:rgba(0,0,0,.01);}
 .bcm-mini-sim-transition-label{
     position:absolute;
     left:18px;
@@ -455,4 +460,23 @@
 }
 .bcm-mini-sim.menu-open .bcm-mini-sim-menu-shade{
     z-index:26;
+}
+
+.bcm-mini-sim-mobile-edge{display:none;}
+@media (pointer:coarse) and (orientation:landscape){
+  .bcm-mini-sim-mobile-edge{
+    display:block; position:absolute; z-index:6; pointer-events:auto;
+    touch-action:none; -webkit-tap-highlight-color:transparent; background:transparent;
+  }
+  .bcm-mini-sim-mobile-edge-top,
+  .bcm-mini-sim-mobile-edge-bottom{left:17%;right:17%;height:15%;}
+  .bcm-mini-sim-mobile-edge-top{top:0;}
+  .bcm-mini-sim-mobile-edge-bottom{bottom:0;}
+  .bcm-mini-sim-mobile-edge-left,
+  .bcm-mini-sim-mobile-edge-right{top:15%;bottom:15%;width:13%;}
+  .bcm-mini-sim-mobile-edge-left{left:0;}
+  .bcm-mini-sim-mobile-edge-right{right:0;}
+  .bcm-mini-sim-mobile button[data-control="home"]{
+    width:52px;max-width:52px;font-size:9px;font-weight:700;letter-spacing:.2px;
+  }
 }
