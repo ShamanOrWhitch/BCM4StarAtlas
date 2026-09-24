@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.6.3
+ * Version: 0.6.4
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.6.3');
+define('BCM_MINI_SIM_VERSION', '0.6.4');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -93,6 +93,27 @@ function bcm_mini_sim_enqueue_assets()
         $door = BCM_MINI_SIM_URL . 'door.png';
     }
 
+    $backside_urls = array();
+    $backside_files = glob(BCM_MINI_SIM_PATH . 'back*.png');
+    if (is_array($backside_files)) {
+        foreach ($backside_files as $backside_file) {
+            if (!is_file($backside_file)) {
+                continue;
+            }
+            $backside_urls[] = BCM_MINI_SIM_URL . rawurlencode(basename($backside_file));
+        }
+    }
+    foreach ($assets as $asset) {
+        if (!isset($asset['name'], $asset['type']) || $asset['type'] !== 'image') {
+            continue;
+        }
+        $base = strtolower(pathinfo($asset['name'], PATHINFO_BASENAME));
+        if (strpos($base, 'back') === 0 && substr($base, -4) === '.png') {
+            $backside_urls[] = $asset['url'];
+        }
+    }
+    $backside_urls = array_values(array_unique($backside_urls));
+
     wp_enqueue_style('bcm-mini-sim', BCM_MINI_SIM_URL . 'assets/css/mini-sim.css', array(), BCM_MINI_SIM_VERSION);
     wp_enqueue_script('bcm-mini-sim', BCM_MINI_SIM_URL . 'assets/js/mini-sim.js', array(), BCM_MINI_SIM_VERSION, false);
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
@@ -106,9 +127,21 @@ function bcm_mini_sim_enqueue_assets()
 
             // The remaining clips are beyond Room 2 in the large exterior space.
             array('url' => 'https://walkingyog.com/wp-content/uploads/2025/12/Jah-Love-480P.mp4', 'x' => -18, 'y' => 7, 'z' => -105, 'radius' => 16, 'maxWidth' => 8.0, 'maxHeight' => 5.0),
-            array('url' => 'https://walkingyog.com/wp-content/uploads/2026/09/We-gonna-rockit-копия-копия27.mp4', 'x' => 18, 'y' => -6, 'z' => -135, 'radius' => 18, 'maxWidth' => 8.0, 'maxHeight' => 5.0),
-            array('url' => 'https://walkingyog.com/wp-content/uploads/2026/05/Speed-reshade-rasta-dance61.mp4', 'x' => -22, 'y' => 8, 'z' => -170, 'radius' => 20, 'maxWidth' => 8.5, 'maxHeight' => 5.2),
+            array('url' => 'https://walkingyog.com/wp-content/uploads/2026/09/i-dance-fin.mp4', 'x' => 18, 'y' => -6, 'z' => -135, 'radius' => 18, 'maxWidth' => 8.0, 'maxHeight' => 5.0),
+            array('url' => 'https://walkingyog.com/wp-content/uploads/2026/09/Reshade-Rasta-Dance3.mp4', 'x' => -22, 'y' => 8, 'z' => -170, 'radius' => 20, 'maxWidth' => 8.5, 'maxHeight' => 5.2),
         ),
+        'liveWall' => array(
+            'url' => 'https://walkingyog.com/wp-content/uploads/2026/09/wall.mp4',
+            'fallback' => bcm_mini_sim_pick_asset($assets, array('wall1.png'), 'image'),
+            'x' => 5.96,
+            'y' => 0,
+            'z' => -10,
+            'width' => 28,
+            'height' => 8,
+            'rotationY' => -1.5707963267948966,
+            'radius' => 24,
+        ),
+        'backsideTextures' => $backside_urls,
         'assets' => $assets,
         'version' => BCM_MINI_SIM_VERSION,
     ));
@@ -126,13 +159,13 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-menu-shade" aria-hidden="true"></div>
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.6.3</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.6.4</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
             <div class="bcm-mini-sim-help">
                 <span>W/S</span> thrust · <span>A/D</span> strafe · <span>Mouse</span> look ·
                 <span>Enter</span> menu · <span>Esc</span> release mouse ·
-                <span>G</span> portal video · <span>F</span> focus nearest screen
+                <span>G</span> portal video · <span>F</span> focus nearest screen · <span>LIVE WALL</span> wall.mp4
             </div>
         </div>
         <div class="bcm-mini-sim-asset-status">LOCAL ASSETS: SCANNING...</div>
