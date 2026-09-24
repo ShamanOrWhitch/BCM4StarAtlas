@@ -113,6 +113,16 @@ function bcm_mini_sim_enqueue_assets()
         }
     }
     $backside_urls = array_values(array_unique($backside_urls));
+    if (!$backside_urls) {
+        $backside_urls = array(
+            'https://raw.githubusercontent.com/ShamanOrWhitch/BCM4StarAtlas/main/backrside.png',
+            'https://raw.githubusercontent.com/ShamanOrWhitch/BCM4StarAtlas/main/backsade1.png',
+            'https://raw.githubusercontent.com/ShamanOrWhitch/BCM4StarAtlas/main/backside2.png',
+            'https://raw.githubusercontent.com/ShamanOrWhitch/BCM4StarAtlas/main/backside3.png',
+            'https://raw.githubusercontent.com/ShamanOrWhitch/BCM4StarAtlas/main/backside4.png',
+            'https://raw.githubusercontent.com/ShamanOrWhitch/BCM4StarAtlas/main/backsidea.png',
+        );
+    }
 
     wp_enqueue_style('bcm-mini-sim', BCM_MINI_SIM_URL . 'assets/css/mini-sim.css', array(), BCM_MINI_SIM_VERSION);
     wp_enqueue_script('bcm-mini-sim', BCM_MINI_SIM_URL . 'assets/js/mini-sim.js', array(), BCM_MINI_SIM_VERSION, false);
