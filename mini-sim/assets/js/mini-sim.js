@@ -316,11 +316,13 @@
     const floor = textured(opt.floor, opt.floorColor);
     const ceil = textured(opt.ceiling, opt.ceilingColor);
     const left = textured(opt.left, opt.leftColor);
-    const right = textured(opt.right, opt.rightColor);
     plane(parent, 0, -3.5, opt.z, opt.w, opt.len, -Math.PI / 2, 0, 0, floor);
     plane(parent, 0, 3.5, opt.z, opt.w, opt.len, Math.PI / 2, 0, 0, ceil);
     plane(parent, -opt.w / 2, 0, opt.z, opt.len, opt.h, 0, Math.PI / 2, 0, left);
-    plane(parent, opt.w / 2, 0, opt.z, opt.len, opt.h, 0, -Math.PI / 2, 0, right);
+    if (opt.right !== false) {
+      const right = textured(opt.right, opt.rightColor);
+      plane(parent, opt.w / 2, 0, opt.z, opt.len, opt.h, 0, -Math.PI / 2, 0, right);
+    }
     addRoofCorners(parent, opt.z, opt.w, opt.h);
   }
 
@@ -337,27 +339,30 @@
       roughness: 0.32
     });
 
-    const centerZ = -120;
-    const startZ = -88;
-    const endZ = -152;
+    // Wrap the existing labyrinth footprint, not the distant free-flight tail.
+    const startZ = -26;
+    const endZ = -82;
+    const centerZ = (startZ + endZ) / 2;
     const length = Math.abs(endZ - startZ);
-    const width = 18;
-    const height = 12;
+    const width = 14.4;
+    const height = 9.8;
 
-    // Four very light longitudinal rails.
-    const rails = [
-      new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, length), frameMat),
-      new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, length), frameMat),
-      new THREE.Mesh(new THREE.BoxGeometry(width, 0.7, length), frameMat),
-      new THREE.Mesh(new THREE.BoxGeometry(width, 0.7, length), frameMat)
-    ];
-    rails[0].position.set(-width / 2, 0, centerZ);
-    rails[1].position.set(width / 2, 0, centerZ);
-    rails[2].position.set(0, height / 2, centerZ);
-    rails[3].position.set(0, -height / 2, centerZ);
-    rails.forEach((m) => group.add(m));
+    const leftRail = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.65, length), frameMat);
+    leftRail.position.set(-width / 2, 0, centerZ);
+    group.add(leftRail);
 
-    // Load each backside image only once, then reuse the resulting material.
+    const rightRail = leftRail.clone();
+    rightRail.position.x = width / 2;
+    group.add(rightRail);
+
+    const topRail = new THREE.Mesh(new THREE.BoxGeometry(width, 0.65, length), frameMat);
+    topRail.position.set(0, height / 2, centerZ);
+    group.add(topRail);
+
+    const bottomRail = topRail.clone();
+    bottomRail.position.y = -height / 2;
+    group.add(bottomRail);
+
     const materials = urls.map((url) => {
       const material = new THREE.MeshBasicMaterial({
         color: 0xffffff,
@@ -373,6 +378,10 @@
         material.map = tex;
         material.needsUpdate = true;
       };
+      img.onerror = () => {
+        material.color.set(0x303943);
+        material.needsUpdate = true;
+      };
       img.src = url;
       return material;
     });
@@ -385,21 +394,20 @@
       panels.push({ mesh, material });
     };
 
-    // Segmented outside skin: it reads as a real base in open space but keeps
-    // large gaps so the structure remains lightweight.
-    for (let z = -94; z >= -142; z -= 12) {
-      addPanel(-width / 2 - 0.05, 0, z, 12, 6, 0, Math.PI / 2);
-      addPanel(width / 2 + 0.05, 0, z, 12, 6, 0, -Math.PI / 2);
-      addPanel(0, height / 2 + 0.05, z, 18, 12, Math.PI / 2, 0);
-      addPanel(0, -height / 2 - 0.05, z, 18, 12, -Math.PI / 2, 0);
+    // Five short bands around the old labyrinth = 20 lightweight outer plates.
+    for (let z = -30; z >= -78; z -= 12) {
+      addPanel(-width / 2 - 0.04, 0, z, 12, 6.8, 0, Math.PI / 2);
+      addPanel(width / 2 + 0.04, 0, z, 12, 6.8, 0, -Math.PI / 2);
+      addPanel(0, height / 2 + 0.04, z, 14, 9.2, Math.PI / 2, 0);
+      addPanel(0, -height / 2 - 0.04, z, 14, 9.2, -Math.PI / 2, 0);
     }
 
-    // Cross ribs create the visible skeleton and connect the skin.
-    for (let z = -88; z >= -152; z -= 16) {
+    // Cross ribs keep the skeleton clearly visible between panels.
+    for (let z = -26; z >= -82; z -= 14) {
       const rib = new THREE.Group();
       rib.position.z = z;
 
-      const left = new THREE.Mesh(new THREE.BoxGeometry(0.65, height, 0.65), frameMat);
+      const left = new THREE.Mesh(new THREE.BoxGeometry(0.6, height, 0.6), frameMat);
       left.position.x = -width / 2;
       rib.add(left);
 
@@ -407,7 +415,7 @@
       right.position.x = width / 2;
       rib.add(right);
 
-      const top = new THREE.Mesh(new THREE.BoxGeometry(width, 0.65, 0.65), frameMat);
+      const top = new THREE.Mesh(new THREE.BoxGeometry(width, 0.6, 0.6), frameMat);
       top.position.y = height / 2;
       rib.add(top);
 
@@ -418,33 +426,15 @@
       group.add(rib);
     }
 
-    // Rear bulkhead.
-    const rear = new THREE.Group();
-    rear.position.z = -154;
-    const rearTop = new THREE.Mesh(new THREE.BoxGeometry(width + 1.2, 0.8, 0.8), frameMat);
-    rearTop.position.y = height / 2;
-    rear.add(rearTop);
-    const rearBottom = rearTop.clone();
-    rearBottom.position.y = -height / 2;
-    rear.add(rearBottom);
-    const rearLeft = new THREE.Mesh(new THREE.BoxGeometry(0.8, height, 0.8), frameMat);
-    rearLeft.position.x = -width / 2;
-    rear.add(rearLeft);
-    const rearRight = rearLeft.clone();
-    rearRight.position.x = width / 2;
-    rear.add(rearRight);
-    group.add(rear);
-
-    // Front shoulder ties the new exterior structure to Room 2.
     const front = new THREE.Group();
-    front.position.z = -86;
-    const frontTop = new THREE.Mesh(new THREE.BoxGeometry(width, 0.65, 0.9), frameMat);
+    front.position.z = startZ;
+    const frontTop = new THREE.Mesh(new THREE.BoxGeometry(width, 0.7, 0.8), frameMat);
     frontTop.position.y = height / 2;
     front.add(frontTop);
     const frontBottom = frontTop.clone();
     frontBottom.position.y = -height / 2;
     front.add(frontBottom);
-    const frontLeft = new THREE.Mesh(new THREE.BoxGeometry(0.65, height, 0.9), frameMat);
+    const frontLeft = new THREE.Mesh(new THREE.BoxGeometry(0.7, height, 0.8), frameMat);
     frontLeft.position.x = -width / 2;
     front.add(frontLeft);
     const frontRight = frontLeft.clone();
@@ -486,7 +476,7 @@
     buildRoom(world, {
       z: -10, w: 12, len: 28, h: 8,
       floor: "wall1.png", ceiling: "roof.png",
-      left: "wall3.png", right: "wall4.png",
+      left: "wall3.png", right: false,
       floorColor: 0x46505b, ceilingColor: 0x8b9198,
       leftColor: 0x3b444f, rightColor: 0x343d47
     });
@@ -681,7 +671,7 @@
       fallbackMaterial
     );
     mesh.position.set(
-      Number(cfg.x) || 0,
+      Number(cfg.x) || 6.01,
       Number(cfg.y) || 0,
       Number(cfg.z) || -10
     );
