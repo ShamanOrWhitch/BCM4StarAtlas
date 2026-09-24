@@ -94,7 +94,8 @@
     enabled: false,
     available: false,
     a: 0, b: 0, g: 0,
-    na: 0, nb: 0, ng: 0
+    na: 0, nb: 0, ng: 0,
+    neutralB: 0, neutralG: 0
   };
   const pad = { index: -1, lx: 0, ly: 0, rx: 0, ry: 0, roll: 0, vert: 0, prev: [] };
 
@@ -568,11 +569,34 @@
     );
   }
 
+  function returnToStart() {
+    if (!running || transitionBusy || !ship.position) return;
+    pauseAllCinemaVideos();
+    ship.position.set(0, 0, 2);
+    ship.velocity.set(0, 0, 0);
+    ship.angularVelocity.set(0, 0, 0);
+    ship.quaternion.set(0, 0, 0, 1);
+    door.state = "CLOSED"; door.progress = 0; door.away = 0; applyDoorUnit(door, 0);
+    returnDoor.state = "CLOSED"; returnDoor.progress = 0; returnDoor.away = 0; applyDoorUnit(returnDoor, 0);
+    updateCinemaZones();
+    if (ship.visual) {
+      ship.visual.position.copy(ship.position);
+      ship.visual.quaternion.copy(ship.quaternion);
+    }
+    camera.position.copy(ship.position);
+    camera.quaternion.copy(ship.quaternion);
+    setStatus("ROOM 1 · HOME");
+  }
+
   function finishTeleport() {
     const direction = portal.direction;
     transitionBusy = false;
-    if (transitionRoot) transitionRoot.hidden = true;
+    if (transitionRoot) {
+      transitionRoot.classList.remove("ready");
+      transitionRoot.hidden = true;
+    }
     if (transitionVideo) {
+      transitionVideo.style.opacity = "0";
       transitionVideo.pause();
       transitionVideo.removeAttribute("src");
       transitionVideo.load();
@@ -611,8 +635,21 @@
 
     transitionBusy = true;
     pauseAllCinemaVideos();
+    if (transitionRoot) {
+      transitionRoot.classList.remove("ready");
+      transitionRoot.hidden = false;
+    }
+    if (transitionVideo) {
+      transitionVideo.style.opacity = "0";
+      transitionVideo.onloadeddata = () => {
+        transitionRoot.classList.add("ready");
+        transitionVideo.play().catch(() => {});
+      };
+      transitionVideo.onplaying = () => {
+        transitionRoot.classList.add("ready");
+      };
+    }
     if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume;
-    transitionRoot.hidden = false;
     if (transitionLabel) {
       transitionLabel.textContent = portal.direction === "BACK"
         ? "CUTSCENE · ROOM 2 → ROOM 1"
@@ -623,6 +660,7 @@
     transitionVideo.src = url;
     transitionVideo.onended = finishTeleport;
     transitionVideo.onerror = () => {
+      if (transitionRoot) transitionRoot.classList.remove("ready");
       setStatus("PORTAL MP4 ERROR · SKIP");
       finishTeleport();
     };
@@ -702,11 +740,14 @@
 
   function tiltLook() {
     if (!tilt.enabled || !tilt.available) return { pitch: 0, yaw: 0 };
-    const pitch = dz((tilt.b - tilt.nb) / 14, 0.04);
-    const yaw = dz((tilt.g - tilt.ng) / 14, 0.04);
+    const pitchOffset = Math.max(-32, Math.min(32, tilt.b - tilt.neutralB));
+    const yawOffset = Math.max(-32, Math.min(32, tilt.g - tilt.neutralG));
+    const dead = 2.5;
+    const pitchRaw = Math.abs(pitchOffset) <= dead ? 0 : Math.max(-1, Math.min(1, (Math.abs(pitchOffset) - dead) / 22)) * Math.sign(pitchOffset);
+    const yawRaw = Math.abs(yawOffset) <= dead ? 0 : Math.max(-1, Math.min(1, (Math.abs(yawOffset) - dead) / 22)) * Math.sign(yawOffset);
     return {
-      pitch: (settings.invertPitch ? -1 : 1) * pitch,
-      yaw: (settings.invertYaw ? -1 : 1) * yaw
+      pitch: (settings.invertPitch ? -1 : 1) * pitchRaw,
+      yaw: (settings.invertYaw ? -1 : 1) * yawRaw
     };
   }
 
@@ -879,13 +920,15 @@
   function input() {
     readPad();
     const look = tiltLook();
+    const edgeYaw = (touch.edgeRight ? 1 : 0) - (touch.edgeLeft ? 1 : 0);
+    const edgePitch = (touch.edgeDown ? 1 : 0) - (touch.edgeUp ? 1 : 0);
     return {
       thrust: (keys.KeyW || touch.thrust ? 1 : 0) - (keys.KeyS || touch.brake ? 1 : 0) - pad.ly,
       strafe: (keys.KeyD || touch.right ? 1 : 0) - (keys.KeyA || touch.left ? 1 : 0) + pad.lx,
       vertical: (keys.Space || touch.up ? 1 : 0) - (keys.ControlLeft || touch.down ? 1 : 0) + pad.vert,
       roll: (keys.KeyE || touch.rollRight ? 1 : 0) - (keys.KeyQ || touch.rollLeft ? 1 : 0) + pad.roll,
-      yaw: (touch.yawRight ? 1 : 0) - (touch.yawLeft ? 1 : 0) + look.yaw + pad.rx * (settings.invertYaw ? 1 : -1),
-      pitch: look.pitch
+      yaw: (touch.yawRight ? 1 : 0) - (touch.yawLeft ? 1 : 0) + edgeYaw * 0.8 + look.yaw + pad.rx * (settings.invertYaw ? 1 : -1),
+      pitch: edgePitch * 0.8 + look.pitch
     };
   }
 
@@ -914,12 +957,13 @@
     if (transitionBusy) return;
     updateDoor(dt);
     const inn = input();
-    const acc = new THREE.Vector3(
+    const localAcc = new THREE.Vector3(
       inn.strafe * ship.strafeThrust,
-      inn.vertical * ship.verticalThrust,
+      0,
       -inn.thrust * ship.thrust
     ).applyQuaternion(ship.quaternion);
-    ship.velocity.addScaledVector(acc, dt);
+    localAcc.y += inn.vertical * ship.verticalThrust;
+    ship.velocity.addScaledVector(localAcc, dt);
     ship.velocity.multiplyScalar(Math.max(0, 1 - ship.linearDrag * dt));
     if (ship.velocity.length() > ship.maxSpeed) ship.velocity.setLength(ship.maxSpeed);
     ship.position.addScaledVector(ship.velocity, dt);
@@ -937,13 +981,13 @@
     }
     camera.position.copy(ship.position);
     camera.quaternion.copy(ship.quaternion);
+    light.position.copy(ship.position);
+    updateCinemaZones();
+    updateCinemaFocus();
     if (ship.visual) {
       ship.visual.position.copy(ship.position);
       ship.visual.quaternion.copy(ship.quaternion);
     }
-    light.position.copy(ship.position);
-    updateCinemaZones();
-    updateCinemaFocus();
 
     portal.coverage = portalCoverage();
     if (interaction) {
@@ -991,6 +1035,8 @@
   function enableTilt() {
     const apply = () => {
       tilt.na = tilt.a; tilt.nb = tilt.b; tilt.ng = tilt.g;
+      tilt.neutralB = tilt.b;
+      tilt.neutralG = tilt.g;
       tilt.enabled = true;
       if (tiltButton) tiltButton.classList.add("active");
       setStatus("TILT CALIBRATED · THIS POSE IS NEUTRAL");
@@ -1038,6 +1084,7 @@
       keys[e.code] = true;
       if (e.code === "KeyG") { e.preventDefault(); tryPortal(); }
       if (e.code === "KeyF") { e.preventDefault(); toggleCinemaFocus(); }
+      if (e.code === "KeyH") { e.preventDefault(); returnToStart(); }
       if (e.code === "KeyR") { e.preventDefault(); openDoor("REMOTE"); }
     });
     window.addEventListener("keyup", (e) => { keys[e.code] = false; });
@@ -1060,6 +1107,7 @@
         ev.preventDefault();
         if (id === "tilt") { enableTilt(); return; }
         if (id === "portal") { tryPortal(); return; }
+        if (id === "home") { returnToStart(); return; }
         if (running) touch[id] = true;
       };
       const up = (ev) => { ev.preventDefault(); touch[id] = false; };
@@ -1067,6 +1115,37 @@
       btn.addEventListener("pointerup", up);
       btn.addEventListener("pointercancel", up);
     });
+
+    root.querySelectorAll(".bcm-mini-sim-mobile-edge").forEach((edge) => {
+      const id = edge.dataset.edge;
+      const key = "edge" + id.charAt(0).toUpperCase() + id.slice(1);
+      const down = (ev) => { ev.preventDefault(); if (running) touch[key] = true; };
+      const up = (ev) => { ev.preventDefault(); touch[key] = false; };
+      edge.addEventListener("pointerdown", down, { passive:false });
+      edge.addEventListener("pointerup", up, { passive:false });
+      edge.addEventListener("pointercancel", up, { passive:false });
+      edge.addEventListener("pointerleave", up, { passive:false });
+    });
+
+    let dragPointerId = null;
+    let dragX = 0, dragY = 0;
+    canvas.addEventListener("pointerdown", (ev) => {
+      if (!running || ev.pointerType === "mouse") return;
+      dragPointerId = ev.pointerId;
+      dragX = ev.clientX; dragY = ev.clientY;
+      canvas.setPointerCapture?.(ev.pointerId);
+    });
+    canvas.addEventListener("pointermove", (ev) => {
+      if (!running || dragPointerId !== ev.pointerId || ev.pointerType === "mouse" || settings.open) return;
+      const dx = ev.clientX - dragX, dy = ev.clientY - dragY;
+      dragX = ev.clientX; dragY = ev.clientY;
+      ship.angularVelocity.y -= dx * 0.012;
+      ship.angularVelocity.x -= dy * 0.010;
+    });
+    const endDrag = (ev) => { if (dragPointerId === ev.pointerId) dragPointerId = null; };
+    canvas.addEventListener("pointerup", endDrag);
+    canvas.addEventListener("pointercancel", endDrag);
+
     const crystal = root.querySelector(".bcm-mini-sim-crystal-main");
     if (crystal) crystal.addEventListener("click", () => openDoor("REMOTE"));
     if (musicButton) musicButton.addEventListener("click", () => {
@@ -1128,7 +1207,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.6.1");
+      setStatus("ENGINE READY · LOCAL r128 · 0.6.2");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
