@@ -104,6 +104,11 @@
     active: false,
     error: false
   };
+  const backside = {
+    urls: Array.isArray(config.backsideTextures) ? config.backsideTextures.slice() : [],
+    panels: [],
+    nextAt: 0
+  };
   const tilt = {
     enabled: false,
     available: false,
@@ -319,6 +324,163 @@
     addRoofCorners(parent, opt.z, opt.w, opt.h);
   }
 
+  function buildStarbaseExterior(parent) {
+    const urls = Array.isArray(backside.urls) ? backside.urls.filter(Boolean) : [];
+    if (!urls.length) return;
+
+    const group = new THREE.Group();
+    group.name = "starbase-exterior-skeleton";
+
+    const frameMat = new THREE.MeshStandardMaterial({
+      color: 0x242b33,
+      metalness: 0.72,
+      roughness: 0.32
+    });
+
+    const centerZ = -120;
+    const startZ = -88;
+    const endZ = -152;
+    const length = Math.abs(endZ - startZ);
+    const width = 18;
+    const height = 12;
+
+    // Four very light longitudinal rails.
+    const rails = [
+      new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, length), frameMat),
+      new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, length), frameMat),
+      new THREE.Mesh(new THREE.BoxGeometry(width, 0.7, length), frameMat),
+      new THREE.Mesh(new THREE.BoxGeometry(width, 0.7, length), frameMat)
+    ];
+    rails[0].position.set(-width / 2, 0, centerZ);
+    rails[1].position.set(width / 2, 0, centerZ);
+    rails[2].position.set(0, height / 2, centerZ);
+    rails[3].position.set(0, -height / 2, centerZ);
+    rails.forEach((m) => group.add(m));
+
+    // Load each backside image only once, then reuse the resulting material.
+    const materials = urls.map((url) => {
+      const material = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        side: THREE.DoubleSide,
+        fog: false,
+        toneMapped: false
+      });
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const tex = new THREE.Texture(img);
+        applyTex(tex);
+        material.map = tex;
+        material.needsUpdate = true;
+      };
+      img.src = url;
+      return material;
+    });
+
+    const panels = [];
+    const addPanel = (x, y, z, w, h, rx, ry) => {
+      const material = materials[panels.length % materials.length];
+      const mesh = plane(group, x, y, z, w, h, rx || 0, ry || 0, 0, material);
+      mesh.name = "starbase-backside-panel-" + panels.length;
+      panels.push({ mesh, material });
+    };
+
+    // Segmented outside skin: it reads as a real base in open space but keeps
+    // large gaps so the structure remains lightweight.
+    for (let z = -94; z >= -142; z -= 12) {
+      addPanel(-width / 2 - 0.05, 0, z, 12, 6, 0, Math.PI / 2);
+      addPanel(width / 2 + 0.05, 0, z, 12, 6, 0, -Math.PI / 2);
+      addPanel(0, height / 2 + 0.05, z, 18, 12, Math.PI / 2, 0);
+      addPanel(0, -height / 2 - 0.05, z, 18, 12, -Math.PI / 2, 0);
+    }
+
+    // Cross ribs create the visible skeleton and connect the skin.
+    for (let z = -88; z >= -152; z -= 16) {
+      const rib = new THREE.Group();
+      rib.position.z = z;
+
+      const left = new THREE.Mesh(new THREE.BoxGeometry(0.65, height, 0.65), frameMat);
+      left.position.x = -width / 2;
+      rib.add(left);
+
+      const right = left.clone();
+      right.position.x = width / 2;
+      rib.add(right);
+
+      const top = new THREE.Mesh(new THREE.BoxGeometry(width, 0.65, 0.65), frameMat);
+      top.position.y = height / 2;
+      rib.add(top);
+
+      const bottom = top.clone();
+      bottom.position.y = -height / 2;
+      rib.add(bottom);
+
+      group.add(rib);
+    }
+
+    // Rear bulkhead.
+    const rear = new THREE.Group();
+    rear.position.z = -154;
+    const rearTop = new THREE.Mesh(new THREE.BoxGeometry(width + 1.2, 0.8, 0.8), frameMat);
+    rearTop.position.y = height / 2;
+    rear.add(rearTop);
+    const rearBottom = rearTop.clone();
+    rearBottom.position.y = -height / 2;
+    rear.add(rearBottom);
+    const rearLeft = new THREE.Mesh(new THREE.BoxGeometry(0.8, height, 0.8), frameMat);
+    rearLeft.position.x = -width / 2;
+    rear.add(rearLeft);
+    const rearRight = rearLeft.clone();
+    rearRight.position.x = width / 2;
+    rear.add(rearRight);
+    group.add(rear);
+
+    // Front shoulder ties the new exterior structure to Room 2.
+    const front = new THREE.Group();
+    front.position.z = -86;
+    const frontTop = new THREE.Mesh(new THREE.BoxGeometry(width, 0.65, 0.9), frameMat);
+    frontTop.position.y = height / 2;
+    front.add(frontTop);
+    const frontBottom = frontTop.clone();
+    frontBottom.position.y = -height / 2;
+    front.add(frontBottom);
+    const frontLeft = new THREE.Mesh(new THREE.BoxGeometry(0.65, height, 0.9), frameMat);
+    frontLeft.position.x = -width / 2;
+    front.add(frontLeft);
+    const frontRight = frontLeft.clone();
+    frontRight.position.x = width / 2;
+    front.add(frontRight);
+    group.add(front);
+
+    parent.add(group);
+    backside.panels = panels;
+    backside.nextAt = performance.now() + 8000;
+    randomizeBackside(performance.now());
+  }
+
+  function randomizeBackside(now) {
+    if (!backside.panels.length) return;
+
+    const materials = backside.panels.map((item) => item.material);
+    for (let i = materials.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = materials[i];
+      materials[i] = materials[j];
+      materials[j] = tmp;
+    }
+
+    backside.panels.forEach((item, index) => {
+      item.mesh.material = materials[index];
+      item.material = materials[index];
+    });
+
+    backside.nextAt = now + 10000 + Math.random() * 9000;
+  }
+
+  function updateBacksideCamouflage(now) {
+    if (now >= backside.nextAt) randomizeBackside(now);
+  }
+
   function buildWorld() {
     const world = new THREE.Group();
     buildRoom(world, {
@@ -348,6 +510,8 @@
     deepSpaceBox.position.set(0, 0, -230);
     deepSpaceBox.name = "deep-space-shell";
     world.add(deepSpaceBox);
+
+    buildStarbaseExterior(world);
 
     const dock = new THREE.Mesh(
       new THREE.BoxGeometry(1.4, 1.4, 0.12),
@@ -1190,6 +1354,7 @@
   }
 
   function render(now) {
+    updateBacksideCamouflage(now);
     const dt = Math.min((now - last) / 1000, 0.033);
     last = now;
     if (running && !settings.open) {
