@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.6.1
+ * Version: 0.6.2
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.6.1');
+define('BCM_MINI_SIM_VERSION', '0.6.2');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -126,7 +126,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-menu-shade" aria-hidden="true"></div>
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.6.1</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.6.2</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
             <div class="bcm-mini-sim-help">
@@ -169,7 +169,12 @@ function bcm_mini_sim_shortcode($atts = array())
                 <button data-control="yawRight">▶</button>
                 <button data-control="tilt">TILT</button>
                 <button data-control="portal">G</button>
+                <button data-control="home">HOME</button>
             </div>
+            <div class="bcm-mini-sim-mobile-edge bcm-mini-sim-mobile-edge-top" data-edge="up" aria-hidden="true"></div>
+            <div class="bcm-mini-sim-mobile-edge bcm-mini-sim-mobile-edge-bottom" data-edge="down" aria-hidden="true"></div>
+            <div class="bcm-mini-sim-mobile-edge bcm-mini-sim-mobile-edge-left" data-edge="left" aria-hidden="true"></div>
+            <div class="bcm-mini-sim-mobile-edge bcm-mini-sim-mobile-edge-right" data-edge="right" aria-hidden="true"></div>
         </div>
     </div>
     <?php
