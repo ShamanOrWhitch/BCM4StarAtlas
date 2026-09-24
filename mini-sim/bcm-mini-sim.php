@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.6.4
+ * Version: 0.6.5
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.6.4');
+define('BCM_MINI_SIM_VERSION', '0.6.5');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -94,15 +94,6 @@ function bcm_mini_sim_enqueue_assets()
     }
 
     $backside_urls = array();
-    $backside_files = glob(BCM_MINI_SIM_PATH . 'back*.png');
-    if (is_array($backside_files)) {
-        foreach ($backside_files as $backside_file) {
-            if (!is_file($backside_file)) {
-                continue;
-            }
-            $backside_urls[] = BCM_MINI_SIM_URL . rawurlencode(basename($backside_file));
-        }
-    }
     foreach ($assets as $asset) {
         if (!isset($asset['name'], $asset['type']) || $asset['type'] !== 'image') {
             continue;
@@ -159,7 +150,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-menu-shade" aria-hidden="true"></div>
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.6.4</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.6.5</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
             <div class="bcm-mini-sim-help">
