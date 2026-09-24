@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.6.1
+# BCM Mini-Sim 0.6.4
 
 ## STOP — read this before another GPT rewrite
 
@@ -76,15 +76,15 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - The back-side trigger has priority in Room 2 and cannot accidentally use the forward portal trigger.
 
 
-### 0.6.1 scene additions
-- The portal has separate front and rear textures: `portal.png` and `portal2.png`.
-- Room 2 is extended from 26 to 34 units.
-- A second return gate uses `door2.png` and opens while approaching from Room 2.
-- A looping `VideoTexture` uses `portal3.mp4` as a live wall panel in Room 2. Replace that filename with another MP4 in `assets/` for different moving content.
+### 0.6.4 scene/media additions
+- Live wall: `wall.mp4` is used as a full wall panel with `wall1.png` as a first-frame fallback until the video is decoded.
+- Cinema clips now use `i-dance-fin.mp4` and `Reshade-Rasta-Dance3.mp4` in place of the older clips.
+- Exterior starbase: a lightweight skeleton surrounds the open-space departure path with segmented outer panels using `back*.png` textures.
+- The exterior panels reuse a small set of loaded textures and periodically shuffle their assignments to create a camouflage effect.
+- The six submitted backside PNGs are currently stored at repository root; PHP falls back to their GitHub raw URLs until local plugin copies exist.
 
-
-### 0.6.1
-- Restored the portal to static image textures; the test VideoTexture panel is removed.
+### 0.6.4
+- The portal remains on the r128 implementation.
 - Front portal face: `portal.png`; rear portal face: `portal2.png`.
-- First gate now tests `door2.png`; the return gate tests `door3.png`.
-- Return gate opens when approached from the Room 2 side and closes again after the ship leaves.
+- The first and return gates keep the existing door logic.
+- Exterior structure is deliberately lightweight so it does not replace the free-flight space with a heavy model.
