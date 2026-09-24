@@ -52,6 +52,7 @@
     velocity: null,
     angularVelocity: null,
     quaternion: null,
+    visual: null,
     thrust: 18,
     strafeThrust: 12,
     verticalThrust: 12,
@@ -195,6 +196,101 @@
     plane(parent, width / 2 - 0.8, height / 2 - 0.05, z + 8, s, s, Math.PI / 2, 0, Math.PI, textured("roofa.png", 0x8a9098));
   }
 
+  function buildShipVisual() {
+    if (ship.visual) return ship.visual;
+
+    const group = new THREE.Group();
+    group.name = "player-ship-visual";
+
+    const hullMat = new THREE.MeshStandardMaterial({
+      color: 0x7d8794,
+      metalness: 0.78,
+      roughness: 0.28
+    });
+    const darkMat = new THREE.MeshStandardMaterial({
+      color: 0x202833,
+      metalness: 0.55,
+      roughness: 0.24
+    });
+    const trimMat = new THREE.MeshBasicMaterial({
+      color: 0x9fdcff
+    });
+    const engineMat = new THREE.MeshBasicMaterial({
+      color: 0x65b9ff
+    });
+
+    // Camera sits near the nose/cockpit; the body is mostly behind the camera,
+    // so looking backwards reveals the actual rear of the craft.
+    const fuselage = new THREE.Mesh(
+      new THREE.BoxGeometry(1.35, 0.78, 3.8),
+      hullMat
+    );
+    fuselage.position.set(0, -0.05, 1.45);
+    group.add(fuselage);
+
+    const rear = new THREE.Mesh(
+      new THREE.BoxGeometry(1.75, 0.95, 0.85),
+      darkMat
+    );
+    rear.position.set(0, 0, 3.1);
+    group.add(rear);
+
+    const wingL = new THREE.Mesh(
+      new THREE.BoxGeometry(2.9, 0.12, 1.35),
+      hullMat
+    );
+    wingL.position.set(-1.18, -0.08, 1.35);
+    group.add(wingL);
+
+    const wingR = wingL.clone();
+    wingR.position.x = 1.18;
+    group.add(wingR);
+
+    const tail = new THREE.Mesh(
+      new THREE.BoxGeometry(0.18, 0.95, 1.15),
+      darkMat
+    );
+    tail.position.set(0, 0.52, 2.3);
+    group.add(tail);
+
+    const canopy = new THREE.Mesh(
+      new THREE.BoxGeometry(0.72, 0.12, 0.95),
+      darkMat
+    );
+    canopy.position.set(0, 0.38, 0.42);
+    group.add(canopy);
+
+    const trim = new THREE.Mesh(
+      new THREE.BoxGeometry(0.18, 0.08, 2.1),
+      trimMat
+    );
+    trim.position.set(0, 0.33, 1.55);
+    group.add(trim);
+
+    [-0.42, 0.42].forEach((x) => {
+      const nozzle = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.18, 0.23, 0.35, 8),
+        darkMat
+      );
+      nozzle.rotation.x = Math.PI / 2;
+      nozzle.position.set(x, -0.02, 3.48);
+      group.add(nozzle);
+
+      const glow = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.10, 0.15, 0.12, 8),
+        engineMat
+      );
+      glow.rotation.x = Math.PI / 2;
+      glow.position.set(x, -0.02, 3.72);
+      group.add(glow);
+    });
+
+    group.renderOrder = 3;
+    scene.add(group);
+    ship.visual = group;
+    return group;
+  }
+
   function buildRoom(parent, opt) {
     const floor = textured(opt.floor, opt.floorColor);
     const ceil = textured(opt.ceiling, opt.ceilingColor);
@@ -286,12 +382,11 @@
     videoZones.forEach((zone, index) => {
       if (!zone || !zone.url) return;
       const video = document.createElement("video");
-      video.src = zone.url;
       video.crossOrigin = "anonymous";
       video.muted = true;
       video.loop = true;
       video.playsInline = true;
-      video.preload = "metadata";
+      video.preload = "none";
       video.volume = 0;
 
       const texture = new THREE.VideoTexture(video);
@@ -322,10 +417,12 @@
         el: video,
         texture,
         mesh,
+        url: zone.url,
         radius: Number(zone.radius) || 16,
         maxVolume: 1,
         active: false,
         visible: false,
+        loaded: false,
         distance: 99
       };
 
@@ -686,6 +783,12 @@
       if (!zone.el) return;
 
       if (zone === nearest) {
+        if (!zone.loaded && zone.url) {
+          zone.el.src = zone.url;
+          zone.el.load();
+          zone.loaded = true;
+        }
+
         if (!zone.active) {
           zone.active = true;
           zone.el.loop = true;
@@ -701,6 +804,14 @@
         if (zone.active) zone.el.pause();
         zone.el.volume = 0;
         zone.active = false;
+
+        // Release the decoder/source when the screen is far outside its useful radius.
+        if (zone.loaded && zone.distance > zone.radius * 1.8) {
+          zone.el.pause();
+          zone.el.removeAttribute("src");
+          zone.el.load();
+          zone.loaded = false;
+        }
       }
     });
 
@@ -826,6 +937,10 @@
     }
     camera.position.copy(ship.position);
     camera.quaternion.copy(ship.quaternion);
+    if (ship.visual) {
+      ship.visual.position.copy(ship.position);
+      ship.visual.quaternion.copy(ship.quaternion);
+    }
     light.position.copy(ship.position);
     updateCinemaZones();
     updateCinemaFocus();
@@ -1004,6 +1119,7 @@
       ship.velocity = new THREE.Vector3();
       ship.angularVelocity = new THREE.Vector3();
       ship.quaternion = new THREE.Quaternion();
+      buildShipVisual();
       const stars = new THREE.BufferGeometry();
       const pts = [];
       for (let i = 0; i < 700; i++) pts.push((Math.random() - 0.5) * 500, (Math.random() - 0.5) * 320, (Math.random() - 0.5) * 520);
@@ -1012,7 +1128,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.6.0");
+      setStatus("ENGINE READY · LOCAL r128 · 0.6.1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
