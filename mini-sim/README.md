@@ -81,7 +81,7 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - Cinema clips now use `i-dance-fin.mp4` and `Reshade-Rasta-Dance3.mp4` in place of the older clips.
 - Exterior starbase: a lightweight skeleton surrounds the open-space departure path with segmented outer panels using `back*.png` textures.
 - The exterior panels reuse a small set of loaded textures and periodically shuffle their assignments to create a camouflage effect.
-- The six submitted backside PNGs are currently stored at repository root; PHP falls back to their GitHub raw URLs until local plugin copies exist.
+- The six backside PNGs belong in `mini-sim/assets/`; the root copies are not used.
 
 ### 0.6.4
 - The portal remains on the r128 implementation.
