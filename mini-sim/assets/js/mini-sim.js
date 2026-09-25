@@ -209,7 +209,7 @@
     nearest: null,
     focus: null,
     mute: false,
-    portalSafeRadius: 12
+    portalSafeRadius: 16
   };
   const liveWall = {
     el: null,
