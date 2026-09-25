@@ -144,3 +144,10 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - Gamepad mapping: **A = door**, **B = return home**, **X = lock/focus nearest screen**, **Y = portal**, **LB/RB = roll**, **LT/RT = vertical movement**, **Start/Select = menu**.
 - When a gamepad is connected, the HUD control legend switches to the gamepad mapping; keyboard help returns after disconnect.
 - The continuous HUD status no longer appends the stale `DOOR CLOSED/OPEN` state; it shows only room and speed.
+
+
+## 0.7.4 mobile controls
+- Mobile edge zones no longer intercept touches; visible movement buttons have priority for movement.
+- Swipe/drag directly on the game canvas remains the mobile screen-look control.
+- Device tilt is requested automatically when the game starts in landscape on a touch device and controls camera rotation. The `TILT` button recalibrates the current pose.
+- Pressing `Играть` recenters the mini-sim vertically in the phone viewport.
