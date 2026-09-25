@@ -424,7 +424,7 @@
     plane(parent, 0, 3.5, opt.z, opt.w, opt.len, Math.PI / 2, 0, 0, ceil);
     plane(parent, -opt.w / 2, 0, opt.z, opt.len, opt.h, 0, Math.PI / 2, 0, left);
     if (opt.right !== false) {
-      const right = textured(opt.right, opt.rightColor);
+      const right = tex(opt.right, opt.rightColor);
       plane(parent, opt.w / 2, 0, opt.z, opt.len, opt.h, 0, -Math.PI / 2, 0, right);
     }
     addRoofCorners(parent, opt.z, opt.w, opt.h);
