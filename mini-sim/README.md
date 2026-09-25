@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.6.7
+# BCM Mini-Sim 0.6.8
 
 ## STOP — read this before another GPT rewrite
 
@@ -104,3 +104,12 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - `Wall.mp4` is local-first through the asset registry; the previous external `wall.mp4` remains a temporary fallback until the local file is uploaded.
 - Interior live videos are muted, decoded only near/on-screen, and released again when the player moves away.
 - `back*.png` discovery remains automatic from `mini-sim/assets/`.
+
+### 0.6.8 room2 media and exterior loading
+- The first door is back to the real `door2.png` leaves; `capdoor.mp4` is no longer used as the door surface.
+- `capdoor.mp4` is now a separate low-priority personnel video on the left wall of Room 2.
+- `door-wallbotright.mp4` is a smaller lower-right overlay on the existing `wall1.png` texture immediately after the Room 2 teleport.
+- The exterior `back*.png` hull continues past the Room 2 boundary into the free-flight section instead of ending at `z=-83`.
+- Room 2 static textures and exterior `back*.png` textures use a two-at-a-time, low-fetch-priority background queue; portal cutscenes explicitly start that queue while their video is playing.
+- Live interior videos use muted lazy playback and low fetch priority. Portal transition video keeps high fetch priority so travel remains responsive.
+- The black central `voidBox` remains unchanged.
