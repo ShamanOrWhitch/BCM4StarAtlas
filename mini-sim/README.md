@@ -119,3 +119,9 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - `Wall.mp4` is restored to the Room 1 right wall, with `wall1.png` visible as the immediate fallback while the video decodes.
 - `doorwallbotright.mp4` remains only on the Room 2 bottom-right panel; its filename is treated as the placement indicator.
 - The existing Room 1 rear `capdoor.mp4` panel and portal/control logic are unchanged.
+
+
+## 0.7.0 live-wall/exterior correction
+- `Wall.mp4` now fills the entire Room 1 right-side opening at the Room 1 wall dimensions (12×8), with `wall1.png` remaining the immediate fallback.
+- `doorwallbotright.mp4` remains the lower-right Room 2 clip, but is moved forward to approximately z=-56.8 so it sits much closer to the dark portal-transition area instead of being stranded in the middle of the wall.
+- The exterior `back*.png` skeleton is pulled substantially farther away again on X/Y and beyond both room tube ends on Z. The interior room dimensions and collision corridor are unchanged.
