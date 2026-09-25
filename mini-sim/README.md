@@ -167,3 +167,12 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - Pressing the mobile portal button near the portal (within 14 scene units) launches the portal transition without requiring 69% visual coverage.
 - The mini-sim enters browser fullscreen on mobile when `Играть` is pressed and uses `100dvh`/fixed positioning as the fallback. Mobile control buttons are enlarged and kept inside the safe area.
 - A central `◎` button performs nearest-screen focus/lock.
+
+
+## 0.7.7 mobile tilt / UI polish
+- Tilt uses a linear response after a 4° dead zone, with a 30° response span and 34% gain, so small physical tilts produce visible camera rotation without accumulated spin.
+- Tilt permission is requested before fullscreen on mobile.
+- Cosmic space videos preload on touch landscape devices; their displayed size is increased by 45% only on mobile to remain visible.
+- Mobile side controls are moved inward from the browser edge and suppress long-press/context-menu handling.
+- The central screen-focus control is functionally present but completely invisible, with a 64×64 touch target.
+- `back*.png` shuffle now runs roughly twice as fast again, about every 0.8–1.6 seconds.
