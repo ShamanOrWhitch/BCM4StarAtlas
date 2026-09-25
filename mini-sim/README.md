@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.6.6
+# BCM Mini-Sim 0.6.7
 
 ## STOP — read this before another GPT rewrite
 
@@ -96,3 +96,11 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - All `back*.png` images are loaded once and downscaled in memory to 256/384/512 px max dimension according to available device memory/CPU threads.
 - More `back*.png` files are automatically picked up from `mini-sim/assets/` without JS changes.
 - Camouflage reassignment interval is now about 4–7.6 seconds.
+
+### 0.6.7 live interior media
+- Room 1 now has a rear cap so the global starfield is hidden directly behind the starting position.
+- `capdoor.mp4` is applied to the existing first-door leaves, so the original slide/wipe/iris door motion remains unchanged.
+- `door-wallbotright.mp4` is a lazy-loaded live panel on the right wall just after the Room 2 portal exit.
+- `Wall.mp4` is local-first through the asset registry; the previous external `wall.mp4` remains a temporary fallback until the local file is uploaded.
+- Interior live videos are muted, decoded only near/on-screen, and released again when the player moves away.
+- `back*.png` discovery remains automatic from `mini-sim/assets/`.
