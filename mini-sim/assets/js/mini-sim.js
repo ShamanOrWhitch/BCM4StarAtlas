@@ -781,10 +781,7 @@
       video.loop = true;
       video.playsInline = true;
       video.preload = "none";
-      if (window.matchMedia && window.matchMedia("(pointer: coarse) and (orientation: landscape)").matches) {
-        video.preload = "auto";
-        try { video.fetchPriority = index === 0 ? "high" : "low"; } catch (e) {}
-      }
+      try { video.fetchPriority = "low"; } catch (e) {}
       video.volume = 0;
 
       const texture = new THREE.VideoTexture(video);
@@ -1004,7 +1001,7 @@
         if (!item.el.paused) item.el.pause();
         item.active = false;
 
-        if (item.loaded && item.distance > Math.max(item.radius * 1.8, item.preloadRadius)) {
+        if (item.loaded && item.distance > Math.max(item.radius * 1.35, item.preloadRadius)) {
           item.el.pause();
           item.el.removeAttribute("src");
           item.el.load();
@@ -1612,6 +1609,8 @@
 
       if (zone === nearest) {
         if (!zone.loaded && zone.url) {
+          zone.el.preload = mobileLandscape() ? "auto" : "metadata";
+          try { zone.el.fetchPriority = mobileLandscape() ? "high" : "auto"; } catch (e) {}
           zone.el.src = zone.url;
           zone.el.load();
           zone.loaded = true;
@@ -1634,9 +1633,11 @@
         zone.active = false;
 
         // Release the decoder/source when the screen is far outside its useful radius.
-        if (zone.loaded && zone.distance > zone.radius * 1.8) {
+        if (zone.loaded && zone.distance > zone.radius * 1.35) {
           zone.el.pause();
           zone.el.removeAttribute("src");
+          zone.el.preload = "none";
+          try { zone.el.fetchPriority = "low"; } catch (e) {}
           zone.el.load();
           zone.loaded = false;
         }
@@ -1669,21 +1670,34 @@
     }
   }
 
-  function toggleCinemaFocus() {
-    const target = cinema.focus || cinema.nearest;
-    if (!target) {
-      setStatus("CINEMA · APPROACH A SCREEN");
-      return;
+  function getNearestVideoTarget() {
+    const targets = [];
+    if (cinema.nearest) targets.push(cinema.nearest);
+    liveInterior.forEach((item) => {
+      if (item && item.mesh && item.active && item.distance <= item.radius) targets.push(item);
+    });
+    if (liveWall && liveWall.mesh && liveWall.active && liveWall.distance <= liveWall.radius) {
+      targets.push(liveWall);
     }
+    targets.sort((a, b) => (Number(a.distance) || 99) - (Number(b.distance) || 99));
+    return targets.length ? targets[0] : null;
+  }
 
+  function toggleCinemaFocus() {
     if (cinema.focus) {
       cinema.focus = null;
       setStatus("CINEMA FOCUS OFF");
       return;
     }
 
+    const target = getNearestVideoTarget();
+    if (!target) {
+      setStatus("CINEMA · APPROACH A SCREEN");
+      return;
+    }
+
     cinema.focus = target;
-    setStatus("CINEMA FOCUS ON · F / X TO RELEASE");
+    setStatus("MISSION · SCREEN CHECK · F / X TO RELEASE");
   }
 
   function updateCinemaFocus() {
@@ -2091,7 +2105,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.7.9");
+      setStatus("ENGINE READY · LOCAL r128 · 0.8.0");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
