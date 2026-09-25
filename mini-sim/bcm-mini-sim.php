@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.7.7
+ * Version: 0.7.8
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.7.7');
+define('BCM_MINI_SIM_VERSION', '0.7.8');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -142,7 +142,8 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-menu-shade" aria-hidden="true"></div>
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.7.7</div>
+            <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.7.8</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
             <div class="bcm-mini-sim-help bcm-mini-sim-help-keyboard">
@@ -175,24 +176,26 @@ function bcm_mini_sim_shortcode($atts = array())
                 <label><input type="checkbox" data-setting="invertYaw"> Реверс лево/право</label>
                 <p>Клавиатура: W/S — тяга, A/D — влево/вправо, Space — вверх, C — вниз, G — портал, F — фиксация экрана, H — домой, R — дверь.</p>
                 <p>Gamepad: левый стик — движение, правый — взгляд; A — дверь, B — домой, X — фиксация экрана, Y — портал; LB/RB — крен, LT/RT — вверх/вниз, Start/Select — меню.</p>
-                <p>Телефон: кнопки дают движение, свайп по экрану — ручной поворот камеры, наклон — плавный поворот обзора. Невидимая центральная зона фиксирует ближайший экран. G у портала запускает переход по подходу к порталу.</p>
+                <p>Телефон: ▲/▼ — тяга вперёд/назад; ↟/↡ — вертикаль вверх/вниз, не горизонталь; ◀/▶ — поворот влево/вправо; ↶/↷ — крен. Свайп по экрану — ручной обзор, наклон телефона — плавный обзор. Невидимая центральная зона фиксирует ближайший экран. G у портала запускает переход.</p>
                 <p>Музыка только после «Играть». Esc отпускает мышь. G или 69% портала запускает видео перехода, затем перенос в Room 2.</p>
+                <button type="button" data-setting="checkVideos">Проверить все видео</button>
+                <div class="bcm-mini-sim-video-check-status" data-setting="videoCheckStatus">Видео: ещё не проверялись.</div>
                 <button type="button" data-setting="close">Закрыть</button>
             </div>
         </div>
         <div class="bcm-mini-sim-mobile" aria-hidden="true">
             <div class="bcm-mini-sim-mobile-left">
-                <button data-control="thrust">▲</button>
-                <button data-control="brake">▼</button>
-                <button data-control="rollLeft">↶</button>
-                <button data-control="rollRight">↷</button>
+                <button data-control="thrust" aria-label="Тяга вперёд">▲</button>
+                <button data-control="brake" aria-label="Тяга назад">▼</button>
+                <button data-control="rollLeft" aria-label="Крен влево">↶</button>
+                <button data-control="rollRight" aria-label="Крен вправо">↷</button>
             </div>
             <button class="bcm-mini-sim-mobile-focus" data-control="focus" type="button" aria-label="Фиксация экрана">◎</button>
             <div class="bcm-mini-sim-mobile-right">
-                <button data-control="up">↟</button>
-                <button data-control="down">↡</button>
-                <button data-control="yawLeft">◀</button>
-                <button data-control="yawRight">▶</button>
+                <button data-control="up" aria-label="Вертикаль вверх">↟</button>
+                <button data-control="down" aria-label="Вертикаль вниз">↡</button>
+                <button data-control="yawLeft" aria-label="Поворот влево">◀</button>
+                <button data-control="yawRight" aria-label="Поворот вправо">▶</button>
                 <button data-control="tilt">TILT</button>
                 <button data-control="portal">G</button>
                 <button data-control="home">HOME</button>
