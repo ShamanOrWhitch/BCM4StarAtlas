@@ -2051,11 +2051,13 @@
 
     let dragPointerId = null;
     let dragX = 0, dragY = 0;
+    let dragStartX = 0, dragStartY = 0;
     let dragMoved = false;
     canvas.addEventListener("pointerdown", (ev) => {
       if (!running || ev.pointerType === "mouse") return;
       dragPointerId = ev.pointerId;
       dragX = ev.clientX; dragY = ev.clientY;
+      dragStartX = ev.clientX; dragStartY = ev.clientY;
       dragMoved = false;
       canvas.setPointerCapture?.(ev.pointerId);
     });
@@ -2063,7 +2065,7 @@
       if (!running || dragPointerId !== ev.pointerId || ev.pointerType === "mouse" || settings.open) return;
       const prevX = dragX, prevY = dragY;
       const dx = ev.clientX - prevX, dy = ev.clientY - prevY;
-      if (Math.abs(ev.clientX - prevX) > 7 || Math.abs(ev.clientY - prevY) > 7) dragMoved = true;
+      if (Math.hypot(ev.clientX - dragStartX, ev.clientY - dragStartY) > 9) dragMoved = true;
       dragX = ev.clientX; dragY = ev.clientY;
       ship.angularVelocity.y -= dx * 0.0011;
       ship.angularVelocity.x -= dy * 0.0010;
@@ -2172,7 +2174,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.8.5");
+      setStatus("ENGINE READY · LOCAL r128 · 0.8.6");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
