@@ -14,6 +14,8 @@
   const musicAudio = root.querySelector(".bcm-mini-sim-music-audio");
   const tiltButton = root.querySelector('[data-control="tilt"]');
   const settingsRoot = root.querySelector(".bcm-mini-sim-settings");
+  const videoCheckButton = settingsRoot ? settingsRoot.querySelector('[data-setting="checkVideos"]') : null;
+  const videoCheckStatus = settingsRoot ? settingsRoot.querySelector('[data-setting="videoCheckStatus"]') : null;
   const transitionRoot = root.querySelector(".bcm-mini-sim-transition");
   const transitionVideo = root.querySelector(".bcm-mini-sim-transition-video");
   const transitionLabel = root.querySelector(".bcm-mini-sim-transition-label");
@@ -36,6 +38,75 @@
     const hit = keys.find((k) => k.split("/").pop() === base);
     return hit ? byName[hit] : "";
   }
+  function getVideoCheckEntries() {
+    const seen = Object.create(null);
+    const entries = [];
+    const add = (label, url) => {
+      if (!url || seen[url]) return;
+      seen[url] = true;
+      entries.push({ label, url });
+    };
+    add("Room 1 · capdoor.mp4", config.capdoorVideo);
+    add("Room 1 · Wall.mp4", config.room1WallVideo);
+    add("Room 2 · doorwallbotright.mp4", config.room2RightVideo);
+    const zones = Array.isArray(config.spaceVideoZones) ? config.spaceVideoZones : [];
+    zones.forEach((zone, index) => add("Space video " + (index + 1), zone && zone.url));
+    add("Portal · portal1.mp4", assetUrl("portal1.mp4"));
+    add("Portal · portal2.mp4", assetUrl("portal2.mp4"));
+    add("Portal · portal3.mp4", assetUrl("portal3.mp4"));
+    return entries;
+  }
+
+  let videoCheckToken = 0;
+
+  function checkAllVideoSources() {
+    const entries = getVideoCheckEntries();
+    if (!entries.length) {
+      if (videoCheckStatus) videoCheckStatus.textContent = "Видео: источники не найдены.";
+      return;
+    }
+    const token = ++videoCheckToken;
+    let ok = 0;
+    let failed = 0;
+    let index = 0;
+    const render = (label) => {
+      if (videoCheckStatus) videoCheckStatus.textContent = "Видео: " + index + "/" + entries.length + " · " + label;
+    };
+    const next = () => {
+      if (token !== videoCheckToken) return;
+      if (index >= entries.length) {
+        if (videoCheckStatus) videoCheckStatus.textContent = "Видео: " + ok + "/" + entries.length + " работают" + (failed ? " · ошибок " + failed : " · без ошибок");
+        return;
+      }
+      const entry = entries[index];
+      render("проверка " + (index + 1) + " — " + entry.label);
+      const video = document.createElement("video");
+      let done = false;
+      let timer = null;
+      const finish = (success) => {
+        if (done) return;
+        done = true;
+        if (timer) clearTimeout(timer);
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+        if (success) ok++; else failed++;
+        index++;
+        setTimeout(next, 80);
+      };
+      timer = setTimeout(() => finish(false), 12000);
+      video.crossOrigin = "anonymous";
+      video.muted = true;
+      video.playsInline = true;
+      video.preload = "metadata";
+      video.addEventListener("loadedmetadata", () => finish(!!video.videoWidth && !!video.videoHeight), { once: true });
+      video.addEventListener("error", () => finish(false), { once: true });
+      video.src = entry.url;
+      video.load();
+    };
+    next();
+  }
+
 
   const settings = {
     open: false,
@@ -1618,7 +1689,7 @@
       strafe: (keys.KeyD || touch.right ? 1 : 0) - (keys.KeyA || touch.left ? 1 : 0) + pad.lx,
       vertical: (keys.Space || touch.up ? 1 : 0) - (keys.KeyC || touch.down ? 1 : 0) + pad.vert,
       roll: (keys.KeyE || touch.rollRight ? 1 : 0) - (keys.KeyQ || touch.rollLeft ? 1 : 0) + pad.roll,
-      yaw: (touch.yawRight ? 1 : 0) - (touch.yawLeft ? 1 : 0) + look.yaw + pad.rx * (settings.invertYaw ? 1 : -1),
+      yaw: (touch.yawLeft ? 1 : 0) - (touch.yawRight ? 1 : 0) + look.yaw + pad.rx * (settings.invertYaw ? 1 : -1),
       pitch: look.pitch
     };
   }
@@ -1924,6 +1995,7 @@
       });
       if (ip) ip.addEventListener("change", () => { settings.invertPitch = ip.checked; });
       if (iy) iy.addEventListener("change", () => { settings.invertYaw = iy.checked; });
+      if (videoCheckButton) videoCheckButton.addEventListener("click", checkAllVideoSources);
       if (cl) cl.addEventListener("click", toggleSettings);
     }
     startButton.addEventListener("click", () => {
@@ -1966,6 +2038,7 @@
       canvas.focus();
       if (canvas.requestPointerLock && !("ontouchstart" in window)) canvas.requestPointerLock();
       setStatus("FLIGHT ACTIVE");
+      setTimeout(checkAllVideoSources, mobileLandscape() ? 8000 : 2500);
     });
     if (menuBackdrop && config.menuBackgroundUrl) {
       menuBackdrop.style.backgroundImage = 'url("' + config.menuBackgroundUrl.replace(/"/g, "") + '")';
@@ -1995,7 +2068,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.7.7");
+      setStatus("ENGINE READY · LOCAL r128 · 0.7.8");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
