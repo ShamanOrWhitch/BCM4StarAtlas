@@ -111,3 +111,11 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - Room 2 live videos are distance-driven inside the room, so they can play while the player is in the room instead of waiting for a precise camera angle.
 - Exterior back*.png materials use outward-facing FrontSide normals, preventing the external skin from appearing inside the rooms.
 - The two exterior skins are pulled farther away on X/Y and slightly past the tube ends on Z. The central black void remains untouched.
+
+
+## 0.6.10 geometry/media correction
+- Exterior `back*.png` panels are moved farther away on X/Y and beyond the room ends on Z; the left/right panel normals are corrected so the outside skin faces outward and cannot visually form an interior wall.
+- The background image queue de-duplicates each `back*.png` URL, so one file is decoded once even though several exterior panels reuse it.
+- `Wall.mp4` is restored to the Room 1 right wall, with `wall1.png` visible as the immediate fallback while the video decodes.
+- `doorwallbotright.mp4` remains only on the Room 2 bottom-right panel; its filename is treated as the placement indicator.
+- The existing Room 1 rear `capdoor.mp4` panel and portal/control logic are unchanged.
