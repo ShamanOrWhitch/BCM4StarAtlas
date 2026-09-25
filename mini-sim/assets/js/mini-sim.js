@@ -317,7 +317,7 @@
     tex.needsUpdate = true;
   }
   function textureFromSource(source) {
-    const tex = textureFromSource(source);
+    const tex = new THREE.Texture(source);
     // ImageBitmap already carries its image orientation; avoid Three.js flipping it again.
     if (typeof ImageBitmap !== "undefined" && source instanceof ImageBitmap) {
       tex.flipY = false;
