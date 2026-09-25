@@ -544,12 +544,12 @@
     }
 
     // Only Room 1 and Room 2. The black central void gets no external texture skin.
-    addTube(12.0, -32.0);
-    addTube(-41.0, -91.0);
+    addTube(5.5, -25.5);
+    addTube(-47.5, -84.5);
 
     parent.add(group);
     backside.panels = panels;
-    backside.nextAt = performance.now() + 8000;
+    backside.nextAt = performance.now() + 3500;
     randomizeBackside(performance.now());
   }
 
@@ -569,7 +569,7 @@
       item.material = materials[index];
     });
 
-    backside.nextAt = now + 10000 + Math.random() * 9000;
+    backside.nextAt = now + 3300 + Math.random() * 3000;
   }
 
   function updateBacksideCamouflage(now) {
@@ -762,10 +762,10 @@
       url: config.room2RightVideo,
       fallback: "wall1.png",
       x: 5.91,
-      y: -1.95,
-      z: -51.95,
-      width: 5.9,
-      height: 3.05,
+      y: -2.02,
+      z: -52.05,
+      width: 5.6935,
+      height: 2.94325,
       ry: -Math.PI / 2,
       radius: 24,
       preloadRadius: 30,
@@ -1858,7 +1858,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.7.1");
+      setStatus("ENGINE READY · LOCAL r128 · 0.7.2");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
