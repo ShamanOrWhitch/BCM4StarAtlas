@@ -168,6 +168,9 @@
     samples: 0,
     sumB: 0,
     sumG: 0,
+    filteredB: 0,
+    filteredG: 0,
+    filterReady: false,
     a: 0, b: 0, g: 0,
     na: 0, nb: 0, ng: 0,
     neutralB: 0, neutralG: 0
@@ -200,6 +203,29 @@
   function updateControlHelp() {
     if (!root) return;
     root.classList.toggle("gamepad-connected", hasConnectedGamepad());
+  }
+
+  function mobileLandscape() {
+    return !!(window.matchMedia &&
+      window.matchMedia("(pointer: coarse) and (orientation: landscape)").matches);
+  }
+
+  function enterMobileFullscreen() {
+    if (!mobileLandscape()) return;
+
+    try {
+      if (root.requestFullscreen && !document.fullscreenElement) {
+        const request = root.requestFullscreen({ navigationUI: "hide" });
+        if (request && request.catch) request.catch(() => {});
+      }
+    } catch (e) {}
+
+    try {
+      if (screen.orientation && screen.orientation.lock) {
+        const lock = screen.orientation.lock("landscape");
+        if (lock && lock.catch) lock.catch(() => {});
+      }
+    } catch (e) {}
   }
 
   function hudAssets() {
@@ -1337,7 +1363,8 @@
       ? portal.mesh.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position)
       : 99;
 
-    if (dist > 10 && portal.coverage < 0.69) {
+    const mobileNearPortal = mobileLandscape() && dist <= 14;
+    if (!mobileNearPortal && dist > 10 && portal.coverage < 0.69) {
       setStatus("PORTAL · APPROACH / FILL 69%");
       return;
     }
@@ -1387,23 +1414,22 @@
   function tiltLook() {
     if (!tilt.enabled || !tilt.available) return { pitch: 0, yaw: 0 };
 
-    const pitchOffset = Math.max(-38, Math.min(38, tilt.b - tilt.neutralB));
-    const yawOffset = Math.max(-38, Math.min(38, tilt.g - tilt.neutralG));
-    const dead = 5.0;
-    const response = 38.0;
-    const gain = 0.34;
+    const pitchOffset = Math.max(-45, Math.min(45, tilt.filteredB - tilt.neutralB));
+    const yawOffset = Math.max(-45, Math.min(45, tilt.filteredG - tilt.neutralG));
+    const dead = 7.0;
+    const response = 45.0;
+    const gain = 0.18;
 
-    const pitchRaw = Math.abs(pitchOffset) <= dead
-      ? 0
-      : Math.max(-1, Math.min(1, (Math.abs(pitchOffset) - dead) / (response - dead))) * Math.sign(pitchOffset);
-
-    const yawRaw = Math.abs(yawOffset) <= dead
-      ? 0
-      : Math.max(-1, Math.min(1, (Math.abs(yawOffset) - dead) / (response - dead))) * Math.sign(yawOffset);
+    const shape = (offset) => {
+      if (Math.abs(offset) <= dead) return 0;
+      const t = Math.max(0, Math.min(1, (Math.abs(offset) - dead) / (response - dead)));
+      return Math.sign(offset) * t * t;
+    };
 
     return {
-      pitch: (settings.invertPitch ? -1 : 1) * pitchRaw * gain,
-      yaw: (settings.invertYaw ? -1 : 1) * yawRaw * gain
+      // Default left/right direction is corrected for the phone sensor.
+      pitch: (settings.invertPitch ? -1 : 1) * shape(pitchOffset) * gain,
+      yaw: (settings.invertYaw ? 1 : -1) * shape(yawOffset) * gain
     };
   }
 
@@ -1581,15 +1607,13 @@
   function input() {
     readPad();
     const look = tiltLook();
-    const edgeYaw = (touch.edgeRight ? 1 : 0) - (touch.edgeLeft ? 1 : 0);
-    const edgePitch = (touch.edgeDown ? 1 : 0) - (touch.edgeUp ? 1 : 0);
     return {
       thrust: (keys.KeyW || touch.thrust ? 1 : 0) - (keys.KeyS || touch.brake ? 1 : 0) - pad.ly,
       strafe: (keys.KeyD || touch.right ? 1 : 0) - (keys.KeyA || touch.left ? 1 : 0) + pad.lx,
       vertical: (keys.Space || touch.up ? 1 : 0) - (keys.KeyC || touch.down ? 1 : 0) + pad.vert,
       roll: (keys.KeyE || touch.rollRight ? 1 : 0) - (keys.KeyQ || touch.rollLeft ? 1 : 0) + pad.roll,
-      yaw: (touch.yawRight ? 1 : 0) - (touch.yawLeft ? 1 : 0) + edgeYaw * 0.8 + look.yaw + pad.rx * (settings.invertYaw ? 1 : -1),
-      pitch: edgePitch * 0.8 + look.pitch
+      yaw: (touch.yawRight ? 1 : 0) - (touch.yawLeft ? 1 : 0) + look.yaw + pad.rx * (settings.invertYaw ? 1 : -1),
+      pitch: look.pitch
     };
   }
 
@@ -1630,11 +1654,20 @@
     ship.position.addScaledVector(ship.velocity, dt);
     collide();
 
-    const psign = settings.invertPitch ? 1 : -1;
-    ship.angularVelocity.x += pad.ry * psign * 2.1 * dt + inn.pitch * 2.4 * dt;
-    ship.angularVelocity.y += inn.yaw * 2.2 * dt;
-    ship.angularVelocity.z += inn.roll * 2.6 * dt;
-    ship.angularVelocity.multiplyScalar(Math.max(0, 1 - ship.angularDrag * dt));
+    const mobileTiltMode = mobileLandscape() && tilt.enabled;
+    if (mobileTiltMode) {
+      const manualYaw = ((touch.yawRight ? 1 : 0) - (touch.yawLeft ? 1 : 0) + pad.rx * (settings.invertYaw ? 1 : -1));
+      const manualPitch = pad.ry * (settings.invertPitch ? 1 : -1);
+      ship.angularVelocity.x = manualPitch * 0.85 + inn.pitch * 0.85;
+      ship.angularVelocity.y = manualYaw * 0.85 + inn.yaw * 0.85;
+      ship.angularVelocity.z = inn.roll * 2.6;
+    } else {
+      const psign = settings.invertPitch ? 1 : -1;
+      ship.angularVelocity.x += pad.ry * psign * 2.1 * dt + inn.pitch * 2.4 * dt;
+      ship.angularVelocity.y += inn.yaw * 2.2 * dt;
+      ship.angularVelocity.z += inn.roll * 2.6 * dt;
+      ship.angularVelocity.multiplyScalar(Math.max(0, 1 - ship.angularDrag * dt));
+    }
     if (ship.angularVelocity.lengthSq() > 1e-8) {
       const ang = ship.angularVelocity.length() * dt;
       const q = new THREE.Quaternion().setFromAxisAngle(ship.angularVelocity.clone().normalize(), ang);
@@ -1713,25 +1746,26 @@
       tilt.samples = 0;
       tilt.sumB = 0;
       tilt.sumG = 0;
+      tilt.enabled = false;
 
       setTimeout(() => {
         tilt.calibrating = false;
-        if (tilt.samples >= 6) {
+        if (tilt.samples >= 8) {
           tilt.neutralB = tilt.sumB / tilt.samples;
           tilt.neutralG = tilt.sumG / tilt.samples;
           tilt.enabled = true;
           if (tiltButton) tiltButton.classList.add("active");
-          setStatus("TILT CALIBRATED · HOLD PHONE STILL");
+          setStatus("TILT CALIBRATED · HOLD STILL");
         } else if (tilt.available) {
-          tilt.neutralB = tilt.b;
-          tilt.neutralG = tilt.g;
+          tilt.neutralB = tilt.filteredB;
+          tilt.neutralG = tilt.filteredG;
           tilt.enabled = true;
           if (tiltButton) tiltButton.classList.add("active");
           setStatus("TILT CALIBRATED");
         } else {
           setStatus("TILT · NO SENSOR");
         }
-      }, 800);
+      }, 1000);
     };
 
     const on = (ev) => {
@@ -1741,9 +1775,18 @@
       tilt.b = ev.beta;
       tilt.g = ev.gamma || 0;
 
+      if (!tilt.filterReady) {
+        tilt.filteredB = tilt.b;
+        tilt.filteredG = tilt.g;
+        tilt.filterReady = true;
+      } else {
+        tilt.filteredB += (tilt.b - tilt.filteredB) * 0.14;
+        tilt.filteredG += (tilt.g - tilt.filteredG) * 0.14;
+      }
+
       if (tilt.calibrating) {
-        tilt.sumB += tilt.b;
-        tilt.sumG += tilt.g;
+        tilt.sumB += tilt.filteredB;
+        tilt.sumG += tilt.filteredG;
         tilt.samples++;
       }
     };
@@ -1821,6 +1864,7 @@
       const down = (ev) => {
         ev.preventDefault();
         if (id === "tilt") { enableTilt(); return; }
+        if (id === "focus") { toggleCinemaFocus(); return; }
         if (id === "portal") { tryPortal(); return; }
         if (id === "home") { returnToStart(); return; }
         if (running) touch[id] = true;
@@ -1846,8 +1890,8 @@
       if (!running || dragPointerId !== ev.pointerId || ev.pointerType === "mouse" || settings.open) return;
       const dx = ev.clientX - dragX, dy = ev.clientY - dragY;
       dragX = ev.clientX; dragY = ev.clientY;
-      ship.angularVelocity.y -= dx * 0.0025;
-      ship.angularVelocity.x -= dy * 0.0022;
+      ship.angularVelocity.y -= dx * 0.0011;
+      ship.angularVelocity.x -= dy * 0.0010;
     });
     const endDrag = (ev) => { if (dragPointerId === ev.pointerId) dragPointerId = null; };
     canvas.addEventListener("pointerup", endDrag);
@@ -1880,6 +1924,8 @@
       running = true;
       musicAllowed = true;
       startMusic();
+
+      enterMobileFullscreen();
 
       if (window.matchMedia && window.matchMedia("(pointer: coarse) and (orientation: landscape)").matches) {
         enableTilt();
@@ -1942,7 +1988,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.7.5");
+      setStatus("ENGINE READY · LOCAL r128 · 0.7.6");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
