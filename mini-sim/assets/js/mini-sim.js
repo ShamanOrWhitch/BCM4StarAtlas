@@ -596,7 +596,7 @@
 
     parent.add(group);
     backside.panels = panels;
-    backside.nextAt = performance.now() + 3500;
+    backside.nextAt = performance.now() + 1000;
     randomizeBackside(performance.now());
   }
 
@@ -616,7 +616,7 @@
       item.material = materials[index];
     });
 
-    backside.nextAt = now + 3300 + Math.random() * 3000;
+    backside.nextAt = now + 800 + Math.random() * 800;
   }
 
   function updateBacksideCamouflage(now) {
@@ -710,6 +710,10 @@
       video.loop = true;
       video.playsInline = true;
       video.preload = "none";
+      if (window.matchMedia && window.matchMedia("(pointer: coarse) and (orientation: landscape)").matches) {
+        video.preload = "auto";
+        try { video.fetchPriority = index === 0 ? "high" : "low"; } catch (e) {}
+      }
       video.volume = 0;
 
       const texture = new THREE.VideoTexture(video);
@@ -751,8 +755,11 @@
 
       video.addEventListener("loadedmetadata", () => {
         if (!item.mesh || !video.videoWidth || !video.videoHeight) return;
-        const maxW = zone.maxWidth || 6.8;
-        const maxH = zone.maxHeight || 4.4;
+        const mobileSize = window.matchMedia && window.matchMedia("(pointer: coarse) and (orientation: landscape)").matches
+          ? 1.45
+          : 1;
+        const maxW = (zone.maxWidth || 6.8) * mobileSize;
+        const maxH = (zone.maxHeight || 4.4) * mobileSize;
         const aspect = video.videoWidth / video.videoHeight;
         let w = maxW;
         let h = w / aspect;
@@ -1414,20 +1421,19 @@
   function tiltLook() {
     if (!tilt.enabled || !tilt.available) return { pitch: 0, yaw: 0 };
 
-    const pitchOffset = Math.max(-45, Math.min(45, tilt.filteredB - tilt.neutralB));
-    const yawOffset = Math.max(-45, Math.min(45, tilt.filteredG - tilt.neutralG));
-    const dead = 7.0;
-    const response = 45.0;
-    const gain = 0.18;
+    const pitchOffset = Math.max(-35, Math.min(35, tilt.filteredB - tilt.neutralB));
+    const yawOffset = Math.max(-35, Math.min(35, tilt.filteredG - tilt.neutralG));
+    const dead = 4.0;
+    const response = 30.0;
+    const gain = 0.34;
 
     const shape = (offset) => {
       if (Math.abs(offset) <= dead) return 0;
       const t = Math.max(0, Math.min(1, (Math.abs(offset) - dead) / (response - dead)));
-      return Math.sign(offset) * t * t;
+      return Math.sign(offset) * t;
     };
 
     return {
-      // Default left/right direction is corrected for the phone sensor.
       pitch: (settings.invertPitch ? -1 : 1) * shape(pitchOffset) * gain,
       yaw: (settings.invertYaw ? 1 : -1) * shape(yawOffset) * gain
     };
@@ -1872,6 +1878,8 @@
       btn.addEventListener("pointerdown", down);
       btn.addEventListener("pointerup", up);
       btn.addEventListener("pointercancel", up);
+      btn.addEventListener("contextmenu", (ev) => ev.preventDefault());
+      btn.addEventListener("selectstart", (ev) => ev.preventDefault());
     });
 
     // Edge zones are intentionally passive on mobile: movement is handled by the visible buttons,
@@ -1924,11 +1932,11 @@
       musicAllowed = true;
       startMusic();
 
-      enterMobileFullscreen();
-
       if (window.matchMedia && window.matchMedia("(pointer: coarse) and (orientation: landscape)").matches) {
         enableTilt();
       }
+
+      enterMobileFullscreen();
 
       const centerSim = () => {
         const rect = root.getBoundingClientRect();
@@ -1987,7 +1995,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.7.6");
+      setStatus("ENGINE READY · LOCAL r128 · 0.7.7");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
