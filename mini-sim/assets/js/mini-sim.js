@@ -316,6 +316,15 @@
     if ("encoding" in tex && THREE.sRGBEncoding !== undefined) tex.encoding = THREE.sRGBEncoding;
     tex.needsUpdate = true;
   }
+  function textureFromSource(source) {
+    const tex = textureFromSource(source);
+    // ImageBitmap already carries its image orientation; avoid Three.js flipping it again.
+    if (typeof ImageBitmap !== "undefined" && source instanceof ImageBitmap) {
+      tex.flipY = false;
+    }
+    return tex;
+  }
+
   function isMobileTextureMode() {
     return !!(window.matchMedia && window.matchMedia("(pointer: coarse) and (orientation: landscape)").matches);
   }
@@ -371,7 +380,7 @@
     img.onload = () => {
       try {
         makeTextureSource(img, (source) => {
-          const tex = new THREE.Texture(source);
+          const tex = textureFromSource(source);
           applyTex(tex);
           mat.map = tex;
           mat.color.set(0xffffff);
@@ -416,7 +425,7 @@
     queueLowPriorityImage(url, (img) => {
       try {
         makeTextureSource(img, (source) => {
-          const tex = new THREE.Texture(source);
+          const tex = textureFromSource(source);
           applyTex(tex);
           mat.map = tex;
           mat.color.set(0xffffff);
@@ -611,7 +620,7 @@
       const finish = (img) => {
         try {
           makeTextureSource(img, (source) => {
-            const tex = new THREE.Texture(source);
+            const tex = textureFromSource(source);
             applyTex(tex);
             material.map = tex;
             material.color.set(0xffffff);
@@ -2214,7 +2223,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.8.8");
+      setStatus("ENGINE READY · LOCAL r128 · 0.8.9");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
