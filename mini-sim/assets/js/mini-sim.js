@@ -348,6 +348,7 @@
     const resizeHeight = Math.max(1, Math.round(height * scale));
 
     window.createImageBitmap(img, {
+      imageOrientation: "flipY",
       resizeWidth,
       resizeHeight,
       resizeQuality: "low"
@@ -1905,8 +1906,10 @@
         ? "PORTAL LOCK 69% · CUTSCENE"
         : "PORTAL " + Math.round(portal.coverage * 100) + "%";
     }
-    if (portalSide() === "FRONT" && portal.coverage >= 0.69) tryPortal();
-    if (portalSide() === "BACK" && portalTriggerDistance("BACK") <= 7.5) tryPortal();
+    if (!cinema.focus) {
+      if (portalSide() === "FRONT" && portal.coverage >= 0.69) tryPortal();
+      if (portalSide() === "BACK" && portalTriggerDistance("BACK") <= 7.5) tryPortal();
+    }
 
     if (mobileLandscape() && interaction && !transitionBusy) {
       if (cinema.focus) interaction.textContent = "SCREEN LOCK · TAP VIDEO OFF · ◀ ▶ ORBIT";
@@ -2223,7 +2226,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.8.9");
+      setStatus("ENGINE READY · LOCAL r128 · 0.9.0");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
