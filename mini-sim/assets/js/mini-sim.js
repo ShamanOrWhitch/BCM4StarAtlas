@@ -181,6 +181,22 @@
     status.textContent = text;
   }
 
+  function hasConnectedGamepad() {
+    if (!navigator.getGamepads) return false;
+    try {
+      const list = navigator.getGamepads();
+      for (let i = 0; i < list.length; i++) {
+        if (list[i]) return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  function updateControlHelp() {
+    if (!root) return;
+    root.classList.toggle("gamepad-connected", hasConnectedGamepad());
+  }
+
   function hudAssets() {
     if (!assetStatus) return;
     assetStatus.textContent =
@@ -1356,6 +1372,8 @@
       pad.prev[n] = on;
     };
     edge(0, () => openDoor("REMOTE"));
+    edge(1, returnToStart);
+    edge(2, toggleCinemaFocus);
     edge(3, tryPortal);
     edge(9, toggleSettings);
     edge(8, toggleSettings);
@@ -1524,7 +1542,7 @@
     }
 
     cinema.focus = target;
-    setStatus("CINEMA FOCUS ON · F TO RELEASE");
+    setStatus("CINEMA FOCUS ON · F / X TO RELEASE");
   }
 
   function updateCinemaFocus() {
@@ -1553,7 +1571,7 @@
     return {
       thrust: (keys.KeyW || touch.thrust ? 1 : 0) - (keys.KeyS || touch.brake ? 1 : 0) - pad.ly,
       strafe: (keys.KeyD || touch.right ? 1 : 0) - (keys.KeyA || touch.left ? 1 : 0) + pad.lx,
-      vertical: (keys.Space || touch.up ? 1 : 0) - (keys.ControlLeft || touch.down ? 1 : 0) + pad.vert,
+      vertical: (keys.Space || touch.up ? 1 : 0) - (keys.KeyC || touch.down ? 1 : 0) + pad.vert,
       roll: (keys.KeyE || touch.rollRight ? 1 : 0) - (keys.KeyQ || touch.rollLeft ? 1 : 0) + pad.roll,
       yaw: (touch.yawRight ? 1 : 0) - (touch.yawLeft ? 1 : 0) + edgeYaw * 0.8 + look.yaw + pad.rx * (settings.invertYaw ? 1 : -1),
       pitch: edgePitch * 0.8 + look.pitch
@@ -1632,7 +1650,7 @@
     const room = ship.position.z < DEEP_SPACE_Z
       ? "DEEP SPACE"
       : (ship.position.z < -48 ? "ROOM 2" : (ship.position.z < -28 ? "SPACE" : "ROOM 1"));
-    setStatus(room + " · SPD " + ship.velocity.length().toFixed(1) + " · DOOR " + door.state);
+    setStatus(room + " · SPD " + ship.velocity.length().toFixed(1));
   }
 
   function render(now) {
@@ -1731,7 +1749,16 @@
     });
     window.addEventListener("keyup", (e) => { keys[e.code] = false; });
     window.addEventListener("resize", resize);
-    window.addEventListener("gamepadconnected", (e) => { if (pad.index < 0) pad.index = e.gamepad.index; });
+    window.addEventListener("gamepadconnected", (e) => {
+      if (pad.index < 0) pad.index = e.gamepad.index;
+      updateControlHelp();
+      setStatus("GAMEPAD CONNECTED");
+    });
+    window.addEventListener("gamepaddisconnected", (e) => {
+      if (pad.index === e.gamepad.index) pad.index = -1;
+      updateControlHelp();
+    });
+    updateControlHelp();
     canvas.addEventListener("click", () => {
       if (running && canvas.requestPointerLock && !("ontouchstart" in window)) canvas.requestPointerLock();
     });
@@ -1858,7 +1885,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.7.2");
+      setStatus("ENGINE READY · LOCAL r128 · 0.7.3");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
