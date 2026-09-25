@@ -158,3 +158,12 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - Tilt calibration now averages sensor samples for about 0.8 seconds before establishing the neutral pose.
 - Tilt dead zone is increased to 5°, response span to 38°, and the resulting look input is reduced to 34% of the previous range.
 - Movement buttons and desktop/gamepad controls are unchanged.
+
+
+## 0.7.6 mobile control correction
+- Tilt is now a **direct slow look rate** rather than accumulated angular acceleration, eliminating the tendency to drift or spin away.
+- Phone tilt now has filtered sensor data, a 7° dead zone, a 45° response span, and 18% gain. Default left/right tilt direction is corrected.
+- Mobile screen-drag sensitivity is reduced again to 0.0011/0.0010.
+- Pressing the mobile portal button near the portal (within 14 scene units) launches the portal transition without requiring 69% visual coverage.
+- The mini-sim enters browser fullscreen on mobile when `Играть` is pressed and uses `100dvh`/fixed positioning as the fallback. Mobile control buttons are enlarged and kept inside the safe area.
+- A central `◎` button performs nearest-screen focus/lock.
