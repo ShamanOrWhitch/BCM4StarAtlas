@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.8.2
+ * Version: 0.8.3
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.8.2');
+define('BCM_MINI_SIM_VERSION', '0.8.3');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -143,7 +143,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.8.2</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.8.3</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ВНЕШНИЕ ЭКРАНЫ</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
@@ -173,11 +173,11 @@ function bcm_mini_sim_shortcode($atts = array())
             <div class="bcm-mini-sim-settings-card">
                 <h2>SETTINGS</h2>
                 <label>Громкость <input type="range" min="0" max="100" value="42" data-setting="volume"></label>
-                <label><input type="checkbox" data-setting="invertPitch" checked> Авиа-питч (вниз = вверх взгляда)</label>
+                <label><input type="checkbox" data-setting="invertPitch" checked> Инверсия вертикального наклона</label>
                 <label><input type="checkbox" data-setting="invertYaw"> Реверс лево/право</label>
                 <p>Клавиатура: W/S — тяга, A/D — влево/вправо, Space — вверх, C — вниз, G — портал, F — фиксация экрана, H — домой, R — дверь.</p>
                 <p>Gamepad: левый стик — движение, правый — взгляд; A — дверь, B — домой, X — фиксация экрана, Y — портал; LB/RB — крен, LT/RT — вверх/вниз, Start/Select — меню.</p>
-                <p>Миссия: проверить внешние экраны и все видеозоны. Подлетайте к каждому экрану снаружи, дождитесь его запуска и используйте фиксацию экрана для проверки наведения. На телефоне ▲/▼ — тяга вперёд/назад; ↟/↡ — вертикаль вверх/вниз; ◀/▶ — поворот; ↶/↷ — крен. Свайп — ручной обзор, наклон — обзор.</p>
+                <p>Миссия: проверить внешние экраны и все видеозоны. Подлетайте к каждому экрану снаружи, дождитесь его запуска и нажмите центр экрана для той же фиксации ролика, что и клавиша F. На телефоне ▲/▼ — тяга вперёд/назад; ↟/↡ — вертикаль вверх/вниз; ◀/▶ — поворот; ↶/↷ — крен. Свайп — ручной обзор, наклон — обзор.</p>
                 <p>Музыка только после «Играть». Esc отпускает мышь. G или 69% портала запускает видео перехода, затем перенос в Room 2.</p>
                 <button type="button" data-setting="checkVideos">Проверить все видео</button>
                 <div class="bcm-mini-sim-video-check-status" data-setting="videoCheckStatus">Видео: ещё не проверялись.</div>
