@@ -102,8 +102,10 @@
     ready: false,
     primed: false,
     active: false,
-    error: false
+    error: false,
+    loaded: false
   };
+  const liveInterior = [];
   const backside = {
     urls: Array.isArray(config.backsideTextures) ? config.backsideTextures.slice() : [],
     panels: [],
@@ -580,6 +582,14 @@
       floorColor: 0x46505b, ceilingColor: 0x8b9198,
       leftColor: 0x3b444f, rightColor: 0x343d47
     });
+    const room1RearCap = new THREE.Mesh(
+      new THREE.BoxGeometry(12.0, 8.0, 0.35),
+      new THREE.MeshBasicMaterial({ color: 0x05070a, side: THREE.DoubleSide })
+    );
+    room1RearCap.position.set(0, 0, 4.18);
+    room1RearCap.name = "room1-rear-star-cap";
+    world.add(room1RearCap);
+
     buildRoom(world, {
       z: -66, w: 12, len: 34, h: 8,
       floor: "wall2.png", ceiling: "roof1.png",
@@ -620,12 +630,14 @@
     box(group, 0, -3.3, 0, 7.2, 0.5, 0.7, frame);
     box(group, -3.3, 0, 0, 0.5, 6.1, 0.7, frame);
     box(group, 3.3, 0, 0, 0.5, 6.1, 0.7, frame);
-    const dmatL = textured("door2.png", 0xffffff);
-    const dmatR = textured("door2.png", 0xffffff);
+    const capdoorLive = createLiveInteriorMaterial(config.capdoorVideo, "door2.png", 14);
+    const dmatL = capdoorLive ? capdoorLive.material : textured("door2.png", 0xffffff);
+    const dmatR = capdoorLive ? capdoorLive.material : textured("door2.png", 0xffffff);
     door.left = plane(group, -1.52, 0, -0.35, 3.05, 6.1, 0, 0, 0, dmatL);
     door.right = plane(group, 1.52, 0, -0.35, 3.05, 6.1, 0, 0, 0, dmatR);
     scene.add(group);
     door.mesh = group;
+    if (capdoorLive) capdoorLive.mesh = door.left;
 
     const returnGroup = new THREE.Group();
     returnGroup.position.set(0, 0, -27.2);
@@ -639,6 +651,19 @@
     returnDoor.right = plane(returnGroup, 1.52, 0, 0.35, 3.05, 6.1, 0, Math.PI, 0, rmatR);
     scene.add(returnGroup);
     returnDoor.mesh = returnGroup;
+
+    createLiveInteriorPanel({
+      url: config.room2RightVideo,
+      fallback: "wall1.png",
+      x: 6.01,
+      y: 0,
+      z: -55,
+      width: 8.6,
+      height: 7.1,
+      ry: -Math.PI / 2,
+      radius: 20,
+      name: "room2-right-live-wall"
+    });
 
     const pgroup = new THREE.Group();
     pgroup.position.set(0, 0, portal.z);
@@ -723,6 +748,166 @@
     createLiveWall();
   }
 
+  function createLiveInteriorMaterial(videoUrl, fallbackName, radius) {
+    if (!videoUrl) return null;
+    const material = textured(fallbackName, 0xffffff, THREE.DoubleSide);
+    const video = document.createElement("video");
+    video.crossOrigin = "anonymous";
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.preload = "none";
+    video.volume = 0;
+
+    const texture = new THREE.VideoTexture(video);
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = false;
+    if ("encoding" in texture && THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
+
+    const item = {
+      kind: "material",
+      el: video,
+      texture,
+      material,
+      mesh: null,
+      url: videoUrl,
+      radius: Number(radius) || 14,
+      loaded: false,
+      ready: false,
+      active: false,
+      error: false,
+      distance: 99
+    };
+
+    const reveal = () => {
+      if (item.ready || item.error) return;
+      item.ready = true;
+      material.map = texture;
+      material.color.set(0xffffff);
+      material.needsUpdate = true;
+    };
+    video.addEventListener("loadeddata", reveal);
+    video.addEventListener("canplay", reveal);
+    video.addEventListener("error", () => {
+      item.error = true;
+      item.active = false;
+    });
+
+    liveInterior.push(item);
+    return item;
+  }
+
+  function createLiveInteriorPanel(opts) {
+    if (!opts || !opts.url) return null;
+    const material = textured(opts.fallback || "wall1.png", opts.color || 0x46505b, THREE.DoubleSide);
+    const video = document.createElement("video");
+    video.crossOrigin = "anonymous";
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.preload = "none";
+    video.volume = 0;
+
+    const texture = new THREE.VideoTexture(video);
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = false;
+    if ("encoding" in texture && THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
+
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(Number(opts.width) || 8.6, Number(opts.height) || 7.1),
+      material
+    );
+    mesh.position.set(Number(opts.x) || 6.01, Number(opts.y) || 0, Number(opts.z) || -55);
+    mesh.rotation.set(Number(opts.rx) || 0, Number(opts.ry) || 0, Number(opts.rz) || 0);
+    mesh.name = opts.name || "live-interior-panel";
+    scene.add(mesh);
+
+    const item = {
+      kind: "panel",
+      el: video,
+      texture,
+      material,
+      mesh,
+      url: opts.url,
+      radius: Number(opts.radius) || 18,
+      loaded: false,
+      ready: false,
+      active: false,
+      error: false,
+      distance: 99
+    };
+
+    const reveal = () => {
+      if (item.ready || item.error) return;
+      item.ready = true;
+      material.map = texture;
+      material.color.set(0xffffff);
+      material.needsUpdate = true;
+    };
+    video.addEventListener("loadeddata", reveal);
+    video.addEventListener("canplay", reveal);
+    video.addEventListener("error", () => {
+      item.error = true;
+      item.active = false;
+    });
+
+    liveInterior.push(item);
+    return item;
+  }
+
+  function updateLiveInterior() {
+    liveInterior.forEach((item) => {
+      if (!item.el || !item.mesh) return;
+
+      const worldPos = item.mesh.getWorldPosition(new THREE.Vector3());
+      item.distance = worldPos.distanceTo(ship.position);
+      const visible = running &&
+        !transitionBusy &&
+        !settings.open &&
+        item.distance <= item.radius &&
+        zoneIsOnScreen({ mesh: item.mesh });
+
+      if (visible) {
+        if (!item.loaded && item.url) {
+          item.el.src = item.url;
+          item.el.load();
+          item.loaded = true;
+        }
+        if (item.el.paused) {
+          const p = item.el.play();
+          if (p && p.catch) p.catch(() => {});
+        }
+        item.active = true;
+      } else {
+        if (!item.el.paused) item.el.pause();
+        item.active = false;
+        if (item.loaded && item.distance > item.radius * 1.8) {
+          item.el.pause();
+          item.el.removeAttribute("src");
+          item.el.load();
+          item.loaded = false;
+          item.ready = false;
+        }
+      }
+
+      if (interaction && item.ready && visible && item.distance < item.radius * 0.9) {
+        interaction.textContent =
+          "LIVE " + (item.kind === "panel" ? "WALL" : "DOOR") + " · " +
+          Math.round(Math.max(0, 100 - (item.distance / item.radius) * 100)) + "%";
+      }
+    });
+  }
+
+  function pauseLiveInterior() {
+    liveInterior.forEach((item) => {
+      if (!item.el) return;
+      item.el.pause();
+      item.active = false;
+    });
+  }
+
   function createLiveWall() {
     if (liveWall.mesh) return;
     const cfg = config.liveWall || {};
@@ -754,9 +939,8 @@
     video.muted = true;
     video.loop = true;
     video.playsInline = true;
-    video.preload = "auto";
+    video.preload = "none";
     video.volume = 0;
-    video.src = cfg.url;
 
     const texture = new THREE.VideoTexture(video);
     texture.minFilter = THREE.LinearFilter;
@@ -807,10 +991,7 @@
       liveWall.active = false;
     });
 
-    // Prime decoding early; until the first decoded frame the fallback image remains visible.
-    video.load();
-    const p = video.play();
-    if (p && p.catch) p.catch(() => {});
+    // Wall.mp4 stays lazy and loads only when the player is near and looking at it.
   }
 
   function liveWallOnScreen() {
@@ -839,6 +1020,11 @@
       liveWallOnScreen();
 
     if (visible) {
+      if (!liveWall.loaded && liveWall.url) {
+        liveWall.el.src = liveWall.url;
+        liveWall.el.load();
+        liveWall.loaded = true;
+      }
       if (liveWall.ready && liveWall.el.paused) {
         const p = liveWall.el.play();
         if (p && p.catch) p.catch(() => {});
@@ -847,6 +1033,13 @@
     } else {
       if (!liveWall.el.paused) liveWall.el.pause();
       liveWall.active = false;
+      if (liveWall.loaded && liveWall.distance > liveWall.radius * 1.8) {
+        liveWall.el.pause();
+        liveWall.el.removeAttribute("src");
+        liveWall.el.load();
+        liveWall.loaded = false;
+        liveWall.ready = false;
+      }
     }
 
     if (interaction && liveWall.ready && visible) {
@@ -1198,6 +1391,7 @@
       liveWall.el.pause();
       liveWall.active = false;
     }
+    pauseLiveInterior();
     cinema.nearest = null;
   }
 
@@ -1422,6 +1616,7 @@
     light.position.copy(ship.position);
     updateCinemaZones();
     updateLiveWall();
+    updateLiveInterior();
     updateCinemaFocus();
     if (ship.visual) {
       ship.visual.position.copy(ship.position);
@@ -1466,8 +1661,10 @@
         liveWall.el.pause();
         liveWall.active = false;
       }
+      pauseLiveInterior();
     } else {
       updateLiveWall();
+      updateLiveInterior();
     }
   }
 
@@ -1626,6 +1823,7 @@
         if (wallPlay && wallPlay.catch) wallPlay.catch(() => {});
       }
       updateLiveWall();
+      updateLiveInterior();
       root.classList.add("game-active");
       startButton.classList.add("hidden");
       canvas.focus();
@@ -1660,7 +1858,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.6.6");
+      setStatus("ENGINE READY · LOCAL r128 · 0.6.7");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
