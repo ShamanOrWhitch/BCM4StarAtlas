@@ -151,3 +151,10 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - Swipe/drag directly on the game canvas remains the mobile screen-look control.
 - Device tilt is requested automatically when the game starts in landscape on a touch device and controls camera rotation. The `TILT` button recalibrates the current pose.
 - Pressing `Играть` recenters the mini-sim vertically in the phone viewport.
+
+
+## 0.7.5 mobile look sensitivity
+- Mobile canvas drag sensitivity is reduced from 0.012/0.010 to 0.0025/0.0022 to prevent a small swipe from spinning the ship.
+- Tilt calibration now averages sensor samples for about 0.8 seconds before establishing the neutral pose.
+- Tilt dead zone is increased to 5°, response span to 38°, and the resulting look input is reduced to 34% of the previous range.
+- Movement buttons and desktop/gamepad controls are unchanged.
