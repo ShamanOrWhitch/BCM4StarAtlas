@@ -465,7 +465,7 @@
 .bcm-mini-sim-mobile-edge{display:none;}
 @media (pointer:coarse) and (orientation:landscape){
   .bcm-mini-sim-mobile-edge{
-    display:block; position:absolute; z-index:6; pointer-events:auto;
+    display:block; position:absolute; z-index:6; pointer-events:none;
     touch-action:none; -webkit-tap-highlight-color:transparent; background:transparent;
   }
   .bcm-mini-sim-mobile-edge-top,
