@@ -56,10 +56,7 @@
 
   function queueLowPriorityImage(url, onload, onerror) {
     if (!url) return;
-    if (backgroundTextureQueue.seen[url]) {
-      backgroundTextureQueue.jobs.push({ url, onload, onerror });
-      return;
-    }
+    if (backgroundTextureQueue.seen[url]) return;
     backgroundTextureQueue.seen[url] = true;
     backgroundTextureQueue.jobs.push({ url, onload, onerror });
   }
@@ -432,10 +429,10 @@
 
     // Exterior-only shell around the two existing short room tubes.
     // It is deliberately pulled away from the interior on X/Y and slightly beyond both Z ends.
-    const width = 15.5;
-    const height = 11.0;
-    const clearanceX = 0.85;
-    const clearanceY = 1.0;
+    const width = 18.0;
+    const height = 13.0;
+    const clearanceX = 2.0;
+    const clearanceY = 2.0;
     const rail = 0.42;
     const panelGap = 0.16;
 
@@ -537,16 +534,16 @@
         const bottom = materials[(i + 3) % materials.length];
 
         // FrontSide + outward normals: these panels cannot be seen from inside Room 1/2.
-        addPanel(left, -width / 2 - clearanceX, 0, center, panelWidth, height - 1.05, 0, Math.PI / 2);
-        addPanel(right, width / 2 + clearanceX, 0, center, panelWidth, height - 1.05, 0, -Math.PI / 2);
+        addPanel(left, -width / 2 - clearanceX, 0, center, panelWidth, height - 1.05, 0, -Math.PI / 2);
+        addPanel(right, width / 2 + clearanceX, 0, center, panelWidth, height - 1.05, 0, Math.PI / 2);
         addPanel(top, 0, height / 2 + clearanceY, center, width - 1.0, panelWidth, -Math.PI / 2, 0);
         addPanel(bottom, 0, -height / 2 - clearanceY, center, width - 1.0, panelWidth, Math.PI / 2, 0);
       }
     }
 
     // Only Room 1 and Room 2. The black central void gets no external texture skin.
-    addTube(5.5, -25.5);
-    addTube(-47.5, -84.5);
+    addTube(8.5, -28.5);
+    addTube(-44.5, -87.5);
 
     parent.add(group);
     backside.panels = panels;
@@ -742,21 +739,23 @@
       name: "room1-rear-capdoor"
     });
 
-    // Room 2 right wall: wall.mp4 is closer to the portal exit; the lower-right clip stays farther along the wall.
+    // Room 1 right wall: restore the old Wall.mp4 placement.
+    // wall1.png is used immediately as the closed-wall fallback while the video decodes.
     createInteriorVideoPanel({
-      url: config.room2LeftVideo,
+      url: config.room1WallVideo,
       fallback: "wall1.png",
       x: 5.92,
-      y: 0.6,
-      z: -54.5,
-      width: 9.8,
-      height: 5.9,
+      y: 0,
+      z: -10,
+      width: 11.8,
+      height: 7.8,
       ry: -Math.PI / 2,
-      radius: 26,
-      preloadRadius: 30,
-      name: "room2-right-wall-live-near-exit"
+      radius: 28,
+      preloadRadius: 34,
+      name: "room1-right-wall-live"
     });
 
+    // Room 2: the filename itself is the placement instruction — doorwallbotright.mp4 stays bottom-right.
     createInteriorVideoPanel({
       url: config.room2RightVideo,
       fallback: "wall1.png",
@@ -768,7 +767,7 @@
       ry: -Math.PI / 2,
       radius: 24,
       preloadRadius: 28,
-      name: "room2-right-wall-live-lower"
+      name: "room2-right-wall-live-bottom-right"
     });
 
     scene.add(world);
@@ -1857,7 +1856,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.6.9");
+      setStatus("ENGINE READY · LOCAL r128 · 0.6.10");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
