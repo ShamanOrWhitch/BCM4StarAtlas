@@ -246,3 +246,8 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 ## 0.8.8 mobile texture reduction test
 - Максимальный размер локальной текстуры на touch-landscape телефонах снижен с **1024 px** до **640 px** по длинной стороне перед созданием Three.js texture.
 - Остальные ограничения 0.8.7 не менялись: максимум 4 фоновые `back*` текстуры, mobile Pixel Ratio 1.0, desktop без изменений.
+
+
+## 0.8.9 mobile texture orientation fix
+- При использовании уменьшенных `ImageBitmap` текстуры на телефоне больше не переворачиваются по вертикали.
+- Наклон и его настройки не изменялись.
