@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.7.5
+ * Version: 0.7.6
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.7.5');
+define('BCM_MINI_SIM_VERSION', '0.7.6');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -142,7 +142,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-menu-shade" aria-hidden="true"></div>
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.7.5</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.7.6</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
             <div class="bcm-mini-sim-help bcm-mini-sim-help-keyboard">
@@ -175,7 +175,7 @@ function bcm_mini_sim_shortcode($atts = array())
                 <label><input type="checkbox" data-setting="invertYaw"> Реверс лево/право</label>
                 <p>Клавиатура: W/S — тяга, A/D — влево/вправо, Space — вверх, C — вниз, G — портал, F — фиксация экрана, H — домой, R — дверь.</p>
                 <p>Gamepad: левый стик — движение, правый — взгляд; A — дверь, B — домой, X — фиксация экрана, Y — портал; LB/RB — крен, LT/RT — вверх/вниз, Start/Select — меню.</p>
-                <p>Телефон: кнопки дают движение, свайп по экрану — спокойный ручной поворот камеры, наклон телефона — медленный поворот камеры. Наклон калибруется усреднением примерно 0.8 секунды после «Играть»; TILT — повторная калибровка.</p>
+                <p>Телефон: кнопки дают движение, свайп по экрану — медленный ручной поворот камеры, наклон — очень плавный поворот. ◎ в центре — фиксация на ближайшем экране. G у портала запускает переход без необходимости точно наводить камеру.</p>
                 <p>Музыка только после «Играть». Esc отпускает мышь. G или 69% портала запускает видео перехода, затем перенос в Room 2.</p>
                 <button type="button" data-setting="close">Закрыть</button>
             </div>
@@ -187,6 +187,7 @@ function bcm_mini_sim_shortcode($atts = array())
                 <button data-control="rollLeft">↶</button>
                 <button data-control="rollRight">↷</button>
             </div>
+            <button class="bcm-mini-sim-mobile-focus" data-control="focus" type="button" aria-label="Фиксация экрана">◎</button>
             <div class="bcm-mini-sim-mobile-right">
                 <button data-control="up">↟</button>
                 <button data-control="down">↡</button>
