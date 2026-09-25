@@ -198,11 +198,11 @@
 }
 
 .bcm-mini-sim-mobile-left{
-    left:max(8px, env(safe-area-inset-left));
+    left:max(22px, calc(env(safe-area-inset-left) + 18px));
 }
 
 .bcm-mini-sim-mobile-right{
-    right:max(8px, env(safe-area-inset-right));
+    right:max(22px, calc(env(safe-area-inset-right) + 18px));
 }
 
 .bcm-mini-sim-mobile button{
@@ -507,24 +507,24 @@
         top:50%;
         transform:translate(-50%,-50%);
         z-index:8;
-        width:46px;
-        height:46px;
+        width:64px;
+        height:64px;
         padding:0;
-        border:1px solid rgba(255,255,255,.34);
+        border:0;
         border-radius:50%;
-        background:rgba(8,13,21,.34);
-        color:rgba(255,255,255,.82);
-        font-size:25px;
-        line-height:44px;
-        text-align:center;
+        background:transparent;
+        color:transparent;
+        font-size:0;
+        line-height:0;
         pointer-events:auto;
         touch-action:none;
         -webkit-tap-highlight-color:transparent;
-        box-shadow:0 1px 8px rgba(0,0,0,.22);
+        box-shadow:none;
+        opacity:0;
     }
     .bcm-mini-sim-mobile-focus:active{
-        transform:translate(-50%,-50%) scale(.94);
-        background:rgba(30,42,56,.62);
+        transform:translate(-50%,-50%) scale(.96);
+        background:transparent;
     }
     .bcm-mini-sim-mobile button{
         width:42px;
@@ -539,5 +539,16 @@
     .bcm-mini-sim-mobile button[data-control="home"]{
         width:56px;
         max-width:56px;
+    }
+}
+
+
+@media (pointer:coarse) and (orientation:landscape){
+    .bcm-mini-sim-mobile,
+    .bcm-mini-sim-mobile button,
+    .bcm-mini-sim-mobile-focus{
+        -webkit-touch-callout:none;
+        -webkit-user-select:none;
+        user-select:none;
     }
 }
