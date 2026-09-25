@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.8.6
+# BCM Mini-Sim 0.8.7
 
 ## STOP — read this before another GPT rewrite
 
@@ -234,3 +234,10 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 
 ## 0.8.6 tap vs swipe guard
 - Тап по видеопанели определяется по общей длине движения менее 9 px, поэтому медленный свайп больше не должен случайно включать фиксацию.
+
+
+## 0.8.7 mobile memory reduction test
+- На touch-landscape телефонах локальные PNG уменьшаются до максимум **1024 px** по длинной стороне перед созданием Three.js texture.
+- Внешняя `back*` оболочка на телефоне использует максимум **4** фоновые текстуры вместо всего набора.
+- Pixel Ratio мобильного рендера ограничен **1.0**; desktop остаётся с прежним пределом 1.5.
+- Исходные файлы не перекодируются и desktop quality не меняется.
