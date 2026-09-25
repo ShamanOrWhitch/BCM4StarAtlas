@@ -1516,7 +1516,7 @@
     const yawOffset = Math.max(-35, Math.min(35, screenHorizontal));
     const dead = 4.0;
     const response = 30.0;
-    const gain = 0.34;
+    const gain = 0.40;
 
     const shape = (offset) => {
       if (Math.abs(offset) <= dead) return 0;
@@ -1525,7 +1525,7 @@
     };
 
     return {
-      pitch: (settings.invertPitch ? -1 : 1) * shape(pitchOffset) * gain,
+      pitch: (settings.invertPitch ? 1 : -1) * shape(pitchOffset) * gain,
       yaw: (settings.invertYaw ? 1 : -1) * shape(yawOffset) * gain
     };
   }
@@ -2104,7 +2104,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.8.2");
+      setStatus("ENGINE READY · LOCAL r128 · 0.8.3");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
