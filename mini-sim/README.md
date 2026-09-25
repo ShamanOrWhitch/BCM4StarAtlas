@@ -125,3 +125,9 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - `Wall.mp4` now fills the entire Room 1 right-side opening at the Room 1 wall dimensions (12×8), with `wall1.png` remaining the immediate fallback.
 - `doorwallbotright.mp4` remains the lower-right Room 2 clip, but is moved forward to approximately z=-56.8 so it sits much closer to the dark portal-transition area instead of being stranded in the middle of the wall.
 - The exterior `back*.png` skeleton is pulled substantially farther away again on X/Y and beyond both room tube ends on Z. The interior room dimensions and collision corridor are unchanged.
+
+
+## 0.7.1 wall/exterior visibility correction
+- `Wall.mp4` uses the exact full-wall Room 1 geometry from the earlier working build: x=5.96, z=-10, 28×8, rotated -90° around Y.
+- `doorwallbotright.mp4` is moved to z=-51.95. With its 5.9-unit Z span, its near edge is approximately flush with the Room 2 entrance at z=-49, directly against the dark intermediate/portal side.
+- Exterior `back*.png` panels remain pulled far outside the rooms and use outward-facing `FrontSide` normals plus disabled depth testing. The latter prevents the black `voidBox` from hiding the exterior skin, while backface culling keeps the skin out of the interior view.
