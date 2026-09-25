@@ -316,6 +316,39 @@
     if ("encoding" in tex && THREE.sRGBEncoding !== undefined) tex.encoding = THREE.sRGBEncoding;
     tex.needsUpdate = true;
   }
+  function isMobileTextureMode() {
+    return !!(window.matchMedia && window.matchMedia("(pointer: coarse) and (orientation: landscape)").matches);
+  }
+
+  function makeTextureSource(img, callback) {
+    if (!img || !isMobileTextureMode() || !window.createImageBitmap) {
+      callback(img);
+      return;
+    }
+
+    const maxSize = 1024;
+    const width = Number(img.naturalWidth || img.width || 0);
+    const height = Number(img.naturalHeight || img.height || 0);
+    if (!width || !height || Math.max(width, height) <= maxSize) {
+      callback(img);
+      return;
+    }
+
+    const scale = maxSize / Math.max(width, height);
+    const resizeWidth = Math.max(1, Math.round(width * scale));
+    const resizeHeight = Math.max(1, Math.round(height * scale));
+
+    window.createImageBitmap(img, {
+      resizeWidth,
+      resizeHeight,
+      resizeQuality: "low"
+    }).then((bitmap) => {
+      callback(bitmap);
+    }).catch(() => {
+      callback(img);
+    });
+  }
+
 
   function textured(name, fallback, side) {
     const mat = new THREE.MeshBasicMaterial({
@@ -337,13 +370,15 @@
     img.crossOrigin = "anonymous";
     img.onload = () => {
       try {
-        const tex = new THREE.Texture(img);
-        applyTex(tex);
-        mat.map = tex;
-        mat.color.set(0xffffff);
-        mat.needsUpdate = true;
-        stats.loaded++;
-        hudAssets();
+        makeTextureSource(img, (source) => {
+          const tex = new THREE.Texture(source);
+          applyTex(tex);
+          mat.map = tex;
+          mat.color.set(0xffffff);
+          mat.needsUpdate = true;
+          stats.loaded++;
+          hudAssets();
+        });
       } catch (err) {
         stats.failed++;
         stats.loaded++;
@@ -380,13 +415,15 @@
 
     queueLowPriorityImage(url, (img) => {
       try {
-        const tex = new THREE.Texture(img);
-        applyTex(tex);
-        mat.map = tex;
-        mat.color.set(0xffffff);
-        mat.needsUpdate = true;
-        stats.loaded++;
-        hudAssets();
+        makeTextureSource(img, (source) => {
+          const tex = new THREE.Texture(source);
+          applyTex(tex);
+          mat.map = tex;
+          mat.color.set(0xffffff);
+          mat.needsUpdate = true;
+          stats.loaded++;
+          hudAssets();
+        });
       } catch (err) {
         stats.failed++;
         stats.loaded++;
@@ -539,7 +576,8 @@
   }
 
   function buildStarbaseExterior(parent) {
-    const urls = Array.isArray(backside.urls) ? backside.urls.filter(Boolean) : [];
+    const allUrls = Array.isArray(backside.urls) ? backside.urls.filter(Boolean) : [];
+    const urls = isMobileTextureMode() ? allUrls.slice(0, 4) : allUrls;
     if (!urls.length) return;
 
     const group = new THREE.Group();
@@ -572,11 +610,13 @@
 
       const finish = (img) => {
         try {
-          const tex = new THREE.Texture(img);
-          applyTex(tex);
-          material.map = tex;
-          material.color.set(0xffffff);
-          material.needsUpdate = true;
+          makeTextureSource(img, (source) => {
+            const tex = new THREE.Texture(source);
+            applyTex(tex);
+            material.map = tex;
+            material.color.set(0xffffff);
+            material.needsUpdate = true;
+          });
         } catch (err) {
           material.color.set(0x303943);
           material.needsUpdate = true;
@@ -2154,7 +2194,7 @@
   function startSim() {
     try {
       renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobileTextureMode() ? 1.0 : 1.5));
       scene = new THREE.Scene();
       scene.background = new THREE.Color(0x020308);
       camera = new THREE.PerspectiveCamera(70, 1, 0.08, 400);
@@ -2174,7 +2214,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.8.6");
+      setStatus("ENGINE READY · LOCAL r128 · 0.8.7");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
