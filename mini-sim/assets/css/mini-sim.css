@@ -480,3 +480,9 @@
     width:52px;max-width:52px;font-size:9px;font-weight:700;letter-spacing:.2px;
   }
 }
+
+
+/* 0.7.3 control legend switching */
+.bcm-mini-sim-help-gamepad { display: none; }
+.bcm-mini-sim.gamepad-connected .bcm-mini-sim-help-keyboard { display: none; }
+.bcm-mini-sim.gamepad-connected .bcm-mini-sim-help-gamepad { display: block; }
