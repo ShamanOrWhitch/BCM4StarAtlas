@@ -806,6 +806,7 @@
       );
       mesh.position.set(zone.x || 0, zone.y || 0, zone.z || -36);
       mesh.name = "space-video-zone-" + index;
+      mesh.renderOrder = 22;
       scene.add(mesh);
 
       const item = {
@@ -935,7 +936,7 @@
       Number(options.rz) || 0
     );
     mesh.name = options.name || "interior-video-panel";
-    mesh.renderOrder = Number(options.renderOrder) || 4;
+    mesh.renderOrder = Number(options.renderOrder) || 20;
     scene.add(mesh);
 
     const item = {
@@ -1080,6 +1081,7 @@
     );
     mesh.rotation.y = Number(cfg.rotationY) || 0;
     mesh.name = "live-wall-video";
+    mesh.renderOrder = 21;
     scene.add(mesh);
 
     liveWall.el = video;
@@ -2104,7 +2106,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.8.3");
+      setStatus("ENGINE READY · LOCAL r128 · 0.8.4");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
