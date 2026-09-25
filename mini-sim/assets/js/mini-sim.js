@@ -47,6 +47,56 @@
   const keys = Object.create(null);
   const touch = Object.create(null);
   const stats = { total: 0, loaded: 0, failed: 0, last: "" };
+  const lowPriorityImages = {
+    jobs: [],
+    active: 0,
+    concurrency: 2,
+    running: false,
+    lastPump: 0
+  };
+
+  function enqueueLowPriorityImage(url, onload, onerror) {
+    if (!url) return;
+    lowPriorityImages.jobs.push({ url, onload, onerror });
+  }
+
+  function pumpLowPriorityImages(force) {
+    if (!lowPriorityImages.running) return;
+    while (lowPriorityImages.active < lowPriorityImages.concurrency && lowPriorityImages.jobs.length) {
+      const job = lowPriorityImages.jobs.shift();
+      lowPriorityImages.active++;
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.decoding = "async";
+      try { img.fetchPriority = "low"; } catch (e) {}
+      img.onload = () => {
+        lowPriorityImages.active--;
+        try { if (job.onload) job.onload(img); } catch (e) {}
+        setTimeout(() => pumpLowPriorityImages(false), force ? 8 : 80);
+      };
+      img.onerror = () => {
+        lowPriorityImages.active--;
+        try { if (job.onerror) job.onerror(); } catch (e) {}
+        setTimeout(() => pumpLowPriorityImages(false), force ? 8 : 80);
+      };
+      img.src = job.url;
+    }
+  }
+
+  function startLowPriorityImages(force) {
+    lowPriorityImages.running = true;
+    if (force) {
+      pumpLowPriorityImages(true);
+      return;
+    }
+    const idle = window.requestIdleCallback;
+    if (typeof idle === "function") {
+      idle(() => pumpLowPriorityImages(false), { timeout: 1800 });
+    } else {
+      setTimeout(() => pumpLowPriorityImages(false), 1200);
+    }
+  }
+
   const ship = {
     position: null,
     velocity: null,
@@ -228,6 +278,48 @@
     plane(parent, width / 2 - 0.8, height / 2 - 0.05, z + 8, s, s, Math.PI / 2, 0, Math.PI, textured("roofa.png", 0x8a9098));
   }
 
+  function deferredTextured(name, fallback, side) {
+    const mat = new THREE.MeshBasicMaterial({
+      color: fallback || 0x66707a,
+      side: side || THREE.DoubleSide,
+      fog: false
+    });
+    const url = assetUrl(name);
+    stats.total++;
+    hudAssets();
+    if (!url) {
+      stats.failed++;
+      stats.loaded++;
+      stats.last = name + " missing";
+      hudAssets();
+      return mat;
+    }
+
+    enqueueLowPriorityImage(url, (img) => {
+      try {
+        const tex = new THREE.Texture(img);
+        applyTex(tex);
+        mat.map = tex;
+        mat.color.set(0xffffff);
+        mat.needsUpdate = true;
+        stats.loaded++;
+        hudAssets();
+      } catch (err) {
+        stats.failed++;
+        stats.loaded++;
+        stats.last = name;
+        hudAssets();
+      }
+    }, () => {
+      stats.failed++;
+      stats.loaded++;
+      stats.last = name + " 404";
+      hudAssets();
+    });
+
+    return mat;
+  }
+
   function buildShipVisual() {
     if (ship.visual) return ship.visual;
 
@@ -324,9 +416,10 @@
   }
 
   function buildRoom(parent, opt) {
-    const floor = textured(opt.floor, opt.floorColor);
-    const ceil = textured(opt.ceiling, opt.ceilingColor);
-    const left = textured(opt.left, opt.leftColor);
+    const tex = opt.deferTextures ? deferredTextured : textured;
+    const floor = tex(opt.floor, opt.floorColor);
+    const ceil = tex(opt.ceiling, opt.ceilingColor);
+    const left = tex(opt.left, opt.leftColor);
     plane(parent, 0, -3.5, opt.z, opt.w, opt.len, -Math.PI / 2, 0, 0, floor);
     plane(parent, 0, 3.5, opt.z, opt.w, opt.len, Math.PI / 2, 0, 0, ceil);
     plane(parent, -opt.w / 2, 0, opt.z, opt.len, opt.h, 0, Math.PI / 2, 0, left);
@@ -348,9 +441,11 @@
     // Room 1 is narrow, the central dark void is a wider chamber,
     // Room 2 narrows again. The black voidBox remains exactly as before.
     const profile = [
-      { z0: 4,   z1: -24, width: 13.2, height: 8.8, panelStep: 7 },
-      { z0: -24, z1: -49, width: 22.0, height: 14.5, panelStep: 6 },
-      { z0: -49, z1: -83, width: 13.2, height: 8.8, panelStep: 7 }
+      { z0: 4,    z1: -24,  width: 13.2, height: 8.8,  panelStep: 7 },
+      { z0: -24,  z1: -49,  width: 22.0, height: 14.5, panelStep: 6 },
+      { z0: -49,  z1: -83,  width: 13.2, height: 8.8,  panelStep: 7 },
+      { z0: -83,  z1: -145, width: 20.0, height: 12.0, panelStep: 8 },
+      { z0: -145, z1: -205, width: 30.0, height: 18.0, panelStep: 10 }
     ];
 
     const frameMat = new THREE.MeshStandardMaterial({
@@ -361,22 +456,19 @@
 
     function makeReducedMaterial(url) {
       const material = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
+        color: 0x303943,
         side: THREE.DoubleSide,
         fog: false,
         toneMapped: false
       });
 
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.decoding = "async";
-
-      const finish = (source, w, h) => {
+      const finish = (source) => {
         try {
           const tex = new THREE.Texture(source);
           applyTex(tex);
           tex.needsUpdate = true;
           material.map = tex;
+          material.color.set(0xffffff);
           material.needsUpdate = true;
         } catch (err) {
           material.color.set(0x303943);
@@ -384,24 +476,22 @@
         }
       };
 
-      img.onload = async () => {
+      enqueueLowPriorityImage(url, (img) => {
         const max = backside.textureMax;
         let w = img.naturalWidth || img.width || max;
         let h = img.naturalHeight || img.height || max;
-
         const scale = Math.min(1, max / Math.max(w, h));
         const targetW = Math.max(1, Math.round(w * scale));
         const targetH = Math.max(1, Math.round(h * scale));
 
         try {
           if (typeof createImageBitmap === "function") {
-            const bitmap = await createImageBitmap(img, {
+            createImageBitmap(img, {
               resizeWidth: targetW,
               resizeHeight: targetH,
               resizeQuality: "medium"
-            });
-            finish(bitmap, targetW, targetH);
-            if (bitmap.close) bitmap.close = bitmap.close.bind(bitmap);
+            }).then((bitmap) => finish(bitmap))
+              .catch(() => finish(img));
           } else {
             const canvas = document.createElement("canvas");
             canvas.width = targetW;
@@ -409,21 +499,19 @@
             const ctx = canvas.getContext("2d");
             if (ctx) {
               ctx.drawImage(img, 0, 0, targetW, targetH);
-              finish(canvas, targetW, targetH);
+              finish(canvas);
             } else {
-              finish(img, w, h);
+              finish(img);
             }
           }
         } catch (err) {
-          finish(img, w, h);
+          finish(img);
         }
-      };
-
-      img.onerror = () => {
+      }, () => {
         material.color.set(0x303943);
         material.needsUpdate = true;
-      };
-      img.src = url;
+      });
+
       return material;
     }
 
@@ -487,16 +575,16 @@
     });
 
     // Transition collars make the widened central chamber read as part of one ship.
-    const transitionZ = [-24, -49];
-    transitionZ.forEach((z, i) => {
-      const narrow = profile[i];
-      const wide = profile[1];
+    for (let i = 0; i < profile.length - 1; i++) {
+      const z = profile[i].z1;
+      const a = profile[i];
+      const b = profile[i + 1];
       const collar = new THREE.Group();
       collar.position.z = z;
-      const w0 = narrow.width / 2;
-      const w1 = wide.width / 2;
-      const h0 = narrow.height / 2;
-      const h1 = wide.height / 2;
+      const w0 = a.width / 2;
+      const w1 = b.width / 2;
+      const h0 = a.height / 2;
+      const h1 = b.height / 2;
       const dz = 1.5;
 
       [
@@ -518,7 +606,7 @@
         collar.add(beam);
       });
       group.add(collar);
-    });
+    }
 
     // Keep the bow readable around the start area.
     const bow = new THREE.Group();
@@ -594,6 +682,7 @@
       z: -66, w: 12, len: 34, h: 8,
       floor: "wall2.png", ceiling: "roof1.png",
       left: "wall5.png", right: "wall1.png",
+      deferTextures: true,
       floorColor: 0x343d48, ceilingColor: 0x7c838c,
       leftColor: 0x48535e, rightColor: 0x3a444f
     });
@@ -630,14 +719,12 @@
     box(group, 0, -3.3, 0, 7.2, 0.5, 0.7, frame);
     box(group, -3.3, 0, 0, 0.5, 6.1, 0.7, frame);
     box(group, 3.3, 0, 0, 0.5, 6.1, 0.7, frame);
-    const capdoorLive = createLiveInteriorMaterial(config.capdoorVideo, "door2.png", 14);
-    const dmatL = capdoorLive ? capdoorLive.material : textured("door2.png", 0xffffff);
-    const dmatR = capdoorLive ? capdoorLive.material : textured("door2.png", 0xffffff);
+    const dmatL = textured("door2.png", 0xffffff);
+    const dmatR = textured("door2.png", 0xffffff);
     door.left = plane(group, -1.52, 0, -0.35, 3.05, 6.1, 0, 0, 0, dmatL);
     door.right = plane(group, 1.52, 0, -0.35, 3.05, 6.1, 0, 0, 0, dmatR);
     scene.add(group);
     door.mesh = group;
-    if (capdoorLive) capdoorLive.mesh = door.left;
 
     const returnGroup = new THREE.Group();
     returnGroup.position.set(0, 0, -27.2);
@@ -652,16 +739,31 @@
     scene.add(returnGroup);
     returnDoor.mesh = returnGroup;
 
+    // Personnel animation: keep it inside Room 2, on the left wall, away from the start view.
+    createLiveInteriorPanel({
+      url: config.capdoorVideo,
+      fallback: "wall5.png",
+      x: -6.01,
+      y: 0.2,
+      z: -66,
+      width: 10.5,
+      height: 4.6,
+      ry: Math.PI / 2,
+      radius: 17,
+      name: "room2-personnel-live-wall"
+    });
+
+    // Important lower-right hull texture right after the Room 2 teleport.
     createLiveInteriorPanel({
       url: config.room2RightVideo,
       fallback: "wall1.png",
       x: 6.01,
-      y: 0,
-      z: -55,
-      width: 8.6,
-      height: 7.1,
+      y: -1.75,
+      z: -57,
+      width: 10.5,
+      height: 3.2,
       ry: -Math.PI / 2,
-      radius: 20,
+      radius: 22,
       name: "room2-right-live-wall"
     });
 
@@ -683,6 +785,7 @@
       video.playsInline = true;
       video.preload = "none";
       video.volume = 0;
+      try { video.fetchPriority = "low"; } catch (e) {}
 
       const texture = new THREE.VideoTexture(video);
       texture.minFilter = THREE.LinearFilter;
@@ -758,6 +861,8 @@
     video.playsInline = true;
     video.preload = "none";
     video.volume = 0;
+    try { video.fetchPriority = "low"; } catch (e) {}
+    try { video.fetchPriority = "low"; } catch (e) {}
 
     const texture = new THREE.VideoTexture(video);
     texture.minFilter = THREE.LinearFilter;
@@ -808,6 +913,7 @@
     video.playsInline = true;
     video.preload = "none";
     video.volume = 0;
+    try { video.fetchPriority = "low"; } catch (e) {}
 
     const texture = new THREE.VideoTexture(video);
     texture.minFilter = THREE.LinearFilter;
@@ -941,6 +1047,7 @@
     video.playsInline = true;
     video.preload = "none";
     video.volume = 0;
+    try { video.fetchPriority = "low"; } catch (e) {}
 
     const texture = new THREE.VideoTexture(video);
     texture.minFilter = THREE.LinearFilter;
@@ -1231,6 +1338,8 @@
     // Start loading while the player keeps flying. Controls are locked only
     // after the first decoded frame is ready to be shown.
     transitionLoading = true;
+    // Portal video is the ideal low-load window: warm Room 2 and exterior textures in the background.
+    startLowPriorityImages(true);
     if (transitionRoot) {
       transitionRoot.classList.remove("ready");
       transitionRoot.hidden = true;
@@ -1239,6 +1348,7 @@
     transitionVideo.muted = true;
     transitionVideo.playsInline = true;
     transitionVideo.preload = "auto";
+    try { transitionVideo.fetchPriority = "high"; } catch (e) {}
 
     const revealFirstFrame = () => {
       if (!transitionLoading) return;
@@ -1614,6 +1724,7 @@
     camera.position.copy(ship.position);
     camera.quaternion.copy(ship.quaternion);
     light.position.copy(ship.position);
+    if (ship.position.z < -48) startLowPriorityImages(false);
     updateCinemaZones();
     updateLiveWall();
     updateLiveInterior();
@@ -1856,9 +1967,10 @@
       stars.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
       scene.add(new THREE.Points(stars, new THREE.PointsMaterial({ color: 0xffffff, size: 0.6 })));
       buildWorld();
+      // No heavy exterior/Room 2 texture burst at spawn; queue stays background-only.
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.6.7");
+      setStatus("ENGINE READY · LOCAL r128 · 0.6.8");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
