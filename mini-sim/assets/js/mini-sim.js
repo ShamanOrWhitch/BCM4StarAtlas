@@ -434,8 +434,8 @@
     // Outer skin sits just beyond the interior walls, not as a second corridor.
     const width = 13.0;
     const height = 9.0;
-    const clearanceX = 0.50;
-    const clearanceY = 0.50;
+    const clearanceX = 0.28;
+    const clearanceY = 0.28;
     const rail = 0.42;
     const rib = 0.50;
     const panelGap = 0.16;
@@ -544,22 +544,22 @@
 
           // Four outer skins mounted to the truss.
           addPanel(
-            mat, -width / 2 - clearanceX * 0.15, 0, center,
+            mat, -width / 2 - clearanceX, 0, center,
             panelWidth, height - 1.05, 0, Math.PI / 2
           );
           addPanel(
             materials[(i + 1) % materials.length],
-            width / 2 + clearanceX * 0.15, 0, center,
+            width / 2 + clearanceX, 0, center,
             panelWidth, height - 1.05, 0, -Math.PI / 2
           );
           addPanel(
             materials[(i + 2) % materials.length],
-            0, height / 2 + clearanceY * 0.15, center,
+            0, height / 2 + clearanceY, center,
             width - 1.0, panelWidth, Math.PI / 2, 0
           );
           addPanel(
             materials[(i + 3) % materials.length],
-            0, -height / 2 - clearanceY * 0.15, center,
+            0, -height / 2 - clearanceY, center,
             width - 1.0, panelWidth, -Math.PI / 2, 0
           );
         }
@@ -784,8 +784,8 @@
       fallback: "wall1.png",
       x: 6.03,
       y: -1.85,
-      z: -61.0,
-      width: 6.8,
+      z: -62.8,
+      width: 5.8,
       height: 3.0,
       ry: -Math.PI / 2,
       radius: 24,
@@ -1837,7 +1837,7 @@
       startMusic();
 
       const capdoor = liveInterior.find((item) => item.mesh && item.mesh.name === "room1-rear-capdoor");
-      if (capdoor) warmInteriorVideo(capdoor);
+      if (capdoor) setTimeout(() => warmInteriorVideo(capdoor), 350);
 
       if (liveWall.el && liveWall.ready) {
         const wallPlay = liveWall.el.play();
@@ -1876,10 +1876,9 @@
       stars.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
       scene.add(new THREE.Points(stars, new THREE.PointsMaterial({ color: 0xffffff, size: 0.6 })));
       buildWorld();
-      setTimeout(() => startBackgroundTextureLoading(), 1400);
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.6.7");
+      setStatus("ENGINE READY · LOCAL r128 · 0.6.8");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
