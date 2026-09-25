@@ -164,6 +164,10 @@
     enabled: false,
     available: false,
     bound: false,
+    calibrating: false,
+    samples: 0,
+    sumB: 0,
+    sumG: 0,
     a: 0, b: 0, g: 0,
     na: 0, nb: 0, ng: 0,
     neutralB: 0, neutralG: 0
@@ -1382,14 +1386,24 @@
 
   function tiltLook() {
     if (!tilt.enabled || !tilt.available) return { pitch: 0, yaw: 0 };
-    const pitchOffset = Math.max(-32, Math.min(32, tilt.b - tilt.neutralB));
-    const yawOffset = Math.max(-32, Math.min(32, tilt.g - tilt.neutralG));
-    const dead = 2.5;
-    const pitchRaw = Math.abs(pitchOffset) <= dead ? 0 : Math.max(-1, Math.min(1, (Math.abs(pitchOffset) - dead) / 22)) * Math.sign(pitchOffset);
-    const yawRaw = Math.abs(yawOffset) <= dead ? 0 : Math.max(-1, Math.min(1, (Math.abs(yawOffset) - dead) / 22)) * Math.sign(yawOffset);
+
+    const pitchOffset = Math.max(-38, Math.min(38, tilt.b - tilt.neutralB));
+    const yawOffset = Math.max(-38, Math.min(38, tilt.g - tilt.neutralG));
+    const dead = 5.0;
+    const response = 38.0;
+    const gain = 0.34;
+
+    const pitchRaw = Math.abs(pitchOffset) <= dead
+      ? 0
+      : Math.max(-1, Math.min(1, (Math.abs(pitchOffset) - dead) / (response - dead))) * Math.sign(pitchOffset);
+
+    const yawRaw = Math.abs(yawOffset) <= dead
+      ? 0
+      : Math.max(-1, Math.min(1, (Math.abs(yawOffset) - dead) / (response - dead))) * Math.sign(yawOffset);
+
     return {
-      pitch: (settings.invertPitch ? -1 : 1) * pitchRaw,
-      yaw: (settings.invertYaw ? -1 : 1) * yawRaw
+      pitch: (settings.invertPitch ? -1 : 1) * pitchRaw * gain,
+      yaw: (settings.invertYaw ? -1 : 1) * yawRaw * gain
     };
   }
 
@@ -1694,15 +1708,30 @@
   }
 
   function enableTilt() {
-    const apply = () => {
-      tilt.na = tilt.a;
-      tilt.nb = tilt.b;
-      tilt.ng = tilt.g;
-      tilt.neutralB = tilt.b;
-      tilt.neutralG = tilt.g;
-      tilt.enabled = true;
-      if (tiltButton) tiltButton.classList.add("active");
-      setStatus("TILT CALIBRATED · THIS POSE IS NEUTRAL");
+    const beginCalibration = () => {
+      tilt.calibrating = true;
+      tilt.samples = 0;
+      tilt.sumB = 0;
+      tilt.sumG = 0;
+
+      setTimeout(() => {
+        tilt.calibrating = false;
+        if (tilt.samples >= 6) {
+          tilt.neutralB = tilt.sumB / tilt.samples;
+          tilt.neutralG = tilt.sumG / tilt.samples;
+          tilt.enabled = true;
+          if (tiltButton) tiltButton.classList.add("active");
+          setStatus("TILT CALIBRATED · HOLD PHONE STILL");
+        } else if (tilt.available) {
+          tilt.neutralB = tilt.b;
+          tilt.neutralG = tilt.g;
+          tilt.enabled = true;
+          if (tiltButton) tiltButton.classList.add("active");
+          setStatus("TILT CALIBRATED");
+        } else {
+          setStatus("TILT · NO SENSOR");
+        }
+      }, 800);
     };
 
     const on = (ev) => {
@@ -1711,6 +1740,12 @@
       tilt.a = ev.alpha || 0;
       tilt.b = ev.beta;
       tilt.g = ev.gamma || 0;
+
+      if (tilt.calibrating) {
+        tilt.sumB += tilt.b;
+        tilt.sumG += tilt.g;
+        tilt.samples++;
+      }
     };
 
     const boot = () => {
@@ -1718,10 +1753,7 @@
         window.addEventListener("deviceorientation", on, true);
         tilt.bound = true;
       }
-      setTimeout(() => {
-        if (tilt.available) apply();
-        else setStatus("TILT · NO SENSOR");
-      }, 250);
+      beginCalibration();
     };
 
     if (window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) {
@@ -1814,8 +1846,8 @@
       if (!running || dragPointerId !== ev.pointerId || ev.pointerType === "mouse" || settings.open) return;
       const dx = ev.clientX - dragX, dy = ev.clientY - dragY;
       dragX = ev.clientX; dragY = ev.clientY;
-      ship.angularVelocity.y -= dx * 0.012;
-      ship.angularVelocity.x -= dy * 0.010;
+      ship.angularVelocity.y -= dx * 0.0025;
+      ship.angularVelocity.x -= dy * 0.0022;
     });
     const endDrag = (ev) => { if (dragPointerId === ev.pointerId) dragPointerId = null; };
     canvas.addEventListener("pointerup", endDrag);
@@ -1910,7 +1942,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.7.4");
+      setStatus("ENGINE READY · LOCAL r128 · 0.7.5");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
