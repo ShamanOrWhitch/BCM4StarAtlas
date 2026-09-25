@@ -137,3 +137,10 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - `doorwallbotright.mp4` is reduced by about 3.5% to 5.6935×2.94325 and nudged farther down/right so it sits tighter in the Room 2 lower-right corner.
 - Exterior `back*.png` texture shuffling now occurs about three times as often (roughly every 3.3–6.3 seconds instead of 10–19 seconds).
 - Exterior tube ends are pulled back out of the central dark inter-portal room, removing the visible gray ribs there while keeping the outer Room 1 / Room 2 shell.
+
+
+## 0.7.3 controls / HUD cleanup
+- Keyboard vertical down control is now **C** instead of Ctrl; Space remains vertical up.
+- Gamepad mapping: **A = door**, **B = return home**, **X = lock/focus nearest screen**, **Y = portal**, **LB/RB = roll**, **LT/RT = vertical movement**, **Start/Select = menu**.
+- When a gamepad is connected, the HUD control legend switches to the gamepad mapping; keyboard help returns after disconnect.
+- The continuous HUD status no longer appends the stale `DOOR CLOSED/OPEN` state; it shows only room and speed.
