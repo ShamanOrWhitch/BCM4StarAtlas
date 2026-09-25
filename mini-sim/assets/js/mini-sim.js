@@ -47,6 +47,59 @@
   const keys = Object.create(null);
   const touch = Object.create(null);
   const stats = { total: 0, loaded: 0, failed: 0, last: "" };
+  const backgroundTextureQueue = {
+    jobs: [],
+    active: 0,
+    running: false,
+    seen: Object.create(null)
+  };
+
+  function queueLowPriorityImage(url, onload, onerror) {
+    if (!url) return;
+    if (backgroundTextureQueue.seen[url]) {
+      backgroundTextureQueue.jobs.push({ url, onload, onerror });
+      return;
+    }
+    backgroundTextureQueue.seen[url] = true;
+    backgroundTextureQueue.jobs.push({ url, onload, onerror });
+  }
+
+  function pumpBackgroundTextures() {
+    if (!backgroundTextureQueue.running) return;
+    while (backgroundTextureQueue.active < 2 && backgroundTextureQueue.jobs.length) {
+      const job = backgroundTextureQueue.jobs.shift();
+      backgroundTextureQueue.active++;
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.decoding = "async";
+      try { img.fetchPriority = "low"; } catch (e) {}
+      img.onload = () => {
+        backgroundTextureQueue.active--;
+        try { job.onload(img); } catch (e) {}
+        setTimeout(pumpBackgroundTextures, 60);
+      };
+      img.onerror = () => {
+        backgroundTextureQueue.active--;
+        try { if (job.onerror) job.onerror(); } catch (e) {}
+        setTimeout(pumpBackgroundTextures, 60);
+      };
+      img.src = job.url;
+    }
+  }
+
+  function startBackgroundTextureLoading() {
+    if (backgroundTextureQueue.running) {
+      pumpBackgroundTextures();
+      return;
+    }
+    backgroundTextureQueue.running = true;
+    if (typeof window.requestIdleCallback === "function") {
+      requestIdleCallback(() => pumpBackgroundTextures(), { timeout: 1200 });
+    } else {
+      setTimeout(pumpBackgroundTextures, 700);
+    }
+  }
+
   const ship = {
     position: null,
     velocity: null,
@@ -104,6 +157,7 @@
     active: false,
     error: false
   };
+  const liveInterior = [];
   const backside = {
     urls: Array.isArray(config.backsideTextures) ? config.backsideTextures.slice() : [],
     panels: [],
@@ -189,6 +243,48 @@
       hudAssets();
     };
     img.src = url;
+    return mat;
+  }
+
+  function deferredTextured(name, fallback, side) {
+    const mat = new THREE.MeshBasicMaterial({
+      color: fallback || 0x66707a,
+      side: side || THREE.DoubleSide,
+      fog: false
+    });
+    const url = assetUrl(name);
+    stats.total++;
+    hudAssets();
+    if (!url) {
+      stats.failed++;
+      stats.loaded++;
+      stats.last = name + " missing";
+      hudAssets();
+      return mat;
+    }
+
+    queueLowPriorityImage(url, (img) => {
+      try {
+        const tex = new THREE.Texture(img);
+        applyTex(tex);
+        mat.map = tex;
+        mat.color.set(0xffffff);
+        mat.needsUpdate = true;
+        stats.loaded++;
+        hudAssets();
+      } catch (err) {
+        stats.failed++;
+        stats.loaded++;
+        stats.last = name;
+        hudAssets();
+      }
+    }, () => {
+      stats.failed++;
+      stats.loaded++;
+      stats.last = name + " 404";
+      hudAssets();
+    });
+
     return mat;
   }
 
@@ -313,14 +409,15 @@
   }
 
   function buildRoom(parent, opt) {
-    const floor = textured(opt.floor, opt.floorColor);
-    const ceil = textured(opt.ceiling, opt.ceilingColor);
-    const left = textured(opt.left, opt.leftColor);
+    const tex = opt.deferTextures ? deferredTextured : textured;
+    const floor = tex(opt.floor, opt.floorColor);
+    const ceil = tex(opt.ceiling, opt.ceilingColor);
+    const left = tex(opt.left, opt.leftColor);
     plane(parent, 0, -3.5, opt.z, opt.w, opt.len, -Math.PI / 2, 0, 0, floor);
     plane(parent, 0, 3.5, opt.z, opt.w, opt.len, Math.PI / 2, 0, 0, ceil);
     plane(parent, -opt.w / 2, 0, opt.z, opt.len, opt.h, 0, Math.PI / 2, 0, left);
     if (opt.right !== false) {
-      const right = textured(opt.right, opt.rightColor);
+      const right = tex(opt.right, opt.rightColor);
       plane(parent, opt.w / 2, 0, opt.z, opt.len, opt.h, 0, -Math.PI / 2, 0, right);
     }
     addRoofCorners(parent, opt.z, opt.w, opt.h);
@@ -333,109 +430,144 @@
     const group = new THREE.Group();
     group.name = "starbase-exterior-skeleton";
 
-    // Only the two real room tubes. The black central void is deliberately untouched.
-    // Outer skeleton is pushed ~1.5 units away from the room walls.
-    const width = 15.2;   // room width 12 -> 1.6 units clearance per side
-    const height = 10.2;  // room height 8 -> 1.1 units clearance top/bottom
-    const panelStep = 8;
+    // Two short room tubes only. The central black void is intentionally left empty.
+    // Outer skin sits just beyond the interior walls, not as a second corridor.
+    const width = 13.0;
+    const height = 9.0;
+    const clearanceX = 0.50;
+    const clearanceY = 0.50;
+    const rail = 0.42;
+    const rib = 0.50;
+    const panelGap = 0.16;
     const frameMat = new THREE.MeshStandardMaterial({
       color: 0x242b33,
       metalness: 0.72,
-      roughness: 0.32
+      roughness: 0.34
     });
 
-    const materials = urls.map((url) => {
+    function makeBackMaterial(url) {
       const material = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
+        color: 0x303943,
         side: THREE.DoubleSide,
         fog: false,
         toneMapped: false
       });
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        const tex = new THREE.Texture(img);
-        applyTex(tex);
-        material.map = tex;
-        material.needsUpdate = true;
+
+      const finish = (img) => {
+        try {
+          const tex = new THREE.Texture(img);
+          applyTex(tex);
+          material.map = tex;
+          material.color.set(0xffffff);
+          material.needsUpdate = true;
+        } catch (err) {
+          material.color.set(0x303943);
+          material.needsUpdate = true;
+        }
       };
-      img.onerror = () => {
+
+      queueLowPriorityImage(url, finish, () => {
         material.color.set(0x303943);
         material.needsUpdate = true;
-      };
-      img.src = url;
+      });
       return material;
-    });
+    }
 
+    const materials = urls.map(makeBackMaterial);
     const panels = [];
 
-    const addPanel = (material, x, y, z, w, h, rx, ry) => {
+    function addPanel(material, x, y, z, w, h, rx, ry) {
       const mesh = plane(group, x, y, z, w, h, rx || 0, ry || 0, 0, material);
-      mesh.name = "starbase-backside-panel-" + panels.length;
+      mesh.name = "starbase-exterior-panel-" + panels.length;
+      mesh.renderOrder = 1;
       panels.push({ mesh, material });
-    };
+    }
 
-    const addTube = (z0, z1) => {
-      const centerZ = (z0 + z1) / 2;
+    function addRing(z) {
+      const r = new THREE.Group();
+      r.position.z = z;
+
+      const left = new THREE.Mesh(
+        new THREE.BoxGeometry(rail, height + rail, rail),
+        frameMat
+      );
+      left.position.x = -width / 2;
+      r.add(left);
+
+      const right = left.clone();
+      right.position.x = width / 2;
+      r.add(right);
+
+      const top = new THREE.Mesh(
+        new THREE.BoxGeometry(width + rail, rail, rail),
+        frameMat
+      );
+      top.position.y = height / 2;
+      r.add(top);
+
+      const bottom = top.clone();
+      bottom.position.y = -height / 2;
+      r.add(bottom);
+
+      group.add(r);
+    }
+
+    function addTube(z0, z1) {
       const length = Math.abs(z1 - z0);
+      const section = 7;
+      const count = Math.max(3, Math.ceil(length / section));
+      const band = length / count;
 
-      const leftRail = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.65, length), frameMat);
-      leftRail.position.set(-width / 2, 0, centerZ);
-      group.add(leftRail);
-
-      const rightRail = leftRail.clone();
-      rightRail.position.x = width / 2;
-      group.add(rightRail);
-
-      const topRail = new THREE.Mesh(new THREE.BoxGeometry(width, 0.65, length), frameMat);
-      topRail.position.set(0, height / 2, centerZ);
-      group.add(topRail);
-
-      const bottomRail = topRail.clone();
-      bottomRail.position.y = -height / 2;
-      group.add(bottomRail);
-
-      const count = Math.ceil(length / panelStep);
-      for (let i = 0; i < count; i++) {
-        const center = z0 - (i + 0.5) * (length / count);
-        const band = length / count;
-        const material = materials[panels.length % materials.length];
-
-        addPanel(material, -width / 2 - 0.05, 0, center, band - 0.12, 7.4, 0, Math.PI / 2);
-        addPanel(material, width / 2 + 0.05, 0, center, band - 0.12, 7.4, 0, -Math.PI / 2);
-        addPanel(material, 0, height / 2 + 0.05, center, width - 1.0, band - 0.12, Math.PI / 2, 0);
-        addPanel(material, 0, -height / 2 - 0.05, center, width - 1.0, band - 0.12, -Math.PI / 2, 0);
-      }
-
-      const ribAt = [z0, z1];
-      ribAt.forEach((z) => {
-        const rib = new THREE.Group();
-        rib.position.z = z;
-
-        const left = new THREE.Mesh(new THREE.BoxGeometry(0.6, height, 0.6), frameMat);
-        left.position.x = -width / 2;
-        rib.add(left);
-
-        const right = left.clone();
-        right.position.x = width / 2;
-        rib.add(right);
-
-        const top = new THREE.Mesh(new THREE.BoxGeometry(width, 0.6, 0.6), frameMat);
-        top.position.y = height / 2;
-        rib.add(top);
-
-        const bottom = top.clone();
-        bottom.position.y = -height / 2;
-        rib.add(bottom);
-
-        group.add(rib);
+      // Long corner rails give the impression of a real truss, but stay outside the room.
+      [
+        [-width / 2, -height / 2],
+        [-width / 2,  height / 2],
+        [ width / 2, -height / 2],
+        [ width / 2,  height / 2]
+      ].forEach(([x, y]) => {
+        const beam = new THREE.Mesh(
+          new THREE.BoxGeometry(rail, rail, length),
+          frameMat
+        );
+        beam.position.set(x, y, (z0 + z1) / 2);
+        group.add(beam);
       });
-    };
 
-    // Room 1 tube only: z 4 .. -24.
+      for (let i = 0; i <= count; i++) {
+        const z = z0 - i * band;
+        addRing(z);
+
+        if (i < count) {
+          const center = z - band / 2;
+          const mat = materials[i % materials.length];
+          const panelWidth = band - panelGap;
+
+          // Four outer skins mounted to the truss.
+          addPanel(
+            mat, -width / 2 - clearanceX * 0.15, 0, center,
+            panelWidth, height - 1.05, 0, Math.PI / 2
+          );
+          addPanel(
+            materials[(i + 1) % materials.length],
+            width / 2 + clearanceX * 0.15, 0, center,
+            panelWidth, height - 1.05, 0, -Math.PI / 2
+          );
+          addPanel(
+            materials[(i + 2) % materials.length],
+            0, height / 2 + clearanceY * 0.15, center,
+            width - 1.0, panelWidth, Math.PI / 2, 0
+          );
+          addPanel(
+            materials[(i + 3) % materials.length],
+            0, -height / 2 - clearanceY * 0.15, center,
+            width - 1.0, panelWidth, -Math.PI / 2, 0
+          );
+        }
+      }
+    }
+
+    // Exact room envelopes: Room 1 and Room 2 only. Nothing is drawn across the black void.
     addTube(4, -24);
-
-    // Room 2 tube only: z -49 .. -83.
     addTube(-49, -83);
 
     parent.add(group);
@@ -480,6 +612,7 @@
       z: -66, w: 12, len: 34, h: 8,
       floor: "wall2.png", ceiling: "roof1.png",
       left: "wall5.png", right: "wall1.png",
+      deferTextures: true,
       floorColor: 0x343d48, ceilingColor: 0x7c838c,
       leftColor: 0x48535e, rightColor: 0x3a444f
     });
@@ -615,8 +748,180 @@
       cinema.zones.push(item);
     });
 
+    // Room 1 rear wall: personnel animation loads in the background while the player flies around.
+    createInteriorVideoPanel({
+      url: config.capdoorVideo,
+      fallback: "wall1.png",
+      x: 0,
+      y: 0,
+      z: 3.94,
+      width: 11.8,
+      height: 7.8,
+      ry: 0,
+      radius: 60,
+      preloadRadius: 60,
+      preloadWhenStarted: true,
+      name: "room1-rear-capdoor"
+    });
+
+    // Room 2 right wall: wall.mp4 is closer to the portal exit; the lower-right clip stays farther along the wall.
+    createInteriorVideoPanel({
+      url: config.room2LeftVideo,
+      fallback: "wall1.png",
+      x: 6.025,
+      y: 0.6,
+      z: -54.5,
+      width: 9.8,
+      height: 5.9,
+      ry: -Math.PI / 2,
+      radius: 26,
+      preloadRadius: 30,
+      name: "room2-right-wall-live-near-exit"
+    });
+
+    createInteriorVideoPanel({
+      url: config.room2RightVideo,
+      fallback: "wall1.png",
+      x: 6.03,
+      y: -1.85,
+      z: -61.0,
+      width: 6.8,
+      height: 3.0,
+      ry: -Math.PI / 2,
+      radius: 24,
+      preloadRadius: 28,
+      name: "room2-right-wall-live-lower"
+    });
+
     scene.add(world);
-    createLiveWall();
+  }
+
+  function createInteriorVideoPanel(options) {
+    if (!options || !options.url) return null;
+
+    const material = textured(options.fallback || "wall1.png", options.color || 0x46505b, THREE.DoubleSide);
+    const video = document.createElement("video");
+    video.crossOrigin = "anonymous";
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.preload = "none";
+    video.volume = 0;
+    try { video.fetchPriority = "low"; } catch (e) {}
+
+    const texture = new THREE.VideoTexture(video);
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = false;
+    if ("encoding" in texture && THREE.sRGBEncoding !== undefined) {
+      texture.encoding = THREE.sRGBEncoding;
+    }
+
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(Number(options.width) || 6, Number(options.height) || 4),
+      material
+    );
+    mesh.position.set(
+      Number(options.x) || 0,
+      Number(options.y) || 0,
+      Number(options.z) || 0
+    );
+    mesh.rotation.set(
+      Number(options.rx) || 0,
+      Number(options.ry) || 0,
+      Number(options.rz) || 0
+    );
+    mesh.name = options.name || "interior-video-panel";
+    mesh.renderOrder = Number(options.renderOrder) || 4;
+    scene.add(mesh);
+
+    const item = {
+      el: video,
+      texture,
+      material,
+      mesh,
+      url: options.url,
+      radius: Number(options.radius) || 20,
+      preloadRadius: Number(options.preloadRadius) || 99,
+      preloadWhenStarted: !!options.preloadWhenStarted,
+      loaded: false,
+      ready: false,
+      active: false,
+      error: false,
+      distance: 99
+    };
+
+    const reveal = () => {
+      if (item.ready || item.error) return;
+      item.ready = true;
+      material.map = texture;
+      material.color.set(0xffffff);
+      material.needsUpdate = true;
+    };
+
+    video.addEventListener("loadeddata", reveal);
+    video.addEventListener("canplay", reveal);
+    video.addEventListener("error", () => {
+      item.error = true;
+      item.active = false;
+    });
+
+    liveInterior.push(item);
+    return item;
+  }
+
+  function preloadInteriorVideo(item) {
+    if (!item || !item.el || item.loaded || !item.url) return;
+    item.el.src = item.url;
+    item.el.load();
+    item.loaded = true;
+  }
+
+  function updateLiveInterior() {
+    liveInterior.forEach((item) => {
+      if (!item.el || !item.mesh) return;
+
+      item.distance = item.mesh.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position);
+      const visible = running &&
+        !transitionBusy &&
+        !settings.open &&
+        item.distance <= item.radius &&
+        zoneIsOnScreen({ mesh: item.mesh });
+
+      if (visible) {
+        preloadInteriorVideo(item);
+        if (item.el.paused) {
+          const p = item.el.play();
+          if (p && p.catch) p.catch(() => {});
+        }
+        item.active = true;
+      } else {
+        if (!item.el.paused) item.el.pause();
+        item.active = false;
+
+        if (item.loaded && item.distance > Math.max(item.radius * 1.8, item.preloadRadius)) {
+          item.el.pause();
+          item.el.removeAttribute("src");
+          item.el.load();
+          item.loaded = false;
+          item.ready = false;
+        }
+      }
+    });
+  }
+
+  function warmInteriorVideo(item) {
+    if (!item || !item.url) return;
+    // Warm only the decoder/source. It stays paused until visible.
+    preloadInteriorVideo(item);
+  }
+
+  function pauseInteriorVideos() {
+    liveInterior.forEach((item) => {
+      if (!item.el) return;
+      item.el.pause();
+      item.active = false;
+    });
   }
 
   function createLiveWall() {
@@ -934,6 +1239,13 @@
     // Start loading while the player keeps flying. Controls are locked only
     // after the first decoded frame is ready to be shown.
     transitionLoading = true;
+
+    // Portal video gets the active/high-priority path; Room 2 textures and live panels warm quietly underneath it.
+    startBackgroundTextureLoading();
+    liveInterior.forEach((item) => {
+      if (item.mesh && item.mesh.name !== "room1-rear-capdoor") warmInteriorVideo(item);
+    });
+
     if (transitionRoot) {
       transitionRoot.classList.remove("ready");
       transitionRoot.hidden = true;
@@ -942,6 +1254,7 @@
     transitionVideo.muted = true;
     transitionVideo.playsInline = true;
     transitionVideo.preload = "auto";
+    try { transitionVideo.fetchPriority = "high"; } catch (e) {}
 
     const revealFirstFrame = () => {
       if (!transitionLoading) return;
@@ -1094,6 +1407,7 @@
       liveWall.el.pause();
       liveWall.active = false;
     }
+    pauseInteriorVideos();
     cinema.nearest = null;
   }
 
@@ -1316,8 +1630,10 @@
     camera.position.copy(ship.position);
     camera.quaternion.copy(ship.quaternion);
     light.position.copy(ship.position);
+    if (ship.position.z < -48) startBackgroundTextureLoading();
     updateCinemaZones();
     updateLiveWall();
+    updateLiveInterior();
     updateCinemaFocus();
     if (ship.visual) {
       ship.visual.position.copy(ship.position);
@@ -1362,8 +1678,10 @@
         liveWall.el.pause();
         liveWall.active = false;
       }
+      pauseInteriorVideos();
     } else {
       updateLiveWall();
+      updateLiveInterior();
     }
   }
 
@@ -1517,6 +1835,10 @@
       running = true;
       musicAllowed = true;
       startMusic();
+
+      const capdoor = liveInterior.find((item) => item.mesh && item.mesh.name === "room1-rear-capdoor");
+      if (capdoor) warmInteriorVideo(capdoor);
+
       if (liveWall.el && liveWall.ready) {
         const wallPlay = liveWall.el.play();
         if (wallPlay && wallPlay.catch) wallPlay.catch(() => {});
@@ -1554,9 +1876,10 @@
       stars.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
       scene.add(new THREE.Points(stars, new THREE.PointsMaterial({ color: 0xffffff, size: 0.6 })));
       buildWorld();
+      setTimeout(() => startBackgroundTextureLoading(), 1400);
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.6.6");
+      setStatus("ENGINE READY · LOCAL r128 · 0.6.7");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
