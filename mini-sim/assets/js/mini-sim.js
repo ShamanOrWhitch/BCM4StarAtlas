@@ -107,7 +107,16 @@
   const backside = {
     urls: Array.isArray(config.backsideTextures) ? config.backsideTextures.slice() : [],
     panels: [],
-    nextAt: 0
+    materials: [],
+    nextAt: 0,
+    // GPU-friendly max dimension for exterior art. Lower-end machines get smaller textures.
+    textureMax: (() => {
+      const memory = Number(navigator.deviceMemory || 0);
+      const cores = Number(navigator.hardwareConcurrency || 0);
+      if ((memory && memory <= 4) || (cores && cores <= 4)) return 256;
+      if ((memory && memory <= 8) || (cores && cores <= 8)) return 384;
+      return 512;
+    })()
   };
   const tilt = {
     enabled: false,
@@ -333,125 +342,215 @@
     const group = new THREE.Group();
     group.name = "starbase-exterior-skeleton";
 
+    // Profile follows the actual mini-sim layout:
+    // Room 1 is narrow, the central dark void is a wider chamber,
+    // Room 2 narrows again. The black voidBox remains exactly as before.
+    const profile = [
+      { z0: 4,   z1: -24, width: 13.2, height: 8.8, panelStep: 7 },
+      { z0: -24, z1: -49, width: 22.0, height: 14.5, panelStep: 6 },
+      { z0: -49, z1: -83, width: 13.2, height: 8.8, panelStep: 7 }
+    ];
+
     const frameMat = new THREE.MeshStandardMaterial({
       color: 0x242b33,
-      metalness: 0.72,
-      roughness: 0.32
+      metalness: 0.70,
+      roughness: 0.34
     });
 
-    // Wrap the existing labyrinth footprint, not the distant free-flight tail.
-    const startZ = -26;
-    const endZ = -82;
-    const centerZ = (startZ + endZ) / 2;
-    const length = Math.abs(endZ - startZ);
-    const width = 14.4;
-    const height = 9.8;
-
-    const leftRail = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.65, length), frameMat);
-    leftRail.position.set(-width / 2, 0, centerZ);
-    group.add(leftRail);
-
-    const rightRail = leftRail.clone();
-    rightRail.position.x = width / 2;
-    group.add(rightRail);
-
-    const topRail = new THREE.Mesh(new THREE.BoxGeometry(width, 0.65, length), frameMat);
-    topRail.position.set(0, height / 2, centerZ);
-    group.add(topRail);
-
-    const bottomRail = topRail.clone();
-    bottomRail.position.y = -height / 2;
-    group.add(bottomRail);
-
-    const materials = urls.map((url) => {
+    function makeReducedMaterial(url) {
       const material = new THREE.MeshBasicMaterial({
         color: 0xffffff,
         side: THREE.DoubleSide,
         fog: false,
         toneMapped: false
       });
+
       const img = new Image();
       img.crossOrigin = "anonymous";
-      img.onload = () => {
-        const tex = new THREE.Texture(img);
-        applyTex(tex);
-        material.map = tex;
-        material.needsUpdate = true;
+      img.decoding = "async";
+
+      const finish = (source, w, h) => {
+        try {
+          const tex = new THREE.Texture(source);
+          applyTex(tex);
+          tex.needsUpdate = true;
+          material.map = tex;
+          material.needsUpdate = true;
+        } catch (err) {
+          material.color.set(0x303943);
+          material.needsUpdate = true;
+        }
       };
+
+      img.onload = async () => {
+        const max = backside.textureMax;
+        let w = img.naturalWidth || img.width || max;
+        let h = img.naturalHeight || img.height || max;
+
+        const scale = Math.min(1, max / Math.max(w, h));
+        const targetW = Math.max(1, Math.round(w * scale));
+        const targetH = Math.max(1, Math.round(h * scale));
+
+        try {
+          if (typeof createImageBitmap === "function") {
+            const bitmap = await createImageBitmap(img, {
+              resizeWidth: targetW,
+              resizeHeight: targetH,
+              resizeQuality: "medium"
+            });
+            finish(bitmap, targetW, targetH);
+            if (bitmap.close) bitmap.close = bitmap.close.bind(bitmap);
+          } else {
+            const canvas = document.createElement("canvas");
+            canvas.width = targetW;
+            canvas.height = targetH;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, targetW, targetH);
+              finish(canvas, targetW, targetH);
+            } else {
+              finish(img, w, h);
+            }
+          }
+        } catch (err) {
+          finish(img, w, h);
+        }
+      };
+
       img.onerror = () => {
         material.color.set(0x303943);
         material.needsUpdate = true;
       };
       img.src = url;
       return material;
-    });
+    }
+
+    // Load each source once; all hull panels reuse these reduced materials.
+    const materials = urls.map(makeReducedMaterial);
+    backside.materials = materials;
 
     const panels = [];
-    const addPanel = (x, y, z, w, h, rx, ry) => {
-      const material = materials[panels.length % materials.length];
+
+    function panel(material, x, y, z, w, h, rx, ry) {
       const mesh = plane(group, x, y, z, w, h, rx || 0, ry || 0, 0, material);
       mesh.name = "starbase-backside-panel-" + panels.length;
       panels.push({ mesh, material });
-    };
-
-    // Five short bands around the old labyrinth = 20 lightweight outer plates.
-    for (let z = -30; z >= -78; z -= 12) {
-      addPanel(-width / 2 - 0.04, 0, z, 12, 6.8, 0, Math.PI / 2);
-      addPanel(width / 2 + 0.04, 0, z, 12, 6.8, 0, -Math.PI / 2);
-      addPanel(0, height / 2 + 0.04, z, 14, 9.2, Math.PI / 2, 0);
-      addPanel(0, -height / 2 - 0.04, z, 14, 9.2, -Math.PI / 2, 0);
     }
 
-    // Cross ribs keep the skeleton clearly visible between panels.
-    for (let z = -26; z >= -82; z -= 14) {
-      const rib = new THREE.Group();
-      rib.position.z = z;
+    function rib(z, width, height) {
+      const r = new THREE.Group();
+      r.position.z = z;
 
-      const left = new THREE.Mesh(new THREE.BoxGeometry(0.6, height, 0.6), frameMat);
+      const left = new THREE.Mesh(new THREE.BoxGeometry(0.55, height, 0.55), frameMat);
       left.position.x = -width / 2;
-      rib.add(left);
+      r.add(left);
 
       const right = left.clone();
       right.position.x = width / 2;
-      rib.add(right);
+      r.add(right);
 
-      const top = new THREE.Mesh(new THREE.BoxGeometry(width, 0.6, 0.6), frameMat);
+      const top = new THREE.Mesh(new THREE.BoxGeometry(width, 0.55, 0.55), frameMat);
       top.position.y = height / 2;
-      rib.add(top);
+      r.add(top);
 
       const bottom = top.clone();
       bottom.position.y = -height / 2;
-      rib.add(bottom);
+      r.add(bottom);
 
-      group.add(rib);
+      group.add(r);
     }
 
-    const front = new THREE.Group();
-    front.position.z = startZ;
-    const frontTop = new THREE.Mesh(new THREE.BoxGeometry(width, 0.7, 0.8), frameMat);
-    frontTop.position.y = height / 2;
-    front.add(frontTop);
-    const frontBottom = frontTop.clone();
-    frontBottom.position.y = -height / 2;
-    front.add(frontBottom);
-    const frontLeft = new THREE.Mesh(new THREE.BoxGeometry(0.7, height, 0.8), frameMat);
-    frontLeft.position.x = -width / 2;
-    front.add(frontLeft);
-    const frontRight = frontLeft.clone();
-    frontRight.position.x = width / 2;
-    front.add(frontRight);
-    group.add(front);
+    profile.forEach((part, partIndex) => {
+      const centerZ = (part.z0 + part.z1) / 2;
+      const span = Math.abs(part.z1 - part.z0);
+
+      // Outer plates. More, shorter plates follow the actual changes in the hull profile.
+      let row = 0;
+      for (let z = Math.max(part.z1 + 2, part.z0 - 2); z >= part.z1 + 2; z -= part.panelStep) {
+        const materialBase = (row + partIndex * 3) % materials.length;
+        const leftMat = materials[materialBase];
+        const rightMat = materials[(materialBase + 1) % materials.length];
+        const topMat = materials[(materialBase + 2) % materials.length];
+        const bottomMat = materials[(materialBase + 3) % materials.length];
+
+        panel(leftMat, -part.width / 2 - 0.03, 0, z, part.panelStep + 0.1, part.height * 0.86, 0, Math.PI / 2);
+        panel(rightMat, part.width / 2 + 0.03, 0, z, part.panelStep + 0.1, part.height * 0.86, 0, -Math.PI / 2);
+        panel(topMat, 0, part.height / 2 + 0.03, z, part.width * 0.90, part.panelStep + 0.1, Math.PI / 2, 0);
+        panel(bottomMat, 0, -part.height / 2 - 0.03, z, part.width * 0.90, part.panelStep + 0.1, -Math.PI / 2, 0);
+        row++;
+      }
+
+      rib(part.z0, part.width, part.height);
+      rib(part.z1, part.width, part.height);
+    });
+
+    // Transition collars make the widened central chamber read as part of one ship.
+    const transitionZ = [-24, -49];
+    transitionZ.forEach((z, i) => {
+      const narrow = profile[i];
+      const wide = profile[1];
+      const collar = new THREE.Group();
+      collar.position.z = z;
+      const w0 = narrow.width / 2;
+      const w1 = wide.width / 2;
+      const h0 = narrow.height / 2;
+      const h1 = wide.height / 2;
+      const dz = 1.5;
+
+      [
+        [-1, -1],
+        [-1, 1],
+        [1, -1],
+        [1, 1]
+      ].forEach(([sx, sy]) => {
+        const beam = new THREE.Mesh(
+          new THREE.BoxGeometry(Math.max(0.55, w1 - w0), Math.max(0.55, h1 - h0), dz),
+          frameMat
+        );
+        beam.position.set(
+          sx * ((w0 + w1) / 2),
+          sy * ((h0 + h1) / 2),
+          0
+        );
+        beam.rotation.z = sy * 0.10;
+        collar.add(beam);
+      });
+      group.add(collar);
+    });
+
+    // Keep the bow readable around the start area.
+    const bow = new THREE.Group();
+    bow.position.z = 4;
+    const bw = profile[0].width;
+    const bh = profile[0].height;
+    const bowTop = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.7, 0.8), frameMat);
+    bowTop.position.y = bh / 2;
+    bow.add(bowTop);
+    const bowBottom = bowTop.clone();
+    bowBottom.position.y = -bh / 2;
+    bow.add(bowBottom);
+    const bowLeft = new THREE.Mesh(new THREE.BoxGeometry(0.7, bh, 0.8), frameMat);
+    bowLeft.position.x = -bw / 2;
+    bow.add(bowLeft);
+    const bowRight = bowLeft.clone();
+    bowRight.position.x = bw / 2;
+    bow.add(bowRight);
+    group.add(bow);
 
     parent.add(group);
     backside.panels = panels;
-    backside.nextAt = performance.now() + 8000;
+    backside.nextAt = performance.now() + 2500;
     randomizeBackside(performance.now());
   }
 
   function randomizeBackside(now) {
     if (!backside.panels.length) return;
 
-    const materials = backside.panels.map((item) => item.material);
+    const materials = backside.materials.length
+      ? backside.materials
+      : backside.panels.map((item) => item.material);
+
+    // Reassign, do not clone textures/materials.
     for (let i = materials.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       const tmp = materials[i];
@@ -460,11 +559,12 @@
     }
 
     backside.panels.forEach((item, index) => {
-      item.mesh.material = materials[index];
-      item.material = materials[index];
+      item.mesh.material = materials[index % materials.length];
+      item.material = materials[index % materials.length];
     });
 
-    backside.nextAt = now + 10000 + Math.random() * 9000;
+    // 2.5x faster than the previous ~10–19 s interval: now ~4–7.6 s.
+    backside.nextAt = now + 4000 + Math.random() * 3600;
   }
 
   function updateBacksideCamouflage(now) {
@@ -1560,7 +1660,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.6.5");
+      setStatus("ENGINE READY · LOCAL r128 · 0.6.6");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
