@@ -429,10 +429,10 @@
 
     // Exterior-only shell around the two existing short room tubes.
     // It is deliberately pulled away from the interior on X/Y and slightly beyond both Z ends.
-    const width = 18.0;
-    const height = 13.0;
-    const clearanceX = 2.0;
-    const clearanceY = 2.0;
+    const width = 26.0;
+    const height = 18.0;
+    const clearanceX = 3.0;
+    const clearanceY = 3.0;
     const rail = 0.42;
     const panelGap = 0.16;
 
@@ -542,8 +542,8 @@
     }
 
     // Only Room 1 and Room 2. The black central void gets no external texture skin.
-    addTube(8.5, -28.5);
-    addTube(-44.5, -87.5);
+    addTube(12.0, -32.0);
+    addTube(-41.0, -91.0);
 
     parent.add(group);
     backside.panels = panels;
@@ -744,14 +744,14 @@
     createInteriorVideoPanel({
       url: config.room1WallVideo,
       fallback: "wall1.png",
-      x: 5.92,
+      x: 5.84,
       y: 0,
       z: -10,
-      width: 11.8,
-      height: 7.8,
+      width: 12,
+      height: 8,
       ry: -Math.PI / 2,
-      radius: 28,
-      preloadRadius: 34,
+      radius: 32,
+      preloadRadius: 38,
       name: "room1-right-wall-live"
     });
 
@@ -760,10 +760,10 @@
       url: config.room2RightVideo,
       fallback: "wall1.png",
       x: 5.91,
-      y: -1.85,
-      z: -62.8,
-      width: 5.8,
-      height: 3.0,
+      y: -1.95,
+      z: -56.8,
+      width: 5.9,
+      height: 3.05,
       ry: -Math.PI / 2,
       radius: 24,
       preloadRadius: 28,
@@ -1856,7 +1856,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.6.10");
+      setStatus("ENGINE READY · LOCAL r128 · 0.7.0");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
