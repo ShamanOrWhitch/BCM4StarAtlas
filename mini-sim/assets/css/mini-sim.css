@@ -562,3 +562,7 @@
         position:absolute;
     }
 }
+
+
+/* 0.8.0 mission label */
+.bcm-mini-sim-mission{margin-top:2px;color:rgba(255,225,150,.78);font:700 9px/1.2 Arial,sans-serif;letter-spacing:1px;text-shadow:0 1px 4px #000;}
