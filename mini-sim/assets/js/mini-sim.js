@@ -163,6 +163,7 @@
   const tilt = {
     enabled: false,
     available: false,
+    bound: false,
     a: 0, b: 0, g: 0,
     na: 0, nb: 0, ng: 0,
     neutralB: 0, neutralG: 0
@@ -1694,13 +1695,16 @@
 
   function enableTilt() {
     const apply = () => {
-      tilt.na = tilt.a; tilt.nb = tilt.b; tilt.ng = tilt.g;
+      tilt.na = tilt.a;
+      tilt.nb = tilt.b;
+      tilt.ng = tilt.g;
       tilt.neutralB = tilt.b;
       tilt.neutralG = tilt.g;
       tilt.enabled = true;
       if (tiltButton) tiltButton.classList.add("active");
       setStatus("TILT CALIBRATED · THIS POSE IS NEUTRAL");
     };
+
     const on = (ev) => {
       if (typeof ev.beta !== "number") return;
       tilt.available = true;
@@ -1708,16 +1712,26 @@
       tilt.b = ev.beta;
       tilt.g = ev.gamma || 0;
     };
+
     const boot = () => {
-      window.addEventListener("deviceorientation", on, true);
-      setTimeout(() => { if (tilt.available) apply(); else setStatus("TILT · NO SENSOR"); }, 250);
+      if (!tilt.bound) {
+        window.addEventListener("deviceorientation", on, true);
+        tilt.bound = true;
+      }
+      setTimeout(() => {
+        if (tilt.available) apply();
+        else setStatus("TILT · NO SENSOR");
+      }, 250);
     };
+
     if (window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) {
       DeviceOrientationEvent.requestPermission().then((p) => {
         if (p === "granted") boot();
         else setStatus("TILT DENIED");
       }).catch(() => setStatus("TILT ERROR"));
-    } else boot();
+    } else {
+      boot();
+    }
   }
 
   function resize() {
@@ -1785,16 +1799,8 @@
       btn.addEventListener("pointercancel", up);
     });
 
-    root.querySelectorAll(".bcm-mini-sim-mobile-edge").forEach((edge) => {
-      const id = edge.dataset.edge;
-      const key = "edge" + id.charAt(0).toUpperCase() + id.slice(1);
-      const down = (ev) => { ev.preventDefault(); if (running) touch[key] = true; };
-      const up = (ev) => { ev.preventDefault(); touch[key] = false; };
-      edge.addEventListener("pointerdown", down, { passive:false });
-      edge.addEventListener("pointerup", up, { passive:false });
-      edge.addEventListener("pointercancel", up, { passive:false });
-      edge.addEventListener("pointerleave", up, { passive:false });
-    });
+    // Edge zones are intentionally passive on mobile: movement is handled by the visible buttons,
+    // while swipe/drag on the canvas remains the screen-look control.
 
     let dragPointerId = null;
     let dragX = 0, dragY = 0;
@@ -1843,6 +1849,25 @@
       musicAllowed = true;
       startMusic();
 
+      if (window.matchMedia && window.matchMedia("(pointer: coarse) and (orientation: landscape)").matches) {
+        enableTilt();
+      }
+
+      const centerSim = () => {
+        const rect = root.getBoundingClientRect();
+        const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+        const targetTop = window.scrollY + rect.top - Math.max(0, (viewportH - rect.height) * 0.5);
+        window.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+      };
+      if ("requestAnimationFrame" in window) {
+        requestAnimationFrame(() => {
+          centerSim();
+          setTimeout(centerSim, 120);
+        });
+      } else {
+        setTimeout(centerSim, 0);
+      }
+
       const capdoor = liveInterior.find((item) => item.mesh && item.mesh.name === "room1-rear-capdoor");
       if (capdoor) setTimeout(() => warmInteriorVideo(capdoor), 350);
 
@@ -1885,7 +1910,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.7.3");
+      setStatus("ENGINE READY · LOCAL r128 · 0.7.4");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
