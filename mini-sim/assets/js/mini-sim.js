@@ -1656,10 +1656,9 @@
 
     const mobileTiltMode = mobileLandscape() && tilt.enabled;
     if (mobileTiltMode) {
-      const manualYaw = ((touch.yawRight ? 1 : 0) - (touch.yawLeft ? 1 : 0) + pad.rx * (settings.invertYaw ? 1 : -1));
       const manualPitch = pad.ry * (settings.invertPitch ? 1 : -1);
       ship.angularVelocity.x = manualPitch * 0.85 + inn.pitch * 0.85;
-      ship.angularVelocity.y = manualYaw * 0.85 + inn.yaw * 0.85;
+      ship.angularVelocity.y = inn.yaw * 0.85;
       ship.angularVelocity.z = inn.roll * 2.6;
     } else {
       const psign = settings.invertPitch ? 1 : -1;
