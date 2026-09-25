@@ -430,15 +430,15 @@
     const group = new THREE.Group();
     group.name = "starbase-exterior-skeleton";
 
-    // Two short room tubes only. The central black void is intentionally left empty.
-    // Outer skin sits just beyond the interior walls, not as a second corridor.
-    const width = 13.0;
-    const height = 9.0;
-    const clearanceX = 0.28;
-    const clearanceY = 0.28;
+    // Exterior-only shell around the two existing short room tubes.
+    // It is deliberately pulled away from the interior on X/Y and slightly beyond both Z ends.
+    const width = 15.5;
+    const height = 11.0;
+    const clearanceX = 0.85;
+    const clearanceY = 1.0;
     const rail = 0.42;
-    const rib = 0.50;
     const panelGap = 0.16;
+
     const frameMat = new THREE.MeshStandardMaterial({
       color: 0x242b33,
       metalness: 0.72,
@@ -448,7 +448,7 @@
     function makeBackMaterial(url) {
       const material = new THREE.MeshBasicMaterial({
         color: 0x303943,
-        side: THREE.DoubleSide,
+        side: THREE.FrontSide,
         fog: false,
         toneMapped: false
       });
@@ -484,32 +484,26 @@
     }
 
     function addRing(z) {
-      const r = new THREE.Group();
-      r.position.z = z;
+      const ring = new THREE.Group();
+      ring.position.z = z;
 
-      const left = new THREE.Mesh(
-        new THREE.BoxGeometry(rail, height + rail, rail),
-        frameMat
-      );
+      const left = new THREE.Mesh(new THREE.BoxGeometry(rail, height + rail, rail), frameMat);
       left.position.x = -width / 2;
-      r.add(left);
+      ring.add(left);
 
       const right = left.clone();
       right.position.x = width / 2;
-      r.add(right);
+      ring.add(right);
 
-      const top = new THREE.Mesh(
-        new THREE.BoxGeometry(width + rail, rail, rail),
-        frameMat
-      );
+      const top = new THREE.Mesh(new THREE.BoxGeometry(width + rail, rail, rail), frameMat);
       top.position.y = height / 2;
-      r.add(top);
+      ring.add(top);
 
       const bottom = top.clone();
       bottom.position.y = -height / 2;
-      r.add(bottom);
+      ring.add(bottom);
 
-      group.add(r);
+      group.add(ring);
     }
 
     function addTube(z0, z1) {
@@ -518,17 +512,13 @@
       const count = Math.max(3, Math.ceil(length / section));
       const band = length / count;
 
-      // Long corner rails give the impression of a real truss, but stay outside the room.
       [
         [-width / 2, -height / 2],
         [-width / 2,  height / 2],
         [ width / 2, -height / 2],
         [ width / 2,  height / 2]
       ].forEach(([x, y]) => {
-        const beam = new THREE.Mesh(
-          new THREE.BoxGeometry(rail, rail, length),
-          frameMat
-        );
+        const beam = new THREE.Mesh(new THREE.BoxGeometry(rail, rail, length), frameMat);
         beam.position.set(x, y, (z0 + z1) / 2);
         group.add(beam);
       });
@@ -537,38 +527,26 @@
         const z = z0 - i * band;
         addRing(z);
 
-        if (i < count) {
-          const center = z - band / 2;
-          const mat = materials[i % materials.length];
-          const panelWidth = band - panelGap;
+        if (i >= count) continue;
 
-          // Four outer skins mounted to the truss.
-          addPanel(
-            mat, -width / 2 - clearanceX, 0, center,
-            panelWidth, height - 1.05, 0, Math.PI / 2
-          );
-          addPanel(
-            materials[(i + 1) % materials.length],
-            width / 2 + clearanceX, 0, center,
-            panelWidth, height - 1.05, 0, -Math.PI / 2
-          );
-          addPanel(
-            materials[(i + 2) % materials.length],
-            0, height / 2 + clearanceY, center,
-            width - 1.0, panelWidth, Math.PI / 2, 0
-          );
-          addPanel(
-            materials[(i + 3) % materials.length],
-            0, -height / 2 - clearanceY, center,
-            width - 1.0, panelWidth, -Math.PI / 2, 0
-          );
-        }
+        const center = z - band / 2;
+        const panelWidth = band - panelGap;
+        const left = materials[i % materials.length];
+        const right = materials[(i + 1) % materials.length];
+        const top = materials[(i + 2) % materials.length];
+        const bottom = materials[(i + 3) % materials.length];
+
+        // FrontSide + outward normals: these panels cannot be seen from inside Room 1/2.
+        addPanel(left, -width / 2 - clearanceX, 0, center, panelWidth, height - 1.05, 0, Math.PI / 2);
+        addPanel(right, width / 2 + clearanceX, 0, center, panelWidth, height - 1.05, 0, -Math.PI / 2);
+        addPanel(top, 0, height / 2 + clearanceY, center, width - 1.0, panelWidth, -Math.PI / 2, 0);
+        addPanel(bottom, 0, -height / 2 - clearanceY, center, width - 1.0, panelWidth, Math.PI / 2, 0);
       }
     }
 
-    // Exact room envelopes: Room 1 and Room 2 only. Nothing is drawn across the black void.
-    addTube(4, -24);
-    addTube(-49, -83);
+    // Only Room 1 and Room 2. The black central void gets no external texture skin.
+    addTube(5.5, -25.5);
+    addTube(-47.5, -84.5);
 
     parent.add(group);
     backside.panels = panels;
@@ -768,7 +746,7 @@
     createInteriorVideoPanel({
       url: config.room2LeftVideo,
       fallback: "wall1.png",
-      x: 6.025,
+      x: 5.92,
       y: 0.6,
       z: -54.5,
       width: 9.8,
@@ -782,7 +760,7 @@
     createInteriorVideoPanel({
       url: config.room2RightVideo,
       fallback: "wall1.png",
-      x: 6.03,
+      x: 5.91,
       y: -1.85,
       z: -62.8,
       width: 5.8,
@@ -800,6 +778,8 @@
     if (!options || !options.url) return null;
 
     const material = textured(options.fallback || "wall1.png", options.color || 0x46505b, THREE.DoubleSide);
+    material.depthTest = true;
+    material.depthWrite = false;
     const video = document.createElement("video");
     video.crossOrigin = "anonymous";
     video.muted = true;
@@ -885,8 +865,7 @@
       const visible = running &&
         !transitionBusy &&
         !settings.open &&
-        item.distance <= item.radius &&
-        zoneIsOnScreen({ mesh: item.mesh });
+        item.distance <= item.radius;
 
       if (visible) {
         preloadInteriorVideo(item);
@@ -1878,7 +1857,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.6.8");
+      setStatus("ENGINE READY · LOCAL r128 · 0.6.9");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
