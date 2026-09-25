@@ -326,7 +326,7 @@
       return;
     }
 
-    const maxSize = 1024;
+    const maxSize = 640;
     const width = Number(img.naturalWidth || img.width || 0);
     const height = Number(img.naturalHeight || img.height || 0);
     if (!width || !height || Math.max(width, height) <= maxSize) {
@@ -2214,7 +2214,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.8.7");
+      setStatus("ENGINE READY · LOCAL r128 · 0.8.8");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
