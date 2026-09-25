@@ -122,7 +122,7 @@ function bcm_mini_sim_enqueue_assets()
             array('url' => 'https://walkingyog.com/wp-content/uploads/2026/09/Reshade-Rasta-Dance3.mp4', 'x' => -22, 'y' => 8, 'z' => -170, 'radius' => 20, 'maxWidth' => 8.5, 'maxHeight' => 5.2),
         ),
         'capdoorVideo' => bcm_mini_sim_pick_asset($assets, array('capdoor.mp4'), 'video'),
-        'room2LeftVideo' => bcm_mini_sim_pick_asset($assets, array('Wall.mp4', 'wall.mp4'), 'video') ?: 'https://walkingyog.com/wp-content/uploads/2026/09/wall.mp4',
+        'room1WallVideo' => bcm_mini_sim_pick_asset($assets, array('Wall.mp4', 'wall.mp4'), 'video'),
         'room2RightVideo' => bcm_mini_sim_pick_asset($assets, array('doorwallbotright.mp4', 'door-wallbotright.mp4'), 'video'),
         'backsideTextures' => $backside_urls,
         'assets' => $assets,
