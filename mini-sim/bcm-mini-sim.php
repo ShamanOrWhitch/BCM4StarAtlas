@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.7.2
+ * Version: 0.7.3
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.7.2');
+define('BCM_MINI_SIM_VERSION', '0.7.3');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -142,13 +142,19 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-menu-shade" aria-hidden="true"></div>
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.7.2</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.7.3</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
-            <div class="bcm-mini-sim-help">
-                <span>W/S</span> thrust · <span>A/D</span> strafe · <span>Mouse</span> look ·
-                <span>Enter</span> menu · <span>Esc</span> release mouse ·
-                <span>G</span> portal video · <span>F</span> focus nearest screen · <span>LIVE WALL</span> wall.mp4
+            <div class="bcm-mini-sim-help bcm-mini-sim-help-keyboard">
+                <span>W/S</span> тяга · <span>A/D</span> влево/вправо · <span>Space</span> вверх · <span>C</span> вниз ·
+                <span>Mouse</span> взгляд · <span>G</span> портал · <span>F</span> фиксация экрана ·
+                <span>H</span> домой · <span>R</span> дверь · <span>Enter</span> меню · <span>Esc</span> отпустить мышь
+            </div>
+            <div class="bcm-mini-sim-help bcm-mini-sim-help-gamepad">
+                <span>Левый стик</span> движение · <span>Правый стик</span> взгляд ·
+                <span>A</span> дверь · <span>B</span> домой · <span>X</span> фиксация экрана ·
+                <span>Y</span> портал · <span>LB/RB</span> крен · <span>LT/RT</span> вверх/вниз ·
+                <span>Start/Select</span> меню
             </div>
         </div>
         <div class="bcm-mini-sim-asset-status">LOCAL ASSETS: SCANNING...</div>
@@ -167,7 +173,9 @@ function bcm_mini_sim_shortcode($atts = array())
                 <label>Громкость <input type="range" min="0" max="100" value="42" data-setting="volume"></label>
                 <label><input type="checkbox" data-setting="invertPitch" checked> Авиа-питч (вниз = вверх взгляда)</label>
                 <label><input type="checkbox" data-setting="invertYaw"> Реверс лево/право</label>
-                <p>Музыка только после «Играть». Esc отпускает мышь и не вешает цикл. G или 69% портала — mp4, затем комната 2.</p>
+                <p>Клавиатура: W/S — тяга, A/D — влево/вправо, Space — вверх, C — вниз, G — портал, F — фиксация экрана, H — домой, R — дверь.</p>
+                <p>Gamepad: левый стик — движение, правый — взгляд; A — дверь, B — домой, X — фиксация экрана, Y — портал; LB/RB — крен, LT/RT — вверх/вниз, Start/Select — меню.</p>
+                <p>Музыка только после «Играть». Esc отпускает мышь. G или 69% портала запускает видео перехода, затем перенос в Room 2.</p>
                 <button type="button" data-setting="close">Закрыть</button>
             </div>
         </div>
