@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.6.6
+# BCM Mini-Sim 0.7.8
 
 ## STOP — read this before another GPT rewrite
 
@@ -176,3 +176,11 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - Mobile side controls are moved inward from the browser edge and suppress long-press/context-menu handling.
 - The central screen-focus control is functionally present but completely invisible, with a 64×64 touch target.
 - `back*.png` shuffle now runs roughly twice as fast again, about every 0.8–1.6 seconds.
+
+
+## 0.7.8 direction/video check
+- Верх HUD подписан как **BCM 4 STAR ATLAS**, версия мини-приложения — **0.7.8**.
+- На телефоне **↟/↡** обозначены как вертикаль вверх/вниз; **◀/▶** — поворот влево/вправо.
+- Исправлено направление экранных кнопок **◀/▶**.
+- В SETTINGS добавлена проверка всех зарегистрированных видео: 3 локальных интерьерных ролика, 4 `spaceVideoZones` и 3 portal-видео — 10 уникальных источников.
+- Проверка использует `preload=metadata` и запускается после «Играть», а также вручную из SETTINGS.
