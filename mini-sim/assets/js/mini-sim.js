@@ -446,6 +446,8 @@
       const material = new THREE.MeshBasicMaterial({
         color: 0x303943,
         side: THREE.FrontSide,
+        depthTest: false,
+        depthWrite: false,
         fog: false,
         toneMapped: false
       });
@@ -744,10 +746,10 @@
     createInteriorVideoPanel({
       url: config.room1WallVideo,
       fallback: "wall1.png",
-      x: 5.84,
+      x: 5.96,
       y: 0,
       z: -10,
-      width: 12,
+      width: 28,
       height: 8,
       ry: -Math.PI / 2,
       radius: 32,
@@ -761,12 +763,12 @@
       fallback: "wall1.png",
       x: 5.91,
       y: -1.95,
-      z: -56.8,
+      z: -51.95,
       width: 5.9,
       height: 3.05,
       ry: -Math.PI / 2,
       radius: 24,
-      preloadRadius: 28,
+      preloadRadius: 30,
       name: "room2-right-wall-live-bottom-right"
     });
 
@@ -1856,7 +1858,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.7.0");
+      setStatus("ENGINE READY · LOCAL r128 · 0.7.1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
