@@ -97,10 +97,17 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - Exterior skeleton is offset outward from the inner room surfaces by roughly 1–1.6 scene units.
 - No extended hull corridor is generated beyond Room 2.
 
-### 0.6.8 live layout correction
+### 0.6.9 live layout correction
 - `capdoor.mp4` is a single full rear-wall video panel in Room 1. It is warmed quietly shortly after the player starts, while playback waits until it is actually visible.
 - `wall.mp4` is used exactly once on the right wall of Room 2, on the panel closest to the portal exit.
 - `door-wallbotright.mp4` is used exactly once as the smaller lower-right panel farther along the same Room 2 wall; existing `wall1.png` remains visible in the unfilled areas.
 - Portal videos keep the higher fetch priority. Room 2 textures, exterior `back*.png`, and the two Room 2 live panels warm in the low-priority background queue during portal travel.
 - The background queue no longer starts at spawn.
 - The exterior truss remains only the two short Room 1 / Room 2 tubes and stays slightly outside the interior surfaces.
+
+### 0.6.9 exterior-only visibility fix
+- The uploaded Room 2 lower-right video is resolved as doorwallbotright.mp4; the old hyphenated spelling remains a fallback.
+- Wall.mp4 remains the single near-exit Room 2 video and is mounted on the interior side of the right wall.
+- Room 2 live videos are distance-driven inside the room, so they can play while the player is in the room instead of waiting for a precise camera angle.
+- Exterior back*.png materials use outward-facing FrontSide normals, preventing the external skin from appearing inside the rooms.
+- The two exterior skins are pulled farther away on X/Y and slightly past the tube ends on Z. The central black void remains untouched.
