@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.6.6
+ * Version: 0.6.7
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.6.6');
+define('BCM_MINI_SIM_VERSION', '0.6.7');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -121,17 +121,9 @@ function bcm_mini_sim_enqueue_assets()
             array('url' => 'https://walkingyog.com/wp-content/uploads/2026/09/i-dance-fin.mp4', 'x' => 18, 'y' => -6, 'z' => -135, 'radius' => 18, 'maxWidth' => 8.0, 'maxHeight' => 5.0),
             array('url' => 'https://walkingyog.com/wp-content/uploads/2026/09/Reshade-Rasta-Dance3.mp4', 'x' => -22, 'y' => 8, 'z' => -170, 'radius' => 20, 'maxWidth' => 8.5, 'maxHeight' => 5.2),
         ),
-        'liveWall' => array(
-            'url' => 'https://walkingyog.com/wp-content/uploads/2026/09/wall.mp4',
-            'fallback' => bcm_mini_sim_pick_asset($assets, array('wall1.png'), 'image'),
-            'x' => 5.96,
-            'y' => 0,
-            'z' => -10,
-            'width' => 28,
-            'height' => 8,
-            'rotationY' => -1.5707963267948966,
-            'radius' => 24,
-        ),
+        'capdoorVideo' => bcm_mini_sim_pick_asset($assets, array('capdoor.mp4'), 'video'),
+        'room2LeftVideo' => bcm_mini_sim_pick_asset($assets, array('Wall.mp4', 'wall.mp4'), 'video') ?: 'https://walkingyog.com/wp-content/uploads/2026/09/wall.mp4',
+        'room2RightVideo' => bcm_mini_sim_pick_asset($assets, array('door-wallbotright.mp4'), 'video'),
         'backsideTextures' => $backside_urls,
         'assets' => $assets,
         'version' => BCM_MINI_SIM_VERSION,
@@ -150,7 +142,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-menu-shade" aria-hidden="true"></div>
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.6.6</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.6.7</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
             <div class="bcm-mini-sim-help">
