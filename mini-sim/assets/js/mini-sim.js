@@ -2075,7 +2075,6 @@
       canvas.focus();
       if (canvas.requestPointerLock && !("ontouchstart" in window)) canvas.requestPointerLock();
       setStatus("FLIGHT ACTIVE");
-      setTimeout(checkAllVideoSources, mobileLandscape() ? 8000 : 2500);
     });
     if (menuBackdrop && config.menuBackgroundUrl) {
       menuBackdrop.style.backgroundImage = 'url("' + config.menuBackgroundUrl.replace(/"/g, "") + '")';
@@ -2105,7 +2104,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.8.1");
+      setStatus("ENGINE READY · LOCAL r128 · 0.8.2");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
