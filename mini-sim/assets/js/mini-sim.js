@@ -47,56 +47,6 @@
   const keys = Object.create(null);
   const touch = Object.create(null);
   const stats = { total: 0, loaded: 0, failed: 0, last: "" };
-  const lowPriorityImages = {
-    jobs: [],
-    active: 0,
-    concurrency: 2,
-    running: false,
-    lastPump: 0
-  };
-
-  function enqueueLowPriorityImage(url, onload, onerror) {
-    if (!url) return;
-    lowPriorityImages.jobs.push({ url, onload, onerror });
-  }
-
-  function pumpLowPriorityImages(force) {
-    if (!lowPriorityImages.running) return;
-    while (lowPriorityImages.active < lowPriorityImages.concurrency && lowPriorityImages.jobs.length) {
-      const job = lowPriorityImages.jobs.shift();
-      lowPriorityImages.active++;
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.decoding = "async";
-      try { img.fetchPriority = "low"; } catch (e) {}
-      img.onload = () => {
-        lowPriorityImages.active--;
-        try { if (job.onload) job.onload(img); } catch (e) {}
-        setTimeout(() => pumpLowPriorityImages(false), force ? 8 : 80);
-      };
-      img.onerror = () => {
-        lowPriorityImages.active--;
-        try { if (job.onerror) job.onerror(); } catch (e) {}
-        setTimeout(() => pumpLowPriorityImages(false), force ? 8 : 80);
-      };
-      img.src = job.url;
-    }
-  }
-
-  function startLowPriorityImages(force) {
-    lowPriorityImages.running = true;
-    if (force) {
-      pumpLowPriorityImages(true);
-      return;
-    }
-    const idle = window.requestIdleCallback;
-    if (typeof idle === "function") {
-      idle(() => pumpLowPriorityImages(false), { timeout: 1800 });
-    } else {
-      setTimeout(() => pumpLowPriorityImages(false), 1200);
-    }
-  }
-
   const ship = {
     position: null,
     velocity: null,
@@ -152,23 +102,12 @@
     ready: false,
     primed: false,
     active: false,
-    error: false,
-    loaded: false
+    error: false
   };
-  const liveInterior = [];
   const backside = {
     urls: Array.isArray(config.backsideTextures) ? config.backsideTextures.slice() : [],
     panels: [],
-    materials: [],
-    nextAt: 0,
-    // GPU-friendly max dimension for exterior art. Lower-end machines get smaller textures.
-    textureMax: (() => {
-      const memory = Number(navigator.deviceMemory || 0);
-      const cores = Number(navigator.hardwareConcurrency || 0);
-      if ((memory && memory <= 4) || (cores && cores <= 4)) return 256;
-      if ((memory && memory <= 8) || (cores && cores <= 8)) return 384;
-      return 512;
-    })()
+    nextAt: 0
   };
   const tilt = {
     enabled: false,
@@ -278,48 +217,6 @@
     plane(parent, width / 2 - 0.8, height / 2 - 0.05, z + 8, s, s, Math.PI / 2, 0, Math.PI, textured("roofa.png", 0x8a9098));
   }
 
-  function deferredTextured(name, fallback, side) {
-    const mat = new THREE.MeshBasicMaterial({
-      color: fallback || 0x66707a,
-      side: side || THREE.DoubleSide,
-      fog: false
-    });
-    const url = assetUrl(name);
-    stats.total++;
-    hudAssets();
-    if (!url) {
-      stats.failed++;
-      stats.loaded++;
-      stats.last = name + " missing";
-      hudAssets();
-      return mat;
-    }
-
-    enqueueLowPriorityImage(url, (img) => {
-      try {
-        const tex = new THREE.Texture(img);
-        applyTex(tex);
-        mat.map = tex;
-        mat.color.set(0xffffff);
-        mat.needsUpdate = true;
-        stats.loaded++;
-        hudAssets();
-      } catch (err) {
-        stats.failed++;
-        stats.loaded++;
-        stats.last = name;
-        hudAssets();
-      }
-    }, () => {
-      stats.failed++;
-      stats.loaded++;
-      stats.last = name + " 404";
-      hudAssets();
-    });
-
-    return mat;
-  }
-
   function buildShipVisual() {
     if (ship.visual) return ship.visual;
 
@@ -416,15 +313,14 @@
   }
 
   function buildRoom(parent, opt) {
-    const tex = opt.deferTextures ? deferredTextured : textured;
-    const floor = tex(opt.floor, opt.floorColor);
-    const ceil = tex(opt.ceiling, opt.ceilingColor);
-    const left = tex(opt.left, opt.leftColor);
+    const floor = textured(opt.floor, opt.floorColor);
+    const ceil = textured(opt.ceiling, opt.ceilingColor);
+    const left = textured(opt.left, opt.leftColor);
     plane(parent, 0, -3.5, opt.z, opt.w, opt.len, -Math.PI / 2, 0, 0, floor);
     plane(parent, 0, 3.5, opt.z, opt.w, opt.len, Math.PI / 2, 0, 0, ceil);
     plane(parent, -opt.w / 2, 0, opt.z, opt.len, opt.h, 0, Math.PI / 2, 0, left);
     if (opt.right !== false) {
-      const right = tex(opt.right, opt.rightColor);
+      const right = textured(opt.right, opt.rightColor);
       plane(parent, opt.w / 2, 0, opt.z, opt.len, opt.h, 0, -Math.PI / 2, 0, right);
     }
     addRoofCorners(parent, opt.z, opt.w, opt.h);
@@ -437,210 +333,121 @@
     const group = new THREE.Group();
     group.name = "starbase-exterior-skeleton";
 
-    // Profile follows the actual mini-sim layout:
-    // Room 1 is narrow, the central dark void is a wider chamber,
-    // Room 2 narrows again. The black voidBox remains exactly as before.
-    const profile = [
-      { z0: 4,    z1: -24,  width: 13.2, height: 8.8,  panelStep: 7 },
-      { z0: -24,  z1: -49,  width: 22.0, height: 14.5, panelStep: 6 },
-      { z0: -49,  z1: -83,  width: 13.2, height: 8.8,  panelStep: 7 },
-      { z0: -83,  z1: -145, width: 20.0, height: 12.0, panelStep: 8 },
-      { z0: -145, z1: -205, width: 30.0, height: 18.0, panelStep: 10 }
-    ];
-
+    // Only the two real room tubes. The black central void is deliberately untouched.
+    // Outer skeleton is pushed ~1.5 units away from the room walls.
+    const width = 15.2;   // room width 12 -> 1.6 units clearance per side
+    const height = 10.2;  // room height 8 -> 1.1 units clearance top/bottom
+    const panelStep = 8;
     const frameMat = new THREE.MeshStandardMaterial({
       color: 0x242b33,
-      metalness: 0.70,
-      roughness: 0.34
+      metalness: 0.72,
+      roughness: 0.32
     });
 
-    function makeReducedMaterial(url) {
+    const materials = urls.map((url) => {
       const material = new THREE.MeshBasicMaterial({
-        color: 0x303943,
+        color: 0xffffff,
         side: THREE.DoubleSide,
         fog: false,
         toneMapped: false
       });
-
-      const finish = (source) => {
-        try {
-          const tex = new THREE.Texture(source);
-          applyTex(tex);
-          tex.needsUpdate = true;
-          material.map = tex;
-          material.color.set(0xffffff);
-          material.needsUpdate = true;
-        } catch (err) {
-          material.color.set(0x303943);
-          material.needsUpdate = true;
-        }
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const tex = new THREE.Texture(img);
+        applyTex(tex);
+        material.map = tex;
+        material.needsUpdate = true;
       };
-
-      enqueueLowPriorityImage(url, (img) => {
-        const max = backside.textureMax;
-        let w = img.naturalWidth || img.width || max;
-        let h = img.naturalHeight || img.height || max;
-        const scale = Math.min(1, max / Math.max(w, h));
-        const targetW = Math.max(1, Math.round(w * scale));
-        const targetH = Math.max(1, Math.round(h * scale));
-
-        try {
-          if (typeof createImageBitmap === "function") {
-            createImageBitmap(img, {
-              resizeWidth: targetW,
-              resizeHeight: targetH,
-              resizeQuality: "medium"
-            }).then((bitmap) => finish(bitmap))
-              .catch(() => finish(img));
-          } else {
-            const canvas = document.createElement("canvas");
-            canvas.width = targetW;
-            canvas.height = targetH;
-            const ctx = canvas.getContext("2d");
-            if (ctx) {
-              ctx.drawImage(img, 0, 0, targetW, targetH);
-              finish(canvas);
-            } else {
-              finish(img);
-            }
-          }
-        } catch (err) {
-          finish(img);
-        }
-      }, () => {
+      img.onerror = () => {
         material.color.set(0x303943);
         material.needsUpdate = true;
-      });
-
+      };
+      img.src = url;
       return material;
-    }
-
-    // Load each source once; all hull panels reuse these reduced materials.
-    const materials = urls.map(makeReducedMaterial);
-    backside.materials = materials;
+    });
 
     const panels = [];
 
-    function panel(material, x, y, z, w, h, rx, ry) {
+    const addPanel = (material, x, y, z, w, h, rx, ry) => {
       const mesh = plane(group, x, y, z, w, h, rx || 0, ry || 0, 0, material);
       mesh.name = "starbase-backside-panel-" + panels.length;
       panels.push({ mesh, material });
-    }
+    };
 
-    function rib(z, width, height) {
-      const r = new THREE.Group();
-      r.position.z = z;
+    const addTube = (z0, z1) => {
+      const centerZ = (z0 + z1) / 2;
+      const length = Math.abs(z1 - z0);
 
-      const left = new THREE.Mesh(new THREE.BoxGeometry(0.55, height, 0.55), frameMat);
-      left.position.x = -width / 2;
-      r.add(left);
+      const leftRail = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.65, length), frameMat);
+      leftRail.position.set(-width / 2, 0, centerZ);
+      group.add(leftRail);
 
-      const right = left.clone();
-      right.position.x = width / 2;
-      r.add(right);
+      const rightRail = leftRail.clone();
+      rightRail.position.x = width / 2;
+      group.add(rightRail);
 
-      const top = new THREE.Mesh(new THREE.BoxGeometry(width, 0.55, 0.55), frameMat);
-      top.position.y = height / 2;
-      r.add(top);
+      const topRail = new THREE.Mesh(new THREE.BoxGeometry(width, 0.65, length), frameMat);
+      topRail.position.set(0, height / 2, centerZ);
+      group.add(topRail);
 
-      const bottom = top.clone();
-      bottom.position.y = -height / 2;
-      r.add(bottom);
+      const bottomRail = topRail.clone();
+      bottomRail.position.y = -height / 2;
+      group.add(bottomRail);
 
-      group.add(r);
-    }
+      const count = Math.ceil(length / panelStep);
+      for (let i = 0; i < count; i++) {
+        const center = z0 - (i + 0.5) * (length / count);
+        const band = length / count;
+        const material = materials[panels.length % materials.length];
 
-    profile.forEach((part, partIndex) => {
-      const centerZ = (part.z0 + part.z1) / 2;
-      const span = Math.abs(part.z1 - part.z0);
-
-      // Outer plates. More, shorter plates follow the actual changes in the hull profile.
-      let row = 0;
-      for (let z = Math.max(part.z1 + 2, part.z0 - 2); z >= part.z1 + 2; z -= part.panelStep) {
-        const materialBase = (row + partIndex * 3) % materials.length;
-        const leftMat = materials[materialBase];
-        const rightMat = materials[(materialBase + 1) % materials.length];
-        const topMat = materials[(materialBase + 2) % materials.length];
-        const bottomMat = materials[(materialBase + 3) % materials.length];
-
-        panel(leftMat, -part.width / 2 - 0.03, 0, z, part.panelStep + 0.1, part.height * 0.86, 0, Math.PI / 2);
-        panel(rightMat, part.width / 2 + 0.03, 0, z, part.panelStep + 0.1, part.height * 0.86, 0, -Math.PI / 2);
-        panel(topMat, 0, part.height / 2 + 0.03, z, part.width * 0.90, part.panelStep + 0.1, Math.PI / 2, 0);
-        panel(bottomMat, 0, -part.height / 2 - 0.03, z, part.width * 0.90, part.panelStep + 0.1, -Math.PI / 2, 0);
-        row++;
+        addPanel(material, -width / 2 - 0.05, 0, center, band - 0.12, 7.4, 0, Math.PI / 2);
+        addPanel(material, width / 2 + 0.05, 0, center, band - 0.12, 7.4, 0, -Math.PI / 2);
+        addPanel(material, 0, height / 2 + 0.05, center, width - 1.0, band - 0.12, Math.PI / 2, 0);
+        addPanel(material, 0, -height / 2 - 0.05, center, width - 1.0, band - 0.12, -Math.PI / 2, 0);
       }
 
-      rib(part.z0, part.width, part.height);
-      rib(part.z1, part.width, part.height);
-    });
+      const ribAt = [z0, z1];
+      ribAt.forEach((z) => {
+        const rib = new THREE.Group();
+        rib.position.z = z;
 
-    // Transition collars make the widened central chamber read as part of one ship.
-    for (let i = 0; i < profile.length - 1; i++) {
-      const z = profile[i].z1;
-      const a = profile[i];
-      const b = profile[i + 1];
-      const collar = new THREE.Group();
-      collar.position.z = z;
-      const w0 = a.width / 2;
-      const w1 = b.width / 2;
-      const h0 = a.height / 2;
-      const h1 = b.height / 2;
-      const dz = 1.5;
+        const left = new THREE.Mesh(new THREE.BoxGeometry(0.6, height, 0.6), frameMat);
+        left.position.x = -width / 2;
+        rib.add(left);
 
-      [
-        [-1, -1],
-        [-1, 1],
-        [1, -1],
-        [1, 1]
-      ].forEach(([sx, sy]) => {
-        const beam = new THREE.Mesh(
-          new THREE.BoxGeometry(Math.max(0.55, w1 - w0), Math.max(0.55, h1 - h0), dz),
-          frameMat
-        );
-        beam.position.set(
-          sx * ((w0 + w1) / 2),
-          sy * ((h0 + h1) / 2),
-          0
-        );
-        beam.rotation.z = sy * 0.10;
-        collar.add(beam);
+        const right = left.clone();
+        right.position.x = width / 2;
+        rib.add(right);
+
+        const top = new THREE.Mesh(new THREE.BoxGeometry(width, 0.6, 0.6), frameMat);
+        top.position.y = height / 2;
+        rib.add(top);
+
+        const bottom = top.clone();
+        bottom.position.y = -height / 2;
+        rib.add(bottom);
+
+        group.add(rib);
       });
-      group.add(collar);
-    }
+    };
 
-    // Keep the bow readable around the start area.
-    const bow = new THREE.Group();
-    bow.position.z = 4;
-    const bw = profile[0].width;
-    const bh = profile[0].height;
-    const bowTop = new THREE.Mesh(new THREE.BoxGeometry(bw, 0.7, 0.8), frameMat);
-    bowTop.position.y = bh / 2;
-    bow.add(bowTop);
-    const bowBottom = bowTop.clone();
-    bowBottom.position.y = -bh / 2;
-    bow.add(bowBottom);
-    const bowLeft = new THREE.Mesh(new THREE.BoxGeometry(0.7, bh, 0.8), frameMat);
-    bowLeft.position.x = -bw / 2;
-    bow.add(bowLeft);
-    const bowRight = bowLeft.clone();
-    bowRight.position.x = bw / 2;
-    bow.add(bowRight);
-    group.add(bow);
+    // Room 1 tube only: z 4 .. -24.
+    addTube(4, -24);
+
+    // Room 2 tube only: z -49 .. -83.
+    addTube(-49, -83);
 
     parent.add(group);
     backside.panels = panels;
-    backside.nextAt = performance.now() + 2500;
+    backside.nextAt = performance.now() + 8000;
     randomizeBackside(performance.now());
   }
 
   function randomizeBackside(now) {
     if (!backside.panels.length) return;
 
-    const materials = backside.materials.length
-      ? backside.materials
-      : backside.panels.map((item) => item.material);
-
-    // Reassign, do not clone textures/materials.
+    const materials = backside.panels.map((item) => item.material);
     for (let i = materials.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       const tmp = materials[i];
@@ -649,12 +456,11 @@
     }
 
     backside.panels.forEach((item, index) => {
-      item.mesh.material = materials[index % materials.length];
-      item.material = materials[index % materials.length];
+      item.mesh.material = materials[index];
+      item.material = materials[index];
     });
 
-    // 2.5x faster than the previous ~10–19 s interval: now ~4–7.6 s.
-    backside.nextAt = now + 4000 + Math.random() * 3600;
+    backside.nextAt = now + 10000 + Math.random() * 9000;
   }
 
   function updateBacksideCamouflage(now) {
@@ -670,19 +476,10 @@
       floorColor: 0x46505b, ceilingColor: 0x8b9198,
       leftColor: 0x3b444f, rightColor: 0x343d47
     });
-    const room1RearCap = new THREE.Mesh(
-      new THREE.BoxGeometry(12.0, 8.0, 0.35),
-      new THREE.MeshBasicMaterial({ color: 0x05070a, side: THREE.DoubleSide })
-    );
-    room1RearCap.position.set(0, 0, 4.18);
-    room1RearCap.name = "room1-rear-star-cap";
-    world.add(room1RearCap);
-
     buildRoom(world, {
       z: -66, w: 12, len: 34, h: 8,
       floor: "wall2.png", ceiling: "roof1.png",
       left: "wall5.png", right: "wall1.png",
-      deferTextures: true,
       floorColor: 0x343d48, ceilingColor: 0x7c838c,
       leftColor: 0x48535e, rightColor: 0x3a444f
     });
@@ -739,34 +536,6 @@
     scene.add(returnGroup);
     returnDoor.mesh = returnGroup;
 
-    // Personnel animation: keep it inside Room 2, on the left wall, away from the start view.
-    createLiveInteriorPanel({
-      url: config.capdoorVideo,
-      fallback: "wall5.png",
-      x: -6.01,
-      y: 0.2,
-      z: -66,
-      width: 10.5,
-      height: 4.6,
-      ry: Math.PI / 2,
-      radius: 17,
-      name: "room2-personnel-live-wall"
-    });
-
-    // Important lower-right hull texture right after the Room 2 teleport.
-    createLiveInteriorPanel({
-      url: config.room2RightVideo,
-      fallback: "wall1.png",
-      x: 6.01,
-      y: -1.75,
-      z: -57,
-      width: 10.5,
-      height: 3.2,
-      ry: -Math.PI / 2,
-      radius: 22,
-      name: "room2-right-live-wall"
-    });
-
     const pgroup = new THREE.Group();
     pgroup.position.set(0, 0, portal.z);
     const pmatFront = textured("portal.png", 0x88aacc, THREE.FrontSide);
@@ -785,7 +554,6 @@
       video.playsInline = true;
       video.preload = "none";
       video.volume = 0;
-      try { video.fetchPriority = "low"; } catch (e) {}
 
       const texture = new THREE.VideoTexture(video);
       texture.minFilter = THREE.LinearFilter;
@@ -851,169 +619,6 @@
     createLiveWall();
   }
 
-  function createLiveInteriorMaterial(videoUrl, fallbackName, radius) {
-    if (!videoUrl) return null;
-    const material = textured(fallbackName, 0xffffff, THREE.DoubleSide);
-    const video = document.createElement("video");
-    video.crossOrigin = "anonymous";
-    video.muted = true;
-    video.loop = true;
-    video.playsInline = true;
-    video.preload = "none";
-    video.volume = 0;
-    try { video.fetchPriority = "low"; } catch (e) {}
-    try { video.fetchPriority = "low"; } catch (e) {}
-
-    const texture = new THREE.VideoTexture(video);
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.generateMipmaps = false;
-    if ("encoding" in texture && THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
-
-    const item = {
-      kind: "material",
-      el: video,
-      texture,
-      material,
-      mesh: null,
-      url: videoUrl,
-      radius: Number(radius) || 14,
-      loaded: false,
-      ready: false,
-      active: false,
-      error: false,
-      distance: 99
-    };
-
-    const reveal = () => {
-      if (item.ready || item.error) return;
-      item.ready = true;
-      material.map = texture;
-      material.color.set(0xffffff);
-      material.needsUpdate = true;
-    };
-    video.addEventListener("loadeddata", reveal);
-    video.addEventListener("canplay", reveal);
-    video.addEventListener("error", () => {
-      item.error = true;
-      item.active = false;
-    });
-
-    liveInterior.push(item);
-    return item;
-  }
-
-  function createLiveInteriorPanel(opts) {
-    if (!opts || !opts.url) return null;
-    const material = textured(opts.fallback || "wall1.png", opts.color || 0x46505b, THREE.DoubleSide);
-    const video = document.createElement("video");
-    video.crossOrigin = "anonymous";
-    video.muted = true;
-    video.loop = true;
-    video.playsInline = true;
-    video.preload = "none";
-    video.volume = 0;
-    try { video.fetchPriority = "low"; } catch (e) {}
-
-    const texture = new THREE.VideoTexture(video);
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.generateMipmaps = false;
-    if ("encoding" in texture && THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
-
-    const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(Number(opts.width) || 8.6, Number(opts.height) || 7.1),
-      material
-    );
-    mesh.position.set(Number(opts.x) || 6.01, Number(opts.y) || 0, Number(opts.z) || -55);
-    mesh.rotation.set(Number(opts.rx) || 0, Number(opts.ry) || 0, Number(opts.rz) || 0);
-    mesh.name = opts.name || "live-interior-panel";
-    scene.add(mesh);
-
-    const item = {
-      kind: "panel",
-      el: video,
-      texture,
-      material,
-      mesh,
-      url: opts.url,
-      radius: Number(opts.radius) || 18,
-      loaded: false,
-      ready: false,
-      active: false,
-      error: false,
-      distance: 99
-    };
-
-    const reveal = () => {
-      if (item.ready || item.error) return;
-      item.ready = true;
-      material.map = texture;
-      material.color.set(0xffffff);
-      material.needsUpdate = true;
-    };
-    video.addEventListener("loadeddata", reveal);
-    video.addEventListener("canplay", reveal);
-    video.addEventListener("error", () => {
-      item.error = true;
-      item.active = false;
-    });
-
-    liveInterior.push(item);
-    return item;
-  }
-
-  function updateLiveInterior() {
-    liveInterior.forEach((item) => {
-      if (!item.el || !item.mesh) return;
-
-      const worldPos = item.mesh.getWorldPosition(new THREE.Vector3());
-      item.distance = worldPos.distanceTo(ship.position);
-      const visible = running &&
-        !transitionBusy &&
-        !settings.open &&
-        item.distance <= item.radius &&
-        zoneIsOnScreen({ mesh: item.mesh });
-
-      if (visible) {
-        if (!item.loaded && item.url) {
-          item.el.src = item.url;
-          item.el.load();
-          item.loaded = true;
-        }
-        if (item.el.paused) {
-          const p = item.el.play();
-          if (p && p.catch) p.catch(() => {});
-        }
-        item.active = true;
-      } else {
-        if (!item.el.paused) item.el.pause();
-        item.active = false;
-        if (item.loaded && item.distance > item.radius * 1.8) {
-          item.el.pause();
-          item.el.removeAttribute("src");
-          item.el.load();
-          item.loaded = false;
-          item.ready = false;
-        }
-      }
-
-      if (interaction && item.ready && visible && item.distance < item.radius * 0.9) {
-        interaction.textContent =
-          "LIVE " + (item.kind === "panel" ? "WALL" : "DOOR") + " · " +
-          Math.round(Math.max(0, 100 - (item.distance / item.radius) * 100)) + "%";
-      }
-    });
-  }
-
-  function pauseLiveInterior() {
-    liveInterior.forEach((item) => {
-      if (!item.el) return;
-      item.el.pause();
-      item.active = false;
-    });
-  }
-
   function createLiveWall() {
     if (liveWall.mesh) return;
     const cfg = config.liveWall || {};
@@ -1045,9 +650,9 @@
     video.muted = true;
     video.loop = true;
     video.playsInline = true;
-    video.preload = "none";
+    video.preload = "auto";
     video.volume = 0;
-    try { video.fetchPriority = "low"; } catch (e) {}
+    video.src = cfg.url;
 
     const texture = new THREE.VideoTexture(video);
     texture.minFilter = THREE.LinearFilter;
@@ -1098,7 +703,10 @@
       liveWall.active = false;
     });
 
-    // Wall.mp4 stays lazy and loads only when the player is near and looking at it.
+    // Prime decoding early; until the first decoded frame the fallback image remains visible.
+    video.load();
+    const p = video.play();
+    if (p && p.catch) p.catch(() => {});
   }
 
   function liveWallOnScreen() {
@@ -1127,11 +735,6 @@
       liveWallOnScreen();
 
     if (visible) {
-      if (!liveWall.loaded && liveWall.url) {
-        liveWall.el.src = liveWall.url;
-        liveWall.el.load();
-        liveWall.loaded = true;
-      }
       if (liveWall.ready && liveWall.el.paused) {
         const p = liveWall.el.play();
         if (p && p.catch) p.catch(() => {});
@@ -1140,13 +743,6 @@
     } else {
       if (!liveWall.el.paused) liveWall.el.pause();
       liveWall.active = false;
-      if (liveWall.loaded && liveWall.distance > liveWall.radius * 1.8) {
-        liveWall.el.pause();
-        liveWall.el.removeAttribute("src");
-        liveWall.el.load();
-        liveWall.loaded = false;
-        liveWall.ready = false;
-      }
     }
 
     if (interaction && liveWall.ready && visible) {
@@ -1338,8 +934,6 @@
     // Start loading while the player keeps flying. Controls are locked only
     // after the first decoded frame is ready to be shown.
     transitionLoading = true;
-    // Portal video is the ideal low-load window: warm Room 2 and exterior textures in the background.
-    startLowPriorityImages(true);
     if (transitionRoot) {
       transitionRoot.classList.remove("ready");
       transitionRoot.hidden = true;
@@ -1348,7 +942,6 @@
     transitionVideo.muted = true;
     transitionVideo.playsInline = true;
     transitionVideo.preload = "auto";
-    try { transitionVideo.fetchPriority = "high"; } catch (e) {}
 
     const revealFirstFrame = () => {
       if (!transitionLoading) return;
@@ -1501,7 +1094,6 @@
       liveWall.el.pause();
       liveWall.active = false;
     }
-    pauseLiveInterior();
     cinema.nearest = null;
   }
 
@@ -1724,10 +1316,8 @@
     camera.position.copy(ship.position);
     camera.quaternion.copy(ship.quaternion);
     light.position.copy(ship.position);
-    if (ship.position.z < -48) startLowPriorityImages(false);
     updateCinemaZones();
     updateLiveWall();
-    updateLiveInterior();
     updateCinemaFocus();
     if (ship.visual) {
       ship.visual.position.copy(ship.position);
@@ -1772,10 +1362,8 @@
         liveWall.el.pause();
         liveWall.active = false;
       }
-      pauseLiveInterior();
     } else {
       updateLiveWall();
-      updateLiveInterior();
     }
   }
 
@@ -1934,7 +1522,6 @@
         if (wallPlay && wallPlay.catch) wallPlay.catch(() => {});
       }
       updateLiveWall();
-      updateLiveInterior();
       root.classList.add("game-active");
       startButton.classList.add("hidden");
       canvas.focus();
@@ -1967,10 +1554,9 @@
       stars.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
       scene.add(new THREE.Points(stars, new THREE.PointsMaterial({ color: 0xffffff, size: 0.6 })));
       buildWorld();
-      // No heavy exterior/Room 2 texture burst at spawn; queue stays background-only.
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.6.8");
+      setStatus("ENGINE READY · LOCAL r128 · 0.6.6");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
