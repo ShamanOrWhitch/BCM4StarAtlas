@@ -486,3 +486,58 @@
 .bcm-mini-sim-help-gamepad { display: none; }
 .bcm-mini-sim.gamepad-connected .bcm-mini-sim-help-keyboard { display: none; }
 .bcm-mini-sim.gamepad-connected .bcm-mini-sim-help-gamepad { display: block; }
+
+
+/* 0.7.6 mobile fullscreen and central screen-focus control */
+@media (pointer:coarse) and (orientation:landscape){
+    .bcm-mini-sim.game-active{
+        position:fixed;
+        inset:0;
+        width:100vw;
+        height:100dvh;
+        min-height:0;
+        max-height:none;
+        z-index:999999;
+        margin:0;
+    }
+    .bcm-mini-sim-mobile-focus{
+        display:block;
+        position:absolute;
+        left:50%;
+        top:50%;
+        transform:translate(-50%,-50%);
+        z-index:8;
+        width:46px;
+        height:46px;
+        padding:0;
+        border:1px solid rgba(255,255,255,.34);
+        border-radius:50%;
+        background:rgba(8,13,21,.34);
+        color:rgba(255,255,255,.82);
+        font-size:25px;
+        line-height:44px;
+        text-align:center;
+        pointer-events:auto;
+        touch-action:none;
+        -webkit-tap-highlight-color:transparent;
+        box-shadow:0 1px 8px rgba(0,0,0,.22);
+    }
+    .bcm-mini-sim-mobile-focus:active{
+        transform:translate(-50%,-50%) scale(.94);
+        background:rgba(30,42,56,.62);
+    }
+    .bcm-mini-sim-mobile button{
+        width:42px;
+        height:42px;
+        min-width:42px;
+        min-height:42px;
+        max-width:42px;
+        max-height:42px;
+        line-height:40px;
+    }
+    .bcm-mini-sim-mobile button[data-control="tilt"],
+    .bcm-mini-sim-mobile button[data-control="home"]{
+        width:56px;
+        max-width:56px;
+    }
+}
