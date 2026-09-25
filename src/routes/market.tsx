@@ -168,6 +168,12 @@ function MarketPage() {
             </p>
           )}
 
+          <BubbleField title="Ресурсы" rows={rows.filter((row) => row.ask != null)} previous={previous} />
+          <BubbleField title="Корабли в стакане" rows={(snap?.ships ?? []).filter((row) => row.ask != null)} previous={previous} />
+          <p className="text-sm text-muted">
+            Экипаж на Galactic Marketplace стаканом не торгуется. Карточки — NFT, их статы в метадате, пол — на Tensor. Пузырь цены экипажа без чужого архива был бы выдумкой.
+          </p>
+
           <div className="overflow-x-auto rounded-xl border border-line">
             <table className="w-full min-w-[36rem] border-collapse text-sm">
               <thead className="bg-surface-2 text-left text-faint">
@@ -204,6 +210,35 @@ function MarketPage() {
         </div>
       </div>
     </AppChrome>
+  );
+}
+
+function BubbleField({ title, rows, previous }: { title: string; rows: ResourceRow[]; previous?: TapePoint }) {
+  if (!rows.length) return null;
+  const shown = rows.slice(0, 42);
+  const max = Math.max(...shown.map((row) => Math.log10((row.askQty || 1) + 10)));
+  return (
+    <section>
+      <h2 className="mb-2 font-display text-sm tracking-[0.16em] text-brass uppercase">{title}</h2>
+      <div className="flex flex-wrap items-center gap-2">
+        {shown.map((row) => {
+          const change = deltaPct(row.ask, previous?.asks[row.mint]);
+          const size = 76 + (Math.log10((row.askQty || 1) + 10) / (max || 1)) * 48;
+          const tone = change == null ? "border-line text-muted" : change > 0 ? "border-danger text-danger" : "border-ok text-ok";
+          return (
+            <div
+              key={row.mint}
+              className={`flex flex-col items-center justify-center rounded-full border bg-surface px-2 text-center ${tone}`}
+              style={{ width: size, height: size }}
+            >
+              {row.image ? <img src={row.image} alt="" className="mb-1 size-6 rounded-full object-cover" /> : null}
+              <span className="line-clamp-2 font-display text-xs leading-tight text-fg">{row.name}</span>
+              <span className="font-mono text-[10px]">{change == null ? fmtAtlas(row.ask) : fmtPct(change)}</span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

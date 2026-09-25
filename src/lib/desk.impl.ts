@@ -160,7 +160,7 @@ export async function buildMarket(): Promise<MarketSnap> {
     connection.getProgramAccounts(new PublicKey(GM), {
       commitment: "confirmed",
       dataSlice: { offset: 40, length: 153 },
-      filters: [{ dataSize: 201 }],
+      filters: [{ dataSize: 201 }, { memcmp: { offset: 40, bytes: ATLAS } }],
     }),
     atlasCandles(),
   ]);
@@ -168,21 +168,35 @@ export async function buildMarket(): Promise<MarketSnap> {
   const book = readBook(orders, atlasHex);
 
   const resources: ResourceRow[] = [];
+  const ships: ResourceRow[] = [];
   for (const item of nfts.values()) {
-    if (item.kind !== "resource" || !CLASS_KEEP.has(item.className)) continue;
     const side = book.get(item.mint);
-    resources.push({
-      mint: item.mint,
-      name: item.name,
-      symbol: item.symbol,
-      className: item.className,
-      image: item.image,
-      ask: side?.ask ?? null,
-      bid: side?.bid ?? null,
-      askQty: side?.askQty ?? 0,
-    });
+    if (item.kind === "resource" && CLASS_KEEP.has(item.className)) {
+      resources.push({
+        mint: item.mint,
+        name: item.name,
+        symbol: item.symbol,
+        className: item.className,
+        image: item.image,
+        ask: side?.ask ?? null,
+        bid: side?.bid ?? null,
+        askQty: side?.askQty ?? 0,
+      });
+    } else if (item.kind === "ship" && side && (side.ask != null || side.bid != null)) {
+      ships.push({
+        mint: item.mint,
+        name: item.name,
+        symbol: item.symbol,
+        className: item.className,
+        image: item.image,
+        ask: side.ask,
+        bid: side.bid,
+        askQty: side.askQty,
+      });
+    }
   }
   resources.sort((a, b) => a.name.localeCompare(b.name, "en"));
+  ships.sort((a, b) => (a.ask ?? 0) - (b.ask ?? 0));
 
   const atlas: TokenQuote = {
     ...emptyQuote(),
@@ -207,8 +221,9 @@ export async function buildMarket(): Promise<MarketSnap> {
     atlas,
     polis,
     resources,
+    ships: ships.slice(0, 40),
     candles,
-    tape: pushTape(resources),
+    tape: pushTape([...resources, ...ships]),
     note: "Свечи ATLAS — общий рынок MEXC, 4 часа. Это не ноль внутри браузера. Ресурсы: лучшая цена стакана Galactic Marketplace в ATLAS. У Galaxy нет истории стакана, поэтому Δ ресурсов копится общим снимком сервера. USD — Jupiter.",
   };
   marketCache = { at: Date.now(), data };
@@ -330,21 +345,27 @@ function readBorshString(buf: Buffer, offset: number): { value: string; next: nu
   return { value, next: start + len };
 }
 
-function parseMeta(buf: Buffer): { name: string; uri: string } | null {
+function parseMeta(buf: Buffer): { name: string; symbol: string; uri: string } | null {
   if (buf.length < 70 || buf[0] !== 4) return null;
   try {
     const name = readBorshString(buf, 65);
     const symbol = readBorshString(buf, name.next);
     const uri = readBorshString(buf, symbol.next);
-    return { name: name.value, uri: uri.value };
+    return { name: name.value, symbol: symbol.value, uri: uri.value };
   } catch {
     return null;
   }
 }
 
 function safeHttps(uri: string): string | null {
+  let next = uri.trim();
+  if (next.startsWith("ipfs://")) {
+    next = `https://ipfs.io/ipfs/${next.slice(7).replace(/^ipfs\//, "")}`;
+  } else if (next.startsWith("ar://")) {
+    next = `https://arweave.net/${next.slice(5)}`;
+  }
   try {
-    const url = new URL(uri);
+    const url = new URL(next);
     if (url.protocol !== "https:") return null;
     const host = url.hostname.toLowerCase();
     if (host === "localhost" || host.endsWith(".local") || host === "0.0.0.0") return null;
@@ -377,6 +398,14 @@ function traitsFrom(json: unknown): WalletTrait[] {
     }
   }
   return out.slice(0, 24);
+}
+
+function isCrew(name: string, symbol: string, traits: WalletTrait[]): boolean {
+  if (/crew/i.test(symbol) || /crew/i.test(name)) return true;
+  const blob = traits.map((trait) => `${trait.trait} ${trait.value}`).join(" ").toLowerCase();
+  return /flight|command|engineering|hospitality|operator|medical|science|fitness|openness|conscient|extraver|agreeab|neurot|hair|species|ustur|punaab|sogmian|mierese/.test(
+    blob,
+  );
 }
 
 async function metaJson(uri: string): Promise<{ image: string; traits: WalletTrait[]; name: string } | null> {
@@ -443,7 +472,7 @@ export async function scanWallet(ownerText: string): Promise<WalletScan> {
     if (token.decimals === 0 && token.amount <= 20) pending.push(token);
   }
 
-  const metaTargets = pending.slice(0, 24);
+  const metaTargets = pending.slice(0, 32);
   const skippedMeta = Math.max(0, pending.length - metaTargets.length);
   if (metaTargets.length) {
     const pdas = metaTargets.map((token) => {
@@ -458,6 +487,7 @@ export async function scanWallet(ownerText: string): Promise<WalletScan> {
         let image = "";
         let traits: WalletTrait[] = [];
         let name = parsed?.name || token.mint.slice(0, 4) + "…" + token.mint.slice(-4);
+        const symbol = parsed?.symbol || "";
         if (parsed?.uri) {
           try {
             const extra = await metaJson(parsed.uri);
@@ -472,9 +502,7 @@ export async function scanWallet(ownerText: string): Promise<WalletScan> {
         }
         const known = catalog.get(token.mint);
         const kind: WalletItem["kind"] = known?.kind && known.kind !== "other" ? known.kind : traits.length || parsed ? "nft" : "nft";
-        const crewish = /crew|pilot|operator|hospitality|engineering|ustur|gummy|sogmian|hair|openness|ocean/i.test(
-          `${name} ${traits.map((t) => `${t.trait} ${t.value}`).join(" ")}`,
-        );
+        const crewish = isCrew(name, symbol, traits);
         return {
           mint: token.mint,
           amount: token.amount,
@@ -501,6 +529,6 @@ export async function scanWallet(ownerText: string): Promise<WalletScan> {
     skippedMeta,
     profiles: game.profiles,
     rpcWarning: game.warning,
-    note: "Подпись транзакции не нужна. Phantom только называет публичный адрес, реестр и так открыт. Здесь то, что лежит на ключе: SPL, Token-2022, ATLAS и POLIS. Уникальный экипаж — из метадаты NFT, не из Galaxy /nfts. Корабли и груз SAGE сидят во флоте и Cargo: ниже профили, если этот ключ записан первым, вторым или третьим. Содержимое трюма без отдельного разбора Cargo-аккаунта не видно.",
+    note: "Подпись не нужна. Экипаж, который ещё на ключе, читается как NFT: символ, метадата и ipfs. Документация @staratlas/crew — это паки и погашение, не статы карточки. Статы в JSON NFT. Если человек уже в крио SAGE, на адресе его нет, пока не выведен из Starbase Inventory.",
   };
 }

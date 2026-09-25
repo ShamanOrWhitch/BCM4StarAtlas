@@ -27,6 +27,7 @@ export type MarketSnap = {
   atlas: TokenQuote;
   polis: TokenQuote;
   resources: ResourceRow[];
+  ships: ResourceRow[];
   candles: Candle[];
   tape: TapePoint[];
   note: string;
