@@ -1492,8 +1492,31 @@
   function tiltLook() {
     if (!tilt.enabled || !tilt.available) return { pitch: 0, yaw: 0 };
 
-    const pitchOffset = Math.max(-35, Math.min(35, tilt.filteredB - tilt.neutralB));
-    const yawOffset = Math.max(-35, Math.min(35, tilt.filteredG - tilt.neutralG));
+    const beta = tilt.filteredB - tilt.neutralB;
+    const gamma = tilt.filteredG - tilt.neutralG;
+    const angleRaw = screen.orientation && typeof screen.orientation.angle === "number"
+      ? screen.orientation.angle
+      : (typeof window.orientation === "number" ? window.orientation : 90);
+    const angle = ((angleRaw % 360) + 360) % 360;
+
+    // Landscape rotates the deviceorientation axes relative to the screen.
+    // 90°: screen vertical comes from gamma; screen horizontal comes from beta.
+    // 270°: both axes reverse.
+    let screenVertical = beta;
+    let screenHorizontal = gamma;
+    if (angle === 90) {
+      screenVertical = -gamma;
+      screenHorizontal = -beta;
+    } else if (angle === 270) {
+      screenVertical = gamma;
+      screenHorizontal = beta;
+    } else if (angle === 180) {
+      screenVertical = -beta;
+      screenHorizontal = -gamma;
+    }
+
+    const pitchOffset = Math.max(-35, Math.min(35, screenVertical));
+    const yawOffset = Math.max(-35, Math.min(35, screenHorizontal));
     const dead = 4.0;
     const response = 30.0;
     const gain = 0.34;
@@ -2068,7 +2091,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.7.8");
+      setStatus("ENGINE READY · LOCAL r128 · 0.7.9");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
