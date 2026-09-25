@@ -825,7 +825,7 @@
       video.addEventListener("loadedmetadata", () => {
         if (!item.mesh || !video.videoWidth || !video.videoHeight) return;
         const mobileSize = window.matchMedia && window.matchMedia("(pointer: coarse) and (orientation: landscape)").matches
-          ? 1.45
+          ? 1.80
           : 1;
         const maxW = (zone.maxWidth || 6.8) * mobileSize;
         const maxH = (zone.maxHeight || 4.4) * mobileSize;
@@ -1685,21 +1685,69 @@
     return targets.length ? targets[0] : null;
   }
 
+  function focusVideoTarget(target) {
+    if (!target || !target.mesh || !target.active) {
+      setStatus("CINEMA · APPROACH A SCREEN");
+      return;
+    }
+    if (cinema.focus === target) {
+      cinema.focus = null;
+      setStatus("CINEMA FOCUS OFF");
+      return;
+    }
+    cinema.focus = target;
+    setStatus("MISSION · SCREEN CHECK · F / X TO RELEASE");
+  }
+
   function toggleCinemaFocus() {
     if (cinema.focus) {
       cinema.focus = null;
       setStatus("CINEMA FOCUS OFF");
       return;
     }
+    focusVideoTarget(getNearestVideoTarget());
+  }
 
-    const target = getNearestVideoTarget();
-    if (!target) {
-      setStatus("CINEMA · APPROACH A SCREEN");
-      return;
-    }
+  function orbitFocusedScreen(dt) {
+    if (!mobileLandscape() || !cinema.focus || !cinema.focus.mesh) return false;
+    const orbitDir = touch.yawLeft ? -1 : (touch.yawRight ? 1 : 0);
+    if (!orbitDir) return false;
+    const target = cinema.focus.mesh.getWorldPosition(new THREE.Vector3());
+    const offset = ship.position.clone().sub(target);
+    const distance = offset.length();
+    if (distance < 2.5) return false;
+    const step = orbitDir * 1.65 * Math.min(dt, 0.033);
+    offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), step);
+    ship.position.copy(target).add(offset);
+    ship.velocity.set(0, 0, 0);
+    collide();
+    return true;
+  }
 
-    cinema.focus = target;
-    setStatus("MISSION · SCREEN CHECK · F / X TO RELEASE");
+  function findVideoTargetAtPoint(clientX, clientY) {
+    if (!camera || !scene) return null;
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const pointer = new THREE.Vector2(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1
+    );
+    const candidates = [];
+    cinema.zones.forEach((item) => {
+      if (item && item.mesh && item.active && item.visible && item.mesh.visible !== false) candidates.push(item);
+    });
+    liveInterior.forEach((item) => {
+      if (item && item.mesh && item.active && item.ready && item.mesh.visible !== false) candidates.push(item);
+    });
+    if (liveWall && liveWall.mesh && liveWall.active && liveWall.ready && liveWall.mesh.visible !== false) candidates.push(liveWall);
+    if (!candidates.length) return null;
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(pointer, camera);
+    const meshes = candidates.map((item) => item.mesh);
+    const hits = raycaster.intersectObjects(meshes, false);
+    if (!hits.length) return null;
+    const mesh = hits[0].object;
+    return candidates.find((item) => item.mesh === mesh) || null;
   }
 
   function updateCinemaFocus() {
@@ -1728,7 +1776,7 @@
       strafe: (keys.KeyD || touch.right ? 1 : 0) - (keys.KeyA || touch.left ? 1 : 0) + pad.lx,
       vertical: (keys.Space || touch.up ? 1 : 0) - (keys.KeyC || touch.down ? 1 : 0) + pad.vert,
       roll: (keys.KeyE || touch.rollRight ? 1 : 0) - (keys.KeyQ || touch.rollLeft ? 1 : 0) + pad.roll,
-      yaw: (touch.yawLeft ? 1 : 0) - (touch.yawRight ? 1 : 0) + look.yaw + pad.rx * (settings.invertYaw ? 1 : -1),
+      yaw: (mobileLandscape() && cinema.focus ? 0 : ((touch.yawLeft ? 1 : 0) - (touch.yawRight ? 1 : 0) + look.yaw + pad.rx * (settings.invertYaw ? 1 : -1))),
       pitch: look.pitch
     };
   }
@@ -1770,11 +1818,12 @@
     ship.position.addScaledVector(ship.velocity, dt);
     collide();
 
+    const focusedOrbit = orbitFocusedScreen(dt);
     const mobileTiltMode = mobileLandscape() && tilt.enabled;
     if (mobileTiltMode) {
       const manualPitch = pad.ry * (settings.invertPitch ? 1 : -1);
       ship.angularVelocity.x = manualPitch * 0.85 + inn.pitch * 0.85;
-      ship.angularVelocity.y = inn.yaw * 0.85;
+      ship.angularVelocity.y = focusedOrbit ? 0 : inn.yaw * 0.85;
       ship.angularVelocity.z = inn.roll * 2.6;
     } else {
       const psign = settings.invertPitch ? 1 : -1;
@@ -1809,6 +1858,11 @@
     }
     if (portalSide() === "FRONT" && portal.coverage >= 0.69) tryPortal();
     if (portalSide() === "BACK" && portalTriggerDistance("BACK") <= 7.5) tryPortal();
+
+    if (mobileLandscape() && interaction && !transitionBusy) {
+      if (cinema.focus) interaction.textContent = "SCREEN LOCK · TAP VIDEO OFF · ◀ ▶ ORBIT";
+      else if (getNearestVideoTarget()) interaction.textContent = "TAP VIDEO · FOCUS · ◀ ▶";
+    }
 
     const room = ship.position.z < DEEP_SPACE_Z
       ? "DEEP SPACE"
@@ -1997,20 +2051,32 @@
 
     let dragPointerId = null;
     let dragX = 0, dragY = 0;
+    let dragMoved = false;
     canvas.addEventListener("pointerdown", (ev) => {
       if (!running || ev.pointerType === "mouse") return;
       dragPointerId = ev.pointerId;
       dragX = ev.clientX; dragY = ev.clientY;
+      dragMoved = false;
       canvas.setPointerCapture?.(ev.pointerId);
     });
     canvas.addEventListener("pointermove", (ev) => {
       if (!running || dragPointerId !== ev.pointerId || ev.pointerType === "mouse" || settings.open) return;
-      const dx = ev.clientX - dragX, dy = ev.clientY - dragY;
+      const prevX = dragX, prevY = dragY;
+      const dx = ev.clientX - prevX, dy = ev.clientY - prevY;
+      if (Math.abs(ev.clientX - prevX) > 7 || Math.abs(ev.clientY - prevY) > 7) dragMoved = true;
       dragX = ev.clientX; dragY = ev.clientY;
       ship.angularVelocity.y -= dx * 0.0011;
       ship.angularVelocity.x -= dy * 0.0010;
     });
-    const endDrag = (ev) => { if (dragPointerId === ev.pointerId) dragPointerId = null; };
+    const endDrag = (ev) => {
+      if (dragPointerId !== ev.pointerId) return;
+      if (!dragMoved && ev.pointerType !== "mouse" && !settings.open) {
+        const target = findVideoTargetAtPoint(ev.clientX, ev.clientY);
+        if (target) focusVideoTarget(target);
+      }
+      dragPointerId = null;
+      dragMoved = false;
+    };
     canvas.addEventListener("pointerup", endDrag);
     canvas.addEventListener("pointercancel", endDrag);
 
@@ -2106,7 +2172,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.8.4");
+      setStatus("ENGINE READY · LOCAL r128 · 0.8.5");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
