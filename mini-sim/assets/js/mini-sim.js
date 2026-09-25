@@ -1662,7 +1662,7 @@
     if (!cinema.mute) nearest.el.volume = Math.max(0, Math.min(1, settings.volume * filmGain));
     if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume * ostGain;
 
-    if (cinema.focus && cinema.focus !== nearest) cinema.focus = nearest;
+    // Keep an explicitly selected focus target until it leaves its own active radius.
     if (interaction) {
       interaction.textContent = nearest.distance <= near
         ? "CINEMA · 100% · OST 0%"
@@ -2105,7 +2105,7 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.8.0");
+      setStatus("ENGINE READY · LOCAL r128 · 0.8.1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
