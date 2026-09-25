@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.6.8
+# BCM Mini-Sim 0.6.6
 
 ## STOP — read this before another GPT rewrite
 
@@ -76,40 +76,23 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - The back-side trigger has priority in Room 2 and cannot accidentally use the forward portal trigger.
 
 
-### 0.6.6 scene/media additions
+### 0.6.5 scene/media additions
 - Live wall: `wall.mp4` is used as a full wall panel with `wall1.png` as a first-frame fallback until the video is decoded.
 - Cinema clips now use `i-dance-fin.mp4` and `Reshade-Rasta-Dance3.mp4` in place of the older clips.
 - Exterior starbase: a lightweight skeleton surrounds the open-space departure path with segmented outer panels using `back*.png` textures.
 - The exterior panels reuse a small set of loaded textures and periodically shuffle their assignments to create a camouflage effect.
 - The six backside PNGs belong in `mini-sim/assets/`; the root copies are not used.
 
-### 0.6.6
+### 0.6.5
 - The portal remains on the r128 implementation.
 - Front portal face: `portal.png`; rear portal face: `portal2.png`.
 - The first and return gates keep the existing door logic.
 - Exterior structure is deliberately lightweight so it does not replace the free-flight space with a heavy model.
 
 
-### 0.6.6 exterior optimization
-- The central black `voidBox` remains unchanged.
-- Exterior hull follows three profile sections: narrow Room 1, wider central chamber, narrow Room 2.
-- All `back*.png` images are loaded once and downscaled in memory to 256/384/512 px max dimension according to available device memory/CPU threads.
-- More `back*.png` files are automatically picked up from `mini-sim/assets/` without JS changes.
-- Camouflage reassignment interval is now about 4–7.6 seconds.
-
-### 0.6.7 live interior media
-- Room 1 now has a rear cap so the global starfield is hidden directly behind the starting position.
-- `capdoor.mp4` is applied to the existing first-door leaves, so the original slide/wipe/iris door motion remains unchanged.
-- `door-wallbotright.mp4` is a lazy-loaded live panel on the right wall just after the Room 2 portal exit.
-- `Wall.mp4` is local-first through the asset registry; the previous external `wall.mp4` remains a temporary fallback until the local file is uploaded.
-- Interior live videos are muted, decoded only near/on-screen, and released again when the player moves away.
-- `back*.png` discovery remains automatic from `mini-sim/assets/`.
-
-### 0.6.8 room2 media and exterior loading
-- The first door is back to the real `door2.png` leaves; `capdoor.mp4` is no longer used as the door surface.
-- `capdoor.mp4` is now a separate low-priority personnel video on the left wall of Room 2.
-- `door-wallbotright.mp4` is a smaller lower-right overlay on the existing `wall1.png` texture immediately after the Room 2 teleport.
-- The exterior `back*.png` hull continues past the Room 2 boundary into the free-flight section instead of ending at `z=-83`.
-- Room 2 static textures and exterior `back*.png` textures use a two-at-a-time, low-fetch-priority background queue; portal cutscenes explicitly start that queue while their video is playing.
-- Live interior videos use muted lazy playback and low fetch priority. Portal transition video keeps high fetch priority so travel remains responsive.
-- The black central `voidBox` remains unchanged.
+### 0.6.6 geometry rollback
+- Restored the 0.6.5 scene/controls/doors/portal logic.
+- Exterior `back*.png` skeleton now wraps only Room 1 and Room 2.
+- The central black `voidBox` remains black and completely untextured.
+- Exterior skeleton is offset outward from the inner room surfaces by roughly 1–1.6 scene units.
+- No extended hull corridor is generated beyond Room 2.
