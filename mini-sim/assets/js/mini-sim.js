@@ -244,6 +244,10 @@
     stars: null,
     visible: false
   };
+  const starbaseHull = [
+    { zMin: -25.5, zMax: 5.5, outerX: 16.0, outerY: 12.0 },
+    { zMin: -84.5, zMax: -47.5, outerX: 16.0, outerY: 12.0 }
+  ];
   const impact = {
     overlay: null,
     light: null,
@@ -620,14 +624,15 @@
     const group = new THREE.Group();
     group.name = "starbase-exterior-skeleton";
 
-    // Exterior-only shell around the two existing short room tubes.
-    // It is deliberately pulled away from the interior on X/Y and slightly beyond both Z ends.
+    // Exact outer envelope used by the back*.png shell.
+    // The black-hole gap remains open between the two room shells.
     const width = 26.0;
     const height = 18.0;
-    const clearanceX = 3.0;
-    const clearanceY = 3.0;
+    const outerX = width / 2 + 3.0;
+    const outerY = height / 2 + 3.0;
     const rail = 0.42;
     const panelGap = 0.16;
+    const panelFill = 0.10;
 
     const frameMat = new THREE.MeshStandardMaterial({
       color: 0x242b33,
@@ -681,20 +686,26 @@
       const ring = new THREE.Group();
       ring.position.z = z;
 
-      const left = new THREE.Mesh(new THREE.BoxGeometry(rail, height + rail, rail), frameMat);
-      left.position.x = -width / 2;
+      const left = new THREE.Mesh(
+        new THREE.BoxGeometry(rail, height + rail, rail),
+        frameMat
+      );
+      left.position.x = -outerX - 0.18;
       ring.add(left);
 
       const right = left.clone();
-      right.position.x = width / 2;
+      right.position.x = outerX + 0.18;
       ring.add(right);
 
-      const top = new THREE.Mesh(new THREE.BoxGeometry(width + rail, rail, rail), frameMat);
-      top.position.y = height / 2;
+      const top = new THREE.Mesh(
+        new THREE.BoxGeometry(width + rail + 6.36, rail, rail),
+        frameMat
+      );
+      top.position.y = outerY + 0.18;
       ring.add(top);
 
       const bottom = top.clone();
-      bottom.position.y = -height / 2;
+      bottom.position.y = -outerY - 0.18;
       ring.add(bottom);
 
       group.add(ring);
@@ -705,14 +716,19 @@
       const section = 7;
       const count = Math.max(3, Math.ceil(length / section));
       const band = length / count;
+      const panelHeight = height + 2.0 * 3.0 - panelFill;
+      const panelWidth = width + 2.0 * 3.0 - panelFill;
 
       [
-        [-width / 2, -height / 2],
-        [-width / 2,  height / 2],
-        [ width / 2, -height / 2],
-        [ width / 2,  height / 2]
+        [-outerX - 0.18, -outerY - 0.18],
+        [-outerX - 0.18,  outerY + 0.18],
+        [ outerX + 0.18, -outerY - 0.18],
+        [ outerX + 0.18,  outerY + 0.18]
       ].forEach(([x, y]) => {
-        const beam = new THREE.Mesh(new THREE.BoxGeometry(rail, rail, length), frameMat);
+        const beam = new THREE.Mesh(
+          new THREE.BoxGeometry(rail, rail, length),
+          frameMat
+        );
         beam.position.set(x, y, (z0 + z1) / 2);
         group.add(beam);
       });
@@ -724,21 +740,34 @@
         if (i >= count) continue;
 
         const center = z - band / 2;
-        const panelWidth = band - panelGap;
+        const segmentWidth = band - panelGap;
         const left = materials[i % materials.length];
         const right = materials[(i + 1) % materials.length];
         const top = materials[(i + 2) % materials.length];
         const bottom = materials[(i + 3) % materials.length];
 
-        // FrontSide + outward normals: these panels cannot be seen from inside Room 1/2.
-        addPanel(left, -width / 2 - clearanceX, 0, center, panelWidth, height - 1.05, 0, -Math.PI / 2);
-        addPanel(right, width / 2 + clearanceX, 0, center, panelWidth, height - 1.05, 0, Math.PI / 2);
-        addPanel(top, 0, height / 2 + clearanceY, center, width - 1.0, panelWidth, -Math.PI / 2, 0);
-        addPanel(bottom, 0, -height / 2 - clearanceY, center, width - 1.0, panelWidth, Math.PI / 2, 0);
+        // Main four skins: almost full coverage, with a thin structural edge remaining visible.
+        addPanel(left, -outerX, 0, center, segmentWidth, panelHeight, 0, -Math.PI / 2);
+        addPanel(right, outerX, 0, center, segmentWidth, panelHeight, 0, Math.PI / 2);
+        addPanel(top, 0, outerY, center, panelWidth, segmentWidth, -Math.PI / 2, 0);
+        addPanel(bottom, 0, -outerY, center, panelWidth, segmentWidth, Math.PI / 2, 0);
+
+        // Fill the old 0.16 gaps between adjacent texture bands.
+        const bandZ = z - 0.5 * panelGap;
+        addPanel(left, -outerX, 0, bandZ, panelGap + 0.04, panelHeight, 0, -Math.PI / 2);
+        addPanel(right, outerX, 0, bandZ, panelGap + 0.04, panelHeight, 0, Math.PI / 2);
+        addPanel(top, 0, outerY, bandZ, panelWidth, panelGap + 0.04, -Math.PI / 2, 0);
+        addPanel(bottom, 0, -outerY, bandZ, panelWidth, panelGap + 0.04, Math.PI / 2, 0);
       }
+
+      // End caps close the outer shell without closing the black-hole flight space itself.
+      const capA = materials[0];
+      const capB = materials[materials.length > 1 ? 1 : 0];
+      addPanel(capA, 0, 0, z0, panelWidth, panelHeight, 0, 0);
+      addPanel(capB, 0, 0, z1, panelWidth, panelHeight, 0, Math.PI);
     }
 
-    // Only Room 1 and Room 2. The black central void gets no external texture skin.
+    // Only Room 1 and Room 2. BLACK HOLE remains open between them.
     addTube(5.5, -25.5);
     addTube(-47.5, -84.5);
 
@@ -748,7 +777,8 @@
     randomizeBackside(performance.now());
   }
 
-  function randomizeBackside(now) {
+
+function randomizeBackside(now) {
     if (!backside.panels.length) return;
 
     const materials = backside.panels.map((item) => item.material);
@@ -2009,35 +2039,52 @@
   }
 
   function collide() {
-    const beforeX = ship.position.x;
-    const beforeY = ship.position.y;
-    const beforeZ = ship.position.z;
+    const before = ship.position.clone();
 
-    const insideCorridor = Math.abs(ship.position.x) <= 5.3 && Math.abs(ship.position.y) <= 3.2;
+    // Interior corridor limits remain active only while the ship is inside the room.
+    const insideRoom1 = before.z >= -24.5 && before.z <= 5.5;
+    const insideRoom2 = before.z >= -84.5 && before.z <= -47.5;
+    const insideCorridor = Math.abs(before.x) <= 5.3 && Math.abs(before.y) <= 3.2;
 
-    if (ship.position.z > -24.5) {
-      // Keep the original Room 1 interior boundaries, but only while the ship is actually inside.
-      if (insideCorridor) {
-        ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
-        ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
+    if ((insideRoom1 || insideRoom2) && insideCorridor) {
+      ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
+      ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
+    }
+
+    // Outer shell collision follows the exact back*.png envelope.
+    // Crossing from outside -> inside is blocked; inside -> outside remains possible.
+    starbaseHull.forEach((hull) => {
+      if (before.z < hull.zMin || before.z > hull.zMax) return;
+
+      if (before.x < -hull.outerX && ship.position.x >= -hull.outerX) {
+        ship.position.x = -hull.outerX - 0.02;
+      } else if (before.x > hull.outerX && ship.position.x <= hull.outerX) {
+        ship.position.x = hull.outerX + 0.02;
       }
-    } else if (ship.position.z >= DEEP_SPACE_Z) {
-      // Room 2 / BLACK HOLE: interior is bounded only while the ship remains in the corridor.
-      // Crossing any side/floor/ceiling edge switches naturally into open exterior flight.
-      if (insideCorridor) {
-        ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
-        ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
+
+      if (before.y < -hull.outerY && ship.position.y >= -hull.outerY) {
+        ship.position.y = -hull.outerY - 0.02;
+      } else if (before.y > hull.outerY && ship.position.y <= hull.outerY) {
+        ship.position.y = hull.outerY + 0.02;
       }
-    } else {
-      // Deep Space is a large open volume around the whole starbase.
+
+      if (before.z > hull.zMax && ship.position.z <= hull.zMax) {
+        ship.position.z = hull.zMax + 0.02;
+      } else if (before.z < hull.zMin && ship.position.z >= hull.zMin) {
+        ship.position.z = hull.zMin - 0.02;
+      }
+    });
+
+    // Global open-space limits.
+    if (ship.position.z < DEEP_SPACE_Z) {
       ship.position.x = Math.max(-58, Math.min(58, ship.position.x));
       ship.position.y = Math.max(-34, Math.min(34, ship.position.y));
       ship.position.z = Math.max(DEEP_SPACE_MIN_Z, Math.min(DEEP_SPACE_Z - 0.1, ship.position.z));
     }
 
-    const blockedX = beforeX !== ship.position.x;
-    const blockedY = beforeY !== ship.position.y;
-    const blockedZ = beforeZ !== ship.position.z;
+    const blockedX = before.x !== ship.position.x;
+    const blockedY = before.y !== ship.position.y;
+    const blockedZ = before.z !== ship.position.z;
 
     if (blockedX || blockedY || blockedZ) {
       const speed = ship.velocity.length();
