@@ -771,7 +771,7 @@
     if (now >= backside.nextAt) randomizeBackside(now);
   }
 
-  function buildDeepSpaceStarbase(parent) {
+  function buildSpaceSatellite(parent) {
     const group = new THREE.Group();
     group.name = "space-satellite";
     group.position.set(0, 0, -155);
@@ -895,7 +895,7 @@
     spaceSatellite.stars = starField;
   }
 
-  function updateDeepSpaceStarbaseVisibility() {
+  function updateSpaceSatelliteVisibility() {
     const visible = !!ship.position && ship.position.z < DEEP_SPACE_Z - 4;
     if (spaceSatellite.group) spaceSatellite.group.visible = visible;
     if (spaceSatellite.stars) spaceSatellite.stars.visible = visible;
@@ -932,7 +932,7 @@
     // the starbase and inspect the exterior without hitting a visual shell.
 
     buildStarbaseExterior(world);
-    buildDeepSpaceStarbase(world);
+    buildSpaceSatellite(world);
 
     const dock = new THREE.Mesh(
       new THREE.BoxGeometry(1.4, 1.4, 0.12),
@@ -2065,7 +2065,7 @@
     if (ship.velocity.length() > ship.maxSpeed) ship.velocity.setLength(ship.maxSpeed);
     ship.position.addScaledVector(ship.velocity, dt);
     collide();
-    updateDeepSpaceStarbaseVisibility();
+    updateSpaceSatelliteVisibility();
     updateCollisionImpact(dt);
 
     const focusedOrbit = orbitFocusedScreen(dt);
