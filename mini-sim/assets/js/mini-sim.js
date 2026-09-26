@@ -913,6 +913,7 @@
     world.add(deepSpaceBox);
 
     buildStarbaseExterior(world);
+    buildDeepSpaceStarbaseSkeleton(world);
 
     const dock = new THREE.Mesh(
       new THREE.BoxGeometry(1.4, 1.4, 0.12),
