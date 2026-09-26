@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.9.4
+# BCM Mini-Sim 0.9.5
 
 ## STOP — read this before another GPT rewrite
 
@@ -279,3 +279,10 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - Structural rails are aligned directly along the textured shell edges.
 - Exterior collision is one-way: approaching the back-texture shell from open space cannot pass through it, while leaving an interior/existing hull volume outward remains possible.
 - The BLACK HOLE gap stays open; it does not receive the Room 1/Room 2 outer shell.
+
+### 0.9.5 panel visibility / corridor collision
+- Exterior `back*.png` panels now use normal depth testing and stay hidden until the ship is actually in Deep Space, preventing them from appearing as a screen overlay at launch.
+- BLACK HOLE has no textured end caps; the gap between Room 1 and Room 2 remains visually open.
+- Room 1 / Room 2 / BLACK HOLE corridor bounds are restored as physical interior limits; exterior flight begins in Deep Space through the portal.
+- Re-entry from Deep Space into the back-texture hull is blocked by the external shell envelope.
+- Default Speed 1 is reduced to thrust 15.5 and max speed 32; Speed 2 remains the stored fast mode.
