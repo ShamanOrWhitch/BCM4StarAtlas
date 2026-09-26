@@ -1,4 +1,10 @@
-# BCM Mini-Sim 0.9.12
+# BCM Mini-Sim 0.9.13
+
+### 0.9.13 Deep Space map cleanup
+- Removed the artificial Deep Space navigation box at X ±72, Y ±46, Z -160..46.
+- BLACK HOLE and DEEP SPACE are now open volumes without hidden rectangular map walls.
+- Physical collision with the actual starbase exterior shell remains active, so this does not restore global noclip.
+
 
 ## STOP — read this before another GPT rewrite
 
