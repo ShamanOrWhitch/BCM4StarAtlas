@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.9.7
+# BCM Mini-Sim 0.9.8
 
 ## STOP — read this before another GPT rewrite
 
@@ -299,3 +299,12 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - Boundary checks handle exact contact with the shell and side/top/bottom edges.
 - The collision envelope is slightly outside the texture plane so the ship cannot visibly clip into the shell.
 - BLACK HOLE remains open and has no back-texture cap.
+
+### 0.9.8 iOS / portal / hull polish
+- iOS/iPadOS startup no longer requests motion permission or fullscreen automatically; the `TILT` button remains the explicit gesture for sensor permission. The mini-sim also waits for DOM ready before booting, avoiding early Safari/WordPress script timing failures.
+- Local and transition videos explicitly set muted + playsinline/`webkit-playsinline` attributes for iOS video playback.
+- The portal surface now fills the corridor wall at approximately 11.8×7.0 scene units.
+- Door and return-door geometry are widened and resized to fit the 12-unit corridor more accurately.
+- Exterior back textures are divided into smaller ~4.5-unit bands, with each panel changing independently on a staggered roughly 0.8–3.0 second timer.
+- Only the true outer rear ends of Room 1 and Room 2 receive `back*.png` caps; BLACK HOLE-facing ends remain open.
+- Room 1's rear cap surrounds/backs the exterior side of `capdoor.mp4` with the back-texture shell.
