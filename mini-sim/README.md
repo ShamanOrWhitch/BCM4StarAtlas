@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.9.8
+# BCM Mini-Sim 0.9.9
 
 ## STOP — read this before another GPT rewrite
 
@@ -308,3 +308,11 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - Exterior back textures are divided into smaller ~4.5-unit bands, with each panel changing independently on a staggered roughly 0.8–3.0 second timer.
 - Only the true outer rear ends of Room 1 and Room 2 receive `back*.png` caps; BLACK HOLE-facing ends remain open.
 - Room 1's rear cap surrounds/backs the exterior side of `capdoor.mp4` with the back-texture shell.
+
+### 0.9.9 BLACK HOLE open volume / physical exterior hull
+- Removed the finite black-hole `voidBox`; BLACK HOLE is now a true open 3D volume with no rectangular visual boundary.
+- INSIDE, BLACK HOLE, and OUTSIDE are treated as separate spatial zones instead of switching the whole game into noclip.
+- BLACK HOLE allows free X/Y flight; entering/leaving Room 1 and Room 2 is through the actual corridor openings.
+- OUTSIDE keeps real movement limits plus rigid collision against the external back-texture hull; it is not global noclip.
+- The Room 2 rear cap remains a one-way exit from INSIDE to OUTSIDE; re-entry through that back-texture cap is blocked.
+- back*.png exterior textures are hidden while in BLACK HOLE and shown again only in DEEP SPACE.
