@@ -197,6 +197,7 @@
     mesh: null,
     left: null,
     right: null,
+    leaf: null,
     away: 0,
     style: "slide"
   };
@@ -210,6 +211,7 @@
     mesh: null,
     left: null,
     right: null,
+    leaf: null,
     away: 0,
     style: "slide"
   };
@@ -629,7 +631,7 @@
 
   function buildStarbaseExterior(parent) {
     const allUrls = Array.isArray(backside.urls) ? backside.urls.filter(Boolean) : [];
-    const urls = isMobileTextureMode() ? allUrls.slice(0, 4) : allUrls;
+    const urls = isMobileTextureMode() ? allUrls.slice(0, 8) : allUrls;
     if (!urls.length) return;
 
     const group = new THREE.Group();
@@ -644,14 +646,13 @@
 
     // Primary structural frame: keep the strong corridor ribs.
     const rail = 0.42;
-    const secondaryRail = 0.24;
-    const panelGap = 0.16;
-    const crossGap = 0.14;
-    const panelFill = 0.10;
-    const sideRows = 3;
-    const roofCols = 3;
-    const capRows = 3;
-    const capCols = 3;
+    const panelGap = 0.0;
+    const crossGap = 0.0;
+    const panelFill = 0.0;
+    const sideRows = 4;
+    const roofCols = 4;
+    const capRows = 4;
+    const capCols = 4;
 
     const frameMat = new THREE.MeshStandardMaterial({
       color: 0x242b33,
@@ -732,37 +733,6 @@
       group.add(ring);
     }
 
-    function addSideCrossRibs(z, segmentWidth) {
-      for (let row = 1; row < sideRows; row++) {
-        const y = -outerY + 0.18 + ((panelHeightForRibs()) * row / sideRows);
-        [-outerX - 0.03, outerX + 0.03].forEach((x) => {
-          const rib = new THREE.Mesh(
-            new THREE.BoxGeometry(secondaryRail, secondaryRail, segmentWidth + 0.06),
-            frameMat
-          );
-          rib.position.set(x, y, z);
-          group.add(rib);
-        });
-      }
-    }
-
-    function panelHeightForRibs() {
-      return height + 2.0 * 3.0 - panelFill;
-    }
-
-    function addTopCrossRibs(z, segmentWidth, y) {
-      const panelWidth = width + 2.0 * 3.0 - panelFill;
-      for (let col = 1; col < roofCols; col++) {
-        const x = -outerX + 0.18 + ((panelWidth) * col / roofCols);
-        const rib = new THREE.Mesh(
-          new THREE.BoxGeometry(secondaryRail, secondaryRail, segmentWidth + 0.06),
-          frameMat
-        );
-        rib.position.set(x, y, z);
-        group.add(rib);
-      }
-    }
-
     function addTube(z0, z1) {
       const length = Math.abs(z1 - z0);
       const section = 4.5;
@@ -817,10 +787,6 @@
           addPanel(bottom, x, -outerY, center, roofCellW, segmentWidth, Math.PI / 2, 0);
         }
 
-        // Secondary ribs sit directly over the new horizontal/side seams.
-        addSideCrossRibs(center, segmentWidth);
-        addTopCrossRibs(center, segmentWidth, outerY);
-        addTopCrossRibs(center, segmentWidth, -outerY);
       }
 
       // Only the true outside-facing rear ends are capped with back*.png.
@@ -840,26 +806,6 @@
           }
         }
 
-        // Keep the cap structurally framed rather than turning it into a single flat texture.
-        for (let row = 1; row < capRows; row++) {
-          const y = -capHeight / 2 + (capHeight * row / capRows);
-          const rib = new THREE.Mesh(
-            new THREE.BoxGeometry(capWidth, secondaryRail, rail),
-            frameMat
-          );
-          rib.position.set(0, y, z + (rotationY ? -0.02 : 0.02));
-          group.add(rib);
-        }
-
-        for (let col = 1; col < capCols; col++) {
-          const x = -capWidth / 2 + (capWidth * col / capCols);
-          const rib = new THREE.Mesh(
-            new THREE.BoxGeometry(secondaryRail, capHeight, rail),
-            frameMat
-          );
-          rib.position.set(x, 0, z + (rotationY ? -0.02 : 0.02));
-          group.add(rib);
-        }
       }
 
       if (z0 > 0) {
@@ -1086,10 +1032,10 @@
     box(group, 0, -3.45, 0, 11.8, 0.45, 0.7, frame);
     box(group, -5.9, 0, 0, 0.45, 6.8, 0.7, frame);
     box(group, 5.9, 0, 0, 0.45, 6.8, 0.7, frame);
-    const dmatL = textured("door2.png", 0xffffff);
-    const dmatR = textured("door2.png", 0xffffff);
-    door.left = plane(group, -2.9, 0, -0.35, 5.8, 6.8, 0, 0, 0, dmatL);
-    door.right = plane(group, 2.9, 0, -0.35, 5.8, 6.8, 0, 0, 0, dmatR);
+    const dmat = textured("door2.png", 0xffffff);
+    door.leaf = plane(group, 0, 0, -0.35, 11.6, 6.8, 0, 0, 0, dmat);
+    door.left = door.leaf;
+    door.right = null;
     scene.add(group);
     door.mesh = group;
 
@@ -1099,10 +1045,10 @@
     box(returnGroup, 0, -3.45, 0, 11.8, 0.45, 0.7, frame);
     box(returnGroup, -5.9, 0, 0, 0.45, 6.8, 0.7, frame);
     box(returnGroup, 5.9, 0, 0, 0.45, 6.8, 0.7, frame);
-    const rmatL = textured("door3.png", 0xffffff);
-    const rmatR = textured("door3.png", 0xffffff);
-    returnDoor.left = plane(returnGroup, -2.9, 0, 0.35, 5.8, 6.8, 0, Math.PI, 0, rmatL);
-    returnDoor.right = plane(returnGroup, 2.9, 0, 0.35, 5.8, 6.8, 0, Math.PI, 0, rmatR);
+    const rmat = textured("door3.png", 0xffffff);
+    returnDoor.leaf = plane(returnGroup, 0, 0, 0.35, 11.6, 6.8, 0, Math.PI, 0, rmat);
+    returnDoor.left = returnDoor.leaf;
+    returnDoor.right = null;
     scene.add(returnGroup);
     returnDoor.mesh = returnGroup;
 
@@ -1510,24 +1456,22 @@
   }
 
   function applyDoorUnit(unit, p) {
-    if (!unit.left || !unit.right) return;
+    const leaf = unit.leaf || unit.left;
+    if (!leaf) return;
     const t = Math.max(0, Math.min(1, p));
     const baseZ = unit === returnDoor ? 0.35 : -0.35;
-    unit.left.position.set(-2.9, 0, baseZ);
-    unit.right.position.set(2.9, 0, baseZ);
-    unit.left.scale.set(1, 1, 1);
-    unit.right.scale.set(1, 1, 1);
+    leaf.position.set(0, 0, baseZ);
+    leaf.scale.set(1, 1, 1);
 
+    // One full-width textured door leaf. It can slide, wipe upward, or disappear
+    // toward the center, but it is never split into two visible doors.
     if (unit.style === "iris") {
       const sc = Math.max(0.02, 1 - t);
-      unit.left.scale.set(sc, sc, 1);
-      unit.right.scale.set(sc, sc, 1);
+      leaf.scale.set(sc, sc, 1);
     } else if (unit.style === "wipe") {
-      unit.left.position.y = 3.4 * t;
-      unit.right.position.y = -3.4 * t;
+      leaf.position.y = 6.8 * t;
     } else {
-      unit.left.position.x = -2.9 - 5.8 * t;
-      unit.right.position.x = 2.9 + 5.8 * t;
+      leaf.position.x = -11.8 * t;
     }
   }
 
@@ -1835,7 +1779,7 @@
     pad.ry = dz(ax[3] || 0, 0.14);
     const btn = (n) => !!(gp.buttons && gp.buttons[n] && (gp.buttons[n].pressed || gp.buttons[n].value > 0.5));
     pad.roll = (btn(5) ? 1 : 0) - (btn(4) ? 1 : 0);
-    pad.vert = (btn(6) ? 1 : 0) - (btn(7) ? 1 : 0);
+    pad.vert = (btn(7) ? 1 : 0) - (btn(6) ? 1 : 0);
     const edge = (n, fn) => {
       const on = btn(n);
       if (on && !pad.prev[n] && running) fn();
@@ -2243,28 +2187,22 @@
     const before = ship.position.clone();
     const zone = getSpaceZone(before.z);
 
-    // Entering BLACK HOLE from an interior corridor releases X/Y restrictions.
-    // Moving far enough sideways in BLACK HOLE means we are now looking at the
-    // external layer of the starbase, but BLACK HOLE itself stays unrestricted.
-    if (!exteriorFlight && zone === "BLACK_HOLE" &&
-        (Math.abs(before.x) > 6.0 || Math.abs(before.y) > 4.0)) {
-      exteriorFlight = true;
-    }
-
-    if (!exteriorFlight && zone === "ROOM1") {
+    // BLACK HOLE is the only intentionally open transition volume.
+    // Once back inside either corridor, normal corridor collision is ALWAYS active.
+    if (zone === "ROOM1") {
+      exteriorFlight = false;
       ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
       ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
 
-      // Room 1 rear/cap is closed. Front opens into BLACK HOLE.
       if (ship.position.z > 5.45) ship.position.z = 5.45;
       if (before.z < -24.5 && ship.position.z >= -24.5) {
         ship.position.z = -24.46;
       }
-    } else if (!exteriorFlight && zone === "ROOM2") {
+    } else if (zone === "ROOM2") {
+      exteriorFlight = false;
       ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
       ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
 
-      // Room 2 rear is the deliberate one-way exterior exit.
       if (ship.position.z < -84.5) {
         exteriorFlight = true;
       }
@@ -2272,8 +2210,13 @@
         ship.position.z = -47.46;
       }
     } else {
-      // BLACK HOLE and OUTSIDE are both real free-flight volumes.
-      // Their movement is not noclip: the actual back*.png shell remains physical.
+      // BLACK HOLE and DEEP SPACE are free-flight volumes, but NOT global noclip.
+      // Only the actual starbase outer shell can stop/correct the ship here.
+      if (zone === "BLACK_HOLE" &&
+          (Math.abs(before.x) > 6.0 || Math.abs(before.y) > 4.0)) {
+        exteriorFlight = true;
+      }
+
       ship.position.x = Math.max(-72, Math.min(72, ship.position.x));
       ship.position.y = Math.max(-46, Math.min(46, ship.position.y));
       ship.position.z = Math.max(-160, Math.min(46, ship.position.z));
@@ -2704,7 +2647,7 @@
       bind();
       resize();
       setSpeedMode(1);
-      setStatus("ENGINE READY · LOCAL r128 · 0.9.10 · SPEED 1");
+      setStatus("ENGINE READY · LOCAL r128 · 0.9.11 · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
