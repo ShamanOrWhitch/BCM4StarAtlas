@@ -2210,16 +2210,14 @@
         ship.position.z = -47.46;
       }
     } else {
-      // BLACK HOLE and DEEP SPACE are free-flight volumes, but NOT global noclip.
-      // Only the actual starbase outer shell can stop/correct the ship here.
+      // BLACK HOLE and DEEP SPACE are genuinely open 3D volumes.
+      // There is NO rectangular navigation box here: no hidden X/Y/Z walls,
+      // no artificial map edge and no global noclip switch.
+      // The only physical boundaries that remain are the actual starbase shell.
       if (zone === "BLACK_HOLE" &&
           (Math.abs(before.x) > 6.0 || Math.abs(before.y) > 4.0)) {
         exteriorFlight = true;
       }
-
-      ship.position.x = Math.max(-72, Math.min(72, ship.position.x));
-      ship.position.y = Math.max(-46, Math.min(46, ship.position.y));
-      ship.position.z = Math.max(-160, Math.min(46, ship.position.z));
 
       collideStarbaseShell(before, true);
     }
@@ -2647,7 +2645,7 @@
       bind();
       resize();
       setSpeedMode(1);
-      setStatus("ENGINE READY · LOCAL r128 · 0.9.12 · SPEED 1");
+      setStatus("ENGINE READY · LOCAL r128 · 0.9.13 · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
