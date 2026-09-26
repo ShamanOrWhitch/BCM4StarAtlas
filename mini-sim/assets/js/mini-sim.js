@@ -239,7 +239,7 @@
     panels: [],
     nextAt: 0
   };
-  const deepSpaceStarbase = {
+  const spaceSatellite = {
     group: null,
     stars: null,
     visible: false
@@ -773,7 +773,7 @@
 
   function buildDeepSpaceStarbase(parent) {
     const group = new THREE.Group();
-    group.name = "deep-space-starbase";
+    group.name = "space-satellite";
     group.position.set(0, 0, -155);
     group.visible = false;
 
@@ -866,7 +866,7 @@
     group.add(namePlate);
 
     parent.add(group);
-    deepSpaceStarbase.group = group;
+    spaceSatellite.group = group;
 
     const starGeometry = new THREE.BufferGeometry();
     const starPoints = [];
@@ -892,14 +892,14 @@
     starField.name = "deep-space-starfield";
     starField.visible = false;
     parent.add(starField);
-    deepSpaceStarbase.stars = starField;
+    spaceSatellite.stars = starField;
   }
 
   function updateDeepSpaceStarbaseVisibility() {
     const visible = !!ship.position && ship.position.z < DEEP_SPACE_Z - 4;
-    if (deepSpaceStarbase.group) deepSpaceStarbase.group.visible = visible;
-    if (deepSpaceStarbase.stars) deepSpaceStarbase.stars.visible = visible;
-    deepSpaceStarbase.visible = visible;
+    if (spaceSatellite.group) spaceSatellite.group.visible = visible;
+    if (spaceSatellite.stars) spaceSatellite.stars.visible = visible;
+    spaceSatellite.visible = visible;
   }
 
   function buildWorld() {
@@ -2013,13 +2013,23 @@
     const beforeY = ship.position.y;
     const beforeZ = ship.position.z;
 
+    const insideCorridor = Math.abs(ship.position.x) <= 5.3 && Math.abs(ship.position.y) <= 3.2;
+
     if (ship.position.z > -24.5) {
-      ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
-      ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
+      // Keep the original Room 1 interior boundaries, but only while the ship is actually inside.
+      if (insideCorridor) {
+        ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
+        ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
+      }
     } else if (ship.position.z >= DEEP_SPACE_Z) {
-      ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
-      ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
+      // Room 2 / BLACK HOLE: interior is bounded only while the ship remains in the corridor.
+      // Crossing any side/floor/ceiling edge switches naturally into open exterior flight.
+      if (insideCorridor) {
+        ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
+        ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
+      }
     } else {
+      // Deep Space is a large open volume around the whole starbase.
       ship.position.x = Math.max(-58, Math.min(58, ship.position.x));
       ship.position.y = Math.max(-34, Math.min(34, ship.position.y));
       ship.position.z = Math.max(DEEP_SPACE_MIN_Z, Math.min(DEEP_SPACE_Z - 0.1, ship.position.z));
@@ -2108,7 +2118,12 @@
 
     let room;
     if (ship.position.z < DEEP_SPACE_Z) {
-      room = deepSpaceStarbase.visible ? "DEEP SPACE · STARBASE" : "DEEP SPACE";
+      const satelliteDistance = spaceSatellite.group
+        ? spaceSatellite.group.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position)
+        : 999;
+      room = satelliteDistance < 34
+        ? "DEEP SPACE · SATELLITE REACHED"
+        : "DEEP SPACE";
     } else {
       room = ship.position.z < -48
         ? "ROOM 2"
@@ -2439,7 +2454,7 @@
       bind();
       resize();
       setSpeedMode(1);
-      setStatus("ENGINE READY · LOCAL r128 · 0.9.2 · SPEED 1");
+      setStatus("ENGINE READY · LOCAL r128 · 0.9.3 · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
