@@ -1,8 +1,13 @@
-# BCM Mini-Sim 0.9.2
+# BCM Mini-Sim 0.9.3
 
 ## STOP — read this before another GPT rewrite
 
 ### 0.9.2 Deep Space / speed matrix
+### 0.9.3 exterior flight / satellite
+- The decorative deep-space object is now named **SATELLITE**; approaching within about 34 units reports **SATELLITE REACHED**.
+- Room 1 and Room 2 remain bounded while the ship is inside their corridor, but the boundary no longer forcibly drags an exterior flight back into the room.
+- The starbase can therefore be inspected from above, below, and both sides in open space.
+
 - Version is explicitly **0.9.2** in PHP, HUD, and this README.
 - Default flight mode is **Speed 1**: forward/back thrust is slightly reduced to make normal exploration slower.
 - **Speed 2** preserves the previous 0.9.0 thrust/max-speed values for the future fast-flight switch.
