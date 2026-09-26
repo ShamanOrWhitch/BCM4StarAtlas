@@ -172,7 +172,7 @@
   // Speed matrix: mode 2 keeps the previous 0.9.0 flight values.
   // Mode 1 is the new default: slightly slower forward/back flight.
   const speedMatrix = {
-    1: { thrust: 15.5, maxSpeed: 32 },
+    1: { thrust: 11.5, maxSpeed: 24 },
     2: { thrust: 18, maxSpeed: 42 }
   };
   let speedMode = 1;
@@ -202,7 +202,6 @@
     style: "slide"
   };
   const DEEP_SPACE_Z = -83;
-  const DEEP_SPACE_MIN_Z = -230;
   const portal = { mesh: null, backMesh: null, coverage: 0, z: -24.2, triggerFrontZ: -22.8, triggerBackZ: -25.8, direction: "FORWARD" };
   const returnDoor = {
     state: "CLOSED",
@@ -249,6 +248,8 @@
     stars: null,
     visible: false
   };
+  // Only the two visible starbase corridor shells are collision geometry.
+  // Deep Space itself has no map boundary.
   const starbaseHull = [
     { zMin: -25.5, zMax: 5.5, outerX: 16.25, outerY: 12.25 },
     { zMin: -84.5, zMax: -47.5, outerX: 16.25, outerY: 12.25 }
@@ -2645,7 +2646,7 @@
       bind();
       resize();
       setSpeedMode(1);
-      setStatus("ENGINE READY · LOCAL r128 · 0.9.13 · SPEED 1");
+      setStatus("ENGINE READY · LOCAL r128 · 0.9.14 · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
