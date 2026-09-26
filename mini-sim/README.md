@@ -1,4 +1,12 @@
-# BCM Mini-Sim 0.9.16
+# BCM Mini-Sim 0.9.17
+
+### 0.9.17 corridor vs exterior physics
+- Room confinement is now 3D-footprint based, not Z-only.
+- Inside Room 1/2 the corridor walls remain hard and prevent escape except through the intended openings.
+- Outside those corridor footprints, including Deep Space aligned with the same Z ranges, the ship is not pulled/clamped back into the corridor.
+- The physical starbase shell remains the only exterior solid boundary.
+- Exterior `back*.png` visibility is no longer incorrectly tied to Room 1/2 Z bands.
+
 
 ### 0.9.16 final control / Deep Space collision pass
 - Standard gamepad mapping is explicit: LT = button 6, RT = button 7; the requested swap is now **LT = DOWN**, **RT = UP**.
