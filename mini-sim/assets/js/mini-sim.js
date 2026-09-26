@@ -2275,7 +2275,6 @@
       else if (getNearestVideoTarget()) interaction.textContent = "TAP VIDEO · FOCUS · ◀ ▶";
     }
 
-    let room;
     const zoneNow = getSpaceZone(ship.position.z);
     let room;
     if (zoneNow === "DEEP_SPACE") {
