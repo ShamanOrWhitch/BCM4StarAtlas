@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.9.6
+# BCM Mini-Sim 0.9.7
 
 ## STOP — read this before another GPT rewrite
 
@@ -293,3 +293,9 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - The player can fly around the front, rear, top, bottom and sides of the starbase and inspect the back*.png exterior from all directions.
 - back*.png collision acts only as an exterior hull barrier against re-entry; BLACK HOLE has no back-texture shell.
 - Returning home or using either portal resets the layer to INSIDE.
+
+### 0.9.7 rigid back texture collision
+- Exterior collision now uses the ship's movement segment, preventing tunneling through the back*.png hull at higher speed.
+- Boundary checks handle exact contact with the shell and side/top/bottom edges.
+- The collision envelope is slightly outside the texture plane so the ship cannot visibly clip into the shell.
+- BLACK HOLE remains open and has no back-texture cap.
