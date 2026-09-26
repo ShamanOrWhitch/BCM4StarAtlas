@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.9.3
+# BCM Mini-Sim 0.9.4
 
 ## STOP — read this before another GPT rewrite
 
@@ -272,3 +272,10 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - Автоматический переход через портал временно блокируется, пока активен `SCREEN FOCUS`; ручной `G`/кнопка портала не менялись.
 - Первый космический экран в портальной зоне перенесён с `z=-38.5` на `z=-42.0`, а безопасная дистанция видео от портала увеличена с `12` до `16`.
 - Наклон и его параметры не изменялись.
+
+### 0.9.4 sealed exterior hull
+- The visible `back*.png` exterior shell is now treated as the starbase hull envelope: outer X/Y = ±16 / ±12 for Room 1 and Room 2.
+- Texture gaps between shell bands are filled with additional back-texture panels; end caps close the Room 1/Room 2 outer shells.
+- Structural rails are aligned directly along the textured shell edges.
+- Exterior collision is one-way: approaching the back-texture shell from open space cannot pass through it, while leaving an interior/existing hull volume outward remains possible.
+- The BLACK HOLE gap stays open; it does not receive the Room 1/Room 2 outer shell.
