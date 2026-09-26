@@ -796,7 +796,8 @@
 
 
   function updateBacksideVisibility() {
-    const exterior = exteriorFlight && !!ship.position;
+    const zone = ship.position ? getSpaceZone(ship.position.z) : "ROOM1";
+    const exterior = exteriorFlight && zone === "DEEP_SPACE";
     if (backside.group) backside.group.visible = exterior;
   }
 
@@ -952,7 +953,7 @@
   }
 
   function updateSpaceSatelliteVisibility() {
-    const visible = !!ship.position && ship.position.z < DEEP_SPACE_Z - 4;
+    const visible = !!ship.position && getSpaceZone(ship.position.z) === "DEEP_SPACE";
     if (spaceSatellite.group) spaceSatellite.group.visible = visible;
     if (spaceSatellite.stars) spaceSatellite.stars.visible = visible;
     spaceSatellite.visible = visible;
@@ -976,17 +977,8 @@
       leftColor: 0x48535e, rightColor: 0x3a444f
     });
 
-    const spaceMat = new THREE.MeshBasicMaterial({ color: 0x05060a, side: THREE.BackSide });
-
-    // Local void between the portal and Room 2.
-    const voidBox = new THREE.Mesh(new THREE.BoxGeometry(80, 50, 28), spaceMat);
-    voidBox.position.set(0, 0, -36);
-    world.add(voidBox);
-
-    // Deep Space is intentionally an open volume.
-    // Do not add a surrounding box here: the player must be able to fly around
-    // the starbase and inspect the exterior without hitting a visual shell.
-
+    // BLACK HOLE and Deep Space are real open 3D volumes.
+    // There is no finite black-hole box and no hidden visual boundary.
     buildStarbaseExterior(world);
     buildSpaceSatellite(world);
 
@@ -2083,57 +2075,123 @@
     }
   }
 
+  function getSpaceZone(z) {
+    if (z > -24.5) return "ROOM1";
+    if (z >= -48.5) return "BLACK_HOLE";
+    if (z >= -84.5) return "ROOM2";
+    return "DEEP_SPACE";
+  }
+
+  function shellCrossed(before, after, edge) {
+    return (before >= edge && after < edge) || (before <= edge && after > edge);
+  }
+
+  function collideStarbaseShell(before, allowInteriorOpenings) {
+    let blocked = false;
+
+    starbaseHull.forEach((hull, index) => {
+      // Side/top/bottom walls exist only over the actual textured room sections.
+      const zMin = hull.zMin;
+      const zMax = hull.zMax;
+
+      const zRelevant =
+        (before.z >= zMin && before.z <= zMax) ||
+        (ship.position.z >= zMin && ship.position.z <= zMax) ||
+        (before.z < zMin && ship.position.z > zMax) ||
+        (before.z > zMax && ship.position.z < zMin);
+
+      if (!zRelevant) return;
+
+      const room1 = index === 0;
+      const frontOpeningZ = room1 ? -25.5 : -47.5;
+      const rearCapZ = room1 ? 5.5 : -84.5;
+
+      // Central front openings connect the rooms to BLACK HOLE.
+      const opening = allowInteriorOpenings &&
+        Math.abs(ship.position.x) <= 5.85 &&
+        Math.abs(ship.position.y) <= 3.45 &&
+        shellCrossed(before.z, ship.position.z, frontOpeningZ);
+
+      if (opening) {
+        return;
+      }
+
+      if (before.x >= hull.outerX && ship.position.x < hull.outerX) {
+        ship.position.x = hull.outerX + 0.06;
+        blocked = true;
+      } else if (before.x <= -hull.outerX && ship.position.x > -hull.outerX) {
+        ship.position.x = -hull.outerX - 0.06;
+        blocked = true;
+      }
+
+      if (before.y >= hull.outerY && ship.position.y < hull.outerY) {
+        ship.position.y = hull.outerY + 0.06;
+        blocked = true;
+      } else if (before.y <= -hull.outerY && ship.position.y > -hull.outerY) {
+        ship.position.y = hull.outerY + 0.06;
+        blocked = true;
+      }
+
+      // Room 1 rear cap is closed.
+      // Room 2 rear cap is the one-way INSIDE -> OUTSIDE exit.
+      if (shellCrossed(before.z, ship.position.z, rearCapZ)) {
+        if (!room1 && before.z > rearCapZ && ship.position.z < rearCapZ) {
+          exteriorFlight = true;
+          return;
+        }
+        if (before.z < rearCapZ && ship.position.z >= rearCapZ) {
+          ship.position.z = rearCapZ - 0.06;
+          blocked = true;
+        } else if (room1 || before.z > rearCapZ) {
+          ship.position.z = rearCapZ + 0.06;
+          blocked = true;
+        }
+      }
+    });
+
+    return blocked;
+  }
+
   function collide() {
-    // The ship becomes an exterior craft after passing the rear opening of Room 2.
-    if (!exteriorFlight && ship.position.z < -84.5) {
+    const before = ship.position.clone();
+    const zone = getSpaceZone(before.z);
+
+    // Entering BLACK HOLE from an interior corridor releases X/Y restrictions.
+    // Moving far enough sideways in BLACK HOLE means we are now looking at the
+    // external layer of the starbase, but BLACK HOLE itself stays unrestricted.
+    if (!exteriorFlight && zone === "BLACK_HOLE" &&
+        (Math.abs(before.x) > 6.0 || Math.abs(before.y) > 4.0)) {
       exteriorFlight = true;
     }
 
-    const before = ship.position.clone();
-
-    if (!exteriorFlight) {
-      // INSIDE: the interior corridor remains hard-bounded.
+    if (!exteriorFlight && zone === "ROOM1") {
       ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
       ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
+
+      // Room 1 rear/cap is closed. Front opens into BLACK HOLE.
+      if (ship.position.z > 5.45) ship.position.z = 5.45;
+      if (before.z < -24.5 && ship.position.z >= -24.5) {
+        ship.position.z = -24.46;
+      }
+    } else if (!exteriorFlight && zone === "ROOM2") {
+      ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
+      ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
+
+      // Room 2 rear is the deliberate one-way exterior exit.
+      if (ship.position.z < -84.5) {
+        exteriorFlight = true;
+      }
+      if (!exteriorFlight && ship.position.z > -47.46) {
+        ship.position.z = -47.46;
+      }
     } else {
-      // OUTSIDE: free flight around the complete base.
+      // BLACK HOLE and OUTSIDE are both real free-flight volumes.
+      // Their movement is not noclip: the actual back*.png shell remains physical.
       ship.position.x = Math.max(-72, Math.min(72, ship.position.x));
       ship.position.y = Math.max(-46, Math.min(46, ship.position.y));
       ship.position.z = Math.max(-160, Math.min(46, ship.position.z));
 
-      // Rigid collision against the actual back*.png shell envelope.
-      // The test uses the movement segment, so high-speed motion cannot tunnel through it.
-      starbaseHull.forEach((hull) => {
-        const zOverlaps =
-          before.z >= hull.zMin && before.z <= hull.zMax
-          || ship.position.z >= hull.zMin && ship.position.z <= hull.zMax
-          || (before.z < hull.zMin && ship.position.z > hull.zMax)
-          || (before.z > hull.zMax && ship.position.z < hull.zMin);
-
-        if (!zOverlaps) return;
-
-        // Left / right textured walls.
-        if (before.x >= hull.outerX && ship.position.x < hull.outerX) {
-          ship.position.x = hull.outerX + 0.05;
-        } else if (before.x <= -hull.outerX && ship.position.x > -hull.outerX) {
-          ship.position.x = -hull.outerX - 0.05;
-        }
-
-        // Top / bottom textured walls.
-        if (before.y >= hull.outerY && ship.position.y < hull.outerY) {
-          ship.position.y = hull.outerY + 0.05;
-        } else if (before.y <= -hull.outerY && ship.position.y > -hull.outerY) {
-          ship.position.y = -hull.outerY - 0.05;
-        }
-
-        // End faces belong only to the actual Room 1 / Room 2 hull sections.
-        // There is deliberately no shell/cap in the BLACK HOLE gap.
-        if (before.z > hull.zMax && ship.position.z <= hull.zMax) {
-          ship.position.z = hull.zMax + 0.05;
-        } else if (before.z < hull.zMin && ship.position.z >= hull.zMin) {
-          ship.position.z = hull.zMin - 0.05;
-        }
-      });
+      collideStarbaseShell(before, true);
     }
 
     const blockedX = before.x !== ship.position.x;
@@ -2218,17 +2276,21 @@
     }
 
     let room;
-    if (exteriorFlight) {
+    const zoneNow = getSpaceZone(ship.position.z);
+    let room;
+    if (zoneNow === "DEEP_SPACE") {
       const satelliteDistance = spaceSatellite.group
         ? spaceSatellite.group.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position)
         : 999;
       room = satelliteDistance < 34
         ? "DEEP SPACE · SATELLITE REACHED"
         : "DEEP SPACE · STARBASE EXTERIOR";
+    } else if (zoneNow === "BLACK_HOLE") {
+      room = "BLACK HOLE · OPEN VOLUME";
+    } else if (zoneNow === "ROOM2") {
+      room = "ROOM 2";
     } else {
-      room = ship.position.z < -48
-        ? "ROOM 2"
-        : (ship.position.z < -28 ? "BLACK HOLE" : "ROOM 1");
+      room = "ROOM 1";
     }
     setStatus(room + " · SPD " + ship.velocity.length().toFixed(1));
   }
@@ -2556,7 +2618,7 @@
       bind();
       resize();
       setSpeedMode(1);
-      setStatus("ENGINE READY · LOCAL r128 · 0.9.8 · SPEED 1");
+      setStatus("ENGINE READY · LOCAL r128 · 0.9.9 · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
