@@ -1,6 +1,7 @@
 (() => {
   "use strict";
 
+  function bootMiniSim() {
   const root = document.querySelector(".bcm-mini-sim");
   if (!root) return;
 
@@ -237,6 +238,7 @@
   const backside = {
     urls: Array.isArray(config.backsideTextures) ? config.backsideTextures.slice() : [],
     panels: [],
+    materials: [],
     group: null,
     nextAt: 0
   };
@@ -309,13 +311,20 @@
     root.classList.toggle("gamepad-connected", hasConnectedGamepad());
   }
 
+  function isIOSDevice() {
+    const platform = String(navigator.platform || "");
+    const ua = String(navigator.userAgent || "");
+    return /iPhone|iPad|iPod/i.test(ua) ||
+      (platform === "MacIntel" && Number(navigator.maxTouchPoints) > 1);
+  }
+
   function mobileLandscape() {
     return !!(window.matchMedia &&
       window.matchMedia("(pointer: coarse) and (orientation: landscape)").matches);
   }
 
   function enterMobileFullscreen() {
-    if (!mobileLandscape()) return;
+    if (!mobileLandscape() || isIOSDevice()) return;
 
     try {
       if (root.requestFullscreen && !document.fullscreenElement) {
@@ -675,6 +684,7 @@
     }
 
     const materials = urls.map(makeBackMaterial);
+    backside.materials = materials;
     const panels = [];
 
     function addPanel(material, x, y, z, w, h, rx, ry) {
@@ -715,7 +725,7 @@
 
     function addTube(z0, z1) {
       const length = Math.abs(z1 - z0);
-      const section = 7;
+      const section = 4.5;
       const count = Math.max(3, Math.ceil(length / section));
       const band = length / count;
       const panelHeight = height + 2.0 * 3.0 - panelFill;
@@ -762,7 +772,14 @@
         addPanel(bottom, 0, -outerY, bandZ, panelWidth, panelGap + 0.04, Math.PI / 2, 0);
       }
 
-      // No textured end caps: the BLACK HOLE gap must stay visually open.
+      // Only the true outside-facing rear ends are capped with back*.png.
+      // The two ends facing BLACK HOLE remain open.
+      if (z0 > 0) {
+        addPanel(materials[0], 0, 0, z0 + 0.04, panelWidth, panelHeight, 0, 0);
+      }
+      if (z1 < -80) {
+        addPanel(materials[0], 0, 0, z1 - 0.04, panelWidth, panelHeight, 0, Math.PI);
+      }
     }
 
     // Only Room 1 and Room 2. BLACK HOLE remains open between them.
@@ -784,26 +801,30 @@
   }
 
   function randomizeBackside(now) {
-    if (!backside.panels.length) return;
+    const materials = backside.materials || [];
+    if (!backside.panels.length || !materials.length) return;
 
-    const materials = backside.panels.map((item) => item.material);
-    for (let i = materials.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      const tmp = materials[i];
-      materials[i] = materials[j];
-      materials[j] = tmp;
-    }
-
-    backside.panels.forEach((item, index) => {
-      item.mesh.material = materials[index];
-      item.material = materials[index];
+    backside.panels.forEach((item) => {
+      const material = materials[Math.floor(Math.random() * materials.length)];
+      item.mesh.material = material;
+      item.material = material;
+      item.nextAt = now + 800 + Math.random() * 2200;
     });
 
-    backside.nextAt = now + 800 + Math.random() * 800;
+    backside.nextAt = now + 250;
   }
 
   function updateBacksideCamouflage(now) {
-    if (now >= backside.nextAt) randomizeBackside(now);
+    const materials = backside.materials || [];
+    if (!backside.panels.length || !materials.length) return;
+
+    backside.panels.forEach((item) => {
+      if (!item.nextAt || now < item.nextAt) return;
+      const material = materials[Math.floor(Math.random() * materials.length)];
+      item.mesh.material = material;
+      item.material = material;
+      item.nextAt = now + 800 + Math.random() * 2200;
+    });
   }
 
   function buildSpaceSatellite(parent) {
@@ -982,27 +1003,27 @@
 
     const group = new THREE.Group();
     group.position.set(0, 0, -22);
-    box(group, 0, 3.3, 0, 7.2, 0.5, 0.7, frame);
-    box(group, 0, -3.3, 0, 7.2, 0.5, 0.7, frame);
-    box(group, -3.3, 0, 0, 0.5, 6.1, 0.7, frame);
-    box(group, 3.3, 0, 0, 0.5, 6.1, 0.7, frame);
+    box(group, 0, 3.45, 0, 11.8, 0.45, 0.7, frame);
+    box(group, 0, -3.45, 0, 11.8, 0.45, 0.7, frame);
+    box(group, -5.9, 0, 0, 0.45, 6.8, 0.7, frame);
+    box(group, 5.9, 0, 0, 0.45, 6.8, 0.7, frame);
     const dmatL = textured("door2.png", 0xffffff);
     const dmatR = textured("door2.png", 0xffffff);
-    door.left = plane(group, -1.52, 0, -0.35, 3.05, 6.1, 0, 0, 0, dmatL);
-    door.right = plane(group, 1.52, 0, -0.35, 3.05, 6.1, 0, 0, 0, dmatR);
+    door.left = plane(group, -2.9, 0, -0.35, 5.8, 6.8, 0, 0, 0, dmatL);
+    door.right = plane(group, 2.9, 0, -0.35, 5.8, 6.8, 0, 0, 0, dmatR);
     scene.add(group);
     door.mesh = group;
 
     const returnGroup = new THREE.Group();
     returnGroup.position.set(0, 0, -27.2);
-    box(returnGroup, 0, 3.3, 0, 7.2, 0.5, 0.7, frame);
-    box(returnGroup, 0, -3.3, 0, 7.2, 0.5, 0.7, frame);
-    box(returnGroup, -3.3, 0, 0, 0.5, 6.1, 0.7, frame);
-    box(returnGroup, 3.3, 0, 0, 0.5, 6.1, 0.7, frame);
+    box(returnGroup, 0, 3.45, 0, 11.8, 0.45, 0.7, frame);
+    box(returnGroup, 0, -3.45, 0, 11.8, 0.45, 0.7, frame);
+    box(returnGroup, -5.9, 0, 0, 0.45, 6.8, 0.7, frame);
+    box(returnGroup, 5.9, 0, 0, 0.45, 6.8, 0.7, frame);
     const rmatL = textured("door3.png", 0xffffff);
     const rmatR = textured("door3.png", 0xffffff);
-    returnDoor.left = plane(returnGroup, -1.52, 0, 0.35, 3.05, 6.1, 0, Math.PI, 0, rmatL);
-    returnDoor.right = plane(returnGroup, 1.52, 0, 0.35, 3.05, 6.1, 0, Math.PI, 0, rmatR);
+    returnDoor.left = plane(returnGroup, -2.9, 0, 0.35, 5.8, 6.8, 0, Math.PI, 0, rmatL);
+    returnDoor.right = plane(returnGroup, 2.9, 0, 0.35, 5.8, 6.8, 0, Math.PI, 0, rmatR);
     scene.add(returnGroup);
     returnDoor.mesh = returnGroup;
 
@@ -1010,8 +1031,8 @@
     pgroup.position.set(0, 0, portal.z);
     const pmatFront = textured("portal.png", 0x88aacc, THREE.FrontSide);
     const pmatBack = textured("portal2.png", 0x88aacc, THREE.FrontSide);
-    portal.mesh = plane(pgroup, 0, 0, 0.01, 5.2, 5.8, 0, 0, 0, pmatFront);
-    portal.backMesh = plane(pgroup, 0, 0, -0.01, 5.2, 5.8, 0, Math.PI, 0, pmatBack);
+    portal.mesh = plane(pgroup, 0, 0, 0.01, 11.8, 7.0, 0, 0, 0, pmatFront);
+    portal.backMesh = plane(pgroup, 0, 0, -0.01, 11.8, 7.0, 0, Math.PI, 0, pmatBack);
     scene.add(pgroup);
 
     const videoZones = Array.isArray(config.spaceVideoZones) ? config.spaceVideoZones : [];
@@ -1020,6 +1041,10 @@
       const video = document.createElement("video");
       video.crossOrigin = "anonymous";
       video.muted = true;
+      video.defaultMuted = true;
+      video.setAttribute("muted", "");
+      video.setAttribute("playsinline", "");
+      video.setAttribute("webkit-playsinline", "");
       video.loop = true;
       video.playsInline = true;
       video.preload = "none";
@@ -1149,6 +1174,10 @@
     const video = document.createElement("video");
     video.crossOrigin = "anonymous";
     video.muted = true;
+    video.defaultMuted = true;
+    video.setAttribute("muted", "");
+    video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
     video.loop = true;
     video.playsInline = true;
     video.preload = "none";
@@ -1405,8 +1434,8 @@
     if (!unit.left || !unit.right) return;
     const t = Math.max(0, Math.min(1, p));
     const baseZ = unit === returnDoor ? 0.35 : -0.35;
-    unit.left.position.set(-1.52, 0, baseZ);
-    unit.right.position.set(1.52, 0, baseZ);
+    unit.left.position.set(-2.9, 0, baseZ);
+    unit.right.position.set(2.9, 0, baseZ);
     unit.left.scale.set(1, 1, 1);
     unit.right.scale.set(1, 1, 1);
 
@@ -1415,11 +1444,11 @@
       unit.left.scale.set(sc, sc, 1);
       unit.right.scale.set(sc, sc, 1);
     } else if (unit.style === "wipe") {
-      unit.left.position.y = 3.2 * t;
-      unit.right.position.y = -3.2 * t;
+      unit.left.position.y = 3.4 * t;
+      unit.right.position.y = -3.4 * t;
     } else {
-      unit.left.position.x = -1.52 - 3.1 * t;
-      unit.right.position.x = 1.52 + 3.1 * t;
+      unit.left.position.x = -2.9 - 5.8 * t;
+      unit.right.position.x = 2.9 + 5.8 * t;
     }
   }
 
@@ -1601,6 +1630,14 @@
     }
     transitionVideo.style.opacity = "0";
     transitionVideo.muted = true;
+    transitionVideo.defaultMuted = true;
+    transitionVideo.setAttribute("muted", "");
+    transitionVideo.setAttribute("playsinline", "");
+    transitionVideo.setAttribute("webkit-playsinline", "");
+    transitionVideo.defaultMuted = true;
+    transitionVideo.setAttribute("muted", "");
+    transitionVideo.setAttribute("playsinline", "");
+    transitionVideo.setAttribute("webkit-playsinline", "");
     transitionVideo.playsInline = true;
     transitionVideo.preload = "auto";
     try { transitionVideo.fetchPriority = "high"; } catch (e) {}
@@ -2438,7 +2475,7 @@
       musicAllowed = true;
       startMusic();
 
-      if (window.matchMedia && window.matchMedia("(pointer: coarse) and (orientation: landscape)").matches) {
+      if (window.matchMedia && window.matchMedia("(pointer: coarse) and (orientation: landscape)").matches && !isIOSDevice()) {
         enableTilt();
       }
 
@@ -2519,7 +2556,7 @@
       bind();
       resize();
       setSpeedMode(1);
-      setStatus("ENGINE READY · LOCAL r128 · 0.9.7 · SPEED 1");
+      setStatus("ENGINE READY · LOCAL r128 · 0.9.8 · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
@@ -2535,5 +2572,12 @@
     s.onload = () => { if (window.THREE) startSim(); else setStatus("ERROR: THREE missing"); };
     s.onerror = () => setStatus("ERROR: three.min.js");
     document.head.appendChild(s);
+  }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootMiniSim, { once: true });
+  } else {
+    bootMiniSim();
   }
 })();
