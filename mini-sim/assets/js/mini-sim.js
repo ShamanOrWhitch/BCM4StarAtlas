@@ -738,7 +738,7 @@
       const section = 4.5;
       const count = Math.max(3, Math.ceil(length / section));
       const band = length / count;
-      const panelHeight = panelHeightForRibs();
+      const panelHeight = height + 6.0 - panelFill;
       const panelWidth = width + 2.0 * 3.0 - panelFill;
       const sideCellH = (panelHeight - crossGap * (sideRows - 1)) / sideRows;
       const roofCellW = (panelWidth - crossGap * (roofCols - 1)) / roofCols;
@@ -1779,7 +1779,7 @@
     pad.ry = dz(ax[3] || 0, 0.14);
     const btn = (n) => !!(gp.buttons && gp.buttons[n] && (gp.buttons[n].pressed || gp.buttons[n].value > 0.5));
     pad.roll = (btn(5) ? 1 : 0) - (btn(4) ? 1 : 0);
-    pad.vert = (btn(7) ? 1 : 0) - (btn(6) ? 1 : 0);
+    pad.vert = (btn(6) ? 1 : 0) - (btn(7) ? 1 : 0);
     const edge = (n, fn) => {
       const on = btn(n);
       if (on && !pad.prev[n] && running) fn();
@@ -2647,7 +2647,7 @@
       bind();
       resize();
       setSpeedMode(1);
-      setStatus("ENGINE READY · LOCAL r128 · 0.9.11 · SPEED 1");
+      setStatus("ENGINE READY · LOCAL r128 · 0.9.12 · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
