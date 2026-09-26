@@ -249,6 +249,7 @@
     { zMin: -25.5, zMax: 5.5, outerX: 16.0, outerY: 12.0 },
     { zMin: -84.5, zMax: -47.5, outerX: 16.0, outerY: 12.0 }
   ];
+  let exteriorFlight = false;
   const impact = {
     overlay: null,
     light: null,
@@ -778,7 +779,7 @@
 
 
   function updateBacksideVisibility() {
-    const exterior = !!ship.position && ship.position.z < DEEP_SPACE_Z;
+    const exterior = exteriorFlight && !!ship.position;
     if (backside.group) backside.group.visible = exterior;
   }
 
@@ -1519,6 +1520,7 @@
   function returnToStart() {
     if (!running || transitionBusy || !ship.position) return;
     pauseAllCinemaVideos();
+    exteriorFlight = false;
     ship.position.set(0, 0, 2);
     ship.velocity.set(0, 0, 0);
     ship.angularVelocity.set(0, 0, 0);
@@ -1551,6 +1553,7 @@
     }
 
     if (direction === "BACK") {
+      exteriorFlight = false;
       ship.position.set(0, 0, 2);
       ship.velocity.set(0, 0, 0);
       ship.angularVelocity.set(0, 0, 0);
@@ -1558,6 +1561,7 @@
       updateCinemaZones();
       setStatus("ROOM 1 · RETURN COMPLETE");
     } else {
+      exteriorFlight = false;
       ship.position.set(0, 0, -52);
       ship.velocity.set(0, 0, 0);
       ship.angularVelocity.set(0, 0, 0);
@@ -2043,23 +2047,25 @@
   }
 
   function collide() {
+    // Passing the rear opening of Room 2 unlocks the full external layer.
+    if (!exteriorFlight && ship.position.z < -84.5) {
+      exteriorFlight = true;
+    }
+
     const before = ship.position.clone();
 
-    const inRoom1 = before.z > -24.5;
-    const inRoom2AndPortal = before.z >= DEEP_SPACE_Z;
-
-    if (inRoom1 || inRoom2AndPortal) {
-      // Interior / BLACK HOLE corridor remains physically closed on X/Y.
-      // Exterior access is through the portal into Deep Space.
+    if (!exteriorFlight) {
+      // INSIDE: Room 1, BLACK HOLE and Room 2 stay corridor-bounded.
       ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
       ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
     } else {
-      // Deep Space: free 3D flight around the external base.
-      ship.position.x = Math.max(-58, Math.min(58, ship.position.x));
-      ship.position.y = Math.max(-34, Math.min(34, ship.position.y));
-      ship.position.z = Math.max(DEEP_SPACE_MIN_Z, Math.min(DEEP_SPACE_Z - 0.1, ship.position.z));
+      // OUTSIDE: one large open flight volume around the entire starbase.
+      ship.position.x = Math.max(-72, Math.min(72, ship.position.x));
+      ship.position.y = Math.max(-46, Math.min(46, ship.position.y));
+      ship.position.z = Math.max(-160, Math.min(46, ship.position.z));
 
-      // Prevent re-entry through the back-texture hull from open space.
+      // Only the actual outer surface envelope blocks re-entry.
+      // There is no invisible box around BLACK HOLE.
       starbaseHull.forEach((hull) => {
         if (before.z < hull.zMin || before.z > hull.zMax) return;
 
@@ -2069,12 +2075,14 @@
           ship.position.x = hull.outerX + 0.02;
         }
 
-        if (before.y < -hull.outerY && ship.position.y >= -hull.outerY) {
-          ship.position.y = -hull.outerY - 0.02;
+        if (before.y < -hull.outerY && ship.position.y >= hull.outerY) {
+          ship.position.y = hull.outerY + 0.02;
         } else if (before.y > hull.outerY && ship.position.y <= hull.outerY) {
           ship.position.y = hull.outerY + 0.02;
         }
 
+        // End-face collision is kept only at the actual room ends.
+        // The central BLACK HOLE gap is intentionally excluded.
         if (before.z > hull.zMax && ship.position.z <= hull.zMax) {
           ship.position.z = hull.zMax + 0.02;
         } else if (before.z < hull.zMin && ship.position.z >= hull.zMin) {
@@ -2165,13 +2173,13 @@
     }
 
     let room;
-    if (ship.position.z < DEEP_SPACE_Z) {
+    if (exteriorFlight) {
       const satelliteDistance = spaceSatellite.group
         ? spaceSatellite.group.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position)
         : 999;
       room = satelliteDistance < 34
         ? "DEEP SPACE · SATELLITE REACHED"
-        : "DEEP SPACE";
+        : "DEEP SPACE · STARBASE EXTERIOR";
     } else {
       room = ship.position.z < -48
         ? "ROOM 2"
