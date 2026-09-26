@@ -25,7 +25,7 @@ function phantom(): PhantomProvider | null {
   return win.solana?.isPhantom ? win.solana : null;
 }
 
-function WalletPage() {
+export function WalletPage() {
   const [owner, setOwner] = useState("");
   const [scan, setScan] = useState<WalletScan | null>(null);
   const [error, setError] = useState("");

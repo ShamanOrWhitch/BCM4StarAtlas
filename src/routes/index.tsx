@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { GlobeCanvas } from "@/components/cartograph/scene";
 import { Overlay } from "@/components/cartograph/overlay";
 
-export const Route = createFileRoute("/")({ component: Home });
+export const Route = createFileRoute("/")({ component: HomePage });
 
-function Home() {
+export function HomePage() {
   return (
     <main className="relative h-dvh w-full overflow-hidden bg-bg">
       <GlobeCanvas />

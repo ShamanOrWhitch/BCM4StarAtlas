@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.5.0
+ * Version: 0.6.0
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -717,7 +717,7 @@ function galia_desk_settings_page() {
     }
     $url = (string) get_option('galia_app_url', '');
     echo '<div class="wrap"><h1>Galia Desk</h1>';
-    echo '<p>Глобус уже внутри плагина. Поле адреса оставь пустым и нажми «Сохранить». Адрес песочницы Grok сюда не подходит: с сайта он не открывается.</p>';
+    echo '<p>Поле можно оставить пустым. [galia_app] открывает карту, экипаж, флот, рынок и сейф с этого сайта. Стол цен [galia_desk] и лабиринт не трогаются.</p>';
     echo '<form method="post" action="options.php">';
     settings_fields('galia_desk_settings');
     echo '<table class="form-table"><tr><th scope="row"><label for="galia_app_url">Чужой адрес, не обязателен</label></th><td>';
@@ -752,34 +752,20 @@ function galia_desk_template_include($template) {
 add_filter('template_include', 'galia_desk_template_include');
 
 function galia_desk_globe_markup($full = false) {
-    $base = plugin_dir_url(__FILE__) . 'assets/';
-    $height = $full ? '100dvh' : 'min(78vh, 760px)';
+    $base = plugin_dir_url(__FILE__) . 'app/';
+    $ajax = admin_url('admin-ajax.php');
+    $nonce = wp_create_nonce('galia_desk');
+    $height = $full ? '100dvh' : 'min(88vh, 920px)';
     ob_start();
     ?>
-    <div class="galia-globe" data-galia-globe data-base="<?php echo esc_url($base); ?>">
-      <canvas></canvas>
-      <aside>
-        <p class="galia-globe-kicker">Star Atlas · с этого сайта</p>
-        <div class="galia-globe-factions" data-galia-factions></div>
-        <h2 data-galia-title>Galia</h2>
-        <p data-galia-lore></p>
-        <p data-galia-blurb></p>
-        <div class="galia-globe-list" data-galia-markers></div>
-      </aside>
-    </div>
-    <style>
-      .galia-globe{position:relative;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(16rem,.7fr);min-height:<?php echo esc_attr($height); ?>;background:#07090e;color:#e8eef2;border:1px solid rgba(232,238,242,.12);border-radius:<?php echo $full ? '0' : '12px'; ?>;overflow:hidden}
-      .galia-globe canvas{width:100%;height:100%;display:block;touch-action:none}
-      .galia-globe aside{padding:1rem 1rem 1.25rem;overflow:auto;border-left:1px solid rgba(232,238,242,.12)}
-      .galia-globe-kicker{margin:0;color:#c4a35a;letter-spacing:.16em;text-transform:uppercase;font-size:.75rem}
-      .galia-globe h2{margin:.4rem 0;font-size:1.35rem}
-      .galia-globe p{margin:.35rem 0 .8rem;line-height:1.45}
-      .galia-globe-factions,.galia-globe-list{display:flex;flex-wrap:wrap;gap:.4rem}
-      .galia-globe button{min-height:44px;padding:.4rem .7rem;border-radius:8px;border:1px solid rgba(232,238,242,.2);background:#10141c;color:#e8eef2;cursor:pointer}
-      .galia-globe button.is-on{border-color:#c4a35a}
-      @media (max-width:800px){.galia-globe{grid-template-columns:1fr}.galia-globe canvas{min-height:58vh}}
-    </style>
-    <script src="<?php echo esc_url($base . 'globe.js?ver=0.5.0'); ?>"></script>
+    <div id="galia-root" style="min-height:<?php echo esc_attr($height); ?>;background:#07090e"></div>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.6.0'); ?>" />
+    <script>
+      window.GALIA_ASSET = <?php echo wp_json_encode($base); ?>;
+      window.GALIA_WP = <?php echo wp_json_encode(array('ajax' => $ajax, 'nonce' => $nonce)); ?>;
+    </script>
+    <script src="<?php echo esc_url($base . 'app.js?ver=0.6.0'); ?>"></script>
     <?php
     return ob_get_clean();
 }

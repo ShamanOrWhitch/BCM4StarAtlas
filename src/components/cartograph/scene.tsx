@@ -5,6 +5,7 @@ import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three/addons/controls/OrbitControls.js";
 import { SYSTEMS, FACTION_TONE, cssMarker, type Marker, type StarSystem } from "@/data/systems";
 import { latLngToVec3 } from "@/lib/latlng";
+import { assetUrl } from "@/lib/asset-url";
 import { useCartograph } from "./store";
 
 const RADIUS = 1.6;
@@ -75,7 +76,7 @@ function Atmosphere({ color }: { color: string }) {
 }
 
 function PlanetBody({ system }: { system: StarSystem }) {
-  const map = useTexture(system.texture);
+  const map = useTexture(assetUrl(system.texture));
   map.colorSpace = THREE.SRGBColorSpace;
   map.anisotropy = 8;
 
@@ -88,7 +89,7 @@ function PlanetBody({ system }: { system: StarSystem }) {
 }
 
 function CloudLayer({ url }: { url: string }) {
-  const map = useTexture(url);
+  const map = useTexture(assetUrl(url));
   map.colorSpace = THREE.SRGBColorSpace;
   const ref = useRef<THREE.Mesh>(null);
   useFrame((_, d) => {

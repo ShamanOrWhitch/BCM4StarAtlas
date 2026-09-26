@@ -3,6 +3,6 @@ import { CrewBay } from "@/components/crew/bay";
 
 export const Route = createFileRoute("/crew")({ component: CrewPage });
 
-function CrewPage() {
+export function CrewPage() {
   return <CrewBay />;
 }

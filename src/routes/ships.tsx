@@ -17,6 +17,7 @@ import {
 } from "@/data/ships";
 import { CrewPortrait } from "@/components/crew/portrait";
 import { AppChrome } from "@/components/app-chrome";
+import { assetUrl } from "@/lib/asset-url";
 
 export const Route = createFileRoute("/ships")({ component: ShipsPage });
 
@@ -28,7 +29,7 @@ const STATUS_TONE: Record<ShipStatus, string> = {
   watch: "text-faint",
 };
 
-function ShipsPage() {
+export function ShipsPage() {
   const [size, setSize] = useState<ShipSize | "all">("X-Small");
   const [lineId, setLineId] = useState<string | null>("jetjet");
   const [hullId, setHullId] = useState<string | null>("jetjet-1");
@@ -118,7 +119,7 @@ function Catalog({ lines, onPick }: { lines: ShipLine[]; onPick: (id: string) =>
             onClick={() => onPick(s.id)}
             className="flex w-full flex-col overflow-hidden rounded-xl border border-line bg-surface text-left hover:border-brass-dim"
           >
-            <img src={s.images[0]} alt="" className="aspect-video w-full bg-surface-2 object-cover" />
+            <img src={assetUrl(s.images.find((img) => img.includes("/product.")) ?? s.images[0])} alt="" className="aspect-video w-full bg-surface-2 object-cover" />
             <div className="flex flex-col gap-1 p-3">
               <p className="font-mono text-[10px] tracking-[0.14em] text-brass uppercase">
                 {SIZE_ABBR[s.size]} · {s.rarity} · {s.spec}
@@ -284,7 +285,7 @@ function Meta({ k, v }: { k: string; v: string }) {
 function Gallery({ images, alt }: { images: string[]; alt: string }) {
   const [shot, setShot] = useState(0);
   const total = images.length;
-  const src = images[shot] ?? images[0];
+  const src = assetUrl(images.find((img) => img.includes("/product.")) ?? images[shot] ?? images[0]);
 
   function step(dir: number) {
     if (total < 2) return;
@@ -343,7 +344,7 @@ function Gallery({ images, alt }: { images: string[]; alt: string }) {
                     i === shot ? "border-brass" : "border-line opacity-70 hover:opacity-100"
                   }`}
                 >
-                  <img src={img} alt="" loading="lazy" className="size-full object-cover" />
+                  <img src={assetUrl(img)} alt="" loading="lazy" className="size-full object-cover" />
                 </button>
               </li>
             ))}

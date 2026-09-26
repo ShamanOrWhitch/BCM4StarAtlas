@@ -49,7 +49,7 @@ function fmtPct(n: number | null): string {
   return `${sign}${n.toLocaleString("ru-RU", { maximumFractionDigits: 2 })}%`;
 }
 
-function MarketPage() {
+export function MarketPage() {
   const [snap, setSnap] = useState<MarketSnap | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);

@@ -1,4 +1,5 @@
 import type { Crew, Species } from "@/data/crew";
+import { assetUrl } from "@/lib/asset-url";
 
 function portraitSrc(c: Crew) {
   const female = c.sex === "Female";
@@ -10,7 +11,7 @@ function portraitSrc(c: Crew) {
     Ustur: c.sex === "Body 2" ? "ustur-body2" : "ustur-body1",
     Mierese: female ? "mierese-female" : "mierese-male",
   };
-  return `/portraits/${key[c.species]}.jpg`;
+  return assetUrl(`/portraits/${key[c.species]}.jpg`);
 }
 
 function glyph(c: Crew) {
