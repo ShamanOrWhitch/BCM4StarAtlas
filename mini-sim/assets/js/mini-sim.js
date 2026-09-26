@@ -168,18 +168,26 @@
     }
   }
 
+  // Speed matrix: mode 2 keeps the previous 0.9.0 flight values.
+  // Mode 1 is the new default: slightly slower forward/back flight.
+  const speedMatrix = {
+    1: { thrust: 16.5, maxSpeed: 38 },
+    2: { thrust: 18, maxSpeed: 42 }
+  };
+  let speedMode = 1;
+
   const ship = {
     position: null,
     velocity: null,
     angularVelocity: null,
     quaternion: null,
     visual: null,
-    thrust: 18,
+    thrust: speedMatrix[speedMode].thrust,
     strafeThrust: 12,
     verticalThrust: 12,
     linearDrag: 0.1,
     angularDrag: 0.55,
-    maxSpeed: 42
+    maxSpeed: speedMatrix[speedMode].maxSpeed
   };
   const door = {
     state: "CLOSED",
@@ -266,6 +274,14 @@
   let transitionBusy = false;
   let transitionLoading = false;
   let musicAllowed = false;
+
+  function setSpeedMode(mode) {
+    const next = speedMatrix[Number(mode)] ? Number(mode) : 1;
+    speedMode = next;
+    ship.thrust = speedMatrix[next].thrust;
+    ship.maxSpeed = speedMatrix[next].maxSpeed;
+    return speedMode;
+  }
 
   function setStatus(text) {
     status.textContent = text;
@@ -911,11 +927,9 @@
     voidBox.position.set(0, 0, -36);
     world.add(voidBox);
 
-    // Large free-flight exterior space after the end of Room 2.
-    const deepSpaceBox = new THREE.Mesh(new THREE.BoxGeometry(140, 90, 294), spaceMat);
-    deepSpaceBox.position.set(0, 0, -230);
-    deepSpaceBox.name = "deep-space-shell";
-    world.add(deepSpaceBox);
+    // Deep Space is intentionally an open volume.
+    // Do not add a surrounding box here: the player must be able to fly around
+    // the starbase and inspect the exterior without hitting a visual shell.
 
     buildStarbaseExterior(world);
     buildDeepSpaceStarbase(world);
@@ -2424,7 +2438,8 @@
       buildWorld();
       bind();
       resize();
-      setStatus("ENGINE READY · LOCAL r128 · 0.9.0");
+      setSpeedMode(1);
+      setStatus("ENGINE READY · LOCAL r128 · 0.9.2 · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
