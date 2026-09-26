@@ -251,8 +251,9 @@
   // Only the two visible starbase corridor shells are collision geometry.
   // Deep Space itself has no map boundary.
   const starbaseHull = [
-    { zMin: -25.5, zMax: 5.5, outerX: 16.25, outerY: 12.25 },
-    { zMin: -84.5, zMax: -47.5, outerX: 16.25, outerY: 12.25 }
+    // Match the actual back*.png skin planes exactly: no extra invisible shell gap.
+    { zMin: -25.5, zMax: 5.5, outerX: 16.0, outerY: 12.0 },
+    { zMin: -84.5, zMax: -47.5, outerX: 16.0, outerY: 12.0 }
   ];
   let exteriorFlight = false;
   const impact = {
@@ -2646,7 +2647,7 @@
       bind();
       resize();
       setSpeedMode(1);
-      setStatus("ENGINE READY · LOCAL r128 · 0.9.14 · SPEED 1");
+      setStatus("ENGINE READY · LOCAL r128 · 0.9.15 · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
