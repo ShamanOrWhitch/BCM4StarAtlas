@@ -1,4 +1,11 @@
-# BCM Mini-Sim 0.9.13
+# BCM Mini-Sim 0.9.15
+
+### 0.9.14–0.9.15 movement cleanup
+- Speed 1 forward/back thrust reduced from 15.5 to 11.5 and max speed from 32 to 24.
+- Removed the obsolete `DEEP_SPACE_MIN_Z` constant.
+- Deep Space keeps no artificial X/Y/Z map walls.
+- Starbase collision now matches the visible `back*.png` planes at X ±16 and Y ±12 instead of stopping the ship 0.25 units early.
+
 
 ### 0.9.13 Deep Space map cleanup
 - Removed the artificial Deep Space navigation box at X ±72, Y ±46, Z -160..46.
