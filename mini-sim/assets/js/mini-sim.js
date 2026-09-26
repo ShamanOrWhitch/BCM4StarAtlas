@@ -246,8 +246,8 @@
     visible: false
   };
   const starbaseHull = [
-    { zMin: -25.5, zMax: 5.5, outerX: 16.0, outerY: 12.0 },
-    { zMin: -84.5, zMax: -47.5, outerX: 16.0, outerY: 12.0 }
+    { zMin: -25.5, zMax: 5.5, outerX: 16.25, outerY: 12.25 },
+    { zMin: -84.5, zMax: -47.5, outerX: 16.25, outerY: 12.25 }
   ];
   let exteriorFlight = false;
   const impact = {
@@ -2047,7 +2047,7 @@
   }
 
   function collide() {
-    // Passing the rear opening of Room 2 unlocks the full external layer.
+    // The ship becomes an exterior craft after passing the rear opening of Room 2.
     if (!exteriorFlight && ship.position.z < -84.5) {
       exteriorFlight = true;
     }
@@ -2055,38 +2055,46 @@
     const before = ship.position.clone();
 
     if (!exteriorFlight) {
-      // INSIDE: Room 1, BLACK HOLE and Room 2 stay corridor-bounded.
+      // INSIDE: the interior corridor remains hard-bounded.
       ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
       ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
     } else {
-      // OUTSIDE: one large open flight volume around the entire starbase.
+      // OUTSIDE: free flight around the complete base.
       ship.position.x = Math.max(-72, Math.min(72, ship.position.x));
       ship.position.y = Math.max(-46, Math.min(46, ship.position.y));
       ship.position.z = Math.max(-160, Math.min(46, ship.position.z));
 
-      // Only the actual outer surface envelope blocks re-entry.
-      // There is no invisible box around BLACK HOLE.
+      // Rigid collision against the actual back*.png shell envelope.
+      // The test uses the movement segment, so high-speed motion cannot tunnel through it.
       starbaseHull.forEach((hull) => {
-        if (before.z < hull.zMin || before.z > hull.zMax) return;
+        const zOverlaps =
+          before.z >= hull.zMin && before.z <= hull.zMax
+          || ship.position.z >= hull.zMin && ship.position.z <= hull.zMax
+          || (before.z < hull.zMin && ship.position.z > hull.zMax)
+          || (before.z > hull.zMax && ship.position.z < hull.zMin);
 
-        if (before.x < -hull.outerX && ship.position.x >= -hull.outerX) {
-          ship.position.x = -hull.outerX - 0.02;
-        } else if (before.x > hull.outerX && ship.position.x <= hull.outerX) {
-          ship.position.x = hull.outerX + 0.02;
+        if (!zOverlaps) return;
+
+        // Left / right textured walls.
+        if (before.x >= hull.outerX && ship.position.x < hull.outerX) {
+          ship.position.x = hull.outerX + 0.05;
+        } else if (before.x <= -hull.outerX && ship.position.x > -hull.outerX) {
+          ship.position.x = -hull.outerX - 0.05;
         }
 
-        if (before.y < -hull.outerY && ship.position.y >= hull.outerY) {
-          ship.position.y = hull.outerY + 0.02;
-        } else if (before.y > hull.outerY && ship.position.y <= hull.outerY) {
-          ship.position.y = hull.outerY + 0.02;
+        // Top / bottom textured walls.
+        if (before.y >= hull.outerY && ship.position.y < hull.outerY) {
+          ship.position.y = hull.outerY + 0.05;
+        } else if (before.y <= -hull.outerY && ship.position.y > -hull.outerY) {
+          ship.position.y = -hull.outerY - 0.05;
         }
 
-        // End-face collision is kept only at the actual room ends.
-        // The central BLACK HOLE gap is intentionally excluded.
+        // End faces belong only to the actual Room 1 / Room 2 hull sections.
+        // There is deliberately no shell/cap in the BLACK HOLE gap.
         if (before.z > hull.zMax && ship.position.z <= hull.zMax) {
-          ship.position.z = hull.zMax + 0.02;
+          ship.position.z = hull.zMax + 0.05;
         } else if (before.z < hull.zMin && ship.position.z >= hull.zMin) {
-          ship.position.z = hull.zMin - 0.02;
+          ship.position.z = hull.zMin - 0.05;
         }
       });
     }
@@ -2097,7 +2105,7 @@
 
     if (blockedX || blockedY || blockedZ) {
       const speed = ship.velocity.length();
-      if (speed > 2.0) {
+      if (speed > 1.0) {
         triggerCollisionImpact(Math.min(0.62, speed / Math.max(1, ship.maxSpeed)));
       }
       if (blockedX) ship.velocity.x = 0;
@@ -2511,7 +2519,7 @@
       bind();
       resize();
       setSpeedMode(1);
-      setStatus("ENGINE READY · LOCAL r128 · 0.9.6 · SPEED 1");
+      setStatus("ENGINE READY · LOCAL r128 · 0.9.7 · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
