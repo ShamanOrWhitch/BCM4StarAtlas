@@ -2511,7 +2511,7 @@
       bind();
       resize();
       setSpeedMode(1);
-      setStatus("ENGINE READY · LOCAL r128 · 0.9.3 · SPEED 1");
+      setStatus("ENGINE READY · LOCAL r128 · 0.9.6 · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
