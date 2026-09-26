@@ -1,4 +1,10 @@
-# BCM Mini-Sim 0.9.15
+# BCM Mini-Sim 0.9.16
+
+### 0.9.16 final control / Deep Space collision pass
+- Standard gamepad mapping is explicit: LT = button 6, RT = button 7; the requested swap is now **LT = DOWN**, **RT = UP**.
+- Deep Space still has no rectangular navigation box.
+- Starbase shell collision is now proximity-gated to the real base, so the shell cannot behave like a far-away invisible space wall.
+
 
 ### 0.9.14–0.9.15 movement cleanup
 - Speed 1 forward/back thrust reduced from 15.5 to 11.5 and max speed from 32 to 24.
