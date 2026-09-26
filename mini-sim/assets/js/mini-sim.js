@@ -636,14 +636,22 @@
     group.name = "starbase-exterior-skeleton";
 
     // Exact outer envelope used by the back*.png shell.
-    // The black-hole gap remains open between the two room shells.
+    // The BLACK HOLE gap remains open between the two room shells.
     const width = 26.0;
     const height = 18.0;
     const outerX = width / 2 + 3.0;
     const outerY = height / 2 + 3.0;
+
+    // Primary structural frame: keep the strong corridor ribs.
     const rail = 0.42;
+    const secondaryRail = 0.24;
     const panelGap = 0.16;
+    const crossGap = 0.14;
     const panelFill = 0.10;
+    const sideRows = 3;
+    const roofCols = 3;
+    const capRows = 3;
+    const capCols = 3;
 
     const frameMat = new THREE.MeshStandardMaterial({
       color: 0x242b33,
@@ -698,6 +706,7 @@
       const ring = new THREE.Group();
       ring.position.z = z;
 
+      // Main longitudinal/corner ribs stay strong and continuous.
       const left = new THREE.Mesh(
         new THREE.BoxGeometry(rail, height + rail, rail),
         frameMat
@@ -723,13 +732,46 @@
       group.add(ring);
     }
 
+    function addSideCrossRibs(z, segmentWidth) {
+      for (let row = 1; row < sideRows; row++) {
+        const y = -outerY + 0.18 + ((panelHeightForRibs()) * row / sideRows);
+        [-outerX - 0.03, outerX + 0.03].forEach((x) => {
+          const rib = new THREE.Mesh(
+            new THREE.BoxGeometry(secondaryRail, secondaryRail, segmentWidth + 0.06),
+            frameMat
+          );
+          rib.position.set(x, y, z);
+          group.add(rib);
+        });
+      }
+    }
+
+    function panelHeightForRibs() {
+      return height + 2.0 * 3.0 - panelFill;
+    }
+
+    function addTopCrossRibs(z, segmentWidth, y) {
+      const panelWidth = width + 2.0 * 3.0 - panelFill;
+      for (let col = 1; col < roofCols; col++) {
+        const x = -outerX + 0.18 + ((panelWidth) * col / roofCols);
+        const rib = new THREE.Mesh(
+          new THREE.BoxGeometry(secondaryRail, secondaryRail, segmentWidth + 0.06),
+          frameMat
+        );
+        rib.position.set(x, y, z);
+        group.add(rib);
+      }
+    }
+
     function addTube(z0, z1) {
       const length = Math.abs(z1 - z0);
       const section = 4.5;
       const count = Math.max(3, Math.ceil(length / section));
       const band = length / count;
-      const panelHeight = height + 2.0 * 3.0 - panelFill;
+      const panelHeight = panelHeightForRibs();
       const panelWidth = width + 2.0 * 3.0 - panelFill;
+      const sideCellH = (panelHeight - crossGap * (sideRows - 1)) / sideRows;
+      const roofCellW = (panelWidth - crossGap * (roofCols - 1)) / roofCols;
 
       [
         [-outerX - 0.18, -outerY - 0.18],
@@ -753,32 +795,78 @@
 
         const center = z - band / 2;
         const segmentWidth = band - panelGap;
-        const left = materials[i % materials.length];
-        const right = materials[(i + 1) % materials.length];
-        const top = materials[(i + 2) % materials.length];
-        const bottom = materials[(i + 3) % materials.length];
 
-        // Main four skins: almost full coverage, with a thin structural edge remaining visible.
-        addPanel(left, -outerX, 0, center, segmentWidth, panelHeight, 0, -Math.PI / 2);
-        addPanel(right, outerX, 0, center, segmentWidth, panelHeight, 0, Math.PI / 2);
-        addPanel(top, 0, outerY, center, panelWidth, segmentWidth, -Math.PI / 2, 0);
-        addPanel(bottom, 0, -outerY, center, panelWidth, segmentWidth, Math.PI / 2, 0);
+        // Side walls: split every back*.png band into rows as well as along Z.
+        // This gives real horizontal panelization instead of only vertical strips.
+        for (let row = 0; row < sideRows; row++) {
+          const y = -panelHeight / 2 + sideCellH / 2 + row * (sideCellH + crossGap);
+          const sideLeft = materials[(i * 7 + row * 2) % materials.length];
+          const sideRight = materials[(i * 7 + row * 2 + 1) % materials.length];
 
-        // Fill the old 0.16 gaps between adjacent texture bands.
-        const bandZ = z - 0.5 * panelGap;
-        addPanel(left, -outerX, 0, bandZ, panelGap + 0.04, panelHeight, 0, -Math.PI / 2);
-        addPanel(right, outerX, 0, bandZ, panelGap + 0.04, panelHeight, 0, Math.PI / 2);
-        addPanel(top, 0, outerY, bandZ, panelWidth, panelGap + 0.04, -Math.PI / 2, 0);
-        addPanel(bottom, 0, -outerY, bandZ, panelWidth, panelGap + 0.04, Math.PI / 2, 0);
+          addPanel(sideLeft, -outerX, y, center, segmentWidth, sideCellH, 0, -Math.PI / 2);
+          addPanel(sideRight, outerX, y, center, segmentWidth, sideCellH, 0, Math.PI / 2);
+        }
+
+        // Ceiling/floor: split every band across X too.
+        for (let col = 0; col < roofCols; col++) {
+          const x = -panelWidth / 2 + roofCellW / 2 + col * (roofCellW + crossGap);
+          const top = materials[(i * 7 + 10 + col) % materials.length];
+          const bottom = materials[(i * 7 + 14 + col) % materials.length];
+
+          addPanel(top, x, outerY, center, roofCellW, segmentWidth, -Math.PI / 2, 0);
+          addPanel(bottom, x, -outerY, center, roofCellW, segmentWidth, Math.PI / 2, 0);
+        }
+
+        // Secondary ribs sit directly over the new horizontal/side seams.
+        addSideCrossRibs(center, segmentWidth);
+        addTopCrossRibs(center, segmentWidth, outerY);
+        addTopCrossRibs(center, segmentWidth, -outerY);
       }
 
       // Only the true outside-facing rear ends are capped with back*.png.
-      // The two ends facing BLACK HOLE remain open.
+      // These caps are also 3x3, so the rear no longer looks like one giant image.
+      function addCap(z, rotationY) {
+        const capWidth = panelWidth;
+        const capHeight = panelHeight;
+        const cellW = (capWidth - crossGap * (capCols - 1)) / capCols;
+        const cellH = (capHeight - crossGap * (capRows - 1)) / capRows;
+
+        for (let row = 0; row < capRows; row++) {
+          for (let col = 0; col < capCols; col++) {
+            const x = -capWidth / 2 + cellW / 2 + col * (cellW + crossGap);
+            const y = -capHeight / 2 + cellH / 2 + row * (cellH + crossGap);
+            const material = materials[(row * capCols + col + (z > 0 ? 0 : 5)) % materials.length];
+            addPanel(material, x, y, z, cellW, cellH, 0, rotationY);
+          }
+        }
+
+        // Keep the cap structurally framed rather than turning it into a single flat texture.
+        for (let row = 1; row < capRows; row++) {
+          const y = -capHeight / 2 + (capHeight * row / capRows);
+          const rib = new THREE.Mesh(
+            new THREE.BoxGeometry(capWidth, secondaryRail, rail),
+            frameMat
+          );
+          rib.position.set(0, y, z + (rotationY ? -0.02 : 0.02));
+          group.add(rib);
+        }
+
+        for (let col = 1; col < capCols; col++) {
+          const x = -capWidth / 2 + (capWidth * col / capCols);
+          const rib = new THREE.Mesh(
+            new THREE.BoxGeometry(secondaryRail, capHeight, rail),
+            frameMat
+          );
+          rib.position.set(x, 0, z + (rotationY ? -0.02 : 0.02));
+          group.add(rib);
+        }
+      }
+
       if (z0 > 0) {
-        addPanel(materials[0], 0, 0, z0 + 0.04, panelWidth, panelHeight, 0, 0);
+        addCap(z0 + 0.04, 0);
       }
       if (z1 < -80) {
-        addPanel(materials[0], 0, 0, z1 - 0.04, panelWidth, panelHeight, 0, Math.PI);
+        addCap(z1 - 0.04, Math.PI);
       }
     }
 
@@ -793,7 +881,6 @@
     backside.nextAt = performance.now() + 1000;
     randomizeBackside(performance.now());
   }
-
 
   function updateBacksideVisibility() {
     const zone = ship.position ? getSpaceZone(ship.position.z) : "ROOM1";
@@ -1748,7 +1835,7 @@
     pad.ry = dz(ax[3] || 0, 0.14);
     const btn = (n) => !!(gp.buttons && gp.buttons[n] && (gp.buttons[n].pressed || gp.buttons[n].value > 0.5));
     pad.roll = (btn(5) ? 1 : 0) - (btn(4) ? 1 : 0);
-    pad.vert = (btn(7) ? 1 : 0) - (btn(6) ? 1 : 0);
+    pad.vert = (btn(6) ? 1 : 0) - (btn(7) ? 1 : 0);
     const edge = (n, fn) => {
       const on = btn(n);
       if (on && !pad.prev[n] && running) fn();
@@ -2617,7 +2704,7 @@
       bind();
       resize();
       setSpeedMode(1);
-      setStatus("ENGINE READY · LOCAL r128 · 0.9.9 · SPEED 1");
+      setStatus("ENGINE READY · LOCAL r128 · 0.9.10 · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
