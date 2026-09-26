@@ -258,3 +258,8 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - Автоматический переход через портал временно блокируется, пока активен `SCREEN FOCUS`; ручной `G`/кнопка портала не менялись.
 - Первый космический экран в портальной зоне перенесён с `z=-38.5` на `z=-42.0`, а безопасная дистанция видео от портала увеличена с `12` до `16`.
 - Наклон и его параметры не изменялись.
+### 0.9.1 deep-space starbase skeleton
+- Deep Space after Room 2 is now a genuine free-flight volume bounded by the existing DEEP_SPACE_Z / DEEP_SPACE_MIN_Z limits.
+- Added a lightweight structural starbase skeleton through the deep-space volume (z ≈ -91…-224): outer rings, longitudinal trusses, diagonal braces and a central docking/operations ring at z ≈ -178.
+- The structure is non-colliding scenery; it does not turn deep space into another corridor and does not change ship controls or Room 1/Room 2 collision limits.
+- The skeleton uses procedural Three.js geometry and the existing lightweight materials, so no new image/video assets are required.
