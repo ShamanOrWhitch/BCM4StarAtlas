@@ -857,7 +857,7 @@
     for (let i = 0; i < 420; i++) {
       const angle = Math.random() * Math.PI * 2;
       const radius = 55 + Math.random() * 150;
-      const z = -45 + Math.random() * 210;
+      const z = -70 - Math.random() * 220;
       starPoints.push(Math.cos(angle) * radius, Math.sin(angle) * radius, z);
     }
     starGeometry.setAttribute(
