@@ -1,6 +1,12 @@
-# BCM Mini-Sim 0.9.10
+# BCM Mini-Sim 0.9.12
 
 ## STOP — read this before another GPT rewrite
+
+### 0.9.12 corrections
+- Door is one stretched full-width textured leaf again; no split left/right door leaves.
+- Corridor collision is tied to the actual ROOM 1 / ROOM 2 zone, so entering a corridor re-enables its rigid boundaries even after exterior flight.
+- LT/RT vertical controls are explicitly swapped relative to the original mapping: LT uses the former RT action and RT uses the former LT action.
+- `back*.png` panels are denser (4×4 across side/top surfaces and caps), use all available back textures on desktop, have no intentional gaps between texture cells, and retain only the main structural rings/corner rails.
 
 ### 0.9.10 gamepad + back* horizontal/vertical panel grid
 - LT and RT are swapped in the vertical-flight control: LT is now the positive vertical input, RT the negative input.
