@@ -171,7 +171,7 @@
   // Speed matrix: mode 2 keeps the previous 0.9.0 flight values.
   // Mode 1 is the new default: slightly slower forward/back flight.
   const speedMatrix = {
-    1: { thrust: 16.5, maxSpeed: 38 },
+    1: { thrust: 15.5, maxSpeed: 32 },
     2: { thrust: 18, maxSpeed: 42 }
   };
   let speedMode = 1;
@@ -237,6 +237,7 @@
   const backside = {
     urls: Array.isArray(config.backsideTextures) ? config.backsideTextures.slice() : [],
     panels: [],
+    group: null,
     nextAt: 0
   };
   const spaceSatellite = {
@@ -644,8 +645,8 @@
       const material = new THREE.MeshBasicMaterial({
         color: 0x303943,
         side: THREE.FrontSide,
-        depthTest: false,
-        depthWrite: false,
+        depthTest: true,
+        depthWrite: true,
         fog: false,
         toneMapped: false
       });
@@ -760,25 +761,28 @@
         addPanel(bottom, 0, -outerY, bandZ, panelWidth, panelGap + 0.04, Math.PI / 2, 0);
       }
 
-      // End caps close the outer shell without closing the black-hole flight space itself.
-      const capA = materials[0];
-      const capB = materials[materials.length > 1 ? 1 : 0];
-      addPanel(capA, 0, 0, z0, panelWidth, panelHeight, 0, 0);
-      addPanel(capB, 0, 0, z1, panelWidth, panelHeight, 0, Math.PI);
+      // No textured end caps: the BLACK HOLE gap must stay visually open.
     }
 
     // Only Room 1 and Room 2. BLACK HOLE remains open between them.
     addTube(5.5, -25.5);
     addTube(-47.5, -84.5);
 
+    group.visible = false;
     parent.add(group);
+    backside.group = group;
     backside.panels = panels;
     backside.nextAt = performance.now() + 1000;
     randomizeBackside(performance.now());
   }
 
 
-function randomizeBackside(now) {
+  function updateBacksideVisibility() {
+    const exterior = !!ship.position && ship.position.z < DEEP_SPACE_Z;
+    if (backside.group) backside.group.visible = exterior;
+  }
+
+  function randomizeBackside(now) {
     if (!backside.panels.length) return;
 
     const materials = backside.panels.map((item) => item.material);
@@ -2041,45 +2045,42 @@ function randomizeBackside(now) {
   function collide() {
     const before = ship.position.clone();
 
-    // Interior corridor limits remain active only while the ship is inside the room.
-    const insideRoom1 = before.z >= -24.5 && before.z <= 5.5;
-    const insideRoom2 = before.z >= -84.5 && before.z <= -47.5;
-    const insideCorridor = Math.abs(before.x) <= 5.3 && Math.abs(before.y) <= 3.2;
+    const inRoom1 = before.z > -24.5;
+    const inRoom2AndPortal = before.z >= DEEP_SPACE_Z;
 
-    if ((insideRoom1 || insideRoom2) && insideCorridor) {
+    if (inRoom1 || inRoom2AndPortal) {
+      // Interior / BLACK HOLE corridor remains physically closed on X/Y.
+      // Exterior access is through the portal into Deep Space.
       ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
       ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
-    }
-
-    // Outer shell collision follows the exact back*.png envelope.
-    // Crossing from outside -> inside is blocked; inside -> outside remains possible.
-    starbaseHull.forEach((hull) => {
-      if (before.z < hull.zMin || before.z > hull.zMax) return;
-
-      if (before.x < -hull.outerX && ship.position.x >= -hull.outerX) {
-        ship.position.x = -hull.outerX - 0.02;
-      } else if (before.x > hull.outerX && ship.position.x <= hull.outerX) {
-        ship.position.x = hull.outerX + 0.02;
-      }
-
-      if (before.y < -hull.outerY && ship.position.y >= -hull.outerY) {
-        ship.position.y = -hull.outerY - 0.02;
-      } else if (before.y > hull.outerY && ship.position.y <= hull.outerY) {
-        ship.position.y = hull.outerY + 0.02;
-      }
-
-      if (before.z > hull.zMax && ship.position.z <= hull.zMax) {
-        ship.position.z = hull.zMax + 0.02;
-      } else if (before.z < hull.zMin && ship.position.z >= hull.zMin) {
-        ship.position.z = hull.zMin - 0.02;
-      }
-    });
-
-    // Global open-space limits.
-    if (ship.position.z < DEEP_SPACE_Z) {
+    } else {
+      // Deep Space: free 3D flight around the external base.
       ship.position.x = Math.max(-58, Math.min(58, ship.position.x));
       ship.position.y = Math.max(-34, Math.min(34, ship.position.y));
       ship.position.z = Math.max(DEEP_SPACE_MIN_Z, Math.min(DEEP_SPACE_Z - 0.1, ship.position.z));
+
+      // Prevent re-entry through the back-texture hull from open space.
+      starbaseHull.forEach((hull) => {
+        if (before.z < hull.zMin || before.z > hull.zMax) return;
+
+        if (before.x < -hull.outerX && ship.position.x >= -hull.outerX) {
+          ship.position.x = -hull.outerX - 0.02;
+        } else if (before.x > hull.outerX && ship.position.x <= hull.outerX) {
+          ship.position.x = hull.outerX + 0.02;
+        }
+
+        if (before.y < -hull.outerY && ship.position.y >= -hull.outerY) {
+          ship.position.y = -hull.outerY - 0.02;
+        } else if (before.y > hull.outerY && ship.position.y <= hull.outerY) {
+          ship.position.y = hull.outerY + 0.02;
+        }
+
+        if (before.z > hull.zMax && ship.position.z <= hull.zMax) {
+          ship.position.z = hull.zMax + 0.02;
+        } else if (before.z < hull.zMin && ship.position.z >= hull.zMin) {
+          ship.position.z = hull.zMin - 0.02;
+        }
+      });
     }
 
     const blockedX = before.x !== ship.position.x;
@@ -2180,6 +2181,7 @@ function randomizeBackside(now) {
   }
 
   function render(now) {
+    updateBacksideVisibility();
     updateBacksideCamouflage(now);
     const dt = Math.min((now - last) / 1000, 0.033);
     last = now;
