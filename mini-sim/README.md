@@ -1,6 +1,15 @@
-# BCM Mini-Sim 0.8.7
+# BCM Mini-Sim 0.9.2
 
 ## STOP — read this before another GPT rewrite
+
+### 0.9.2 Deep Space / speed matrix
+- Version is explicitly **0.9.2** in PHP, HUD, and this README.
+- Default flight mode is **Speed 1**: forward/back thrust is slightly reduced to make normal exploration slower.
+- **Speed 2** preserves the previous 0.9.0 thrust/max-speed values for the future fast-flight switch.
+- Deep Space has no enclosing visual shell. The player can fly above, below, beside, and around the external starbase and inspect it from open space.
+- The exterior starbase is separate from the interior/backside texture layers. Nothing from that exterior structure is rendered in the BLACK HOLE transition volume.
+- Collision limits remain the navigation boundary only; the starbase itself has no collision yet.
+- Boundary impacts use a temporary red visual pulse that fades over about 1.5 seconds.
 
 Live site: https://walkingyog.com/bcm4sa/
 Repo: ShamanOrWhitch/BCM4StarAtlas / mini-sim
