@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.9.5
+# BCM Mini-Sim 0.9.6
 
 ## STOP — read this before another GPT rewrite
 
@@ -286,3 +286,10 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 - Room 1 / Room 2 / BLACK HOLE corridor bounds are restored as physical interior limits; exterior flight begins in Deep Space through the portal.
 - Re-entry from Deep Space into the back-texture hull is blocked by the external shell envelope.
 - Default Speed 1 is reduced to thrust 15.5 and max speed 32; Speed 2 remains the stored fast mode.
+
+### 0.9.6 full exterior inspection layer
+- The player switches from INSIDE to OUTSIDE after crossing the rear opening of Room 2 at z < -84.5.
+- OUTSIDE is now a single large open flight volume around the complete Room 1 + BLACK HOLE + Room 2 structure.
+- The player can fly around the front, rear, top, bottom and sides of the starbase and inspect the back*.png exterior from all directions.
+- back*.png collision acts only as an exterior hull barrier against re-entry; BLACK HOLE has no back-texture shell.
+- Returning home or using either portal resets the layer to INSIDE.
