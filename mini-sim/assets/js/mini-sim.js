@@ -721,6 +721,143 @@
     randomizeBackside(performance.now());
   }
 
+  function buildDeepSpaceStarbaseSkeleton(parent) {
+    // Deep-space is a real free-flight volume. This is a lightweight structural
+    // skeleton around it, not a solid corridor: the ship can fly through and around it.
+    const group = new THREE.Group();
+    group.name = "deep-space-starbase-skeleton";
+
+    const frame = new THREE.MeshStandardMaterial({
+      color: 0x28313b,
+      metalness: 0.78,
+      roughness: 0.3
+    });
+    const brace = new THREE.MeshStandardMaterial({
+      color: 0x4b5968,
+      metalness: 0.7,
+      roughness: 0.34
+    });
+    const lightMat = new THREE.MeshBasicMaterial({
+      color: 0x74c8ff
+    });
+
+    const zStart = -91;
+    const zEnd = -224;
+    const width = 54;
+    const height = 32;
+    const halfW = width / 2;
+    const halfH = height / 2;
+    const step = 22;
+    const rings = [];
+
+    const beamBetween = (a, b, thickness, material) => {
+      const direction = b.clone().sub(a);
+      const length = direction.length();
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(thickness, thickness, length),
+        material
+      );
+      mesh.position.copy(a).add(b).multiplyScalar(0.5);
+      mesh.quaternion.setFromUnitVectors(
+        new THREE.Vector3(0, 0, 1),
+        direction.normalize()
+      );
+      group.add(mesh);
+      return mesh;
+    };
+
+    const addRing = (z) => {
+      const points = [
+        new THREE.Vector3(-halfW, -halfH, z),
+        new THREE.Vector3(-halfW,  halfH, z),
+        new THREE.Vector3( halfW,  halfH, z),
+        new THREE.Vector3( halfW, -halfH, z)
+      ];
+
+      for (let i = 0; i < 4; i++) {
+        beamBetween(points[i], points[(i + 1) % 4], 0.38, frame);
+      }
+
+      // Secondary inner cross-members make the skeleton read as a station frame
+      // without turning the free-flight volume into a wall.
+      beamBetween(points[0], points[2], 0.24, brace);
+      beamBetween(points[1], points[3], 0.24, brace);
+
+      const marker = new THREE.Mesh(
+        new THREE.SphereGeometry(0.32, 8, 6),
+        lightMat
+      );
+      marker.position.set(0, 0, z);
+      marker.renderOrder = 2;
+      group.add(marker);
+
+      rings.push(points);
+    };
+
+    const count = Math.floor((zStart - zEnd) / step);
+    for (let i = 0; i <= count; i++) {
+      addRing(Math.max(zEnd, zStart - i * step));
+    }
+    if (rings[rings.length - 1][0].z > zEnd + 0.5) addRing(zEnd);
+
+    // Four long corner trusses.
+    for (let c = 0; c < 4; c++) {
+      beamBetween(rings[0][c], rings[rings.length - 1][c], 0.52, frame);
+    }
+
+    // Diagonal bracing between successive rings.
+    for (let i = 0; i < rings.length - 1; i++) {
+      const a = rings[i];
+      const b = rings[i + 1];
+      for (let c = 0; c < 4; c++) {
+        beamBetween(a[c], b[(c + 1) % 4], 0.20, brace);
+        beamBetween(a[c], b[(c + 3) % 4], 0.20, brace);
+      }
+    }
+
+    // Central starbase module: a visible docking/operations ring in deep space.
+    const hubZ = -178;
+    const hubRing = new THREE.Mesh(
+      new THREE.TorusGeometry(15, 0.48, 8, 40),
+      frame
+    );
+    hubRing.position.set(0, 0, hubZ);
+    group.add(hubRing);
+
+    const hubCore = new THREE.Mesh(
+      new THREE.CylinderGeometry(3.2, 3.2, 1.2, 16),
+      brace
+    );
+    hubCore.rotation.x = Math.PI / 2;
+    hubCore.position.set(0, 0, hubZ);
+    group.add(hubCore);
+
+    for (let i = 0; i < 8; i++) {
+      const angle = (Math.PI * 2 * i) / 8;
+      const end = new THREE.Vector3(Math.cos(angle) * 14.2, Math.sin(angle) * 14.2, hubZ);
+      beamBetween(new THREE.Vector3(0, 0, hubZ), end, 0.22, brace);
+
+      const lamp = new THREE.Mesh(
+        new THREE.SphereGeometry(0.28, 8, 6),
+        lightMat
+      );
+      lamp.position.copy(end);
+      group.add(lamp);
+    }
+
+    // Two long approach rails point toward the deep-space hub.
+    beamBetween(new THREE.Vector3(-15, 0, -91), new THREE.Vector3(-15, 0, -224), 0.3, brace);
+    beamBetween(new THREE.Vector3(15, 0, -91), new THREE.Vector3(15, 0, -224), 0.3, brace);
+
+    group.traverse((object) => {
+      if (object.isMesh) {
+        object.renderOrder = object.renderOrder || 1;
+      }
+    });
+
+    parent.add(group);
+  }
+
   function randomizeBackside(now) {
     if (!backside.panels.length) return;
 
