@@ -830,9 +830,26 @@
     randomizeBackside(performance.now());
   }
 
+  function isInsideCorridor(position) {
+    if (!position) return false;
+    const inCorridorXY =
+      Math.abs(position.x) <= 5.3 &&
+      Math.abs(position.y) <= 3.2;
+    if (!inCorridorXY) return false;
+
+    const room1 = position.z > -24.5 && position.z <= 5.45;
+    const room2 = position.z >= -84.5 && position.z < -47.46;
+    return room1 || room2;
+  }
+
   function updateBacksideVisibility() {
+    // In BLACK HOLE the exterior skin stays hidden.
+    // Outside the base it is visible even when our Z happens to line up
+    // with Room 1/2; visual presence is no longer tied to the room's Z band.
     const zone = ship.position ? getSpaceZone(ship.position.z) : "ROOM1";
-    const exterior = exteriorFlight && zone === "DEEP_SPACE";
+    const exterior = exteriorFlight &&
+      zone !== "BLACK_HOLE" &&
+      !isInsideCorridor(ship.position);
     if (backside.group) backside.group.visible = exterior;
   }
 
@@ -2200,40 +2217,62 @@
 
   function collide() {
     const before = ship.position.clone();
-    const zone = getSpaceZone(before.z);
 
-    // BLACK HOLE is the only intentionally open transition volume.
-    // Once back inside either corridor, normal corridor collision is ALWAYS active.
-    if (zone === "ROOM1") {
+    // A room exists in 3D, not just on the Z axis.
+    // Being outside the corridor envelope means free space, even when the
+    // ship's Z happens to overlap the room's longitudinal range.
+    const room1Interior =
+      before.z > -24.5 && before.z <= 5.45 &&
+      Math.abs(before.x) <= 5.3 &&
+      Math.abs(before.y) <= 3.2;
+
+    const room2Interior =
+      before.z >= -84.5 && before.z < -47.46 &&
+      Math.abs(before.x) <= 5.3 &&
+      Math.abs(before.y) <= 3.2;
+
+    if (room1Interior) {
       exteriorFlight = false;
+
+      // Hard labyrinth walls while actually inside Room 1.
       ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
       ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
 
-      if (ship.position.z > 5.45) ship.position.z = 5.45;
-      if (before.z < -24.5 && ship.position.z >= -24.5) {
+      // Rear cap stays closed.
+      if (ship.position.z > 5.45) {
+        ship.position.z = 5.45;
+      }
+
+      // Front opens only through the central corridor-sized opening.
+      if (before.z < -24.5 && ship.position.z >= -24.5 &&
+          (Math.abs(before.x) > 5.85 || Math.abs(before.y) > 3.45)) {
         ship.position.z = -24.46;
       }
-    } else if (zone === "ROOM2") {
+    } else if (room2Interior) {
       exteriorFlight = false;
+
+      // Hard labyrinth walls while actually inside Room 2.
       ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
       ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
 
+      // Rear end is the deliberate exit to the exterior.
       if (ship.position.z < -84.5) {
         exteriorFlight = true;
       }
+
+      // Front opens only through the central return opening.
       if (!exteriorFlight && ship.position.z > -47.46) {
         ship.position.z = -47.46;
       }
     } else {
-      // BLACK HOLE and DEEP SPACE are genuinely open 3D volumes.
-      // There is NO rectangular navigation box here: no hidden X/Y/Z walls,
-      // no artificial map edge and no global noclip switch.
-      // The only physical boundaries that remain are the actual starbase shell.
-      if (zone === "BLACK_HOLE" &&
+      // Outside both corridor footprints: free flight.
+      // BLACK HOLE and DEEP SPACE do not impose room-style X/Y clamps.
+      if (getSpaceZone(before.z) === "BLACK_HOLE" &&
           (Math.abs(before.x) > 6.0 || Math.abs(before.y) > 4.0)) {
         exteriorFlight = true;
       }
 
+      // The ONLY remaining solid object here is the physical starbase shell.
       collideStarbaseShell(before, true);
     }
 
@@ -2660,7 +2699,7 @@
       bind();
       resize();
       setSpeedMode(1);
-      setStatus("ENGINE READY · LOCAL r128 · 0.9.16 · SPEED 1");
+      setStatus("ENGINE READY · LOCAL r128 · 0.9.17 · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
