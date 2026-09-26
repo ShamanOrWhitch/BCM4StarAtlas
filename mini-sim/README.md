@@ -1,6 +1,14 @@
-# BCM Mini-Sim 0.9.9
+# BCM Mini-Sim 0.9.10
 
 ## STOP — read this before another GPT rewrite
+
+### 0.9.10 gamepad + back* horizontal/vertical panel grid
+- LT and RT are swapped in the vertical-flight control: LT is now the positive vertical input, RT the negative input.
+- Exterior `back*.png` skins are split in two dimensions: longitudinal sections are subdivided across the wall/roof width as well, so the camouflage consists of many smaller panels rather than only long strips.
+- The original strong structural rings and corner/longitudinal ribs remain; added cross-ribs only mark the new panel seams.
+- Rear caps use a 3x3 texture grid too, while the BLACK HOLE-facing ends remain open.
+- The existing per-panel asynchronous texture switching is preserved.
+
 
 ### 0.9.2 Deep Space / speed matrix
 ### 0.9.3 exterior flight / satellite
