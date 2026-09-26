@@ -1781,7 +1781,7 @@
     pad.ry = dz(ax[3] || 0, 0.14);
     const btn = (n) => !!(gp.buttons && gp.buttons[n] && (gp.buttons[n].pressed || gp.buttons[n].value > 0.5));
     pad.roll = (btn(5) ? 1 : 0) - (btn(4) ? 1 : 0);
-    pad.vert = (btn(6) ? 1 : 0) - (btn(7) ? 1 : 0);
+    pad.vert = (btn(7) ? 1 : 0) - (btn(6) ? 1 : 0);
     const edge = (n, fn) => {
       const on = btn(n);
       if (on && !pad.prev[n] && running) fn();
@@ -2121,9 +2121,22 @@
 
   function collideStarbaseShell(before, allowInteriorOpenings) {
     let blocked = false;
+    const shellPadding = 8.0;
 
     starbaseHull.forEach((hull, index) => {
-      // Side/top/bottom walls exist only over the actual textured room sections.
+      // Collision is only for the physical starbase shell itself.
+      // A small proximity envelope avoids treating the base collider as a
+      // global Deep Space navigation wall.
+      const nearX = Math.abs(ship.position.x) <= hull.outerX + shellPadding ||
+        Math.abs(before.x) <= hull.outerX + shellPadding;
+      const nearY = Math.abs(ship.position.y) <= hull.outerY + shellPadding ||
+        Math.abs(before.y) <= hull.outerY + shellPadding;
+      const nearZ = (
+        Math.min(before.z, ship.position.z) <= hull.zMax + shellPadding &&
+        Math.max(before.z, ship.position.z) >= hull.zMin - shellPadding
+      );
+      if (!(nearX && nearY && nearZ)) return;
+
       const zMin = hull.zMin;
       const zMax = hull.zMax;
 
@@ -2647,7 +2660,7 @@
       bind();
       resize();
       setSpeedMode(1);
-      setStatus("ENGINE READY · LOCAL r128 · 0.9.15 · SPEED 1");
+      setStatus("ENGINE READY · LOCAL r128 · 0.9.16 · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
