@@ -231,6 +231,17 @@
     panels: [],
     nextAt: 0
   };
+  const deepSpaceStarbase = {
+    group: null,
+    stars: null,
+    visible: false
+  };
+  const impact = {
+    overlay: null,
+    light: null,
+    strength: 0,
+    cooldown: 0
+  };
   const tilt = {
     enabled: false,
     available: false,
@@ -744,6 +755,137 @@
     if (now >= backside.nextAt) randomizeBackside(now);
   }
 
+  function buildDeepSpaceStarbase(parent) {
+    const group = new THREE.Group();
+    group.name = "deep-space-starbase";
+    group.position.set(0, 0, -155);
+    group.visible = false;
+
+    const frameMat = new THREE.MeshStandardMaterial({
+      color: 0x4b5662,
+      metalness: 0.82,
+      roughness: 0.3
+    });
+    const darkMat = new THREE.MeshStandardMaterial({
+      color: 0x18212b,
+      metalness: 0.72,
+      roughness: 0.26
+    });
+    const lightMat = new THREE.MeshBasicMaterial({ color: 0x9bd9ff });
+    const beaconRed = new THREE.MeshBasicMaterial({ color: 0xff3344 });
+    const dockingMat = new THREE.MeshBasicMaterial({ color: 0xdbeeff });
+
+    group.add(new THREE.Mesh(new THREE.SphereGeometry(4.4, 12, 8), darkMat));
+
+    const spine = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.25, 2.7, 18, 12),
+      frameMat
+    );
+    spine.rotation.x = Math.PI / 2;
+    group.add(spine);
+
+    group.add(new THREE.Mesh(
+      new THREE.TorusGeometry(9.5, 0.55, 8, 36),
+      frameMat
+    ));
+    group.add(new THREE.Mesh(
+      new THREE.TorusGeometry(24, 0.8, 8, 56),
+      frameMat
+    ));
+
+    [0, Math.PI / 2, Math.PI, Math.PI * 1.5].forEach((angle, index) => {
+      const arm = new THREE.Mesh(
+        new THREE.BoxGeometry(2.0, 2.0, 12),
+        frameMat
+      );
+      arm.position.set(Math.cos(angle) * 8.8, Math.sin(angle) * 8.8, 0);
+      arm.rotation.z = angle + Math.PI / 2;
+      group.add(arm);
+
+      const bay = new THREE.Mesh(
+        new THREE.BoxGeometry(3.4, 3.4, 4.5),
+        darkMat
+      );
+      bay.position.set(Math.cos(angle) * 15.5, Math.sin(angle) * 15.5, 0);
+      bay.rotation.z = angle;
+      group.add(bay);
+
+      const marker = new THREE.Mesh(
+        new THREE.BoxGeometry(3.4, 0.22, 0.22),
+        dockingMat
+      );
+      marker.position.set(Math.cos(angle) * 18.0, Math.sin(angle) * 18.0, 0);
+      marker.rotation.z = angle;
+      group.add(marker);
+
+      const nav = new THREE.Mesh(
+        new THREE.SphereGeometry(0.42, 8, 6),
+        index % 2 ? beaconRed : lightMat
+      );
+      nav.position.set(Math.cos(angle) * 25.1, Math.sin(angle) * 25.1, 0);
+      group.add(nav);
+    });
+
+    [-1, 1].forEach((side) => {
+      const tower = new THREE.Mesh(
+        new THREE.BoxGeometry(4.6, 4.6, 8.5),
+        darkMat
+      );
+      tower.position.set(0, 0, side * 11.5);
+      group.add(tower);
+
+      const beacon = new THREE.Mesh(
+        new THREE.SphereGeometry(0.62, 8, 6),
+        beaconRed
+      );
+      beacon.position.set(0, 0, side * 16.2);
+      group.add(beacon);
+    });
+
+    const namePlate = new THREE.Mesh(
+      new THREE.BoxGeometry(6.5, 0.28, 0.22),
+      lightMat
+    );
+    namePlate.position.set(0, -5.4, 0);
+    group.add(namePlate);
+
+    parent.add(group);
+    deepSpaceStarbase.group = group;
+
+    const starGeometry = new THREE.BufferGeometry();
+    const starPoints = [];
+    for (let i = 0; i < 420; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 55 + Math.random() * 150;
+      const z = -45 + Math.random() * 210;
+      starPoints.push(Math.cos(angle) * radius, Math.sin(angle) * radius, z);
+    }
+    starGeometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(starPoints, 3)
+    );
+    const starField = new THREE.Points(
+      starGeometry,
+      new THREE.PointsMaterial({
+        color: 0xbcd8ff,
+        size: 0.55,
+        transparent: true,
+        opacity: 0.7
+      })
+    );
+    starField.name = "deep-space-starfield";
+    starField.visible = false;
+    parent.add(starField);
+    deepSpaceStarbase.stars = starField;
+  }
+
+  function updateDeepSpaceStarbaseVisibility() {
+    const visible = !!ship.position && ship.position.z < DEEP_SPACE_Z - 4;
+    if (deepSpaceStarbase.group) deepSpaceStarbase.group.visible = visible;
+    if (deepSpaceStarbase.stars) deepSpaceStarbase.stars.visible = visible;
+    deepSpaceStarbase.visible = visible;
+  }
+
   function buildWorld() {
     const world = new THREE.Group();
     buildRoom(world, {
@@ -776,6 +918,7 @@
     world.add(deepSpaceBox);
 
     buildStarbaseExterior(world);
+    buildDeepSpaceStarbase(world);
 
     const dock = new THREE.Mesh(
       new THREE.BoxGeometry(1.4, 1.4, 0.12),
@@ -1831,25 +1974,56 @@
     };
   }
 
+  function triggerCollisionImpact(force) {
+    const now = performance.now();
+    if (now < impact.cooldown) return;
+    impact.cooldown = now + 260;
+    impact.strength = Math.max(impact.strength, Math.max(0.24, Math.min(0.62, force)));
+  }
+
+  function updateCollisionImpact(dt) {
+    if (impact.strength <= 0) return;
+    impact.strength = Math.max(0, impact.strength - dt / 1.5);
+    if (impact.overlay) {
+      const pulse = impact.strength * (0.78 + 0.22 * Math.sin(impact.strength * 24));
+      impact.overlay.material.opacity = Math.max(0, pulse);
+    }
+    if (impact.light) {
+      impact.light.intensity = impact.strength * 3.5;
+      impact.light.position.copy(camera.position);
+    }
+  }
+
   function collide() {
+    const beforeX = ship.position.x;
+    const beforeY = ship.position.y;
+    const beforeZ = ship.position.z;
+
     if (ship.position.z > -24.5) {
-      // Room 1 / front corridor.
       ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
       ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
-      return;
-    }
-
-    if (ship.position.z >= DEEP_SPACE_Z) {
-      // Portal chamber + Room 2 remain corridor-like.
+    } else if (ship.position.z >= DEEP_SPACE_Z) {
       ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
       ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
-      return;
+    } else {
+      ship.position.x = Math.max(-58, Math.min(58, ship.position.x));
+      ship.position.y = Math.max(-34, Math.min(34, ship.position.y));
+      ship.position.z = Math.max(DEEP_SPACE_MIN_Z, Math.min(DEEP_SPACE_Z - 0.1, ship.position.z));
     }
 
-    // Past Room 2 there is real free flight in a large 3D volume.
-    ship.position.x = Math.max(-58, Math.min(58, ship.position.x));
-    ship.position.y = Math.max(-34, Math.min(34, ship.position.y));
-    ship.position.z = Math.max(DEEP_SPACE_MIN_Z, Math.min(DEEP_SPACE_Z - 0.1, ship.position.z));
+    const blockedX = beforeX !== ship.position.x;
+    const blockedY = beforeY !== ship.position.y;
+    const blockedZ = beforeZ !== ship.position.z;
+
+    if (blockedX || blockedY || blockedZ) {
+      const speed = ship.velocity.length();
+      if (speed > 2.0) {
+        triggerCollisionImpact(Math.min(0.62, speed / Math.max(1, ship.maxSpeed)));
+      }
+      if (blockedX) ship.velocity.x = 0;
+      if (blockedY) ship.velocity.y = 0;
+      if (blockedZ) ship.velocity.z = 0;
+    }
   }
 
   function updatePhysics(dt) {
@@ -1867,6 +2041,8 @@
     if (ship.velocity.length() > ship.maxSpeed) ship.velocity.setLength(ship.maxSpeed);
     ship.position.addScaledVector(ship.velocity, dt);
     collide();
+    updateDeepSpaceStarbaseVisibility();
+    updateCollisionImpact(dt);
 
     const focusedOrbit = orbitFocusedScreen(dt);
     const mobileTiltMode = mobileLandscape() && tilt.enabled;
@@ -1916,9 +2092,14 @@
       else if (getNearestVideoTarget()) interaction.textContent = "TAP VIDEO · FOCUS · ◀ ▶";
     }
 
-    const room = ship.position.z < DEEP_SPACE_Z
-      ? "DEEP SPACE"
-      : (ship.position.z < -48 ? "ROOM 2" : (ship.position.z < -28 ? "SPACE" : "ROOM 1"));
+    let room;
+    if (ship.position.z < DEEP_SPACE_Z) {
+      room = deepSpaceStarbase.visible ? "DEEP SPACE · STARBASE" : "DEEP SPACE";
+    } else {
+      room = ship.position.z < -48
+        ? "ROOM 2"
+        : (ship.position.z < -28 ? "BLACK HOLE" : "ROOM 1");
+    }
     setStatus(room + " · SPD " + ship.velocity.length().toFixed(1));
   }
 
@@ -2210,6 +2391,23 @@
       scene = new THREE.Scene();
       scene.background = new THREE.Color(0x020308);
       camera = new THREE.PerspectiveCamera(70, 1, 0.08, 400);
+
+      const impactOverlayMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff1528,
+        transparent: true,
+        opacity: 0,
+        depthTest: false,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+      impact.overlay = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), impactOverlayMaterial);
+      impact.overlay.position.set(0, 0, -1.2);
+      impact.overlay.renderOrder = 100;
+      camera.add(impact.overlay);
+
+      impact.light = new THREE.PointLight(0xff1428, 0, 24);
+      scene.add(impact.light);
+
       light = new THREE.PointLight(0xffffff, 1.1, 80);
       scene.add(light);
       scene.add(new THREE.AmbientLight(0x8899aa, 0.35));
