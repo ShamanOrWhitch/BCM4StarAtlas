@@ -20,9 +20,77 @@
     touch-action: none;
 }
 
+.bcm-tower-menu {
+    position: absolute;
+    z-index: 30;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    text-align: center;
+    background:
+        radial-gradient(circle at 50% 45%, rgba(28,65,92,.28), rgba(0,0,0,.82) 62%),
+        rgba(0,0,0,.48);
+    backdrop-filter: blur(2px);
+}
+
+.bcm-tower-menu[hidden] {
+    display: none;
+}
+
+.bcm-tower-menu-title {
+    font-size: clamp(25px, 5vw, 46px);
+    font-weight: 800;
+    letter-spacing: .22em;
+}
+
+.bcm-tower-menu-subtitle {
+    opacity: .65;
+    font-size: 11px;
+    letter-spacing: .22em;
+    margin-bottom: 8px;
+}
+
+.bcm-tower-mode-buttons {
+    display: flex;
+    gap: 16px;
+}
+
+.bcm-tower-mode-buttons button {
+    min-width: 150px;
+    min-height: 54px;
+    padding: 12px 22px;
+    border: 1px solid rgba(255,255,255,.27);
+    border-radius: 13px;
+    background: rgba(8,14,22,.82);
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: .12em;
+    box-shadow: 0 10px 35px rgba(0,0,0,.35);
+}
+
+.bcm-tower-mode-buttons button:hover,
+.bcm-tower-mode-buttons button:focus-visible {
+    transform: translateY(-1px);
+    background: rgba(35,62,84,.92);
+    outline: none;
+}
+
+.bcm-tower-menu-help {
+    max-width: 520px;
+    padding: 10px 14px;
+    font-size: 12px;
+    line-height: 1.5;
+    opacity: .72;
+}
+
 .bcm-tower-hud {
     position: absolute;
-    z-index: 5;
+    z-index: 10;
     inset: 14px 16px auto;
     pointer-events: none;
     text-shadow: 0 2px 8px rgba(0,0,0,.9);
@@ -36,6 +104,7 @@
 
 .bcm-tower-status,
 .bcm-tower-level,
+.bcm-tower-mode,
 .bcm-tower-crew {
     margin-top: 5px;
     font-size: 12px;
@@ -48,41 +117,86 @@
     opacity: .86;
 }
 
-.bcm-tower-help span {
+.bcm-tower-help span,
+.bcm-tower-help b {
     font-weight: 700;
 }
 
-.bcm-tower-help-gamepad {
+.bcm-tower-help-multi {
     display: none;
+}
+
+.bcm-tower-split-divider {
+    position: absolute;
+    z-index: 9;
+    pointer-events: none;
+    background: rgba(255,255,255,.22);
+}
+
+.bcm-tower-split-label {
+    position: absolute;
+    z-index: 11;
+    pointer-events: none;
+    padding: 4px 7px;
+    border-radius: 6px;
+    background: rgba(0,0,0,.36);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .12em;
+}
+
+.bcm-tower-split-p1 {
+    left: 10px;
+    bottom: 10px;
+}
+
+.bcm-tower-split-p2 {
+    right: 10px;
+    bottom: 10px;
 }
 
 .bcm-tower-mobile {
     position: absolute;
-    z-index: 8;
-    left: 14px;
-    right: 14px;
-    bottom: 14px;
+    z-index: 12;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
     display: none;
-    justify-content: center;
-    gap: 14px;
+    justify-content: space-between;
+    gap: 8px;
     pointer-events: none;
 }
 
-.bcm-tower-mobile button {
+.bcm-tower-mobile-player {
+    display: flex;
+    gap: 9px;
+    pointer-events: none;
+}
+
+.bcm-tower-mobile-player button {
     pointer-events: auto;
-    width: 64px;
-    height: 56px;
+    width: 60px;
+    height: 53px;
     border: 1px solid rgba(255,255,255,.25);
     border-radius: 14px;
     background: rgba(8,14,22,.72);
     color: #fff;
-    font-size: 19px;
+    font-size: 18px;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
     backdrop-filter: blur(6px);
+}
+
+.bcm-tower-mobile-player button[data-tower-control="jump"] {
+    width: 72px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: .08em;
 }
 
 .bcm-tower-restart {
     position: absolute;
-    z-index: 9;
+    z-index: 14;
     right: 16px;
     top: 14px;
     border: 1px solid rgba(255,255,255,.24);
@@ -95,7 +209,7 @@
 
 .bcm-tower-transition {
     position: absolute;
-    z-index: 20;
+    z-index: 50;
     inset: 0;
     background: #000;
 }
@@ -130,19 +244,88 @@
     cursor: pointer;
 }
 
-@media (max-width: 900px) and (orientation: landscape) {
+@media (min-width: 901px) {
+    .bcm-tower:has(.bcm-tower-help-multi) {}
+}
+
+@media (max-width: 900px) {
     .bcm-tower-mobile {
         display: flex;
     }
 
-    .bcm-tower-help-desktop {
-        display: none;
+    .bcm-tower-help-single {
+        max-width: 70vw;
+    }
+
+    .bcm-tower-help-multi {
+        max-width: 82vw;
+    }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+    .bcm-tower-mobile.is-multi .bcm-tower-mobile-player {
+        max-width: 44%;
     }
 }
 
 @media (max-width: 700px) {
     .bcm-tower {
         min-height: 300px;
+    }
+
+    .bcm-tower-mode-buttons {
+        width: min(92vw, 330px);
+        flex-direction: column;
+    }
+
+    .bcm-tower-mode-buttons button {
+        width: 100%;
+    }
+
+    .bcm-tower-menu-title {
+        letter-spacing: .14em;
+    }
+
+    .bcm-tower-hud {
+        inset: 9px 10px auto;
+    }
+}
+
+@media (orientation: portrait) {
+    .bcm-tower-split-divider {
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 1px;
+    }
+
+    .bcm-tower-split-p1 {
+        left: 8px;
+        bottom: calc(50% + 7px);
+    }
+
+    .bcm-tower-split-p2 {
+        right: 8px;
+        bottom: 8px;
+    }
+}
+
+@media (orientation: landscape) and (min-width: 901px) {
+    .bcm-tower-split-divider {
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 1px;
+    }
+
+    .bcm-tower-split-p1 {
+        left: 10px;
+        bottom: 10px;
+    }
+
+    .bcm-tower-split-p2 {
+        right: calc(50% + 10px);
+        bottom: 10px;
     }
 }
 
