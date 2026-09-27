@@ -10,6 +10,17 @@
     isolation: isolate;
 }
 
+.bcm-tower-embedded {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    width: 100vw;
+    height: 100vh;
+}
+.bcm-tower-embedded[hidden] {
+    display: none !important;
+}
+
 .bcm-tower-canvas {
     position: absolute;
     inset: 0;
