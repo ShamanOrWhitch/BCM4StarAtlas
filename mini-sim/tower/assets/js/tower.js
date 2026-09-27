@@ -944,16 +944,25 @@
       transitionStarted = false;
     }
 
+    function transitionUrl() {
+      if (CONFIG.transition) return CONFIG.transition;
+      const fallbacks = Array.isArray(CONFIG.transitionFallbacks)
+        ? CONFIG.transitionFallbacks.filter(Boolean)
+        : [];
+      return fallbacks[0] || "";
+    }
+
     function triggerTransition() {
       if (transitionStarted) return;
-      if (!CONFIG.transition) {
+      const url = transitionUrl();
+      if (!url) {
         showMenu();
         return;
       }
 
       transitionStarted = true;
       transition.hidden = false;
-      transitionVideo.src = CONFIG.transition;
+      transitionVideo.src = url;
       transitionVideo.currentTime = 0;
 
       transitionVideo.onended = () => {
