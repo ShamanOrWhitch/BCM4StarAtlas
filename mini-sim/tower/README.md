@@ -51,9 +51,9 @@ The Tower now starts with SINGLE / MULTI. Multi uses one procedural seed for bot
 
 ## Current asset roles
 
-Assets are classified by role instead of being mixed into one pool.
+Assets are classified by role instead of being mixed into one pool. The Tower landing video is read only from mini-sim/tower/assets.
 
-- onicss.mp4 → preferred Tower landing video; tower.mp4 remains fallback.
+- tower.mp4 → Tower landing / arrival video. `onicss.mp4` belongs to the existing mini-sim Deep Space exit and is not used as the Tower landing clip.
 - Towerwall*.jpg + wall*.jpg → current JPG wall family only.
 - Towerwall*.png → reserved separate future wall level; never mixed with JPG.
 - platform* / legacy paltform* → normal walkable surfaces.
