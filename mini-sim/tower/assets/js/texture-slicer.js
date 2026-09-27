@@ -108,7 +108,7 @@
           const a=boxes[i],b=boxes[j];
           if(a.x<=b.x+b.w+gap&&a.x+a.w+gap>=b.x&&a.y<=b.y+b.h+gap&&a.y+a.h+gap>=b.y){
             const x=Math.min(a.x,b.x),y=Math.min(a.y,b.y),r=Math.max(a.x+a.w,b.x+b.w),bt=Math.max(a.y+a.h,b.y+b.h);
-            boxes.splice(j,1,i, {x,y,w:r-x,h:bt-y});changed=true;break outer;
+            boxes.splice(i, 2, {x,y,w:r-x,h:bt-y});changed=true;break outer;
           }
         }
       }
