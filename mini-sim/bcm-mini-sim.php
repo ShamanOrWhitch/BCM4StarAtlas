@@ -115,7 +115,7 @@ function bcm_mini_sim_enqueue_assets()
             'y' => 0,
             'z' => -260.0,
             // Start Tower preload well before the gate becomes large on screen.
-            'preloadRadius' => 120.0,
+            'preloadRadius' => 180.0,
             'coverageThreshold' => 0.69,
         ),
         'towerJsUrl' => BCM_MINI_SIM_URL . 'tower/assets/js/tower.js',
@@ -137,13 +137,15 @@ function bcm_mini_sim_enqueue_assets()
             array(
                 'url' => bcm_mini_sim_pick_asset($assets, array('onicss.mp4'), 'video'),
                 'x' => 0,
-                'y' => 0,
+                'y' => -2.0,
                 // Deliberately far beyond the satellite and the existing space screens.
                 'z' => -260.0,
                 'radius' => 24,
-                'maxWidth' => 10.0,
-                'maxHeight' => 6.0,
-                'preloadWhenStarted' => true
+                'preloadRadius' => 180,
+                'maxWidth' => 13.0,
+                'maxHeight' => 8.0,
+                'preloadWhenStarted' => true,
+                'towerGate' => true
             ),
             // Only one clip in the portal/open-space room.
             array('url' => 'https://walkingyog.com/wp-content/uploads/2025/11/30Сек43-1.mp4', 'x' => -4.2, 'y' => 1.4, 'z' => -42.0, 'radius' => 9, 'maxWidth' => 7.2, 'maxHeight' => 4.5),
@@ -165,6 +167,9 @@ function bcm_mini_sim_enqueue_assets()
 function bcm_mini_sim_shortcode($atts = array())
 {
     bcm_mini_sim_enqueue_assets();
+    if (function_exists('bcm_tower_enqueue_assets')) {
+        bcm_tower_enqueue_assets();
+    }
     $atts = shortcode_atts(array('height' => 'min(100vh, 900px)'), $atts, 'bcm_mini_sim');
     ob_start();
     ?>
@@ -240,6 +245,15 @@ function bcm_mini_sim_shortcode($atts = array())
         </div>
     </div>
     <?php
+        <?php
+        if (function_exists('bcm_tower_shortcode')) {
+            echo bcm_tower_shortcode(array(
+                'height' => '100vh',
+                'autostart' => '0',
+                'embedded' => '1',
+            ));
+        }
+        ?>
     return ob_get_clean();
 }
 
