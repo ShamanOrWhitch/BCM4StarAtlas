@@ -949,6 +949,16 @@
       restartButton.hidden = true;
       status.textContent = "ВЫБЕРИТЕ РЕЖИМ";
       modeEl.textContent = "";
+
+      // Build a preview behind the menu. This also starts loading the Tower
+      // textures before SINGLE/MULTI is selected, so the handoff is visibly alive.
+      if (!tower) {
+        buildTower(makeSeed());
+      }
+      requestAnimationFrame(() => {
+        resize();
+        renderViews();
+      });
     }
 
     function stopTransition() {
@@ -1179,19 +1189,22 @@
       const dt = Math.min(0.034, Math.max(0.001, (now - previousTime) / 1000));
       previousTime = now;
 
-      if (gameStarted && tower) {
-        updateLiftMotion(now);
+      if (tower) {
+        if (gameStarted) {
+          updateLiftMotion(now);
 
-        for (let i = 0; i < (mode === "multi" ? 2 : 1); i++) {
-          updatePlayer(i, dt);
-          updatePlayerVisual(i);
+          for (let i = 0; i < (mode === "multi" ? 2 : 1); i++) {
+            updatePlayer(i, dt);
+            updatePlayerVisual(i);
+          }
+
+          if (mode === "multi") {
+            updatePlayerVisual(1);
+          }
+
+          updateHud();
         }
 
-        if (mode === "multi") {
-          updatePlayerVisual(1);
-        }
-
-        updateHud();
         renderViews();
       }
 
