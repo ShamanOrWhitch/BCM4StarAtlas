@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.7.1
+ * Version: 0.7.2
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -417,12 +417,95 @@ function galia_desk_token($supply, $prices, $mint) {
     );
 }
 
+function galia_desk_crew_index() {
+    $cached = get_transient('galia_desk_crew');
+    if (is_array($cached)) {
+        return $cached;
+    }
+    $rows = galia_desk_remote_json('https://galaxy.staratlas.com/crew');
+    $index = array();
+    if (is_array($rows)) {
+        foreach ($rows as $row) {
+            if (empty($row['dasID']) || !is_array($row)) {
+                continue;
+            }
+            $traits = array();
+            foreach (array(
+                'openness' => 'Openness',
+                'conscientiousness' => 'Conscientiousness',
+                'extraversion' => 'Extraversion',
+                'agreeableness' => 'Agreeableness',
+                'neuroticism' => 'Neuroticism',
+            ) as $key => $label) {
+                if (!isset($row[$key]) || !is_numeric($row[$key])) {
+                    continue;
+                }
+                $n = (float) $row[$key];
+                $traits[] = array('trait' => $label, 'value' => (string) ($n <= 1 ? (int) round($n * 100) : (int) round($n)));
+            }
+            if (!empty($row['aptitudes']) && is_array($row['aptitudes'])) {
+                foreach ($row['aptitudes'] as $name => $level) {
+                    $traits[] = array('trait' => (string) $name, 'value' => (string) $level);
+                }
+            }
+            if (!empty($row['species'])) {
+                $traits[] = array('trait' => 'Species', 'value' => (string) $row['species']);
+            }
+            $index[$row['dasID']] = array(
+                'name' => isset($row['name']) ? $row['name'] : $row['dasID'],
+                'image' => isset($row['imageUrl']) ? $row['imageUrl'] : '',
+                'rarity' => isset($row['rarity']) ? $row['rarity'] : '',
+                'species' => isset($row['species']) ? $row['species'] : '',
+                'traits' => $traits,
+            );
+        }
+    }
+    set_transient('galia_desk_crew', $index, 30 * MINUTE_IN_SECONDS);
+    return $index;
+}
+
+function galia_desk_is_crew($name, $symbol, $traits) {
+    if (stripos($name, 'crew') !== false || stripos($symbol, 'crew') !== false) {
+        return true;
+    }
+    $blob = '';
+    foreach ($traits as $trait) {
+        $blob .= ' ' . ($trait['trait'] ?? '') . ' ' . ($trait['value'] ?? '');
+    }
+    return (bool) preg_match('/flight|command|engineering|hospitality|operator|medical|science|fitness|openness|species|aptitude|ustur|punaab|sogmian|mierese|hair/i', $blob);
+}
+
+function galia_desk_assets($owner) {
+    $out = array();
+    for ($page = 1; $page <= 3; $page++) {
+        $json = galia_desk_rpc('getAssetsByOwner', array(
+            'ownerAddress' => $owner,
+            'page' => $page,
+            'limit' => 100,
+            'displayOptions' => array('showFungible' => false, 'showZeroBalance' => false),
+        ), 15);
+        $chunk = isset($json['result']['items']) && is_array($json['result']['items']) ? $json['result']['items'] : array();
+        if (!$chunk) {
+            break;
+        }
+        foreach ($chunk as $asset) {
+            $out[] = $asset;
+        }
+        $total = isset($json['result']['total']) ? (int) $json['result']['total'] : count($out);
+        if (count($out) >= $total) {
+            break;
+        }
+    }
+    return $out;
+}
+
 function galia_desk_wallet($owner) {
     $owner = trim($owner);
     if (!preg_match('/^[1-9A-HJ-NP-Za-km-z]{32,44}$/', $owner)) {
         return new WP_Error('galia_owner', 'Нужен публичный ключ Solana.');
     }
     $catalog = galia_desk_catalog();
+    $crew_index = galia_desk_crew_index();
     $items = array();
     foreach (array('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb') as $program) {
         $json = galia_desk_rpc('getTokenAccountsByOwner', array($owner, array('programId' => $program), array('encoding' => 'jsonParsed')));
@@ -437,6 +520,22 @@ function galia_desk_wallet($owner) {
                 continue;
             }
             $mint = $info['mint'];
+            if (isset($crew_index[$mint])) {
+                $card = $crew_index[$mint];
+                $items[] = array(
+                    'mint' => $mint,
+                    'amount' => $amount,
+                    'name' => $card['name'],
+                    'kind' => 'crew',
+                    'className' => 'crew',
+                    'rarity' => $card['rarity'],
+                    'spec' => $card['species'],
+                    'image' => $card['image'],
+                    'video' => '',
+                    'traits' => $card['traits'],
+                );
+                continue;
+            }
             $decimals = isset($info['tokenAmount']['decimals']) ? (int) $info['tokenAmount']['decimals'] : 0;
             $known = isset($catalog[$mint]) ? $catalog[$mint] : null;
             $currency = null;
@@ -466,12 +565,59 @@ function galia_desk_wallet($owner) {
             );
         }
     }
+    $seen = array();
+    foreach ($items as $index => $item) {
+        $seen[$item['mint']] = $index;
+    }
+    foreach (galia_desk_assets($owner) as $asset) {
+        if (empty($asset['id'])) {
+            continue;
+        }
+        $mint = $asset['id'];
+        $meta = isset($asset['content']['metadata']) && is_array($asset['content']['metadata']) ? $asset['content']['metadata'] : array();
+        $links = isset($asset['content']['links']) && is_array($asset['content']['links']) ? $asset['content']['links'] : array();
+        $traits = array();
+        if (!empty($meta['attributes']) && is_array($meta['attributes'])) {
+            foreach ($meta['attributes'] as $trait) {
+                if (!is_array($trait) || empty($trait['trait_type']) || !isset($trait['value'])) {
+                    continue;
+                }
+                $traits[] = array('trait' => (string) $trait['trait_type'], 'value' => (string) $trait['value']);
+            }
+        }
+        $card = isset($crew_index[$mint]) ? $crew_index[$mint] : null;
+        $name = $card ? $card['name'] : (isset($meta['name']) ? $meta['name'] : '');
+        $symbol = isset($meta['symbol']) ? $meta['symbol'] : '';
+        if (!$card && !galia_desk_is_crew($name, $symbol, $traits)) {
+            continue;
+        }
+        $row = array(
+            'mint' => $mint,
+            'amount' => 1,
+            'name' => $name ? $name : $mint,
+            'kind' => 'crew',
+            'className' => 'crew',
+            'rarity' => $card ? $card['rarity'] : '',
+            'spec' => $card ? $card['species'] : '',
+            'image' => $card && $card['image'] ? $card['image'] : (isset($links['image']) ? $links['image'] : ''),
+            'video' => '',
+            'traits' => $card && !empty($card['traits']) ? $card['traits'] : $traits,
+        );
+        if (isset($seen[$mint])) {
+            $prev = $items[$seen[$mint]];
+            $row['amount'] = $prev['amount'];
+            $items[$seen[$mint]] = $row;
+        } else {
+            $seen[$mint] = count($items);
+            $items[] = $row;
+        }
+    }
     $game = galia_desk_game($owner);
     return array(
         'owner' => $owner,
         'items' => $items,
         'profiles' => $game['profiles'],
-        'note' => 'Подпись не нужна: адрес публичный. Пустой список на ключе значит, что корабли и груз уже в SAGE, не в кошельке. '
+        'note' => 'Экипаж снят с инвентаря ключа: официальные карточки Galaxy и NFT, которые реестр помечает как crew. Если человек уже в Starbase, на адресе его нет. '
             . $game['note'],
     );
 }
@@ -826,13 +972,13 @@ function galia_desk_globe_markup($full = false) {
     ?>
     <div id="galia-root" style="min-height:<?php echo esc_attr($height); ?>;background:#07090e"></div>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" />
-    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.7.1'); ?>" />
+    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.7.2'); ?>" />
     <!-- noptimize -->
     <script>
       window.GALIA_ASSET = <?php echo wp_json_encode($base); ?>;
       window.GALIA_WP = <?php echo wp_json_encode(array('ajax' => $ajax, 'nonce' => $nonce)); ?>;
     </script>
-    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.7.1'); ?>"></script>
+    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.7.2'); ?>"></script>
     <!-- /noptimize -->
     <?php
     return ob_get_clean();

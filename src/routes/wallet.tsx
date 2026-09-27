@@ -56,6 +56,7 @@ export function WalletPage() {
     setError("");
     try {
       setScan(await scanDeskWallet({ data: { owner: next } }));
+      localStorage.setItem("galia-owner", next);
     } catch (err) {
       setScan(null);
       setError(err instanceof Error ? err.message : "Кошелёк не прочитался");

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Gem, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import {
   APTITUDES,
@@ -19,7 +19,8 @@ import { EMPTY_QUERY, PRESETS, filterCrew, houses, type CrewQuery, type SortKey 
 import { loadStars, saveStars } from "@/lib/crew-stars";
 import { CrewPortrait } from "@/components/crew/portrait";
 import { packetOf } from "@/data/packets";
-import { influenceFromRoster } from "@/lib/crew-score";
+import { influenceFromRoster, influenceFromTraits } from "@/lib/crew-score";
+import { scanDeskWallet, type WalletItem } from "@/lib/desk";
 import { AppChrome } from "@/components/app-chrome";
 
 const TIER_LABEL: Record<TensorTier | "unknown", string> = {
@@ -51,6 +52,81 @@ const TIER_DOT: Record<TensorTier | "unknown", string> = {
   common: "bg-tensor-common",
   unknown: "bg-faint",
 };
+
+function HeldCrew() {
+  const [owner, setOwner] = useState("");
+  const [cards, setCards] = useState<WalletItem[]>([]);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function load(address: string) {
+    const next = address.trim();
+    if (!next) {
+      setNote("Нужен публичный ключ. Подпись не нужна.");
+      return;
+    }
+    setBusy(true);
+    setNote("");
+    try {
+      const scan = await scanDeskWallet({ data: { owner: next } });
+      localStorage.setItem("galia-owner", next);
+      const crew = scan.items.filter((item) => item.kind === "crew");
+      setCards(crew);
+      setNote(crew.length ? `${crew.length} в инвентаре ключа` : "На ключе карточек экипажа нет. В Starbase они уже не на адресе.");
+    } catch (err) {
+      setCards([]);
+      setNote(err instanceof Error ? err.message : "Инвентарь не прочитался");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    const saved = localStorage.getItem("galia-owner") || "";
+    if (!saved) return;
+    setOwner(saved);
+    void load(saved);
+  }, []);
+
+  return (
+    <div className="shrink-0 border-b border-line px-4 py-3 md:px-5">
+      <form
+        className="flex flex-col gap-2 sm:flex-row"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void load(owner);
+        }}
+      >
+        <input
+          value={owner}
+          onChange={(event) => setOwner(event.target.value)}
+          placeholder="Ключ, с которого собрать экипаж"
+          spellCheck={false}
+          className="h-11 min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 font-mono text-sm text-fg outline-none placeholder:text-faint"
+        />
+        <button type="submit" className="h-11 rounded-lg border border-line bg-surface px-3 font-display text-sm">
+          {busy ? "Собираю…" : "Из инвентаря"}
+        </button>
+      </form>
+      {note ? <p className="mt-2 text-sm text-muted">{note}</p> : null}
+      {cards.length ? (
+        <ul className="mt-3 flex gap-2 overflow-x-auto pb-1">
+          {cards.map((card) => {
+            const influence = influenceFromTraits(card.traits);
+            return (
+              <li key={card.mint} className="w-36 shrink-0 rounded-lg border border-line bg-surface p-2">
+                {card.image ? <img src={card.image} alt="" className="aspect-square w-full rounded-md object-cover" /> : null}
+                <p className="mt-1 truncate font-display text-sm text-fg">{card.name}</p>
+                <p className="truncate font-mono text-[10px] text-faint">{card.rarity || card.spec || "crew"}</p>
+                {influence ? <p className="font-mono text-[10px] text-ice">задание {influence.mission}</p> : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
 
 export function CrewBay() {
   const [query, setQuery] = useState<CrewQuery>(EMPTY_QUERY);
@@ -103,6 +179,7 @@ export function CrewBay() {
         </aside>
 
         <section className="flex min-w-0 flex-1 flex-col">
+          <HeldCrew />
           <div className="flex shrink-0 flex-col gap-3 border-b border-line px-4 py-3 md:px-5">
             <div className="flex gap-2">
               <label className="relative min-w-0 flex-1">

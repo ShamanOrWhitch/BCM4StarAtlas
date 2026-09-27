@@ -280,7 +280,99 @@ function num(value: unknown): number | null {
 
 type ParsedToken = { mint: string; amount: number; decimals: number };
 
-async function rpc<T>(method: string, params: unknown[]): Promise<T> {
+type CrewCard = { mint: string; name: string; image: string; rarity: string; species: string; traits: WalletTrait[] };
+
+let crewCache: { at: number; byMint: Map<string, CrewCard> } | null = null;
+
+function oceanTrait(label: string, value: unknown): WalletTrait | null {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return { trait: label, value: String(n <= 1 ? Math.round(n * 100) : Math.round(n)) };
+}
+
+async function loadCrewCards(): Promise<Map<string, CrewCard>> {
+  if (crewCache && Date.now() - crewCache.at < CATALOG_TTL) return crewCache.byMint;
+  const rows = await getJson<Array<Record<string, unknown>>>("https://galaxy.staratlas.com/crew").catch(() => []);
+  const byMint = new Map<string, CrewCard>();
+  for (const row of rows) {
+    const mint = String(row.dasID ?? "");
+    if (!mint) continue;
+    const traits = [
+      oceanTrait("Openness", row.openness),
+      oceanTrait("Conscientiousness", row.conscientiousness),
+      oceanTrait("Extraversion", row.extraversion),
+      oceanTrait("Agreeableness", row.agreeableness),
+      oceanTrait("Neuroticism", row.neuroticism),
+    ].filter((trait): trait is WalletTrait => trait != null);
+    const aptitudes = row.aptitudes;
+    if (aptitudes && typeof aptitudes === "object") {
+      for (const [name, level] of Object.entries(aptitudes as Record<string, unknown>)) {
+        traits.push({ trait: name, value: String(level ?? "major") });
+      }
+    }
+    if (row.species) traits.push({ trait: "Species", value: String(row.species) });
+    byMint.set(mint, {
+      mint,
+      name: String(row.name ?? mint.slice(0, 4)),
+      image: String(row.imageUrl ?? ""),
+      rarity: String(row.rarity ?? ""),
+      species: String(row.species ?? ""),
+      traits,
+    });
+  }
+  crewCache = { at: Date.now(), byMint };
+  return byMint;
+}
+
+function crewItem(card: CrewCard, amount: number, image = "", traits: WalletTrait[] = []): WalletItem {
+  return {
+    mint: card.mint,
+    amount,
+    name: card.name,
+    kind: "crew",
+    image: card.image || image,
+    className: "crew",
+    rarity: card.rarity,
+    spec: card.species,
+    traits: card.traits.length ? card.traits : traits,
+  };
+}
+
+async function assetsOf(owner: string): Promise<Array<{ id: string; name: string; image: string; symbol: string; traits: WalletTrait[] }>> {
+  const out: Array<{ id: string; name: string; image: string; symbol: string; traits: WalletTrait[] }> = [];
+  for (let page = 1; page <= 3; page += 1) {
+    let result: { total?: number; items?: Array<Record<string, unknown>> };
+    try {
+      result = await rpc("getAssetsByOwner", {
+        ownerAddress: owner,
+        page,
+        limit: 100,
+        displayOptions: { showFungible: false, showZeroBalance: false },
+      });
+    } catch {
+      break;
+    }
+    const items = result.items ?? [];
+    for (const asset of items) {
+      const content = (asset.content ?? {}) as Record<string, unknown>;
+      const meta = (content.metadata ?? {}) as Record<string, unknown>;
+      const links = (content.links ?? {}) as Record<string, unknown>;
+      const id = String(asset.id ?? "");
+      if (!id) continue;
+      out.push({
+        id,
+        name: String(meta.name ?? ""),
+        image: typeof links.image === "string" ? links.image : "",
+        symbol: String(meta.symbol ?? ""),
+        traits: traitsFrom(meta),
+      });
+    }
+    if (!items.length || out.length >= (result.total ?? out.length)) break;
+  }
+  return out;
+}
+
+async function rpc<T>(method: string, params: unknown): Promise<T> {
   let last = "RPC не ответил";
   for (const url of RPCS) {
     try {
@@ -446,7 +538,7 @@ function traitsFrom(json: unknown): WalletTrait[] {
 function isCrew(name: string, symbol: string, traits: WalletTrait[]): boolean {
   if (/crew/i.test(symbol) || /crew/i.test(name)) return true;
   const blob = traits.map((trait) => `${trait.trait} ${trait.value}`).join(" ").toLowerCase();
-  return /flight|command|engineering|hospitality|operator|medical|science|fitness|openness|conscient|extraver|agreeab|neurot|hair|species|ustur|punaab|sogmian|mierese/.test(
+  return /flight|command|engineering|hospitality|operator|medical|science|fitness|openness|conscient|extraver|agreeab|neurot|hair|species|aptitude|ustur|punaab|sogmian|mierese/.test(
     blob,
   );
 }
@@ -472,7 +564,7 @@ export async function scanWallet(ownerText: string): Promise<WalletScan> {
   } catch {
     throw new Error("Это не публичный ключ Solana.");
   }
-  const catalog = await loadCatalog();
+  const [catalog, crewCards] = await Promise.all([loadCatalog(), loadCrewCards()]);
   const [heldPair, game] = await Promise.all([
     Promise.all([tokensOf(owner, TOKEN), tokensOf(owner, TOKEN_22)]),
     profilesOf(owner.toBase58()),
@@ -482,6 +574,11 @@ export async function scanWallet(ownerText: string): Promise<WalletScan> {
   const pending: ParsedToken[] = [];
 
   for (const token of held) {
+    const card = crewCards.get(token.mint);
+    if (card) {
+      items.push(crewItem(card, token.amount));
+      continue;
+    }
     const known = catalog.get(token.mint);
     if (known && known.kind !== "other") {
       items.push({
@@ -562,6 +659,39 @@ export async function scanWallet(ownerText: string): Promise<WalletScan> {
     items.push(...enriched);
   }
 
+  const seen = new Set(items.map((item) => item.mint));
+  const assets = await assetsOf(owner.toBase58()).catch(() => []);
+  for (const asset of assets) {
+    const card = crewCards.get(asset.id);
+    if (!card && !isCrew(asset.name, asset.symbol, asset.traits)) continue;
+    const row = card
+      ? crewItem(card, 1, asset.image, asset.traits)
+      : {
+          mint: asset.id,
+          amount: 1,
+          name: asset.name || asset.id.slice(0, 4) + "…" + asset.id.slice(-4),
+          kind: "crew" as const,
+          image: asset.image,
+          className: "crew",
+          rarity: asset.traits.find((trait) => /rarity/i.test(trait.trait))?.value || "",
+          spec: asset.traits.find((trait) => /species/i.test(trait.trait))?.value || "",
+          traits: asset.traits,
+        };
+    const existing = items.find((item) => item.mint === asset.id);
+    if (existing) {
+      existing.kind = "crew";
+      existing.name = row.name || existing.name;
+      existing.image = row.image || existing.image;
+      existing.traits = row.traits.length ? row.traits : existing.traits;
+      existing.rarity = row.rarity || existing.rarity;
+      existing.spec = row.spec || existing.spec;
+      existing.className = "crew";
+    } else if (!seen.has(asset.id)) {
+      items.push(row);
+      seen.add(asset.id);
+    }
+  }
+
   const order = { crew: 0, ship: 1, structure: 2, resource: 3, nft: 4, other: 5 };
   items.sort((a, b) => order[a.kind] - order[b.kind] || a.name.localeCompare(b.name, "en"));
 
@@ -572,6 +702,6 @@ export async function scanWallet(ownerText: string): Promise<WalletScan> {
     skippedMeta,
     profiles: game.profiles,
     rpcWarning: game.warning,
-    note: "Подпись не нужна. Экипаж, который ещё на ключе, читается как NFT: символ, метадата и ipfs. Документация @staratlas/crew — это паки и погашение, не статы карточки. Статы в JSON NFT. Если человек уже в крио SAGE, на адресе его нет, пока не выведен из Starbase Inventory.",
+    note: "Экипаж с ключа собирается из инвентаря: карточки /crew по dasID и NFT, которые реестр Solana отдаёт как активы. OCEAN в каталоге — доля, здесь она приведена к 0–100. Если человек уже в Starbase, на адресе его нет.",
   };
 }
