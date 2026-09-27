@@ -121,7 +121,7 @@ function bcm_tower_enqueue_assets() {
         'boxPool' => bcm_tower_asset_urls($assets, '/^box[^\/]*\.(png|jpg|jpeg|webp)$/i'),
         'safeBoxPool' => bcm_tower_asset_urls($assets, '/^safebox[^\/]*\.(png|jpg|jpeg|webp)$/i'),
         'dangerBoxPool' => bcm_tower_asset_urls($assets, '/^dangerbox[^\/]*\.(png|jpg|jpeg|webp)$/i'),
-        'firePool' => bcm_tower_asset_urls($assets, '/^fire[^\/]*\.(png|jpg|jpeg|webp)$/i'),
+        'firePool' => bcm_tower_asset_urls($assets, '/^fire(?!metalbear)[^\/]*\.(png|jpg|jpeg|webp)$/i'),
         'lavaPool' => bcm_tower_asset_urls($assets, '/^lava[^\/]*\.(png|jpg|jpeg|webp)$/i'),
         'landingPool' => bcm_tower_asset_urls($assets, '/^h\d*\.(png|jpg|jpeg|webp)$/i'),
         'doorPool' => bcm_tower_asset_urls($assets, '/^door[^\/]*\.(png|jpg|jpeg|webp)$/i'),
