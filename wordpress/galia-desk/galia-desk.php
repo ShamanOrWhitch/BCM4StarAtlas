@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.7.3
+ * Version: 0.7.4
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -373,7 +373,7 @@ function galia_desk_b58_decode($text) {
 }
 
 function galia_desk_kraken($pair) {
-    $data = galia_desk_remote_json('https://api.kraken.com/0/public/OHLC?pair=' . rawurlencode($pair) . '&interval=240');
+    $data = galia_desk_remote_json('https://api.kraken.com/0/public/OHLC?pair=' . rawurlencode($pair) . '&interval=1440');
     $out = array();
     if (!is_array($data) || empty($data['result']) || !is_array($data['result'])) {
         return $out;
@@ -384,7 +384,7 @@ function galia_desk_kraken($pair) {
             $rows = $value;
         }
     }
-    $rows = array_slice($rows, -48);
+    $rows = array_slice($rows, -180);
     foreach ($rows as $row) {
         if (!is_array($row) || count($row) < 5) {
             continue;
@@ -674,6 +674,46 @@ function galia_desk_wallet($owner) {
         } else {
             $seen[$mint] = count($items);
             $items[] = $row;
+        }
+    }
+    $order_rows = galia_desk_rpc('getProgramAccounts', array(
+        GALIA_DESK_GM,
+        array(
+            'encoding' => 'base64',
+            'dataSlice' => array('offset' => 8, 'length' => 160),
+            'filters' => array(
+                array('dataSize' => 201),
+                array('memcmp' => array('offset' => 8, 'bytes' => $owner)),
+            ),
+        ),
+    ), 12);
+    if (isset($order_rows['result']) && is_array($order_rows['result'])) {
+        foreach ($order_rows['result'] as $row) {
+            if (empty($row['account']['data'][0])) {
+                continue;
+            }
+            $raw = base64_decode($row['account']['data'][0]);
+            if (!is_string($raw) || strlen($raw) < 145 || ord($raw[120]) !== 1) {
+                continue;
+            }
+            $asset = galia_desk_b58encode(substr($raw, 64, 32));
+            $rem = galia_desk_u64(substr($raw, 137, 8));
+            if ($rem <= 0 || empty($catalog[$asset]) || $catalog[$asset]['kind'] !== 'ship') {
+                continue;
+            }
+            $known = $catalog[$asset];
+            $items[] = array(
+                'mint' => $asset,
+                'amount' => $rem,
+                'name' => $known['name'],
+                'kind' => 'ship',
+                'className' => 'order',
+                'rarity' => $known['rarity'],
+                'spec' => 'мой ордер',
+                'image' => isset($known['image']) ? $known['image'] : '',
+                'video' => '',
+                'traits' => array(),
+            );
         }
     }
     $game = galia_desk_game($owner);
@@ -1036,13 +1076,13 @@ function galia_desk_globe_markup($full = false) {
     ?>
     <div id="galia-root" style="min-height:<?php echo esc_attr($height); ?>;background:#07090e"></div>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" />
-    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.7.3'); ?>" />
+    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.7.4'); ?>" />
     <!-- noptimize -->
     <script>
       window.GALIA_ASSET = <?php echo wp_json_encode($base); ?>;
       window.GALIA_WP = <?php echo wp_json_encode(array('ajax' => $ajax, 'nonce' => $nonce)); ?>;
     </script>
-    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.7.3'); ?>"></script>
+    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.7.4'); ?>"></script>
     <!-- /noptimize -->
     <?php
     return ob_get_clean();

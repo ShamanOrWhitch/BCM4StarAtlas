@@ -62,6 +62,7 @@ export function MarketPage() {
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [tape, setTape] = useState<TapePoint[]>([]);
+  const [resourceMint, setResourceMint] = useState("");
 
   async function pull(_force: boolean) {
     setLoading(true);
@@ -212,6 +213,7 @@ export function MarketPage() {
             rows={(snap?.ships ?? []).filter((row) => row.ask != null || row.bid != null)}
             previous={previous}
           />
+          <ResourceTape rows={rows} tape={tape} mint={resourceMint} onMint={setResourceMint} />
           <p className="text-sm text-muted">
             Экипаж на Galactic Marketplace стаканом не торгуется. Карточки — NFT, их статы в метадате, пол — на Tensor. Пузырь цены экипажа без чужого архива был бы выдумкой.
           </p>
@@ -284,26 +286,120 @@ function BubbleField({ title, rows, previous }: { title: string; rows: ResourceR
   );
 }
 
+function ResourceTape({
+  rows,
+  tape,
+  mint,
+  onMint,
+}: {
+  rows: ResourceRow[];
+  tape: TapePoint[];
+  mint: string;
+  onMint: (mint: string) => void;
+}) {
+  const picked = mint || rows.find((row) => row.ask != null)?.mint || "";
+  const name = rows.find((row) => row.mint === picked)?.name ?? "ресурс";
+  const points = tape
+    .map((point) => ({ t: point.t, v: point.asks[picked] }))
+    .filter((point): point is { t: number; v: number } => point.v != null);
+  return (
+    <section className="rounded-xl border border-line bg-surface p-3">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-display text-sm tracking-[0.16em] text-brass uppercase">График ресурса · ATLAS</h2>
+        <select
+          value={picked}
+          onChange={(event) => onMint(event.target.value)}
+          className="h-11 rounded-md border border-line bg-bg px-2 text-sm text-fg"
+        >
+          {rows
+            .filter((row) => row.ask != null)
+            .map((row) => (
+              <option key={row.mint} value={row.mint}>
+                {row.name}
+              </option>
+            ))}
+        </select>
+      </div>
+      {points.length < 2 ? (
+        <p className="text-sm text-muted">
+          {name}: резкий ход виден, когда есть хотя бы два общих снимка. История Galaxy по ресурсам не отдаётся, график копится здесь сам.
+        </p>
+      ) : (
+        <TapeLine name={name} points={points} />
+      )}
+    </section>
+  );
+}
+
+function TapeLine({ name, points }: { name: string; points: { t: number; v: number }[] }) {
+  const w = 640;
+  const h = 120;
+  const pad = 8;
+  const min = Math.min(...points.map((point) => point.v));
+  const max = Math.max(...points.map((point) => point.v));
+  const span = max - min || 1;
+  const d = points
+    .map((point, index) => {
+      const x = pad + (index / Math.max(1, points.length - 1)) * (w - pad * 2);
+      const y = pad + (1 - (point.v - min) / span) * (h - pad * 2);
+      return `${index === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  const last = points[points.length - 1]?.v ?? 0;
+  const first = points[0]?.v ?? last;
+  const move = first ? ((last - first) / first) * 100 : 0;
+  return (
+    <figure>
+      <figcaption className="mb-1 font-mono text-xs text-muted">
+        {name} {fmtAtlas(last)} ATLAS · {fmtPct(move)}
+      </figcaption>
+      <svg viewBox={`0 0 ${w} ${h}`} className="h-32 w-full">
+        <text x={w - 4} y="14" textAnchor="end" fill="#8b96a3" fontSize="12">
+          {fmtAtlas(max)}
+        </text>
+        <text x={w - 4} y={h - 4} textAnchor="end" fill="#8b96a3" fontSize="12">
+          {fmtAtlas(min)}
+        </text>
+        <path d={d} fill="none" stroke="#c4a35a" strokeWidth="2" />
+      </svg>
+    </figure>
+  );
+}
+
 function CandleChart({ title, candles }: { title: string; candles: Candle[] }) {
   if (candles.length < 2) return <p className="text-sm text-muted">{title}: свечи ещё не пришли.</p>;
   const w = 640;
-  const h = 112;
-  const pad = 6;
+  const h = 220;
+  const pad = 8;
+  const padR = 84;
   const min = Math.min(...candles.map((c) => c.l));
   const max = Math.max(...candles.map((c) => c.h));
   const span = max - min || 1;
-  const slot = (w - pad * 2) / candles.length;
+  const slot = (w - pad - padR) / candles.length;
   const y = (v: number) => pad + (1 - (v - min) / span) * (h - pad * 2);
-  const first = candles[0]?.o ?? 0;
-  const last = candles[candles.length - 1]?.c ?? 0;
-  const move = first ? ((last - first) / first) * 100 : null;
+  const last = candles[candles.length - 1];
+  const first = candles[0];
+  const move = first && first.o ? ((last.c - first.o) / first.o) * 100 : null;
+  const ticks = [max, (max + min) / 2, min];
+  const fmtTick = (n: number) => (n >= 100 ? n.toFixed(1) : n >= 1 ? n.toFixed(2) : n.toFixed(6));
   return (
     <figure className="rounded-xl border border-line bg-surface p-3">
-      <figcaption className="mb-2 flex items-baseline justify-between gap-3">
-        <span className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{title} · 4ч</span>
+      <figcaption className="mb-2 flex flex-wrap items-baseline justify-between gap-3">
+        <span className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{title} · 1д</span>
+        <span className="font-mono text-xs text-muted">
+          O {fmtTick(last.o)} H {fmtTick(last.h)} L {fmtTick(last.l)} C {fmtTick(last.c)}
+        </span>
         <span className={`font-mono text-sm ${move != null && move < 0 ? "text-danger" : "text-ok"}`}>{fmtPct(move)}</span>
       </figcaption>
-      <svg viewBox={`0 0 ${w} ${h}`} className="h-28 w-full" role="img" aria-label={title}>
+      <svg viewBox={`0 0 ${w} ${h}`} className="h-56 w-full" role="img" aria-label={title}>
+        {ticks.map((tick) => (
+          <g key={tick}>
+            <line x1={pad} x2={w - padR} y1={y(tick)} y2={y(tick)} stroke="rgba(232,238,242,0.12)" />
+            <text x={w - 4} y={y(tick) + 4} textAnchor="end" fill="#8b96a3" fontSize="12">
+              {fmtTick(tick)}
+            </text>
+          </g>
+        ))}
         {candles.map((candle, index) => {
           const x = pad + index * slot + slot / 2;
           const up = candle.c >= candle.o;
@@ -318,7 +414,7 @@ function CandleChart({ title, candles }: { title: string; candles: Candle[] }) {
           );
         })}
       </svg>
-      <p className="mt-1 text-sm text-muted">Kraken, 4 часа. Это не ноль браузера. Ресурсы ниже — стакан Galactic Marketplace в ATLAS.</p>
+      <p className="mt-1 text-sm text-muted">Дневные свечи Kraken. Ось — цена, не процент. POLIS/ATLAS это сколько ATLAS за один POLIS.</p>
     </figure>
   );
 }

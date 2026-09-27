@@ -120,12 +120,12 @@ function readBook(rows: ReadonlyArray<{ account: { data: Uint8Array } }>, atlasH
 async function krakenCandles(pair: string): Promise<Candle[]> {
   try {
     const data = await getJson<{ result?: Record<string, unknown> }>(
-      `https://api.kraken.com/0/public/OHLC?pair=${pair}&interval=240`,
+      `https://api.kraken.com/0/public/OHLC?pair=${pair}&interval=1440`,
     );
     const rows = Object.values(data.result ?? {}).find((value) => Array.isArray(value)) as unknown[][] | undefined;
     if (!rows) return [];
     return rows
-      .slice(-48)
+      .slice(-180)
       .map((row) => ({
         t: Number(row[0]) * 1000,
         o: Number(row[1]),
@@ -565,6 +565,40 @@ async function metaJson(uri: string): Promise<{ image: string; traits: WalletTra
   };
 }
 
+async function ownOrders(owner: string, catalog: Map<string, CatItem>): Promise<WalletItem[]> {
+  const rows = await rpc<Array<{ account?: { data?: [string, string] } }>>("getProgramAccounts", [
+    GM,
+    {
+      encoding: "base64",
+      dataSlice: { offset: 8, length: 160 },
+      filters: [{ dataSize: 201 }, { memcmp: { offset: 8, bytes: owner } }],
+    },
+  ]);
+  const out: WalletItem[] = [];
+  for (const row of rows) {
+    const raw = Buffer.from(row.account?.data?.[0] ?? "", "base64");
+    if (raw.length < 145) continue;
+    const asset = new PublicKey(raw.subarray(64, 96)).toBase58();
+    const side = raw[120];
+    const rem = Number(raw.readBigUInt64LE(137));
+    if (side !== 1 || rem <= 0) continue;
+    const known = catalog.get(asset);
+    if (known?.kind !== "ship") continue;
+    out.push({
+      mint: asset,
+      amount: rem,
+      name: known.name,
+      kind: "ship",
+      image: known.image,
+      className: "order",
+      rarity: known.rarity,
+      spec: "мой ордер",
+      traits: [],
+    });
+  }
+  return out;
+}
+
 export async function scanWallet(ownerText: string): Promise<WalletScan> {
   let owner: PublicKey;
   try {
@@ -700,6 +734,8 @@ export async function scanWallet(ownerText: string): Promise<WalletScan> {
     }
   }
 
+  const listed = await ownOrders(owner.toBase58(), catalog).catch(() => []);
+  items.push(...listed);
   const order = { crew: 0, ship: 1, structure: 2, resource: 3, nft: 4, other: 5 };
   items.sort((a, b) => order[a.kind] - order[b.kind] || a.name.localeCompare(b.name, "en"));
 

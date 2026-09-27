@@ -6,7 +6,6 @@ import {
   OFFICIAL,
   SPECIES,
   displayName,
-  flyOk,
   mismatch,
   seats,
   tensorTier,
@@ -15,13 +14,14 @@ import {
   type TensorTier,
 } from "@/data/crew";
 import { DIAMOND_ROWS, STATIONS, XP_RATES, diamondRecipe } from "@/data/diamonds";
-import { EMPTY_QUERY, PRESETS, filterCrew, houses, type CrewQuery, type SortKey } from "@/lib/crew-query";
+import { EMPTY_QUERY, filterCrew, houses, type CrewQuery, type SortKey } from "@/lib/crew-query";
 import { loadStars, saveStars } from "@/lib/crew-stars";
 import { CrewPortrait } from "@/components/crew/portrait";
 import { packetOf } from "@/data/packets";
 import { influenceFromRoster } from "@/lib/crew-score";
-import { walletCrew } from "@/lib/wallet-crew";
+import { walletCrew, walletFleet, type FleetHold } from "@/lib/wallet-crew";
 import { scanDeskWallet } from "@/lib/desk";
+import type { WalletItem } from "@/lib/desk-types";
 import { AppChrome } from "@/components/app-chrome";
 
 const TIER_LABEL: Record<TensorTier | "unknown", string> = {
@@ -54,7 +54,7 @@ const TIER_DOT: Record<TensorTier | "unknown", string> = {
   unknown: "bg-faint",
 };
 
-function HeldCrew({ onLive }: { onLive: (crew: Crew[] | null) => void }) {
+function HeldCrew({ onLive }: { onLive: (crew: Crew[] | null, items: WalletItem[]) => void }) {
   const [owner, setOwner] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -73,7 +73,7 @@ function HeldCrew({ onLive }: { onLive: (crew: Crew[] | null) => void }) {
       localStorage.setItem("galia-owner", next);
       const crew = walletCrew(scan.items);
       setLive(true);
-      onLive(crew);
+      onLive(crew, scan.items);
       setNote(
         crew.length
           ? `${crew.length} с ключа. Подбор, сортировка и OCEAN считаются по этим картам.`
@@ -81,7 +81,7 @@ function HeldCrew({ onLive }: { onLive: (crew: Crew[] | null) => void }) {
       );
       if (!crew.length) {
         setLive(false);
-        onLive(null);
+        onLive(null, []);
       }
     } catch (err) {
       setNote(err instanceof Error ? err.message : "Инвентарь не прочитался");
@@ -122,7 +122,7 @@ function HeldCrew({ onLive }: { onLive: (crew: Crew[] | null) => void }) {
             className="h-11 rounded-lg border border-line px-3 font-display text-sm text-muted"
             onClick={() => {
               setLive(false);
-              onLive(null);
+              onLive(null, []);
               setNote("Снова заложенный список, для гостя без кошелька.");
             }}
           >
@@ -137,21 +137,20 @@ function HeldCrew({ onLive }: { onLive: (crew: Crew[] | null) => void }) {
 
 export function CrewBay() {
   const [query, setQuery] = useState<CrewQuery>(EMPTY_QUERY);
-  const [preset, setPreset] = useState("all");
   const [picked, setPicked] = useState<string | null>(CREW[0]?.id ?? null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [mobileDetail, setMobileDetail] = useState(false);
   const [diamondOpen, setDiamondOpen] = useState(false);
   const [stars, setStars] = useState<string[]>(() => (typeof window === "undefined" ? [] : loadStars()));
   const [live, setLive] = useState<Crew[] | null>(null);
+  const [holds, setHolds] = useState<FleetHold[]>([]);
   const source = live ?? CREW;
 
   const rows = useMemo(() => filterCrew(query, source), [query, source]);
   const selected = rows.find((c) => c.id === picked) ?? rows[0] ?? null;
 
-  function patch(p: Partial<CrewQuery>, presetId = "") {
+  function patch(p: Partial<CrewQuery>) {
     setQuery((q) => ({ ...q, ...p }));
-    setPreset(presetId);
   }
 
   function toggleStar(id: string) {
@@ -189,12 +188,27 @@ export function CrewBay() {
 
         <section className="flex min-w-0 flex-1 flex-col">
           <HeldCrew
-            onLive={(crew) => {
+            onLive={(crew, items) => {
               setLive(crew);
+              setHolds(crew ? walletFleet(items, crew) : []);
               setPicked(crew?.[0]?.id ?? CREW[0]?.id ?? null);
-              if (crew) setQuery((q) => ({ ...q, sort: "official" }));
             }}
           />
+          {holds.length ? (
+            <div className="shrink-0 border-b border-line px-4 py-3 md:px-5">
+              <p className="font-display text-xs tracking-[0.16em] text-brass uppercase">Корабли ключа и ордера</p>
+              <ul className="mt-2 flex flex-col gap-1">
+                {holds.map((hold) => (
+                  <li key={hold.name} className="text-sm text-muted">
+                    <span className="text-fg">{hold.name}</span>
+                    {` · на ключе ${hold.count}`}
+                    {hold.listed ? ` · в продаже ${hold.listed}` : ""}
+                    {` · нужно ${hold.need || "—"} · в команде ${hold.have || "—"} · ${hold.ok ? "хватает" : "не хватает"}`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <div className="flex shrink-0 flex-col gap-3 border-b border-line px-4 py-3 md:px-5">
             <div className="flex gap-2">
               <label className="relative min-w-0 flex-1">
@@ -216,23 +230,30 @@ export function CrewBay() {
               </button>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1">
-              {PRESETS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    setQuery({ ...EMPTY_QUERY, ...p.apply });
-                    setPreset(p.id);
-                  }}
-                  className={`h-11 shrink-0 rounded-full border px-3 font-display text-sm transition-colors duration-150 ${
-                    preset === p.id
-                      ? "border-brass-dim bg-surface-2 text-fg"
-                      : "border-line text-muted hover:text-fg"
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
+              <button
+                type="button"
+                onClick={() => patch({ aptitudes: [] })}
+                className={`h-11 shrink-0 rounded-full border px-3 font-display text-sm ${
+                  query.aptitudes.length === 0 ? "border-brass-dim bg-surface-2 text-fg" : "border-line text-muted"
+                }`}
+              >
+                Все
+              </button>
+              {APTITUDES.map((apt) => {
+                const on = query.aptitudes.length === 1 && query.aptitudes[0] === apt;
+                return (
+                  <button
+                    key={apt}
+                    type="button"
+                    onClick={() => patch({ aptitudes: on ? [] : [apt], slot: "any" })}
+                    className={`h-11 shrink-0 rounded-full border px-3 font-display text-sm ${
+                      on ? "border-brass-dim bg-surface-2 text-fg" : "border-line text-muted"
+                    }`}
+                  >
+                    {apt}
+                  </button>
+                );
+              })}
             </div>
             <div className="flex items-center justify-between gap-3">
               <p className="font-mono text-xs text-muted tabular-nums">
@@ -276,36 +297,19 @@ export function CrewBay() {
                           active ? "border-brass-dim bg-surface-2" : "border-line bg-surface hover:bg-surface-2/70"
                         }`}
                       >
-                        <div className="flex items-start gap-2">
-                          <CrewPortrait crew={c} size="sm" />
+                        <div className="flex items-start gap-3">
+                          <CrewPortrait crew={c} size="lg" />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate font-display text-base font-medium">{displayName(c)}</p>
-                            <p className="truncate text-xs text-muted">
-                              {c.species.replace(" Punaab", "")}
-                              {c.house ? ` · ${c.house}` : ""}
-                              {packetOf(c.id) ? ` · ${packetOf(c.id)}` : ""}
+                            <p className="truncate font-display text-lg font-medium leading-tight">{displayName(c)}</p>
+                            <p className="mt-1 text-sm text-fg">
+                              {c.aptitudes.map((a) => `${a.name} ${a.xp === 50 ? "major" : "minor"}`).join(" · ") || "профессия не прочитана"}
+                            </p>
+                            <p className="mt-1 font-mono text-[10px] text-faint">
+                              {c.tensorRank != null ? `#${c.tensorRank}` : c.id.slice(0, 4)}
+                              <span className={`ml-2 ${TIER_CLASS[t]}`}>{c.tensorRank != null ? TIER_LABEL[t] : c.official}</span>
                             </p>
                           </div>
-                          <span className={`font-mono text-xs tabular-nums ${TIER_CLASS[t]}`}>
-                            {c.tensorRank != null ? `#${c.tensorRank.toLocaleString("en")}` : c.official}
-                          </span>
                         </div>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className={`size-1.5 rounded-full ${TIER_DOT[t]}`} />
-                          <span className={`font-mono text-xs ${TIER_CLASS[t]}`}>{TIER_LABEL[t]}</span>
-                          <span className="text-faint">/</span>
-                          <span className="font-mono text-xs text-ice">{c.official}</span>
-                          {mismatch(c) ? <span className="font-mono text-xs text-brass">пол</span> : null}
-                          <span className="font-mono text-xs text-faint">+{xpSpread(c)}%</span>
-                          {stars.includes(c.id) ? <Star className="size-3 fill-brass text-brass" /> : null}
-                        </div>
-                        <p className="truncate font-mono text-xs text-muted">
-                          {c.aptitudes.map((a) => `${a.name} +${a.xp}%`).join(" · ")}
-                        </p>
-                        <p className="font-mono text-xs text-faint tabular-nums">
-                          N {c.n} · C {c.c}
-                          {flyOk(c) ? " · штурвал" : hasFlight(c) ? " · не штурвал" : ""}
-                        </p>
                       </button>
                     </li>
                   );
@@ -358,10 +362,6 @@ export function CrewBay() {
       {diamondOpen ? <DiamondPanel onClose={() => setDiamondOpen(false)} /> : null}
     </AppChrome>
   );
-}
-
-function hasFlight(c: Crew) {
-  return c.aptitudes.some((a) => a.name === "Flight");
 }
 
 function Filters({
@@ -536,13 +536,12 @@ function Detail({ crew, starred, onStar }: { crew: Crew; starred: boolean; onSta
         <div className="flex min-w-0 items-start gap-3">
           <CrewPortrait crew={crew} size="lg" />
           <div className="min-w-0">
-            <p className={`font-mono text-xs ${TIER_CLASS[t]}`}>
-              Tensor #{crew.tensorRank?.toLocaleString("en") ?? "—"} · {TIER_LABEL[t]}
-            </p>
             <h2 className="font-display mt-1 text-2xl font-semibold leading-tight">{displayName(crew)}</h2>
-            <p className="mt-1 text-sm text-muted">
-              {crew.species} · {crew.sex}
-              {crew.house ? ` · ${crew.house}` : ""}
+            <p className="mt-1 text-sm text-fg">
+              {crew.aptitudes.map((a) => `${a.name} ${a.xp === 50 ? "major" : "minor"}`).join(" · ") || "профессия не прочитана"}
+            </p>
+            <p className={`mt-1 font-mono text-xs ${TIER_CLASS[t]}`}>
+              {crew.tensorRank != null ? `${TIER_LABEL[t]} #${crew.tensorRank.toLocaleString("en")}` : crew.official}
             </p>
             {packetOf(crew.id) ? (
               <p className="mt-1 font-mono text-xs text-brass">{packetOf(crew.id)}</p>
@@ -573,13 +572,13 @@ function Detail({ crew, starred, onStar }: { crew: Crew; starred: boolean; onSta
         ))}
       </ul>
 
-      <p className="mt-5 font-display text-xs tracking-wide text-muted uppercase">OCEAN</p>
+      <p className="mt-5 font-display text-xs tracking-[0.2em] text-muted uppercase">OCEAN</p>
       <ul className="mt-2 flex flex-col gap-2">
-        <Bar label="N нервы" value={crew.n} warn={crew.n >= 80} good={crew.n <= 30} />
-        <Bar label="C чеклист" value={crew.c} warn={crew.c <= 15} good={crew.c >= 75} />
         <Bar label="O открытость" value={crew.o} />
+        <Bar label="C чеклист" value={crew.c} warn={crew.c <= 15} good={crew.c >= 75} />
         <Bar label="E экстра" value={crew.e} />
         <Bar label="A согласие" value={crew.a} />
+        <Bar label="N нервы" value={crew.n} warn={crew.n >= 80} good={crew.n <= 30} />
       </ul>
 
       <p className="mt-5 font-display text-xs tracking-wide text-muted uppercase">На борт</p>
