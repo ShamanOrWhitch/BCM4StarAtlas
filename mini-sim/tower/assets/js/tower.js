@@ -163,8 +163,9 @@
         let surface = "platform";
         if (roll < 0.13) surface = "rock";
         else if (roll < 0.25) surface = "ice";
-        else if (roll < 0.34) surface = "lava";
-        else if (roll < 0.47) surface = "lift";
+        else if (roll < 0.33) surface = "hot";
+        else if (roll < 0.38) surface = "lava";
+        else if (roll < 0.49) surface = "lift";
 
         setCell(level, s, { surface });
       }
@@ -370,7 +371,10 @@
       } else {
         geometry = new THREE.BoxGeometry(width, height, depth);
         if (cell.surface === "lava") {
-          texUrl = pick(assetPool("platformLavaPool"), mulberry32(seed ^ 0x5511 ^ cell.level));
+          texUrl = pick(assetPool("lavaPool").concat(assetPool("platformLavaPool")), mulberry32(seed ^ 0x5511 ^ cell.level));
+          color = 0xd63b27;
+        } else if (cell.surface === "hot") {
+          texUrl = pick(assetPool("platformLavaPool"), mulberry32(seed ^ 0x5522 ^ cell.level));
           color = 0xb54628;
         } else if (cell.surface === "ice") {
           texUrl = pick(assetPool("platformIcePool"), mulberry32(seed ^ 0x9922 ^ cell.level));
@@ -703,7 +707,9 @@
       let turn = (c.right ? 1 : 0) - (c.left ? 1 : 0);
       let trim = (c.up ? 1 : 0) - (c.down ? 1 : 0);
 
-      const onIce = p.currentCell?.surface === "ice";
+      const onIce = p.currentCell?.surface === "ice" || p.currentCell?.liftHazard === "ice";
+      const onHot = p.currentCell?.surface === "hot" || p.currentCell?.liftHazard === "hot";
+      const onLava = p.currentCell?.surface === "lava" || p.currentCell?.liftHazard === "lava";
       const turnSpeed = baseTurnSpeed * (onIce ? 1.52 : 1);
 
       if (onIce) {
@@ -741,10 +747,13 @@
       if (!p.grounded) return;
 
       const surface = p.currentCell?.surface;
-      if (surface === "lava") {
+      if (onLava) {
+        resetAfterHazard(index, "ЛАВА: ОПАСНАЯ ЗОНА");
+        return;
+      } else if (onHot) {
         p.hazard += dt;
         if (p.hazard > 1.15) {
-          resetAfterHazard(index, "ЛАВА: НУЖНО НЕ ЗАДЕРЖИВАТЬСЯ");
+          resetAfterHazard(index, "ГОРЯЧАЯ ПЛАТФОРМА: НЕЛЬЗЯ ЗАДЕРЖИВАТЬСЯ");
           return;
         }
       } else if (p.currentCell?.object === "fire") {
@@ -901,6 +910,7 @@
       menu.hidden = true;
       mobile?.setAttribute("aria-hidden", "false");
       mobile?.querySelector(".bcm-tower-mobile-p2")?.toggleAttribute("hidden", mode !== "multi");
+      root.classList.toggle("is-multi", mode === "multi");
       buildTower(makeSeed());
 
       if (mode === "multi") {
