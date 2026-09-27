@@ -1143,7 +1143,8 @@
         maxVolume: 1,
         active: false,
         visible: false,
-        loaded: false,
+        loaded: !!zone.preloadWhenStarted,
+        keepLoaded: !!zone.preloadWhenStarted,
         distance: 99
       };
 
@@ -2045,7 +2046,7 @@
         zone.active = false;
 
         // Release the decoder/source when the screen is far outside its useful radius.
-        if (zone.loaded && zone.distance > zone.radius * 1.35) {
+        if (zone.loaded && !zone.keepLoaded && zone.distance > zone.radius * 1.35) {
           zone.el.pause();
           zone.el.removeAttribute("src");
           zone.el.preload = "none";
