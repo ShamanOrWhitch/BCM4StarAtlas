@@ -308,6 +308,12 @@
     stars: null,
     visible: false
   };
+  const spaceLabyrinth = {
+    walls: [],
+    meshes: [],
+    seed: 0
+  };
+
   // Only the two visible starbase corridor shells are collision geometry.
   // Deep Space itself has no map boundary.
   const starbaseHull = [
@@ -903,6 +909,143 @@
     randomizeBackside(performance.now());
   }
 
+  function buildSeededLabyrinthSection(parent, room, salt) {
+    const count = 6;
+    const roomHalf = Math.max(4.8, Number(room.w || 12) / 2 - 0.55);
+    const wallHeight = Math.max(6.5, Number(room.h || 8) - 0.55);
+    const wallThickness = 0.34;
+    const usableStart = room.z - room.len / 2 + 4.2;
+    const usableEnd = room.z + room.len / 2 - 4.2;
+    const step = (usableEnd - usableStart) / Math.max(1, count - 1);
+    const gapHalf = 1.55;
+    const rand = seedRandom(salt);
+    let previousGap = -1;
+
+    for (let i = 0; i < count; i++) {
+      const z = usableStart + step * i;
+      let gap = Math.floor(rand() * 3);
+      if (gap === previousGap) gap = (gap + 1 + Math.floor(rand() * 2)) % 3;
+      previousGap = gap;
+
+      const gapCenter = [-3.25, 0, 3.25][gap];
+      const gapMin = gapCenter - gapHalf;
+      const gapMax = gapCenter + gapHalf;
+
+      const addWall = (xMin, xMax) => {
+        const width = xMax - xMin;
+        if (width < 0.55) return;
+        const x = (xMin + xMax) * 0.5;
+        const materialName = seededVariant(
+          ["wall1.png", "wall2.png", "wall3.png", "wall4.png", "wall5.png"],
+          salt + i * 71 + Math.round(x * 13),
+          "wall1.png"
+        );
+        const material = textured(materialName, 0x46505b);
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(width, wallHeight, wallThickness),
+          material
+        );
+        mesh.position.set(x, 0, z);
+        mesh.name = "seeded-labyrinth-wall";
+        mesh.userData.labyrinth = true;
+        parent.add(mesh);
+        spaceLabyrinth.meshes.push(mesh);
+        spaceLabyrinth.walls.push({
+          xMin: xMin,
+          xMax: xMax,
+          yMin: -wallHeight * 0.5,
+          yMax: wallHeight * 0.5,
+          zMin: z - wallThickness * 0.5,
+          zMax: z + wallThickness * 0.5
+        });
+      };
+
+      addWall(-roomHalf, Math.min(roomHalf, gapMin));
+      addWall(Math.max(-roomHalf, gapMax), roomHalf);
+
+      // One short side spur makes some seeds branch instead of producing a
+      // simple zig-zag. It never seals the guaranteed opening through the barrier.
+      if (i > 0 && i < count - 1 && rand() < 0.48) {
+        const side = rand() < 0.5 ? -1 : 1;
+        const xInner = side < 0 ? -roomHalf : 1.0;
+        const xOuter = side < 0 ? -1.0 : roomHalf;
+        const spurZ = z + (rand() < 0.5 ? -1 : 1) * Math.min(0.9, step * 0.24);
+        const materialName = seededVariant(
+          ["wall2.png", "wall3.png", "wall4.png", "wall5.png"],
+          salt + 900 + i * 17,
+          "wall2.png"
+        );
+        const material = textured(materialName, 0x3e4b58);
+        const width = Math.abs(xOuter - xInner);
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(width, wallHeight * 0.82, wallThickness),
+          material
+        );
+        mesh.position.set((xInner + xOuter) * 0.5, 0, spurZ);
+        mesh.name = "seeded-labyrinth-spur";
+        mesh.userData.labyrinth = true;
+        parent.add(mesh);
+        spaceLabyrinth.meshes.push(mesh);
+        spaceLabyrinth.walls.push({
+          xMin: Math.min(xInner, xOuter),
+          xMax: Math.max(xInner, xOuter),
+          yMin: -wallHeight * 0.41,
+          yMax: wallHeight * 0.41,
+          zMin: spurZ - wallThickness * 0.5,
+          zMax: spurZ + wallThickness * 0.5
+        });
+      }
+    }
+  }
+
+  function collideSeededLabyrinth(before) {
+    if (!spaceLabyrinth.walls.length) return false;
+    let blocked = false;
+    for (const wall of spaceLabyrinth.walls) {
+      const inside =
+        ship.position.x >= wall.xMin &&
+        ship.position.x <= wall.xMax &&
+        ship.position.y >= wall.yMin &&
+        ship.position.y <= wall.yMax &&
+        ship.position.z >= wall.zMin &&
+        ship.position.z <= wall.zMax;
+
+      const crossedZ =
+        (before.z < wall.zMin && ship.position.z >= wall.zMin) ||
+        (before.z > wall.zMax && ship.position.z <= wall.zMax);
+
+      if (!inside && !crossedZ) continue;
+
+      // Push out along the shallowest penetration / crossing axis.
+      const left = Math.abs(ship.position.x - wall.xMin);
+      const right = Math.abs(wall.xMax - ship.position.x);
+      const down = Math.abs(ship.position.y - wall.yMin);
+      const up = Math.abs(wall.yMax - ship.position.y);
+      const front = Math.abs(ship.position.z - wall.zMin);
+      const back = Math.abs(wall.zMax - ship.position.z);
+      const minPen = Math.min(left, right, down, up, front, back);
+
+      if (minPen === front || minPen === back || crossedZ) {
+        ship.position.z = before.z <= wall.zMin ? wall.zMin - 0.06 : wall.zMax + 0.06;
+        ship.velocity.z = 0;
+      } else if (minPen === left) {
+        ship.position.x = wall.xMin - 0.06;
+        ship.velocity.x = 0;
+      } else if (minPen === right) {
+        ship.position.x = wall.xMax + 0.06;
+        ship.velocity.x = 0;
+      } else if (minPen === down) {
+        ship.position.y = wall.yMin - 0.06;
+        ship.velocity.y = 0;
+      } else {
+        ship.position.y = wall.yMax + 0.06;
+        ship.velocity.y = 0;
+      }
+      blocked = true;
+    }
+    return blocked;
+  }
+
   function isInsideCorridor(position) {
     if (!position) return false;
     const inCorridorXY =
@@ -1116,6 +1259,11 @@
       floorColor: 0x343d48, ceilingColor: 0x7c838c,
       leftColor: 0x48535e, rightColor: 0x3a444f
     });
+
+    // Seed controls both the layout and the wall skins. The outer shell stays unchanged.
+    spaceLabyrinth.seed = labyrinthSeed;
+    buildSeededLabyrinthSection(world, { z: -10, w: 12, len: 28, h: 8 }, labyrinthSeed ^ 0x13579);
+    buildSeededLabyrinthSection(world, { z: -66, w: 12, len: 34, h: 8 }, labyrinthSeed ^ 0x24680);
 
     // BLACK HOLE and Deep Space are real open 3D volumes.
     // There is no finite black-hole box and no hidden visual boundary.
@@ -2631,6 +2779,8 @@
     if (room1Interior) {
       exteriorFlight = false;
 
+      collideSeededLabyrinth(before);
+
       // Hard labyrinth walls while actually inside Room 1.
       ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
       ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
@@ -2647,6 +2797,8 @@
       }
     } else if (room2Interior) {
       exteriorFlight = false;
+
+      collideSeededLabyrinth(before);
 
       // Hard labyrinth walls while actually inside Room 2.
       ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
@@ -3116,7 +3268,7 @@
       bind();
       resize();
       setSpeedMode(1);
-      setStatus("ENGINE READY · LOCAL r128 · 0.9.17 · SPEED 1");
+      setStatus("ENGINE READY · LOCAL r128 · " + (config.version || "0.9.18") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
