@@ -21,6 +21,14 @@
   const transitionVideo = root.querySelector(".bcm-mini-sim-transition-video");
   const transitionLabel = root.querySelector(".bcm-mini-sim-transition-label");
   const config = window.BCMMiniSimConfig || {};
+  const towerPreload = {
+    started: false,
+    landingVideo: null,
+    fallbackVideo: null,
+    jsPromise: null,
+    cssLoaded: false,
+    distance: Infinity
+  };
 
   if (!canvas || !startButton || !status) return;
 
@@ -1120,6 +1128,12 @@
       mesh.renderOrder = 22;
       scene.add(mesh);
 
+      if (zone.preloadWhenStarted && zone.url) {
+        video.preload = "auto";
+        video.src = zone.url;
+        video.load();
+      }
+
       const item = {
         el: video,
         texture,
@@ -1556,6 +1570,79 @@
     updateDoorUnit(returnDoor, dt, "RETURN GATE");
   }
 
+  function ensureTowerCssLoaded() {
+    if (towerPreload.cssLoaded || !config.towerCssUrl) return;
+    if (document.querySelector('link[data-bcm-tower-preload-css="1"]')) {
+      towerPreload.cssLoaded = true;
+      return;
+    }
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "style";
+    link.href = config.towerCssUrl;
+    link.dataset.bcmTowerPreloadCss = "1";
+    document.head.appendChild(link);
+    towerPreload.cssLoaded = true;
+  }
+
+  function ensureTowerJsLoaded() {
+    if (towerPreload.jsPromise || !config.towerJsUrl) return towerPreload.jsPromise;
+    towerPreload.jsPromise = new Promise((resolve) => {
+      if ([...document.scripts].some(s => s.src === config.towerJsUrl)) {
+        resolve();
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = config.towerJsUrl;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => resolve();
+      document.head.appendChild(script);
+    });
+    return towerPreload.jsPromise;
+  }
+
+  function ensureTowerVideoLoaded() {
+    const url = config.towerLandingUrl || config.towerFallbackUrl || "";
+    if (!url) return;
+
+    if (!towerPreload.landingVideo || towerPreload.landingVideo.src !== url) {
+      const video = document.createElement("video");
+      video.muted = true;
+      video.defaultMuted = true;
+      video.playsInline = true;
+      video.setAttribute("muted", "");
+      video.setAttribute("playsinline", "");
+      video.setAttribute("webkit-playsinline", "");
+      video.preload = "auto";
+      video.src = url;
+      video.load();
+      towerPreload.landingVideo = video;
+    }
+  }
+
+  function preloadTowerApproach() {
+    if (towerPreload.started) return;
+    towerPreload.started = true;
+    ensureTowerCssLoaded();
+    ensureTowerJsLoaded();
+    ensureTowerVideoLoaded();
+    if (status) setStatus("DEEP SPACE · TOWER PRELOAD");
+  }
+
+  function updateTowerApproachPreload() {
+    if (!ship.position || !config.towerApproach) return;
+    const target = config.towerApproach;
+    const dx = ship.position.x - Number(target.x || 0);
+    const dy = ship.position.y - Number(target.y || 0);
+    const dz = ship.position.z - Number(target.z || 0);
+    towerPreload.distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const radius = Number(target.preloadRadius) || 120;
+    if (towerPreload.distance <= radius && ship.velocity.z <= 0) {
+      preloadTowerApproach();
+    }
+  }
+
   function portalCoverage() {
     if (!portal.mesh || !camera || !renderer) return 0;
     const box = new THREE.Box3().setFromObject(portal.mesh);
@@ -1764,9 +1851,8 @@
       ? portal.mesh.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position)
       : 99;
 
-    const mobileNearPortal = mobileLandscape() && dist <= 14;
-    if (!mobileNearPortal && dist > 10 && portal.coverage < 0.69) {
-      setStatus("PORTAL · APPROACH / FILL 69%");
+    if (portal.coverage < 0.69) {
+      setStatus("PORTAL · " + Math.round(portal.coverage * 100) + "% / NEED 69%");
       return;
     }
     playPortalVideo("FORWARD");
@@ -2332,6 +2418,7 @@
     camera.quaternion.copy(ship.quaternion);
     light.position.copy(ship.position);
     if (ship.position.z < -48) startBackgroundTextureLoading();
+    updateTowerApproachPreload();
     updateCinemaZones();
     updateLiveWall();
     updateLiveInterior();
