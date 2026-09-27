@@ -119,7 +119,8 @@ function bcm_mini_sim_enqueue_assets()
                 'url' => bcm_mini_sim_pick_asset($assets, array('onicss.mp4'), 'video'),
                 'x' => 0,
                 'y' => 0,
-                'z' => -97.0,
+                // Deliberately far beyond the satellite and the existing space screens.
+                'z' => -260.0,
                 'radius' => 24,
                 'maxWidth' => 10.0,
                 'maxHeight' => 6.0
