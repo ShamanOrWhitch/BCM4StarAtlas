@@ -148,6 +148,19 @@ function bcm_tower_shortcode($atts = array()) {
     <div class="bcm-tower" style="--bcm-tower-height:<?php echo esc_attr($atts['height']); ?>;">
         <canvas class="bcm-tower-canvas" tabindex="0"></canvas>
 
+        <div class="bcm-tower-menu">
+            <div class="bcm-tower-menu-title">BCM TOWER</div>
+            <div class="bcm-tower-menu-subtitle">LOCAL DESCENT</div>
+            <div class="bcm-tower-mode-buttons">
+                <button type="button" data-tower-mode="single">SINGLE</button>
+                <button type="button" data-tower-mode="multi">MULTI</button>
+            </div>
+            <div class="bcm-tower-menu-help">
+                SINGLE — клавиатура / мышь / 1 gamepad<br>
+                MULTI — 2 gamepad или P1 + P2 клавиатура
+            </div>
+        </div>
+
         <div class="bcm-tower-hud">
             <div class="bcm-tower-title">BCM TOWER — PROTOTYPE</div>
             <div class="bcm-tower-status">ENGINE LOADING...</div>
@@ -162,10 +175,21 @@ function bcm_tower_shortcode($atts = array()) {
             <div class="bcm-tower-crew" aria-live="polite"></div>
         </div>
 
+        <div class="bcm-tower-split-divider" hidden></div>
+        <div class="bcm-tower-split-label bcm-tower-split-p1" hidden>P1</div>
+        <div class="bcm-tower-split-label bcm-tower-split-p2" hidden>P2</div>
+
         <div class="bcm-tower-mobile" aria-hidden="true">
-            <button data-tower-control="left" type="button">◀</button>
-            <button data-tower-control="jump" type="button">JET</button>
-            <button data-tower-control="right" type="button">▶</button>
+            <div class="bcm-tower-mobile-player bcm-tower-mobile-p1">
+                <button data-tower-player="0" data-tower-control="left" type="button">◀</button>
+                <button data-tower-player="0" data-tower-control="jump" type="button">JET</button>
+                <button data-tower-player="0" data-tower-control="right" type="button">▶</button>
+            </div>
+            <div class="bcm-tower-mobile-player bcm-tower-mobile-p2" hidden>
+                <button data-tower-player="1" data-tower-control="left" type="button">◀</button>
+                <button data-tower-player="1" data-tower-control="jump" type="button">JET</button>
+                <button data-tower-player="1" data-tower-control="right" type="button">▶</button>
+            </div>
         </div>
 
         <div class="bcm-tower-transition" hidden>
