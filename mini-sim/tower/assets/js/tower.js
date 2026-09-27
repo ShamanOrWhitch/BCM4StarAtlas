@@ -500,7 +500,11 @@
         playerTexture = assetTexture(inlineConfig.crewImage, renderer, false);
       }
 
-      while (playerMarkers.length) safeDispose(playerMarkers.pop());
+      while (playerMarkers.length) {
+        const oldMarker = playerMarkers.pop();
+        scene.remove(oldMarker);
+        safeDispose(oldMarker);
+      }
       while (playerSprites.length) {
         const old = playerSprites.pop();
         scene.remove(old);
@@ -546,7 +550,7 @@
     function resetPlayer(index, angleOffset) {
       const p = players[index];
       const topSector = tower.path[0];
-      const cell = tower.cells.get(topSector ? (tower.levels - 1) + ":" + topSector : "");
+      const cell = tower.cells.get((tower.levels - 1) + ":" + topSector);
       const startY = cell ? cellWorldY(cell) + 0.9 : 0;
       p.y = startY;
       p.vy = 0;
