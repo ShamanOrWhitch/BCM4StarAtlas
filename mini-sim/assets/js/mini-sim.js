@@ -49,6 +49,54 @@
     const hit = keys.find((k) => k.split("/").pop() === base);
     return hit ? byName[hit] : "";
   }
+  function parseLabyrinthSeed(value) {
+    const textValue = String(value ?? "").trim();
+    if (!textValue) return 0;
+    if (/^0x[0-9a-f]+$/i.test(textValue)) return parseInt(textValue, 16) >>> 0;
+    if (/^\d+$/.test(textValue)) return Number(textValue) >>> 0;
+
+    let hash = 2166136261 >>> 0;
+    for (let i = 0; i < textValue.length; i++) {
+      hash ^= textValue.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+
+  function makeLabyrinthSeed() {
+    const query = new URLSearchParams(window.location.search || "");
+    const fromUrl = parseLabyrinthSeed(query.get("seed"));
+    if (fromUrl) return fromUrl;
+
+    const fromConfig = parseLabyrinthSeed(config.labyrinthSeed);
+    if (fromConfig) return fromConfig;
+
+    const a = new Uint32Array(2);
+    if (window.crypto?.getRandomValues) {
+      window.crypto.getRandomValues(a);
+      return (a[0] ^ a[1]) >>> 0;
+    }
+    return (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
+  }
+
+  const labyrinthSeed = makeLabyrinthSeed();
+
+  function seedRandom(salt = 0) {
+    let state = (labyrinthSeed ^ Number(salt || 0) ^ 0x9e3779b9) >>> 0;
+    return function () {
+      let t = state += 0x6D2B79F5;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function seededVariant(names, salt, fallback) {
+    const pool = Array.isArray(names) ? names.filter(Boolean) : [];
+    if (!pool.length) return fallback || "";
+    return pool[Math.floor(seedRandom(salt)() * pool.length)] || fallback || "";
+  }
+
   function getVideoCheckEntries() {
     const seen = Object.create(null);
     const entries = [];
@@ -526,9 +574,15 @@
     return mesh;
   }
 
-  function addRoofCorners(parent, z, width, height) {
-    const corner = textured("roofa.png", 0x8a9098);
-    const corner2 = textured("roofa1.png", 0x8a9098);
+  function addRoofCorners(parent, z, width, height, variants) {
+    const corner = textured(
+      seededVariant(variants || ["roofa.png", "roofa1.png", "roofa2.png"], z * 17 + width, "roofa.png"),
+      0x8a9098
+    );
+    const corner2 = textured(
+      seededVariant(["roofa.png", "roofa1.png", "roofa2.png"], z * 31 + height, "roofa1.png"),
+      0x8a9098
+    );
     const s = 1.6;
     plane(parent, -width / 2 + 0.8, height / 2 - 0.05, z, s, s, Math.PI / 2, 0, 0, corner);
     plane(parent, width / 2 - 0.8, height / 2 - 0.05, z, s, s, Math.PI / 2, 0, Math.PI / 2, corner2);
@@ -633,17 +687,21 @@
 
   function buildRoom(parent, opt) {
     const tex = opt.deferTextures ? deferredTextured : textured;
-    const floor = tex(opt.floor, opt.floorColor);
-    const ceil = tex(opt.ceiling, opt.ceilingColor);
-    const left = tex(opt.left, opt.leftColor);
+    const floorName = seededVariant(opt.floorVariants || [opt.floor], opt.z * 101 + 1, opt.floor);
+    const ceilingName = seededVariant(opt.ceilingVariants || [opt.ceiling], opt.z * 101 + 2, opt.ceiling);
+    const leftName = seededVariant(opt.leftVariants || [opt.left], opt.z * 101 + 3, opt.left);
+    const floor = tex(floorName, opt.floorColor);
+    const ceil = tex(ceilingName, opt.ceilingColor);
+    const left = tex(leftName, opt.leftColor);
     plane(parent, 0, -3.5, opt.z, opt.w, opt.len, -Math.PI / 2, 0, 0, floor);
     plane(parent, 0, 3.5, opt.z, opt.w, opt.len, Math.PI / 2, 0, 0, ceil);
     plane(parent, -opt.w / 2, 0, opt.z, opt.len, opt.h, 0, Math.PI / 2, 0, left);
     if (opt.right !== false) {
-      const right = tex(opt.right, opt.rightColor);
+      const rightName = seededVariant(opt.rightVariants || [opt.right], opt.z * 101 + 4, opt.right);
+      const right = tex(rightName, opt.rightColor);
       plane(parent, opt.w / 2, 0, opt.z, opt.len, opt.h, 0, -Math.PI / 2, 0, right);
     }
-    addRoofCorners(parent, opt.z, opt.w, opt.h);
+    addRoofCorners(parent, opt.z, opt.w, opt.h, opt.cornerVariants);
   }
 
   function buildStarbaseExterior(parent) {
@@ -1028,17 +1086,32 @@
 
   function buildWorld() {
     const world = new THREE.Group();
+    world.userData.labyrinthSeed = labyrinthSeed;
+
     buildRoom(world, {
       z: -10, w: 12, len: 28, h: 8,
-      floor: "wall1.png", ceiling: "roof.png",
-      left: "wall3.png", right: false,
+      floor: "wall1.png",
+      floorVariants: ["wall1.png", "wall2.png"],
+      ceiling: "roof.png",
+      ceilingVariants: ["roof.png", "roof1.png", "roof3.png"],
+      left: "wall3.png",
+      leftVariants: ["wall3.png", "wall4.png", "wall5.png"],
+      right: false,
+      cornerVariants: ["roofa.png", "roofa1.png", "roofa2.png"],
       floorColor: 0x46505b, ceilingColor: 0x8b9198,
       leftColor: 0x3b444f, rightColor: 0x343d47
     });
     buildRoom(world, {
       z: -66, w: 12, len: 34, h: 8,
-      floor: "wall2.png", ceiling: "roof1.png",
-      left: "wall5.png", right: "wall1.png",
+      floor: "wall2.png",
+      floorVariants: ["wall1.png", "wall2.png", "wall4.png"],
+      ceiling: "roof1.png",
+      ceilingVariants: ["roof.png", "roof1.png", "roof3.png"],
+      left: "wall5.png",
+      leftVariants: ["wall2.png", "wall3.png", "wall5.png"],
+      right: "wall1.png",
+      rightVariants: ["wall1.png", "wall4.png", "wall5.png"],
+      cornerVariants: ["roofa.png", "roofa1.png", "roofa2.png"],
       deferTextures: true,
       floorColor: 0x343d48, ceilingColor: 0x7c838c,
       leftColor: 0x48535e, rightColor: 0x3a444f
@@ -1230,6 +1303,9 @@
     });
 
     scene.add(world);
+    if (status) {
+      status.textContent = "SPACE LABYRINTH · SEED " + labyrinthSeed;
+    }
   }
 
   function createInteriorVideoPanel(options) {
