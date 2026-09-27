@@ -126,6 +126,14 @@
     display: none;
 }
 
+.bcm-tower.is-multi .bcm-tower-help-single {
+    display: none;
+}
+
+.bcm-tower.is-multi .bcm-tower-help-multi {
+    display: block;
+}
+
 .bcm-tower-split-divider {
     position: absolute;
     z-index: 9;
