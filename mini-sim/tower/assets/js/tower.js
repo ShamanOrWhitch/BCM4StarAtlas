@@ -331,6 +331,9 @@
     }
 
     function replaceTowerRoot() {
+      towerRoot.traverse((obj) => {
+        if (obj.isMesh) safeDispose(obj);
+      });
       scene.remove(towerRoot);
       towerRoot = new THREE.Group();
       scene.add(towerRoot);
@@ -511,7 +514,10 @@
       }
       while (playerSprites.length) {
         const old = playerSprites.pop();
-        scene.remove(old);
+        if (old) {
+          scene.remove(old);
+          safeDispose(old);
+        }
       }
 
       for (let i = 0; i < 2; i++) {
