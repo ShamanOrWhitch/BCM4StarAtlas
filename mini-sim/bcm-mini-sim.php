@@ -113,6 +113,17 @@ function bcm_mini_sim_enqueue_assets()
         'menuBackgroundUrl' => bcm_mini_sim_pick_asset($assets, array('perference bg.png'), 'image'),
         'musicUrl' => bcm_mini_sim_pick_asset($assets, array('starbase ost.mp3', 'starbase-ost.mp3', 'ost.mp3'), 'audio'),
         'spaceVideoZones' => array(
+            // Starbase exit: onicss.mp4 is placed directly in front of the ship
+            // just beyond Room 2 rear exit (Z = -84.5), in open Deep Space.
+            array(
+                'url' => bcm_mini_sim_pick_asset($assets, array('onicss.mp4'), 'video'),
+                'x' => 0,
+                'y' => 0,
+                'z' => -97.0,
+                'radius' => 24,
+                'maxWidth' => 10.0,
+                'maxHeight' => 6.0
+            ),
             // Only one clip in the portal/open-space room.
             array('url' => 'https://walkingyog.com/wp-content/uploads/2025/11/30Сек43-1.mp4', 'x' => -4.2, 'y' => 1.4, 'z' => -42.0, 'radius' => 9, 'maxWidth' => 7.2, 'maxHeight' => 4.5),
 
