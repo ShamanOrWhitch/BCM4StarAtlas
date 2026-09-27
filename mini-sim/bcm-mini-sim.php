@@ -212,6 +212,9 @@ function bcm_mini_sim_shortcode($atts = array())
 }
 
 add_shortcode('bcm_mini_sim', 'bcm_mini_sim_shortcode');
+
+// Optional Tower Toppler-style WebGL mode and texture-sheet analyzer.
+require_once BCM_MINI_SIM_PATH . 'tower/bcm-tower.php';
 add_filter('autoptimize_filter_js_exclude', function ($exclude) {
     return $exclude . ', mini-sim/assets/js/mini-sim.js, three.min.js';
 });
