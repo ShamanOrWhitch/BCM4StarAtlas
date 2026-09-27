@@ -112,6 +112,14 @@ function bcm_tower_get_assets() {
     return array_merge($assets, $tower_assets);
 }
 
+function bcm_tower_get_client_config($assets = null) {
+    if ($assets === null) {
+        $assets = bcm_tower_get_assets();
+    }
+
+    return ;
+}
+
 function bcm_tower_enqueue_assets() {
     $assets = bcm_tower_get_assets();
     $tower_assets = bcm_tower_scan_local_assets();
@@ -131,61 +139,7 @@ function bcm_tower_enqueue_assets() {
         false
     );
 
-    wp_localize_script('bcm-tower', 'BCMTowerConfig', array(
-        'threeUrl'   => defined('BCM_MINI_SIM_URL') ? BCM_MINI_SIM_URL . 'assets/js/three.min.js' : '',
-        'transition' => bcm_tower_pick_asset($tower_assets, array('tower.mp4'), 'video'),
-        'transitionFallbacks' => array_values(array_filter(array(
-            bcm_tower_pick_asset($assets, array('portal2.mp4'), 'video'),
-            bcm_tower_pick_asset($assets, array('portal3.mp4'), 'video'),
-            bcm_tower_pick_asset($assets, array('portal1.mp4'), 'video'),
-        ))),
-        'towerTexture' => bcm_tower_pick_asset($assets, array(
-            'tower-wall.png',
-            'tower.png',
-            'tower-wall.webp',
-            'tower.webp'
-        ), 'image'),
-        'platformTexture' => bcm_tower_pick_asset($assets, array(
-            'tower-platform.png',
-            'platform.png',
-            'tower-platform.webp',
-            'platform.webp'
-        ), 'image'),
-        'shipTexture' => bcm_tower_pick_asset($assets, array(
-            'ship.png',
-            'ship.webp',
-            'ship.jpg',
-            'ship.jpeg'
-        ), 'image'),
-        'planetMaps' => array_values(array_map(static function ($asset) {
-            return $asset['url'];
-        }, array_filter($assets, static function ($asset) {
-            if (($asset['type'] ?? '') !== 'image') {
-                return false;
-            }
-            $name = strtolower($asset['name'] ?? '');
-            return (bool) preg_match('/(^|\/)planet[^\/]*\.(png|webp|jpg|jpeg)$/i', $name);
-        }))),
-        'towerWallJpgPool' => bcm_tower_asset_urls($assets, '/^(towerwall|wall)[^\/]*\.(jpg|jpeg)$/i'),
-        // Intentionally separate: this is a different future level/theme.
-        'towerWallPngPool' => bcm_tower_asset_urls($assets, '/^towerwall[^\/]*\.png$/i'),
-        'platformPool' => bcm_tower_asset_urls($assets, '/^(platform|paltform)(?!lava|ice)[^\/]*\.(png|jpg|jpeg|webp)$/i'),
-        'platformLavaPool' => bcm_tower_asset_urls($assets, '/^(platformlava|paltformlava)[^\/]*\.(png|jpg|jpeg|webp)$/i'),
-        'platformIcePool' => bcm_tower_asset_urls($assets, '/^platformice[^\/]*\.(png|jpg|jpeg|webp)$/i'),
-        'upperPlatformPool' => bcm_tower_asset_urls($assets, '/^upperplatform[^\/]*\.(png|jpg|jpeg|webp)$/i'),
-        'rockPool' => bcm_tower_asset_urls($assets, '/^rock[^\/]*\.(png|jpg|jpeg|webp)$/i'),
-        'liftPool' => bcm_tower_asset_urls($assets, '/^lift[^\/]*\.(png|jpg|jpeg|webp)$/i'),
-        'boxPool' => bcm_tower_asset_urls($assets, '/^box[^\/]*\.(png|jpg|jpeg|webp)$/i'),
-        'safeBoxPool' => bcm_tower_asset_urls($assets, '/^safebox[^\/]*\.(png|jpg|jpeg|webp)$/i'),
-        'dangerBoxPool' => bcm_tower_asset_urls($assets, '/^dangerbox[^\/]*\.(png|jpg|jpeg|webp)$/i'),
-        'firePool' => bcm_tower_asset_urls($assets, '/^fire(?!metalbear)[^\/]*\.(png|jpg|jpeg|webp)$/i'),
-        'lavaPool' => bcm_tower_asset_urls($assets, '/^lava[^\/]*\.(png|jpg|jpeg|webp)$/i'),
-        'landingPool' => bcm_tower_asset_urls($assets, '/^h\d*\.(png|jpg|jpeg|webp)$/i'),
-        'doorPool' => bcm_tower_asset_urls($assets, '/^door[^\/]*\.(png|jpg|jpeg|webp)$/i'),
-        'wallDoorPool' => bcm_tower_asset_urls($assets, '/^walldoor\.(png|jpg|jpeg|webp)$/i'),
-        'npcPool' => bcm_tower_asset_urls($assets, '/^(walldoorpiratebear|walldoormetalbear|firemetalbear)[^\/]*\.(png|jpg|jpeg|webp)$/i'),
-        'version' => BCM_TOWER_VERSION,
-    ));
+    wp_localize_script('bcm-tower', 'BCMTowerConfig', bcm_tower_get_client_config($assets));
 }
 
 function bcm_tower_shortcode($atts = array()) {
