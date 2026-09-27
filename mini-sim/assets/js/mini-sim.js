@@ -21,6 +21,8 @@
   const transitionVideo = root.querySelector(".bcm-mini-sim-transition-video");
   const transitionLabel = root.querySelector(".bcm-mini-sim-transition-label");
   const config = window.BCMMiniSimConfig || {};
+  let miniSimReleased = false;
+
   const towerPreload = {
     started: false,
     landingVideo: null,
@@ -1708,7 +1710,9 @@
 
     towerGateTriggered = true;
     transitionBusy = true;
-    pauseAllCinemaVideos();
+
+    // Release the entire space-labyrinth WebGL application before Tower takes over.
+    disposeMiniSimResources();
 
     root.hidden = false;
     if (window.BCMTowerAPI && typeof window.BCMTowerAPI.enter === "function") {
@@ -2034,6 +2038,155 @@
     }
     pauseInteriorVideos();
     cinema.nearest = null;
+  }
+
+  function disposeMiniSimResources() {
+    if (miniSimReleased) return;
+    miniSimReleased = true;
+
+    running = false;
+    transitionBusy = true;
+    transitionLoading = false;
+
+    if (document.exitPointerLock) {
+      try { document.exitPointerLock(); } catch (e) {}
+    }
+
+    // Stop every HTML video/audio source owned by the first game.
+    try { pauseAllCinemaVideos(); } catch (e) {}
+    if (transitionVideo) {
+      try {
+        transitionVideo.pause();
+        transitionVideo.removeAttribute("src");
+        transitionVideo.load();
+      } catch (e) {}
+    }
+    if (musicAudio) {
+      try {
+        musicAudio.pause();
+        musicAudio.removeAttribute("src");
+        musicAudio.load();
+      } catch (e) {}
+    }
+
+    // Do not let the low-priority image queue continue after handoff.
+    backgroundTextureQueue.jobs.length = 0;
+    backgroundTextureQueue.running = false;
+    backgroundTextureQueue.seen = Object.create(null);
+
+    // Release video elements and VideoTextures held by the cinema/interior systems.
+    cinema.zones.forEach((zone) => {
+      if (!zone) return;
+      if (zone.el) {
+        try {
+          zone.el.pause();
+          zone.el.removeAttribute("src");
+          zone.el.load();
+        } catch (e) {}
+      }
+      if (zone.texture?.dispose) {
+        try { zone.texture.dispose(); } catch (e) {}
+      }
+    });
+    liveInterior.forEach((item) => {
+      if (!item) return;
+      if (item.el) {
+        try {
+          item.el.pause();
+          item.el.removeAttribute("src");
+          item.el.load();
+        } catch (e) {}
+      }
+      if (item.texture?.dispose) {
+        try { item.texture.dispose(); } catch (e) {}
+      }
+    });
+    if (liveWall.el) {
+      try {
+        liveWall.el.pause();
+        liveWall.el.removeAttribute("src");
+        liveWall.el.load();
+      } catch (e) {}
+    }
+    if (liveWall.texture?.dispose) {
+      try { liveWall.texture.dispose(); } catch (e) {}
+    }
+
+    const seenTextures = new Set();
+    const seenMaterials = new Set();
+    const seenGeometries = new Set();
+
+    const disposeTexture = (texture) => {
+      if (!texture || !texture.dispose || seenTextures.has(texture)) return;
+      seenTextures.add(texture);
+      try { texture.dispose(); } catch (e) {}
+    };
+
+    const disposeMaterial = (material) => {
+      if (!material || seenMaterials.has(material)) return;
+      seenMaterials.add(material);
+
+      const maps = [
+        "map", "alphaMap", "aoMap", "bumpMap", "displacementMap",
+        "emissiveMap", "envMap", "lightMap", "metalnessMap",
+        "normalMap", "roughnessMap"
+      ];
+      maps.forEach((key) => disposeTexture(material[key]));
+      try { material.dispose(); } catch (e) {}
+    };
+
+    const disposeObject = (object) => {
+      if (!object) return;
+      if (object.geometry && !seenGeometries.has(object.geometry)) {
+        seenGeometries.add(object.geometry);
+        try { object.geometry.dispose(); } catch (e) {}
+      }
+
+      if (object.material) {
+        if (Array.isArray(object.material)) {
+          object.material.forEach(disposeMaterial);
+        } else {
+          disposeMaterial(object.material);
+        }
+      }
+
+      if (object.children) {
+        object.children.forEach(disposeObject);
+      }
+    };
+
+    if (scene) {
+      try { scene.traverse(disposeObject); } catch (e) {}
+      try { scene.clear(); } catch (e) {
+        while (scene.children.length) scene.remove(scene.children[scene.children.length - 1]);
+      }
+    }
+
+    if (renderer) {
+      try {
+        if (renderer.renderLists?.dispose) renderer.renderLists.dispose();
+      } catch (e) {}
+      try { renderer.dispose(); } catch (e) {}
+      try {
+        if (renderer.forceContextLoss) renderer.forceContextLoss();
+      } catch (e) {}
+    }
+
+    ship.visual = null;
+    cinema.zones.length = 0;
+    liveInterior.length = 0;
+    backside.panels.length = 0;
+    backside.materials.length = 0;
+    backside.group = null;
+    spaceSatellite.group = null;
+    spaceSatellite.stars = null;
+    towerPreload.landingVideo = null;
+    towerPreload.fallbackVideo = null;
+
+    // The Tower overlay is now the active application; remove the first game's
+    // DOM/render surface from layout as well.
+    root.style.display = "none";
+    root.classList.remove("game-active");
   }
 
   function setAudioMute(value) {
@@ -2558,6 +2711,8 @@
   }
 
   function render(now) {
+    if (miniSimReleased) return;
+
     updateBacksideVisibility();
     updateBacksideCamouflage(now);
     const dt = Math.min((now - last) / 1000, 0.033);
