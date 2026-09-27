@@ -109,6 +109,25 @@ function bcm_mini_sim_enqueue_assets()
     wp_enqueue_script('bcm-mini-sim', BCM_MINI_SIM_URL . 'assets/js/mini-sim.js', array(), BCM_MINI_SIM_VERSION, false);
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
         'threeUrl' => BCM_MINI_SIM_URL . 'assets/js/three.min.js',
+        'towerApproach' => array(
+            // Entry target is the distant onicss gate in Deep Space.
+            'x' => 0,
+            'y' => 0,
+            'z' => -260.0,
+            // Start Tower preload well before the gate becomes large on screen.
+            'preloadRadius' => 120.0,
+            'coverageThreshold' => 0.69,
+        ),
+        'towerJsUrl' => BCM_MINI_SIM_URL . 'tower/assets/js/tower.js',
+        'towerCssUrl' => BCM_MINI_SIM_URL . 'tower/assets/css/tower.css',
+        'towerLandingUrl' => file_exists(BCM_MINI_SIM_PATH . 'tower/assets/tower.mp4')
+            ? BCM_MINI_SIM_URL . 'tower/assets/tower.mp4'
+            : '',
+        'towerFallbackUrl' => bcm_mini_sim_pick_asset($assets, array(
+            'portal2.mp4',
+            'portal3.mp4',
+            'portal1.mp4'
+        ), 'video'),
         'doorTexture' => $door,
         'menuBackgroundUrl' => bcm_mini_sim_pick_asset($assets, array('perference bg.png'), 'image'),
         'musicUrl' => bcm_mini_sim_pick_asset($assets, array('starbase ost.mp3', 'starbase-ost.mp3', 'ost.mp3'), 'audio'),
@@ -123,7 +142,8 @@ function bcm_mini_sim_enqueue_assets()
                 'z' => -260.0,
                 'radius' => 24,
                 'maxWidth' => 10.0,
-                'maxHeight' => 6.0
+                'maxHeight' => 6.0,
+                'preloadWhenStarted' => true
             ),
             // Only one clip in the portal/open-space room.
             array('url' => 'https://walkingyog.com/wp-content/uploads/2025/11/30Сек43-1.mp4', 'x' => -4.2, 'y' => 1.4, 'z' => -42.0, 'radius' => 9, 'maxWidth' => 7.2, 'maxHeight' => 4.5),
