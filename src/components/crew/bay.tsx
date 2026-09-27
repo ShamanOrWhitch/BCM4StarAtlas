@@ -23,14 +23,16 @@ import { scanDeskWallet } from "@/lib/desk";
 import type { WalletItem } from "@/lib/desk-types";
 import { AppChrome } from "@/components/app-chrome";
 
-const RARITY_BORDER: Record<(typeof OFFICIAL)[number], string> = {
-  Anomaly: "border-[#e85cff]",
-  Legendary: "border-[#e2b657]",
-  Epic: "border-[#a06bff]",
-  Rare: "border-[#4c8dff]",
-  Uncommon: "border-[#3dba7a]",
-  Common: "border-[#6b7280]",
+const TIER_BORDER: Record<TensorTier, string> = {
+  anomaly: "border-[#e85cff]",
+  legendary: "border-[#e2b657]",
+  epic: "border-[#a06bff]",
+  rare: "border-[#4c8dff]",
+  uncommon: "border-[#3dba7a]",
+  common: "border-[#6b7280]",
 };
+
+const TENSOR_CHIPS: TensorTier[] = ["anomaly", "legendary", "epic", "rare", "uncommon", "common"];
 
 const RARITY_CLASS: Record<(typeof OFFICIAL)[number], string> = {
   Anomaly: "text-tensor-anomaly",
@@ -249,23 +251,23 @@ export function CrewBay() {
             <div className="flex gap-2 overflow-x-auto pb-1">
               <button
                 type="button"
-                onClick={() => patch({ official: [] })}
+                onClick={() => patch({ tensor: [], official: [] })}
                 className={`h-11 shrink-0 rounded-full border px-3 font-display text-sm ${
-                  query.official.length === 0 ? "border-brass-dim bg-surface-2 text-fg" : "border-line text-muted"
+                  query.tensor.length === 0 ? "border-brass-dim bg-surface-2 text-fg" : "border-line text-muted"
                 }`}
               >
                 Вся редкость Tensor
               </button>
-              {OFFICIAL.map((rarity) => {
-                const on = query.official.length === 1 && query.official[0] === rarity;
+              {TENSOR_CHIPS.map((tier) => {
+                const on = query.tensor.length === 1 && query.tensor[0] === tier;
                 return (
                   <button
-                    key={rarity}
+                    key={tier}
                     type="button"
-                    onClick={() => patch({ official: on ? [] : [rarity] })}
+                    onClick={() => patch({ tensor: on ? [] : [tier], official: [] })}
                     className={`h-11 shrink-0 rounded-full border px-3 font-display text-sm ${on ? "border-brass-dim bg-surface-2 text-fg" : "border-line text-muted"}`}
                   >
-                    {rarity}
+                    {TIER_LABEL[tier]}
                   </button>
                 );
               })}
@@ -324,6 +326,7 @@ export function CrewBay() {
             ) : (
               <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 {rows.map((c) => {
+                  const t = tensorTier(c.tensorRank);
                   const active = selected?.id === c.id;
                   return (
                     <li key={c.id}>
@@ -333,7 +336,7 @@ export function CrewBay() {
                           setPicked(c.id);
                           setMobileDetail(true);
                         }}
-                        className={`flex w-full flex-col gap-2 rounded-lg border-2 px-3 py-3 text-left transition-colors duration-150 ${RARITY_BORDER[c.official]} ${
+                        className={`flex w-full flex-col gap-2 rounded-lg border-2 px-3 py-3 text-left transition-colors duration-150 ${t === "unknown" ? "border-line" : TIER_BORDER[t]} ${
                           active ? "bg-surface-2" : "bg-surface hover:bg-surface-2/70"
                         }`}
                       >
@@ -344,7 +347,7 @@ export function CrewBay() {
                             <p className="mt-1 text-sm text-fg">
                               {c.aptitudes.map((a) => `${a.name} ${a.xp === 50 ? "major" : "minor"}`).join(" · ") || "профессия не прочитана"}
                             </p>
-                            <p className={`mt-1 font-mono text-xs ${RARITY_CLASS[c.official]}`}>{c.official}</p>
+                            <p className={`mt-1 font-mono text-xs ${TIER_CLASS[t]}`}>{TIER_LABEL[t]}</p>
                           </div>
                         </div>
                       </button>

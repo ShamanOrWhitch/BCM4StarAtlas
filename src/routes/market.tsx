@@ -34,9 +34,17 @@ function fmtAtlas(n: number | null): string {
 }
 
 function priced(row: ResourceRow, quote: "USDC" | "ATLAS" | "POLIS"): ResourceRow {
-  const ask = quote === "ATLAS" ? row.atlasAsk : quote === "POLIS" ? row.polisAsk : row.usdcAsk;
-  const bid = quote === "ATLAS" ? row.atlasBid : quote === "POLIS" ? row.polisBid : row.usdcBid;
-  return { ...row, ask: ask ?? null, bid: bid ?? null, quote };
+  const pack = (ask: number | null | undefined, bid: number | null | undefined, unit: "USDC" | "ATLAS" | "POLIS") => ({
+    ...row,
+    ask: ask ?? null,
+    bid: bid ?? null,
+    quote: unit,
+  });
+  if (quote === "ATLAS") return pack(row.atlasAsk, row.atlasBid, "ATLAS");
+  if (quote === "POLIS") return pack(row.polisAsk, row.polisBid, "POLIS");
+  if (row.usdcAsk != null || row.usdcBid != null) return pack(row.usdcAsk, row.usdcBid, "USDC");
+  if (row.atlasAsk != null || row.atlasBid != null) return pack(row.atlasAsk, row.atlasBid, "ATLAS");
+  return pack(row.polisAsk, row.polisBid, "POLIS");
 }
 function money(row: ResourceRow): string {
   const n = row.ask ?? row.bid;
@@ -152,8 +160,8 @@ export function MarketPage() {
             <TokenCard name="ATLAS" quote={snap?.atlas} />
             <TokenCard name="POLIS" quote={snap?.polis} />
           </div>
-          <CandleChart title="ATLAS / USD" candles={snap?.candles ?? []} />
-          <CandleChart title="POLIS / ATLAS" candles={snap?.pairCandles ?? []} />
+          <CandleChart title="ATLAS / USD" candles={snap?.candles ?? []} source="Дневные свечи пула Raydium ATLAS/USDC в Solana. Если пул не ответил — запасной Kraken." />
+          <CandleChart title="POLIS / ATLAS" candles={snap?.pairCandles ?? []} source="Сколько ATLAS за один POLIS: Raydium POLIS/USDC разделить на Raydium ATLAS/USDC. Наведи на свечу — дата и цены." />
 
           <div className="grid gap-3 sm:grid-cols-3">
             {pinned.map((row) => (
@@ -227,7 +235,7 @@ export function MarketPage() {
               </button>
             ))}
           </div>
-          <BubbleField title={`Ресурсы и сырьё · ${quote}`} rows={viewRows.filter((row) => row.ask != null)} previous={previous} />
+          <BubbleField title={quote === "USDC" ? "Ресурсы · USDC, если пусто то ATLAS, затем POLIS" : `Ресурсы · ${quote}`} rows={viewRows.filter((row) => row.ask != null)} previous={previous} />
           <BubbleField title={`Корабли · ${quote}`} rows={viewShips} previous={previous} />
           <ResourceTape rows={rows} tape={tape} mint={resourceMint} onMint={setResourceMint} />
           <p className="text-sm text-muted">
@@ -382,36 +390,39 @@ function TapeLine({ name, points }: { name: string; points: { t: number; v: numb
   );
 }
 
-function CandleChart({ title, candles }: { title: string; candles: Candle[] }) {
+function CandleChart({ title, candles, source }: { title: string; candles: Candle[]; source?: string }) {
   if (candles.length < 2) return <p className="text-sm text-muted">{title}: свечи ещё не пришли.</p>;
-  const w = 640;
-  const h = 220;
-  const pad = 8;
-  const padR = 84;
+  const w = 720;
+  const h = 260;
+  const pad = 28;
+  const padR = 92;
+  const padB = 28;
   const min = Math.min(...candles.map((c) => c.l));
   const max = Math.max(...candles.map((c) => c.h));
   const span = max - min || 1;
   const slot = (w - pad - padR) / candles.length;
-  const y = (v: number) => pad + (1 - (v - min) / span) * (h - pad * 2);
+  const y = (v: number) => pad + (1 - (v - min) / span) * (h - pad - padB);
   const last = candles[candles.length - 1];
   const first = candles[0];
   const move = first && first.o ? ((last.c - first.o) / first.o) * 100 : null;
-  const ticks = [max, (max + min) / 2, min];
-  const fmtTick = (n: number) => (n >= 100 ? n.toFixed(1) : n >= 1 ? n.toFixed(2) : n.toFixed(6));
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((step) => min + span * step);
+  const fmtTick = (n: number) => (n >= 100 ? n.toFixed(2) : n >= 1 ? n.toFixed(2) : n.toFixed(6));
+  const dateOf = (t: number) => new Date(t > 1e12 ? t : t * 1000).toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
+  const marks = candles.filter((_, index) => index % Math.ceil(candles.length / 5) === 0 || index === candles.length - 1);
   return (
     <figure className="rounded-xl border border-line bg-surface p-3">
       <figcaption className="mb-2 flex flex-wrap items-baseline justify-between gap-3">
         <span className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{title} · 1д</span>
         <span className="font-mono text-xs text-muted">
-          O {fmtTick(last.o)} H {fmtTick(last.h)} L {fmtTick(last.l)} C {fmtTick(last.c)}
+          мин {fmtTick(min)} · среднее {fmtTick(candles.reduce((sum, candle) => sum + candle.c, 0) / candles.length)} · макс {fmtTick(max)}
         </span>
         <span className={`font-mono text-sm ${move != null && move < 0 ? "text-danger" : "text-ok"}`}>{fmtPct(move)}</span>
       </figcaption>
-      <svg viewBox={`0 0 ${w} ${h}`} className="h-56 w-full" role="img" aria-label={title}>
+      <svg viewBox={`0 0 ${w} ${h}`} className="h-64 w-full" role="img" aria-label={title}>
         {ticks.map((tick) => (
           <g key={tick}>
-            <line x1={pad} x2={w - padR} y1={y(tick)} y2={y(tick)} stroke="rgba(232,238,242,0.12)" />
-            <text x={w - 4} y={y(tick) + 4} textAnchor="end" fill="#8b96a3" fontSize="12">
+            <line x1={pad} x2={w - padR} y1={y(tick)} y2={y(tick)} stroke="rgba(232,238,242,0.18)" />
+            <text x={w - 4} y={y(tick) + 4} textAnchor="end" fill="#c5ced6" fontSize="13">
               {fmtTick(tick)}
             </text>
           </g>
@@ -424,13 +435,23 @@ function CandleChart({ title, candles }: { title: string; candles: Candle[] }) {
           const bot = y(Math.min(candle.o, candle.c));
           return (
             <g key={candle.t}>
+              <title>{`${dateOf(candle.t)}  O ${fmtTick(candle.o)}  H ${fmtTick(candle.h)}  L ${fmtTick(candle.l)}  C ${fmtTick(candle.c)}`}</title>
               <line x1={x} x2={x} y1={y(candle.h)} y2={y(candle.l)} stroke={color} strokeWidth="1.2" />
               <rect x={x - Math.max(1.2, slot * 0.28)} y={top} width={Math.max(2, slot * 0.56)} height={Math.max(1.2, bot - top)} fill={color} />
             </g>
           );
         })}
+        {marks.map((candle) => {
+          const index = candles.indexOf(candle);
+          const x = pad + index * slot + slot / 2;
+          return (
+            <text key={`d-${candle.t}`} x={x} y={h - 6} textAnchor="middle" fill="#8b96a3" fontSize="11">
+              {dateOf(candle.t)}
+            </text>
+          );
+        })}
       </svg>
-      <p className="mt-1 text-sm text-muted">Дневные свечи Kraken. Ось — цена, не процент. POLIS/ATLAS это сколько ATLAS за один POLIS.</p>
+      <p className="mt-1 text-sm text-muted">{source ?? "Дневные свечи. Ось справа — цена. Наведи на свечу: дата и OHLC."}</p>
     </figure>
   );
 }

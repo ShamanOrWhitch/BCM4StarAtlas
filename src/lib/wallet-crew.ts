@@ -51,6 +51,36 @@ function knownCrew(name: string) {
   const key = keyOf(name);
   return KNOWN.find((row) => row.name === key || (row.given.length > 3 && row.rest.length > 1 && key.includes(row.given) && key.includes(row.rest)))?.crew;
 }
+const LOOK_RANK: Record<OfficialRarity, number> = {
+  Anomaly: 1_000,
+  Legendary: 20_000,
+  Epic: 120_000,
+  Rare: 300_000,
+  Uncommon: 700_000,
+  Common: 1_200_000,
+};
+
+function lookOf(traits: WalletTrait[]): OfficialRarity {
+  let best: OfficialRarity = "Common";
+  let score = LOOK_RANK.Common;
+  for (const row of traits) {
+    if (!/rarity/i.test(row.trait) || /^none$/i.test(row.value)) continue;
+    const hit = rarityOf(row.value);
+    if (LOOK_RANK[hit] < score) {
+      best = hit;
+      score = LOOK_RANK[hit];
+    }
+  }
+  return best;
+}
+
+function personName(item: WalletItem): string {
+  const named = trait(item.traits, "name");
+  const raw = named && !/^crew\b/i.test(named) ? named : item.name;
+  const cleaned = raw.replace(/^crew\s*#?\s*\d*$/i, "").trim();
+  return cleaned || named || item.name;
+}
+
 function rarityOf(value: string): OfficialRarity {
   const hit = OFFICIAL.find((item) => item.toLowerCase() === value.toLowerCase());
   return hit ?? "Common";
@@ -66,12 +96,14 @@ export function walletCrew(items: WalletItem[]): Crew[] {
         const xp = /minor|25/i.test(row.value) ? 25 : 50;
         return { name, xp } as const;
       });
-    const parts = item.name.trim().split(/\s+/);
-    const given = parts[0] || item.name;
+    const label = personName(item);
+    const parts = label.trim().split(/\s+/);
+    const given = parts[0] || label;
     const rest = parts.slice(1).join(" ");
     const sexRaw = trait(item.traits, "Sex");
     const sex = sexRaw === "Female" || sexRaw === "Male" || sexRaw === "Body 1" || sexRaw === "Body 2" ? sexRaw : species === "Ustur" ? "Body 1" : "Male";
-    const known = knownCrew(item.name);
+    const known = knownCrew(label);
+    const look = lookOf(item.traits);
     return {
       id: item.mint,
       given,
@@ -80,7 +112,7 @@ export function walletCrew(items: WalletItem[]): Crew[] {
       species,
       sex,
       official: rarityOf(trait(item.traits, "rarity") || item.rarity),
-      tensorRank: known?.tensorRank ?? null,
+      tensorRank: LOOK_RANK[look],
       house: known?.house,
       university: known?.university,
       aptitudes,
@@ -90,7 +122,7 @@ export function walletCrew(items: WalletItem[]): Crew[] {
       a: ocean(item.traits, "Agreeableness"),
       n: ocean(item.traits, "Neuroticism"),
       image: item.image || undefined,
-      note: known?.tensorRank != null ? `Tensor #${known.tensorRank}. Цифры OCEAN с карточки на ключе.` : "Карточка с ключа.",
+      note: `Цвет Tensor по слоям одежды: ${look}. Алмаз персонажа отдельно.`,
     } satisfies Crew;
   });
 }

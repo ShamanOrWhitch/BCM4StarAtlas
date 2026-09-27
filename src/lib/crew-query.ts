@@ -41,7 +41,7 @@ export const EMPTY_QUERY: CrewQuery = {
   flyOnly: false,
   mismatchOnly: false,
   house: null,
-  sort: "official",
+  sort: "tensor",
 };
 
 export const PRESETS: { id: string; label: string; apply: Partial<CrewQuery> }[] = [

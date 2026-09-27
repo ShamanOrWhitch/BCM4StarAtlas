@@ -3,9 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { AppChrome } from "@/components/app-chrome";
 import { loadMarket, scanDeskWallet } from "@/lib/desk";
 import type { BookLevel, MarketShip } from "@/lib/desk-types";
-import { addToFleet, loadFleets, saveFleets, type SavedFleet } from "@/lib/fleets";
+import { addToFleet, assignSeat, dropHull, loadFleets, saveFleets, type SavedFleet } from "@/lib/fleets";
 import { walletCrew } from "@/lib/wallet-crew";
-import type { Crew } from "@/data/crew";
+import { displayName, type Crew } from "@/data/crew";
 import { CrewPortrait } from "@/components/crew/portrait";
 
 export const Route = createFileRoute("/ships")({ component: ShipsPage });
@@ -124,7 +124,9 @@ export function ShipsPage() {
                   held={held[picked.mint] ?? 0}
                   fleets={fleets}
                   onBack={() => setOpen(null)}
-                  onFleet={(name, qty) => setFleets(addToFleet(fleets, name, { mint: picked.mint, name: picked.name, image: picked.image, qty }))}
+                  onFleet={(name, qty) =>
+                    setFleets(addToFleet(fleets, name, { mint: picked.mint, name: picked.name, image: picked.image, qty, slots: picked.slots }))
+                  }
                 />
               ) : (
                 <p className="px-6 py-16 text-muted">Выберите корпус слева. Откроются картинка, описание и два стакана: продавцы и покупатели.</p>
@@ -132,14 +134,7 @@ export function ShipsPage() {
             </div>
           </div>
         ) : fleet ? (
-          <FleetSheet
-            fleet={fleet}
-            crew={crew}
-            onChange={(rows) => {
-              setFleets(rows);
-              setTab("market");
-            }}
-          />
+          <FleetSheet fleet={fleet} crew={crew} onChange={setFleets} onGone={() => setTab("market")} />
         ) : null}
       </div>
     </AppChrome>
@@ -271,57 +266,101 @@ function Level({ title, rows, digits }: { title: string; rows: BookLevel[]; digi
   );
 }
 
-function FleetSheet({ fleet, crew, onChange }: { fleet: SavedFleet; crew: Crew[]; onChange: (rows: SavedFleet[]) => void }) {
+function FleetSheet({ fleet, crew, onChange, onGone }: { fleet: SavedFleet; crew: Crew[]; onChange: (rows: SavedFleet[]) => void; onGone: () => void }) {
+  const [openMint, setOpenMint] = useState<string | null>(fleet.hulls[0]?.mint ?? null);
   const [job, setJob] = useState("Flight");
   const [calm, setCalm] = useState(100);
+  const [pick, setPick] = useState<{ copy: number; seat: number } | null>(null);
   const jobs = ["Flight", "Operator", "Command", "Engineering", "Medical", "Science", "Fitness", "Hospitality"];
-  const matches = crew
-    .filter((member) => member.aptitudes.some((apt) => apt.name === job) && member.n <= calm)
-    .slice(0, 6);
+  const matches = crew.filter((member) => member.aptitudes.some((apt) => apt.name === job) && member.n <= calm).slice(0, 12);
+  const hull = fleet.hulls.find((row) => row.mint === openMint) ?? null;
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 md:px-6">
       <h2 className="font-display text-2xl">{fleet.name}</h2>
-      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-        {fleet.hulls.map((hull) => (
-          <li key={hull.mint} className="flex items-center gap-3 rounded-xl border border-line bg-surface p-2">
-            {hull.image ? <img src={hull.image} alt="" className="size-16 rounded-md object-cover" /> : null}
-            <span>
-              <span className="block font-display">{hull.name}</span>
-              <span className="font-mono text-sm text-muted">×{hull.qty}</span>
-            </span>
+      <ul className="mt-3 flex flex-col gap-2">
+        {fleet.hulls.map((row) => (
+          <li key={row.mint} className="rounded-xl border border-line bg-surface">
+            <div className="flex items-center gap-3 p-2">
+              {row.image ? <img src={row.image} alt="" className="size-16 rounded-md object-cover" /> : null}
+              <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setOpenMint(row.mint)}>
+                <span className="block font-display">{row.name}</span>
+                <span className="font-mono text-sm text-muted">×{row.copies.length} · мест {row.copies[0]?.seats.length ?? 0}</span>
+              </button>
+              <button type="button" className="h-11 px-2 text-sm text-danger" onClick={() => onChange(dropHull(loadFleets(), fleet.id, row.mint, null))}>
+                убрать
+              </button>
+            </div>
           </li>
         ))}
       </ul>
-      <section className="mt-6">
-        <h3 className="font-display text-sm tracking-[0.16em] text-brass uppercase">Подбор в этот флот</h3>
-        <p className="mt-1 text-sm text-muted">Сначала профессия, потом потолок нервов. Картинка того, кто подходит.</p>
-        <div className="mt-2 flex gap-2 overflow-x-auto">
-          {jobs.map((item) => (
-            <button key={item} type="button" onClick={() => setJob(item)} className={`h-11 shrink-0 rounded-full border px-3 text-sm ${job === item ? "border-brass-dim bg-surface-2" : "border-line text-muted"}`}>
-              {item}
-            </button>
-          ))}
-        </div>
-        <label className="mt-3 block text-sm text-muted">
-          Нервы не выше {calm}
-          <input type="range" min={0} max={100} value={calm} onChange={(event) => setCalm(Number(event.target.value))} className="mt-1 w-full" />
-        </label>
-        {matches.length ? (
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-            {matches.map((member) => (
-              <li key={member.id} className="flex items-center gap-3 rounded-xl border border-line p-2">
-                <CrewPortrait crew={member} size="lg" />
-                <span>
-                  <span className="block font-display">{member.given} {member.family}</span>
-                  <span className="text-sm text-muted">{member.aptitudes.map((apt) => `${apt.name} ${apt.xp === 50 ? "major" : "minor"}`).join(" · ")}</span>
-                </span>
+      {hull ? (
+        <section className="mt-4">
+          <h3 className="font-display text-sm tracking-[0.16em] text-brass uppercase">{hull.name} · кто сидит</h3>
+          <p className="mt-1 text-sm text-muted">Первое место — пилот. Второе уже по делу. Бегунок нервов сужает список, по корпусу кликать не нужно.</p>
+          <label className="mt-3 block text-sm text-muted">
+            Нервы не выше {calm}
+            <input type="range" min={0} max={100} value={calm} onChange={(event) => setCalm(Number(event.target.value))} className="mt-1 w-full" />
+          </label>
+          <div className="mt-2 flex gap-2 overflow-x-auto">
+            {jobs.map((item) => (
+              <button key={item} type="button" onClick={() => setJob(item)} className={`h-11 shrink-0 rounded-full border px-3 text-sm ${job === item ? "border-brass-dim bg-surface-2" : "border-line text-muted"}`}>
+                {item}
+              </button>
+            ))}
+          </div>
+          <ul className="mt-3 flex flex-col gap-3">
+            {hull.copies.map((copy, copyIndex) => (
+              <li key={`${hull.mint}-${copyIndex}`} className="rounded-xl border border-line p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="font-display">{hull.name} {copyIndex + 1}</p>
+                  <button type="button" className="text-sm text-danger" onClick={() => onChange(dropHull(loadFleets(), fleet.id, hull.mint, copyIndex))}>
+                    убрать этот
+                  </button>
+                </div>
+                {copy.seats.map((seat, seatIndex) => {
+                  const who = crew.find((member) => member.id === seat.crewId);
+                  const active = pick?.copy === copyIndex && pick.seat === seatIndex;
+                  return (
+                    <div key={`${copyIndex}-${seat.role}-${seatIndex}`} className="mt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPick({ copy: copyIndex, seat: seatIndex });
+                          if (/pilot/i.test(seat.role)) setJob("Flight");
+                        }}
+                        className={`flex h-11 w-full items-center justify-between rounded-md border px-3 text-left ${active ? "border-brass-dim" : "border-line"}`}
+                      >
+                        <span>{seatIndex === 0 ? "пилот" : "второе место"} · {seat.role}</span>
+                        <span>{who ? displayName(who) : "пусто"}</span>
+                      </button>
+                      {active ? (
+                        <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+                          {matches.map((member) => (
+                            <li key={member.id}>
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-2 rounded-lg border border-line p-2 text-left"
+                                onClick={() => onChange(assignSeat(loadFleets(), fleet.id, hull.mint, copyIndex, seatIndex, member.id))}
+                              >
+                                <CrewPortrait crew={member} size="sm" />
+                                <span>
+                                  <span className="block font-display text-sm">{displayName(member)}</span>
+                                  <span className="text-xs text-muted">{member.aptitudes.map((apt) => apt.name).join(" · ")}</span>
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                          {!matches.length ? <li className="text-sm text-muted">Под этот фильтр никого нет. Сначала прочитай кошелёк в сейфе.</li> : null}
+                        </ul>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </li>
             ))}
           </ul>
-        ) : (
-          <p className="mt-3 text-sm text-muted">На ключе нет такой профессии. Сначала откройте сейф и прочитайте кошелёк.</p>
-        )}
-      </section>
+        </section>
+      ) : null}
       <button
         type="button"
         className="mt-6 h-11 text-sm text-danger"
@@ -329,6 +368,7 @@ function FleetSheet({ fleet, crew, onChange }: { fleet: SavedFleet; crew: Crew[]
           const next = loadFleets().filter((row) => row.id !== fleet.id);
           saveFleets(next);
           onChange(next);
+          onGone();
         }}
       >
         Удалить флот

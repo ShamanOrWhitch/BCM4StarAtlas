@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.8.0
+ * Version: 0.8.1
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -1197,13 +1197,13 @@ function galia_desk_globe_markup($full = false) {
     ?>
     <div id="galia-root" style="min-height:<?php echo esc_attr($height); ?>;background:#07090e"></div>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" />
-    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.8.0'); ?>" />
+    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.8.1'); ?>" />
     <!-- noptimize -->
     <script>
       window.GALIA_ASSET = <?php echo wp_json_encode($base); ?>;
       window.GALIA_WP = <?php echo wp_json_encode(array('ajax' => $ajax, 'nonce' => $nonce)); ?>;
     </script>
-    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.8.0'); ?>"></script>
+    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.8.1'); ?>"></script>
     <!-- /noptimize -->
     <?php
     return ob_get_clean();

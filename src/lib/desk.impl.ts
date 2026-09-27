@@ -100,7 +100,7 @@ async function loadCatalog(): Promise<Map<string, CatItem>> {
       gallery,
       make: String(attrs.make ?? ""),
       crew: crewSlots.reduce((sum, slot) => sum + (Number(slot.quantity) || 0), 0),
-      slots: crewSlots.map((slot) => `${slot.type ?? "слот"} ×${slot.quantity ?? 1}`),
+      slots: crewSlots.flatMap((slot) => Array.from({ length: Math.max(1, Number(slot.quantity) || 1) }, () => String(slot.type ?? "слот"))),
       msrp: typeof trade.msrp?.value === "number" ? trade.msrp.value : null,
     });
   }
@@ -169,19 +169,28 @@ async function krakenCandles(pair: string): Promise<Candle[]> {
   }
 }
 
-function crossCandles(base: Candle[], quote: Candle[]): Candle[] {
-  const byTime = new Map(quote.map((candle) => [candle.t, candle]));
-  const out: Candle[] = [];
-  for (const row of base) {
-    const other = byTime.get(row.t);
-    if (!other || other.o <= 0 || other.c <= 0) continue;
-    const o = row.o / other.o;
-    const c = row.c / other.c;
-    const h = Math.max(row.h / other.h, row.l / other.l, o, c);
-    const l = Math.min(row.h / other.h, row.l / other.l, o, c);
-    if (Number.isFinite(c) && c > 0) out.push({ t: row.t, o, h, l, c });
+async function poolCandles(pool: string): Promise<Candle[]> {
+  try {
+    const data = await getJson<{ data?: { attributes?: { ohlcv_list?: number[][] } } }>(
+      `https://api.geckoterminal.com/api/v2/networks/solana/pools/${pool}/ohlcv/day?aggregate=1&limit=180`,
+    );
+    const rows = data.data?.attributes?.ohlcv_list ?? [];
+    return rows
+      .map((row) => ({ t: Number(row[0]), o: Number(row[1]), h: Number(row[2]), l: Number(row[3]), c: Number(row[4]) }))
+      .filter((row) => Number.isFinite(row.c) && row.c > 0)
+      .reverse();
+  } catch {
+    return [];
   }
-  return out;
+}
+
+function ratioCandles(base: Candle[], quote: Candle[]): Candle[] {
+  const byDay = new Map(quote.map((row) => [Math.floor(row.t / 86_400), row]));
+  return base.flatMap((row) => {
+    const other = byDay.get(Math.floor(row.t / 86_400));
+    if (!other || other.o <= 0 || other.c <= 0) return [];
+    return [{ t: row.t, o: row.o / other.o, h: row.h / other.l, l: row.l / other.h, c: row.c / other.c }];
+  });
 }
 
 async function atlasCandles(): Promise<Candle[]> {
@@ -227,7 +236,7 @@ export async function buildMarket(): Promise<MarketSnap> {
     dataSlice: { offset: 40, length: 153 },
     filters: [{ dataSize: 201 }, { memcmp: { offset: 40, bytes: mint } }],
   });
-  const [nfts, atlasTok, polisTok, prices, orders, usdcOrders, polisOrders, candles, polisCandles] = await Promise.all([
+  const [nfts, atlasTok, polisTok, prices, orders, usdcOrders, polisOrders, candles, polisCandles, atlasPool, polisPool] = await Promise.all([
     loadCatalog(),
     getJson<Record<string, number | string>>("https://galaxy.staratlas.com/tokens/atlas").catch(() => null),
     getJson<Record<string, number | string>>("https://galaxy.staratlas.com/tokens/polis").catch(() => null),
@@ -239,6 +248,8 @@ export async function buildMarket(): Promise<MarketSnap> {
     connection.getProgramAccounts(new PublicKey(GM), bookArgs(POLIS)).catch(() => []),
     atlasCandles(),
     krakenCandles("POLISUSD"),
+    poolCandles("2bnZ1edbvK3CK3LTNZ5jH9anvXYCmzPR4W2HQ6Ngsv5K"),
+    poolCandles("9xyCzsHi1wUWva7t5Z8eAvZDRmUCVhRrbaFfm3VbU4Mf"),
   ]);
 
   const book = readBook(orders, atlasHex, 8);
@@ -314,6 +325,11 @@ export async function buildMarket(): Promise<MarketSnap> {
     lockedSupply: num(polisTok?.lockedSupply),
   };
 
+  const chainPair = ratioCandles(polisPool, atlasPool);
+  const fallbackPair = ratioCandles(
+    polisCandles.map((row) => ({ ...row, t: Math.floor(row.t / 1000) })),
+    candles.map((row) => ({ ...row, t: Math.floor(row.t / 1000) })),
+  );
   const data: MarketSnap = {
     at: Date.now(),
     orderCount: orders.length,
@@ -322,8 +338,8 @@ export async function buildMarket(): Promise<MarketSnap> {
     resources,
     ships,
     marketShips,
-    candles,
-    pairCandles: crossCandles(polisCandles, candles),
+    candles: atlasPool.length > 20 ? atlasPool : candles,
+    pairCandles: chainPair.length > 20 ? chainPair : fallbackPair,
     tape: pushTape([...resources, ...ships]),
     note: "Корабли — каталог Galaxy. Стакан USDC считается с 6 знаками, ATLAS и POLIS с 8. Иначе 16 USDC выглядели как 0,16.",
   };
@@ -383,16 +399,20 @@ async function loadCrewCards(): Promise<Map<string, CrewCard>> {
 }
 
 function crewItem(card: CrewCard, amount: number, image = "", traits: WalletTrait[] = []): WalletItem {
+  const layers = traits.filter((row) => /rarity/i.test(row.trait) || row.trait.toLowerCase() === "name");
+  const base = (card.traits.length ? card.traits : traits).filter((row) => !/rarity/i.test(row.trait) && row.trait.toLowerCase() !== "name");
+  const named = traits.find((row) => row.trait.toLowerCase() === "name")?.value;
+  const name = named && !/^crew\b/i.test(named) ? named : card.name;
   return {
     mint: card.mint,
     amount,
-    name: card.name,
+    name,
     kind: "crew",
     image: card.image || image,
     className: "crew",
-    rarity: traits.find((trait) => trait.trait.toLowerCase() === "rarity")?.value || card.rarity,
+    rarity: card.rarity,
     spec: card.species,
-    traits: card.traits.length ? card.traits : traits,
+    traits: [...base, ...layers],
   };
 }
 
@@ -582,7 +602,7 @@ function traitsFrom(json: unknown): WalletTrait[] {
       if (!trait || value == null) continue;
       out.push({ trait, value: String(value) });
     }
-    return out.slice(0, 24);
+    return rankTraits(out);
   }
   if (raw && typeof raw === "object") {
     for (const [trait, value] of Object.entries(raw as Record<string, unknown>)) {
@@ -590,7 +610,12 @@ function traitsFrom(json: unknown): WalletTrait[] {
       out.push({ trait, value: String(value) });
     }
   }
-  return out.slice(0, 24);
+  return rankTraits(out);
+}
+
+function rankTraits(out: WalletTrait[]): WalletTrait[] {
+  const important = (row: WalletTrait) => /rarity|^name$|species|sex|openness|conscient|extraver|agreeab|neurot|flight|command|engineer|medical|science|fitness|hospital|operator|university/i.test(row.trait);
+  return [...out.filter(important), ...out.filter((row) => !important(row))].slice(0, 48);
 }
 
 function isCrew(name: string, symbol: string, traits: WalletTrait[]): boolean {
