@@ -1145,6 +1145,7 @@
         visible: false,
         loaded: !!zone.preloadWhenStarted,
         keepLoaded: !!zone.preloadWhenStarted,
+        towerGate: !!zone.towerGate,
         distance: 99
       };
 
@@ -1639,8 +1640,83 @@
     const dz = ship.position.z - Number(target.z || 0);
     towerPreload.distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
     const radius = Number(target.preloadRadius) || 120;
-    if (towerPreload.distance <= radius && ship.velocity.z <= 0) {
+    if (towerPreload.distance <= radius) {
       preloadTowerApproach();
+    }
+  }
+
+  function getTowerGateZone() {
+    return cinema.zones.find((zone) => zone && zone.towerGate) || null;
+  }
+
+  function meshCoverage(mesh) {
+    if (!mesh || !camera) return 0;
+
+    const box = new THREE.Box3().setFromObject(mesh);
+    const center = box.getCenter(new THREE.Vector3());
+    center.project(camera);
+    if (center.z > 1) return 0;
+
+    const min = new THREE.Vector2(Infinity, Infinity);
+    const max = new THREE.Vector2(-Infinity, -Infinity);
+
+    for (let xi = 0; xi <= 1; xi++) {
+      for (let yi = 0; yi <= 1; yi++) {
+        for (let zi = 0; zi <= 1; zi++) {
+          const p = new THREE.Vector3(
+            xi ? box.max.x : box.min.x,
+            yi ? box.max.y : box.min.y,
+            zi ? box.max.z : box.min.z
+          );
+          p.project(camera);
+          min.x = Math.min(min.x, p.x);
+          min.y = Math.min(min.y, p.y);
+          max.x = Math.max(max.x, p.x);
+          max.y = Math.max(max.y, p.y);
+        }
+      }
+    }
+
+    if (!Number.isFinite(min.x) || !Number.isFinite(min.y)) return 0;
+    const width = Math.max(0, Math.min(2, max.x) - Math.max(-2, min.x));
+    const height = Math.max(0, Math.min(2, max.y) - Math.max(-2, min.y));
+    return Math.max(0, Math.min(1, (width * height) / 4));
+  }
+
+  function towerGateCoverage() {
+    const gate = getTowerGateZone();
+    if (!gate || !gate.mesh) return 0;
+    return meshCoverage(gate.mesh);
+  }
+
+  function towerGateDistance() {
+    const gate = getTowerGateZone();
+    if (!gate || !gate.mesh || !ship.position) return Infinity;
+    return gate.mesh.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position);
+  }
+
+  let towerGateTriggered = false;
+
+  function enterTowerFromGate() {
+    if (towerGateTriggered || transitionBusy) return;
+
+    const root = document.querySelector(".bcm-tower-embedded");
+    if (!root) {
+      setStatus("TOWER OVERLAY MISSING");
+      return;
+    }
+
+    towerGateTriggered = true;
+    transitionBusy = true;
+    pauseAllCinemaVideos();
+
+    root.hidden = false;
+    if (window.BCMTowerAPI && typeof window.BCMTowerAPI.enter === "function") {
+      window.BCMTowerAPI.enter();
+    } else {
+      towerGateTriggered = false;
+      transitionBusy = false;
+      setStatus("TOWER ENGINE NOT READY");
     }
   }
 
@@ -2430,17 +2506,34 @@
     }
 
     portal.coverage = portalCoverage();
+    const gate = getTowerGateZone();
+    const gateDistance = towerGateDistance();
+    const gateCoverage = towerGateCoverage();
+    const gateUiRadius = config.towerApproach && Number(config.towerApproach.uiRadius)
+      ? Number(config.towerApproach.uiRadius)
+      : 180;
+
     if (interaction) {
-      interaction.textContent = portal.coverage >= 0.69
-        ? "PORTAL LOCK 69% · CUTSCENE"
-        : "PORTAL " + Math.round(portal.coverage * 100) + "%";
+      if (gate && gateDistance <= gateUiRadius) {
+        interaction.textContent = gateCoverage >= 0.69
+          ? "TOWER GATE LOCK 69% · ENTER"
+          : "TOWER GATE " + Math.round(gateCoverage * 100) + "%";
+      } else {
+        interaction.textContent = portal.coverage >= 0.69
+          ? "PORTAL LOCK 69% · CUTSCENE"
+          : "PORTAL " + Math.round(portal.coverage * 100) + "%";
+      }
+    }
+
+    if (!towerGateTriggered && gate && gateDistance <= gateUiRadius && gateCoverage >= 0.69) {
+      enterTowerFromGate();
     }
     if (!cinema.focus) {
       if (portalSide() === "FRONT" && portal.coverage >= 0.69) tryPortal();
       if (portalSide() === "BACK" && portalTriggerDistance("BACK") <= 7.5) tryPortal();
     }
 
-    if (mobileLandscape() && interaction && !transitionBusy) {
+    if (mobileLandscape() && interaction && !transitionBusy && !towerGateTriggered && gateDistance > gateUiRadius) {
       if (cinema.focus) interaction.textContent = "SCREEN LOCK · TAP VIDEO OFF · ◀ ▶ ORBIT";
       else if (getNearestVideoTarget()) interaction.textContent = "TAP VIDEO · FOCUS · ◀ ▶";
     }
