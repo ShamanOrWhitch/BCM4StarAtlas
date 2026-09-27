@@ -72,7 +72,37 @@ export function MarketPage() {
   }
 
   useEffect(() => {
-    void pull(false);
+    let alive = true;
+    let last = 0;
+    async function tick(silent: boolean) {
+      if (document.hidden) return;
+      if (silent && Date.now() - last < 30_000) return;
+      last = Date.now();
+      if (!silent) setLoading(true);
+      try {
+        const data = await loadMarket();
+        if (!alive) return;
+        setSnap(data);
+        setTape(data.tape);
+        setError("");
+      } catch (err) {
+        if (!alive) return;
+        setError(err instanceof Error ? err.message : "Стакан не ответил");
+      } finally {
+        if (alive && !silent) setLoading(false);
+      }
+    }
+    void tick(false);
+    const timer = window.setInterval(() => void tick(true), 3 * 60 * 1000);
+    const onVisible = () => {
+      if (!document.hidden) void tick(true);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   const previous = tape.length >= 2 ? tape[tape.length - 2] : undefined;
@@ -146,11 +176,12 @@ export function MarketPage() {
               onClick={() => void pull(true)}
               className="h-11 rounded-lg border border-line bg-surface px-3 font-display text-sm text-fg"
             >
-              {loading ? "Снимаю…" : "Снимок"}
+              {loading && !snap ? "Снимаю…" : "Обновить"}
             </button>
           </div>
 
           {error ? <p className="text-sm text-danger">{error}</p> : null}
+          <p className="text-sm text-muted">Цены обновляются сами каждые 3 минуты, пока вкладка открыта.</p>
 
           {movers.length ? (
             <p className="text-sm text-muted">
