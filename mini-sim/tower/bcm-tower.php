@@ -53,12 +53,63 @@ function bcm_tower_asset_urls($assets, $pattern, $type = 'image') {
     return array_values(array_unique($urls));
 }
 
-function bcm_tower_get_assets() {
-    if (function_exists('bcm_mini_sim_get_assets')) {
-        return bcm_mini_sim_get_assets();
+function bcm_tower_scan_local_assets() {
+    $assets = array();
+    $base_path = BCM_TOWER_PATH . 'assets/';
+    $allowed = array('png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'ogg', 'mp3', 'm4a', 'wav');
+
+    if (!is_dir($base_path)) {
+        return $assets;
     }
 
-    return array();
+    try {
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($base_path, FilesystemIterator::SKIP_DOTS)
+        );
+        foreach ($iterator as $file) {
+            if (!$file->isFile()) continue;
+
+            $relative = ltrim(str_replace($base_path, '', $file->getPathname()), '/\\');
+            $extension = strtolower(pathinfo($relative, PATHINFO_EXTENSION));
+            if (!in_array($extension, $allowed, true)) continue;
+
+            if (in_array($extension, array('mp4', 'webm'), true)) {
+                $type = 'video';
+            } elseif (in_array($extension, array('mp3', 'm4a', 'wav', 'ogg'), true)) {
+                $type = 'audio';
+            } else {
+                $type = 'image';
+            }
+
+            $assets[] = array(
+                'name' => $relative,
+                'url' => BCM_TOWER_URL . 'assets/' . str_replace('%2F', '/', rawurlencode(str_replace('\\', '/', $relative))),
+                'type' => $type,
+                'extension' => $extension,
+            );
+        }
+    } catch (Exception $e) {
+    }
+
+    usort($assets, function ($a, $b) {
+        return strcasecmp($a['name'], $b['name']);
+    });
+
+    return $assets;
+}
+
+function bcm_tower_get_assets() {
+    $assets = array();
+
+    // Keep the existing mini-sim asset library available.
+    if (function_exists('bcm_mini_sim_get_assets')) {
+        $assets = bcm_mini_sim_get_assets();
+    }
+
+    // Also scan the Tower module's own assets directory.
+    $tower_assets = bcm_tower_scan_local_assets();
+
+    return array_merge($assets, $tower_assets);
 }
 
 function bcm_tower_enqueue_assets() {
