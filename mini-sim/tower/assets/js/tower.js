@@ -42,7 +42,11 @@
   function assetTexture(url, renderer, repeat = false) {
     if (!url || !window.THREE) return null;
     const tex = new THREE.TextureLoader().load(url);
-    tex.colorSpace = THREE.SRGBColorSpace;
+    if ("colorSpace" in tex && THREE.SRGBColorSpace !== undefined) {
+      tex.colorSpace = THREE.SRGBColorSpace;
+    } else if (THREE.sRGBEncoding !== undefined) {
+      tex.encoding = THREE.sRGBEncoding;
+    }
     tex.generateMipmaps = false;
     tex.minFilter = THREE.LinearFilter;
     tex.magFilter = THREE.LinearFilter;
@@ -174,7 +178,11 @@
     });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.setSize(root.clientWidth, root.clientHeight, false);
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    if ("outputColorSpace" in renderer && THREE.SRGBColorSpace !== undefined) {
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+    } else if ("outputEncoding" in renderer && THREE.sRGBEncoding !== undefined) {
+      renderer.outputEncoding = THREE.sRGBEncoding;
+    }
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x02050a);
@@ -349,7 +357,10 @@
       transitionVideo.play().catch(() => {});
       transitionVideo.onended = () => {
         transition.hidden = true;
-        startNewTower(true);
+        transitionVideo.pause();
+        transitionVideo.removeAttribute("src");
+        transitionVideo.load();
+        transitionStarted = false;
       };
     }
 
@@ -385,7 +396,7 @@
       }
 
       const levelApprox = Math.round((player.y - bottomY) / tower.stepY);
-      const worldLevel = clamp(tower.levels - 1 - levelApprox, 0, tower.levels - 1);
+      const worldLevel = clamp(levelApprox, 0, tower.levels - 1);
       const sector = sectorFromAngle(player.angle);
       const surface = findSurfaceAt(worldLevel, sector);
 
@@ -468,8 +479,8 @@
     }
 
     function statusText() {
-      const logical = tower.levels - 1 - Math.round((player.y - (-(tower.levels - 1) * tower.stepY)) / tower.stepY);
-      const remaining = clamp(logical, 0, tower.levels - 1);
+      const worldLevel = clamp(Math.round((player.y - (-(tower.levels - 1) * tower.stepY)) / tower.stepY), 0, tower.levels - 1);
+      const remaining = clamp((tower.levels - 1) - worldLevel, 0, tower.levels - 1);
       levelEl.textContent = "УРОВЕНЬ: " + remaining + "/" + (tower.levels - 1) +
         " · СЕКТОР: " + sectorFromAngle(player.angle) +
         " · SEED: " + tower.seed;
