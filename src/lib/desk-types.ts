@@ -19,7 +19,13 @@ export type ResourceRow = {
   ask: number | null;
   bid: number | null;
   askQty: number;
-  quote?: "ATLAS" | "USDC";
+  quote?: "ATLAS" | "USDC" | "POLIS";
+  usdcAsk?: number | null;
+  usdcBid?: number | null;
+  atlasAsk?: number | null;
+  atlasBid?: number | null;
+  polisAsk?: number | null;
+  polisBid?: number | null;
 };
 
 export type MarketSnap = {

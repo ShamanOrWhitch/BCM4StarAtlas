@@ -33,9 +33,14 @@ function fmtAtlas(n: number | null): string {
   return n.toLocaleString("ru-RU", { maximumFractionDigits: 6 });
 }
 
+function priced(row: ResourceRow, quote: "USDC" | "ATLAS" | "POLIS"): ResourceRow {
+  const ask = quote === "ATLAS" ? row.atlasAsk : quote === "POLIS" ? row.polisAsk : row.usdcAsk;
+  const bid = quote === "ATLAS" ? row.atlasBid : quote === "POLIS" ? row.polisBid : row.usdcBid;
+  return { ...row, ask: ask ?? null, bid: bid ?? null, quote };
+}
 function money(row: ResourceRow): string {
   const n = row.ask ?? row.bid;
-  const unit = row.quote === "USDC" ? "USDC" : "ATLAS";
+  const unit = row.quote === "POLIS" ? "POLIS" : row.quote === "ATLAS" ? "ATLAS" : "USDC";
   return `${fmtAtlas(n)} ${unit}`;
 }
 
@@ -63,6 +68,7 @@ export function MarketPage() {
   const [query, setQuery] = useState("");
   const [tape, setTape] = useState<TapePoint[]>([]);
   const [resourceMint, setResourceMint] = useState("");
+  const [quote, setQuote] = useState<"USDC" | "ATLAS" | "POLIS">("USDC");
 
   async function pull(_force: boolean) {
     setLoading(true);
@@ -122,6 +128,8 @@ export function MarketPage() {
       return row.name.toLowerCase().includes(q) || row.symbol.toLowerCase().includes(q);
     });
   }, [snap, filter, query]);
+  const viewRows = useMemo(() => rows.map((row) => priced(row, quote)), [rows, quote]);
+  const viewShips = useMemo(() => (snap?.ships ?? []).map((row) => priced(row, quote)), [snap, quote]);
 
   const movers = useMemo(() => {
     if (!snap || !previous) return [];
@@ -151,9 +159,9 @@ export function MarketPage() {
             {pinned.map((row) => (
               <article key={row.mint} className="galia-hop rounded-xl border border-line bg-surface p-3">
                 <p className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{row.name}</p>
-                <p className="mt-1 font-mono text-xl text-fg">{fmtAtlas(row.ask)}</p>
+                <p className="mt-1 font-mono text-xl text-fg">{money(priced(row, quote))}</p>
                 <p className="text-sm text-muted">
-                  ATLAS · покупка {fmtAtlas(row.bid)} · {changeLabel(row, previous)}
+                  покупка {fmtAtlas(priced(row, quote).bid)} {quote}
                 </p>
               </article>
             ))}
@@ -207,12 +215,20 @@ export function MarketPage() {
             </p>
           )}
 
-          <BubbleField title="Ресурсы и сырьё · цена в ATLAS" rows={rows.filter((row) => row.ask != null)} previous={previous} />
-          <BubbleField
-            title="Корабли · ATLAS, если нет — USDC"
-            rows={(snap?.ships ?? []).filter((row) => row.ask != null || row.bid != null)}
-            previous={previous}
-          />
+          <div className="flex gap-2">
+            {(["USDC", "ATLAS", "POLIS"] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setQuote(item)}
+                className={`h-11 rounded-full border px-3 font-display text-sm ${quote === item ? "border-brass-dim bg-surface-2 text-fg" : "border-line text-muted"}`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+          <BubbleField title={`Ресурсы и сырьё · ${quote}`} rows={viewRows.filter((row) => row.ask != null)} previous={previous} />
+          <BubbleField title={`Корабли · ${quote}`} rows={viewShips} previous={previous} />
           <ResourceTape rows={rows} tape={tape} mint={resourceMint} onMint={setResourceMint} />
           <p className="text-sm text-muted">
             Экипаж на Galactic Marketplace стаканом не торгуется. Карточки — NFT, их статы в метадате, пол — на Tensor. Пузырь цены экипажа без чужого архива был бы выдумкой.
@@ -224,13 +240,13 @@ export function MarketPage() {
                 <tr>
                   <th className="px-3 py-2 font-medium">Ресурс</th>
                   <th className="px-3 py-2 font-medium">Класс</th>
-                  <th className="px-3 py-2 font-medium">Продажа, ATLAS</th>
-                  <th className="px-3 py-2 font-medium">Покупка, ATLAS</th>
+                  <th className="px-3 py-2 font-medium">Продажа, {quote}</th>
+                  <th className="px-3 py-2 font-medium">Покупка, {quote}</th>
                   <th className="px-3 py-2 font-medium">Δ</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => {
+                {viewRows.map((row) => {
                   const d = deltaPct(row.ask, previous?.asks[row.mint]);
                   return (
                     <tr key={row.mint} className="border-t border-line">

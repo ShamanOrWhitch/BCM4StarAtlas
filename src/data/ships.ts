@@ -311,7 +311,7 @@ export const SHIPS: ShipLine[] = ORDER.map((id) => {
     cargo: o.cargo ?? null,
     scan: o.scan ?? null,
     count: o.count,
-    images: m.images,
+    images: (GALAXY as Record<string, string>)[id] ? [(GALAXY as Record<string, string>)[id]] : [],
     note: o.note,
     hulls: o.hulls ?? [],
   };

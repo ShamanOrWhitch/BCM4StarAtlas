@@ -79,7 +79,7 @@ export function walletCrew(items: WalletItem[]): Crew[] {
       ustur: species === "Ustur" ? rest : undefined,
       species,
       sex,
-      official: rarityOf(item.rarity),
+      official: rarityOf(trait(item.traits, "rarity") || item.rarity),
       tensorRank: known?.tensorRank ?? null,
       house: known?.house,
       university: known?.university,

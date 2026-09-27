@@ -18,6 +18,8 @@ import {
 import { CrewPortrait } from "@/components/crew/portrait";
 import { AppChrome } from "@/components/app-chrome";
 import { assetUrl } from "@/lib/asset-url";
+import { loadMarket } from "@/lib/desk";
+import type { ResourceRow } from "@/lib/desk-types";
 
 export const Route = createFileRoute("/ships")({ component: ShipsPage });
 
@@ -33,6 +35,14 @@ export function ShipsPage() {
   const [size, setSize] = useState<ShipSize | "all">("X-Small");
   const [lineId, setLineId] = useState<string | null>("jetjet");
   const [hullId, setHullId] = useState<string | null>("jetjet-1");
+  const [quote, setQuote] = useState<"USDC" | "ATLAS" | "POLIS">("USDC");
+  const [marketShips, setMarketShips] = useState<ResourceRow[]>([]);
+
+  useEffect(() => {
+    void loadMarket()
+      .then((snap) => setMarketShips(snap.ships))
+      .catch(() => setMarketShips([]));
+  }, []);
 
   const lines = useMemo(() => (size === "all" ? SHIPS : SHIPS.filter((s) => s.size === size)), [size]);
   const line = lineId ? (lines.find((s) => s.id === lineId) ?? SHIPS.find((s) => s.id === lineId) ?? null) : null;
@@ -60,6 +70,18 @@ export function ShipsPage() {
     <AppChrome current="ships" kicker="Galactic Market · официальные галереи" title="Флот">
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-line px-3 py-2 md:px-6">
+          {(["USDC", "ATLAS", "POLIS"] as const).map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setQuote(item)}
+              className={`h-11 rounded-full border px-3 font-display text-sm ${quote === item ? "border-brass-dim bg-surface-2 text-fg" : "border-line text-muted"}`}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+        <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-line px-3 py-2 md:px-6">
           <SizeTab on={size === "all"} onClick={() => pickSize("all")} label="Все" hint={`${SHIPS.length}`} />
           {SHIP_SIZES.map((s) => (
             <SizeTab
@@ -74,7 +96,10 @@ export function ShipsPage() {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {!line ? (
-            <Catalog lines={lines} onPick={pickLine} />
+            <>
+              <Catalog lines={lines} onPick={pickLine} quote={quote} market={marketShips} />
+              <RestShips lines={SHIPS} market={marketShips} quote={quote} />
+            </>
           ) : (
             <Vessel
               line={line}
@@ -106,7 +131,28 @@ function SizeTab({ on, onClick, label, hint }: { on: boolean; onClick: () => voi
   );
 }
 
-function Catalog({ lines, onPick }: { lines: ShipLine[]; onPick: (id: string) => void }) {
+function shipAsk(row: ResourceRow | undefined, quote: "USDC" | "ATLAS" | "POLIS"): number | null {
+  if (!row) return null;
+  const n = quote === "ATLAS" ? row.atlasAsk : quote === "POLIS" ? row.polisAsk : row.usdcAsk;
+  return n ?? null;
+}
+
+function findShip(market: ResourceRow[], name: string): ResourceRow | undefined {
+  const key = name.toLowerCase();
+  return market.find((row) => row.name.toLowerCase() === key);
+}
+
+function Catalog({
+  lines,
+  onPick,
+  quote,
+  market,
+}: {
+  lines: ShipLine[];
+  onPick: (id: string) => void;
+  quote: "USDC" | "ATLAS" | "POLIS";
+  market: ResourceRow[];
+}) {
   if (lines.length === 0) {
     return <p className="px-6 py-16 text-center text-muted">В этом классе судов нет.</p>;
   }
@@ -119,12 +165,22 @@ function Catalog({ lines, onPick }: { lines: ShipLine[]; onPick: (id: string) =>
             onClick={() => onPick(s.id)}
             className="flex w-full flex-col overflow-hidden rounded-xl border border-line bg-surface text-left hover:border-brass-dim"
           >
-            <img src={assetUrl(s.images.find((img) => img.includes("/product.")) ?? s.images[0])} alt="" className="aspect-video w-full bg-surface-2 object-cover" />
+            {s.images[0] ? (
+              <img src={s.images[0]} alt="" className="aspect-video w-full bg-surface-2 object-cover" />
+            ) : (
+              <div className="aspect-video w-full bg-surface-2" />
+            )}
             <div className="flex flex-col gap-1 p-3">
               <p className="font-mono text-[10px] tracking-[0.14em] text-brass uppercase">
                 {SIZE_ABBR[s.size]} · {s.rarity} · {s.spec}
               </p>
               <p className="font-display text-lg font-semibold">{s.name}</p>
+              <p className="font-mono text-sm text-fg">
+                {(() => {
+                  const ask = shipAsk(findShip(market, s.name), quote);
+                  return ask == null ? `нет в ${quote}` : `${ask.toLocaleString("ru-RU", { maximumFractionDigits: 4 })} ${quote}`;
+                })()}
+              </p>
               <p className={`font-mono text-xs ${STATUS_TONE[s.status]}`}>
                 {s.count > 0 ? `×${s.count} · ` : ""}
                 {STATUS_LABEL[s.status]} · {s.crew} экипаж
@@ -134,6 +190,39 @@ function Catalog({ lines, onPick }: { lines: ShipLine[]; onPick: (id: string) =>
         </li>
       ))}
     </ul>
+  );
+}
+
+function RestShips({
+  lines,
+  market,
+  quote,
+}: {
+  lines: ShipLine[];
+  market: ResourceRow[];
+  quote: "USDC" | "ATLAS" | "POLIS";
+}) {
+  const known = new Set(lines.map((line) => line.name.toLowerCase()));
+  const rest = market.filter((row) => !known.has(row.name.toLowerCase()));
+  if (!rest.length) return null;
+  return (
+    <section className="px-3 pb-8 md:px-6">
+      <h2 className="mb-2 font-display text-sm tracking-[0.16em] text-brass uppercase">Остальные корпуса · {quote}</h2>
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {rest.map((row) => {
+          const ask = shipAsk(row, quote);
+          return (
+            <li key={row.mint} className="overflow-hidden rounded-xl border border-line bg-surface">
+              {row.image ? <img src={row.image} alt="" className="aspect-video w-full object-cover" /> : <div className="aspect-video bg-surface-2" />}
+              <div className="p-2">
+                <p className="truncate font-display text-sm">{row.name}</p>
+                <p className="font-mono text-xs text-muted">{ask == null ? `нет в ${quote}` : `${ask.toLocaleString("ru-RU", { maximumFractionDigits: 4 })} ${quote}`}</p>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

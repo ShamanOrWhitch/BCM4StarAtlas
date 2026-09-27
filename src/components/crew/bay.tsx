@@ -246,7 +246,7 @@ export function CrewBay() {
                   query.official.length === 0 ? "border-brass-dim bg-surface-2 text-fg" : "border-line text-muted"
                 }`}
               >
-                Вся редкость
+                Вся редкость Tensor
               </button>
               {OFFICIAL.map((rarity) => {
                 const on = query.official.length === 1 && query.official[0] === rarity;
