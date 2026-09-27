@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_TOWER_VERSION', '0.1.0');
+define('BCM_TOWER_VERSION', '0.2.0');
 define('BCM_TOWER_PATH', __DIR__ . '/');
 define('BCM_TOWER_URL', trailingslashit(plugin_dir_url(__FILE__)));
 
@@ -43,6 +43,16 @@ function bcm_tower_pick_asset($assets, $names, $type = 'image') {
     return '';
 }
 
+function bcm_tower_asset_urls($assets, $pattern, $type = 'image') {
+    $urls = array();
+    foreach ((array) $assets as $asset) {
+        if (($asset['type'] ?? '') !== $type) continue;
+        $name = $asset['name'] ?? '';
+        if ($name !== '' && preg_match($pattern, $name)) $urls[] = $asset['url'];
+    }
+    return array_values(array_unique($urls));
+}
+
 function bcm_tower_get_assets() {
     if (function_exists('bcm_mini_sim_get_assets')) {
         return bcm_mini_sim_get_assets();
@@ -71,7 +81,7 @@ function bcm_tower_enqueue_assets() {
 
     wp_localize_script('bcm-tower', 'BCMTowerConfig', array(
         'threeUrl'   => defined('BCM_MINI_SIM_URL') ? BCM_MINI_SIM_URL . 'assets/js/three.min.js' : '',
-        'transition' => bcm_tower_pick_asset($assets, array('tower.mp4'), 'video'),
+        'transition' => bcm_tower_pick_asset($assets, array('onicss.mp4', 'tower.mp4'), 'video'),
         'towerTexture' => bcm_tower_pick_asset($assets, array(
             'tower-wall.png',
             'tower.png',
@@ -99,6 +109,24 @@ function bcm_tower_enqueue_assets() {
             $name = strtolower($asset['name'] ?? '');
             return (bool) preg_match('/(^|\/)planet[^\/]*\.(png|webp|jpg|jpeg)$/i', $name);
         }))),
+        'towerWallJpgPool' => bcm_tower_asset_urls($assets, '/^(towerwall|wall)[^\/]*\.(jpg|jpeg)$/i'),
+        // Intentionally separate: this is a different future level/theme.
+        'towerWallPngPool' => bcm_tower_asset_urls($assets, '/^towerwall[^\/]*\.png$/i'),
+        'platformPool' => bcm_tower_asset_urls($assets, '/^(platform|paltform)(?!lava|ice)[^\/]*\.(png|jpg|jpeg|webp)$/i'),
+        'platformLavaPool' => bcm_tower_asset_urls($assets, '/^(platformlava|paltformlava)[^\/]*\.(png|jpg|jpeg|webp)$/i'),
+        'platformIcePool' => bcm_tower_asset_urls($assets, '/^platformice[^\/]*\.(png|jpg|jpeg|webp)$/i'),
+        'upperPlatformPool' => bcm_tower_asset_urls($assets, '/^upperplatform[^\/]*\.(png|jpg|jpeg|webp)$/i'),
+        'rockPool' => bcm_tower_asset_urls($assets, '/^rock[^\/]*\.(png|jpg|jpeg|webp)$/i'),
+        'liftPool' => bcm_tower_asset_urls($assets, '/^lift[^\/]*\.(png|jpg|jpeg|webp)$/i'),
+        'boxPool' => bcm_tower_asset_urls($assets, '/^box[^\/]*\.(png|jpg|jpeg|webp)$/i'),
+        'safeBoxPool' => bcm_tower_asset_urls($assets, '/^safebox[^\/]*\.(png|jpg|jpeg|webp)$/i'),
+        'dangerBoxPool' => bcm_tower_asset_urls($assets, '/^dangerbox[^\/]*\.(png|jpg|jpeg|webp)$/i'),
+        'firePool' => bcm_tower_asset_urls($assets, '/^fire[^\/]*\.(png|jpg|jpeg|webp)$/i'),
+        'lavaPool' => bcm_tower_asset_urls($assets, '/^lava[^\/]*\.(png|jpg|jpeg|webp)$/i'),
+        'landingPool' => bcm_tower_asset_urls($assets, '/^h\d*\.(png|jpg|jpeg|webp)$/i'),
+        'doorPool' => bcm_tower_asset_urls($assets, '/^door[^\/]*\.(png|jpg|jpeg|webp)$/i'),
+        'wallDoorPool' => bcm_tower_asset_urls($assets, '/^walldoor\.(png|jpg|jpeg|webp)$/i'),
+        'npcPool' => bcm_tower_asset_urls($assets, '/^(walldoorpiratebear|walldoormetalbear|firemetalbear)[^\/]*\.(png|jpg|jpeg|webp)$/i'),
         'version' => BCM_TOWER_VERSION,
     ));
 }
@@ -124,12 +152,12 @@ function bcm_tower_shortcode($atts = array()) {
             <div class="bcm-tower-title">BCM TOWER — PROTOTYPE</div>
             <div class="bcm-tower-status">ENGINE LOADING...</div>
             <div class="bcm-tower-level"></div>
-            <div class="bcm-tower-help bcm-tower-help-desktop">
+            <div class="bcm-tower-help bcm-tower-help-single">
                 <span>A/D</span> вращение башни · <span>Space</span> jetpack ×2 ·
                 <span>W/S</span> ручная коррекция высоты · <span>Mouse</span> обзор · <span>R</span> новый спуск
             </div>
-            <div class="bcm-tower-help bcm-tower-help-gamepad">
-                <span>Левый стик X</span> вращение · <span>A</span> jetpack · <span>Правый стик</span> обзор · <span>Y</span> новый спуск
+            <div class="bcm-tower-help bcm-tower-help-multi">
+                <b>P1</b> A/D + W/S + Space + E · <b>P2</b> ←/→ + ↑/↓ + Enter + Shift · <span>gamepad #1/#2</span> одинаковая карта
             </div>
             <div class="bcm-tower-crew" aria-live="polite"></div>
         </div>
