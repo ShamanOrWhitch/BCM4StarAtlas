@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.7.2
+ * Version: 0.7.3
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -13,6 +13,7 @@ if (!defined('ABSPATH')) {
 
 const GALIA_DESK_GM = 'traderDnaR5w6Tcoi3NFm53i48FTDNbGjBSZwWXDRrg';
 const GALIA_DESK_ATLAS = 'ATLASXmbPQxBUYbxPsV97usA3fPQYEqzQBUHgiFCUsXx';
+const GALIA_DESK_USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 const GALIA_DESK_POLIS = 'poLisWXnNRwC6oBu1vHiuKQzFjGL4XDSu4g9qjz9qVk';
 const GALIA_DESK_RPC = 'https://api.mainnet-beta.solana.com';
 
@@ -219,6 +220,7 @@ function galia_desk_market() {
             'ask' => isset($asks[$mint]) ? $asks[$mint] : null,
             'bid' => isset($bids[$mint]) ? $bids[$mint] : null,
             'askQty' => isset($qty[$mint]) ? $qty[$mint] : 0,
+            'quote' => 'ATLAS',
         );
         if ($item['kind'] === 'resource' && $row['ask'] !== null) {
             $resources[] = $row;
@@ -226,6 +228,68 @@ function galia_desk_market() {
             $ships[] = $row;
         }
     }
+
+    $usdc = galia_desk_rpc('getProgramAccounts', array(
+        GALIA_DESK_GM,
+        array(
+            'encoding' => 'base64',
+            'dataSlice' => array('offset' => 40, 'length' => 153),
+            'filters' => array(
+                array('dataSize' => 201),
+                array('memcmp' => array('offset' => 40, 'bytes' => GALIA_DESK_USDC)),
+            ),
+        ),
+    ), 12);
+    $usdc_asks = array();
+    $usdc_bids = array();
+    if (isset($usdc['result']) && is_array($usdc['result']) && (function_exists('gmp_init') || function_exists('bcadd'))) {
+        $usdc_hex = bin2hex(galia_desk_b58_decode(GALIA_DESK_USDC));
+        foreach ($usdc['result'] as $row) {
+            if (empty($row['account']['data'][0])) {
+                continue;
+            }
+            $raw = base64_decode($row['account']['data'][0]);
+            if (!is_string($raw) || strlen($raw) < 153 || bin2hex(substr($raw, 0, 32)) !== $usdc_hex) {
+                continue;
+            }
+            $asset = galia_desk_b58encode(substr($raw, 32, 32));
+            $side = ord($raw[128]);
+            $price = galia_desk_u64(substr($raw, 129, 8)) / 100000000;
+            $rem = galia_desk_u64(substr($raw, 145, 8));
+            if ($price <= 0 || $rem <= 0) {
+                continue;
+            }
+            if ($side === 1 && (!isset($usdc_asks[$asset]) || $price < $usdc_asks[$asset])) {
+                $usdc_asks[$asset] = $price;
+            } elseif ($side === 0 && (!isset($usdc_bids[$asset]) || $price > $usdc_bids[$asset])) {
+                $usdc_bids[$asset] = $price;
+            }
+        }
+    }
+    $have = array();
+    foreach ($ships as $ship) {
+        $have[$ship['mint']] = true;
+    }
+    foreach ($catalog as $mint => $item) {
+        if ($item['kind'] !== 'ship' || isset($have[$mint])) {
+            continue;
+        }
+        if (!isset($usdc_asks[$mint]) && !isset($usdc_bids[$mint])) {
+            continue;
+        }
+        $ships[] = array(
+            'mint' => $mint,
+            'name' => $item['name'],
+            'symbol' => $item['symbol'],
+            'className' => $item['className'],
+            'image' => isset($item['image']) ? $item['image'] : '',
+            'ask' => isset($usdc_asks[$mint]) ? $usdc_asks[$mint] : null,
+            'bid' => isset($usdc_bids[$mint]) ? $usdc_bids[$mint] : null,
+            'askQty' => 0,
+            'quote' => 'USDC',
+        );
+    }
+
     usort($resources, function ($a, $b) {
         return strcasecmp($a['name'], $b['name']);
     });
@@ -972,13 +1036,13 @@ function galia_desk_globe_markup($full = false) {
     ?>
     <div id="galia-root" style="min-height:<?php echo esc_attr($height); ?>;background:#07090e"></div>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" />
-    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.7.2'); ?>" />
+    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.7.3'); ?>" />
     <!-- noptimize -->
     <script>
       window.GALIA_ASSET = <?php echo wp_json_encode($base); ?>;
       window.GALIA_WP = <?php echo wp_json_encode(array('ajax' => $ajax, 'nonce' => $nonce)); ?>;
     </script>
-    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.7.2'); ?>"></script>
+    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.7.3'); ?>"></script>
     <!-- /noptimize -->
     <?php
     return ob_get_clean();

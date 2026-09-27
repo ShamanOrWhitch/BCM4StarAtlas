@@ -19,8 +19,9 @@ import { EMPTY_QUERY, PRESETS, filterCrew, houses, type CrewQuery, type SortKey 
 import { loadStars, saveStars } from "@/lib/crew-stars";
 import { CrewPortrait } from "@/components/crew/portrait";
 import { packetOf } from "@/data/packets";
-import { influenceFromRoster, influenceFromTraits } from "@/lib/crew-score";
-import { scanDeskWallet, type WalletItem } from "@/lib/desk";
+import { influenceFromRoster } from "@/lib/crew-score";
+import { walletCrew } from "@/lib/wallet-crew";
+import { scanDeskWallet } from "@/lib/desk";
 import { AppChrome } from "@/components/app-chrome";
 
 const TIER_LABEL: Record<TensorTier | "unknown", string> = {
@@ -53,11 +54,11 @@ const TIER_DOT: Record<TensorTier | "unknown", string> = {
   unknown: "bg-faint",
 };
 
-function HeldCrew() {
+function HeldCrew({ onLive }: { onLive: (crew: Crew[] | null) => void }) {
   const [owner, setOwner] = useState("");
-  const [cards, setCards] = useState<WalletItem[]>([]);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [live, setLive] = useState(false);
 
   async function load(address: string) {
     const next = address.trim();
@@ -70,11 +71,19 @@ function HeldCrew() {
     try {
       const scan = await scanDeskWallet({ data: { owner: next } });
       localStorage.setItem("galia-owner", next);
-      const crew = scan.items.filter((item) => item.kind === "crew");
-      setCards(crew);
-      setNote(crew.length ? `${crew.length} в инвентаре ключа` : "На ключе карточек экипажа нет. В Starbase они уже не на адресе.");
+      const crew = walletCrew(scan.items);
+      setLive(true);
+      onLive(crew);
+      setNote(
+        crew.length
+          ? `${crew.length} с ключа. Подбор, сортировка и OCEAN считаются по этим картам.`
+          : "На ключе карточек нет. Старый список не подменяю пустым.",
+      );
+      if (!crew.length) {
+        setLive(false);
+        onLive(null);
+      }
     } catch (err) {
-      setCards([]);
       setNote(err instanceof Error ? err.message : "Инвентарь не прочитался");
     } finally {
       setBusy(false);
@@ -100,30 +109,28 @@ function HeldCrew() {
         <input
           value={owner}
           onChange={(event) => setOwner(event.target.value)}
-          placeholder="Ключ, с которого собрать экипаж"
+          placeholder="Ключ — разбор пойдёт по его картам"
           spellCheck={false}
           className="h-11 min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 font-mono text-sm text-fg outline-none placeholder:text-faint"
         />
         <button type="submit" className="h-11 rounded-lg border border-line bg-surface px-3 font-display text-sm">
-          {busy ? "Собираю…" : "Из инвентаря"}
+          {busy ? "Собираю…" : "Его команда"}
         </button>
+        {live ? (
+          <button
+            type="button"
+            className="h-11 rounded-lg border border-line px-3 font-display text-sm text-muted"
+            onClick={() => {
+              setLive(false);
+              onLive(null);
+              setNote("Снова заложенный список, для гостя без кошелька.");
+            }}
+          >
+            Старый список
+          </button>
+        ) : null}
       </form>
-      {note ? <p className="mt-2 text-sm text-muted">{note}</p> : null}
-      {cards.length ? (
-        <ul className="mt-3 flex gap-2 overflow-x-auto pb-1">
-          {cards.map((card) => {
-            const influence = influenceFromTraits(card.traits);
-            return (
-              <li key={card.mint} className="w-36 shrink-0 rounded-lg border border-line bg-surface p-2">
-                {card.image ? <img src={card.image} alt="" className="aspect-square w-full rounded-md object-cover" /> : null}
-                <p className="mt-1 truncate font-display text-sm text-fg">{card.name}</p>
-                <p className="truncate font-mono text-[10px] text-faint">{card.rarity || card.spec || "crew"}</p>
-                {influence ? <p className="font-mono text-[10px] text-ice">задание {influence.mission}</p> : null}
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
+      {note ? <p className="mt-2 text-sm text-muted">{note}</p> : <p className="mt-2 text-sm text-muted">Без ключа виден старый экипаж для симуляции. С ключом фильтры работают по загруженным картам.</p>}
     </div>
   );
 }
@@ -136,8 +143,10 @@ export function CrewBay() {
   const [mobileDetail, setMobileDetail] = useState(false);
   const [diamondOpen, setDiamondOpen] = useState(false);
   const [stars, setStars] = useState<string[]>(() => (typeof window === "undefined" ? [] : loadStars()));
+  const [live, setLive] = useState<Crew[] | null>(null);
+  const source = live ?? CREW;
 
-  const rows = useMemo(() => filterCrew(query), [query]);
+  const rows = useMemo(() => filterCrew(query, source), [query, source]);
   const selected = rows.find((c) => c.id === picked) ?? rows[0] ?? null;
 
   function patch(p: Partial<CrewQuery>, presetId = "") {
@@ -161,7 +170,7 @@ export function CrewBay() {
     <AppChrome
       current="crew"
       kicker="Star Atlas · крио"
-      title={`Экипаж · ${CREW.length}`}
+      title={live ? `С ключа · ${live.length}` : `Экипаж · ${CREW.length}`}
       actions={
         <button
           type="button"
@@ -179,7 +188,13 @@ export function CrewBay() {
         </aside>
 
         <section className="flex min-w-0 flex-1 flex-col">
-          <HeldCrew />
+          <HeldCrew
+            onLive={(crew) => {
+              setLive(crew);
+              setPicked(crew?.[0]?.id ?? CREW[0]?.id ?? null);
+              if (crew) setQuery((q) => ({ ...q, sort: "official" }));
+            }}
+          />
           <div className="flex shrink-0 flex-col gap-3 border-b border-line px-4 py-3 md:px-5">
             <div className="flex gap-2">
               <label className="relative min-w-0 flex-1">
@@ -221,8 +236,8 @@ export function CrewBay() {
             </div>
             <div className="flex items-center justify-between gap-3">
               <p className="font-mono text-xs text-muted tabular-nums">
-                {rows.length} / {CREW.length}
-                <span className="text-faint"> · Tensor rank ↑ как на витрине</span>
+                {rows.length} / {source.length}
+                <span className="text-faint">{live ? " · редкость: эпик → обычный" : " · Tensor rank ↑ как на витрине"}</span>
               </p>
               <label className="flex items-center gap-2 font-display text-sm text-muted">
                 Сорт
@@ -272,7 +287,7 @@ export function CrewBay() {
                             </p>
                           </div>
                           <span className={`font-mono text-xs tabular-nums ${TIER_CLASS[t]}`}>
-                            #{c.tensorRank?.toLocaleString("en") ?? "—"}
+                            {c.tensorRank != null ? `#${c.tensorRank.toLocaleString("en")}` : c.official}
                           </span>
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5">

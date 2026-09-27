@@ -2,6 +2,7 @@ import type { Crew, Species } from "@/data/crew";
 import { assetUrl } from "@/lib/asset-url";
 
 function portraitSrc(c: Crew) {
+  if (c.image) return c.image;
   const female = c.sex === "Female";
   const key: Record<Species, string> = {
     "High Punaab": female ? "high-punaab-female" : "high-punaab-male",

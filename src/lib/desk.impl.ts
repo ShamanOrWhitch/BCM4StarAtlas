@@ -5,6 +5,7 @@ const RPC_URL = "https://api.mainnet-beta.solana.com";
 const GM = "traderDnaR5w6Tcoi3NFm53i48FTDNbGjBSZwWXDRrg";
 const ATLAS = "ATLASXmbPQxBUYbxPsV97usA3fPQYEqzQBUHgiFCUsXx";
 const POLIS = "poLisWXnNRwC6oBu1vHiuKQzFjGL4XDSu4g9qjz9qVk";
+const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const TOKEN_22 = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 const META = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
@@ -189,25 +190,27 @@ function pushTape(resources: ResourceRow[]): TapePoint[] {
 export async function buildMarket(): Promise<MarketSnap> {
   if (marketCache && Date.now() - marketCache.at < MARKET_TTL) return marketCache.data;
   const atlasHex = new PublicKey(ATLAS).toBuffer().toString("hex");
-  const [nfts, atlasTok, polisTok, prices, orders, candles, polisCandles] = await Promise.all([
+  const usdcHex = new PublicKey(USDC).toBuffer().toString("hex");
+  const bookArgs = (mint: string) => ({
+    commitment: "confirmed" as const,
+    dataSlice: { offset: 40, length: 153 },
+    filters: [{ dataSize: 201 }, { memcmp: { offset: 40, bytes: mint } }],
+  });
+  const [nfts, atlasTok, polisTok, prices, orders, usdcOrders, candles, polisCandles] = await Promise.all([
     loadCatalog(),
     getJson<Record<string, number | string>>("https://galaxy.staratlas.com/tokens/atlas").catch(() => null),
     getJson<Record<string, number | string>>("https://galaxy.staratlas.com/tokens/polis").catch(() => null),
     getJson<Record<string, { usdPrice?: number; priceChange24h?: number }>>(
       `https://lite-api.jup.ag/price/v3?ids=${ATLAS},${POLIS}`,
     ).catch(() => ({}) as Record<string, { usdPrice?: number; priceChange24h?: number }>),
-    connection
-      .getProgramAccounts(new PublicKey(GM), {
-        commitment: "confirmed",
-        dataSlice: { offset: 40, length: 153 },
-        filters: [{ dataSize: 201 }, { memcmp: { offset: 40, bytes: ATLAS } }],
-      })
-      .catch(() => []),
+    connection.getProgramAccounts(new PublicKey(GM), bookArgs(ATLAS)).catch(() => []),
+    connection.getProgramAccounts(new PublicKey(GM), bookArgs(USDC)).catch(() => []),
     atlasCandles(),
     krakenCandles("POLISUSD"),
   ]);
 
   const book = readBook(orders, atlasHex);
+  const usdcBook = readBook(usdcOrders, usdcHex);
 
   const resources: ResourceRow[] = [];
   const ships: ResourceRow[] = [];
@@ -223,17 +226,22 @@ export async function buildMarket(): Promise<MarketSnap> {
         ask: side?.ask ?? null,
         bid: side?.bid ?? null,
         askQty: side?.askQty ?? 0,
+        quote: "ATLAS",
       });
-    } else if (item.kind === "ship" && side && (side.ask != null || side.bid != null)) {
+    } else if (item.kind === "ship") {
+      const usd = usdcBook.get(item.mint);
+      const picked = side && (side.ask != null || side.bid != null) ? side : usd && (usd.ask != null || usd.bid != null) ? usd : null;
+      if (!picked) continue;
       ships.push({
         mint: item.mint,
         name: item.name,
         symbol: item.symbol,
         className: item.className,
         image: item.image,
-        ask: side.ask,
-        bid: side.bid,
-        askQty: side.askQty,
+        ask: picked.ask,
+        bid: picked.bid,
+        askQty: picked.askQty,
+        quote: side && (side.ask != null || side.bid != null) ? "ATLAS" : "USDC",
       });
     }
   }
@@ -267,7 +275,7 @@ export async function buildMarket(): Promise<MarketSnap> {
     candles,
     pairCandles: crossCandles(polisCandles, candles),
     tape: pushTape([...resources, ...ships]),
-    note: "ATLAS/USD и POLIS/ATLAS — свечи Kraken, 4 часа. Ресурсы: лучшая продажа Galactic Marketplace в ATLAS. Картинки кораблей с серверов Star Atlas. Если стакан пуст, хостинг не дождался реестра ордеров, цены токенов при этом уже есть.",
+    note: "Ресурсы и сырьё — стакан в ATLAS. Корабли — ATLAS, а если там пусто, то USDC. Свечи ATLAS/USD и POLIS/ATLAS — Kraken.",
   };
   marketCache = { at: Date.now(), data };
   return data;

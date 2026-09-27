@@ -48,6 +48,7 @@ export type Crew = {
   house?: string;
   ustur?: string;
   note?: string;
+  image?: string;
 };
 
 /** Tensor.trade rank bands as used on the floor hunt (gold ≈ legendary). */

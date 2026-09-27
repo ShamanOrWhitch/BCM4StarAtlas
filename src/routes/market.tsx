@@ -33,6 +33,12 @@ function fmtAtlas(n: number | null): string {
   return n.toLocaleString("ru-RU", { maximumFractionDigits: 6 });
 }
 
+function money(row: ResourceRow): string {
+  const n = row.ask ?? row.bid;
+  const unit = row.quote === "USDC" ? "USDC" : "ATLAS";
+  return `${fmtAtlas(n)} ${unit}`;
+}
+
 function fmtUsd(n: number | null): string {
   if (n == null) return "—";
   return `$${n.toLocaleString("en-US", { maximumFractionDigits: 6 })}`;
@@ -200,8 +206,12 @@ export function MarketPage() {
             </p>
           )}
 
-          <BubbleField title="Ресурсы" rows={rows.filter((row) => row.ask != null)} previous={previous} />
-          <BubbleField title="Корабли в стакане" rows={(snap?.ships ?? []).filter((row) => row.ask != null)} previous={previous} />
+          <BubbleField title="Ресурсы и сырьё · цена в ATLAS" rows={rows.filter((row) => row.ask != null)} previous={previous} />
+          <BubbleField
+            title="Корабли · ATLAS, если нет — USDC"
+            rows={(snap?.ships ?? []).filter((row) => row.ask != null || row.bid != null)}
+            previous={previous}
+          />
           <p className="text-sm text-muted">
             Экипаж на Galactic Marketplace стаканом не торгуется. Карточки — NFT, их статы в метадате, пол — на Tensor. Пузырь цены экипажа без чужого архива был бы выдумкой.
           </p>
@@ -212,8 +222,8 @@ export function MarketPage() {
                 <tr>
                   <th className="px-3 py-2 font-medium">Ресурс</th>
                   <th className="px-3 py-2 font-medium">Класс</th>
-                  <th className="px-3 py-2 font-medium">Продажа</th>
-                  <th className="px-3 py-2 font-medium">Покупка</th>
+                  <th className="px-3 py-2 font-medium">Продажа, ATLAS</th>
+                  <th className="px-3 py-2 font-medium">Покупка, ATLAS</th>
                   <th className="px-3 py-2 font-medium">Δ</th>
                 </tr>
               </thead>
@@ -265,7 +275,7 @@ function BubbleField({ title, rows, previous }: { title: string; rows: ResourceR
             >
               {row.image ? <img src={row.image} alt="" className="mb-1 size-6 rounded-full object-cover" /> : null}
               <span className="line-clamp-2 font-display text-xs leading-tight text-fg">{row.name}</span>
-              <span className="font-mono text-[10px]">{change == null ? fmtAtlas(row.ask) : fmtPct(change)}</span>
+              <span className="font-mono text-[10px]">{change == null ? money(row) : fmtPct(change)}</span>
             </div>
           );
         })}

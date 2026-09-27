@@ -19,6 +19,7 @@ export type ResourceRow = {
   ask: number | null;
   bid: number | null;
   askQty: number;
+  quote?: "ATLAS" | "USDC";
 };
 
 export type MarketSnap = {

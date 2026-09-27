@@ -132,7 +132,7 @@ export function filterCrew(query: CrewQuery, list: Crew[] = CREW): Crew[] {
   out.sort((a, b) => {
     switch (query.sort) {
       case "official":
-        return OFFICIAL_RANK[a.official] - OFFICIAL_RANK[b.official] || (a.tensorRank ?? 9e9) - (b.tensorRank ?? 9e9);
+        return OFFICIAL_RANK[a.official] - OFFICIAL_RANK[b.official] || displayName(a).localeCompare(displayName(b));
       case "n":
         return a.n - b.n;
       case "c":
@@ -140,7 +140,11 @@ export function filterCrew(query: CrewQuery, list: Crew[] = CREW): Crew[] {
       case "name":
         return displayName(a).localeCompare(displayName(b));
       default:
-        return (a.tensorRank ?? 9e9) - (b.tensorRank ?? 9e9);
+        return (
+          (a.tensorRank ?? 9e9) - (b.tensorRank ?? 9e9) ||
+          OFFICIAL_RANK[a.official] - OFFICIAL_RANK[b.official] ||
+          displayName(a).localeCompare(displayName(b))
+        );
     }
   });
   return out;
