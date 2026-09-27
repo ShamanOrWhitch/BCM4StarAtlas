@@ -1185,14 +1185,26 @@
 
     window.BCMTowerAPI = window.BCMTowerAPI || {};
     window.BCMTowerAPI.enter = triggerTransition;
+    window.BCMTowerAPI.mount = (targetRoot) => {
+      if (targetRoot && targetRoot !== root) {
+        root.hidden = false;
+      }
+      return root;
+    };
 
     resize();
     window.addEventListener("resize", resize);
     window.addEventListener("orientationchange", resize);
 
-    status.textContent = "LANDING VIDEO...";
-    menu.hidden = true;
-    triggerTransition();
+    const autostart = root.dataset.bcmTowerAutostart !== "0";
+    if (autostart) {
+      status.textContent = "LANDING VIDEO...";
+      menu.hidden = true;
+      triggerTransition();
+    } else {
+      status.textContent = "TOWER STANDBY";
+      showMenu();
+    }
     setInterval(pollGamepads, 60);
     requestAnimationFrame(frame);
   }
