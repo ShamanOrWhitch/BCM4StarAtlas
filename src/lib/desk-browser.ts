@@ -55,6 +55,7 @@ export async function loadMarket(): Promise<MarketSnap> {
     polis: quote(data.polis),
     resources: Array.isArray(data.resources) ? (data.resources as MarketSnap["resources"]) : [],
     ships: Array.isArray(data.ships) ? (data.ships as MarketSnap["ships"]) : [],
+    marketShips: Array.isArray(data.marketShips) ? (data.marketShips as MarketSnap["marketShips"]) : [],
     candles: Array.isArray(data.candles) ? (data.candles as MarketSnap["candles"]) : [],
     pairCandles: Array.isArray(data.pairCandles) ? (data.pairCandles as MarketSnap["pairCandles"]) : [],
     tape: Array.isArray(data.tape) ? (data.tape as MarketSnap["tape"]) : [],

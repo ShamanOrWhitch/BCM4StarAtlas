@@ -18,11 +18,19 @@ import { EMPTY_QUERY, filterCrew, houses, type CrewQuery, type SortKey } from "@
 import { loadStars, saveStars } from "@/lib/crew-stars";
 import { CrewPortrait } from "@/components/crew/portrait";
 import { packetOf } from "@/data/packets";
-import { influenceFromRoster } from "@/lib/crew-score";
 import { walletCrew, walletFleet, type FleetHold } from "@/lib/wallet-crew";
 import { scanDeskWallet } from "@/lib/desk";
 import type { WalletItem } from "@/lib/desk-types";
 import { AppChrome } from "@/components/app-chrome";
+
+const RARITY_BORDER: Record<(typeof OFFICIAL)[number], string> = {
+  Anomaly: "border-[#e85cff]",
+  Legendary: "border-[#e2b657]",
+  Epic: "border-[#a06bff]",
+  Rare: "border-[#4c8dff]",
+  Uncommon: "border-[#3dba7a]",
+  Common: "border-[#6b7280]",
+};
 
 const RARITY_CLASS: Record<(typeof OFFICIAL)[number], string> = {
   Anomaly: "text-tensor-anomaly",
@@ -325,8 +333,8 @@ export function CrewBay() {
                           setPicked(c.id);
                           setMobileDetail(true);
                         }}
-                        className={`flex w-full flex-col gap-2 rounded-lg border px-3 py-3 text-left transition-colors duration-150 ${
-                          active ? "border-brass-dim bg-surface-2" : "border-line bg-surface hover:bg-surface-2/70"
+                        className={`flex w-full flex-col gap-2 rounded-lg border-2 px-3 py-3 text-left transition-colors duration-150 ${RARITY_BORDER[c.official]} ${
+                          active ? "bg-surface-2" : "bg-surface hover:bg-surface-2/70"
                         }`}
                       >
                         <div className="flex items-start gap-3">
@@ -556,13 +564,15 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
 }
 
 function Detail({ crew, starred, onStar }: { crew: Crew; starred: boolean; onStar: () => void }) {
+  const [big, setBig] = useState(false);
   const gem = diamondRecipe(crew.official);
-  const influence = influenceFromRoster(crew);
   return (
     <div className="flex flex-col p-5">
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-start gap-3">
-          <CrewPortrait crew={crew} size="lg" />
+          <button type="button" onClick={() => crew.image && setBig(true)} className="shrink-0">
+            <CrewPortrait crew={crew} size="lg" />
+          </button>
           <div className="min-w-0">
             <h2 className="font-display mt-1 text-2xl font-semibold leading-tight">{displayName(crew)}</h2>
             <p className="mt-1 text-sm text-fg">
@@ -607,22 +617,16 @@ function Detail({ crew, starred, onStar }: { crew: Crew; starred: boolean; onSta
         <Bar label="N нервы" value={crew.n} warn={crew.n >= 80} good={crew.n <= 30} />
       </ul>
 
-      <p className="mt-5 font-display text-xs tracking-wide text-muted uppercase">На борт</p>
-      <dl className="mt-2 grid grid-cols-2 gap-2">
-        <Stat k="Задание" v={`${influence.mission}%`} />
-        <Stat k="Штурвал" v={`${influence.helm}%`} />
-        <Stat k="Корпус" v={`${influence.hull}%`} />
-        <Stat k="Сенсор" v={`${influence.scan}%`} />
-      </dl>
-      <p className="mt-2 text-sm leading-snug text-muted">{influence.line}</p>
-
       <p className="mt-5 font-display text-xs tracking-wide text-muted uppercase">Слоты</p>
       <p className="mt-2 font-display text-sm text-ice">{seats(crew).join(" · ") || "—"}</p>
       {crew.note ? <p className="mt-4 text-sm leading-snug text-muted">{crew.note}</p> : null}
       {mismatch(crew) ? (
-        <p className="mt-4 text-sm leading-snug text-brass">
-          Пол-раритет: Tensor выше алмаза. Так ловили кэпов с витрины.
-        </p>
+        <p className="mt-4 text-sm leading-snug text-brass">Пол-раритет: Tensor выше алмаза. Так ловили кэпов с витрины.</p>
+      ) : null}
+      {big && crew.image ? (
+        <button type="button" className="fixed inset-0 z-40 flex items-center justify-center bg-bg/80 p-6" onClick={() => setBig(false)}>
+          <img src={crew.image} alt="" className="max-h-[80vh] max-w-full rounded-xl object-contain" />
+        </button>
       ) : null}
     </div>
   );

@@ -8,7 +8,28 @@ export type TokenQuote = {
 
 export type Candle = { t: number; o: number; h: number; l: number; c: number };
 
+export type BookLevel = { price: number; qty: number };
+
 export type TapePoint = { t: number; asks: Record<string, number> };
+
+export type MarketShip = {
+  mint: string;
+  name: string;
+  image: string;
+  gallery: string[];
+  description: string;
+  rarity: string;
+  className: string;
+  spec: string;
+  make: string;
+  crew: number;
+  slots: string[];
+  msrp: number | null;
+  usdcAsks: BookLevel[];
+  usdcBids: BookLevel[];
+  atlasAsks: BookLevel[];
+  atlasBids: BookLevel[];
+};
 
 export type ResourceRow = {
   mint: string;
@@ -35,6 +56,7 @@ export type MarketSnap = {
   polis: TokenQuote;
   resources: ResourceRow[];
   ships: ResourceRow[];
+  marketShips: MarketShip[];
   candles: Candle[];
   pairCandles: Candle[];
   tape: TapePoint[];

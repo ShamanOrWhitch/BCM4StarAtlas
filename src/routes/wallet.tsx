@@ -2,7 +2,6 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppChrome } from "@/components/app-chrome";
 import { scanDeskWallet, type WalletItem, type WalletScan } from "@/lib/desk";
-import { influenceFromTraits } from "@/lib/crew-score";
 
 export const Route = createFileRoute("/wallet")({ component: WalletPage });
 
@@ -55,7 +54,9 @@ export function WalletPage() {
     setLoading(true);
     setError("");
     try {
-      setScan(await scanDeskWallet({ data: { owner: next } }));
+      const scan = await scanDeskWallet({ data: { owner: next } });
+      setScan(scan);
+      localStorage.setItem("galia-owner", scan.owner);
       localStorage.setItem("galia-owner", next);
     } catch (err) {
       setScan(null);
@@ -174,27 +175,14 @@ export function WalletPage() {
 }
 
 function TraitBlock({ item }: { item: WalletItem }) {
-  const influence = item.kind === "crew" || item.traits.length ? influenceFromTraits(item.traits) : null;
   return (
     <>
       {item.traits.length ? (
-        <ul className="mt-1 space-y-0.5 text-sm text-ice">
-          {item.traits.slice(0, 8).map((trait) => (
-            <li key={trait.trait}>
-              {trait.trait}: {trait.value}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {influence && (influence.ocean || influence.helm || influence.hull || influence.scan || influence.mission) ? (
-        <p className="mt-1 text-sm text-fg">
-          задание {influence.mission}% · штурвал {influence.helm}% · корпус {influence.hull}% · сенсор {influence.scan}%
-        </p>
-      ) : null}
-      {influence?.hair || influence?.skin ? (
-        <p className="mt-1 text-sm text-brass">
-          {influence.hair ? `волосы ${influence.hair}` : ""}
-          {influence.skin ? ` · скин ${influence.skin}` : ""}. Скин — слот рядом с бортом, не второй плагин.
+        <p className="mt-1 text-sm text-ice">
+          {item.traits
+            .filter((trait) => /flight|command|engineering|medical|science|fitness|hospitality|operator/i.test(trait.trait))
+            .map((trait) => `${trait.trait} ${/minor|25/i.test(trait.value) ? "minor" : "major"}`)
+            .join(" · ")}
         </p>
       ) : null}
     </>

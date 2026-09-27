@@ -1,468 +1,338 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { CREW, displayName } from "@/data/crew";
-import {
-  SHIPS,
-  SHIP_SIZES,
-  SIZE_ABBR,
-  SIZE_SPAN,
-  STATUS_LABEL,
-  formatSupply,
-  type CrewSlot,
-  type Hull,
-  type ShipLine,
-  type ShipSize,
-  type ShipStatus,
-} from "@/data/ships";
-import { CrewPortrait } from "@/components/crew/portrait";
 import { AppChrome } from "@/components/app-chrome";
-import { assetUrl } from "@/lib/asset-url";
-import { loadMarket } from "@/lib/desk";
-import type { ResourceRow } from "@/lib/desk-types";
+import { loadMarket, scanDeskWallet } from "@/lib/desk";
+import type { BookLevel, MarketShip } from "@/lib/desk-types";
+import { addToFleet, loadFleets, saveFleets, type SavedFleet } from "@/lib/fleets";
+import { walletCrew } from "@/lib/wallet-crew";
+import type { Crew } from "@/data/crew";
+import { CrewPortrait } from "@/components/crew/portrait";
 
 export const Route = createFileRoute("/ships")({ component: ShipsPage });
 
-const STATUS_TONE: Record<ShipStatus, string> = {
-  owned: "text-ok",
-  garage: "text-ice",
-  project: "text-brass",
-  rent: "text-muted",
-  watch: "text-faint",
+const CLASSES = ["xx-small", "x-small", "small", "medium", "large", "capital", "commander", "titan"] as const;
+
+const CLASS_LABEL: Record<string, string> = {
+  "xx-small": "XX-Small",
+  "x-small": "X-Small",
+  small: "Small",
+  medium: "Medium",
+  large: "Large",
+  capital: "Capital",
+  commander: "Commander",
+  titan: "Titan",
 };
 
+const RARITY_COLOR: Record<string, string> = {
+  anomaly: "text-[#e85cff]",
+  legendary: "text-[#e2b657]",
+  epic: "text-[#a06bff]",
+  rare: "text-[#4c8dff]",
+  uncommon: "text-[#3dba7a]",
+  common: "text-[#9aa3ad]",
+};
+
+function money(n: number | null, digits: number) {
+  if (n == null) return "—";
+  return n.toLocaleString("ru-RU", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
 export function ShipsPage() {
-  const [size, setSize] = useState<ShipSize | "all">("X-Small");
-  const [lineId, setLineId] = useState<string | null>("jetjet");
-  const [hullId, setHullId] = useState<string | null>("jetjet-1");
-  const [quote, setQuote] = useState<"USDC" | "ATLAS" | "POLIS">("USDC");
-  const [marketShips, setMarketShips] = useState<ResourceRow[]>([]);
+  const [ships, setShips] = useState<MarketShip[]>([]);
+  const [held, setHeld] = useState<Record<string, number>>({});
+  const [crew, setCrew] = useState<Crew[]>([]);
+  const [klass, setKlass] = useState<string>("x-small");
+  const [open, setOpen] = useState<string | null>(null);
+  const [fleets, setFleets] = useState<SavedFleet[]>([]);
+  const [tab, setTab] = useState("market");
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    setFleets(loadFleets());
     void loadMarket()
-      .then((snap) => setMarketShips(snap.ships))
-      .catch(() => setMarketShips([]));
+      .then((snap) => setShips(snap.marketShips ?? []))
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Каталог не открылся"));
+    const owner = localStorage.getItem("galia-owner");
+    if (!owner) return;
+    void scanDeskWallet({ data: { owner } })
+      .then((scan) => {
+        const counts: Record<string, number> = {};
+        for (const item of scan.items) {
+          if (item.kind === "ship") counts[item.mint] = (counts[item.mint] ?? 0) + item.amount;
+        }
+        setHeld(counts);
+        setCrew(walletCrew(scan.items));
+      })
+      .catch(() => undefined);
   }, []);
 
-  const lines = useMemo(() => (size === "all" ? SHIPS : SHIPS.filter((s) => s.size === size)), [size]);
-  const line = lineId ? (lines.find((s) => s.id === lineId) ?? SHIPS.find((s) => s.id === lineId) ?? null) : null;
-  const hull = line?.hulls.find((h) => h.id === hullId) ?? line?.hulls[0] ?? null;
-
-  function pickSize(next: ShipSize | "all") {
-    setSize(next);
-    const list = next === "all" ? SHIPS : SHIPS.filter((x) => x.size === next);
-    if (list.length === 1) {
-      setLineId(list[0].id);
-      setHullId(list[0].hulls[0]?.id ?? null);
-    } else {
-      setLineId(null);
-      setHullId(null);
-    }
-  }
-
-  function pickLine(id: string) {
-    const s = SHIPS.find((x) => x.id === id);
-    setLineId(id);
-    setHullId(s?.hulls[0]?.id ?? null);
-  }
+  const visible = useMemo(() => ships.filter((ship) => ship.className === klass), [ships, klass]);
+  const picked = ships.find((ship) => ship.mint === open) ?? null;
+  const fleet = fleets.find((row) => row.id === tab) ?? null;
 
   return (
-    <AppChrome current="ships" kicker="Galactic Market · официальные галереи" title="Флот">
+    <AppChrome current="ships" kicker="play.staratlas.com/market · корабли" title="Флот">
       <div className="flex h-full min-h-0 flex-col">
-        <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-line px-3 py-2 md:px-6">
-          {(["USDC", "ATLAS", "POLIS"] as const).map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => setQuote(item)}
-              className={`h-11 rounded-full border px-3 font-display text-sm ${quote === item ? "border-brass-dim bg-surface-2 text-fg" : "border-line text-muted"}`}
-            >
-              {item}
-            </button>
+        <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-line px-3 py-2">
+          <Tab on={tab === "market"} onClick={() => setTab("market")} label="Рынок" />
+          {fleets.map((row) => (
+            <Tab key={row.id} on={tab === row.id} onClick={() => setTab(row.id)} label={row.name} />
           ))}
         </div>
-        <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-line px-3 py-2 md:px-6">
-          <SizeTab on={size === "all"} onClick={() => pickSize("all")} label="Все" hint={`${SHIPS.length}`} />
-          {SHIP_SIZES.map((s) => (
-            <SizeTab
-              key={s}
-              on={size === s}
-              onClick={() => pickSize(s)}
-              label={SIZE_ABBR[s]}
-              hint={`${SIZE_SPAN[s]} · ${SHIPS.filter((x) => x.size === s).length}`}
-            />
-          ))}
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {!line ? (
-            <>
-              <Catalog lines={lines} onPick={pickLine} quote={quote} market={marketShips} />
-              <RestShips lines={SHIPS} market={marketShips} quote={quote} />
-            </>
-          ) : (
-            <Vessel
-              line={line}
-              hull={hull}
-              siblings={lines}
-              onBack={() => setLineId(null)}
-              onPickLine={pickLine}
-              onPickHull={setHullId}
-            />
-          )}
-        </div>
+        {error ? <p className="px-4 py-2 text-sm text-danger">{error}</p> : null}
+        {tab === "market" ? (
+          <div className="flex min-h-0 flex-1">
+            <div className={`${picked ? "hidden md:flex" : "flex"} min-h-0 w-full flex-col md:w-[22rem] md:shrink-0 md:border-r md:border-line`}>
+              <div className="flex gap-2 overflow-x-auto border-b border-line px-3 py-2">
+                {CLASSES.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => {
+                      setKlass(item);
+                      setOpen(null);
+                    }}
+                    className={`h-11 shrink-0 rounded-full border px-3 font-display text-sm ${klass === item ? "border-brass-dim bg-surface-2 text-fg" : "border-line text-muted"}`}
+                  >
+                    {CLASS_LABEL[item]}
+                  </button>
+                ))}
+              </div>
+              <ul className="min-h-0 flex-1 overflow-y-auto">
+                {visible.map((ship) => (
+                  <li key={ship.mint}>
+                    <button type="button" onClick={() => setOpen(ship.mint)} className="flex w-full items-center gap-3 border-b border-line px-3 py-2 text-left hover:bg-surface">
+                      {ship.image ? <img src={ship.image} alt="" className="size-14 rounded-md object-cover" /> : <div className="size-14 rounded-md bg-surface-2" />}
+                      <span className="min-w-0">
+                        <span className="block truncate font-display text-base">{ship.name}</span>
+                        <span className={`font-mono text-xs uppercase ${RARITY_COLOR[ship.rarity] ?? "text-muted"}`}>{ship.rarity}</span>
+                        <span className="mt-0.5 block font-mono text-xs text-muted">
+                          USDC {money(ship.usdcAsks[0]?.price ?? null, 2)} · ATLAS {money(ship.atlasAsks[0]?.price ?? null, 2)}
+                          {held[ship.mint] ? ` · есть ×${held[ship.mint]}` : ""}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+                {!visible.length ? <li className="px-3 py-8 text-sm text-muted">В этом классе пусто.</li> : null}
+              </ul>
+            </div>
+            <div className={`${picked ? "flex" : "hidden md:flex"} min-h-0 min-w-0 flex-1 flex-col overflow-y-auto`}>
+              {picked ? (
+                <ShipSheet
+                  ship={picked}
+                  held={held[picked.mint] ?? 0}
+                  fleets={fleets}
+                  onBack={() => setOpen(null)}
+                  onFleet={(name, qty) => setFleets(addToFleet(fleets, name, { mint: picked.mint, name: picked.name, image: picked.image, qty }))}
+                />
+              ) : (
+                <p className="px-6 py-16 text-muted">Выберите корпус слева. Откроются картинка, описание и два стакана: продавцы и покупатели.</p>
+              )}
+            </div>
+          </div>
+        ) : fleet ? (
+          <FleetSheet
+            fleet={fleet}
+            crew={crew}
+            onChange={(rows) => {
+              setFleets(rows);
+              setTab("market");
+            }}
+          />
+        ) : null}
       </div>
     </AppChrome>
   );
 }
 
-function SizeTab({ on, onClick, label, hint }: { on: boolean; onClick: () => void; label: string; hint: string }) {
+function Tab({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex h-11 shrink-0 flex-col items-center justify-center rounded-lg border px-3 font-display leading-none ${
-        on ? "border-brass-dim bg-surface-2 text-fg" : "border-line text-muted hover:text-fg"
-      }`}
-    >
-      <span className="text-sm">{label}</span>
-      {hint ? <span className="mt-0.5 font-mono text-[10px] text-faint">{hint}</span> : null}
+    <button type="button" onClick={onClick} className={`h-11 shrink-0 rounded-full border px-3 font-display text-sm ${on ? "border-brass-dim bg-surface-2 text-fg" : "border-line text-muted"}`}>
+      {label}
     </button>
   );
 }
 
-function shipAsk(row: ResourceRow | undefined, quote: "USDC" | "ATLAS" | "POLIS"): number | null {
-  if (!row) return null;
-  const n = quote === "ATLAS" ? row.atlasAsk : quote === "POLIS" ? row.polisAsk : row.usdcAsk;
-  return n ?? null;
-}
-
-function findShip(market: ResourceRow[], name: string): ResourceRow | undefined {
-  const key = name.toLowerCase();
-  return market.find((row) => row.name.toLowerCase() === key);
-}
-
-function Catalog({
-  lines,
-  onPick,
-  quote,
-  market,
+function ShipSheet({
+  ship,
+  held,
+  fleets,
+  onBack,
+  onFleet,
 }: {
-  lines: ShipLine[];
-  onPick: (id: string) => void;
-  quote: "USDC" | "ATLAS" | "POLIS";
-  market: ResourceRow[];
+  ship: MarketShip;
+  held: number;
+  fleets: SavedFleet[];
+  onBack: () => void;
+  onFleet: (name: string, qty: number) => void;
 }) {
-  if (lines.length === 0) {
-    return <p className="px-6 py-16 text-center text-muted">В этом классе судов нет.</p>;
-  }
+  const [shot, setShot] = useState(ship.image);
+  const [qty, setQty] = useState(1);
+  const [name, setName] = useState("");
+  const shots = [ship.image, ...ship.gallery].filter(Boolean);
   return (
-    <ul className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3 md:p-6">
-      {lines.map((s) => (
-        <li key={s.id}>
-          <button
-            type="button"
-            onClick={() => onPick(s.id)}
-            className="flex w-full flex-col overflow-hidden rounded-xl border border-line bg-surface text-left hover:border-brass-dim"
-          >
-            {s.images[0] ? (
-              <img src={s.images[0]} alt="" className="aspect-video w-full bg-surface-2 object-cover" />
-            ) : (
-              <div className="aspect-video w-full bg-surface-2" />
-            )}
-            <div className="flex flex-col gap-1 p-3">
-              <p className="font-mono text-[10px] tracking-[0.14em] text-brass uppercase">
-                {SIZE_ABBR[s.size]} · {s.rarity} · {s.spec}
-              </p>
-              <p className="font-display text-lg font-semibold">{s.name}</p>
-              <p className="font-mono text-sm text-fg">
-                {(() => {
-                  const ask = shipAsk(findShip(market, s.name), quote);
-                  return ask == null ? `нет в ${quote}` : `${ask.toLocaleString("ru-RU", { maximumFractionDigits: 4 })} ${quote}`;
-                })()}
-              </p>
-              <p className={`font-mono text-xs ${STATUS_TONE[s.status]}`}>
-                {s.count > 0 ? `×${s.count} · ` : ""}
-                {STATUS_LABEL[s.status]} · {s.crew} экипаж
-              </p>
-            </div>
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-3 py-4 md:px-6">
+      <button type="button" onClick={onBack} className="h-11 self-start font-display text-sm text-muted md:hidden">
+        ← список
+      </button>
+      <p className="font-mono text-xs text-faint">
+        SHIPS / {CLASS_LABEL[ship.className] ?? ship.className} / {ship.name}
+      </p>
+      <img src={shot || ship.image} alt="" className="max-h-80 w-full rounded-xl bg-surface-2 object-contain" />
+      {shots.length > 1 ? (
+        <div className="flex gap-2 overflow-x-auto">
+          {shots.map((src) => (
+            <button key={src} type="button" onClick={() => setShot(src)} className="shrink-0">
+              <img src={src} alt="" className="h-16 w-24 rounded-md object-cover" />
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div>
+        <h2 className="font-display text-3xl">{ship.name.replace(ship.make, "").trim() || ship.name}</h2>
+        <p className="text-muted">{ship.make} {ship.spec}</p>
+        <p className="mt-2 font-mono text-xs uppercase">
+          <span className={RARITY_COLOR[ship.rarity] ?? "text-muted"}>{ship.rarity}</span>
+          <span className="text-faint"> · {CLASS_LABEL[ship.className] ?? ship.className} · экипаж {ship.crew || "—"}</span>
+          {ship.msrp != null ? <span className="text-faint"> · MSRP {money(ship.msrp, 2)} USDC</span> : null}
+          {held ? <span className="text-ok"> · есть в наличии ×{held}</span> : null}
+        </p>
+        {ship.slots.length ? <p className="mt-1 text-sm text-ice">{ship.slots.join(" · ")}</p> : null}
+        <p className="mt-3 text-sm leading-relaxed text-muted">{ship.description}</p>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <Book title="USDC" asks={ship.usdcAsks} bids={ship.usdcBids} digits={2} />
+        <Book title="ATLAS" asks={ship.atlasAsks} bids={ship.atlasBids} digits={2} />
+      </div>
+      <form
+        className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface p-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onFleet(name, Math.max(1, qty));
+          setName("");
+        }}
+      >
+        <p className="w-full font-display text-sm">Добавить в флот</p>
+        <input
+          type="number"
+          min={1}
+          value={qty}
+          onChange={(event) => setQty(Number(event.target.value))}
+          className="h-11 w-20 rounded-md border border-line bg-bg px-2"
+          aria-label="Количество"
+        />
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Имя нового флота"
+          className="h-11 min-w-40 flex-1 rounded-md border border-line bg-bg px-2"
+        />
+        <button type="submit" className="h-11 rounded-md border border-brass-dim px-3 font-display text-sm">
+          Создать
+        </button>
+        {fleets.map((fleet) => (
+          <button key={fleet.id} type="button" className="h-11 rounded-full border border-line px-3 text-sm" onClick={() => onFleet(fleet.name, Math.max(1, qty))}>
+            В «{fleet.name}»
           </button>
-        </li>
-      ))}
-    </ul>
+        ))}
+      </form>
+    </div>
   );
 }
 
-function RestShips({
-  lines,
-  market,
-  quote,
-}: {
-  lines: ShipLine[];
-  market: ResourceRow[];
-  quote: "USDC" | "ATLAS" | "POLIS";
-}) {
-  const known = new Set(lines.map((line) => line.name.toLowerCase()));
-  const rest = market.filter((row) => !known.has(row.name.toLowerCase()));
-  if (!rest.length) return null;
+function Book({ title, asks, bids, digits }: { title: string; asks: BookLevel[]; bids: BookLevel[]; digits: number }) {
   return (
-    <section className="px-3 pb-8 md:px-6">
-      <h2 className="mb-2 font-display text-sm tracking-[0.16em] text-brass uppercase">Остальные корпуса · {quote}</h2>
-      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {rest.map((row) => {
-          const ask = shipAsk(row, quote);
-          return (
-            <li key={row.mint} className="overflow-hidden rounded-xl border border-line bg-surface">
-              {row.image ? <img src={row.image} alt="" className="aspect-video w-full object-cover" /> : <div className="aspect-video bg-surface-2" />}
-              <div className="p-2">
-                <p className="truncate font-display text-sm">{row.name}</p>
-                <p className="font-mono text-xs text-muted">{ask == null ? `нет в ${quote}` : `${ask.toLocaleString("ru-RU", { maximumFractionDigits: 4 })} ${quote}`}</p>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+    <section className="rounded-xl border border-line bg-surface p-3">
+      <h3 className="font-display text-sm tracking-[0.16em] text-brass uppercase">{title}</h3>
+      <Level title="Продавцы" rows={asks} digits={digits} />
+      <Level title="Покупатели" rows={bids} digits={digits} />
     </section>
   );
 }
 
-function Vessel({
-  line,
-  hull,
-  siblings,
-  onBack,
-  onPickLine,
-  onPickHull,
-}: {
-  line: ShipLine;
-  hull: Hull | null;
-  siblings: ShipLine[];
-  onBack: () => void;
-  onPickLine: (id: string) => void;
-  onPickHull: (id: string) => void;
-}) {
+function Level({ title, rows, digits }: { title: string; rows: BookLevel[]; digits: number }) {
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-5 p-4 md:p-6">
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex h-11 items-center rounded-lg border border-line px-3 font-display text-sm text-muted hover:text-fg"
-        >
-          К каталогу
-        </button>
-        {siblings.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => onPickLine(s.id)}
-            className={`flex h-11 items-center rounded-lg border px-3 font-display text-sm ${
-              s.id === line.id ? "border-brass-dim bg-surface-2" : "border-line text-muted"
-            }`}
-          >
-            {s.name}
-            {s.count > 0 ? <span className="ml-2 font-mono text-xs text-faint">×{s.count}</span> : null}
-          </button>
-        ))}
-      </div>
-
-      <div className="overflow-hidden rounded-xl border border-line bg-surface">
-        <MarketMeta line={line} />
-        <Gallery key={line.id} images={line.images} alt={line.name} />
-        <div className="p-4">
-          <p className="font-mono text-xs tracking-[0.16em] text-brass uppercase">
-            {line.maker} · {line.rarity} · {SIZE_ABBR[line.size]} {line.spec}
-          </p>
-          <div className="mt-1 flex flex-wrap items-baseline gap-3">
-            <h2 className="font-display text-3xl font-semibold">{line.name}</h2>
-            <span className={`font-mono text-xs uppercase ${STATUS_TONE[line.status]}`}>{STATUS_LABEL[line.status]}</span>
-          </div>
-          <p className="mt-2 text-sm leading-relaxed text-muted">{line.note}</p>
-          <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <Stat k="Длина" v={line.length != null ? `${line.length} м` : "—"} />
-            <Stat k="Экипаж" v={String(line.crew)} />
-            <Stat k="Бак" v={line.fuel != null ? String(line.fuel) : "—"} />
-            <Stat k="Скан" v={line.scan != null ? String(line.scan) : "—"} />
-          </dl>
-        </div>
-      </div>
-
-      <section>
-        <p className="font-display text-xs tracking-wide text-muted uppercase">Штат маркета</p>
-        <SlotList slots={line.crewSlots} />
-      </section>
-
-      {line.hulls.length > 0 ? (
-        <section>
-          <p className="font-display text-xs tracking-wide text-muted uppercase">
-            Борта · выборка {line.hulls.length}
-          </p>
-          <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {line.hulls.map((h) => {
-              const filled = h.seats.filter((s) => s.crewId).length;
-              const on = hull?.id === h.id;
-              return (
-                <li key={h.id}>
-                  <button
-                    type="button"
-                    onClick={() => onPickHull(h.id)}
-                    className={`flex h-auto min-h-16 w-full flex-col rounded-lg border px-3 py-3 text-left ${
-                      on ? "border-brass-dim bg-surface-2" : "border-line bg-surface hover:bg-surface-2/70"
-                    }`}
-                  >
-                    <span className="font-display text-base font-medium">{h.label}</span>
-                    <span className="font-mono text-xs text-muted">
-                      слоты {filled}/{h.seats.length}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+    <div className="mt-2">
+      <p className="font-mono text-xs text-faint">{title}</p>
+      {rows.length ? (
+        <ul>
+          {rows.map((row) => (
+            <li key={`${title}-${row.price}`} className="flex justify-between font-mono text-sm">
+              <span>×{row.qty}</span>
+              <span>{money(row.price, digits)}</span>
+            </li>
+          ))}
+        </ul>
       ) : (
-        <p className="font-mono text-xs text-faint">В ангаре нет бортов. Витрина, не флот кромки.</p>
+        <p className="text-sm text-muted">Пусто</p>
       )}
+    </div>
+  );
+}
 
-      {hull ? (
-        <div className="rounded-xl border border-line bg-surface p-4">
-          <p className="font-display text-lg font-medium">{hull.label}</p>
-          <ul className="mt-3 flex flex-col gap-2">
-            {hull.seats.map((seat, i) => {
-              const crew = seat.crewId ? CREW.find((c) => c.id === seat.crewId) : null;
-              return (
-                <li key={i} className="flex items-center gap-3 rounded-lg bg-surface-2 px-3 py-2">
-                  {crew ? (
-                    <CrewPortrait crew={crew} size="sm" />
-                  ) : (
-                    <span className="size-10 rounded-md border border-dashed border-line" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="font-mono text-[10px] text-faint uppercase">{seat.role}</p>
-                    <p className="truncate font-display text-sm">{crew ? displayName(crew) : "пусто"}</p>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+function FleetSheet({ fleet, crew, onChange }: { fleet: SavedFleet; crew: Crew[]; onChange: (rows: SavedFleet[]) => void }) {
+  const [job, setJob] = useState("Flight");
+  const [calm, setCalm] = useState(100);
+  const jobs = ["Flight", "Operator", "Command", "Engineering", "Medical", "Science", "Fitness", "Hospitality"];
+  const matches = crew
+    .filter((member) => member.aptitudes.some((apt) => apt.name === job) && member.n <= calm)
+    .slice(0, 6);
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 md:px-6">
+      <h2 className="font-display text-2xl">{fleet.name}</h2>
+      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+        {fleet.hulls.map((hull) => (
+          <li key={hull.mint} className="flex items-center gap-3 rounded-xl border border-line bg-surface p-2">
+            {hull.image ? <img src={hull.image} alt="" className="size-16 rounded-md object-cover" /> : null}
+            <span>
+              <span className="block font-display">{hull.name}</span>
+              <span className="font-mono text-sm text-muted">×{hull.qty}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <section className="mt-6">
+        <h3 className="font-display text-sm tracking-[0.16em] text-brass uppercase">Подбор в этот флот</h3>
+        <p className="mt-1 text-sm text-muted">Сначала профессия, потом потолок нервов. Картинка того, кто подходит.</p>
+        <div className="mt-2 flex gap-2 overflow-x-auto">
+          {jobs.map((item) => (
+            <button key={item} type="button" onClick={() => setJob(item)} className={`h-11 shrink-0 rounded-full border px-3 text-sm ${job === item ? "border-brass-dim bg-surface-2" : "border-line text-muted"}`}>
+              {item}
+            </button>
+          ))}
         </div>
-      ) : null}
-    </div>
-  );
-}
-
-function MarketMeta({ line }: { line: ShipLine }) {
-  return (
-    <dl className="grid grid-cols-4 gap-2 px-3 py-3 text-center">
-      <Meta k="Class" v={SIZE_ABBR[line.size]} />
-      <Meta k="Rarity" v={line.rarity.toUpperCase()} />
-      <Meta k="Crew" v={String(line.crew)} />
-      <Meta k="Supply" v={formatSupply(line.supply)} />
-    </dl>
-  );
-}
-
-function Meta({ k, v }: { k: string; v: string }) {
-  return (
-    <div>
-      <dt className="font-mono text-[10px] tracking-[0.16em] text-faint uppercase">{k}</dt>
-      <dd className="font-display text-lg font-semibold leading-tight">{v}</dd>
-    </div>
-  );
-}
-
-function Gallery({ images, alt }: { images: string[]; alt: string }) {
-  const [shot, setShot] = useState(0);
-  const total = images.length;
-  const src = assetUrl(images.find((img) => img.includes("/product.")) ?? images[shot] ?? images[0]);
-
-  function step(dir: number) {
-    if (total < 2) return;
-    setShot((i) => (i + dir + total) % total);
-  }
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        step(1);
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        step(-1);
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [total]);
-
-  return (
-    <div>
-      <div className="relative aspect-video overflow-hidden bg-surface-2">
-        <img src={src} alt={alt} className="absolute inset-0 size-full object-contain" />
-        {total > 1 ? (
-          <>
-            <button
-              type="button"
-              aria-label="Предыдущий кадр"
-              onClick={() => step(-1)}
-              className="absolute top-1/2 left-2 flex size-11 -translate-y-1/2 items-center justify-center rounded-full border border-line bg-bg/80 text-fg backdrop-blur-sm hover:border-brass-dim"
-            >
-              <ChevronLeft className="size-5" />
-            </button>
-            <button
-              type="button"
-              aria-label="Следующий кадр"
-              onClick={() => step(1)}
-              className="absolute top-1/2 right-2 flex size-11 -translate-y-1/2 items-center justify-center rounded-full border border-line bg-bg/80 text-fg backdrop-blur-sm hover:border-brass-dim"
-            >
-              <ChevronRight className="size-5" />
-            </button>
-          </>
-        ) : null}
-      </div>
-      {total > 1 ? (
-        <div className="flex min-w-0 flex-col gap-2 px-3 py-3">
-          <ul className="flex min-w-0 gap-2 overflow-x-auto pb-1">
-            {images.map((img, i) => (
-              <li key={img} className="shrink-0">
-                <button
-                  type="button"
-                  aria-label={`Кадр ${i + 1}`}
-                  onClick={() => setShot(i)}
-                  className={`block h-11 w-16 overflow-hidden rounded-md border ${
-                    i === shot ? "border-brass" : "border-line opacity-70 hover:opacity-100"
-                  }`}
-                >
-                  <img src={assetUrl(img)} alt="" loading="lazy" className="size-full object-cover" />
-                </button>
+        <label className="mt-3 block text-sm text-muted">
+          Нервы не выше {calm}
+          <input type="range" min={0} max={100} value={calm} onChange={(event) => setCalm(Number(event.target.value))} className="mt-1 w-full" />
+        </label>
+        {matches.length ? (
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+            {matches.map((member) => (
+              <li key={member.id} className="flex items-center gap-3 rounded-xl border border-line p-2">
+                <CrewPortrait crew={member} size="lg" />
+                <span>
+                  <span className="block font-display">{member.given} {member.family}</span>
+                  <span className="text-sm text-muted">{member.aptitudes.map((apt) => `${apt.name} ${apt.xp === 50 ? "major" : "minor"}`).join(" · ")}</span>
+                </span>
               </li>
             ))}
           </ul>
-          <p className="text-center font-mono text-[10px] text-faint">Стрелки ← → листают галерею</p>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function SlotList({ slots }: { slots: CrewSlot[] }) {
-  return (
-    <ul className="mt-3 flex flex-wrap gap-2">
-      {slots.map((s) => (
-        <li key={s.type} className="rounded-md border border-line bg-surface px-3 py-2">
-          <p className="font-mono text-[10px] tracking-wide text-faint uppercase">{s.type}</p>
-          <p className="font-display text-sm">×{s.n}</p>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function Stat({ k, v }: { k: string; v: string }) {
-  return (
-    <div className="rounded-lg bg-surface-2 px-3 py-2">
-      <p className="font-mono text-[10px] text-faint uppercase">{k}</p>
-      <p className="font-display text-sm">{v}</p>
+        ) : (
+          <p className="mt-3 text-sm text-muted">На ключе нет такой профессии. Сначала откройте сейф и прочитайте кошелёк.</p>
+        )}
+      </section>
+      <button
+        type="button"
+        className="mt-6 h-11 text-sm text-danger"
+        onClick={() => {
+          const next = loadFleets().filter((row) => row.id !== fleet.id);
+          saveFleets(next);
+          onChange(next);
+        }}
+      >
+        Удалить флот
+      </button>
     </div>
   );
 }

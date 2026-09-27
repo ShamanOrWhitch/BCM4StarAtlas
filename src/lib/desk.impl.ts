@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import type { Candle, FleetPeek, MarketSnap, ProfilePeek, ResourceRow, TapePoint, TokenQuote, WalletItem, WalletScan, WalletTrait } from "./desk-types";
+import type { BookLevel, Candle, FleetPeek, MarketShip, MarketSnap, ProfilePeek, ResourceRow, TapePoint, TokenQuote, WalletItem, WalletScan, WalletTrait } from "./desk-types";
 
 const RPC_URL = "https://api.mainnet-beta.solana.com";
 const GM = "traderDnaR5w6Tcoi3NFm53i48FTDNbGjBSZwWXDRrg";
@@ -20,7 +20,7 @@ const CLASS_KEEP = new Set([
   "data",
 ]);
 
-type BookSide = { ask: number | null; bid: number | null; askQty: number };
+type BookSide = { ask: number | null; bid: number | null; askQty: number; asks: BookLevel[]; bids: BookLevel[] };
 type CatItem = {
   mint: string;
   name: string;
@@ -30,6 +30,12 @@ type CatItem = {
   rarity: string;
   spec: string;
   image: string;
+  description: string;
+  gallery: string[];
+  make: string;
+  crew: number;
+  slots: string[];
+  msrp: number | null;
 };
 
 let marketCache: { at: number; data: MarketSnap } | null = null;
@@ -76,43 +82,67 @@ async function loadCatalog(): Promise<Map<string, CatItem>> {
     if (!mint) continue;
     const attrs = (row.attributes ?? {}) as Record<string, unknown>;
     const itemType = String(attrs.itemType ?? "");
+    const media = (row.media ?? {}) as { gallery?: unknown };
+    const slots = (row.slots ?? {}) as { crewSlots?: Array<{ type?: string; quantity?: number }> };
+    const crewSlots = Array.isArray(slots.crewSlots) ? slots.crewSlots : [];
+    const trade = (row.tradeSettings ?? {}) as { msrp?: { value?: number } };
+    const gallery = Array.isArray(media.gallery) ? media.gallery.filter((item): item is string => typeof item === "string").slice(0, 8) : [];
     byMint.set(mint, {
       mint,
       name: String(row.name ?? mint.slice(0, 4)),
       symbol: String(row.symbol ?? ""),
       kind: kindOf(itemType),
-      className: String(attrs.class ?? ""),
+      className: String(attrs.class ?? "").toLowerCase(),
       rarity: String(attrs.rarity ?? ""),
       spec: String(attrs.spec ?? ""),
       image: String(row.image ?? ""),
+      description: String(row.description ?? "").replace(/\s+/g, " ").slice(0, 420),
+      gallery,
+      make: String(attrs.make ?? ""),
+      crew: crewSlots.reduce((sum, slot) => sum + (Number(slot.quantity) || 0), 0),
+      slots: crewSlots.map((slot) => `${slot.type ?? "слот"} ×${slot.quantity ?? 1}`),
+      msrp: typeof trade.msrp?.value === "number" ? trade.msrp.value : null,
     });
   }
   catalogCache = { at: Date.now(), byMint };
   return byMint;
 }
 
-function readBook(rows: ReadonlyArray<{ account: { data: Uint8Array } }>, atlasHex: string): Map<string, BookSide> {
-  const book = new Map<string, BookSide>();
+function readBook(
+  rows: ReadonlyArray<{ account: { data: Uint8Array } }>,
+  mintHex: string,
+  decimals: number,
+): Map<string, BookSide> {
+  const bags = new Map<string, { asks: BookLevel[]; bids: BookLevel[] }>();
+  const scale = 10 ** decimals;
   for (const row of rows) {
     const raw = Buffer.from(row.account.data);
     if (raw.length < 153) continue;
-    if (raw.subarray(0, 32).toString("hex") !== atlasHex) continue;
+    if (raw.subarray(0, 32).toString("hex") !== mintHex) continue;
     const asset = new PublicKey(raw.subarray(32, 64)).toBase58();
     const side = raw[128];
-    const price = Number(raw.readBigUInt64LE(129)) / 1e8;
-    const rem = Number(raw.readBigUInt64LE(145));
-    if (!Number.isFinite(price) || price <= 0 || rem <= 0) continue;
-    let slot = book.get(asset);
-    if (!slot) {
-      slot = { ask: null, bid: null, askQty: 0 };
-      book.set(asset, slot);
+    const price = Number(raw.readBigUInt64LE(129)) / scale;
+    const qty = Number(raw.readBigUInt64LE(145));
+    if (!Number.isFinite(price) || price <= 0 || qty <= 0) continue;
+    let bag = bags.get(asset);
+    if (!bag) {
+      bag = { asks: [], bids: [] };
+      bags.set(asset, bag);
     }
-    if (side === 1 && (slot.ask == null || price < slot.ask)) {
-      slot.ask = price;
-      slot.askQty = rem;
-    } else if (side === 0 && (slot.bid == null || price > slot.bid)) {
-      slot.bid = price;
-    }
+    if (side === 1) bag.asks.push({ price, qty });
+    else if (side === 0) bag.bids.push({ price, qty });
+  }
+  const book = new Map<string, BookSide>();
+  for (const [asset, bag] of bags) {
+    const asks = bag.asks.sort((a, b) => a.price - b.price).slice(0, 8);
+    const bids = bag.bids.sort((a, b) => b.price - a.price).slice(0, 8);
+    book.set(asset, {
+      ask: asks[0]?.price ?? null,
+      bid: bids[0]?.price ?? null,
+      askQty: asks[0]?.qty ?? 0,
+      asks,
+      bids,
+    });
   }
   return book;
 }
@@ -211,9 +241,9 @@ export async function buildMarket(): Promise<MarketSnap> {
     krakenCandles("POLISUSD"),
   ]);
 
-  const book = readBook(orders, atlasHex);
-  const usdcBook = readBook(usdcOrders, usdcHex);
-  const polisBook = readBook(polisOrders, polisHex);
+  const book = readBook(orders, atlasHex, 8);
+  const usdcBook = readBook(usdcOrders, usdcHex, 6);
+  const polisBook = readBook(polisOrders, polisHex, 8);
 
   const resources: ResourceRow[] = [];
   const ships: ResourceRow[] = [];
@@ -243,6 +273,29 @@ export async function buildMarket(): Promise<MarketSnap> {
   }
   resources.sort((a, b) => a.name.localeCompare(b.name, "en"));
   ships.sort((a, b) => (a.usdcAsk == null ? 1 : 0) - (b.usdcAsk == null ? 1 : 0) || a.name.localeCompare(b.name, "en"));
+  const marketShips: MarketShip[] = [];
+  for (const item of nfts.values()) {
+    if (item.kind !== "ship") continue;
+    marketShips.push({
+      mint: item.mint,
+      name: item.name,
+      image: item.image,
+      gallery: item.gallery,
+      description: item.description,
+      rarity: item.rarity,
+      className: item.className,
+      spec: item.spec,
+      make: item.make,
+      crew: item.crew,
+      slots: item.slots,
+      msrp: item.msrp,
+      usdcAsks: usdcBook.get(item.mint)?.asks ?? [],
+      usdcBids: usdcBook.get(item.mint)?.bids ?? [],
+      atlasAsks: book.get(item.mint)?.asks ?? [],
+      atlasBids: book.get(item.mint)?.bids ?? [],
+    });
+  }
+  marketShips.sort((a, b) => a.className.localeCompare(b.className) || a.name.localeCompare(b.name, "en"));
 
   const atlas: TokenQuote = {
     ...emptyQuote(),
@@ -267,11 +320,12 @@ export async function buildMarket(): Promise<MarketSnap> {
     atlas,
     polis,
     resources,
-    ships: ships.slice(0, 40),
+    ships,
+    marketShips,
     candles,
     pairCandles: crossCandles(polisCandles, candles),
     tape: pushTape([...resources, ...ships]),
-    note: "Ресурсы и сырьё — стакан в ATLAS. Корабли — ATLAS, а если там пусто, то USDC. Свечи ATLAS/USD и POLIS/ATLAS — Kraken.",
+    note: "Корабли — каталог Galaxy. Стакан USDC считается с 6 знаками, ATLAS и POLIS с 8. Иначе 16 USDC выглядели как 0,16.",
   };
   marketCache = { at: Date.now(), data };
   return data;
@@ -336,7 +390,7 @@ function crewItem(card: CrewCard, amount: number, image = "", traits: WalletTrai
     kind: "crew",
     image: card.image || image,
     className: "crew",
-    rarity: card.rarity,
+    rarity: traits.find((trait) => trait.trait.toLowerCase() === "rarity")?.value || card.rarity,
     spec: card.species,
     traits: card.traits.length ? card.traits : traits,
   };
