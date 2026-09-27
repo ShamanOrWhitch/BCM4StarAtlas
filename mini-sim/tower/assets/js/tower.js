@@ -290,7 +290,7 @@
     let playerTexture = null;
 
     const radius = 8.4;
-    const cameraRadius = radius + 8.6;
+    const cameraRadius = radius + 3.2;
     const gravity = 18;
     const jumpVelocity = 9.3;
     const baseTurnSpeed = 2.75;
@@ -498,6 +498,11 @@
           side: THREE.DoubleSide
         })
       );
+      // Levels run from roughly Y=0 down to -180. Center the shell over the
+      // complete playable shaft instead of leaving its lower half outside it.
+      const towerBottomY = -((tower.levels - 1) * tower.stepY);
+      const towerTopY = 6;
+      wallMesh.position.y = (towerBottomY + towerTopY) * 0.5;
       towerRoot.add(wallMesh);
 
       for (const cell of tower.cells.values()) {
@@ -814,8 +819,9 @@
       const z = Math.cos(a) * cameraRadius;
       const camera = cameras[index];
 
-      camera.position.set(x, p.y + 4.5, z);
-      camera.lookAt(new THREE.Vector3(0, p.y + 0.25, 0));
+      camera.position.set(x, p.y + 3.6, z);
+      // Keep the view close enough to show the platforms around the player.
+      camera.lookAt(new THREE.Vector3(0, p.y - 0.4, 0));
       camera.aspect = viewport.w / Math.max(1, viewport.h);
       camera.updateProjectionMatrix();
     }
