@@ -61,6 +61,9 @@
 
   function assetTexture(url, renderer, options = {}) {
     if (!url || !window.THREE) return null;
+    // Callers may omit options or pass a legacy false/null value.
+    // Normalize it before reading texture options.
+    options = options && typeof options === "object" ? options : {};
     const cache = assetTexture.cache || (assetTexture.cache = new Map());
     if (cache.has(url)) return cache.get(url);
 
