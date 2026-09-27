@@ -44,3 +44,35 @@ The new `[bcm_tower_texture_slicer]` tool runs locally in the browser. It never 
 Auto mode tries connected regions from alpha and background colour. Grid mode cuts a regular rows × columns sheet.
 
 The next iteration can add sprite-frame grouping, automatic naming by detected object shape, and export of a manifest JSON for the tower generator.
+
+## 0.2.0 — Single / Multi
+
+The Tower now starts with SINGLE / MULTI. Multi uses one procedural seed for both players and renders split-screen views. P1 is keyboard A/D/W/S + Space/E; P2 uses arrows + Enter/Shift; gamepads 1/2 are mapped to P1/P2. Mouse drag controls the player in the selected screen half. Mobile gets separate P1/P2 left / jet / right controls.
+
+## Current asset roles
+
+Assets are classified by role instead of being mixed into one pool.
+
+- onicss.mp4 → preferred Tower landing video; tower.mp4 remains fallback.
+- Towerwall*.jpg + wall*.jpg → current JPG wall family only.
+- Towerwall*.png → reserved separate future wall level; never mixed with JPG.
+- platform* / legacy paltform* → normal walkable surfaces.
+- platformlava* / paltformlava* → hot surfaces with limited safe time.
+- platformice* → slippery surfaces.
+- lava* → lethal surfaces.
+- upperplatform* → upper/start platform family.
+- rock* → climbable jump surfaces.
+- lift* → moving platforms; liftlava / liftlice inherit hazard behaviour.
+- box*, safebox*, dangerbox* → object classes.
+- door* → paired map doors; walldoor.png → closed-door decoration.
+- walldoorpiratebear*, walldoormetalbear*, firemetalbear* → NPC test sprites.
+- fire* → fire hazard/effect.
+- H* → retro landing/helipad markers.
+
+The game keeps these pools separate so a future PNG wall level cannot accidentally contaminate the current JPG level.
+
+## Controls 0.2.0
+
+Single: A/D or arrows rotate; W/S or up/down correct height; Space jetpack ×2; E interaction; mouse drag; R new seed.
+
+Multi: P1 uses A/D/W/S + Space/E, P2 uses arrows + Enter/Shift. The same tower seed is shared by both cameras. Gamepads 1 and 2 use the same analog mapping; A = jetpack, X = interaction, Y = new seed.
