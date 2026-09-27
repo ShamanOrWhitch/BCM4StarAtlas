@@ -2172,9 +2172,9 @@
         if (renderer.renderLists?.dispose) renderer.renderLists.dispose();
       } catch (e) {}
       try { renderer.dispose(); } catch (e) {}
-      try {
-        if (renderer.forceContextLoss) renderer.forceContextLoss();
-      } catch (e) {}
+      // renderer.dispose() releases the first simulation's GL resources.
+      // Do not force a context loss here: Tower already owns a separate WebGL
+      // renderer, and a forced GPU context reset can leave its canvas blank.
     }
 
     ship.visual = null;
