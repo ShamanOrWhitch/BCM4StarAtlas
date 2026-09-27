@@ -1,0 +1,162 @@
+<?php
+/**
+ * BCM Tower mode — lightweight WebGL tower descent for BCM Mini Space Simulation.
+ *
+ * Shortcode: [bcm_tower]
+ *
+ * This module is intentionally separate from the existing 6DOF mini-sim so the
+ * prototype can be tested without changing the current labyrinth controls.
+ */
+
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+define('BCM_TOWER_VERSION', '0.1.0');
+define('BCM_TOWER_PATH', __DIR__ . '/');
+define('BCM_TOWER_URL', trailingslashit(plugin_dir_url(__FILE__)));
+
+function bcm_tower_pick_asset($assets, $names, $type = 'image') {
+    $wanted = array_map('strtolower', (array) $names);
+
+    foreach ($wanted as $wanted_name) {
+        foreach ((array) $assets as $asset) {
+            if (($asset['type'] ?? '') === $type && strtolower($asset['name'] ?? '') === $wanted_name) {
+                return $asset['url'];
+            }
+        }
+    }
+
+    foreach ((array) $assets as $asset) {
+        if (($asset['type'] ?? '') !== $type) {
+            continue;
+        }
+
+        $basename = strtolower(pathinfo($asset['name'] ?? '', PATHINFO_FILENAME));
+        foreach ($wanted as $wanted_name) {
+            if ($basename === strtolower(pathinfo($wanted_name, PATHINFO_FILENAME))) {
+                return $asset['url'];
+            }
+        }
+    }
+
+    return '';
+}
+
+function bcm_tower_get_assets() {
+    if (function_exists('bcm_mini_sim_get_assets')) {
+        return bcm_mini_sim_get_assets();
+    }
+
+    return array();
+}
+
+function bcm_tower_enqueue_assets() {
+    $assets = bcm_tower_get_assets();
+
+    wp_enqueue_style(
+        'bcm-tower',
+        BCM_TOWER_URL . 'assets/css/tower.css',
+        array(),
+        BCM_TOWER_VERSION
+    );
+
+    wp_enqueue_script(
+        'bcm-tower',
+        BCM_TOWER_URL . 'assets/js/tower.js',
+        array(),
+        BCM_TOWER_VERSION,
+        false
+    );
+
+    wp_localize_script('bcm-tower', 'BCMTowerConfig', array(
+        'threeUrl'   => defined('BCM_MINI_SIM_URL') ? BCM_MINI_SIM_URL . 'assets/js/three.min.js' : '',
+        'transition' => bcm_tower_pick_asset($assets, array('tower.mp4'), 'video'),
+        'towerTexture' => bcm_tower_pick_asset($assets, array(
+            'tower-wall.png',
+            'tower.png',
+            'tower-wall.webp',
+            'tower.webp'
+        ), 'image'),
+        'platformTexture' => bcm_tower_pick_asset($assets, array(
+            'tower-platform.png',
+            'platform.png',
+            'tower-platform.webp',
+            'platform.webp'
+        ), 'image'),
+        'shipTexture' => bcm_tower_pick_asset($assets, array(
+            'ship.png',
+            'ship.webp',
+            'ship.jpg',
+            'ship.jpeg'
+        ), 'image'),
+        'planetMaps' => array_values(array_map(static function ($asset) {
+            return $asset['url'];
+        }, array_filter($assets, static function ($asset) {
+            if (($asset['type'] ?? '') !== 'image') {
+                return false;
+            }
+            $name = strtolower($asset['name'] ?? '');
+            return (bool) preg_match('/(^|\\/)planet[^\\/]*\\.(png|webp|jpg|jpeg)$/i', $name);
+        }))),
+        'version' => BCM_TOWER_VERSION,
+    ));
+}
+
+function bcm_tower_shortcode($atts = array()) {
+    bcm_tower_enqueue_assets();
+
+    $atts = shortcode_atts(array(
+        'height' => 'min(100vh, 900px)',
+        'crew_image' => '',
+        'crew_name' => '',
+    ), $atts, 'bcm_tower');
+
+    $crew_image = trim((string) $atts['crew_image']);
+    $crew_name = trim((string) $atts['crew_name']);
+
+    ob_start();
+    ?>
+    <div class="bcm-tower" style="--bcm-tower-height:<?php echo esc_attr($atts['height']); ?>;">
+        <canvas class="bcm-tower-canvas" tabindex="0"></canvas>
+
+        <div class="bcm-tower-hud">
+            <div class="bcm-tower-title">BCM TOWER — PROTOTYPE</div>
+            <div class="bcm-tower-status">ENGINE LOADING...</div>
+            <div class="bcm-tower-level"></div>
+            <div class="bcm-tower-help bcm-tower-help-desktop">
+                <span>A/D</span> вращение башни · <span>Space</span> jetpack ×2 ·
+                <span>W/S</span> ручная коррекция высоты · <span>Mouse</span> обзор · <span>R</span> новый спуск
+            </div>
+            <div class="bcm-tower-help bcm-tower-help-gamepad">
+                <span>Левый стик X</span> вращение · <span>A</span> jetpack · <span>Правый стик</span> обзор · <span>Y</span> новый спуск
+            </div>
+            <div class="bcm-tower-crew" aria-live="polite"></div>
+        </div>
+
+        <div class="bcm-tower-mobile" aria-hidden="true">
+            <button data-tower-control="left" type="button">◀</button>
+            <button data-tower-control="jump" type="button">JET</button>
+            <button data-tower-control="right" type="button">▶</button>
+        </div>
+
+        <div class="bcm-tower-transition" hidden>
+            <video class="bcm-tower-transition-video" playsinline preload="auto"></video>
+            <div class="bcm-tower-transition-label">TOWER LANDING</div>
+            <button class="bcm-tower-transition-close" type="button" aria-label="Закрыть">×</button>
+        </div>
+
+        <button class="bcm-tower-restart" type="button" hidden>НОВЫЙ СПУСК</button>
+
+        <script type="application/json" class="bcm-tower-inline-config"><?php
+            echo wp_json_encode(array(
+                'crewImage' => esc_url_raw($crew_image),
+                'crewName' => sanitize_text_field($crew_name),
+            ));
+        ?></script>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+
+add_shortcode('bcm_tower', 'bcm_tower_shortcode');
