@@ -152,10 +152,9 @@ export function WalletPage() {
                           <div className="min-w-0">
                             <p className="truncate font-display text-base text-fg">{item.name}</p>
                             <p className="text-sm text-muted">
-                              ×{item.amount.toLocaleString("ru-RU")}
-                              {item.className ? ` · ${item.className}` : ""}
-                              {item.rarity ? ` · ${item.rarity}` : ""}
-                              {item.spec ? ` · ${item.spec}` : ""}
+                              {item.kind === "crew"
+                                ? item.rarity || ""
+                                : `×${item.amount.toLocaleString("ru-RU")}${item.spec && item.spec !== "crew" ? ` · ${item.spec}` : ""}${item.rarity ? ` · ${item.rarity}` : ""}`}
                             </p>
                             <TraitBlock item={item} />
                           </div>

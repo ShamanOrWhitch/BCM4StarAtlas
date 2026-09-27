@@ -24,6 +24,15 @@ import { scanDeskWallet } from "@/lib/desk";
 import type { WalletItem } from "@/lib/desk-types";
 import { AppChrome } from "@/components/app-chrome";
 
+const RARITY_CLASS: Record<(typeof OFFICIAL)[number], string> = {
+  Anomaly: "text-tensor-anomaly",
+  Legendary: "text-tensor-legend",
+  Epic: "text-tensor-epic",
+  Rare: "text-tensor-rare",
+  Uncommon: "text-tensor-uncommon",
+  Common: "text-tensor-common",
+};
+
 const TIER_LABEL: Record<TensorTier | "unknown", string> = {
   anomaly: "Anomaly",
   legendary: "Legendary",
@@ -232,6 +241,30 @@ export function CrewBay() {
             <div className="flex gap-2 overflow-x-auto pb-1">
               <button
                 type="button"
+                onClick={() => patch({ official: [] })}
+                className={`h-11 shrink-0 rounded-full border px-3 font-display text-sm ${
+                  query.official.length === 0 ? "border-brass-dim bg-surface-2 text-fg" : "border-line text-muted"
+                }`}
+              >
+                Вся редкость
+              </button>
+              {OFFICIAL.map((rarity) => {
+                const on = query.official.length === 1 && query.official[0] === rarity;
+                return (
+                  <button
+                    key={rarity}
+                    type="button"
+                    onClick={() => patch({ official: on ? [] : [rarity] })}
+                    className={`h-11 shrink-0 rounded-full border px-3 font-display text-sm ${on ? "border-brass-dim bg-surface-2 text-fg" : "border-line text-muted"}`}
+                  >
+                    {rarity}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              <button
+                type="button"
                 onClick={() => patch({ aptitudes: [] })}
                 className={`h-11 shrink-0 rounded-full border px-3 font-display text-sm ${
                   query.aptitudes.length === 0 ? "border-brass-dim bg-surface-2 text-fg" : "border-line text-muted"
@@ -258,7 +291,7 @@ export function CrewBay() {
             <div className="flex items-center justify-between gap-3">
               <p className="font-mono text-xs text-muted tabular-nums">
                 {rows.length} / {source.length}
-                <span className="text-faint">{live ? " · редкость: эпик → обычный" : " · Tensor rank ↑ как на витрине"}</span>
+                <span className="text-faint"> · от редкого к обычному</span>
               </p>
               <label className="flex items-center gap-2 font-display text-sm text-muted">
                 Сорт
@@ -283,7 +316,6 @@ export function CrewBay() {
             ) : (
               <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 {rows.map((c) => {
-                  const t = tensorTier(c.tensorRank);
                   const active = selected?.id === c.id;
                   return (
                     <li key={c.id}>
@@ -304,10 +336,7 @@ export function CrewBay() {
                             <p className="mt-1 text-sm text-fg">
                               {c.aptitudes.map((a) => `${a.name} ${a.xp === 50 ? "major" : "minor"}`).join(" · ") || "профессия не прочитана"}
                             </p>
-                            <p className="mt-1 font-mono text-[10px] text-faint">
-                              {c.tensorRank != null ? `#${c.tensorRank}` : c.id.slice(0, 4)}
-                              <span className={`ml-2 ${TIER_CLASS[t]}`}>{c.tensorRank != null ? TIER_LABEL[t] : c.official}</span>
-                            </p>
+                            <p className={`mt-1 font-mono text-xs ${RARITY_CLASS[c.official]}`}>{c.official}</p>
                           </div>
                         </div>
                       </button>
@@ -527,7 +556,6 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
 }
 
 function Detail({ crew, starred, onStar }: { crew: Crew; starred: boolean; onStar: () => void }) {
-  const t = tensorTier(crew.tensorRank);
   const gem = diamondRecipe(crew.official);
   const influence = influenceFromRoster(crew);
   return (
@@ -540,9 +568,7 @@ function Detail({ crew, starred, onStar }: { crew: Crew; starred: boolean; onSta
             <p className="mt-1 text-sm text-fg">
               {crew.aptitudes.map((a) => `${a.name} ${a.xp === 50 ? "major" : "minor"}`).join(" · ") || "профессия не прочитана"}
             </p>
-            <p className={`mt-1 font-mono text-xs ${TIER_CLASS[t]}`}>
-              {crew.tensorRank != null ? `${TIER_LABEL[t]} #${crew.tensorRank.toLocaleString("en")}` : crew.official}
-            </p>
+            <p className={`mt-1 font-mono text-xs ${RARITY_CLASS[crew.official]}`}>{crew.official}</p>
             {packetOf(crew.id) ? (
               <p className="mt-1 font-mono text-xs text-brass">{packetOf(crew.id)}</p>
             ) : null}

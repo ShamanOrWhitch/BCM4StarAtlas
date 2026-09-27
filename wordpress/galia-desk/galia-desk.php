@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.7.4
+ * Version: 0.7.5
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -890,9 +890,9 @@ function galia_desk_shortcode() {
           }).join("");
           var tape = data.tape || [];
           var prev = tape.length >= 2 ? tape[tape.length - 2].asks || {} : {};
-          root.querySelector("[data-galia-chart]").innerHTML = candlesSvg(data.candles || []) + bubblesHtml("Ресурсы", data.resources || [], prev) + bubblesHtml("Корабли", data.ships || [], prev);
+          root.querySelector("[data-galia-chart]").innerHTML = candlesSvg("POLIS / ATLAS · 1д", data.pairCandles || []) + candlesSvg("ATLAS / USD · 1д", data.candles || []) + bubblesHtml("Ресурсы и сырьё · ATLAS", data.resources || [], prev) + bubblesHtml("Корабли", data.ships || [], prev);
           var rows = (data.resources || []).filter(function (row) { return row.ask != null; });
-          var html = '<table><thead><tr><th>Ресурс</th><th>Класс</th><th>Продажа</th><th>Покупка</th><th>Δ</th></tr></thead><tbody>';
+          var html = '<table><thead><tr><th>Ресурс</th><th>Класс</th><th>Продажа, ATLAS</th><th>Покупка, ATLAS</th><th>Δ</th></tr></thead><tbody>';
           rows.forEach(function (row) {
             var d = "—";
             if (prev[row.mint]) {
@@ -926,16 +926,22 @@ function galia_desk_shortcode() {
           });
           return html + '</div></div>';
         }
-        function candlesSvg(candles) {
+        function candlesSvg(title, candles) {
           if (!candles || candles.length < 2) return "";
-          var w = 640, h = 96, pad = 6;
+          var w = 640, h = 160, pad = 8, padR = 72;
           var min = candles[0].l, max = candles[0].h;
           candles.forEach(function (c) { if (c.l < min) min = c.l; if (c.h > max) max = c.h; });
           var span = (max - min) || 1;
-          var slot = (w - pad * 2) / candles.length;
+          var slot = (w - pad - padR) / candles.length;
           function y(v) { return pad + (1 - (v - min) / span) * (h - pad * 2); }
-          var first = candles[0].o, last = candles[candles.length - 1].c;
-          var move = first ? ((last - first) / first) * 100 : 0;
+          function tick(n) { return n >= 100 ? n.toFixed(1) : n >= 1 ? n.toFixed(2) : n.toFixed(6); }
+          var last = candles[candles.length - 1];
+          var first = candles[0].o;
+          var move = first ? ((last.c - first) / first) * 100 : 0;
+          var grid = [max, (max + min) / 2, min].map(function (v) {
+            return '<line x1="' + pad + '" x2="' + (w - padR) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="rgba(232,238,242,.12)"/>'
+              + '<text x="' + (w - 4) + '" y="' + (y(v) + 4) + '" text-anchor="end" fill="#8b96a3" font-size="12">' + tick(v) + '</text>';
+          }).join("");
           var body = candles.map(function (c, i) {
             var x = pad + i * slot + slot / 2;
             var up = c.c >= c.o;
@@ -945,7 +951,9 @@ function galia_desk_shortcode() {
             return '<line x1="' + x + '" x2="' + x + '" y1="' + y(c.h) + '" y2="' + y(c.l) + '" stroke="' + color + '" stroke-width="1.2"/>'
               + '<rect x="' + (x - Math.max(1.2, slot * 0.28)) + '" y="' + top + '" width="' + Math.max(2, slot * 0.56) + '" height="' + Math.max(1.2, bot - top) + '" fill="' + color + '"/>';
           }).join("");
-          return '<div class="galia-desk-card"><strong>ATLAS · свечи 4ч</strong> ' + move.toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + '%<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:96px;display:block;margin-top:.4rem">' + body + '</svg><span class="galia-desk-note">Общий рынок MEXC.</span></div>';
+          return '<div class="galia-desk-card"><strong>' + title + '</strong> ' + move.toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + '%'
+            + ' <span class="galia-desk-note">O ' + tick(last.o) + ' H ' + tick(last.h) + ' L ' + tick(last.l) + ' C ' + tick(last.c) + '</span>'
+            + '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:160px;display:block;margin-top:.4rem">' + grid + body + '</svg></div>';
         }
         function load() {
           status.textContent = "Снимаю стакан…";
@@ -969,7 +977,12 @@ function galia_desk_shortcode() {
           hold.textContent = "Читаю кошелёк…";
           post("galia_desk_wallet", { owner: owner }).then(function (res) { return res.json(); }).then(function (json) {
             if (!json.success) throw new Error((json.data && json.data.message) || "wallet");
-            var items = json.data.items || [];
+            var items = (json.data.items || []).slice().sort(function (a, b) {
+              var rank = { Anomaly: 0, Legendary: 1, Epic: 2, Rare: 3, Uncommon: 4, Common: 5 };
+              var ar = a.kind === "crew" ? (rank[a.rarity] == null ? 9 : rank[a.rarity]) : 20;
+              var br = b.kind === "crew" ? (rank[b.rarity] == null ? 9 : rank[b.rarity]) : 20;
+              return ar - br;
+            });
             var profiles = json.data.profiles || [];
             var html = profiles.map(function (profile) {
               var fleets = (profile.fleets || []).map(function (fleet) {
@@ -978,9 +991,16 @@ function galia_desk_shortcode() {
               return '<div class="galia-desk-card"><strong>В игре</strong><br>' + profile.profile + '<br>' + fleets + '</div>';
             }).join("");
             html += items.map(function (item) {
-              var media = item.image ? '<img alt="" src="' + item.image + '" style="width:48px;height:48px;object-fit:cover;border-radius:8px;margin-right:.5rem" />' : '';
-              var clip = item.video ? '<video controls playsinline src="' + item.video + '" style="width:100%;max-height:180px;margin-top:.4rem"></video>' : '';
-              return '<div class="galia-desk-card" style="display:flex;gap:.5rem;align-items:flex-start">' + media + '<div><strong>' + item.name + '</strong> ×' + num(item.amount) + ' · ' + item.kind + (item.spec ? ' · ' + item.spec : '') + clip + '</div></div>';
+              var media = item.image ? '<img alt="" src="' + item.image + '" style="width:72px;height:72px;object-fit:cover;border-radius:8px" />' : '';
+              var jobs = (item.traits || []).filter(function (trait) {
+                return /flight|command|engineering|medical|science|fitness|hospitality|operator/i.test(trait.trait);
+              }).map(function (trait) {
+                return trait.trait + " " + (/minor|25/i.test(String(trait.value)) ? "minor" : "major");
+              }).join(" · ");
+              var line = item.kind === "crew"
+                ? ((item.rarity || "") + (jobs ? " · " + jobs : ""))
+                : ("×" + num(item.amount) + (item.spec === "мой ордер" ? " · в продаже" : "") + (item.quote ? " · " + item.quote : ""));
+              return '<div class="galia-desk-card" style="display:flex;gap:.6rem;align-items:flex-start">' + media + '<div><strong>' + item.name + '</strong><div>' + line + '</div></div></div>';
             }).join("");
             if (!items.length) html += "<p>На ключе нет токенов Star Atlas. Подпись это не лечит: груз игры и экипаж в крио SAGE лежат не на адресе.</p>";
             hold.innerHTML = html;
@@ -1076,13 +1096,13 @@ function galia_desk_globe_markup($full = false) {
     ?>
     <div id="galia-root" style="min-height:<?php echo esc_attr($height); ?>;background:#07090e"></div>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" />
-    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.7.4'); ?>" />
+    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.7.5'); ?>" />
     <!-- noptimize -->
     <script>
       window.GALIA_ASSET = <?php echo wp_json_encode($base); ?>;
       window.GALIA_WP = <?php echo wp_json_encode(array('ajax' => $ajax, 'nonce' => $nonce)); ?>;
     </script>
-    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.7.4'); ?>"></script>
+    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.7.5'); ?>"></script>
     <!-- /noptimize -->
     <?php
     return ob_get_clean();
