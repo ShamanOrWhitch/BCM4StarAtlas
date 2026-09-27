@@ -15,16 +15,18 @@ export default defineConfig({
       { find: "@", replacement: fileURLToPath(new URL("../../src", import.meta.url)) },
     ],
   },
+  base: "./",
   build: {
     outDir: fileURLToPath(new URL("./app", import.meta.url)),
     emptyOutDir: true,
     cssCodeSplit: false,
+    modulePreload: false,
     rollupOptions: {
       input: fileURLToPath(new URL("../../src/wp/main.tsx", import.meta.url)),
       output: {
-        format: "iife",
-        inlineDynamicImports: true,
+        format: "es",
         entryFileNames: "app.js",
+        chunkFileNames: "[name].js",
         assetFileNames: "app.[ext]",
       },
     },

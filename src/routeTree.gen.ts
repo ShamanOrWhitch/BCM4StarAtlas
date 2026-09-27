@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CrewRouteImport } from './routes/crew'
+import { Route as MapRouteImport } from './routes/map'
 import { Route as MarketRouteImport } from './routes/market'
 import { Route as ShipsRouteImport } from './routes/ships'
 import { Route as WalletRouteImport } from './routes/wallet'
@@ -23,6 +24,11 @@ const IndexRoute = IndexRouteImport.update({
 const CrewRoute = CrewRouteImport.update({
   id: '/crew',
   path: '/crew',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MapRoute = MapRouteImport.update({
+  id: '/map',
+  path: '/map',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MarketRoute = MarketRouteImport.update({
@@ -44,6 +50,7 @@ const WalletRoute = WalletRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/crew': typeof CrewRoute
+  '/map': typeof MapRoute
   '/market': typeof MarketRoute
   '/ships': typeof ShipsRoute
   '/wallet': typeof WalletRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/crew': typeof CrewRoute
+  '/map': typeof MapRoute
   '/market': typeof MarketRoute
   '/ships': typeof ShipsRoute
   '/wallet': typeof WalletRoute
@@ -59,21 +67,23 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/crew': typeof CrewRoute
+  '/map': typeof MapRoute
   '/market': typeof MarketRoute
   '/ships': typeof ShipsRoute
   '/wallet': typeof WalletRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/crew' | '/market' | '/ships' | '/wallet'
+  fullPaths: '/' | '/crew' | '/map' | '/market' | '/ships' | '/wallet'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/crew' | '/market' | '/ships' | '/wallet'
-  id: '__root__' | '/' | '/crew' | '/market' | '/ships' | '/wallet'
+  to: '/' | '/crew' | '/map' | '/market' | '/ships' | '/wallet'
+  id: '__root__' | '/' | '/crew' | '/map' | '/market' | '/ships' | '/wallet'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CrewRoute: typeof CrewRoute
+  MapRoute: typeof MapRoute
   MarketRoute: typeof MarketRoute
   ShipsRoute: typeof ShipsRoute
   WalletRoute: typeof WalletRoute
@@ -93,6 +103,13 @@ declare module '@tanstack/react-router' {
       path: '/crew'
       fullPath: '/crew'
       preLoaderRoute: typeof CrewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/map': {
+      id: '/map'
+      path: '/map'
+      fullPath: '/map'
+      preLoaderRoute: typeof MapRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/market': {
@@ -122,6 +139,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CrewRoute: CrewRoute,
+  MapRoute: MapRoute,
   MarketRoute: MarketRoute,
   ShipsRoute: ShipsRoute,
   WalletRoute: WalletRoute,

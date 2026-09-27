@@ -20,7 +20,7 @@ export const useCartograph = create<CartographState>((set, get) => ({
   systemId: SYSTEMS[0].id,
   markerId: "oni-css",
   favorites: [],
-  autoRotate: true,
+  autoRotate: false,
   interacting: false,
   focusNonce: 0,
   setSystem: (id) => {

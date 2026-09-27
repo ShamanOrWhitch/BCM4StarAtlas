@@ -29,6 +29,7 @@ export type MarketSnap = {
   resources: ResourceRow[];
   ships: ResourceRow[];
   candles: Candle[];
+  pairCandles: Candle[];
   tape: TapePoint[];
   note: string;
 };

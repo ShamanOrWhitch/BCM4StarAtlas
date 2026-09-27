@@ -1,4 +1,5 @@
 import MEDIA from "./ship-media.json";
+import GALAXY from "./galaxy-ship-images.json";
 
 export const SHIP_SIZES = ["XX-Small", "X-Small", "Small", "Medium", "Large"] as const;
 export type ShipSize = (typeof SHIP_SIZES)[number];

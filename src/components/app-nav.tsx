@@ -4,8 +4,8 @@ import { Compass, LineChart, Ship, Users, Wallet } from "lucide-react";
 export type DeskTab = "map" | "crew" | "ships" | "market" | "wallet";
 
 const ITEMS = [
-  { to: "/" as const, id: "map" as const, Icon: Compass, label: "Карта" },
-  { to: "/crew" as const, id: "crew" as const, Icon: Users, label: "Экипаж" },
+  { to: "/" as const, id: "crew" as const, Icon: Users, label: "Экипаж" },
+  { to: "/map" as const, id: "map" as const, Icon: Compass, label: "Карта" },
   { to: "/ships" as const, id: "ships" as const, Icon: Ship, label: "Флот" },
   { to: "/market" as const, id: "market" as const, Icon: LineChart, label: "Рынок" },
   { to: "/wallet" as const, id: "wallet" as const, Icon: Wallet, label: "Сейф" },

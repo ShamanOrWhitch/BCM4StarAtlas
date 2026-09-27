@@ -107,7 +107,8 @@ export function MarketPage() {
             <TokenCard name="ATLAS" quote={snap?.atlas} />
             <TokenCard name="POLIS" quote={snap?.polis} />
           </div>
-          <CandleChart candles={snap?.candles ?? []} />
+          <CandleChart title="ATLAS / USD" candles={snap?.candles ?? []} />
+          <CandleChart title="POLIS / ATLAS" candles={snap?.pairCandles ?? []} />
 
           <div className="grid gap-3 sm:grid-cols-3">
             {pinned.map((row) => (
@@ -242,8 +243,8 @@ function BubbleField({ title, rows, previous }: { title: string; rows: ResourceR
   );
 }
 
-function CandleChart({ candles }: { candles: Candle[] }) {
-  if (candles.length < 2) return null;
+function CandleChart({ title, candles }: { title: string; candles: Candle[] }) {
+  if (candles.length < 2) return <p className="text-sm text-muted">{title}: свечи ещё не пришли.</p>;
   const w = 640;
   const h = 112;
   const pad = 6;
@@ -258,10 +259,10 @@ function CandleChart({ candles }: { candles: Candle[] }) {
   return (
     <figure className="rounded-xl border border-line bg-surface p-3">
       <figcaption className="mb-2 flex items-baseline justify-between gap-3">
-        <span className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">ATLAS · свечи 4ч</span>
+        <span className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{title} · 4ч</span>
         <span className={`font-mono text-sm ${move != null && move < 0 ? "text-danger" : "text-ok"}`}>{fmtPct(move)}</span>
       </figcaption>
-      <svg viewBox={`0 0 ${w} ${h}`} className="h-28 w-full" role="img" aria-label="Свечи ATLAS">
+      <svg viewBox={`0 0 ${w} ${h}`} className="h-28 w-full" role="img" aria-label={title}>
         {candles.map((candle, index) => {
           const x = pad + index * slot + slot / 2;
           const up = candle.c >= candle.o;
@@ -276,7 +277,7 @@ function CandleChart({ candles }: { candles: Candle[] }) {
           );
         })}
       </svg>
-      <p className="mt-1 text-sm text-muted">Общий рынок MEXC, не снимок этого браузера. Ресурсы ниже — стакан Galactic Marketplace.</p>
+      <p className="mt-1 text-sm text-muted">Kraken, 4 часа. Это не ноль браузера. Ресурсы ниже — стакан Galactic Marketplace в ATLAS.</p>
     </figure>
   );
 }

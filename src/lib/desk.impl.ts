@@ -116,9 +116,48 @@ function readBook(rows: ReadonlyArray<{ account: { data: Uint8Array } }>, atlasH
   return book;
 }
 
-async function atlasCandles(): Promise<Candle[]> {
+async function krakenCandles(pair: string): Promise<Candle[]> {
   try {
-    const rows = await getJson<unknown[][]>("https://api.mexc.com/api/v3/klines?symbol=ATLASUSDT&interval=4h&limit=42");
+    const data = await getJson<{ result?: Record<string, unknown> }>(
+      `https://api.kraken.com/0/public/OHLC?pair=${pair}&interval=240`,
+    );
+    const rows = Object.values(data.result ?? {}).find((value) => Array.isArray(value)) as unknown[][] | undefined;
+    if (!rows) return [];
+    return rows
+      .slice(-48)
+      .map((row) => ({
+        t: Number(row[0]) * 1000,
+        o: Number(row[1]),
+        h: Number(row[2]),
+        l: Number(row[3]),
+        c: Number(row[4]),
+      }))
+      .filter((candle) => Number.isFinite(candle.c) && candle.c > 0);
+  } catch {
+    return [];
+  }
+}
+
+function crossCandles(base: Candle[], quote: Candle[]): Candle[] {
+  const byTime = new Map(quote.map((candle) => [candle.t, candle]));
+  const out: Candle[] = [];
+  for (const row of base) {
+    const other = byTime.get(row.t);
+    if (!other || other.o <= 0 || other.c <= 0) continue;
+    const o = row.o / other.o;
+    const c = row.c / other.c;
+    const h = Math.max(row.h / other.h, row.l / other.l, o, c);
+    const l = Math.min(row.h / other.h, row.l / other.l, o, c);
+    if (Number.isFinite(c) && c > 0) out.push({ t: row.t, o, h, l, c });
+  }
+  return out;
+}
+
+async function atlasCandles(): Promise<Candle[]> {
+  const kraken = await krakenCandles("ATLASUSD");
+  if (kraken.length > 2) return kraken;
+  try {
+    const rows = await getJson<unknown[][]>("https://api.mexc.com/api/v3/klines?symbol=ATLASUSDT&interval=4h&limit=48");
     return rows
       .map((row) => ({
         t: Number(row[0]),
@@ -150,19 +189,22 @@ function pushTape(resources: ResourceRow[]): TapePoint[] {
 export async function buildMarket(): Promise<MarketSnap> {
   if (marketCache && Date.now() - marketCache.at < MARKET_TTL) return marketCache.data;
   const atlasHex = new PublicKey(ATLAS).toBuffer().toString("hex");
-  const [nfts, atlasTok, polisTok, prices, orders, candles] = await Promise.all([
+  const [nfts, atlasTok, polisTok, prices, orders, candles, polisCandles] = await Promise.all([
     loadCatalog(),
     getJson<Record<string, number | string>>("https://galaxy.staratlas.com/tokens/atlas").catch(() => null),
     getJson<Record<string, number | string>>("https://galaxy.staratlas.com/tokens/polis").catch(() => null),
     getJson<Record<string, { usdPrice?: number; priceChange24h?: number }>>(
       `https://lite-api.jup.ag/price/v3?ids=${ATLAS},${POLIS}`,
     ).catch(() => ({}) as Record<string, { usdPrice?: number; priceChange24h?: number }>),
-    connection.getProgramAccounts(new PublicKey(GM), {
-      commitment: "confirmed",
-      dataSlice: { offset: 40, length: 153 },
-      filters: [{ dataSize: 201 }, { memcmp: { offset: 40, bytes: ATLAS } }],
-    }),
+    connection
+      .getProgramAccounts(new PublicKey(GM), {
+        commitment: "confirmed",
+        dataSlice: { offset: 40, length: 153 },
+        filters: [{ dataSize: 201 }, { memcmp: { offset: 40, bytes: ATLAS } }],
+      })
+      .catch(() => []),
     atlasCandles(),
+    krakenCandles("POLISUSD"),
   ]);
 
   const book = readBook(orders, atlasHex);
@@ -223,8 +265,9 @@ export async function buildMarket(): Promise<MarketSnap> {
     resources,
     ships: ships.slice(0, 40),
     candles,
+    pairCandles: crossCandles(polisCandles, candles),
     tape: pushTape([...resources, ...ships]),
-    note: "Свечи ATLAS — общий рынок MEXC, 4 часа. Это не ноль внутри браузера. Ресурсы: лучшая цена стакана Galactic Marketplace в ATLAS. У Galaxy нет истории стакана, поэтому Δ ресурсов копится общим снимком сервера. USD — Jupiter.",
+    note: "ATLAS/USD и POLIS/ATLAS — свечи Kraken, 4 часа. Ресурсы: лучшая продажа Galactic Marketplace в ATLAS. Картинки кораблей с серверов Star Atlas. Если стакан пуст, хостинг не дождался реестра ордеров, цены токенов при этом уже есть.",
   };
   marketCache = { at: Date.now(), data };
   return data;

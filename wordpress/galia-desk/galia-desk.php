@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.6.0
+ * Version: 0.7.0
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -171,7 +171,7 @@ function galia_desk_market() {
                 array('memcmp' => array('offset' => 40, 'bytes' => GALIA_DESK_ATLAS)),
             ),
         ),
-    ), 18);
+    ), 12);
 
     $asks = array();
     $bids = array();
@@ -245,6 +245,7 @@ function galia_desk_market() {
         }
     }
 
+    $atlas_candles = galia_desk_candles();
     $payload = array(
         'at' => time(),
         'orderCount' => $order_count,
@@ -252,7 +253,8 @@ function galia_desk_market() {
         'polis' => galia_desk_token($polis, $prices, GALIA_DESK_POLIS),
         'resources' => $resources,
         'ships' => array_slice($ships, 0, 40),
-        'candles' => galia_desk_candles(),
+        'candles' => $atlas_candles,
+        'pairCandles' => galia_desk_cross(galia_desk_kraken('POLISUSD'), $atlas_candles),
         'tape' => galia_desk_push_tape(array_merge($resources, $ships)),
         'gmp' => function_exists('gmp_init') || function_exists('bcadd'),
     );
@@ -306,18 +308,25 @@ function galia_desk_b58_decode($text) {
     return str_repeat("\0", $zeros) . $bin;
 }
 
-function galia_desk_candles() {
-    $rows = galia_desk_remote_json('https://api.mexc.com/api/v3/klines?symbol=ATLASUSDT&interval=4h&limit=42');
+function galia_desk_kraken($pair) {
+    $data = galia_desk_remote_json('https://api.kraken.com/0/public/OHLC?pair=' . rawurlencode($pair) . '&interval=240');
     $out = array();
-    if (!is_array($rows)) {
+    if (!is_array($data) || empty($data['result']) || !is_array($data['result'])) {
         return $out;
     }
+    $rows = array();
+    foreach ($data['result'] as $value) {
+        if (is_array($value) && isset($value[0]) && is_array($value[0])) {
+            $rows = $value;
+        }
+    }
+    $rows = array_slice($rows, -48);
     foreach ($rows as $row) {
         if (!is_array($row) || count($row) < 5) {
             continue;
         }
         $out[] = array(
-            't' => (int) $row[0],
+            't' => (int) $row[0] * 1000,
             'o' => (float) $row[1],
             'h' => (float) $row[2],
             'l' => (float) $row[3],
@@ -325,6 +334,56 @@ function galia_desk_candles() {
         );
     }
     return $out;
+}
+
+function galia_desk_cross($base, $quote) {
+    $by = array();
+    foreach ($quote as $row) {
+        $by[$row['t']] = $row;
+    }
+    $out = array();
+    foreach ($base as $row) {
+        if (!isset($by[$row['t']]) || $by[$row['t']]['c'] <= 0) {
+            continue;
+        }
+        $other = $by[$row['t']];
+        $o = $row['o'] / $other['o'];
+        $c = $row['c'] / $other['c'];
+        if ($o <= 0 || $c <= 0) {
+            continue;
+        }
+        $out[] = array(
+            't' => $row['t'],
+            'o' => $o,
+            'h' => max($row['h'] / max($other['h'], 0.0000001), $o, $c),
+            'l' => min($row['l'] / max($other['l'], 0.0000001), $o, $c),
+            'c' => $c,
+        );
+    }
+    return $out;
+}
+
+function galia_desk_candles() {
+    $atlas = galia_desk_kraken('ATLASUSD');
+    if (count($atlas) < 2) {
+        $rows = galia_desk_remote_json('https://api.mexc.com/api/v3/klines?symbol=ATLASUSDT&interval=4h&limit=48');
+        $atlas = array();
+        if (is_array($rows)) {
+            foreach ($rows as $row) {
+                if (!is_array($row) || count($row) < 5) {
+                    continue;
+                }
+                $atlas[] = array(
+                    't' => (int) $row[0],
+                    'o' => (float) $row[1],
+                    'h' => (float) $row[2],
+                    'l' => (float) $row[3],
+                    'c' => (float) $row[4],
+                );
+            }
+        }
+    }
+    return $atlas;
 }
 
 function galia_desk_push_tape($resources) {
@@ -760,12 +819,14 @@ function galia_desk_globe_markup($full = false) {
     ?>
     <div id="galia-root" style="min-height:<?php echo esc_attr($height); ?>;background:#07090e"></div>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" />
-    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.6.0'); ?>" />
+    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.7.0'); ?>" />
+    <!-- noptimize -->
     <script>
       window.GALIA_ASSET = <?php echo wp_json_encode($base); ?>;
       window.GALIA_WP = <?php echo wp_json_encode(array('ajax' => $ajax, 'nonce' => $nonce)); ?>;
     </script>
-    <script src="<?php echo esc_url($base . 'app.js?ver=0.6.0'); ?>"></script>
+    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.7.0'); ?>"></script>
+    <!-- /noptimize -->
     <?php
     return ob_get_clean();
 }
