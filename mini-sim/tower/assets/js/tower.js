@@ -456,7 +456,7 @@
       }
 
       if (!url) return null;
-      const tex = assetTexture(url, renderer, false);
+      const tex = assetTexture(url, renderer, {});
       if (!tex) return null;
 
       const mesh = new THREE.Mesh(
@@ -507,7 +507,7 @@
 
       playerTexture = null;
       if (inlineConfig.crewImage) {
-        playerTexture = assetTexture(inlineConfig.crewImage, renderer, false);
+        playerTexture = assetTexture(inlineConfig.crewImage, renderer, {});
       }
 
       while (playerMarkers.length) {
@@ -926,16 +926,25 @@
 
     function startMode(nextMode) {
       mode = nextMode === "multi" ? "multi" : "single";
-      gameStarted = true;
       menu.hidden = true;
       mobile?.setAttribute("aria-hidden", "false");
       mobile?.querySelector(".bcm-tower-mobile-p2")?.toggleAttribute("hidden", mode !== "multi");
       root.classList.toggle("is-multi", mode === "multi");
-      buildTower(makeSeed());
-      requestAnimationFrame(() => {
-        resize();
-        renderViews();
-      });
+
+      try {
+        buildTower(makeSeed());
+        gameStarted = true;
+        requestAnimationFrame(() => {
+          resize();
+          renderViews();
+        });
+      } catch (error) {
+        gameStarted = false;
+        menu.hidden = false;
+        status.textContent = "TOWER ERROR: " + (error?.message || "BUILD FAILED");
+        console.error("BCM Tower startMode failed", error);
+        return;
+      }
 
       if (mode === "multi") {
         mobile?.classList.add("is-multi");
@@ -1217,8 +1226,9 @@
     window.BCMTowerAPI = window.BCMTowerAPI || {};
     window.BCMTowerAPI.enter = () => {
       root.hidden = false;
-      // Reveal first, then resize on the next frame so the embedded canvas
-      // gets its real viewport instead of the 1x1 hidden-root size.
+      // Never expose the standby menu during the landing-video handoff.
+      menu.hidden = true;
+      status.textContent = "LANDING VIDEO...";
       requestAnimationFrame(() => {
         resize();
         triggerTransition();
