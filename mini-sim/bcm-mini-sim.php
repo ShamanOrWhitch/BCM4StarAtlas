@@ -117,6 +117,7 @@ function bcm_mini_sim_enqueue_assets()
             // Start Tower preload well before the gate becomes large on screen.
             'preloadRadius' => 180.0,
             'coverageThreshold' => 0.69,
+            'uiRadius' => 180.0,
         ),
         'towerJsUrl' => BCM_MINI_SIM_URL . 'tower/assets/js/tower.js',
         'towerCssUrl' => BCM_MINI_SIM_URL . 'tower/assets/css/tower.css',
@@ -245,16 +246,15 @@ function bcm_mini_sim_shortcode($atts = array())
         </div>
     </div>
     <?php
-        <?php
-        if (function_exists('bcm_tower_shortcode')) {
-            echo bcm_tower_shortcode(array(
-                'height' => '100vh',
-                'autostart' => '0',
-                'embedded' => '1',
-            ));
-        }
-        ?>
-    return ob_get_clean();
+    if (function_exists('bcm_tower_shortcode')) {
+        echo bcm_tower_shortcode(array(
+            'height' => '100vh',
+            'autostart' => '0',
+            'embedded' => '1',
+        ));
+    }
+    ?>
+    <?php return ob_get_clean();
 }
 
 add_shortcode('bcm_mini_sim', 'bcm_mini_sim_shortcode');
