@@ -154,11 +154,13 @@
       try { img.fetchPriority = "low"; } catch (e) {}
       img.onload = () => {
         backgroundTextureQueue.active--;
+        if (miniSimReleased) return;
         try { job.onload(img); } catch (e) {}
         setTimeout(pumpBackgroundTextures, 60);
       };
       img.onerror = () => {
         backgroundTextureQueue.active--;
+        if (miniSimReleased) return;
         try { if (job.onerror) job.onerror(); } catch (e) {}
         setTimeout(pumpBackgroundTextures, 60);
       };
@@ -435,8 +437,10 @@
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
+      if (miniSimReleased) return;
       try {
         makeTextureSource(img, (source) => {
+          if (miniSimReleased) return;
           const tex = textureFromSource(source);
           applyTex(tex);
           mat.map = tex;
@@ -453,6 +457,7 @@
       }
     };
     img.onerror = () => {
+      if (miniSimReleased) return;
       stats.failed++;
       stats.loaded++;
       stats.last = name + " 404";
