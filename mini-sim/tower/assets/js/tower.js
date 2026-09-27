@@ -908,7 +908,18 @@
       const w = Math.max(1, root.clientWidth);
       const h = Math.max(1, root.clientHeight);
       renderer.setSize(w, h, false);
+      // The embedded Tower is initialized while its root is hidden, so the
+      // first resize can legitimately be 1x1. Recalculate camera/viewport
+      // after the root becomes visible as well.
+      if (renderer.domElement && w > 1 && h > 1) {
+        renderer.setViewport(0, 0, w, h);
+      }
     }
+
+    const resizeObserver = typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(() => resize())
+      : null;
+    resizeObserver?.observe(root);
 
     function startMode(nextMode) {
       mode = nextMode === "multi" ? "multi" : "single";
@@ -918,6 +929,10 @@
       mobile?.querySelector(".bcm-tower-mobile-p2")?.toggleAttribute("hidden", mode !== "multi");
       root.classList.toggle("is-multi", mode === "multi");
       buildTower(makeSeed());
+      requestAnimationFrame(() => {
+        resize();
+        renderViews();
+      });
 
       if (mode === "multi") {
         mobile?.classList.add("is-multi");
@@ -1184,11 +1199,24 @@
     }
 
     window.BCMTowerAPI = window.BCMTowerAPI || {};
-    window.BCMTowerAPI.enter = triggerTransition;
+    window.BCMTowerAPI.enter = () => {
+      root.hidden = false;
+      // Reveal first, then resize on the next frame so the embedded canvas
+      // gets its real viewport instead of the 1x1 hidden-root size.
+      requestAnimationFrame(() => {
+        resize();
+        triggerTransition();
+        requestAnimationFrame(renderViews);
+      });
+    };
     window.BCMTowerAPI.mount = (targetRoot) => {
       if (targetRoot && targetRoot !== root) {
         root.hidden = false;
       }
+      requestAnimationFrame(() => {
+        resize();
+        renderViews();
+      });
       return root;
     };
 
