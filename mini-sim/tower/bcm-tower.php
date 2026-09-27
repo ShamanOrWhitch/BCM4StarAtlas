@@ -134,6 +134,11 @@ function bcm_tower_enqueue_assets() {
     wp_localize_script('bcm-tower', 'BCMTowerConfig', array(
         'threeUrl'   => defined('BCM_MINI_SIM_URL') ? BCM_MINI_SIM_URL . 'assets/js/three.min.js' : '',
         'transition' => bcm_tower_pick_asset($tower_assets, array('tower.mp4'), 'video'),
+        'transitionFallbacks' => array_values(array_filter(array(
+            bcm_tower_pick_asset($assets, array('portal2.mp4'), 'video'),
+            bcm_tower_pick_asset($assets, array('portal3.mp4'), 'video'),
+            bcm_tower_pick_asset($assets, array('portal1.mp4'), 'video'),
+        ))),
         'towerTexture' => bcm_tower_pick_asset($assets, array(
             'tower-wall.png',
             'tower.png',
