@@ -1507,7 +1507,7 @@
       }
 
       if (!gameStarted) {
-        const pad = activePads[0];
+        const pad = connectedPads[0] || null;
         if (!pad) return;
         if (pad.buttons?.[0]?.pressed && !edgeState[0].jump) startMode("single");
         if (pad.buttons?.[1]?.pressed && !edgeState[0].interact) startMode("multi");
