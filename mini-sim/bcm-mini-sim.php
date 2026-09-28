@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.30
+ * Version: 0.9.31
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.30');
+define('BCM_MINI_SIM_VERSION', '0.9.31');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -110,11 +110,10 @@ function bcm_mini_sim_enqueue_assets()
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
         'threeUrl' => BCM_MINI_SIM_URL . 'assets/js/three.min.js',
         'towerApproach' => array(
-            // Preload near the same Deep Space area; the actual landing trigger
-            // remains the visible planet, exactly as in the working 0.9.25 logic.
-            'x' => -26.0,
-            'y' => 9.0,
-            'z' => -190.0,
+            // Preload around the actual automatic Tower gate: onicss.mp4.
+            'x' => 0.0,
+            'y' => -2.0,
+            'z' => -260.0,
             'preloadRadius' => 120.0,
             'coverageThreshold' => 0.69,
             'uiRadius' => 180.0,
@@ -143,7 +142,8 @@ function bcm_mini_sim_enqueue_assets()
                 'preloadRadius' => 180,
                 'maxWidth' => 13.0,
                 'maxHeight' => 8.0,
-                'preloadWhenStarted' => true
+                'preloadWhenStarted' => true,
+                'towerGate' => true
             ),
             // Only one clip in the portal/open-space room.
             array('url' => 'https://walkingyog.com/wp-content/uploads/2025/11/30Сек43-1.mp4', 'x' => -4.2, 'y' => 1.4, 'z' => -42.0, 'radius' => 9, 'maxWidth' => 7.2, 'maxHeight' => 4.5),
@@ -178,7 +178,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.30</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.31</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ВНЕШНИЕ ЭКРАНЫ</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
