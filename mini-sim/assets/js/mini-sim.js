@@ -308,6 +308,10 @@
     stars: null,
     visible: false
   };
+  const spacePlanet = {
+    mesh: null,
+    visible: false
+  };
   const room0Labyrinth = {
     group: null,
     walls: [],
@@ -982,12 +986,9 @@
 
   function updateRoom0Labyrinth() {
     if (!room0Labyrinth.group || !ship.position) return;
-    const minZ = Math.min(room0Labyrinth.startZ, room0Labyrinth.endZ);
-    const maxZ = Math.max(room0Labyrinth.startZ, room0Labyrinth.endZ);
-    const active = ship.position.z >= minZ - 0.15 &&
-      ship.position.z <= maxZ + 1.5 &&
-      Math.abs(ship.position.x) <= 5.35 &&
-      Math.abs(ship.position.y) <= 3.25;
+    const active = getSpaceZone(ship.position.z) === "ROOM1" &&
+      Math.abs(ship.position.x) <= 8.0 &&
+      Math.abs(ship.position.y) <= 5.0;
 
     room0Labyrinth.group.visible = active;
     room0Labyrinth.active = active;
@@ -1167,6 +1168,23 @@
     namePlate.position.set(0, -5.4, 0);
     group.add(namePlate);
 
+    const planetAsset = assets.find((asset) =>
+      asset &&
+      asset.type === "image" &&
+      /^planet[^/\\]*\\.(png|jpg|jpeg|webp)$/i.test(String(asset.name || ""))
+    );
+    const planetMaterial = planetAsset
+      ? textured(planetAsset.name, 0x496b8f)
+      : new THREE.MeshBasicMaterial({ color: 0x496b8f });
+    const planet = new THREE.Mesh(
+      new THREE.SphereGeometry(11, 24, 16),
+      planetMaterial
+    );
+    planet.position.set(-26, 9, -190);
+    planet.name = "deep-space-planet";
+    parent.add(planet);
+    spacePlanet.mesh = planet;
+
     parent.add(group);
     spaceSatellite.group = group;
 
@@ -1201,7 +1219,9 @@
     const visible = !!ship.position && getSpaceZone(ship.position.z) === "DEEP_SPACE";
     if (spaceSatellite.group) spaceSatellite.group.visible = visible;
     if (spaceSatellite.stars) spaceSatellite.stars.visible = visible;
+    if (spacePlanet.mesh) spacePlanet.mesh.visible = visible;
     spaceSatellite.visible = visible;
+    spacePlanet.visible = visible;
   }
 
   function buildWorld() {
@@ -2880,7 +2900,7 @@
     if (interaction) {
       if (gate && gateDistance <= gateUiRadius) {
         interaction.textContent = gateCoverage >= 0.69
-          ? "TOWER GATE LOCK 69% · ENTER"
+          ? "TOWER GATE LOCK 69% · T TO ENTER"
           : "TOWER GATE " + Math.round(gateCoverage * 100) + "%";
       } else {
         interaction.textContent = portal.coverage >= 0.69
@@ -2889,9 +2909,8 @@
       }
     }
 
-    if (!towerGateTriggered && gate && gateDistance <= gateUiRadius && gateCoverage >= 0.69) {
-      enterTowerFromGate();
-    }
+    // Do not auto-handoff on video coverage. Keep onicss.mp4 visible until
+    // the player explicitly enters Tower with T at the locked gate.
     if (!cinema.focus) {
       if (portalSide() === "FRONT" && portal.coverage >= 0.69) tryPortal();
       if (portalSide() === "BACK" && portalTriggerDistance("BACK") <= 7.5) tryPortal();
@@ -3058,6 +3077,12 @@
       if (e.code === "KeyF") { e.preventDefault(); toggleCinemaFocus(); }
       if (e.code === "KeyH") { e.preventDefault(); returnToStart(); }
       if (e.code === "KeyR") { e.preventDefault(); openDoor("REMOTE"); }
+      if (e.code === "KeyT") {
+        e.preventDefault();
+        if (!transitionBusy && gate && gateDistance <= gateUiRadius && gateCoverage >= 0.69) {
+          enterTowerFromGate();
+        }
+      }
     });
     window.addEventListener("keyup", (e) => { keys[e.code] = false; });
     window.addEventListener("resize", resize);
