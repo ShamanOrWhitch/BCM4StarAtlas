@@ -312,8 +312,13 @@
     group: null,
     walls: [],
     active: false,
-    startZ: -1.0,
-    endZ: -23.0
+    // Room 0 is a separate large room behind Room 1 rear cap / capdoor.
+    // It starts immediately outside the old Room 1 shell and continues
+    // forward in the same direction as the player reaches capdoor.mp4.
+    startZ: 5.9,
+    endZ: 53.9,
+    halfX: 10.8,
+    halfY: 5.8
   };
   // Only the two visible starbase corridor shells are collision geometry.
   // Deep Space itself has no map boundary.
@@ -917,27 +922,28 @@
 
     const startZ = room0Labyrinth.startZ;
     const endZ = room0Labyrinth.endZ;
-    const barriers = 8;
-    const step = (startZ - endZ) / barriers;
-    const wallHalfY = 3.05;
-    const wallThickness = 0.36;
-    const wallHalfX = 5.05;
-    const gapHalf = 1.45;
+    const barriers = 12;
+    const step = (endZ - startZ) / barriers;
+    const wallHalfY = room0Labyrinth.halfY;
+    const wallThickness = 0.42;
+    const wallHalfX = room0Labyrinth.halfX;
+    const gapHalf = 1.8;
+    const gapCenters = [-6.8, 0, 6.8];
     const rand = seedRandom(labyrinthSeed ^ 0x524f4f30);
 
     room0Labyrinth.walls.length = 0;
 
     for (let i = 0; i < barriers; i++) {
-      const z = startZ - step * (i + 0.5);
+      const z = startZ + step * (i + 0.5);
 
       // The seed chooses the opening. Adjacent barriers deliberately avoid
       // repeating the same opening so the route becomes a real zig-zag.
-      let gap = Math.floor(rand() * 3);
+      let gap = Math.floor(rand() * gapCenters.length);
       if (i > 0 && gap === room0Labyrinth.walls[room0Labyrinth.walls.length - 1].gap) {
-        gap = (gap + 1 + Math.floor(rand() * 2)) % 3;
+        gap = (gap + 1 + Math.floor(rand() * (gapCenters.length - 1))) % gapCenters.length;
       }
 
-      const gapCenter = [-3.15, 0, 3.15][gap];
+      const gapCenter = gapCenters[gap];
 
       const makeWall = (xMin, xMax) => {
         const width = xMax - xMin;
@@ -979,10 +985,10 @@
 
   function updateRoom0Labyrinth() {
     if (!room0Labyrinth.group || !ship.position) return;
-    const active = ship.position.z <= room0Labyrinth.startZ + 0.15 &&
-      ship.position.z >= room0Labyrinth.endZ - 1.5 &&
-      Math.abs(ship.position.x) <= 5.35 &&
-      Math.abs(ship.position.y) <= 3.25;
+    const active = ship.position.z >= room0Labyrinth.startZ - 0.35 &&
+      ship.position.z <= room0Labyrinth.endZ + 1.5 &&
+      Math.abs(ship.position.x) <= room0Labyrinth.halfX + 0.45 &&
+      Math.abs(ship.position.y) <= room0Labyrinth.halfY + 0.45;
 
     room0Labyrinth.group.visible = active;
     room0Labyrinth.active = active;
@@ -1025,9 +1031,12 @@
       Math.abs(position.y) <= 3.2;
     if (!inCorridorXY) return false;
 
-    const room1 = position.z > -24.5 && position.z <= 5.45;
+    const room0 = position.z >= 5.5 && position.z <= room0Labyrinth.endZ + 1.5 &&
+      Math.abs(position.x) <= room0Labyrinth.halfX + 0.45 &&
+      Math.abs(position.y) <= room0Labyrinth.halfY + 0.45;
+    const room1 = position.z > -25.5 && position.z <= 5.45;
     const room2 = position.z >= -84.5 && position.z < -47.46;
-    return room1 || room2;
+    return room0 || room1 || room2;
   }
 
   function updateBacksideVisibility() {
@@ -1424,7 +1433,7 @@
     scene.add(world);
     updateRoom0Labyrinth();
     if (status) {
-      status.textContent = "SPACE LABYRINTH · SEED " + labyrinthSeed + " · ROOM 0";
+      status.textContent = "SPACE LABYRINTH · SEED " + labyrinthSeed + " · ROOM 1";
     }
   }
 
@@ -2643,8 +2652,8 @@
   }
 
   function getSpaceZone(z) {
-    if (z > -1.0) return "ROOM1";
-    if (z > -24.5) return "ROOM0";
+    if (z > 5.5) return "ROOM0";
+    if (z >= -24.5) return "ROOM1";
     if (z >= -48.5) return "BLACK_HOLE";
     if (z >= -84.5) return "ROOM2";
     return "DEEP_SPACE";
@@ -2713,9 +2722,18 @@
         blocked = true;
       }
 
-      // Room 1 rear cap is closed.
-      // Room 2 rear cap is the one-way INSIDE -> OUTSIDE exit.
+      // Room 1 rear cap has a central opening behind capdoor.mp4.
+      // Room 2 rear cap remains the one-way INSIDE -> OUTSIDE exit.
       if (shellCrossed(before.z, ship.position.z, rearCapZ)) {
+        if (room1) {
+          const rearOpening = allowInteriorOpenings &&
+            Math.abs(ship.position.x) <= 5.85 &&
+            Math.abs(ship.position.y) <= 3.45;
+          if (rearOpening) {
+            return;
+          }
+        }
+
         if (!room1 && before.z > rearCapZ && ship.position.z < rearCapZ) {
           exteriorFlight = true;
           return;
