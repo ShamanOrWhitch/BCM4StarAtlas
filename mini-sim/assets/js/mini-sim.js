@@ -1206,9 +1206,9 @@
       const base = String(asset.name || "").split(/[\\/]/).pop() || "";
       return /^planet[^/]*\\.(png|jpg|jpeg|webp)$/i.test(base);
     });
-    const planetMaterial = planetAsset
-      ? textured(planetAsset.name, 0x496b8f)
-      : new THREE.MeshBasicMaterial({ color: 0x496b8f });
+    // Deep Space planet is the Oni station landing landmark.
+    // Keep the existing planet sphere and placement; replace only its texture.
+    const planetMaterial = textured("OniStation.png", 0x496b8f);
     const planet = new THREE.Mesh(
       new THREE.SphereGeometry(11, 24, 16),
       planetMaterial
@@ -3136,16 +3136,10 @@
       ? Number(config.towerApproach.uiRadius)
       : 180;
 
-    const stationDistance = spaceSatellite.group && ship.position
-      ? spaceSatellite.group.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position)
-      : Infinity;
-    const stationLandingRadius = 9.0;
-
     if (interaction) {
-      if (stationDistance <= 30) {
-        interaction.textContent = "ONI STATION · LANDING " + Math.max(0, Math.round(100 - (stationDistance / 30) * 100)) + "%";
-      } else if (gate && gateDistance <= gateUiRadius) {
-        interaction.textContent = "DEEP SPACE · APPROACH";
+      if (gate && gateDistance <= gateUiRadius) {
+        interaction.textContent = "ONI STATION · TOWER ENTRY " +
+          Math.max(0, Math.round(100 - (gateDistance / Math.max(1, gate.radius)) * 100)) + "%";
       } else {
         interaction.textContent = portal.coverage >= 0.69
           ? "PORTAL LOCK 69% · CUTSCENE"
@@ -3153,9 +3147,9 @@
       }
     }
 
-    // The Oni station sphere is the only Tower entrance. Land on the
-    // already-built central station, then play tower.mp4 before handoff.
-    if (!towerGateTriggered && !transitionBusy && stationDistance <= stationLandingRadius) {
+    // onicss.mp4 is the automatic Tower entrance.
+    // Enter its existing video zone by proximity; tower.mp4 remains Tower's landing transition.
+    if (!towerGateTriggered && !transitionBusy && gate && gateDistance <= Number(gate.radius || 24)) {
       enterTowerFromGate();
     }
 
