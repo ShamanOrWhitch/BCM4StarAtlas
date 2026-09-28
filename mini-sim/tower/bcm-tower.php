@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_TOWER_VERSION', '0.2.15');
+define('BCM_TOWER_VERSION', '0.2.16');
 define('BCM_TOWER_PATH', __DIR__ . '/');
 define('BCM_TOWER_URL', trailingslashit(plugin_dir_url(__FILE__)));
 
@@ -229,7 +229,8 @@ function bcm_tower_shortcode($atts = array()) {
                 <span>W/S</span> ручная коррекция высоты · <span>Mouse</span> обзор · <span>R</span> новый спуск
             </div>
             <div class="bcm-tower-help bcm-tower-help-multi">
-                <b>P1</b> A/D + W/S + Space + E · <b>P2</b> ←/→ + ↑/↓ + Enter + Shift · <span>gamepad #1/#2</span> одинаковая карта
+                <b>P1</b> A/D + W/S + Space + E · <b>P2</b> ←/→ + ↑/↓ + X + Shift ·
+                <span>1 gamepad = P2 · 2 gamepads = P1/P2</span> · общая карта
             </div>
             <div class="bcm-tower-crew" aria-live="polite"></div>
         </div>
