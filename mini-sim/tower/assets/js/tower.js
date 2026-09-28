@@ -189,11 +189,25 @@
       }
 
       if (level > 4 && level < levels - 6 && rand() < 0.055) {
-        const doorSector = wrapSector(routeSector + (rand() < 0.5 ? -3 : 3), sectors);
+        // Each door is paired with a real door on the opposite side of the
+        // tower at the same level, creating a passage through the cylinder.
+        const doorSector = wrapSector(
+          routeSector + (rand() < 0.5 ? -3 : 3),
+          sectors
+        );
+        const oppositeSector = wrapSector(
+          doorSector + Math.floor(sectors / 2),
+          sectors
+        );
         const target = cells.get(key(level, doorSector));
-        if (target && !target.object) {
+        let opposite = cells.get(key(level, oppositeSector));
+        if (!opposite) {
+          opposite = setCell(level, oppositeSector, { surface: "platform" });
+        }
+        if (target && !target.object && opposite && !opposite.object) {
           target.object = "door";
-          doors.push(target);
+          opposite.object = "door";
+          doors.push(target, opposite);
         }
       }
 
@@ -249,6 +263,15 @@
     const inline = root.querySelector(".bcm-tower-inline-config");
 
     if (!canvas || !window.THREE) return;
+
+    doorTransitLayers = [0, 1].map((index) => {
+      const layer = document.createElement("div");
+      layer.className = "bcm-tower-door-transition bcm-tower-door-p" + (index + 1);
+      layer.hidden = true;
+      layer.innerHTML = '<div class="bcm-tower-door-transition-card"></div><div class="bcm-tower-door-transition-text">ПЕРЕХОД</div>';
+      root.appendChild(layer);
+      return layer;
+    });
 
     let inlineConfig = {};
     try {
@@ -310,8 +333,8 @@
     // on the circumference while the camera follows just outside it.
     const playerWallRadius = radius + 1.05;
     const cameraRadius = radius + 8.0;
-    const gravity = 18;
-    const jumpVelocity = 12.5;
+    const gravity = 28;
+    const jumpVelocity = 10.5;
     const baseTurnSpeed = 2.2;
     const trimPower = 10.5;
     const sectorWidth = () => tower ? Math.PI * 2 / tower.sectors : Math.PI / 9;
@@ -330,7 +353,9 @@
     const players = [
       {
         y: 0, vy: 0, angle: 0, radial: 0, jumps: 0, grounded: false,
-        currentCell: null, liftRide: null, hazard: 0, slide: 0, finished: false, doorCooldown: 0, collected: 0
+        currentCell: null, liftRide: null, hazard: 0, slide: 0, finished: false,
+        doorCooldown: 0, collected: 0, jumpStarted: false, fallStartY: null,
+        birdHitCooldown: 0
       },
       {
         y: 0, vy: 0, angle: 0, radial: 0, jumps: 0, grounded: false,
@@ -342,6 +367,55 @@
       new THREE.PerspectiveCamera(62, 1, 0.1, 260),
       new THREE.PerspectiveCamera(62, 1, 0.1, 260)
     ];
+
+    // Normalized crew state shared by the game and future wallet/JSON loaders.
+    // The first prototype keeps the requested default pair.
+    const crewRoster = [
+      { id: "opal-jetjet", name: "Opal Jetjet", source: "default" },
+      { id: "opal-jetjet-2", name: "Opal Jetjet #2", source: "default" }
+    ];
+    const crewSlots = [
+      { slot: 0, crewId: crewRoster[0].id, location: "ship", level: null },
+      { slot: 1, crewId: crewRoster[1].id, location: "ship", level: null }
+    ];
+    const doorTransit = [null, null];
+    let doorTransitLayers = [];
+
+    function crewById(id) {
+      return crewRoster.find((crew) => crew.id === id) || null;
+    }
+
+    function updateCrewMatrix() {
+      crewSlots.forEach((slot, i) => {
+        const p = players[i];
+        if (!p || !gameStarted) {
+          slot.location = "ship";
+          slot.level = null;
+          return;
+        }
+        slot.location = "tower";
+        const bottomY = -((tower.levels - 1) * tower.stepY);
+        slot.level = clamp(
+          Math.round((p.y - bottomY) / tower.stepY),
+          0,
+          tower.levels - 1
+        );
+      });
+    }
+
+    function exposeCrewMatrix() {
+      window.BCMTowerCrewMatrix = {
+        mode,
+        crew: crewSlots.map((slot) => ({
+          slot: slot.slot,
+          crewId: slot.crewId,
+          crew: crewById(slot.crewId),
+          location: slot.location,
+          level: slot.level,
+          finished: !!players[slot.slot]?.finished
+        }))
+      };
+    }
 
     function safeDispose(obj) {
       if (!obj) return;
@@ -386,8 +460,8 @@
       let texUrl = "";
       let color = 0x8eb0c9;
       let height = 0.55;
-      let depth = 1.15;
-      let width = 2.15;
+      let depth = 1.00;
+      let width = 1.90;
 
       if (cell.surface === "rock") {
         geometry = new THREE.DodecahedronGeometry(1.0, 0);
@@ -511,6 +585,8 @@
         mesh.rotation.y = sectorAngle;
         mesh.userData.cell = cell;
         mesh.userData.objectType = cell.object;
+        mesh.userData.assetUrl = url;
+        mesh.userData.liftBound = cell.surface === "lift";
         towerRoot.add(mesh);
         objectMeshes.push(mesh);
         return mesh;
@@ -544,6 +620,8 @@
       mesh.rotation.y = sectorAngle;
       mesh.userData.cell = cell;
       mesh.userData.objectType = cell.object;
+      mesh.userData.assetUrl = url;
+      mesh.userData.liftBound = cell.surface === "lift";
       towerRoot.add(mesh);
       objectMeshes.push(mesh);
       return mesh;
@@ -552,7 +630,7 @@
     function buildBirds() {
       birds = [];
       const rand = mulberry32(seed ^ 0xB17D5EED);
-      const count = 3 + Math.floor(rand() * 3);
+      const count = 7 + Math.floor(rand() * 4);
 
       for (let i = 0; i < count; i++) {
         const group = new THREE.Group();
@@ -600,7 +678,7 @@
           angle: centerAngle,
           baseY: -8 + rand() * (towerHeight() - 18),
           radius: radius + 2.5 + rand() * 4.0,
-          speed: 0.16 + rand() * 0.22,
+          speed: 0.30 + rand() * 0.30,
           phase: rand() * Math.PI * 2,
           flap: 5.0 + rand() * 2.5
         };
@@ -629,6 +707,27 @@
         const flap = Math.sin(t * bird.flap + bird.phase) * 0.52;
         bird.leftWing.rotation.z = flap;
         bird.rightWing.rotation.z = -flap;
+
+        for (let i = 0; i < players.length; i++) {
+          const p = players[i];
+          p.birdHitCooldown = Math.max(0, (p.birdHitCooldown || 0) - 0.016);
+          if (p.finished || p.birdHitCooldown > 0) continue;
+          const dx = p.radial * Math.sin(p.angle) - bird.group.position.x;
+          const dy = (p.y + 0.9) - bird.group.position.y;
+          const dz = p.radial * Math.cos(p.angle) - bird.group.position.z;
+          if (dx * dx + dy * dy + dz * dz > 1.15 * 1.15) continue;
+
+          p.birdHitCooldown = 0.9;
+          p.grounded = false;
+          p.liftRide = null;
+          p.currentCell = null;
+          p.jumps = 1;
+          p.jumpStarted = false;
+          p.fallStartY = p.y;
+          p.vy = Math.min(p.vy, 0) - 8.5;
+          p.angle += dx >= 0 ? 0.10 : -0.10;
+          status.textContent = "ПТИЦА СБИЛА ИГРОКА " + (i + 1);
+        }
       }
     }
 
@@ -747,7 +846,13 @@
         }
       }
 
-      for (let i = 0; i < 2; i++) resetPlayer(i, i === 0 ? 0 : 0.85);
+      for (let i = 0; i < 2; i++) {
+        resetPlayer(i, i === 0 ? 0 : 0.85);
+        doorTransit[i] = null;
+        if (doorTransitLayers[i]) doorTransitLayers[i].hidden = true;
+      }
+      updateCrewMatrix();
+      exposeCrewMatrix();
       status.textContent = "TOWER READY";
       restartButton.hidden = true;
     }
@@ -773,6 +878,9 @@
       p.slide = 0;
       p.finished = false;
       p.doorCooldown = 0;
+      p.jumpStarted = false;
+      p.fallStartY = null;
+      p.birdHitCooldown = 0;
     }
 
     function surfaceCandidates(player) {
@@ -812,10 +920,10 @@
           }
 
           const da = Math.abs(angleDelta(player.angle, surfaceAngle));
-          if (da > sectorWidth() * 0.72) continue;
+          if (da > sectorWidth() * 0.62) continue;
 
           const targetRadial = surfaceRadius + 0.65;
-          if (Math.abs(player.radial - targetRadial) > 1.25) continue;
+          if (Math.abs(player.radial - targetRadial) > 1.00) continue;
 
           const y = mesh ? mesh.position.y : cellWorldY(cell);
           const dy = player.y - (y + 0.72);
@@ -845,15 +953,29 @@
 
     function doJump(index) {
       const p = players[index];
-      if (p.finished) return;
+      if (p.finished || doorTransit[index]) return;
+
       if (p.grounded) {
         p.vy = jumpVelocity;
         p.grounded = false;
         p.jumps = 1;
+        p.jumpStarted = true;
+        p.fallStartY = null;
         return;
       }
-      if (p.jumps < 2) {
-        p.vy = jumpVelocity * 0.84;
+
+      // A genuine double-jump exists only after a real first jump from a
+      // platform. Walking/falling off a platform counts as the first jump,
+      // so that state gets at most one emergency air jump.
+      if (p.jumpStarted && p.jumps === 1) {
+        p.vy = jumpVelocity * 0.72;
+        p.jumps = 2;
+        p.jumpStarted = false;
+        return;
+      }
+
+      if (!p.jumpStarted && p.jumps === 1) {
+        p.vy = jumpVelocity * 0.72;
         p.jumps = 2;
       }
     }
@@ -879,13 +1001,29 @@
       const cell = p.currentCell;
 
       if (cell.object === "door" && cell.doorPair) {
+        if (doorTransit[index]) return;
         const destination = cell.doorPair;
-        p.angle = destination.sector * sectorWidth();
-        p.y = cellWorldY(destination) + 1.05;
+        const doorMesh = findObjectMesh(cell);
+        const layer = doorTransitLayers[index];
+        const imageUrl = doorMesh?.userData?.assetUrl || "";
+
+        clearControls(index);
+        doorTransit[index] = {
+          destination,
+          until: performance.now() + 1500
+        };
+        p.doorCooldown = 1.65;
+        p.grounded = false;
+        p.liftRide = null;
+        p.currentCell = null;
         p.vy = 0;
-        p.currentCell = destination;
-        p.doorCooldown = 0.9;
-        status.textContent = "ДВЕРЬ: ПЕРЕХОД К ПАРНОЙ ТОЧКЕ";
+
+        if (layer) {
+          const card = layer.querySelector(".bcm-tower-door-transition-card");
+          if (card) card.style.backgroundImage = imageUrl ? 'url("' + imageUrl.replace(/"/g, "\"") + '")' : "none";
+          layer.hidden = false;
+        }
+        status.textContent = "ДВЕРЬ: ПРОХОД СКВОЗЬ ВЫШКУ · 1.5 s";
         return;
       }
 
@@ -938,6 +1076,27 @@
           mesh.position.z = Math.cos(a) * r;
           mesh.position.y = cell.runtimeY;
         }
+
+        // Objects sitting on a lift belong to that lift's moving layer too.
+        // This keeps box*/dangerbox* aligned with a retracting platform instead
+        // of leaving the object suspended in world space.
+        const liftR = Math.hypot(mesh.position.x, mesh.position.z);
+        const liftA = Math.atan2(mesh.position.x, mesh.position.z);
+        objectMeshes.forEach((objectMesh) => {
+          const objectCell = objectMesh.userData.cell;
+          if (!objectCell || objectCell.surface !== "lift" || !objectMesh.userData.liftBound) return;
+          if (objectCell !== cell) return;
+          const objectType = objectMesh.userData.objectType;
+          const radialOffset = objectType === "dangerbox" || objectType === "safebox" || objectType === "box"
+            ? 0.55
+            : 0.35;
+          objectMesh.position.set(
+            Math.sin(liftA) * (liftR + radialOffset),
+            mesh.position.y + ((objectMesh.geometry.parameters?.height || 1.4) * 0.5),
+            Math.cos(liftA) * (liftR + radialOffset)
+          );
+          objectMesh.rotation.y = liftA;
+        });
       }
     }
 
@@ -980,6 +1139,26 @@
     function updatePlayer(index, dt) {
       const p = players[index];
       const c = controls[index];
+
+      if (doorTransit[index]) {
+        if (performance.now() < doorTransit[index].until) return;
+        const destination = doorTransit[index].destination;
+        doorTransit[index] = null;
+        if (doorTransitLayers[index]) doorTransitLayers[index].hidden = true;
+
+        p.y = cellWorldY(destination) + 0.9;
+        p.vy = 0;
+        p.grounded = true;
+        p.jumps = 0;
+        p.jumpStarted = false;
+        p.fallStartY = null;
+        p.currentCell = destination;
+        p.radial = playerWallRadius;
+        p.angle = destination.sector * sectorWidth();
+        status.textContent = "ДВЕРЬ: ВЫХОД НА ПРОТИВОПОЛОЖНОЙ СТОРОНЕ";
+        return;
+      }
+
       if (p.finished) return;
 
       syncLiftRide(p);
@@ -1026,18 +1205,37 @@
       const wasGrounded = p.grounded;
       const previousCell = p.currentCell;
       const landing = findLanding(p);
+
       if (landing) {
         p.y = landing.y + 0.72;
         p.vy = 0;
         p.grounded = true;
         p.jumps = 0;
         p.currentCell = landing.cell;
-        p.radial = Math.max(landing.radial, playerWallRadius);
 
-        // A/D must control the player while grounded. Do not snap the
-        // player's angle back to the platform center every frame.
-        if (!wasGrounded) {
-          p.angle = landing.angle;
+        // Keep the player's own angular position. Landing no longer snaps the
+        // character to the visual center of the platform.
+        p.radial = Math.max(playerWallRadius, p.radial);
+        if (Math.abs(p.radial - landing.radial) > 1.0) {
+          p.radial = landing.radial;
+        }
+
+        if (!wasGrounded && p.fallStartY !== null) {
+          const fallenLevels = Math.floor(
+            Math.max(0, p.fallStartY - landing.y) / tower.stepY
+          );
+          p.fallStartY = null;
+          if (fallenLevels >= 5) {
+            resetAfterHazard(index, "ПАДЕНИЕ БОЛЕЕ 5 УРОВНЕЙ: ВОЗВРАТ В НАЧАЛО");
+            return;
+          }
+        }
+
+        p.jumpStarted = false;
+
+        if (landing.cell.object === "dangerbox") {
+          resetAfterHazard(index, "DANGERBOX: ВОЗВРАТ В НАЧАЛО");
+          return;
         }
 
         if (landing.cell.surface === "lift") {
@@ -1059,11 +1257,26 @@
           p.liftRide = null;
         }
       } else {
+        if (wasGrounded) {
+          p.jumps = 1;
+          p.jumpStarted = false;
+          p.fallStartY = p.y;
+        }
         p.grounded = false;
         p.liftRide = null;
       }
 
-      if (!p.grounded) return;
+      if (!p.grounded) {
+        if (p.fallStartY !== null) {
+          const fallenNow = Math.floor(
+            Math.max(0, p.fallStartY - p.y) / tower.stepY
+          );
+          if (fallenNow >= 5) {
+            resetAfterHazard(index, "ПАДЕНИЕ БОЛЕЕ 5 УРОВНЕЙ: ВОЗВРАТ В НАЧАЛО");
+          }
+        }
+        return;
+      }
 
       const surface = p.currentCell?.surface;
       if (onLava) {
@@ -1185,6 +1398,8 @@
       if (players.every(p => p.finished)) {
         restartButton.hidden = false;
       }
+      updateCrewMatrix();
+      exposeCrewMatrix();
     }
 
     function renderViews() {
