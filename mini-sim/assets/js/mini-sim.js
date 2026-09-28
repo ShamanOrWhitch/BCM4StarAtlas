@@ -721,43 +721,6 @@
       plane(parent, opt.w / 2, 0, opt.z, opt.len, opt.h, 0, -Math.PI / 2, 0, right);
     }
 
-    if (opt.structuralRibs) {
-      const ribMat = new THREE.MeshBasicMaterial({
-        color: 0x2a333d,
-        transparent: true,
-        opacity: 0.95
-      });
-      const ribInset = 0.075;
-      const ribHeight = opt.h + 0.18;
-      const ribDepth = 0.18;
-      const spacing = 4.4;
-      const start = opt.z - opt.len * 0.5 + 2.2;
-
-      for (let z = start; z <= opt.z + opt.len * 0.5 + 0.01; z += spacing) {
-        [-1, 1].forEach((side) => {
-          const rib = new THREE.Mesh(
-            new THREE.BoxGeometry(0.18, ribHeight, ribDepth),
-            ribMat
-          );
-          rib.position.set(side * (opt.w * 0.5 - ribInset), 0, z);
-          rib.name = "room-structural-vertical-rib";
-          rib.renderOrder = 4;
-          parent.add(rib);
-        });
-      }
-
-      [-1, 1].forEach((side) => {
-        const y = side * (opt.h * 0.5 - ribInset);
-        const rib = new THREE.Mesh(
-          new THREE.BoxGeometry(opt.w + 0.18, 0.18, opt.len + 0.18),
-          ribMat
-        );
-        rib.position.set(0, y, opt.z);
-        rib.name = "room-structural-long-rib";
-        rib.renderOrder = 4;
-        parent.add(rib);
-      });
-    }
 
     addRoofCorners(parent, opt.z, opt.w, opt.h, opt.cornerVariants);
   }
@@ -1040,7 +1003,21 @@
   }
 
   function collideRoom0Labyrinth(before) {
-    if (!room0Labyrinth.active || !room0Labyrinth.walls.length) return false;
+    if (!before || !ship.position || !room0Labyrinth.walls.length) return false;
+
+    const minZ = Math.min(before.z, ship.position.z);
+    const maxZ = Math.max(before.z, ship.position.z);
+    const midX = (before.x + ship.position.x) * 0.5;
+    const midY = (before.y + ship.position.y) * 0.5;
+
+    // The collision volume follows the actual labyrinth. It does not depend
+    // on a one-frame-late visibility flag.
+    const active =
+      maxZ >= room0Labyrinth.startZ - 0.25 &&
+      minZ <= room0Labyrinth.endZ + 1.5 &&
+      Math.abs(midX) <= 8.0 &&
+      Math.abs(midY) <= 5.0;
+    if (!active) return false;
 
     let blocked = false;
 
@@ -1283,7 +1260,6 @@
       leftVariants: ["wall3.png", "wall4.png", "wall5.png"],
       right: false,
       cornerVariants: ["roofa.png", "roofa1.png", "roofa2.png"],
-      structuralRibs: true,
       floorColor: 0x46505b, ceilingColor: 0x8b9198,
       leftColor: 0x3b444f, rightColor: 0x343d47
     });
@@ -3044,8 +3020,8 @@
     ship.velocity.multiplyScalar(Math.max(0, 1 - ship.linearDrag * dt));
     if (ship.velocity.length() > ship.maxSpeed) ship.velocity.setLength(ship.maxSpeed);
     ship.position.addScaledVector(ship.velocity, dt);
-    collide();
     updateRoom0Labyrinth();
+    collide();
     updateSpaceSatelliteVisibility();
     updateCollisionImpact(dt);
 
