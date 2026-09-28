@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.25
+ * Version: 0.9.27
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.26');
+define('BCM_MINI_SIM_VERSION', '0.9.27');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -113,17 +113,15 @@ function bcm_mini_sim_enqueue_assets()
             // Entry target is the distant onicss gate in Deep Space.
             'x' => 0,
             'y' => 0,
-            'z' => -260.0,
-            // Start Tower preload well before the gate becomes large on screen.
-            'preloadRadius' => 180.0,
+            'z' => -155.0,
+            // Start Tower preload while the Oni station is still approaching.
+            'preloadRadius' => 120.0,
             'coverageThreshold' => 0.69,
             'uiRadius' => 180.0,
         ),
         'towerJsUrl' => BCM_MINI_SIM_URL . 'tower/assets/js/tower.js',
         'towerCssUrl' => BCM_MINI_SIM_URL . 'tower/assets/css/tower.css',
-        'towerLandingUrl' => file_exists(BCM_MINI_SIM_PATH . 'tower/assets/tower.mp4')
-            ? BCM_MINI_SIM_URL . 'tower/assets/tower.mp4'
-            : '',
+        'towerLandingUrl' => bcm_mini_sim_pick_asset($assets, array('tower.mp4'), 'video'),
         'towerFallbackUrl' => bcm_mini_sim_pick_asset($assets, array(
             'portal2.mp4',
             'portal3.mp4',
@@ -145,8 +143,7 @@ function bcm_mini_sim_enqueue_assets()
                 'preloadRadius' => 180,
                 'maxWidth' => 13.0,
                 'maxHeight' => 8.0,
-                'preloadWhenStarted' => true,
-                'towerGate' => true
+                'preloadWhenStarted' => true
             ),
             // Only one clip in the portal/open-space room.
             array('url' => 'https://walkingyog.com/wp-content/uploads/2025/11/30Сек43-1.mp4', 'x' => -4.2, 'y' => 1.4, 'z' => -42.0, 'radius' => 9, 'maxWidth' => 7.2, 'maxHeight' => 4.5),
@@ -181,7 +178,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.25</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.27</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ВНЕШНИЕ ЭКРАНЫ</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
