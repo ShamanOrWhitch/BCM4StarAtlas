@@ -20,6 +20,19 @@
   const transitionRoot = root.querySelector(".bcm-mini-sim-transition");
   const transitionVideo = root.querySelector(".bcm-mini-sim-transition-video");
   const transitionLabel = root.querySelector(".bcm-mini-sim-transition-label");
+  const crewPreflight = root.querySelector(".bcm-mini-sim-crew-preflight");
+  const crewSlotSelects = crewPreflight
+    ? [...crewPreflight.querySelectorAll("[data-crew-slot]")]
+    : [];
+  const crewConnectButton = crewPreflight
+    ? crewPreflight.querySelector("[data-crew-connect]")
+    : null;
+  const crewStartButton = crewPreflight
+    ? crewPreflight.querySelector("[data-crew-start]")
+    : null;
+  const crewPreflightStatus = crewPreflight
+    ? crewPreflight.querySelector(".bcm-mini-sim-crew-preflight-status")
+    : null;
   const config = window.BCMMiniSimConfig || {};
   let miniSimReleased = false;
 
@@ -35,6 +48,228 @@
   if (!canvas || !startButton || !status) return;
 
   const assets = Array.isArray(config.assets) ? config.assets : [];
+  let crewRoster = [];
+  let crewRosterPromise = null;
+  let crewSelection = [null, null];
+
+  function normalizeCrewRow(row, index) {
+    const value = row && typeof row === "object" ? row : {};
+    const name = String(value.name || ("Crew " + (index + 1))).trim();
+    return {
+      id: String(value.id || value.mint || name || ("crew-" + index)),
+      mint: String(value.mint || ""),
+      name,
+      image: String(value.image || ""),
+      seats: String(value.seats || ""),
+      ocean: String(value.ocean || ""),
+      mission: String(value.mission || ""),
+      source: value.source || "default",
+      traits: Array.isArray(value.traits) ? value.traits : []
+    };
+  }
+
+  function crewById(id) {
+    return crewRoster.find((crew) => crew.id === id) || null;
+  }
+
+  function crewSetStatus(message) {
+    if (crewPreflightStatus) crewPreflightStatus.textContent = message;
+  }
+
+  function renderCrewPreflight() {
+    crewSlotSelects.forEach((select, index) => {
+      select.innerHTML = "";
+      crewRoster.forEach((crew) => {
+        const option = document.createElement("option");
+        option.value = crew.id;
+        option.textContent = crew.name;
+        select.appendChild(option);
+      });
+      const wanted = crewSelection[index];
+      if (wanted && crewById(wanted)) {
+        select.value = wanted;
+      } else if (crewRoster[index]) {
+        select.value = crewRoster[index].id;
+        crewSelection[index] = crewRoster[index].id;
+      }
+    });
+  }
+
+  async function loadCrewRoster() {
+    if (crewRoster.length) return crewRoster;
+    if (crewRosterPromise) return crewRosterPromise;
+    const url = String(config.crewRosterUrl || "");
+    if (!url) {
+      crewSetStatus("База Crew не настроена · можно подключить Phantom.");
+      return [];
+    }
+
+    crewRosterPromise = fetch(url, { credentials: "same-origin" })
+      .then((response) => {
+        if (!response.ok) throw new Error("Не удалось загрузить базу Crew");
+        return response.json();
+      })
+      .then((rows) => {
+        crewRoster = Array.isArray(rows) ? rows.map(normalizeCrewRow) : [];
+        renderCrewPreflight();
+        crewSetStatus(
+          "Локальная база Crew: " +
+          crewRoster.length +
+          " · можно играть без кошелька."
+        );
+        return crewRoster;
+      })
+      .catch((error) => {
+        crewRoster = [];
+        crewSetStatus(error?.message || "Ошибка загрузки Crew");
+        return crewRoster;
+      });
+
+    return crewRosterPromise;
+  }
+
+  function openCrewPreflight() {
+    if (!crewPreflight) {
+      beginFlight();
+      return;
+    }
+
+    startButton.classList.add("hidden");
+    crewPreflight.hidden = false;
+    crewSetStatus("Загрузка Crew из встроенной базы…");
+
+    loadCrewRoster().then(() => {
+      if (!crewRoster.length) {
+        crewSetStatus("Crew база не загрузилась · можно подключить Phantom.");
+      }
+    });
+  }
+
+  async function connectCrewWallet() {
+    if (!crewConnectButton) return;
+    if (!window.BCMCrewWallet?.connectAndScan) {
+      crewSetStatus("Wallet-модуль не загружен.");
+      return;
+    }
+
+    crewConnectButton.disabled = true;
+    crewSetStatus("Открываю Phantom…");
+
+    try {
+      const result = await window.BCMCrewWallet.connectAndScan();
+      const found = Array.isArray(result.crew) ? result.crew : [];
+
+      window.BCMiniCrewWallet = {
+        provider: "Phantom",
+        publicKey: result.owner || "",
+        crewCount: found.length
+      };
+
+      if (!found.length) {
+        crewSetStatus(
+          "Phantom подключён · на этом кошельке Crew не найдено. Остаётся локальная база."
+        );
+        return;
+      }
+
+      crewRoster = found.map(normalizeCrewRow);
+      crewSelection = [
+        crewRoster[0]?.id || null,
+        crewRoster[1]?.id || crewRoster[0]?.id || null
+      ];
+      renderCrewPreflight();
+      crewSetStatus(
+        "Phantom: " +
+        String(result.owner || "").slice(0, 6) +
+        "…" +
+        String(result.owner || "").slice(-6) +
+        " · найдено Crew: " +
+        found.length
+      );
+    } catch (error) {
+      crewSetStatus(error?.message || "Phantom не подключился.");
+    } finally {
+      crewConnectButton.disabled = false;
+    }
+  }
+
+  function commitCrewSelection() {
+    crewSelection = crewSlotSelects.map((select, index) => {
+      const value = String(select.value || "");
+      return value || crewRoster[index]?.id || null;
+    });
+
+    const picked = crewSelection
+      .map(crewById)
+      .filter(Boolean);
+
+    window.BCMMiniCrewSelection = {
+      source: window.BCMiniCrewWallet?.publicKey ? "wallet" : "default",
+      wallet: window.BCMiniCrewWallet?.publicKey || "",
+      players: picked
+    };
+
+    return picked;
+  }
+
+  function beginFlight() {
+    if (!renderer) return;
+    const picked = commitCrewSelection();
+    if (picked.length < 2) {
+      crewSetStatus("Нужны два Crew для стартовой команды.");
+      if (crewPreflight) crewPreflight.hidden = false;
+      return;
+    }
+
+    if (crewPreflight) crewPreflight.hidden = true;
+    running = true;
+    musicAllowed = true;
+    startMusic();
+
+    if (window.matchMedia && window.matchMedia("(pointer: coarse) and (orientation: landscape)").matches && !isIOSDevice()) {
+      enableTilt();
+    }
+
+    enterMobileFullscreen();
+
+    const centerSim = () => {
+      const rect = root.getBoundingClientRect();
+      const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+      const targetTop = window.scrollY + rect.top - Math.max(0, (viewportH - rect.height) * 0.5);
+      window.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+    };
+    if ("requestAnimationFrame" in window) {
+      requestAnimationFrame(() => {
+        centerSim();
+        setTimeout(centerSim, 120);
+      });
+    } else {
+      setTimeout(centerSim, 0);
+    }
+
+    const capdoor = liveInterior.find((item) => item.mesh && item.mesh.name === "room1-rear-capdoor");
+    if (capdoor) setTimeout(() => warmInteriorVideo(capdoor), 350);
+
+    if (liveWall.el && liveWall.ready) {
+      const wallPlay = liveWall.el.play();
+      if (wallPlay && wallPlay.catch) wallPlay.catch(() => {});
+    }
+
+    updateLiveWall();
+    root.classList.add("game-active");
+    startButton.classList.add("hidden");
+    canvas.focus();
+
+    if (canvas.requestPointerLock && !("ontouchstart" in window)) {
+      canvas.requestPointerLock();
+    }
+
+    setStatus(
+      "FLIGHT ACTIVE · CREW " +
+      picked.map((crew) => crew.name).join(" / ")
+    );
+  }
+
   const byName = Object.create(null);
   assets.forEach((a) => {
     if (a && a.name && a.url) byName[String(a.name).toLowerCase()] = a.url;
@@ -3436,46 +3671,20 @@
       if (videoCheckButton) videoCheckButton.addEventListener("click", checkAllVideoSources);
       if (cl) cl.addEventListener("click", toggleSettings);
     }
+    if (crewConnectButton) {
+      crewConnectButton.addEventListener("click", () => {
+        void connectCrewWallet();
+      });
+    }
+
+    if (crewStartButton) {
+      crewStartButton.addEventListener("click", () => {
+        beginFlight();
+      });
+    }
+
     startButton.addEventListener("click", () => {
-      if (!renderer) return;
-      running = true;
-      musicAllowed = true;
-      startMusic();
-
-      if (window.matchMedia && window.matchMedia("(pointer: coarse) and (orientation: landscape)").matches && !isIOSDevice()) {
-        enableTilt();
-      }
-
-      enterMobileFullscreen();
-
-      const centerSim = () => {
-        const rect = root.getBoundingClientRect();
-        const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
-        const targetTop = window.scrollY + rect.top - Math.max(0, (viewportH - rect.height) * 0.5);
-        window.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
-      };
-      if ("requestAnimationFrame" in window) {
-        requestAnimationFrame(() => {
-          centerSim();
-          setTimeout(centerSim, 120);
-        });
-      } else {
-        setTimeout(centerSim, 0);
-      }
-
-      const capdoor = liveInterior.find((item) => item.mesh && item.mesh.name === "room1-rear-capdoor");
-      if (capdoor) setTimeout(() => warmInteriorVideo(capdoor), 350);
-
-      if (liveWall.el && liveWall.ready) {
-        const wallPlay = liveWall.el.play();
-        if (wallPlay && wallPlay.catch) wallPlay.catch(() => {});
-      }
-      updateLiveWall();
-      root.classList.add("game-active");
-      startButton.classList.add("hidden");
-      canvas.focus();
-      if (canvas.requestPointerLock && !("ontouchstart" in window)) canvas.requestPointerLock();
-      setStatus("FLIGHT ACTIVE");
+      openCrewPreflight();
     });
     if (menuBackdrop && config.menuBackgroundUrl) {
       menuBackdrop.style.backgroundImage = 'url("' + config.menuBackgroundUrl.replace(/"/g, "") + '")';
