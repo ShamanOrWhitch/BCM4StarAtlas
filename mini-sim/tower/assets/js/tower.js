@@ -261,12 +261,6 @@
     const p1Label = root.querySelector(".bcm-tower-split-p1");
     const p2Label = root.querySelector(".bcm-tower-split-p2");
     const inline = root.querySelector(".bcm-tower-inline-config");
-    const crewJsonInput = root.querySelector(".bcm-tower-crew-json");
-    const crewP1Select = root.querySelector(".bcm-tower-crew-p1");
-    const crewP2Select = root.querySelector(".bcm-tower-crew-p2");
-    const crewJsonStatus = root.querySelector(".bcm-tower-crew-json-status");
-    const walletButton = root.querySelector(".bcm-tower-connect-wallet");
-    let walletAddress = "";
 
     if (!canvas || !window.THREE) return;
 
@@ -284,41 +278,27 @@
       inlineConfig = JSON.parse(inline?.textContent || "{}");
     } catch (e) {}
 
-    function renderCrewSelectors() {
-      const selects = [crewP1Select, crewP2Select];
-      selects.forEach((select, index) => {
-        if (!select) return;
-        select.innerHTML = "";
-        crewRoster.forEach((crew) => {
-          const option = document.createElement("option");
-          option.value = crew.id;
-          option.textContent = crew.name;
-          select.appendChild(option);
-        });
-        const selected = crewById(crewSlots[index].crewId);
-        if (selected) select.value = selected.id;
-      });
-    }
+    function syncCrewSelectionFromMiniSim() {
+      const selected = window.BCMMiniCrewSelection?.players;
+      if (!Array.isArray(selected) || selected.length < 2) return false;
 
-    function setCrewFromSelectors() {
-      if (crewP1Select?.value) crewSlots[0].crewId = crewP1Select.value;
-      if (crewP2Select?.value) crewSlots[1].crewId = crewP2Select.value;
-      try {
-        localStorage.setItem("bcmTowerCrewSelection", JSON.stringify(
-          crewSlots.map((slot) => slot.crewId)
-        ));
-      } catch (e) {}
-      exposeCrewMatrix();
-    }
+      crewRoster = selected.slice(0, 2).map((crew, index) => ({
+        id: String(crew.id || crew.mint || ("crew-" + index)),
+        mint: String(crew.mint || ""),
+        name: String(crew.name || ("Crew " + (index + 1))),
+        image: String(crew.image || ""),
+        source: crew.source || "mini-sim",
+        traits: Array.isArray(crew.traits) ? crew.traits : [],
+        seats: String(crew.seats || ""),
+        ocean: String(crew.ocean || ""),
+        mission: String(crew.mission || "")
+      }));
 
-    function restoreCrewSelection() {
-      try {
-        const saved = JSON.parse(localStorage.getItem("bcmTowerCrewSelection") || "null");
-        if (Array.isArray(saved)) {
-          if (crewById(saved[0])) crewSlots[0].crewId = saved[0];
-          if (crewById(saved[1])) crewSlots[1].crewId = saved[1];
-        }
-      } catch (e) {}
+      for (let i = 0; i < 2; i++) {
+        if (crewRoster[i]) crewSlots[i].crewId = crewRoster[i].id;
+      }
+
+      return true;
     }
 
     const renderer = new THREE.WebGLRenderer({
@@ -883,9 +863,10 @@
       buildBirds();
 
       playerTextures = [null, null];
+      syncCrewSelectionFromMiniSim();
 
-      // Crew can come from the default pair, a previously saved JSON roster,
-      // or a later wallet reader using the same normalized image field.
+      // The embedded mini-sim supplies the two selected Crew before Tower starts.
+      // Direct Tower pages retain a small visual fallback.
       const fallbackCrewImage = inlineConfig.crewImage
         ? String(inlineConfig.crewImage)
         : "";
@@ -1820,63 +1801,10 @@
 
     modeButtons.forEach(button => {
       button.addEventListener("click", () => {
-        setCrewFromSelectors();
+        syncCrewSelectionFromMiniSim();
         startMode(button.dataset.towerMode);
       });
     });
-
-    crewP1Select?.addEventListener("change", setCrewFromSelectors);
-    crewP2Select?.addEventListener("change", setCrewFromSelectors);
-
-    crewJsonInput?.addEventListener("change", () => {
-      const file = crewJsonInput.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const parsed = JSON.parse(String(reader.result || ""));
-          if (!applyCrewRoster(parsed)) throw new Error("Нет массива crew/crews");
-          if (crewJsonStatus) {
-            crewJsonStatus.textContent = "Crew JSON загружен: " + crewRoster.length;
-          }
-        } catch (error) {
-          if (crewJsonStatus) {
-            crewJsonStatus.textContent = "JSON: " + (error?.message || "ошибка");
-          }
-        }
-      };
-      reader.readAsText(file);
-    });
-
-    walletButton?.addEventListener("click", async () => {
-      const provider = window.solana;
-      if (!provider || !provider.isPhantom) {
-        if (crewJsonStatus) crewJsonStatus.textContent = "Phantom: расширение не найдено";
-        return;
-      }
-      try {
-        const response = await provider.connect();
-        walletAddress = response?.publicKey?.toString?.() || "";
-        window.BCMTowerWallet = {
-          provider: "Phantom",
-          publicKey: walletAddress,
-          readOnly: true
-        };
-        if (crewJsonStatus) {
-          crewJsonStatus.textContent = walletAddress
-            ? "Кошелёк подключён · NFT-сканирование подключим к этому же слою данных"
-            : "Кошелёк подключён";
-        }
-      } catch (error) {
-        if (crewJsonStatus) {
-          crewJsonStatus.textContent = "Phantom: подключение отменено";
-        }
-      }
-    });
-
-    loadSavedCrewRoster();
-    restoreCrewSelection();
-    renderCrewSelectors();
 
     restartButton.addEventListener("click", startNewTower);
 
@@ -1982,7 +1910,7 @@
 
     window.BCMTowerAPI = window.BCMTowerAPI || {};
     window.BCMTowerAPI.getCrewMatrix = () => window.BCMTowerCrewMatrix || null;
-    window.BCMTowerAPI.getWallet = () => window.BCMTowerWallet || null;
+    window.BCMTowerAPI.getWallet = () => window.BCMiniCrewWallet || null;
     window.BCMTowerAPI.enter = () => {
       // Show the Tower root and its black transition layer in the same task.
       // This prevents perference bg.png from flashing for a frame before tower.mp4.
