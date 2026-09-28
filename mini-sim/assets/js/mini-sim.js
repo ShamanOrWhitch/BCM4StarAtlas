@@ -2828,30 +2828,44 @@
 
       if (!inZBand) continue;
 
-      const hitX =
+      const hitXPos =
         (before.x < room.xEdge && ship.position.x >= room.xEdge) ||
-        (before.x > room.xEdge && ship.position.x <= room.xEdge) ||
+        (before.x > room.xEdge && ship.position.x <= room.xEdge);
+      const hitXNeg =
         (before.x > -room.xEdge && ship.position.x <= -room.xEdge) ||
         (before.x < -room.xEdge && ship.position.x >= -room.xEdge);
 
-      if (hitX) {
-        ship.position.x = before.x <= 0
-          ? -room.xEdge - 0.06
+      if (hitXPos) {
+        ship.position.x = before.x < room.xEdge
+          ? room.xEdge - 0.06
           : room.xEdge + 0.06;
+        ship.velocity.x = 0;
+        blocked = true;
+      } else if (hitXNeg) {
+        ship.position.x = before.x > -room.xEdge
+          ? -room.xEdge + 0.06
+          : -room.xEdge - 0.06;
         ship.velocity.x = 0;
         blocked = true;
       }
 
-      const hitY =
+      const hitYPos =
         (before.y < room.yEdge && ship.position.y >= room.yEdge) ||
-        (before.y > room.yEdge && ship.position.y <= room.yEdge) ||
+        (before.y > room.yEdge && ship.position.y <= room.yEdge);
+      const hitYNeg =
         (before.y > -room.yEdge && ship.position.y <= -room.yEdge) ||
         (before.y < -room.yEdge && ship.position.y >= -room.yEdge);
 
-      if (hitY) {
-        ship.position.y = before.y <= 0
-          ? -room.yEdge - 0.06
+      if (hitYPos) {
+        ship.position.y = before.y < room.yEdge
+          ? room.yEdge - 0.06
           : room.yEdge + 0.06;
+        ship.velocity.y = 0;
+        blocked = true;
+      } else if (hitYNeg) {
+        ship.position.y = before.y > -room.yEdge
+          ? -room.yEdge + 0.06
+          : -room.yEdge - 0.06;
         ship.velocity.y = 0;
         blocked = true;
       }
