@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_TOWER_VERSION', '0.2.6');
+define('BCM_TOWER_VERSION', '0.2.7');
 define('BCM_TOWER_PATH', __DIR__ . '/');
 define('BCM_TOWER_URL', trailingslashit(plugin_dir_url(__FILE__)));
 
@@ -117,6 +117,10 @@ function bcm_tower_get_client_config($assets = null) {
         $assets = bcm_tower_get_assets();
     }
 
+    $directTowerWall = file_exists(BCM_TOWER_PATH . 'assets/Towerwall.JPG')
+        ? BCM_TOWER_URL . 'assets/Towerwall.JPG'
+        : bcm_tower_pick_asset($assets, array('Towerwall.JPG', 'wall1.JPG'), 'image');
+
     return array(
         'threeUrl' => defined('BCM_MINI_SIM_URL') ? BCM_MINI_SIM_URL . 'assets/js/three.min.js' : '',
         'transition' => bcm_tower_pick_asset($assets, array('tower.mp4'), 'video'),
@@ -144,12 +148,15 @@ function bcm_tower_get_client_config($assets = null) {
         'npcPool' => bcm_tower_asset_urls($assets, '/^(walldoorpiratebear|walldoormetalbear|firemetalbear)[^\\/]*\\.(png|jpg|jpeg|webp)$/i'),
         // Diagnostic Tower background: prefer a future backgroundmenu asset,
         // then use the existing menu background from the mini-sim library.
-        'backgroundMenu' => bcm_tower_pick_asset($assets, array(
+        // Diagnostic chain: use the known Tower JPG first. This is independent
+        // of the old backgroundmenu/perference asset path.
+        'backgroundMenu' => $directTowerWall ?: bcm_tower_pick_asset($assets, array(
             'backgroundmenu.png',
             'backgroundmenu.jpg',
             'backgroundmenu.webp',
             'perference bg.png'
         ), 'image'),
+        'assetProbe' => $directTowerWall,
         'shipTexture' => bcm_tower_pick_asset($assets, array('ship.png', 'ship.webp', 'ship.jpg', 'ship.jpeg'), 'image'),
         'planetMaps' => array_values(array_map(
             static function ($asset) { return $asset['url']; },
@@ -205,6 +212,10 @@ function bcm_tower_shortcode($atts = array()) {
          <?php echo $atts['embedded'] === '1' ? 'hidden' : ''; ?>
          style="--bcm-tower-height:<?php echo esc_attr($atts['height']); ?>;">
         <canvas class="bcm-tower-canvas" tabindex="0"></canvas>
+        <div class="bcm-tower-asset-probe" aria-hidden="true">
+            <img class="bcm-tower-asset-probe-image" alt="" decoding="async">
+            <span>TOWERWALL.JPG · ASSET TEST</span>
+        </div>
 
         <div class="bcm-tower-menu">
             <div class="bcm-tower-menu-title">BCM TOWER</div>
