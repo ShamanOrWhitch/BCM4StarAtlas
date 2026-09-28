@@ -208,6 +208,7 @@
 
     // 2) DAS assets. Star Atlas Crew NFTs can be exposed here even when
     // getTokenAccountsByOwner does not return a usable Crew token account.
+    let dasSucceeded = false;
     for (let page = 1; page <= 5; page++) {
       try {
         const result = await rpc("getAssetsByOwner", [{
@@ -220,6 +221,7 @@
           }
         }]);
 
+        dasSucceeded = true;
         const rows = dasRows(result);
         if (!rows.length) break;
 
@@ -230,12 +232,8 @@
           const card = catalog.get(mint);
           if (!card) continue;
 
-          const metaAmount = Number(
-            asset?.ownership?.amount ??
-            asset?.ownership?.quantity ??
-            asset?.compression?.leaf_id ? 1 : 1
-          );
-          const amount = Number.isFinite(metaAmount) && metaAmount > 0 ? metaAmount : 1;
+          // Crew is an NFT here; one DAS asset represents one Crew.
+          const amount = 1;
 
           seen.add(mint);
           found.push(normalizeTokenCrew(mint, card, amount));
@@ -251,8 +249,12 @@
     }
 
     if (found.length) return found;
-    if (errors.length >= TOKEN_PROGRAMS.length + 1) {
-      throw new Error(errors.join(" · "));
+    if (!dasSucceeded) {
+      throw new Error(
+        errors.length
+          ? "DAS Crew scan не доступен: " + errors.join(" · ")
+          : "DAS Crew scan не вернул результат."
+      );
     }
     return [];
   }
