@@ -577,7 +577,7 @@ function galia_desk_token($supply, $prices, $mint) {
 }
 
 function galia_desk_crew_index() {
-    $cached = get_transient('galia_desk_crew');
+    $cached = get_transient('galia_desk_crew_v2');
     if (is_array($cached)) {
         return $cached;
     }
@@ -633,7 +633,7 @@ function galia_desk_crew_index() {
             );
         }
     }
-    set_transient('galia_desk_crew', $index, 30 * MINUTE_IN_SECONDS);
+    set_transient('galia_desk_crew_v2', $index, 30 * MINUTE_IN_SECONDS);
     return $index;
 }
 
