@@ -192,11 +192,15 @@ function bcm_mini_sim_crew_catalog() {
 }
 
 function bcm_mini_sim_crew_rpc($method, $params, $timeout = 20) {
+    // PublicNode is a standard RPC/indexer endpoint, not a DAS endpoint.
+    // It rejects getAssetsByOwner unless a personal indexer token is used,
+    // so it must never be a fallback for this wallet scan.
     $rpcs = array(
         'https://api.mainnet.solana.com',
         'https://api.mainnet-beta.solana.com',
-        'https://solana-rpc.publicnode.com',
     );
+
+    $errors = array();
 
     foreach ($rpcs as $url) {
         $json = bcm_mini_sim_remote_json($url, 'POST', array(
@@ -208,6 +212,12 @@ function bcm_mini_sim_crew_rpc($method, $params, $timeout = 20) {
 
         if (is_array($json) && array_key_exists('result', $json) && !isset($json['error'])) {
             return $json['result'];
+        }
+
+        if (is_array($json) && isset($json['error']['message'])) {
+            $errors[] = $url . ': ' . (string) $json['error']['message'];
+        } else {
+            $errors[] = $url . ': запрос не вернул JSON-RPC result';
         }
     }
 
