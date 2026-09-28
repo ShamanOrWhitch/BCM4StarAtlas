@@ -309,7 +309,7 @@
     const cameraRadius = radius + 8.0;
     const gravity = 18;
     const jumpVelocity = 9.3;
-    const baseTurnSpeed = 2.75;
+    const baseTurnSpeed = 2.2;
     const trimPower = 10.5;
     const sectorWidth = () => tower ? Math.PI * 2 / tower.sectors : Math.PI / 9;
 
@@ -322,15 +322,16 @@
       { jump: false, interact: false, restart: false },
       { jump: false, interact: false, restart: false }
     ];
+    const gamepadPresent = [false, false];
 
     const players = [
       {
-        y: 0, vy: 0, angle: 0, jumps: 0, grounded: false,
-        currentCell: null, hazard: 0, slide: 0, finished: false, doorCooldown: 0, collected: 0
+        y: 0, vy: 0, angle: 0, radial: 0, jumps: 0, grounded: false,
+        currentCell: null, liftRide: null, hazard: 0, slide: 0, finished: false, doorCooldown: 0, collected: 0
       },
       {
-        y: 0, vy: 0, angle: 0, jumps: 0, grounded: false,
-        currentCell: null, hazard: 0, slide: 0, finished: false, doorCooldown: 0, collected: 0
+        y: 0, vy: 0, angle: 0, radial: 0, jumps: 0, grounded: false,
+        currentCell: null, liftRide: null, hazard: 0, slide: 0, finished: false, doorCooldown: 0, collected: 0
       }
     ];
 
@@ -622,9 +623,11 @@
       p.y = startY;
       p.vy = 0;
       p.angle = topSector * sectorWidth() + angleOffset;
+      p.radial = radius + 1.05;
       p.jumps = 0;
       p.grounded = true;
       p.currentCell = cell || null;
+      p.liftRide = null;
       p.hazard = 0;
       p.slide = 0;
       p.finished = false;
@@ -649,13 +652,29 @@
           const sector = wrapSector(centerSector + d, tower.sectors);
           const cell = tower.cells.get(level + ":" + sector);
           if (!cell) continue;
-          const sectorAngle = sector * sectorWidth();
-          const da = Math.abs(angleDelta(player.angle, sectorAngle));
+
+          const mesh = platformMeshes.find(m => m.userData.cell === cell);
+          const meshX = mesh ? mesh.position.x : Math.sin(sector * sectorWidth()) * (radius + 0.4);
+          const meshZ = mesh ? mesh.position.z : Math.cos(sector * sectorWidth()) * (radius + 0.4);
+          const surfaceAngle = Math.atan2(meshX, meshZ);
+          const surfaceRadius = Math.hypot(meshX, meshZ);
+
+          const da = Math.abs(angleDelta(player.angle, surfaceAngle));
           if (da > sectorWidth() * 0.72) continue;
 
-          const y = cellWorldY(cell);
+          const targetRadial = surfaceRadius + 0.65;
+          if (Math.abs(player.radial - targetRadial) > 1.25) continue;
+
+          const y = mesh ? mesh.position.y : cellWorldY(cell);
           const dy = player.y - (y + 0.72);
-          candidates.push({ cell, y, dy, da });
+          candidates.push({
+            cell,
+            y,
+            dy,
+            da,
+            angle: surfaceAngle,
+            radial: targetRadial
+          });
         }
       }
 
@@ -759,11 +778,43 @@
       }
     }
 
+    function syncLiftRide(p) {
+      if (!p.grounded || p.currentCell?.surface !== "lift") {
+        p.liftRide = null;
+        return;
+      }
+
+      const mesh = platformMeshes.find(m => m.userData.cell === p.currentCell);
+      if (!mesh) {
+        p.liftRide = null;
+        return;
+      }
+
+      const state = {
+        cell: p.currentCell,
+        y: mesh.position.y,
+        radial: Math.hypot(mesh.position.x, mesh.position.z) + 0.65,
+        angle: Math.atan2(mesh.position.x, mesh.position.z)
+      };
+
+      if (p.liftRide && p.liftRide.cell === state.cell) {
+        p.y += state.y - p.liftRide.y;
+        p.radial += state.radial - p.liftRide.radial;
+        p.angle += angleDelta(state.angle, p.liftRide.angle);
+      } else {
+        p.radial = state.radial;
+        p.angle = state.angle;
+      }
+
+      p.liftRide = state;
+    }
+
     function updatePlayer(index, dt) {
       const p = players[index];
       const c = controls[index];
       if (p.finished) return;
 
+      syncLiftRide(p);
       p.doorCooldown = Math.max(0, p.doorCooldown - dt);
       p.vy -= gravity * dt;
 
@@ -803,8 +854,19 @@
         p.grounded = true;
         p.jumps = 0;
         p.currentCell = landing.cell;
+        p.radial = landing.radial;
+        p.angle = landing.angle;
+        p.liftRide = landing.cell.surface === "lift"
+          ? {
+              cell: landing.cell,
+              y: landing.y,
+              radial: landing.radial,
+              angle: landing.angle
+            }
+          : null;
       } else {
         p.grounded = false;
+        p.liftRide = null;
       }
 
       if (!p.grounded) return;
@@ -845,7 +907,7 @@
     function updatePlayerVisual(index) {
       const p = players[index];
       const a = p.angle;
-      const r = radius + 1.05;
+      const r = p.radial || (radius + 1.05);
       const x = Math.sin(a) * r;
       const z = Math.cos(a) * r;
 
@@ -867,14 +929,19 @@
       const x = Math.sin(a) * cameraRadius;
       const z = Math.cos(a) * cameraRadius;
       const camera = cameras[index];
+      const playerRadius = p.radial || (radius + 1.05);
+      const followRadius = playerRadius + 7.5;
 
-      // Follow the player from outside the cylinder. Looking directly at the
-      // player keeps the chibjik centered while A/D moves around the tower.
-      camera.position.set(x, p.y + 4.0, z);
+      // Follow from outside the cylinder and keep the character centered.
+      camera.position.set(
+        Math.sin(a) * followRadius,
+        p.y + 4.0,
+        Math.cos(a) * followRadius
+      );
       camera.lookAt(new THREE.Vector3(
-        Math.sin(a) * (radius + 1.05),
+        Math.sin(a) * playerRadius,
         p.y + 0.9,
-        Math.cos(a) * (radius + 1.05)
+        Math.cos(a) * playerRadius
       ));
       camera.aspect = viewport.w / Math.max(1, viewport.h);
       camera.updateProjectionMatrix();
@@ -1235,9 +1302,16 @@
       for (let i = 0; i < 2; i++) {
         const pad = activePads[i];
         if (!pad) {
-          clearControls(i);
+          // Keyboard, mouse and touch controls share this state. An absent
+          // gamepad must not erase a held keyboard key every 60 ms.
+          if (gamepadPresent[i]) {
+            clearControls(i);
+            gamepadPresent[i] = false;
+          }
           continue;
         }
+
+        gamepadPresent[i] = true;
 
         const lx = pad.axes?.[0] || 0;
         const ly = pad.axes?.[1] || 0;
