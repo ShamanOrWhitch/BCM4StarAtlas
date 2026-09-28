@@ -307,8 +307,8 @@
 
     const radius = 8.4;
     // Tower gameplay is on the OUTSIDE skin of the cylinder. The player stays
-    // on the circumference while the camera follows just outside it, so the
-    // character remains centered and the tower rotates around that character.
+    // on the circumference while the camera follows just outside it.
+    const playerWallRadius = radius + 1.05;
     const cameraRadius = radius + 8.0;
     const gravity = 18;
     const jumpVelocity = 12.5;
@@ -764,7 +764,7 @@
       p.y = startY;
       p.vy = 0;
       p.angle = topSector * sectorWidth() + angleOffset;
-      p.radial = radius + 1.05;
+      p.radial = playerWallRadius;
       p.jumps = 0;
       p.grounded = true;
       p.currentCell = cell || null;
@@ -799,6 +799,17 @@
           const meshZ = mesh ? mesh.position.z : Math.cos(sector * sectorWidth()) * (radius + 0.4);
           const surfaceAngle = Math.atan2(meshX, meshZ);
           const surfaceRadius = Math.hypot(meshX, meshZ);
+
+          // A retracting platform is not a floor once it has gone through the
+          // cylinder wall. It may visually enter the tower, but the player
+          // cannot follow it through the solid shell.
+          if (
+            cell.surface === "lift" &&
+            cell.motion === "retract" &&
+            surfaceRadius + 0.65 < playerWallRadius - 0.08
+          ) {
+            continue;
+          }
 
           const da = Math.abs(angleDelta(player.angle, surfaceAngle));
           if (da > sectorWidth() * 0.72) continue;
@@ -972,6 +983,14 @@
       if (p.finished) return;
 
       syncLiftRide(p);
+
+      // The tower cylinder is a hard radial wall, exactly like Room 1's
+      // corridor walls. A moving platform can never pull the player through it.
+      if (p.radial < playerWallRadius) {
+        p.radial = playerWallRadius;
+        p.liftRide = null;
+      }
+
       p.doorCooldown = Math.max(0, p.doorCooldown - dt);
       p.vy -= gravity * dt;
 
@@ -1013,7 +1032,7 @@
         p.grounded = true;
         p.jumps = 0;
         p.currentCell = landing.cell;
-        p.radial = landing.radial;
+        p.radial = Math.max(landing.radial, playerWallRadius);
 
         // A/D must control the player while grounded. Do not snap the
         // player's angle back to the platform center every frame.
@@ -1082,7 +1101,7 @@
     function updatePlayerVisual(index) {
       const p = players[index];
       const a = p.angle;
-      const r = p.radial || (radius + 1.05);
+      const r = Math.max(p.radial || playerWallRadius, playerWallRadius);
       const x = Math.sin(a) * r;
       const z = Math.cos(a) * r;
 
