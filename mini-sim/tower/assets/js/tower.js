@@ -2,6 +2,7 @@
   "use strict";
 
   const CONFIG = window.BCMTowerConfig || {};
+  const TOWER_VERSION = "0.2.21";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -61,13 +62,66 @@
 
   function assetTexture(url, renderer, options = {}) {
     if (!url || !window.THREE) return null;
-    // Callers may omit options or pass a legacy false/null value.
-    // Normalize it before reading texture options.
     options = options && typeof options === "object" ? options : {};
-    const cache = assetTexture.cache || (assetTexture.cache = new Map());
-    if (cache.has(url)) return cache.get(url);
 
-    const tex = new THREE.TextureLoader().load(url);
+    const cleanKey = options.removeWhite ? "|whitekey" : "";
+    const cacheKey = String(url) + cleanKey;
+    const cache = assetTexture.cache || (assetTexture.cache = new Map());
+    if (cache.has(cacheKey)) return cache.get(cacheKey);
+
+    let tex;
+
+    if (options.removeWhite && /\\.png(?:[?#].*)?$/i.test(String(url))) {
+      // Some of the supplied PNG cards contain an opaque white matte instead
+      // of real alpha. Remove only near-white pixels and preserve antialiased
+      // edges so doors, NPCs and landing cards behave as cut-outs.
+      const canvas = document.createElement("canvas");
+      canvas.width = 2;
+      canvas.height = 2;
+      tex = new THREE.CanvasTexture(canvas);
+
+      const image = new Image();
+      image.crossOrigin = "anonymous";
+      image.decoding = "async";
+      image.onload = () => {
+        try {
+          canvas.width = image.naturalWidth || image.width;
+          canvas.height = image.naturalHeight || image.height;
+          const ctx = canvas.getContext("2d", { willReadFrequently: true });
+          if (!ctx) return;
+
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+          const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const pixels = frame.data;
+          for (let i = 0; i < pixels.length; i += 4) {
+            const r = pixels[i];
+            const g = pixels[i + 1];
+            const b = pixels[i + 2];
+            const a = pixels[i + 3];
+
+            if (!a) continue;
+
+            if (r >= 246 && g >= 246 && b >= 246) {
+              pixels[i + 3] = 0;
+            } else if (r >= 232 && g >= 232 && b >= 232) {
+              const fade = Math.max(0, Math.min(1, (246 - Math.min(r, g, b)) / 14));
+              pixels[i + 3] = Math.round(a * fade);
+            }
+          }
+
+          ctx.putImageData(frame, 0, 0);
+          tex.needsUpdate = true;
+        } catch (error) {
+          console.warn("Tower PNG alpha cleanup failed", url, error);
+        }
+      };
+      image.src = url;
+    } else {
+      tex = new THREE.TextureLoader().load(url);
+    }
+
     if ("colorSpace" in tex && THREE.SRGBColorSpace !== undefined) {
       tex.colorSpace = THREE.SRGBColorSpace;
     } else if (THREE.sRGBEncoding !== undefined) {
@@ -84,7 +138,7 @@
       tex.repeat.set(options.repeatX || 1, options.repeatY || 1);
     }
 
-    cache.set(url, tex);
+    cache.set(cacheKey, tex);
     return tex;
   }
 
@@ -218,10 +272,35 @@
       }
     }
 
+    // Guarantee visible, reachable opposite doors at several depths.
+    // They sit on the generated safe path, so the player can actually discover
+    // the passage instead of waiting for a rare side-cell roll.
+    for (const forcedLevel of [8, 18, 28, 38]) {
+      if (forcedLevel <= 4 || forcedLevel >= levels - 3) continue;
+
+      const routeSector = path[levels - 1 - forcedLevel];
+      if (routeSector == null) continue;
+
+      const oppositeSector = wrapSector(routeSector + Math.floor(sectors / 2), sectors);
+      const from = setCell(forcedLevel, routeSector, {
+        surface: cells.get(key(forcedLevel, routeSector))?.surface || "platform",
+        object: "door"
+      });
+      const to = setCell(forcedLevel, oppositeSector, {
+        surface: "platform",
+        object: "door"
+      });
+
+      from.doorPair = to;
+      to.doorPair = from;
+      if (!doors.includes(from)) doors.push(from);
+      if (!doors.includes(to)) doors.push(to);
+    }
+
     if (doors.length >= 2) {
       for (let i = 0; i + 1 < doors.length; i += 2) {
-        doors[i].doorPair = doors[i + 1];
-        doors[i + 1].doorPair = doors[i];
+        if (!doors[i].doorPair) doors[i].doorPair = doors[i + 1];
+        if (!doors[i + 1].doorPair) doors[i + 1].doorPair = doors[i];
       }
     }
 
@@ -357,7 +436,12 @@
     const playerWallRadius = radius + 1.05;
     const cameraRadius = radius + 8.0;
     const gravity = 28;
-    const jumpVelocity = 10.5;
+    // One jump must reach the next 4-unit level. The second jump remains
+    // slightly weaker so it extends the first jump without turning the game
+    // into unrestricted vertical flight.
+    const jumpVelocity = 15.0;
+    const doubleJumpVelocity = 11.25;
+    const fallResetSpeed = 23.0;
     const baseTurnSpeed = 2.2;
     const trimPower = 10.5;
     const sectorWidth = () => tower ? Math.PI * 2 / tower.sectors : Math.PI / 9;
@@ -378,13 +462,13 @@
         y: 0, vy: 0, angle: 0, radial: 0, jumps: 0, grounded: false,
         currentCell: null, liftRide: null, hazard: 0, slide: 0, finished: false,
         doorCooldown: 0, collected: 0, jumpStarted: false, fallStartY: null,
-        birdHitCooldown: 0
+        maxFallSpeed: 0, birdHitCooldown: 0
       },
       {
         y: 0, vy: 0, angle: 0, radial: 0, jumps: 0, grounded: false,
         currentCell: null, liftRide: null, hazard: 0, slide: 0, finished: false,
         doorCooldown: 0, collected: 0, jumpStarted: false, fallStartY: null,
-        birdHitCooldown: 0
+        maxFallSpeed: 0, birdHitCooldown: 0
       }
     ];
 
@@ -515,6 +599,7 @@
       }
 
       const tex = assetTexture(texUrl, renderer, {
+        removeWhite: /\\.png(?:[?#].*)?$/i.test(String(texUrl)),
         repeat: cell.surface === "platform" || cell.surface === "ice" || cell.surface === "lava",
         repeatX: 1,
         repeatY: 1
@@ -586,7 +671,7 @@
       }
 
       if (!url) return null;
-      const tex = assetTexture(url, renderer, {});
+      const tex = assetTexture(url, renderer, { removeWhite: true });
       if (!tex) return null;
 
       const sectorAngle = (cell.sector / tower.sectors) * Math.PI * 2;
@@ -595,7 +680,7 @@
         // Real 3D crate/container instead of a flat PNG card.
         const depth = 1.15;
         const radial = radius + depth * 0.5;
-        const material = makeMaterial(tex, 0xffffff, false, 0);
+        const material = makeMaterial(tex, 0xffffff, true, 0.02);
         const materials = [material, material, material, material, material, material];
         const mesh = new THREE.Mesh(
           new THREE.BoxGeometry(w, h, depth),
@@ -917,6 +1002,7 @@
       p.doorCooldown = 0;
       p.jumpStarted = false;
       p.fallStartY = null;
+      p.maxFallSpeed = 0;
       p.birdHitCooldown = 0;
     }
 
@@ -998,6 +1084,7 @@
         p.jumps = 1;
         p.jumpStarted = true;
         p.fallStartY = null;
+        p.maxFallSpeed = 0;
         return;
       }
 
@@ -1005,14 +1092,14 @@
       // platform. Walking/falling off a platform counts as the first jump,
       // so that state gets at most one emergency air jump.
       if (p.jumpStarted && p.jumps === 1) {
-        p.vy = jumpVelocity * 0.72;
+        p.vy = doubleJumpVelocity;
         p.jumps = 2;
         p.jumpStarted = false;
         return;
       }
 
       if (!p.jumpStarted && p.jumps === 1) {
-        p.vy = jumpVelocity * 0.72;
+        p.vy = doubleJumpVelocity;
         p.jumps = 2;
       }
     }
@@ -1208,6 +1295,7 @@
       }
 
       p.doorCooldown = Math.max(0, p.doorCooldown - dt);
+      if (p.grounded) p.maxFallSpeed = 0;
       p.vy -= gravity * dt;
 
       let turn = (c.right ? 1 : 0) - (c.left ? 1 : 0);
@@ -1228,6 +1316,9 @@
 
       p.angle += turn * turnSpeed * dt;
       p.vy += trim * trimPower * dt;
+      if (!p.grounded && p.vy < 0) {
+        p.maxFallSpeed = Math.max(p.maxFallSpeed, -p.vy);
+      }
       p.y += p.vy * dt;
 
       const bottomY = -((tower.levels - 1) * tower.stepY);
@@ -1261,9 +1352,16 @@
           const fallenLevels = Math.floor(
             Math.max(0, p.fallStartY - landing.y) / tower.stepY
           );
+          const impactSpeed = Math.max(0, p.maxFallSpeed);
           p.fallStartY = null;
-          if (fallenLevels >= 5) {
-            resetAfterHazard(index, "ПАДЕНИЕ БОЛЕЕ 5 УРОВНЕЙ: ВОЗВРАТ В НАЧАЛО");
+          p.maxFallSpeed = 0;
+          if (fallenLevels >= 5 || impactSpeed >= fallResetSpeed) {
+            resetAfterHazard(
+              index,
+              impactSpeed >= fallResetSpeed
+                ? "СИЛЬНОЕ ПАДЕНИЕ: СКОРОСТЬ УДАРА " + impactSpeed.toFixed(1)
+                : "ПАДЕНИЕ БОЛЕЕ 5 УРОВНЕЙ: ВОЗВРАТ В НАЧАЛО"
+            );
             return;
           }
         }
@@ -1298,6 +1396,7 @@
           p.jumps = 1;
           p.jumpStarted = false;
           p.fallStartY = p.y;
+          p.maxFallSpeed = 0;
         }
         p.grounded = false;
         p.liftRide = null;
