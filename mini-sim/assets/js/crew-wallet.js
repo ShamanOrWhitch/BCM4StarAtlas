@@ -302,41 +302,41 @@
   }
 
   async function scanWallet(owner) {
-    let direct = [];
-    let directError = null;
+    let serverError = null;
 
-    try {
-      direct = await directScan(owner);
-    } catch (error) {
-      directError = error;
-    }
-
-    // The browser may be blocked by CORS or may not expose compressed Crew
-    // assets through its RPC. Ask the Mini-Sim plugin's own server endpoint,
-    // which talks to Star Atlas directly.
+    // Primary path: the Mini-Sim plugin itself talks to Star Atlas from the
+    // WordPress server, so browser CORS does not decide whether Crew is found.
     try {
       const server = await serverScan(owner);
-      if (server.length || !direct.length) {
+      if (server.length) {
         return {
           crew: server,
           source: "mini-sim-star-atlas-server"
         };
       }
     } catch (error) {
-      if (directError && !direct.length) {
+      serverError = error;
+    }
+
+    // Secondary path: direct browser access can still work in environments
+    // where the Star Atlas/RPC endpoints allow the request.
+    try {
+      const direct = await directScan(owner);
+      return {
+        crew: direct,
+        source: "star-atlas-crew-api"
+      };
+    } catch (error) {
+      if (serverError) {
         throw new Error(
-          "Crew scan: " +
-          (directError instanceof Error ? directError.message : String(directError)) +
-          " · server: " +
+          "Mini-Sim server scan: " +
+          (serverError instanceof Error ? serverError.message : String(serverError)) +
+          " · browser scan: " +
           (error instanceof Error ? error.message : String(error))
         );
       }
+      throw error;
     }
-
-    return {
-      crew: direct,
-      source: "star-atlas-crew-api"
-    };
   }
 
   async function connectAndScan() {
