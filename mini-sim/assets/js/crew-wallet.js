@@ -43,6 +43,26 @@
     throw new Error(lastError);
   }
 
+  function characteristicsFromCrewRow(row) {
+    const out = {};
+    if (!row || typeof row !== "object") return out;
+
+    ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"].forEach((key) => {
+      if (row[key] == null) return;
+      const n = Number(row[key]);
+      if (!Number.isFinite(n)) return;
+      out[key] = n <= 1 ? Math.round(n * 100) : Math.round(n);
+    });
+
+    if (row.aptitudes && typeof row.aptitudes === "object") {
+      out.aptitudes = Object.fromEntries(
+        Object.entries(row.aptitudes).map(([name, value]) => [String(name), Number.isFinite(Number(value)) ? Number(value) : String(value)])
+      );
+    }
+
+    return out;
+  }
+
   function traitsFromCrewRow(row) {
     const traits = [];
     const add = (trait, value) => {
@@ -105,6 +125,7 @@
             rarity: String(row.rarity || ""),
             species: String(row.species || ""),
             traits: traitsFromCrewRow(row),
+            characteristics: characteristicsFromCrewRow(row),
             raw: row
           });
         });
@@ -138,6 +159,9 @@
       sex: "",
       source: "wallet",
       traits: Array.isArray(catalogCard?.traits) ? catalogCard.traits : [],
+      characteristics: catalogCard?.characteristics && typeof catalogCard.characteristics === "object"
+        ? catalogCard.characteristics
+        : {},
       raw: catalogCard?.raw || null,
       amount: Number(amount || 0)
     };
@@ -208,7 +232,10 @@
         species: String(item.spec || ""),
         sex: "",
         source: "wallet",
-        traits: Array.isArray(item.traits) ? item.traits : []
+        traits: Array.isArray(item.traits) ? item.traits : [],
+        characteristics: item?.characteristics && typeof item.characteristics === "object"
+          ? item.characteristics
+          : {}
       }));
   }
 
