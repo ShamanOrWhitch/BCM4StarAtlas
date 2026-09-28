@@ -382,7 +382,9 @@
       },
       {
         y: 0, vy: 0, angle: 0, radial: 0, jumps: 0, grounded: false,
-        currentCell: null, liftRide: null, hazard: 0, slide: 0, finished: false, doorCooldown: 0, collected: 0
+        currentCell: null, liftRide: null, hazard: 0, slide: 0, finished: false,
+        doorCooldown: 0, collected: 0, jumpStarted: false, fallStartY: null,
+        birdHitCooldown: 0
       }
     ];
 
@@ -394,8 +396,8 @@
     // Normalized crew state shared by the game and future wallet/JSON loaders.
     // The first prototype keeps the requested default pair.
     let crewRoster = [
-      { id: "opal-jetjet", name: "Opal Jetjet", source: "default" },
-      { id: "opal-jetjet-2", name: "Opal Jetjet #2", source: "default" }
+      { id: "default-crew-1", name: "Default Crew 1", source: "fallback" },
+      { id: "default-crew-2", name: "Default Crew 2", source: "fallback" }
     ];
     const crewSlots = [
       { slot: 0, crewId: crewRoster[0].id, location: "ship", level: null },
@@ -406,78 +408,6 @@
 
     function crewById(id) {
       return crewRoster.find((crew) => crew.id === id) || null;
-    }
-
-    function normalizeCrewEntry(raw, index) {
-      const value = raw || {};
-      const id = String(
-        value.id ||
-        value.mint ||
-        value.address ||
-        value.assetId ||
-        ("crew-" + index)
-      );
-      const name = String(
-        value.name ||
-        value.fullName ||
-        value.displayName ||
-        ("Crew " + (index + 1))
-      );
-      const image = String(
-        value.image ||
-        value.imageUrl ||
-        value.media?.image ||
-        value.media?.thumbnailUrl ||
-        ""
-      );
-      return {
-        id,
-        name,
-        image,
-        source: value.source || "json",
-        mint: value.mint || value.address || "",
-        attributes: value.attributes || {},
-        raw: value
-      };
-    }
-
-    function applyCrewRoster(rawList) {
-      const list = Array.isArray(rawList)
-        ? rawList
-        : (Array.isArray(rawList?.crew)
-          ? rawList.crew
-          : Array.isArray(rawList?.crews)
-            ? rawList.crews
-            : []);
-      const normalized = list
-        .map(normalizeCrewEntry)
-        .filter((crew) => crew.id && crew.name);
-
-      if (!normalized.length) return false;
-
-      crewRoster = normalized;
-      try {
-        localStorage.setItem("bcmTowerCrewRoster", JSON.stringify(crewRoster));
-      } catch (e) {}
-
-      if (!crewRoster.some((crew) => crew.id === crewSlots[0].crewId)) {
-        crewSlots[0].crewId = crewRoster[0].id;
-      }
-      if (!crewRoster.some((crew) => crew.id === crewSlots[1].crewId)) {
-        crewSlots[1].crewId = crewRoster[Math.min(1, crewRoster.length - 1)].id;
-      }
-
-      renderCrewSelectors();
-      exposeCrewMatrix();
-      return true;
-    }
-
-    function loadSavedCrewRoster() {
-      try {
-        const saved = JSON.parse(localStorage.getItem("bcmTowerCrewRoster") || "null");
-        if (applyCrewRoster(saved)) return;
-      } catch (e) {}
-      renderCrewSelectors();
     }
 
     function updateCrewMatrix() {
