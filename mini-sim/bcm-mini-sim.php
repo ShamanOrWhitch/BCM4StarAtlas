@@ -298,6 +298,23 @@ function bcm_mini_sim_ocean_trait($map, $name) {
     return bcm_mini_sim_ocean($value);
 }
 
+function bcm_mini_sim_metadata_uri_json($uri, $timeout = 12) {
+    $uri = trim((string) $uri);
+    if ($uri === '') {
+        return array();
+    }
+    if (strpos($uri, 'ipfs://') === 0) {
+        $uri = 'https://ipfs.io/ipfs/' . ltrim(substr($uri, 7), '/');
+    } elseif (strpos($uri, 'ar://') === 0) {
+        $uri = 'https://arweave.net/' . ltrim(substr($uri, 5), '/');
+    }
+    if (strpos($uri, 'https://') !== 0) {
+        return array();
+    }
+    $json = bcm_mini_sim_remote_json($uri, 'GET', null, $timeout);
+    return is_array($json) ? $json : array();
+}
+
 function bcm_mini_sim_extract_solanafm_metadata($row) {
     if (!is_array($row)) {
         return array();
@@ -401,6 +418,15 @@ function bcm_mini_sim_server_crew_scan($owner) {
 
     foreach ($mint_rows as $mint => $hold) {
         $row = isset($metadata[$mint]) && is_array($metadata[$mint]) ? bcm_mini_sim_extract_solanafm_metadata($metadata[$mint]) : array();
+        if (empty($row['attributes']) && !empty($row['uri'])) {
+            $off = bcm_mini_sim_metadata_uri_json($row['uri'], 12);
+            if ($off) {
+                $row['name'] = !empty($off['name']) ? (string) $off['name'] : ($row['name'] ?? '');
+                $row['image'] = !empty($off['image']) ? (string) $off['image'] : ($row['image'] ?? '');
+                $row['symbol'] = !empty($off['symbol']) ? (string) $off['symbol'] : ($row['symbol'] ?? '');
+                $row['attributes'] = isset($off['attributes']) && is_array($off['attributes']) ? $off['attributes'] : array();
+            }
+        }
         $map = bcm_mini_sim_attr_map(isset($row['attributes']) ? $row['attributes'] : array());
         $galaxy = isset($crew_catalog[$mint]) ? $crew_catalog[$mint] : null;
 
