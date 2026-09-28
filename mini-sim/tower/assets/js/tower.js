@@ -308,7 +308,7 @@
     // character remains centered and the tower rotates around that character.
     const cameraRadius = radius + 8.0;
     const gravity = 18;
-    const jumpVelocity = 9.3;
+    const jumpVelocity = 12.5;
     const baseTurnSpeed = 2.2;
     const trimPower = 10.5;
     const sectorWidth = () => tower ? Math.PI * 2 / tower.sectors : Math.PI / 9;
@@ -847,6 +847,8 @@
         return;
       }
 
+      const wasGrounded = p.grounded;
+      const previousCell = p.currentCell;
       const landing = findLanding(p);
       if (landing) {
         p.y = landing.y + 0.72;
@@ -855,15 +857,31 @@
         p.jumps = 0;
         p.currentCell = landing.cell;
         p.radial = landing.radial;
-        p.angle = landing.angle;
-        p.liftRide = landing.cell.surface === "lift"
-          ? {
+
+        // A/D must control the player while grounded. Do not snap the
+        // player's angle back to the platform center every frame.
+        if (!wasGrounded) {
+          p.angle = landing.angle;
+        }
+
+        if (landing.cell.surface === "lift") {
+          if (!wasGrounded || previousCell !== landing.cell || !p.liftRide) {
+            p.liftRide = {
               cell: landing.cell,
               y: landing.y,
               radial: landing.radial,
               angle: landing.angle
-            }
-          : null;
+            };
+          } else {
+            // Keep the lift's previous frame as the motion reference. The
+            // player may rotate independently on the lift surface.
+            p.liftRide.cell = landing.cell;
+            p.liftRide.y = landing.y;
+            p.liftRide.radial = landing.radial;
+          }
+        } else {
+          p.liftRide = null;
+        }
       } else {
         p.grounded = false;
         p.liftRide = null;
