@@ -4,7 +4,11 @@
     height: var(--bcm-tower-height, min(100vh, 900px));
     min-height: 420px;
     overflow: hidden;
-    background: #02050a;
+    background-color: #02050a;
+    background-image: var(--bcm-tower-background-image, none);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     color: #e8f4ff;
     font-family: Arial, Helvetica, sans-serif;
     isolation: isolate;
@@ -42,8 +46,8 @@
     gap: 12px;
     text-align: center;
     background:
-        radial-gradient(circle at 50% 45%, rgba(28,65,92,.28), rgba(0,0,0,.82) 62%),
-        rgba(0,0,0,.48);
+        radial-gradient(circle at 50% 45%, rgba(28,65,92,.16), rgba(0,0,0,.48) 68%),
+        rgba(0,0,0,.16);
     backdrop-filter: blur(2px);
 }
 
