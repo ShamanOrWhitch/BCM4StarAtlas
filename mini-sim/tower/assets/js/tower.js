@@ -423,6 +423,7 @@
     let mode = null;
     let gameStarted = false;
     let transitionStarted = false;
+    let towerAudio = null;
 
     let wallMesh = null;
     let platformMeshes = [];
@@ -1607,8 +1608,44 @@
       : null;
     resizeObserver?.observe(root);
 
+    function ensureTowerAudio() {
+      if (towerAudio || !CONFIG.towerAudio) return towerAudio;
+
+      towerAudio = document.createElement("audio");
+      towerAudio.src = CONFIG.towerAudio;
+      towerAudio.preload = "auto";
+      towerAudio.loop = true;
+      towerAudio.volume = 0.48;
+      towerAudio.setAttribute("playsinline", "");
+      towerAudio.setAttribute("aria-hidden", "true");
+      towerAudio.style.display = "none";
+      document.body.appendChild(towerAudio);
+      return towerAudio;
+    }
+
+    function playTowerAudio() {
+      const audio = ensureTowerAudio();
+      if (!audio) return;
+      const promise = audio.play();
+      if (promise && promise.catch) {
+        promise.catch(() => {
+          // Browser autoplay may require a fresh user gesture. The mode buttons
+          // call this again directly from the click handler.
+        });
+      }
+    }
+
+    function stopTowerAudio() {
+      if (!towerAudio) return;
+      try {
+        towerAudio.pause();
+        towerAudio.currentTime = 0;
+      } catch (e) {}
+    }
+
     function startMode(nextMode) {
       mode = nextMode === "multi" ? "multi" : "single";
+      playTowerAudio();
       menu.hidden = true;
       mobile?.setAttribute("aria-hidden", "false");
       mobile?.querySelector(".bcm-tower-mobile-p2")?.toggleAttribute("hidden", mode !== "multi");
@@ -1723,6 +1760,7 @@
       transitionVideo.onended = () => {
         stopTransition();
         showMenu();
+        playTowerAudio();
       };
       transitionVideo.onerror = () => {
         stopTransition();
@@ -2000,6 +2038,7 @@
       resize();
       renderViews();
       triggerTransition();
+      playTowerAudio();
 
       requestAnimationFrame(() => {
         resize();
