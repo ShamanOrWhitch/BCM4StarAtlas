@@ -226,6 +226,9 @@
   }
 
   function boot(root) {
+    if (root.dataset.bcmTowerBooted === "1") return;
+    root.dataset.bcmTowerBooted = "1";
+
     const canvas = root.querySelector(".bcm-tower-canvas");
     const menu = root.querySelector(".bcm-tower-menu");
     const modeButtons = [...root.querySelectorAll("[data-tower-mode]")];
