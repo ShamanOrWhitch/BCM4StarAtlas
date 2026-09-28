@@ -300,7 +300,9 @@
     let playerTexture = null;
 
     const radius = 8.4;
-    const cameraRadius = radius + 3.2;
+    // The playable tower is an interior shaft. The previous camera sat
+    // outside the cylindrical shell, so the shell hid the generated levels.
+    const cameraRadius = radius - 2.2;
     const gravity = 18;
     const jumpVelocity = 9.3;
     const baseTurnSpeed = 2.75;
