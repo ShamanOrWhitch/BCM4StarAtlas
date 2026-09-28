@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.38
+ * Version: 0.9.39
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.38');
+define('BCM_MINI_SIM_VERSION', '0.9.39');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -149,7 +149,7 @@ function bcm_mini_sim_remote_json($url, $method = 'GET', $body = null, $timeout 
 }
 
 function bcm_mini_sim_crew_catalog() {
-    $cached = get_transient('bcm_mini_sim_crew_catalog_v2');
+    $cached = get_transient('bcm_mini_sim_crew_catalog_v3');
     if (is_array($cached) && !empty($cached)) {
         return $cached;
     }
@@ -264,6 +264,20 @@ function bcm_mini_sim_server_crew_scan($owner) {
             }
 
             $card = $catalog[$mint];
+            $attributes = isset($card['raw']['attributes']) && is_array($card['raw']['attributes'])
+                ? $card['raw']['attributes']
+                : array();
+            $traits = array();
+            foreach ($attributes as $trait => $value) {
+                if (is_array($value)) {
+                    continue;
+                }
+                $traits[] = array(
+                    'trait' => (string) $trait,
+                    'value' => (string) $value,
+                );
+            }
+
             $seen[$mint] = true;
             $found[] = array(
                 'id' => $mint,
@@ -274,7 +288,7 @@ function bcm_mini_sim_server_crew_scan($owner) {
                 'species' => $card['species'],
                 'sex' => '',
                 'source' => 'mini-sim-star-atlas-server',
-                'traits' => array(),
+                'traits' => array_slice($traits, 0, 48),
                 'characteristics' => array(),
                 'raw' => $card['raw'],
                 'amount' => $amount,
