@@ -2643,7 +2643,8 @@
   }
 
   function getSpaceZone(z) {
-    if (z > -24.5) return "ROOM1";
+    if (z > -1.0) return "ROOM1";
+    if (z > -24.5) return "ROOM0";
     if (z >= -48.5) return "BLACK_HOLE";
     if (z >= -84.5) return "ROOM2";
     return "DEEP_SPACE";
@@ -2793,13 +2794,10 @@
       collideStarbaseShell(before, true);
     }
 
+    const room0Blocked = room0Labyrinth.active && collideRoom0Labyrinth(before);
     const blockedX = before.x !== ship.position.x;
     const blockedY = before.y !== ship.position.y;
-    const blockedZ = before.z !== ship.position.z;
-
-    if (room0Labyrinth.active) {
-      collideRoom0Labyrinth(before);
-    }
+    const blockedZ = before.z !== ship.position.z || room0Blocked;
 
     if (blockedX || blockedY || blockedZ) {
       const speed = ship.velocity.length();
@@ -2910,6 +2908,8 @@
       room = "BLACK HOLE · OPEN VOLUME";
     } else if (zoneNow === "ROOM2") {
       room = "ROOM 2";
+    } else if (zoneNow === "ROOM0") {
+      room = "ROOM 0 · SEEDED LABYRINTH";
     } else {
       room = "ROOM 1";
     }
