@@ -305,6 +305,7 @@
   };
   const spaceSatellite = {
     group: null,
+    stationMesh: null,
     stars: null,
     visible: false
   };
@@ -1116,7 +1117,22 @@
     const beaconRed = new THREE.MeshBasicMaterial({ color: 0xff3344 });
     const dockingMat = new THREE.MeshBasicMaterial({ color: 0xdbeeff });
 
-    group.add(new THREE.Mesh(new THREE.SphereGeometry(4.4, 12, 8), darkMat));
+    const stationAsset = assets.find((asset) => {
+      if (!asset || asset.type !== "image") return false;
+      const base = String(asset.name || "").split(/[\\/]/).pop() || "";
+      return /^OniStation\.png$/i.test(base);
+    });
+    const stationMaterial = stationAsset
+      ? textured(stationAsset.name, 0x18212b)
+      : darkMat;
+    const stationSphere = new THREE.Mesh(
+      new THREE.SphereGeometry(4.4, 24, 16),
+      stationMaterial
+    );
+    stationSphere.name = "oni-station-docking-sphere";
+    stationSphere.userData.dockingRadius = 4.4;
+    group.add(stationSphere);
+    spaceSatellite.stationMesh = stationSphere;
 
     const spine = new THREE.Mesh(
       new THREE.CylinderGeometry(2.25, 2.7, 18, 12),
@@ -1960,6 +1976,34 @@
 
   let towerGateTriggered = false;
 
+  let towerLandingActive = false;
+
+  function handoffToTower() {
+    towerLandingActive = false;
+    transitionLoading = false;
+    transitionBusy = true;
+
+    // Release the entire space-labyrinth WebGL application before Tower takes over.
+    disposeMiniSimResources();
+
+    const root = document.querySelector(".bcm-tower-embedded");
+    if (!root) {
+      towerGateTriggered = false;
+      transitionBusy = false;
+      setStatus("TOWER OVERLAY MISSING");
+      return;
+    }
+
+    root.hidden = false;
+    if (window.BCMTowerAPI && typeof window.BCMTowerAPI.enter === "function") {
+      window.BCMTowerAPI.enter();
+    } else {
+      towerGateTriggered = false;
+      transitionBusy = false;
+      setStatus("TOWER ENGINE NOT READY");
+    }
+  }
+
   function enterTowerFromGate() {
     if (towerGateTriggered || transitionBusy) return;
 
@@ -1970,19 +2014,68 @@
     }
 
     towerGateTriggered = true;
+    towerLandingActive = true;
     transitionBusy = true;
+    transitionLoading = true;
+    pauseAllCinemaVideos();
 
-    // Release the entire space-labyrinth WebGL application before Tower takes over.
-    disposeMiniSimResources();
-
-    root.hidden = false;
-    if (window.BCMTowerAPI && typeof window.BCMTowerAPI.enter === "function") {
-      window.BCMTowerAPI.enter();
-    } else {
-      towerGateTriggered = false;
-      transitionBusy = false;
-      setStatus("TOWER ENGINE NOT READY");
+    const url = config.towerLandingUrl || config.towerFallbackUrl || "";
+    if (!url || !transitionVideo || !transitionRoot) {
+      handoffToTower();
+      return;
     }
+
+    transitionVideo.muted = true;
+    transitionVideo.defaultMuted = true;
+    transitionVideo.setAttribute("muted", "");
+    transitionVideo.setAttribute("playsinline", "");
+    transitionVideo.setAttribute("webkit-playsinline", "");
+    transitionVideo.playsInline = true;
+    transitionVideo.preload = "auto";
+    transitionVideo.style.opacity = "0";
+
+    if (transitionRoot) {
+      transitionRoot.classList.remove("ready");
+      transitionRoot.hidden = true;
+    }
+    if (transitionLabel) transitionLabel.textContent = "LANDING · ONI STATION → TOWER";
+
+    const revealLanding = () => {
+      if (!towerLandingActive) return;
+      transitionLoading = false;
+      transitionBusy = true;
+      if (transitionRoot) {
+        transitionRoot.hidden = false;
+        transitionRoot.classList.add("ready");
+      }
+      transitionVideo.style.opacity = "1";
+      const play = transitionVideo.play();
+      if (play && play.catch) play.catch(() => handoffToTower());
+    };
+
+    transitionVideo.onloadeddata = revealLanding;
+    transitionVideo.onplaying = () => {
+      if (!towerLandingActive) return;
+      if (transitionRoot) {
+        transitionRoot.hidden = false;
+        transitionRoot.classList.add("ready");
+      }
+    };
+    transitionVideo.onended = handoffToTower;
+    transitionVideo.onerror = () => {
+      if (!towerLandingActive) return;
+      if (transitionRoot) {
+        transitionRoot.classList.remove("ready");
+        transitionRoot.hidden = true;
+      }
+      setStatus("LANDING MP4 ERROR · TOWER");
+      handoffToTower();
+    };
+
+    transitionVideo.src = url;
+    transitionVideo.load();
+    const play = transitionVideo.play();
+    if (play && play.catch) play.catch(() => {});
   }
 
   function portalCoverage() {
@@ -2440,6 +2533,7 @@
     backside.materials.length = 0;
     backside.group = null;
     spaceSatellite.group = null;
+    spaceSatellite.stationMesh = null;
     spaceSatellite.stars = null;
     towerPreload.landingVideo = null;
     towerPreload.fallbackVideo = null;
@@ -2746,14 +2840,15 @@
       const frontOpeningZ = room1 ? -25.5 : -47.5;
       const rearCapZ = room1 ? 5.5 : -84.5;
 
-      // Central front openings connect the rooms to BLACK HOLE.
-      const opening = allowInteriorOpenings &&
-        Math.abs(ship.position.x) <= 5.85 &&
-        Math.abs(ship.position.y) <= 3.45 &&
-        shellCrossed(before.z, ship.position.z, frontOpeningZ);
-
-      if (opening) {
-        return;
+      // The visible hull has no physical front opening. Room transitions
+      // use the portal cutscene instead of noclip through the shell.
+      const crossedFront = shellCrossed(before.z, ship.position.z, frontOpeningZ);
+      if (crossedFront) {
+        ship.position.z = before.z < frontOpeningZ
+          ? frontOpeningZ - 0.06
+          : frontOpeningZ + 0.06;
+        ship.velocity.z = 0;
+        blocked = true;
       }
 
       // Block crossing the visible outer shell in BOTH directions.
@@ -2882,20 +2977,16 @@
         blocked = true;
       }
 
-      // Room front openings are only legal through the central doorway envelope.
+      // Room 1 and the front of Room 2 stay physically sealed.
+      // The transition to Room 2 happens through the portal cutscene,
+      // not by flying through an open hull.
       const crossedFront = shellCrossed(before.z, ship.position.z, room.frontZ);
       if (crossedFront) {
-        const centralOpening =
-          Math.abs(ship.position.x) <= 5.85 &&
-          Math.abs(ship.position.y) <= 3.45;
-
-        if (!centralOpening) {
-          ship.position.z = before.z < room.frontZ
-            ? room.frontZ - 0.06
-            : room.frontZ + 0.06;
-          ship.velocity.z = 0;
-          blocked = true;
-        }
+        ship.position.z = before.z < room.frontZ
+          ? room.frontZ - 0.06
+          : room.frontZ + 0.06;
+        ship.velocity.z = 0;
+        blocked = true;
       }
 
       // Room 1 rear cap is closed. Room 2 rear cap remains the intended
@@ -3066,20 +3157,16 @@
       ? Number(config.towerApproach.uiRadius)
       : 180;
 
-    const planet = spacePlanet.mesh;
-    const planetDistance = planet && ship.position
-      ? planet.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position)
+    const stationDistance = spaceSatellite.group && ship.position
+      ? spaceSatellite.group.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position)
       : Infinity;
-    // Keep the automatic Tower trigger tightly attached to the planet.
-    // The nearby Reshade-Rasta-Dance screen sits ~20 units from the planet,
-    // so 28 units caused that ordinary video zone to become an accidental gate.
-    const planetEntryRadius = 14;
+    const stationLandingRadius = 9.0;
 
     if (interaction) {
-      if (planetDistance <= planetEntryRadius) {
-        interaction.textContent = "PLANET · TOWER ENTRY";
+      if (stationDistance <= 30) {
+        interaction.textContent = "ONI STATION · LANDING " + Math.max(0, Math.round(100 - (stationDistance / 30) * 100)) + "%";
       } else if (gate && gateDistance <= gateUiRadius) {
-        interaction.textContent = "TOWER APPROACH · onicss.mp4";
+        interaction.textContent = "DEEP SPACE · APPROACH";
       } else {
         interaction.textContent = portal.coverage >= 0.69
           ? "PORTAL LOCK 69% · CUTSCENE"
@@ -3087,10 +3174,12 @@
       }
     }
 
-    // The planet is the actual entrance: proximity triggers Tower automatically.
-    if (!towerGateTriggered && !transitionBusy && planetDistance <= planetEntryRadius) {
+    // The Oni station sphere is the only Tower entrance. Land on the
+    // already-built central station, then play tower.mp4 before handoff.
+    if (!towerGateTriggered && !transitionBusy && stationDistance <= stationLandingRadius) {
       enterTowerFromGate();
     }
+
     if (!cinema.focus) {
       if (portalSide() === "FRONT" && portal.coverage >= 0.69) tryPortal();
       if (portalSide() === "BACK" && portalTriggerDistance("BACK") <= 7.5) tryPortal();
@@ -3343,7 +3432,10 @@
     });
     if (transitionRoot) {
       const close = transitionRoot.querySelector(".bcm-mini-sim-transition-close");
-      if (close) close.addEventListener("click", finishTeleport);
+      if (close) close.addEventListener("click", () => {
+      if (towerLandingActive) return;
+      finishTeleport();
+    });
     }
     if (settingsRoot) {
       const vol = settingsRoot.querySelector('[data-setting="volume"]');
