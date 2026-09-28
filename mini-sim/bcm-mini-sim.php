@@ -392,24 +392,14 @@ function bcm_mini_sim_server_crew_scan($owner) {
     }
 
     $crew_catalog = bcm_mini_sim_crew_catalog();
-    $nft_tokens = bcm_mini_sim_solanafm_owner_tokens($owner, 'NonFungible', 20);
-    $fungible_tokens = bcm_mini_sim_solanafm_owner_tokens($owner, 'Fungible', 20);
+    // SolanaFM owner endpoint already returns the wallet's token accounts,
+    // NFTs and other supported assets in one GET. The free endpoint is rate
+    // limited, so do not split this into separate NFT/Fungible requests.
+    $mint_rows = bcm_mini_sim_solanafm_owner_tokens($owner, null, 20);
     $errors = array();
-    if ($nft_tokens === null) {
-        $errors[] = 'SolanaFM NFT bridge не ответил';
-    }
-    if ($fungible_tokens === null) {
-        $errors[] = 'SolanaFM fungible bridge не ответил';
-    }
-
-    $mint_rows = array();
-    foreach (array($nft_tokens, $fungible_tokens) as $bucket) {
-        if (!is_array($bucket)) {
-            continue;
-        }
-        foreach ($bucket as $mint => $row) {
-            $mint_rows[$mint] = $row;
-        }
+    if ($mint_rows === null) {
+        $errors[] = 'SolanaFM wallet bridge не ответил';
+        $mint_rows = array();
     }
 
     $metadata = bcm_mini_sim_solanafm_token_metadata(array_keys($mint_rows), 25);
