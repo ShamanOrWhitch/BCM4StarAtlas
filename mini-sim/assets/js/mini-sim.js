@@ -3136,8 +3136,17 @@
       ? Number(config.towerApproach.uiRadius)
       : 180;
 
+    // The already-built Oni station sphere is also an immediate landing trigger.
+    // This does not create a new object and does not change its geometry/placement.
+    const stationSphereDistance = spaceSatellite.stationMesh && ship.position
+      ? spaceSatellite.stationMesh.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position)
+      : Infinity;
+    const stationSphereEntryRadius = 5.6;
+
     if (interaction) {
-      if (gate && gateDistance <= gateUiRadius) {
+      if (stationSphereDistance <= stationSphereEntryRadius) {
+        interaction.textContent = "ONI STATION · LANDING";
+      } else if (gate && gateDistance <= gateUiRadius) {
         interaction.textContent = "ONI STATION · TOWER ENTRY " +
           Math.max(0, Math.round(100 - (gateDistance / Math.max(1, gate.radius)) * 100)) + "%";
       } else {
@@ -3147,9 +3156,15 @@
       }
     }
 
-    // onicss.mp4 is the automatic Tower entrance.
-    // Enter its existing video zone by proximity; tower.mp4 remains Tower's landing transition.
-    if (!towerGateTriggered && !transitionBusy && gate && gateDistance <= Number(gate.radius || 24)) {
+    // Either the existing onicss.mp4 gate or flying directly into the existing
+    // Oni station sphere starts the same Tower landing animation.
+    // tower.mp4 remains Tower's landing transition.
+    const sphereLanding =
+      stationSphereDistance <= stationSphereEntryRadius;
+    const videoLanding =
+      !!gate && gateDistance <= Number(gate.radius || 24);
+
+    if (!towerGateTriggered && !transitionBusy && (sphereLanding || videoLanding)) {
       enterTowerFromGate();
     }
 
