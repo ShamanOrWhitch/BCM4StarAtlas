@@ -5,7 +5,7 @@
     "https://solana-rpc.publicnode.com",
     "https://api.mainnet-beta.solana.com"
   ];
-  const GALAXY_CREW_URL = "https://galaxy.staratlas.com/crew";
+  const GALAXY_NFTS_URL = "https://galaxy.staratlas.com/nfts";
   const TOKEN_PROGRAMS = [
     "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
     "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
@@ -102,7 +102,7 @@
   async function loadCrewCatalog() {
     if (crewCatalogPromise) return crewCatalogPromise;
 
-    crewCatalogPromise = fetch(GALAXY_CREW_URL, {
+    crewCatalogPromise = fetch(GALAXY_NFTS_URL, {
       method: "GET",
       credentials: "omit",
       cache: "no-store",
@@ -110,7 +110,7 @@
       signal: AbortSignal.timeout(20000)
     })
       .then((response) => {
-        if (!response.ok) throw new Error("Star Atlas Crew API HTTP " + response.status);
+        if (!response.ok) throw new Error("Star Atlas NFT API HTTP " + response.status);
         return response.json();
       })
       .then((rows) => {
@@ -118,20 +118,23 @@
         const list = Array.isArray(rows) ? rows : [];
 
         list.forEach((row) => {
-          if (!row || typeof row !== "object" || !row.dasID) return;
-          index.set(String(row.dasID), {
-            name: String(row.name || row.dasID),
-            image: String(row.imageUrl || ""),
-            rarity: String(row.rarity || ""),
-            species: String(row.species || ""),
-            traits: traitsFromCrewRow(row),
-            characteristics: characteristicsFromCrewRow(row),
+          if (!row || typeof row !== "object" || !row.mint) return;
+          const attrs = row.attributes && typeof row.attributes === "object" ? row.attributes : {};
+          if (String(attrs.itemType || "").toLowerCase() !== "crew") return;
+
+          index.set(String(row.mint), {
+            name: String(row.name || row.mint),
+            image: String(row.image || ""),
+            rarity: String(attrs.rarity || ""),
+            species: String(attrs.spec || ""),
+            traits: traitsFromCrewRow(attrs),
+            characteristics: {},
             raw: row
           });
         });
 
         if (!index.size) {
-          throw new Error("Star Atlas Crew API вернул пустой каталог.");
+          throw new Error("Star Atlas NFT API не содержит Crew.");
         }
         return index;
       });
@@ -143,6 +146,7 @@
       throw error;
     }
   }
+
 
   function tokenRows(result) {
     return Array.isArray(result?.value) ? result.value : [];
