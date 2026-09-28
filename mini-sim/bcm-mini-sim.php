@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.37
+ * Version: 0.9.38
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.37');
+define('BCM_MINI_SIM_VERSION', '0.9.38');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -246,7 +246,7 @@ function bcm_mini_sim_crew_roster_names() {
         }
         $name = trim((string) $row['name']);
         if ($name !== '') {
-            $names[mb_strtolower($name, 'UTF-8')] = $name;
+            $names[strtolower($name)] = $name;
         }
     }
 
@@ -330,12 +330,12 @@ function bcm_mini_sim_server_crew_scan($owner) {
                 ? $asset['content']['metadata']
                 : array();
             $assetName = isset($metadata['name']) ? trim((string) $metadata['name']) : '';
-            $rosterKey = $assetName !== '' ? mb_strtolower($assetName, 'UTF-8') : '';
+            $rosterKey = $assetName !== '' ? strtolower($assetName) : '';
 
             $card = null;
             if ($rosterKey !== '' && isset($rosterNames[$rosterKey])) {
                 foreach ($catalog as $catalogCard) {
-                    if (mb_strtolower((string) $catalogCard['name'], 'UTF-8') === $rosterKey) {
+                    if (strtolower((string) $catalogCard['name']) === $rosterKey) {
                         $card = $catalogCard;
                         break;
                     }
