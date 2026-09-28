@@ -319,8 +319,8 @@
     // Keep the seeded labyrinth behind the original Room 1 start.
     // The former -1..-23 placement put invisible collision walls directly
     // in front of the player while moving forward.
-    startZ: 1.0,
-    endZ: 23.0
+    startZ: 7.0,
+    endZ: 29.0
   };
   // Only the two visible starbase corridor shells are collision geometry.
   // Deep Space itself has no map boundary.
@@ -986,7 +986,8 @@
 
   function updateRoom0Labyrinth() {
     if (!room0Labyrinth.group || !ship.position) return;
-    const active = getSpaceZone(ship.position.z) === "ROOM1" &&
+    const active = ship.position.z >= room0Labyrinth.startZ - 0.25 &&
+      ship.position.z <= room0Labyrinth.endZ + 1.5 &&
       Math.abs(ship.position.x) <= 8.0 &&
       Math.abs(ship.position.y) <= 5.0;
 
@@ -2912,11 +2913,17 @@
       ? Number(config.towerApproach.uiRadius)
       : 180;
 
+    const planet = spacePlanet.mesh;
+    const planetDistance = planet && ship.position
+      ? planet.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position)
+      : Infinity;
+    const planetEntryRadius = 28;
+
     if (interaction) {
-      if (gate && gateDistance <= gateUiRadius) {
-        interaction.textContent = gateCoverage >= 0.69
-          ? "TOWER GATE LOCK 69% · T TO ENTER"
-          : "TOWER GATE " + Math.round(gateCoverage * 100) + "%";
+      if (planetDistance <= planetEntryRadius) {
+        interaction.textContent = "PLANET · TOWER ENTRY";
+      } else if (gate && gateDistance <= gateUiRadius) {
+        interaction.textContent = "TOWER APPROACH · onicss.mp4";
       } else {
         interaction.textContent = portal.coverage >= 0.69
           ? "PORTAL LOCK 69% · CUTSCENE"
@@ -2924,8 +2931,10 @@
       }
     }
 
-    // Do not auto-handoff on video coverage. Keep onicss.mp4 visible until
-    // the player explicitly enters Tower with T at the locked gate.
+    // The planet is the actual entrance: proximity triggers Tower automatically.
+    if (!towerGateTriggered && !transitionBusy && planetDistance <= planetEntryRadius) {
+      enterTowerFromGate();
+    }
     if (!cinema.focus) {
       if (portalSide() === "FRONT" && portal.coverage >= 0.69) tryPortal();
       if (portalSide() === "BACK" && portalTriggerDistance("BACK") <= 7.5) tryPortal();
@@ -3092,12 +3101,7 @@
       if (e.code === "KeyF") { e.preventDefault(); toggleCinemaFocus(); }
       if (e.code === "KeyH") { e.preventDefault(); returnToStart(); }
       if (e.code === "KeyR") { e.preventDefault(); openDoor("REMOTE"); }
-      if (e.code === "KeyT") {
-        e.preventDefault();
-        if (!transitionBusy && gate && gateDistance <= gateUiRadius && gateCoverage >= 0.69) {
-          enterTowerFromGate();
-        }
-      }
+
     });
     window.addEventListener("keyup", (e) => { keys[e.code] = false; });
     window.addEventListener("resize", resize);
