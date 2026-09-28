@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.29
+ * Version: 0.9.30
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.29');
+define('BCM_MINI_SIM_VERSION', '0.9.30');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -110,11 +110,11 @@ function bcm_mini_sim_enqueue_assets()
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
         'threeUrl' => BCM_MINI_SIM_URL . 'assets/js/three.min.js',
         'towerApproach' => array(
-            // Preload target is the actual large Deep Space landing sphere.
+            // Preload near the same Deep Space area; the actual landing trigger
+            // remains the visible planet, exactly as in the working 0.9.25 logic.
             'x' => -26.0,
             'y' => 9.0,
             'z' => -190.0,
-            // Warm Tower before the player reaches the landing sphere.
             'preloadRadius' => 120.0,
             'coverageThreshold' => 0.69,
             'uiRadius' => 180.0,
@@ -178,7 +178,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.29</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.30</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ВНЕШНИЕ ЭКРАНЫ</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
