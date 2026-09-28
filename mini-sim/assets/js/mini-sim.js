@@ -2757,6 +2757,9 @@
     // A room exists in 3D, not just on the Z axis.
     // Being outside the corridor envelope means free space, even when the
     // ship's Z happens to overlap the room's longitudinal range.
+    const room0Interior =
+      before.z > 5.45 && before.z <= room0Labyrinth.endZ + 0.35;
+
     const room1Interior =
       before.z > -24.5 && before.z <= 5.45 &&
       Math.abs(before.x) <= 5.3 &&
@@ -2767,15 +2770,31 @@
       Math.abs(before.x) <= 5.3 &&
       Math.abs(before.y) <= 3.2;
 
-    if (room1Interior) {
+    if (room0Interior) {
       exteriorFlight = false;
 
-      // Hard labyrinth walls while actually inside Room 1.
+      // Room 0 is a real separate room behind capdoor: keep the ship inside
+      // its larger footprint while the seeded maze occupies the center.
+      ship.position.x = Math.max(-room0Labyrinth.halfX, Math.min(room0Labyrinth.halfX, ship.position.x));
+      ship.position.y = Math.max(-room0Labyrinth.halfY, Math.min(room0Labyrinth.halfY, ship.position.y));
+
+      // Back/end cap of Room 0 is closed for now.
+      if (ship.position.z > room0Labyrinth.endZ) {
+        ship.position.z = room0Labyrinth.endZ;
+      }
+    } else if (room1Interior) {
+      exteriorFlight = false;
+
+      // Hard corridor walls while actually inside Room 1.
       ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
       ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
 
-      // Rear cap stays closed.
-      if (ship.position.z > 5.45) {
+      // Rear cap opens only through the central capdoor-sized opening.
+      const rearOpening =
+        Math.abs(ship.position.x) <= 5.85 &&
+        Math.abs(ship.position.y) <= 3.45;
+
+      if (ship.position.z > 5.45 && !rearOpening) {
         ship.position.z = 5.45;
       }
 
