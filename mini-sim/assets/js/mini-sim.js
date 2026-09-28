@@ -1117,14 +1117,9 @@
     const beaconRed = new THREE.MeshBasicMaterial({ color: 0xff3344 });
     const dockingMat = new THREE.MeshBasicMaterial({ color: 0xdbeeff });
 
-    const stationAsset = assets.find((asset) => {
-      if (!asset || asset.type !== "image") return false;
-      const base = String(asset.name || "").split(/[\\/]/).pop() || "";
-      return /^OniStation\.png$/i.test(base);
-    });
-    const stationMaterial = stationAsset
-      ? textured(stationAsset.name, 0x18212b)
-      : darkMat;
+    // Existing docking sphere: keep the geometry and station placement unchanged.
+    // Only replace its material with the newly added OniStation.png texture.
+    const stationMaterial = textured("OniStation.png", 0x18212b);
     const stationSphere = new THREE.Mesh(
       new THREE.SphereGeometry(4.4, 24, 16),
       stationMaterial
@@ -2942,6 +2937,54 @@
           blocked = true;
         } else if (before.z > room.rearZ && ship.position.z < room.rearZ) {
           exteriorFlight = true;
+        }
+      }
+    }
+
+    // Room 1 must remain hermetically closed until the normal Room 2 route is
+    // reached. The old inside-only clamps could leave the ship outside the hull
+    // after a fast/diagonal frame and then treat that position as open space.
+    // While exteriorFlight is still false, recover any such penetration back
+    // inside the actual Room 1 shell.
+    if (!exteriorFlight) {
+      const room1Span =
+        (before.z >= -25.5 && before.z <= 5.5) ||
+        (ship.position.z >= -25.5 && ship.position.z <= 5.5);
+
+      if (room1Span) {
+        const room1X = 5.94;
+        const room1Y = 3.44;
+        const room1ZMin = -25.44;
+        const room1ZMax = 5.44;
+
+        if (ship.position.x > room1X) {
+          ship.position.x = room1X;
+          ship.velocity.x = 0;
+          blocked = true;
+        } else if (ship.position.x < -room1X) {
+          ship.position.x = -room1X;
+          ship.velocity.x = 0;
+          blocked = true;
+        }
+
+        if (ship.position.y > room1Y) {
+          ship.position.y = room1Y;
+          ship.velocity.y = 0;
+          blocked = true;
+        } else if (ship.position.y < -room1Y) {
+          ship.position.y = -room1Y;
+          ship.velocity.y = 0;
+          blocked = true;
+        }
+
+        if (ship.position.z > room1ZMax) {
+          ship.position.z = room1ZMax;
+          ship.velocity.z = 0;
+          blocked = true;
+        } else if (ship.position.z < room1ZMin) {
+          ship.position.z = room1ZMin;
+          ship.velocity.z = 0;
+          blocked = true;
         }
       }
     }
