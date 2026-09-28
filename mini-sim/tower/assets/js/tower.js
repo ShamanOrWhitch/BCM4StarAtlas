@@ -605,10 +605,12 @@
         repeatY: 1
       });
 
-      const transparentSurface = cell.surface === "lift";
+      const transparentSurface =
+        cell.surface === "lift" ||
+        /\\.png(?:[?#].*)?$/i.test(String(texUrl));
       const mesh = new THREE.Mesh(
         geometry,
-        makeMaterial(tex, color, transparentSurface, transparentSurface ? 0.08 : 0)
+        makeMaterial(tex, color, transparentSurface, transparentSurface ? 0.04 : 0)
       );
       mesh.position.copy(p);
       mesh.rotation.y = (cell.sector / tower.sectors) * Math.PI * 2;
