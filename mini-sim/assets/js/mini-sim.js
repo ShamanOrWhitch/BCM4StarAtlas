@@ -1979,20 +1979,22 @@
   let towerLandingActive = false;
 
   function handoffToTower() {
+    const root = document.querySelector(".bcm-tower-embedded");
+    if (!root) {
+      towerLandingActive = false;
+      towerGateTriggered = false;
+      transitionLoading = false;
+      transitionBusy = false;
+      setStatus("TOWER OVERLAY MISSING");
+      return;
+    }
+
     towerLandingActive = false;
     transitionLoading = false;
     transitionBusy = true;
 
     // Release the entire space-labyrinth WebGL application before Tower takes over.
     disposeMiniSimResources();
-
-    const root = document.querySelector(".bcm-tower-embedded");
-    if (!root) {
-      towerGateTriggered = false;
-      transitionBusy = false;
-      setStatus("TOWER OVERLAY MISSING");
-      return;
-    }
 
     root.hidden = false;
     if (window.BCMTowerAPI && typeof window.BCMTowerAPI.enter === "function") {
