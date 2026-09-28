@@ -121,6 +121,283 @@ function bcm_mini_sim_find_media_asset($filename)
 }
 
 
+function bcm_mini_sim_remote_json($url, $method = 'GET', $body = null, $timeout = 20) {
+    $args = array(
+        'timeout' => $timeout,
+        'headers' => array('Accept' => 'application/json'),
+    );
+
+    if (strtoupper($method) === 'POST') {
+        $args['headers']['Content-Type'] = 'application/json';
+        $args['body'] = wp_json_encode($body);
+        $response = wp_remote_post($url, $args);
+    } else {
+        $response = wp_remote_get($url, $args);
+    }
+
+    if (is_wp_error($response)) {
+        return null;
+    }
+
+    $code = wp_remote_retrieve_response_code($response);
+    if ($code < 200 || $code >= 300) {
+        return null;
+    }
+
+    $json = json_decode(wp_remote_retrieve_body($response), true);
+    return is_array($json) ? $json : null;
+}
+
+function bcm_mini_sim_crew_catalog() {
+    $cached = get_transient('bcm_mini_sim_crew_catalog_v1');
+    if (is_array($cached) && !empty($cached)) {
+        return $cached;
+    }
+
+    $rows = bcm_mini_sim_remote_json('https://galaxy.staratlas.com/crew', 'GET', null, 25);
+    $index = array();
+
+    if (is_array($rows)) {
+        foreach ($rows as $row) {
+            if (!is_array($row) || empty($row['dasID'])) {
+                continue;
+            }
+
+            $traits = array();
+            foreach (array(
+                'openness' => 'Openness',
+                'conscientiousness' => 'Conscientiousness',
+                'extraversion' => 'Extraversion',
+                'agreeableness' => 'Agreeableness',
+                'neuroticism' => 'Neuroticism',
+            ) as $key => $label) {
+                if (!isset($row[$key]) || !is_numeric($row[$key])) {
+                    continue;
+                }
+                $n = (float) $row[$key];
+                $traits[] = array(
+                    'trait' => $label,
+                    'value' => (string) ($n <= 1 ? (int) round($n * 100) : (int) round($n)),
+                );
+            }
+
+            if (!empty($row['aptitudes']) && is_array($row['aptitudes'])) {
+                foreach ($row['aptitudes'] as $name => $level) {
+                    $traits[] = array(
+                        'trait' => (string) $name,
+                        'value' => (string) $level,
+                    );
+                }
+            }
+
+            if (!empty($row['species'])) {
+                $traits[] = array(
+                    'trait' => 'Species',
+                    'value' => (string) $row['species'],
+                );
+            }
+
+            $characteristics = array();
+            foreach (array('openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism') as $key) {
+                if (!isset($row[$key]) || !is_numeric($row[$key])) {
+                    continue;
+                }
+                $n = (float) $row[$key];
+                $characteristics[$key] = (int) ($n <= 1 ? round($n * 100) : round($n));
+            }
+            if (!empty($row['aptitudes']) && is_array($row['aptitudes'])) {
+                $characteristics['aptitudes'] = $row['aptitudes'];
+            }
+
+            $index[(string) $row['dasID']] = array(
+                'name' => isset($row['name']) ? (string) $row['name'] : (string) $row['dasID'],
+                'image' => isset($row['imageUrl']) ? (string) $row['imageUrl'] : '',
+                'rarity' => isset($row['rarity']) ? (string) $row['rarity'] : '',
+                'species' => isset($row['species']) ? (string) $row['species'] : '',
+                'traits' => $traits,
+                'characteristics' => $characteristics,
+                'raw' => $row,
+            );
+        }
+    }
+
+    if (!empty($index)) {
+        set_transient('bcm_mini_sim_crew_catalog_v1', $index, 30 * MINUTE_IN_SECONDS);
+    }
+
+    return $index;
+}
+
+function bcm_mini_sim_crew_rpc($method, $params, $timeout = 20) {
+    $rpcs = array(
+        'https://solana-rpc.publicnode.com',
+        'https://api.mainnet-beta.solana.com',
+    );
+
+    foreach ($rpcs as $url) {
+        $json = bcm_mini_sim_remote_json($url, 'POST', array(
+            'jsonrpc' => '2.0',
+            'id' => 1,
+            'method' => $method,
+            'params' => $params,
+        ), $timeout);
+
+        if (is_array($json) && array_key_exists('result', $json) && !isset($json['error'])) {
+            return $json['result'];
+        }
+    }
+
+    return null;
+}
+
+function bcm_mini_sim_server_crew_scan($owner) {
+    $owner = trim((string) $owner);
+    if (!preg_match('/^[1-9A-HJ-NP-Za-km-z]{32,44}$/', $owner)) {
+        return new WP_Error('bcm_mini_sim_owner', 'Нужен публичный ключ Solana.');
+    }
+
+    $catalog = bcm_mini_sim_crew_catalog();
+    if (!$catalog) {
+        return new WP_Error('bcm_mini_sim_crew_catalog', 'Не удалось получить каталог Crew Star Atlas.');
+    }
+
+    $found = array();
+    $seen = array();
+
+    // Primary path: Star Atlas/Solana DAS ownership.
+    for ($page = 1; $page <= 5; $page++) {
+        $result = bcm_mini_sim_crew_rpc('getAssetsByOwner', array(
+            array(
+                'ownerAddress' => $owner,
+                'page' => $page,
+                'limit' => 100,
+                'displayOptions' => array(
+                    'showFungible' => false,
+                    'showZeroBalance' => false,
+                ),
+            ),
+        ), 20);
+
+        if (!is_array($result)) {
+            break;
+        }
+
+        $items = isset($result['items']) && is_array($result['items']) ? $result['items'] : array();
+        if (!$items) {
+            break;
+        }
+
+        foreach ($items as $asset) {
+            if (!is_array($asset)) {
+                continue;
+            }
+
+            $mint = isset($asset['id']) ? (string) $asset['id'] : '';
+            if ($mint === '' || isset($seen[$mint]) || !isset($catalog[$mint])) {
+                continue;
+            }
+
+            $card = $catalog[$mint];
+            $seen[$mint] = true;
+            $found[] = array(
+                'id' => $mint,
+                'mint' => $mint,
+                'name' => $card['name'],
+                'image' => $card['image'],
+                'rarity' => $card['rarity'],
+                'species' => $card['species'],
+                'sex' => '',
+                'source' => 'mini-sim-star-atlas-server',
+                'traits' => $card['traits'],
+                'characteristics' => $card['characteristics'],
+                'raw' => $card['raw'],
+                'amount' => 1,
+            );
+        }
+
+        $total = isset($result['total']) ? (int) $result['total'] : 0;
+        if (($total > 0 && $page * 100 >= $total) || count($items) < 100) {
+            break;
+        }
+    }
+
+    // Secondary path: regular SPL / Token-2022 token accounts.
+    if (!$found) {
+        foreach (array(
+            'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+            'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
+        ) as $program) {
+            $result = bcm_mini_sim_crew_rpc('getTokenAccountsByOwner', array(
+                $owner,
+                array('programId' => $program),
+                array('encoding' => 'jsonParsed'),
+            ), 20);
+
+            $rows = is_array($result) && isset($result['value']) && is_array($result['value'])
+                ? $result['value']
+                : array();
+
+            foreach ($rows as $row) {
+                $info = isset($row['account']['data']['parsed']['info']) && is_array($row['account']['data']['parsed']['info'])
+                    ? $row['account']['data']['parsed']['info']
+                    : null;
+                if (!$info || empty($info['mint'])) {
+                    continue;
+                }
+
+                $amount = isset($info['tokenAmount']['uiAmount']) ? (float) $info['tokenAmount']['uiAmount'] : 0;
+                if ($amount <= 0) {
+                    continue;
+                }
+
+                $mint = (string) $info['mint'];
+                if (isset($seen[$mint]) || !isset($catalog[$mint])) {
+                    continue;
+                }
+
+                $card = $catalog[$mint];
+                $seen[$mint] = true;
+                $found[] = array(
+                    'id' => $mint,
+                    'mint' => $mint,
+                    'name' => $card['name'],
+                    'image' => $card['image'],
+                    'rarity' => $card['rarity'],
+                    'species' => $card['species'],
+                    'sex' => '',
+                    'source' => 'mini-sim-star-atlas-server',
+                    'traits' => $card['traits'],
+                    'characteristics' => $card['characteristics'],
+                    'raw' => $card['raw'],
+                    'amount' => $amount,
+                );
+            }
+        }
+    }
+
+    return $found;
+}
+
+function bcm_mini_sim_ajax_crew_wallet() {
+    check_ajax_referer('bcm_mini_sim_crew', 'nonce');
+
+    $owner = isset($_POST['owner']) ? sanitize_text_field(wp_unslash($_POST['owner'])) : '';
+    $crew = bcm_mini_sim_server_crew_scan($owner);
+
+    if (is_wp_error($crew)) {
+        wp_send_json_error(array('message' => $crew->get_error_message()), 400);
+    }
+
+    wp_send_json_success(array(
+        'owner' => $owner,
+        'items' => $crew,
+        'source' => 'mini-sim-star-atlas-server',
+    ));
+}
+
+add_action('wp_ajax_bcm_mini_sim_crew_wallet', 'bcm_mini_sim_ajax_crew_wallet');
+add_action('wp_ajax_nopriv_bcm_mini_sim_crew_wallet', 'bcm_mini_sim_ajax_crew_wallet');
+
 function bcm_mini_sim_enqueue_assets()
 {
     $assets = bcm_mini_sim_get_assets();
@@ -145,8 +422,8 @@ function bcm_mini_sim_enqueue_assets()
     wp_enqueue_script('bcm-crew-wallet', BCM_MINI_SIM_URL . 'assets/js/crew-wallet.js', array(), BCM_MINI_SIM_VERSION, false);
     wp_enqueue_script('bcm-mini-sim', BCM_MINI_SIM_URL . 'assets/js/mini-sim.js', array('bcm-crew-wallet'), BCM_MINI_SIM_VERSION, false);
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
-        'crewWalletAjax' => admin_url('admin-ajax.php'),
-        'crewWalletNonce' => wp_create_nonce('galia_desk'),
+        'crewServerAjax' => admin_url('admin-ajax.php'),
+        'crewServerNonce' => wp_create_nonce('bcm_mini_sim_crew'),
         'threeUrl' => BCM_MINI_SIM_URL . 'assets/js/three.min.js',
         'towerApproach' => array(
             // Preload around the actual automatic Tower gate: onicss.mp4.
