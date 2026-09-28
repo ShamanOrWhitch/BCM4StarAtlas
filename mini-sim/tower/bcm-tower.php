@@ -129,7 +129,12 @@ function bcm_tower_get_client_config($assets = null) {
             bcm_tower_pick_asset($assets, array('portal3.mp4'), 'video'),
             bcm_tower_pick_asset($assets, array('portal1.mp4'), 'video'),
         ))),
-        'towerWallJpgPool' => bcm_tower_asset_urls($assets, '/^(towerwall|wall)[^\\/]*\\.(jpg|jpeg)$/i'),
+        // Keep the direct Tower wall first so the main shell and the
+        // diagnostic probe use exactly the same known-good file.
+        'towerWallJpgPool' => array_values(array_unique(array_filter(array_merge(
+            $directTowerWall ? array($directTowerWall) : array(),
+            bcm_tower_asset_urls($assets, '/^(towerwall|wall)[^\\/]*\\.(jpg|jpeg)$/i')
+        ))),
         'towerWallPngPool' => bcm_tower_asset_urls($assets, '/^towerwall[^\\/]*\\.png$/i'),
         'platformPool' => bcm_tower_asset_urls($assets, '/^(platform|paltform)(?!lava|ice)[^\\/]*\\.(png|jpg|jpeg|webp)$/i'),
         'platformLavaPool' => bcm_tower_asset_urls($assets, '/^(platformlava|paltformlava)[^\\/]*\\.(png|jpg|jpeg|webp)$/i'),
