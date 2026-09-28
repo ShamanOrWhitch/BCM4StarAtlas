@@ -1,6 +1,7 @@
 <?php
 /**
  * BCM Tower mode — lightweight WebGL tower descent for BCM Mini Space Simulation.
+ * Rollback checkpoint marker.
  *
  * Shortcode: [bcm_tower]
  *
