@@ -303,9 +303,10 @@
     let playerTexture = null;
 
     const radius = 8.4;
-    // The playable tower is an interior shaft. The previous camera sat
-    // outside the cylindrical shell, so the shell hid the generated levels.
-    const cameraRadius = radius - 2.2;
+    // Tower gameplay is on the OUTSIDE skin of the cylinder. The player stays
+    // on the circumference while the camera follows just outside it, so the
+    // character remains centered and the tower rotates around that character.
+    const cameraRadius = radius + 8.0;
     const gravity = 18;
     const jumpVelocity = 9.3;
     const baseTurnSpeed = 2.75;
@@ -528,6 +529,39 @@
       playerTexture = null;
       if (inlineConfig.crewImage) {
         playerTexture = assetTexture(inlineConfig.crewImage, renderer, {});
+      } else {
+        // Keep a visible chibjik even when no crew card image was supplied
+        // through the shortcode. This avoids an empty player marker in Tower.
+        const canvas2d = document.createElement("canvas");
+        canvas2d.width = 128;
+        canvas2d.height = 128;
+        const ctx = canvas2d.getContext("2d");
+        if (ctx) {
+          ctx.clearRect(0, 0, 128, 128);
+          ctx.fillStyle = "rgba(0,0,0,0)";
+          ctx.fillRect(0, 0, 128, 128);
+          ctx.fillStyle = "#202833";
+          ctx.beginPath();
+          ctx.arc(64, 32, 18, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#73d6ff";
+          ctx.fillRect(42, 51, 44, 42);
+          ctx.fillStyle = "#202833";
+          ctx.fillRect(44, 91, 14, 25);
+          ctx.fillRect(70, 91, 14, 25);
+          ctx.fillStyle = "#ffe6c7";
+          ctx.beginPath();
+          ctx.arc(58, 28, 3, 0, Math.PI * 2);
+          ctx.arc(70, 28, 3, 0, Math.PI * 2);
+          ctx.fill();
+          playerTexture = new THREE.CanvasTexture(canvas2d);
+          if ("colorSpace" in playerTexture && THREE.SRGBColorSpace !== undefined) {
+            playerTexture.colorSpace = THREE.SRGBColorSpace;
+          } else if (THREE.sRGBEncoding !== undefined) {
+            playerTexture.encoding = THREE.sRGBEncoding;
+          }
+          playerTexture.needsUpdate = true;
+        }
       }
 
       while (playerMarkers.length) {
@@ -834,9 +868,14 @@
       const z = Math.cos(a) * cameraRadius;
       const camera = cameras[index];
 
-      camera.position.set(x, p.y + 3.6, z);
-      // Keep the view close enough to show the platforms around the player.
-      camera.lookAt(new THREE.Vector3(0, p.y - 0.4, 0));
+      // Follow the player from outside the cylinder. Looking directly at the
+      // player keeps the chibjik centered while A/D moves around the tower.
+      camera.position.set(x, p.y + 4.0, z);
+      camera.lookAt(new THREE.Vector3(
+        Math.sin(a) * (radius + 1.05),
+        p.y + 0.9,
+        Math.cos(a) * (radius + 1.05)
+      ));
       camera.aspect = viewport.w / Math.max(1, viewport.h);
       camera.updateProjectionMatrix();
     }
