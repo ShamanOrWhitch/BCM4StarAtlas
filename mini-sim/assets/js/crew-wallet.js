@@ -148,6 +148,10 @@
     return Array.isArray(result?.value) ? result.value : [];
   }
 
+  function dasRows(result) {
+    return Array.isArray(result?.items) ? result.items : [];
+  }
+
   function normalizeTokenCrew(mint, catalogCard, amount) {
     return {
       id: mint,
@@ -171,36 +175,87 @@
     const catalog = await loadCrewCatalog();
     const found = [];
     const seen = new Set();
+    const errors = [];
 
-    // This is the same ownership source used by the working WP Galia Desk:
-    // normal Solana token accounts, then mint -> official Galaxy Crew catalog.
+    // 1) Standard SPL / Token-2022 ownership.
     for (const program of TOKEN_PROGRAMS) {
-      const result = await rpc("getTokenAccountsByOwner", [
-        owner,
-        { programId: program },
-        { encoding: "jsonParsed" }
-      ]);
+      try {
+        const result = await rpc("getTokenAccountsByOwner", [
+          owner,
+          { programId: program },
+          { encoding: "jsonParsed" }
+        ]);
 
-      for (const row of tokenRows(result)) {
-        const info = row?.account?.data?.parsed?.info;
-        if (!info?.mint) continue;
+        for (const row of tokenRows(result)) {
+          const info = row?.account?.data?.parsed?.info;
+          if (!info?.mint) continue;
 
-        const amountText = info?.tokenAmount?.uiAmountString ?? info?.tokenAmount?.uiAmount ?? 0;
-        const amount = Number(amountText || 0);
-        if (!(amount > 0)) continue;
+          const amountText = info?.tokenAmount?.uiAmountString ?? info?.tokenAmount?.uiAmount ?? 0;
+          const amount = Number(amountText || 0);
+          if (!(amount > 0)) continue;
 
-        const mint = String(info.mint);
-        const card = catalog.get(mint);
-        if (!card || seen.has(mint)) continue;
+          const mint = String(info.mint);
+          const card = catalog.get(mint);
+          if (!card || seen.has(mint)) continue;
 
-        seen.add(mint);
-        found.push(normalizeTokenCrew(mint, card, amount));
+          seen.add(mint);
+          found.push(normalizeTokenCrew(mint, card, amount));
+        }
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : String(error));
       }
     }
 
-    return found;
-  }
+    // 2) DAS assets. Star Atlas Crew NFTs can be exposed here even when
+    // getTokenAccountsByOwner does not return a usable Crew token account.
+    for (let page = 1; page <= 5; page++) {
+      try {
+        const result = await rpc("getAssetsByOwner", [{
+          ownerAddress: owner,
+          page,
+          limit: 100,
+          displayOptions: {
+            showFungible: false,
+            showZeroBalance: false
+          }
+        }]);
 
+        const rows = dasRows(result);
+        if (!rows.length) break;
+
+        for (const asset of rows) {
+          const mint = String(asset?.id || asset?.content?.metadata?.mint || "");
+          if (!mint || seen.has(mint)) continue;
+
+          const card = catalog.get(mint);
+          if (!card) continue;
+
+          const metaAmount = Number(
+            asset?.ownership?.amount ??
+            asset?.ownership?.quantity ??
+            asset?.compression?.leaf_id ? 1 : 1
+          );
+          const amount = Number.isFinite(metaAmount) && metaAmount > 0 ? metaAmount : 1;
+
+          seen.add(mint);
+          found.push(normalizeTokenCrew(mint, card, amount));
+        }
+
+        const total = Number(result?.total || 0);
+        if (total && page * 100 >= total) break;
+        if (rows.length < 100) break;
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : String(error));
+        break;
+      }
+    }
+
+    if (found.length) return found;
+    if (errors.length >= TOKEN_PROGRAMS.length + 1) {
+      throw new Error(errors.join(" · "));
+    }
+    return [];
+  }
   async function wpScan(owner) {
     const wp = window.GALIA_WP;
     if (!wp?.ajax || !wp?.nonce) return [];
@@ -244,7 +299,7 @@
 
     try {
       const direct = await directScan(owner);
-      // Empty is a valid result: the wallet may genuinely have no Crew.
+      // Empty is a valid result only after SPL + DAS ownership scans complete.
       return {
         crew: direct,
         source: "star-atlas-crew-api"
