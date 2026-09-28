@@ -3,10 +3,12 @@
 
   // Same public read as BCM4SA desk.impl.ts: token accounts, then DAS.
   // api.mainnet.solana.com is the endpoint that actually returned this wallet.
+  // Standard Solana RPCs only. PublicNode is NOT a DAS endpoint and
+  // rejects getAssetsByOwner / asks for an indexer token, so it must not
+  // be used as a DAS fallback.
   const RPCS = [
     "https://api.mainnet.solana.com",
-    "https://api.mainnet-beta.solana.com",
-    "https://solana-rpc.publicnode.com"
+    "https://api.mainnet-beta.solana.com"
   ];
   const CREW_URL = "https://galaxy.staratlas.com/crew";
   const NFTS_URL = "https://galaxy.staratlas.com/nfts";
@@ -297,7 +299,7 @@
       "Crew found:",
       String(scan?.crew?.length || 0),
       "source: " + (scan?.source || ""),
-      "endpoint: getAssetsByOwner + getTokenAccountsByOwner @ api.mainnet.solana.com",
+      "endpoint: WordPress DAS scan → getAssetsByOwner; direct fallback → standard Solana RPC",
       "crew data: Galaxy /crew by dasID, else DAS attributes name/OCEAN/species/aptitudes"
     ];
     (scan?.crew || []).forEach((crew) => {
@@ -332,11 +334,69 @@
     return lines.join("\n");
   }
 
+  async function serverScan(owner) {
+    const config = window.BCMMiniSimConfig || {};
+    const ajax = String(config.crewServerAjax || "");
+    const nonce = String(config.crewServerNonce || "");
+    if (!ajax || !nonce) return null;
+
+    const body = new FormData();
+    body.set("action", "bcm_mini_sim_crew_wallet");
+    body.set("nonce", nonce);
+    body.set("owner", owner);
+
+    const response = await fetch(ajax, {
+      method: "POST",
+      body,
+      credentials: "same-origin",
+      signal: AbortSignal.timeout(30000)
+    });
+    const json = await response.json().catch(() => null);
+
+    if (!json?.success) {
+      const message = json?.data?.message || ("WordPress wallet scan HTTP " + response.status);
+      throw new Error(message);
+    }
+
+    const data = json.data || {};
+    const items = Array.isArray(data.items) ? data.items : [];
+    return {
+      owner: String(data.owner || owner),
+      crew: items,
+      inventory: Array.isArray(data.inventory) ? data.inventory : [],
+      counts: data.counts || { crew: items.length },
+      errors: Array.isArray(data.errors) ? data.errors : [],
+      source: String(data.source || "wordpress-das"),
+      ok: true,
+      server: true
+    };
+  }
+
   async function scanWallet(owner) {
     const address = String(owner || "").trim();
     if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) {
       throw new Error("Нужен публичный ключ Solana. Подпись не требуется.");
     }
+
+    // WordPress server-side scan first: avoids browser CORS and lets the
+    // site's PHP use the same DAS path without exposing a provider token.
+    try {
+      const server = await serverScan(address);
+      if (server) return server;
+    } catch (error) {
+      // Keep the exact server error available if the direct fallback also fails.
+      const direct = await scanChain(address).catch((directError) => {
+        const directMessage = directError instanceof Error ? directError.message : String(directError);
+        const serverMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(serverMessage + " · direct: " + directMessage);
+      });
+      direct.errors = [
+        error instanceof Error ? error.message : String(error),
+        ...(Array.isArray(direct.errors) ? direct.errors : [])
+      ];
+      return direct;
+    }
+
     return scanChain(address);
   }
 
