@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_TOWER_VERSION', '0.2.7');
+define('BCM_TOWER_VERSION', '0.2.8');
 define('BCM_TOWER_PATH', __DIR__ . '/');
 define('BCM_TOWER_URL', trailingslashit(plugin_dir_url(__FILE__)));
 
@@ -223,6 +223,7 @@ function bcm_tower_shortcode($atts = array()) {
             <div class="bcm-tower-title">BCM TOWER — PROTOTYPE</div>
             <div class="bcm-tower-status">ENGINE LOADING...</div>
             <div class="bcm-tower-level"></div>
+            <div class="bcm-tower-mode"></div>
             <div class="bcm-tower-help bcm-tower-help-single">
                 <span>A/D</span> вращение башни · <span>Space</span> jetpack ×2 ·
                 <span>W/S</span> ручная коррекция высоты · <span>Mouse</span> обзор · <span>R</span> новый спуск
