@@ -1168,11 +1168,11 @@
     namePlate.position.set(0, -5.4, 0);
     group.add(namePlate);
 
-    const planetAsset = assets.find((asset) =>
-      asset &&
-      asset.type === "image" &&
-      /^planet[^/\\]*\\.(png|jpg|jpeg|webp)$/i.test(String(asset.name || ""))
-    );
+    const planetAsset = assets.find((asset) => {
+      if (!asset || asset.type !== "image") return false;
+      const base = String(asset.name || "").split(/[\\/]/).pop() || "";
+      return /^planet[^/]*\\.(png|jpg|jpeg|webp)$/i.test(base);
+    });
     const planetMaterial = planetAsset
       ? textured(planetAsset.name, 0x496b8f)
       : new THREE.MeshBasicMaterial({ color: 0x496b8f });
