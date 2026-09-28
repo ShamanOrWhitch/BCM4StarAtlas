@@ -110,11 +110,11 @@ function bcm_mini_sim_enqueue_assets()
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
         'threeUrl' => BCM_MINI_SIM_URL . 'assets/js/three.min.js',
         'towerApproach' => array(
-            // Entry target is the already-built Oni docking station in Deep Space.
-            'x' => 0,
-            'y' => 0,
-            'z' => -155.0,
-            // Start Tower preload while the Oni station is still approaching.
+            // Preload target is the actual large Deep Space landing sphere.
+            'x' => -26.0,
+            'y' => 9.0,
+            'z' => -190.0,
+            // Warm Tower before the player reaches the landing sphere.
             'preloadRadius' => 120.0,
             'coverageThreshold' => 0.69,
             'uiRadius' => 180.0,
