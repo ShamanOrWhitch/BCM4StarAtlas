@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_TOWER_VERSION', '0.2.16');
+define('BCM_TOWER_VERSION', '0.2.18');
 define('BCM_TOWER_PATH', __DIR__ . '/');
 define('BCM_TOWER_URL', trailingslashit(plugin_dir_url(__FILE__)));
 
@@ -213,9 +213,29 @@ function bcm_tower_shortcode($atts = array()) {
                 <button type="button" data-tower-mode="single">SINGLE</button>
                 <button type="button" data-tower-mode="multi">MULTI</button>
             </div>
+            <div class="bcm-tower-crew-setup">
+                <div class="bcm-tower-crew-setup-title">CREW · ПЕРЕД СПУСКОМ</div>
+                <div class="bcm-tower-crew-setup-row">
+                    <label>P1
+                        <select class="bcm-tower-crew-p1"></select>
+                    </label>
+                    <label>P2
+                        <select class="bcm-tower-crew-p2"></select>
+                    </label>
+                </div>
+                <div class="bcm-tower-crew-setup-row">
+                    <label class="bcm-tower-crew-json-label">JSON Crew
+                        <input class="bcm-tower-crew-json" type="file" accept="application/json,.json">
+                    </label>
+                    <button type="button" class="bcm-tower-connect-wallet">ПОДКЛЮЧИТЬ PHANTOM</button>
+                </div>
+                <div class="bcm-tower-crew-json-status">
+                    По умолчанию: Opal Jetjet ×2 · JSON можно загрузить заранее.
+                </div>
+            </div>
             <div class="bcm-tower-menu-help">
                 SINGLE — клавиатура / мышь / 1 gamepad<br>
-                MULTI — 2 gamepad или P1 + P2 клавиатура
+                MULTI — 0 gamepad: P1 WASD+Space, P2 arrows+X · 1 gamepad: P2 gamepad · 2 gamepad: P1/P2
             </div>
         </div>
 
