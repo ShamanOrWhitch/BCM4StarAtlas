@@ -259,15 +259,17 @@
     return [];
   }
   async function wpScan(owner) {
-    const wp = window.GALIA_WP;
-    if (!wp?.ajax || !wp?.nonce) return [];
+    const cfg = window.BCMMiniSimConfig || {};
+    const ajax = String(cfg.crewWalletAjax || "");
+    const nonce = String(cfg.crewWalletNonce || "");
+    if (!ajax || !nonce) throw new Error("WordPress Crew scanner не настроен.");
 
     const body = new FormData();
     body.set("action", "galia_desk_wallet");
-    body.set("nonce", wp.nonce);
+    body.set("nonce", nonce);
     body.set("owner", owner);
 
-    const response = await fetch(wp.ajax, {
+    const response = await fetch(ajax, {
       method: "POST",
       body,
       credentials: "same-origin"
