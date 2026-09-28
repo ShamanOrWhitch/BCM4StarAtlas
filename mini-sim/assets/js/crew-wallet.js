@@ -429,6 +429,7 @@
     scanWallet,
     loadCrewForWallet,
     loadInventoryForWallet,
+    loadCatalog: loadCrewIndex,
     formatDiagnostic
   };
 })();
