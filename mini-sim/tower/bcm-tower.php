@@ -142,6 +142,14 @@ function bcm_tower_get_client_config($assets = null) {
         'doorPool' => bcm_tower_asset_urls($assets, '/^door[^\\/]*\\.(png|jpg|jpeg|webp)$/i'),
         'wallDoorPool' => bcm_tower_asset_urls($assets, '/^walldoor\\.(png|jpg|jpeg|webp)$/i'),
         'npcPool' => bcm_tower_asset_urls($assets, '/^(walldoorpiratebear|walldoormetalbear|firemetalbear)[^\\/]*\\.(png|jpg|jpeg|webp)$/i'),
+        // Diagnostic Tower background: prefer a future backgroundmenu asset,
+        // then use the existing menu background from the mini-sim library.
+        'backgroundMenu' => bcm_tower_pick_asset($assets, array(
+            'backgroundmenu.png',
+            'backgroundmenu.jpg',
+            'backgroundmenu.webp',
+            'perference bg.png'
+        ), 'image'),
         'shipTexture' => bcm_tower_pick_asset($assets, array('ship.png', 'ship.webp', 'ship.jpg', 'ship.jpeg'), 'image'),
         'planetMaps' => array_values(array_map(
             static function ($asset) { return $asset['url']; },
