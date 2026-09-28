@@ -258,14 +258,16 @@
     }
     return [];
   }
-  async function wpScan(owner) {
+  async function serverScan(owner) {
     const cfg = window.BCMMiniSimConfig || {};
-    const ajax = String(cfg.crewWalletAjax || "");
-    const nonce = String(cfg.crewWalletNonce || "");
-    if (!ajax || !nonce) throw new Error("WordPress Crew scanner не настроен.");
+    const ajax = String(cfg.crewServerAjax || "");
+    const nonce = String(cfg.crewServerNonce || "");
+    if (!ajax || !nonce) {
+      throw new Error("Mini-Sim server Crew scanner не настроен.");
+    }
 
     const body = new FormData();
-    body.set("action", "galia_desk_wallet");
+    body.set("action", "bcm_mini_sim_crew_wallet");
     body.set("nonce", nonce);
     body.set("owner", owner);
 
@@ -274,28 +276,29 @@
       body,
       credentials: "same-origin"
     });
+
     const json = await response.json();
     if (!json?.success) {
-      throw new Error(json?.data?.message || "WP wallet scan failed");
+      throw new Error(json?.data?.message || "Mini-Sim server Crew scan failed");
     }
 
     const items = Array.isArray(json.data?.items) ? json.data.items : [];
-    return items
-      .filter((item) => item?.kind === "crew")
-      .map((item) => ({
-        id: String(item.mint || item.name || ""),
-        mint: String(item.mint || ""),
-        name: String(item.name || "Crew"),
-        image: String(item.image || ""),
-        rarity: String(item.rarity || ""),
-        species: String(item.spec || ""),
-        sex: "",
-        source: "wallet",
-        traits: Array.isArray(item.traits) ? item.traits : [],
-        characteristics: item?.characteristics && typeof item.characteristics === "object"
-          ? item.characteristics
-          : {}
-      }));
+    return items.map((item) => ({
+      id: String(item.id || item.mint || item.name || ""),
+      mint: String(item.mint || ""),
+      name: String(item.name || "Crew"),
+      image: String(item.image || ""),
+      rarity: String(item.rarity || ""),
+      species: String(item.species || ""),
+      sex: String(item.sex || ""),
+      source: "wallet",
+      traits: Array.isArray(item.traits) ? item.traits : [],
+      characteristics: item?.characteristics && typeof item.characteristics === "object"
+        ? item.characteristics
+        : {},
+      raw: item?.raw && typeof item.raw === "object" ? item.raw : null,
+      amount: Number(item.amount || 1)
+    }));
   }
 
   async function scanWallet(owner) {
@@ -308,23 +311,23 @@
       directError = error;
     }
 
-    // Do not trust an empty browser-side scan blindly. The working server-side
-    // Galia scanner can query Star Atlas DAS from WordPress and is the fallback
-    // for compressed/otherwise invisible Crew NFTs.
+    // The browser may be blocked by CORS or may not expose compressed Crew
+    // assets through its RPC. Ask the Mini-Sim plugin's own server endpoint,
+    // which talks to Star Atlas directly.
     try {
-      const viaWp = await wpScan(owner);
-      if (viaWp.length || !direct.length) {
+      const server = await serverScan(owner);
+      if (server.length || !direct.length) {
         return {
-          crew: viaWp,
-          source: "wordpress-galia-desk"
+          crew: server,
+          source: "mini-sim-star-atlas-server"
         };
       }
     } catch (error) {
       if (directError && !direct.length) {
         throw new Error(
-          "Star Atlas Crew scan: " +
+          "Crew scan: " +
           (directError instanceof Error ? directError.message : String(directError)) +
-          " · WP scan: " +
+          " · server: " +
           (error instanceof Error ? error.message : String(error))
         );
       }
