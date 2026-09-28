@@ -320,7 +320,12 @@ function bcm_mini_sim_shortcode($atts = array())
 add_shortcode('bcm_mini_sim', 'bcm_mini_sim_shortcode');
 
 // Optional Tower Toppler-style WebGL mode and texture-sheet analyzer.
-require_once BCM_MINI_SIM_PATH . 'tower/bcm-tower.php';
+// Do not bring down the whole site when Tower files are temporarily absent
+// during a partial plugin upload/sync.
+$tower_php = BCM_MINI_SIM_PATH . 'tower/bcm-tower.php';
+if (is_readable($tower_php)) {
+    require_once $tower_php;
+}
 add_filter('autoptimize_filter_js_exclude', function ($exclude) {
     return $exclude . ', mini-sim/assets/js/mini-sim.js, mini-sim/tower/assets/js/tower.js, three.min.js';
 });
