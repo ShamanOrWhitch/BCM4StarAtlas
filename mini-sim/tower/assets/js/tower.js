@@ -923,7 +923,7 @@
         const selectedCrew = crewById(crewSlots[i].crewId);
         const imageUrl = selectedCrew?.image || "";
         playerTextures[i] = imageUrl
-          ? assetTexture(imageUrl, renderer, {})
+          ? assetTexture(imageUrl, renderer, { removeWhite: /\\.png(?:[?#].*)?$/i.test(imageUrl) })
           : fallbackPlayerTexture;
       }
 
