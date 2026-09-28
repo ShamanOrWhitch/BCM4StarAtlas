@@ -1164,7 +1164,14 @@
           "P1: " + currentLevelText(players[0]) +
           " · P2: " + currentLevelText(players[1]) +
           " · SEED " + tower.seed;
-        if (modeEl) modeEl.textContent = "MULTI / SHARED SEED";
+        if (modeEl) {
+          const padsNow = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean).length : 0;
+          modeEl.textContent = padsNow === 0
+            ? "MULTI / SHARED SEED · P1: WASD + SPACE · P2: ARROWS + X"
+            : padsNow === 1
+              ? "MULTI / SHARED SEED · P1: KEYBOARD · P2: GAMEPAD"
+              : "MULTI / SHARED SEED · GAMEPAD 1: P1 · GAMEPAD 2: P2";
+        }
       }
 
       if (inlineConfig.crewName) {
@@ -1364,11 +1371,12 @@
       Space: [0, "jump"],
       KeyE: [0, "interact"],
 
+      // P2 keyboard fallback when no gamepad is available.
       ArrowLeft: [1, "left"],
       ArrowRight: [1, "right"],
       ArrowUp: [1, "up"],
       ArrowDown: [1, "down"],
-      Enter: [1, "jump"],
+      KeyX: [1, "jump"],
       ShiftRight: [1, "interact"]
     };
 
@@ -1481,7 +1489,22 @@
 
     function pollGamepads() {
       const pads = navigator.getGamepads ? [...navigator.getGamepads()] : [];
-      const activePads = [pads[0] || null, pads[1] || null];
+      const connectedPads = pads.filter(Boolean);
+
+      // Multi-player assignment:
+      // 0 gamepads  -> P1 keyboard + P2 keyboard
+      // 1 gamepad   -> gamepad automatically becomes P2, P1 stays keyboard
+      // 2+ gamepads -> first two gamepads become P1 and P2 separately.
+      let assignedPads;
+      if (mode === "multi") {
+        if (connectedPads.length === 1) {
+          assignedPads = [null, connectedPads[0]];
+        } else {
+          assignedPads = [connectedPads[0] || null, connectedPads[1] || null];
+        }
+      } else {
+        assignedPads = [connectedPads[0] || null, null];
+      }
 
       if (!gameStarted) {
         const pad = activePads[0];
@@ -1494,7 +1517,7 @@
       }
 
       for (let i = 0; i < 2; i++) {
-        const pad = activePads[i];
+        const pad = assignedPads[i];
         if (!pad) {
           // Keyboard, mouse and touch controls share this state. An absent
           // gamepad must not erase a held keyboard key every 60 ms.
@@ -1561,14 +1584,15 @@
 
     window.BCMTowerAPI = window.BCMTowerAPI || {};
     window.BCMTowerAPI.enter = () => {
+      // Show the Tower root and its black transition layer in the same task.
+      // This prevents perference bg.png from flashing for a frame before tower.mp4.
       root.hidden = false;
-      // Never expose the standby menu during the landing-video handoff.
       menu.hidden = true;
       status.textContent = "LANDING VIDEO...";
+      triggerTransition();
       requestAnimationFrame(() => {
         resize();
-        triggerTransition();
-        requestAnimationFrame(renderViews);
+        renderViews();
       });
     };
     window.BCMTowerAPI.mount = (targetRoot) => {
