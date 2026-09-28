@@ -261,6 +261,12 @@
     const p1Label = root.querySelector(".bcm-tower-split-p1");
     const p2Label = root.querySelector(".bcm-tower-split-p2");
     const inline = root.querySelector(".bcm-tower-inline-config");
+    const crewJsonInput = root.querySelector(".bcm-tower-crew-json");
+    const crewP1Select = root.querySelector(".bcm-tower-crew-p1");
+    const crewP2Select = root.querySelector(".bcm-tower-crew-p2");
+    const crewJsonStatus = root.querySelector(".bcm-tower-crew-json-status");
+    const walletButton = root.querySelector(".bcm-tower-connect-wallet");
+    let walletAddress = "";
 
     if (!canvas || !window.THREE) return;
 
@@ -277,6 +283,43 @@
     try {
       inlineConfig = JSON.parse(inline?.textContent || "{}");
     } catch (e) {}
+
+    function renderCrewSelectors() {
+      const selects = [crewP1Select, crewP2Select];
+      selects.forEach((select, index) => {
+        if (!select) return;
+        select.innerHTML = "";
+        crewRoster.forEach((crew) => {
+          const option = document.createElement("option");
+          option.value = crew.id;
+          option.textContent = crew.name;
+          select.appendChild(option);
+        });
+        const selected = crewById(crewSlots[index].crewId);
+        if (selected) select.value = selected.id;
+      });
+    }
+
+    function setCrewFromSelectors() {
+      if (crewP1Select?.value) crewSlots[0].crewId = crewP1Select.value;
+      if (crewP2Select?.value) crewSlots[1].crewId = crewP2Select.value;
+      try {
+        localStorage.setItem("bcmTowerCrewSelection", JSON.stringify(
+          crewSlots.map((slot) => slot.crewId)
+        ));
+      } catch (e) {}
+      exposeCrewMatrix();
+    }
+
+    function restoreCrewSelection() {
+      try {
+        const saved = JSON.parse(localStorage.getItem("bcmTowerCrewSelection") || "null");
+        if (Array.isArray(saved)) {
+          if (crewById(saved[0])) crewSlots[0].crewId = saved[0];
+          if (crewById(saved[1])) crewSlots[1].crewId = saved[1];
+        }
+      } catch (e) {}
+    }
 
     const renderer = new THREE.WebGLRenderer({
       canvas,
@@ -325,7 +368,7 @@
     let objectMeshes = [];
     let playerMarkers = [];
     let playerSprites = [];
-    let playerTexture = null;
+    let playerTextures = [null, null];
     let birds = [];
 
     const radius = 8.4;
@@ -370,7 +413,7 @@
 
     // Normalized crew state shared by the game and future wallet/JSON loaders.
     // The first prototype keeps the requested default pair.
-    const crewRoster = [
+    let crewRoster = [
       { id: "opal-jetjet", name: "Opal Jetjet", source: "default" },
       { id: "opal-jetjet-2", name: "Opal Jetjet #2", source: "default" }
     ];
@@ -383,6 +426,78 @@
 
     function crewById(id) {
       return crewRoster.find((crew) => crew.id === id) || null;
+    }
+
+    function normalizeCrewEntry(raw, index) {
+      const value = raw || {};
+      const id = String(
+        value.id ||
+        value.mint ||
+        value.address ||
+        value.assetId ||
+        ("crew-" + index)
+      );
+      const name = String(
+        value.name ||
+        value.fullName ||
+        value.displayName ||
+        ("Crew " + (index + 1))
+      );
+      const image = String(
+        value.image ||
+        value.imageUrl ||
+        value.media?.image ||
+        value.media?.thumbnailUrl ||
+        ""
+      );
+      return {
+        id,
+        name,
+        image,
+        source: value.source || "json",
+        mint: value.mint || value.address || "",
+        attributes: value.attributes || {},
+        raw: value
+      };
+    }
+
+    function applyCrewRoster(rawList) {
+      const list = Array.isArray(rawList)
+        ? rawList
+        : (Array.isArray(rawList?.crew)
+          ? rawList.crew
+          : Array.isArray(rawList?.crews)
+            ? rawList.crews
+            : []);
+      const normalized = list
+        .map(normalizeCrewEntry)
+        .filter((crew) => crew.id && crew.name);
+
+      if (!normalized.length) return false;
+
+      crewRoster = normalized;
+      try {
+        localStorage.setItem("bcmTowerCrewRoster", JSON.stringify(crewRoster));
+      } catch (e) {}
+
+      if (!crewRoster.some((crew) => crew.id === crewSlots[0].crewId)) {
+        crewSlots[0].crewId = crewRoster[0].id;
+      }
+      if (!crewRoster.some((crew) => crew.id === crewSlots[1].crewId)) {
+        crewSlots[1].crewId = crewRoster[Math.min(1, crewRoster.length - 1)].id;
+      }
+
+      renderCrewSelectors();
+      exposeCrewMatrix();
+      return true;
+    }
+
+    function loadSavedCrewRoster() {
+      try {
+        const saved = JSON.parse(localStorage.getItem("bcmTowerCrewRoster") || "null");
+        if (applyCrewRoster(saved)) return;
+      } catch (e) {}
+      renderCrewSelectors();
     }
 
     function updateCrewMatrix() {
@@ -767,20 +882,24 @@
 
       buildBirds();
 
-      playerTexture = null;
-      if (inlineConfig.crewImage) {
-        playerTexture = assetTexture(inlineConfig.crewImage, renderer, {});
+      playerTextures = [null, null];
+
+      // Crew can come from the default pair, a previously saved JSON roster,
+      // or a later wallet reader using the same normalized image field.
+      const fallbackCrewImage = inlineConfig.crewImage
+        ? String(inlineConfig.crewImage)
+        : "";
+
+      let fallbackPlayerTexture = null;
+      if (fallbackCrewImage) {
+        fallbackPlayerTexture = assetTexture(fallbackCrewImage, renderer, {});
       } else {
-        // Keep a visible chibjik even when no crew card image was supplied
-        // through the shortcode. This avoids an empty player marker in Tower.
         const canvas2d = document.createElement("canvas");
         canvas2d.width = 128;
         canvas2d.height = 128;
         const ctx = canvas2d.getContext("2d");
         if (ctx) {
           ctx.clearRect(0, 0, 128, 128);
-          ctx.fillStyle = "rgba(0,0,0,0)";
-          ctx.fillRect(0, 0, 128, 128);
           ctx.fillStyle = "#202833";
           ctx.beginPath();
           ctx.arc(64, 32, 18, 0, Math.PI * 2);
@@ -795,14 +914,22 @@
           ctx.arc(58, 28, 3, 0, Math.PI * 2);
           ctx.arc(70, 28, 3, 0, Math.PI * 2);
           ctx.fill();
-          playerTexture = new THREE.CanvasTexture(canvas2d);
-          if ("colorSpace" in playerTexture && THREE.SRGBColorSpace !== undefined) {
-            playerTexture.colorSpace = THREE.SRGBColorSpace;
+          fallbackPlayerTexture = new THREE.CanvasTexture(canvas2d);
+          if ("colorSpace" in fallbackPlayerTexture && THREE.SRGBColorSpace !== undefined) {
+            fallbackPlayerTexture.colorSpace = THREE.SRGBColorSpace;
           } else if (THREE.sRGBEncoding !== undefined) {
-            playerTexture.encoding = THREE.sRGBEncoding;
+            fallbackPlayerTexture.encoding = THREE.sRGBEncoding;
           }
-          playerTexture.needsUpdate = true;
+          fallbackPlayerTexture.needsUpdate = true;
         }
+      }
+
+      for (let i = 0; i < 2; i++) {
+        const selectedCrew = crewById(crewSlots[i].crewId);
+        const imageUrl = selectedCrew?.image || "";
+        playerTextures[i] = imageUrl
+          ? assetTexture(imageUrl, renderer, {})
+          : fallbackPlayerTexture;
       }
 
       while (playerMarkers.length) {
@@ -831,9 +958,9 @@
         scene.add(marker);
         playerMarkers.push(marker);
 
-        if (playerTexture) {
+        if (playerTextures[i]) {
           const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-            map: playerTexture,
+            map: playerTextures[i],
             transparent: true,
             depthWrite: false,
             sizeAttenuation: true
@@ -1692,8 +1819,64 @@
     });
 
     modeButtons.forEach(button => {
-      button.addEventListener("click", () => startMode(button.dataset.towerMode));
+      button.addEventListener("click", () => {
+        setCrewFromSelectors();
+        startMode(button.dataset.towerMode);
+      });
     });
+
+    crewP1Select?.addEventListener("change", setCrewFromSelectors);
+    crewP2Select?.addEventListener("change", setCrewFromSelectors);
+
+    crewJsonInput?.addEventListener("change", () => {
+      const file = crewJsonInput.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(String(reader.result || ""));
+          if (!applyCrewRoster(parsed)) throw new Error("Нет массива crew/crews");
+          if (crewJsonStatus) {
+            crewJsonStatus.textContent = "Crew JSON загружен: " + crewRoster.length;
+          }
+        } catch (error) {
+          if (crewJsonStatus) {
+            crewJsonStatus.textContent = "JSON: " + (error?.message || "ошибка");
+          }
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    walletButton?.addEventListener("click", async () => {
+      const provider = window.solana;
+      if (!provider || !provider.isPhantom) {
+        if (crewJsonStatus) crewJsonStatus.textContent = "Phantom: расширение не найдено";
+        return;
+      }
+      try {
+        const response = await provider.connect();
+        walletAddress = response?.publicKey?.toString?.() || "";
+        window.BCMTowerWallet = {
+          provider: "Phantom",
+          publicKey: walletAddress,
+          readOnly: true
+        };
+        if (crewJsonStatus) {
+          crewJsonStatus.textContent = walletAddress
+            ? "Кошелёк подключён · NFT-сканирование подключим к этому же слою данных"
+            : "Кошелёк подключён";
+        }
+      } catch (error) {
+        if (crewJsonStatus) {
+          crewJsonStatus.textContent = "Phantom: подключение отменено";
+        }
+      }
+    });
+
+    loadSavedCrewRoster();
+    restoreCrewSelection();
+    renderCrewSelectors();
 
     restartButton.addEventListener("click", startNewTower);
 
@@ -1798,6 +1981,8 @@
     }
 
     window.BCMTowerAPI = window.BCMTowerAPI || {};
+    window.BCMTowerAPI.getCrewMatrix = () => window.BCMTowerCrewMatrix || null;
+    window.BCMTowerAPI.getWallet = () => window.BCMTowerWallet || null;
     window.BCMTowerAPI.enter = () => {
       // Show the Tower root and its black transition layer in the same task.
       // This prevents perference bg.png from flashing for a frame before tower.mp4.
