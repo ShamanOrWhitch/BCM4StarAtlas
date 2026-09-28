@@ -149,108 +149,46 @@ function bcm_mini_sim_remote_json($url, $method = 'GET', $body = null, $timeout 
 }
 
 function bcm_mini_sim_crew_catalog() {
-    $cached = get_transient('bcm_mini_sim_crew_catalog_v1');
+    $cached = get_transient('bcm_mini_sim_crew_catalog_v2');
     if (is_array($cached) && !empty($cached)) {
         return $cached;
     }
 
-    $rows = bcm_mini_sim_remote_json('https://galaxy.staratlas.com/crew', 'GET', null, 25);
+    $rows = bcm_mini_sim_remote_json('https://galaxy.staratlas.com/nfts', 'GET', null, 25);
     $index = array();
 
     if (is_array($rows)) {
         foreach ($rows as $row) {
-            if (!is_array($row) || empty($row['dasID'])) {
+            if (!is_array($row) || empty($row['mint'])) {
                 continue;
             }
 
-            $traits = array();
-            foreach (array(
-                'openness' => 'Openness',
-                'conscientiousness' => 'Conscientiousness',
-                'extraversion' => 'Extraversion',
-                'agreeableness' => 'Agreeableness',
-                'neuroticism' => 'Neuroticism',
-            ) as $key => $label) {
-                if (!isset($row[$key]) || !is_numeric($row[$key])) {
-                    continue;
-                }
-                $n = (float) $row[$key];
-                $traits[] = array(
-                    'trait' => $label,
-                    'value' => (string) ($n <= 1 ? (int) round($n * 100) : (int) round($n)),
-                );
+            $attrs = isset($row['attributes']) && is_array($row['attributes'])
+                ? $row['attributes']
+                : array();
+
+            $item_type = isset($attrs['itemType']) ? strtolower((string) $attrs['itemType']) : '';
+            if ($item_type !== 'crew') {
+                continue;
             }
 
-            if (!empty($row['aptitudes']) && is_array($row['aptitudes'])) {
-                foreach ($row['aptitudes'] as $name => $level) {
-                    $traits[] = array(
-                        'trait' => (string) $name,
-                        'value' => (string) $level,
-                    );
-                }
-            }
-
-            if (!empty($row['species'])) {
-                $traits[] = array(
-                    'trait' => 'Species',
-                    'value' => (string) $row['species'],
-                );
-            }
-
-            $characteristics = array();
-            foreach (array('openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism') as $key) {
-                if (!isset($row[$key]) || !is_numeric($row[$key])) {
-                    continue;
-                }
-                $n = (float) $row[$key];
-                $characteristics[$key] = (int) ($n <= 1 ? round($n * 100) : round($n));
-            }
-            if (!empty($row['aptitudes']) && is_array($row['aptitudes'])) {
-                $characteristics['aptitudes'] = $row['aptitudes'];
-            }
-
-            $index[(string) $row['dasID']] = array(
-                'name' => isset($row['name']) ? (string) $row['name'] : (string) $row['dasID'],
-                'image' => isset($row['imageUrl']) ? (string) $row['imageUrl'] : '',
-                'rarity' => isset($row['rarity']) ? (string) $row['rarity'] : '',
-                'species' => isset($row['species']) ? (string) $row['species'] : '',
-                'traits' => $traits,
-                'characteristics' => $characteristics,
+            $index[(string) $row['mint']] = array(
+                'mint' => (string) $row['mint'],
+                'name' => isset($row['name']) ? (string) $row['name'] : (string) $row['mint'],
+                'symbol' => isset($row['symbol']) ? (string) $row['symbol'] : '',
+                'rarity' => isset($attrs['rarity']) ? (string) $attrs['rarity'] : '',
+                'species' => isset($attrs['spec']) ? (string) $attrs['spec'] : '',
+                'image' => isset($row['image']) ? (string) $row['image'] : '',
                 'raw' => $row,
             );
         }
     }
 
     if (!empty($index)) {
-        set_transient('bcm_mini_sim_crew_catalog_v1', $index, 30 * MINUTE_IN_SECONDS);
+        set_transient('bcm_mini_sim_crew_catalog_v2', $index, 30 * MINUTE_IN_SECONDS);
     }
 
     return $index;
-}
-
-function bcm_mini_sim_crew_roster_names() {
-    $path = BCM_MINI_SIM_PATH . 'assets/crew-roster.json';
-    if (!is_readable($path)) {
-        return array();
-    }
-
-    $rows = json_decode((string) file_get_contents($path), true);
-    if (!is_array($rows)) {
-        return array();
-    }
-
-    $names = array();
-    foreach ($rows as $row) {
-        if (!is_array($row) || empty($row['name'])) {
-            continue;
-        }
-        $name = trim((string) $row['name']);
-        if ($name !== '') {
-            $names[strtolower($name)] = $name;
-        }
-    }
-
-    return $names;
 }
 
 function bcm_mini_sim_crew_rpc($method, $params, $timeout = 20) {
@@ -283,74 +221,49 @@ function bcm_mini_sim_server_crew_scan($owner) {
 
     $catalog = bcm_mini_sim_crew_catalog();
     if (!$catalog) {
-        return new WP_Error('bcm_mini_sim_crew_catalog', 'Не удалось получить каталог Crew Star Atlas.');
+        return new WP_Error('bcm_mini_sim_crew_catalog', 'Galaxy /nfts не вернул каталог Crew.');
     }
 
     $found = array();
     $seen = array();
-    $rosterNames = bcm_mini_sim_crew_roster_names();
 
-    // Primary path: Star Atlas/Solana DAS ownership.
-    for ($page = 1; $page <= 5; $page++) {
-        $result = bcm_mini_sim_crew_rpc('getAssetsByOwner', array(
-            array(
-                'ownerAddress' => $owner,
-                'page' => $page,
-                'limit' => 100,
-                'displayOptions' => array(
-                    'showFungible' => false,
-                    'showZeroBalance' => false,
-                ),
-            ),
+    // This is the same ownership logic used by the old working Star Atlas app:
+    // read the wallet's SPL + Token-2022 accounts, then match token mint to the
+    // official Galaxy /nfts catalog where attributes.itemType === "crew".
+    foreach (array(
+        'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+        'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
+    ) as $program) {
+        $result = bcm_mini_sim_crew_rpc('getTokenAccountsByOwner', array(
+            $owner,
+            array('programId' => $program),
+            array('encoding' => 'jsonParsed'),
         ), 20);
 
-        if (!is_array($result)) {
-            break;
-        }
+        $rows = is_array($result) && isset($result['value']) && is_array($result['value'])
+            ? $result['value']
+            : array();
 
-        $items = isset($result['items']) && is_array($result['items']) ? $result['items'] : array();
-        if (!$items) {
-            break;
-        }
+        foreach ($rows as $row) {
+            $info = isset($row['account']['data']['parsed']['info']) && is_array($row['account']['data']['parsed']['info'])
+                ? $row['account']['data']['parsed']['info']
+                : null;
 
-        foreach ($items as $asset) {
-            if (!is_array($asset)) {
+            if (!$info || empty($info['mint'])) {
                 continue;
             }
 
-            $mint = isset($asset['id']) ? (string) $asset['id'] : '';
-            if ($mint === '' || isset($seen[$mint])) {
+            $amount = isset($info['tokenAmount']['uiAmount']) ? (float) $info['tokenAmount']['uiAmount'] : 0;
+            if ($amount <= 0) {
                 continue;
             }
 
-            // The local roster is the known set of Crew we own/use in the game.
-            // DAS gives the NFT's metadata name; this is more reliable here than
-            // assuming the asset id is identical to Galaxy Crew dasID.
-            $metadata = isset($asset['content']['metadata']) && is_array($asset['content']['metadata'])
-                ? $asset['content']['metadata']
-                : array();
-            $assetName = isset($metadata['name']) ? trim((string) $metadata['name']) : '';
-            $rosterKey = $assetName !== '' ? strtolower($assetName) : '';
-
-            $card = null;
-            if ($rosterKey !== '' && isset($rosterNames[$rosterKey])) {
-                foreach ($catalog as $catalogCard) {
-                    if (strtolower((string) $catalogCard['name']) === $rosterKey) {
-                        $card = $catalogCard;
-                        break;
-                    }
-                }
-            }
-
-            // Also accept a direct Galaxy id match when it is available.
-            if (!$card && isset($catalog[$mint])) {
-                $card = $catalog[$mint];
-            }
-
-            if (!$card) {
+            $mint = (string) $info['mint'];
+            if (isset($seen[$mint]) || !isset($catalog[$mint])) {
                 continue;
             }
 
+            $card = $catalog[$mint];
             $seen[$mint] = true;
             $found[] = array(
                 'id' => $mint,
@@ -361,70 +274,11 @@ function bcm_mini_sim_server_crew_scan($owner) {
                 'species' => $card['species'],
                 'sex' => '',
                 'source' => 'mini-sim-star-atlas-server',
-                'traits' => $card['traits'],
-                'characteristics' => $card['characteristics'],
+                'traits' => array(),
+                'characteristics' => array(),
                 'raw' => $card['raw'],
-                'amount' => 1,
+                'amount' => $amount,
             );
-        }
-
-        $total = isset($result['total']) ? (int) $result['total'] : 0;
-        if (($total > 0 && $page * 100 >= $total) || count($items) < 100) {
-            break;
-        }
-    }
-
-    // Secondary path: regular SPL / Token-2022 token accounts.
-    if (!$found) {
-        foreach (array(
-            'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
-            'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
-        ) as $program) {
-            $result = bcm_mini_sim_crew_rpc('getTokenAccountsByOwner', array(
-                $owner,
-                array('programId' => $program),
-                array('encoding' => 'jsonParsed'),
-            ), 20);
-
-            $rows = is_array($result) && isset($result['value']) && is_array($result['value'])
-                ? $result['value']
-                : array();
-
-            foreach ($rows as $row) {
-                $info = isset($row['account']['data']['parsed']['info']) && is_array($row['account']['data']['parsed']['info'])
-                    ? $row['account']['data']['parsed']['info']
-                    : null;
-                if (!$info || empty($info['mint'])) {
-                    continue;
-                }
-
-                $amount = isset($info['tokenAmount']['uiAmount']) ? (float) $info['tokenAmount']['uiAmount'] : 0;
-                if ($amount <= 0) {
-                    continue;
-                }
-
-                $mint = (string) $info['mint'];
-                if (isset($seen[$mint]) || !isset($catalog[$mint])) {
-                    continue;
-                }
-
-                $card = $catalog[$mint];
-                $seen[$mint] = true;
-                $found[] = array(
-                    'id' => $mint,
-                    'mint' => $mint,
-                    'name' => $card['name'],
-                    'image' => $card['image'],
-                    'rarity' => $card['rarity'],
-                    'species' => $card['species'],
-                    'sex' => '',
-                    'source' => 'mini-sim-star-atlas-server',
-                    'traits' => $card['traits'],
-                    'characteristics' => $card['characteristics'],
-                    'raw' => $card['raw'],
-                    'amount' => $amount,
-                );
-            }
         }
     }
 
