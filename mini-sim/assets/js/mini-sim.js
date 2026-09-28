@@ -1976,12 +1976,9 @@
 
   let towerGateTriggered = false;
 
-  let towerLandingActive = false;
-
   function handoffToTower() {
     const root = document.querySelector(".bcm-tower-embedded");
     if (!root) {
-      towerLandingActive = false;
       towerGateTriggered = false;
       transitionLoading = false;
       transitionBusy = false;
@@ -1989,11 +1986,11 @@
       return;
     }
 
-    towerLandingActive = false;
     transitionLoading = false;
     transitionBusy = true;
 
     // Release the entire space-labyrinth WebGL application before Tower takes over.
+    // Tower itself owns the landing transition and plays tower.mp4 once.
     disposeMiniSimResources();
 
     root.hidden = false;
@@ -2008,76 +2005,14 @@
 
   function enterTowerFromGate() {
     if (towerGateTriggered || transitionBusy) return;
-
-    const root = document.querySelector(".bcm-tower-embedded");
-    if (!root) {
+    if (!document.querySelector(".bcm-tower-embedded")) {
       setStatus("TOWER OVERLAY MISSING");
       return;
     }
 
     towerGateTriggered = true;
-    towerLandingActive = true;
-    transitionBusy = true;
-    transitionLoading = true;
     pauseAllCinemaVideos();
-
-    const url = config.towerLandingUrl || config.towerFallbackUrl || "";
-    if (!url || !transitionVideo || !transitionRoot) {
-      handoffToTower();
-      return;
-    }
-
-    transitionVideo.muted = true;
-    transitionVideo.defaultMuted = true;
-    transitionVideo.setAttribute("muted", "");
-    transitionVideo.setAttribute("playsinline", "");
-    transitionVideo.setAttribute("webkit-playsinline", "");
-    transitionVideo.playsInline = true;
-    transitionVideo.preload = "auto";
-    transitionVideo.style.opacity = "0";
-
-    if (transitionRoot) {
-      transitionRoot.classList.remove("ready");
-      transitionRoot.hidden = true;
-    }
-    if (transitionLabel) transitionLabel.textContent = "LANDING · ONI STATION → TOWER";
-
-    const revealLanding = () => {
-      if (!towerLandingActive) return;
-      transitionLoading = false;
-      transitionBusy = true;
-      if (transitionRoot) {
-        transitionRoot.hidden = false;
-        transitionRoot.classList.add("ready");
-      }
-      transitionVideo.style.opacity = "1";
-      const play = transitionVideo.play();
-      if (play && play.catch) play.catch(() => handoffToTower());
-    };
-
-    transitionVideo.onloadeddata = revealLanding;
-    transitionVideo.onplaying = () => {
-      if (!towerLandingActive) return;
-      if (transitionRoot) {
-        transitionRoot.hidden = false;
-        transitionRoot.classList.add("ready");
-      }
-    };
-    transitionVideo.onended = handoffToTower;
-    transitionVideo.onerror = () => {
-      if (!towerLandingActive) return;
-      if (transitionRoot) {
-        transitionRoot.classList.remove("ready");
-        transitionRoot.hidden = true;
-      }
-      setStatus("LANDING MP4 ERROR · TOWER");
-      handoffToTower();
-    };
-
-    transitionVideo.src = url;
-    transitionVideo.load();
-    const play = transitionVideo.play();
-    if (play && play.catch) play.catch(() => {});
+    handoffToTower();
   }
 
   function portalCoverage() {
@@ -3434,10 +3369,7 @@
     });
     if (transitionRoot) {
       const close = transitionRoot.querySelector(".bcm-mini-sim-transition-close");
-      if (close) close.addEventListener("click", () => {
-      if (towerLandingActive) return;
-      finishTeleport();
-    });
+      if (close) close.addEventListener("click", finishTeleport);
     }
     if (settingsRoot) {
       const vol = settingsRoot.querySelector('[data-setting="volume"]');
