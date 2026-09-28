@@ -269,6 +269,7 @@
   window.BCMCrewWallet = {
     provider,
     connectAndScan,
-    scanWallet
+    scanWallet,
+    loadCatalog: loadCrewCatalog
   };
 })();
