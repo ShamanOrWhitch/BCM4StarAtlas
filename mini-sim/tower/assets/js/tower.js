@@ -368,6 +368,8 @@
         image: String(crew.image || ""),
         source: crew.source || "mini-sim",
         traits: Array.isArray(crew.traits) ? crew.traits : [],
+        characteristics: crew.characteristics && typeof crew.characteristics === "object" ? crew.characteristics : {},
+        raw: crew.raw && typeof crew.raw === "object" ? crew.raw : null,
         seats: String(crew.seats || ""),
         ocean: String(crew.ocean || ""),
         mission: String(crew.mission || "")
