@@ -145,6 +145,8 @@ function bcm_mini_sim_enqueue_assets()
     wp_enqueue_script('bcm-crew-wallet', BCM_MINI_SIM_URL . 'assets/js/crew-wallet.js', array(), BCM_MINI_SIM_VERSION, false);
     wp_enqueue_script('bcm-mini-sim', BCM_MINI_SIM_URL . 'assets/js/mini-sim.js', array('bcm-crew-wallet'), BCM_MINI_SIM_VERSION, false);
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
+        'crewWalletAjax' => admin_url('admin-ajax.php'),
+        'crewWalletNonce' => wp_create_nonce('galia_desk'),
         'threeUrl' => BCM_MINI_SIM_URL . 'assets/js/three.min.js',
         'towerApproach' => array(
             // Preload around the actual automatic Tower gate: onicss.mp4.
