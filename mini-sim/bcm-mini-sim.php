@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.33
+ * Version: 0.9.34
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.33');
+define('BCM_MINI_SIM_VERSION', '0.9.34');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -85,6 +85,42 @@ function bcm_mini_sim_pick_asset($assets, $names, $type)
     return '';
 }
 
+function bcm_mini_sim_find_media_asset($filename)
+{
+    $needle = strtolower(basename((string) $filename));
+    if ($needle === '') {
+        return '';
+    }
+
+    $posts = get_posts(array(
+        'post_type' => 'attachment',
+        'post_status' => 'inherit',
+        'posts_per_page' => 50,
+        's' => pathinfo($needle, PATHINFO_FILENAME),
+    ));
+
+    foreach ($posts as $attachment) {
+        $file = get_attached_file($attachment->ID);
+        if ($file && strtolower(basename($file)) === $needle) {
+            $url = wp_get_attachment_url($attachment->ID);
+            if ($url) {
+                return $url;
+            }
+        }
+
+        $url = wp_get_attachment_url($attachment->ID);
+        if ($url) {
+            $urlBase = strtolower(basename(parse_url($url, PHP_URL_PATH)));
+            if ($urlBase === $needle) {
+                return $url;
+            }
+        }
+    }
+
+    return '';
+}
+
+
 function bcm_mini_sim_enqueue_assets()
 {
     $assets = bcm_mini_sim_get_assets();
@@ -121,12 +157,12 @@ function bcm_mini_sim_enqueue_assets()
         ),
         'towerJsUrl' => BCM_MINI_SIM_URL . 'tower/assets/js/tower.js',
         'towerCssUrl' => BCM_MINI_SIM_URL . 'tower/assets/css/tower.css',
-        'towerLandingUrl' => bcm_mini_sim_pick_asset($assets, array('tower.mp4'), 'video'),
-        'towerFallbackUrl' => bcm_mini_sim_pick_asset($assets, array(
-            'portal2.mp4',
-            'portal3.mp4',
-            'portal1.mp4'
-        ), 'video'),
+        // Prefer the real tower.mp4 from plugin assets; otherwise resolve
+        // the exact filename from the WordPress Media Library.
+        'towerLandingUrl' => bcm_mini_sim_pick_asset($assets, array('tower.mp4'), 'video')
+            ?: bcm_mini_sim_find_media_asset('tower.mp4'),
+        // Never replace the Tower landing clip with a portal video.
+        'towerFallbackUrl' => '',
         'doorTexture' => $door,
         'menuBackgroundUrl' => bcm_mini_sim_pick_asset($assets, array('perference bg.png'), 'image'),
         'musicUrl' => bcm_mini_sim_pick_asset($assets, array('starbase ost.mp3', 'starbase-ost.mp3', 'ost.mp3'), 'audio'),
