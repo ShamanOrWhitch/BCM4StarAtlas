@@ -855,13 +855,13 @@
           "СПУСК: " + currentLevelText(players[0]) +
           " · SECTOR " + wrapSector(Math.round(players[0].angle / sectorWidth()), tower.sectors) +
           " · SEED " + tower.seed;
-        modeEl.textContent = "SINGLE";
+        if (modeEl) modeEl.textContent = "SINGLE";
       } else {
         levelEl.textContent =
           "P1: " + currentLevelText(players[0]) +
           " · P2: " + currentLevelText(players[1]) +
           " · SEED " + tower.seed;
-        modeEl.textContent = "MULTI / SHARED SEED";
+        if (modeEl) modeEl.textContent = "MULTI / SHARED SEED";
       }
 
       if (inlineConfig.crewName) {
@@ -978,7 +978,7 @@
       menu.hidden = false;
       restartButton.hidden = true;
       status.textContent = "ВЫБЕРИТЕ РЕЖИМ";
-      modeEl.textContent = "";
+      if (modeEl) modeEl.textContent = "";
 
       // Build a preview behind the menu. This also starts loading the Tower
       // textures before SINGLE/MULTI is selected, so the handoff is visibly alive.
