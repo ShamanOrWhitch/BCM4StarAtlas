@@ -1029,8 +1029,15 @@
       };
 
       transitionVideo.play().catch(() => {
-        stopTransition();
-        showMenu();
+        // Automatic planet entry can arrive without a fresh user-activation token.
+        // Retry the same landing video muted before falling back to the Tower menu.
+        transitionVideo.muted = true;
+        transitionVideo.defaultMuted = true;
+        transitionVideo.setAttribute("muted", "");
+        transitionVideo.play().catch(() => {
+          stopTransition();
+          showMenu();
+        });
       });
     }
 
