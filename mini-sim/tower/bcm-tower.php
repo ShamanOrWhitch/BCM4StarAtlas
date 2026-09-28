@@ -119,12 +119,15 @@ function bcm_tower_get_client_config($assets = null) {
 
     return array(
         'threeUrl' => defined('BCM_MINI_SIM_URL') ? BCM_MINI_SIM_URL . 'assets/js/three.min.js' : '',
-        'transition' => bcm_tower_pick_asset($assets, array('tower.mp4'), 'video'),
-        'transitionFallbacks' => array_values(array_filter(array(
-            bcm_tower_pick_asset($assets, array('portal2.mp4'), 'video'),
-            bcm_tower_pick_asset($assets, array('portal3.mp4'), 'video'),
-            bcm_tower_pick_asset($assets, array('portal1.mp4'), 'video'),
-        ))),
+        // Resolve the real Tower landing clip from plugin assets first,
+        // then from the WordPress Media Library.
+        'transition' => bcm_tower_pick_asset($assets, array('tower.mp4'), 'video')
+            ?: (function_exists('bcm_mini_sim_find_media_asset')
+                ? bcm_mini_sim_find_media_asset('tower.mp4')
+                : ''),
+        // Do not substitute portal2/portal3/portal1 here. Tower entry has its
+        // own landing video contract and must wait for tower.mp4.
+        'transitionFallbacks' => array(),
         'towerWallJpgPool' => bcm_tower_asset_urls($assets, '/^(towerwall|wall)[^\\/]*\\.(jpg|jpeg)$/i'),
         'towerWallPngPool' => bcm_tower_asset_urls($assets, '/^towerwall[^\\/]*\\.png$/i'),
         'platformPool' => bcm_tower_asset_urls($assets, '/^(platform|paltform)(?!lava|ice)[^\\/]*\\.(png|jpg|jpeg|webp)$/i'),
