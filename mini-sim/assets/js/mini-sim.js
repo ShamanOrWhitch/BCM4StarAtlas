@@ -2721,19 +2721,34 @@
         return;
       }
 
-      if (before.x >= hull.outerX && ship.position.x < hull.outerX) {
+      // Block crossing the visible outer shell in BOTH directions.
+      // The old check only stopped outside -> inside, which made the hull noclip
+      // when the ship tried to leave the room through a side wall.
+      if (before.x < hull.outerX && ship.position.x >= hull.outerX) {
+        ship.position.x = hull.outerX - 0.06;
+        blocked = true;
+      } else if (before.x > hull.outerX && ship.position.x <= hull.outerX) {
         ship.position.x = hull.outerX + 0.06;
         blocked = true;
-      } else if (before.x <= -hull.outerX && ship.position.x > -hull.outerX) {
+      } else if (before.x > -hull.outerX && ship.position.x <= -hull.outerX) {
+        ship.position.x = -hull.outerX + 0.06;
+        blocked = true;
+      } else if (before.x < -hull.outerX && ship.position.x >= -hull.outerX) {
         ship.position.x = -hull.outerX - 0.06;
         blocked = true;
       }
 
-      if (before.y >= hull.outerY && ship.position.y < hull.outerY) {
+      if (before.y < hull.outerY && ship.position.y >= hull.outerY) {
+        ship.position.y = hull.outerY - 0.06;
+        blocked = true;
+      } else if (before.y > hull.outerY && ship.position.y <= hull.outerY) {
         ship.position.y = hull.outerY + 0.06;
         blocked = true;
-      } else if (before.y <= -hull.outerY && ship.position.y > -hull.outerY) {
-        ship.position.y = hull.outerY + 0.06;
+      } else if (before.y > -hull.outerY && ship.position.y <= -hull.outerY) {
+        ship.position.y = -hull.outerY + 0.06;
+        blocked = true;
+      } else if (before.y < -hull.outerY && ship.position.y >= -hull.outerY) {
+        ship.position.y = -hull.outerY - 0.06;
         blocked = true;
       }
 
