@@ -64,7 +64,9 @@
       ocean: String(value.ocean || ""),
       mission: String(value.mission || ""),
       source: value.source || "default",
-      traits: Array.isArray(value.traits) ? value.traits : []
+      traits: Array.isArray(value.traits) ? value.traits : [],
+      characteristics: value.characteristics && typeof value.characteristics === "object" ? value.characteristics : {},
+      raw: value.raw && typeof value.raw === "object" ? value.raw : null
     };
   }
 
@@ -143,6 +145,10 @@
               rarity: crew.rarity || String(card.rarity || ""),
               species: crew.species || String(card.species || ""),
               traits: crew.traits.length ? crew.traits : (Array.isArray(card.traits) ? card.traits : []),
+              characteristics: Object.keys(crew.characteristics || {}).length
+                ? crew.characteristics
+                : (card.characteristics || {}),
+              raw: crew.raw || card.raw || null,
               source: crew.source === "default" ? "star-atlas-catalog" : crew.source
             });
           });
