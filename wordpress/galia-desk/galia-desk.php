@@ -610,12 +610,26 @@ function galia_desk_crew_index() {
             if (!empty($row['species'])) {
                 $traits[] = array('trait' => 'Species', 'value' => (string) $row['species']);
             }
+            $characteristics = array();
+            foreach (array('openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism') as $key) {
+                if (!isset($row[$key]) || !is_numeric($row[$key])) {
+                    continue;
+                }
+                $n = (float) $row[$key];
+                $characteristics[$key] = (int) ($n <= 1 ? round($n * 100) : round($n));
+            }
+            if (!empty($row['aptitudes']) && is_array($row['aptitudes'])) {
+                $characteristics['aptitudes'] = $row['aptitudes'];
+            }
+
             $index[$row['dasID']] = array(
                 'name' => isset($row['name']) ? $row['name'] : $row['dasID'],
                 'image' => isset($row['imageUrl']) ? $row['imageUrl'] : '',
                 'rarity' => isset($row['rarity']) ? $row['rarity'] : '',
                 'species' => isset($row['species']) ? $row['species'] : '',
                 'traits' => $traits,
+                'characteristics' => $characteristics,
+                'raw' => $row,
             );
         }
     }
@@ -692,6 +706,8 @@ function galia_desk_wallet($owner) {
                     'image' => $card['image'],
                     'video' => '',
                     'traits' => $card['traits'],
+                    'characteristics' => isset($card['characteristics']) && is_array($card['characteristics']) ? $card['characteristics'] : array(),
+                    'raw' => isset($card['raw']) && is_array($card['raw']) ? $card['raw'] : null,
                 );
                 continue;
             }
