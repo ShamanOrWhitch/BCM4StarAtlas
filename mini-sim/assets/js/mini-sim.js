@@ -1818,11 +1818,27 @@
 
   function ensureTowerJsLoaded() {
     if (towerPreload.jsPromise || !config.towerJsUrl) return towerPreload.jsPromise;
-    towerPreload.jsPromise = new Promise((resolve) => {
-      if ([...document.scripts].some(s => s.src === config.towerJsUrl)) {
-        resolve();
-        return;
+
+    // Tower.js is normally already enqueued by bcm_tower_enqueue_assets().
+    // WordPress appends ?ver=... to that script URL, so comparing s.src to the
+    // raw config URL is not reliable and used to inject a second Tower runtime.
+    // A duplicate runtime means two WebGL renderers and two game loops can
+    // attach to the same Tower canvas.
+    const wanted = new URL(config.towerJsUrl, document.baseURI);
+    const alreadyLoaded = [...document.scripts].some((script) => {
+      try {
+        return new URL(script.src, document.baseURI).pathname === wanted.pathname;
+      } catch (e) {
+        return false;
       }
+    });
+
+    if (alreadyLoaded || (window.BCMTowerAPI && typeof window.BCMTowerAPI.enter === "function")) {
+      towerPreload.jsPromise = Promise.resolve();
+      return towerPreload.jsPromise;
+    }
+
+    towerPreload.jsPromise = new Promise((resolve) => {
       const script = document.createElement("script");
       script.src = config.towerJsUrl;
       script.async = true;
