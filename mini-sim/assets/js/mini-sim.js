@@ -720,6 +720,45 @@
       const right = tex(rightName, opt.rightColor);
       plane(parent, opt.w / 2, 0, opt.z, opt.len, opt.h, 0, -Math.PI / 2, 0, right);
     }
+
+    if (opt.structuralRibs) {
+      const ribMat = new THREE.MeshBasicMaterial({
+        color: 0x2a333d,
+        transparent: true,
+        opacity: 0.95
+      });
+      const ribInset = 0.075;
+      const ribHeight = opt.h + 0.18;
+      const ribDepth = 0.18;
+      const spacing = 4.4;
+      const start = opt.z - opt.len * 0.5 + 2.2;
+
+      for (let z = start; z <= opt.z + opt.len * 0.5 + 0.01; z += spacing) {
+        [-1, 1].forEach((side) => {
+          const rib = new THREE.Mesh(
+            new THREE.BoxGeometry(0.18, ribHeight, ribDepth),
+            ribMat
+          );
+          rib.position.set(side * (opt.w * 0.5 - ribInset), 0, z);
+          rib.name = "room-structural-vertical-rib";
+          rib.renderOrder = 4;
+          parent.add(rib);
+        });
+      }
+
+      [-1, 1].forEach((side) => {
+        const y = side * (opt.h * 0.5 - ribInset);
+        const rib = new THREE.Mesh(
+          new THREE.BoxGeometry(opt.w + 0.18, 0.18, opt.len + 0.18),
+          ribMat
+        );
+        rib.position.set(0, y, opt.z);
+        rib.name = "room-structural-long-rib";
+        rib.renderOrder = 4;
+        parent.add(rib);
+      });
+    }
+
     addRoofCorners(parent, opt.z, opt.w, opt.h, opt.cornerVariants);
   }
 
@@ -1244,19 +1283,16 @@
       leftVariants: ["wall3.png", "wall4.png", "wall5.png"],
       right: false,
       cornerVariants: ["roofa.png", "roofa1.png", "roofa2.png"],
+      structuralRibs: true,
       floorColor: 0x46505b, ceilingColor: 0x8b9198,
       leftColor: 0x3b444f, rightColor: 0x343d47
     });
     buildRoom(world, {
       z: -66, w: 12, len: 34, h: 8,
       floor: "wall2.png",
-      floorVariants: ["wall1.png", "wall2.png", "wall4.png"],
       ceiling: "roof1.png",
-      ceilingVariants: ["roof.png", "roof1.png", "roof3.png"],
       left: "wall5.png",
-      leftVariants: ["wall2.png", "wall3.png", "wall5.png"],
       right: "wall1.png",
-      rightVariants: ["wall1.png", "wall4.png", "wall5.png"],
       cornerVariants: ["roofa.png", "roofa1.png", "roofa2.png"],
       deferTextures: true,
       eagerLeftTexture: true,
