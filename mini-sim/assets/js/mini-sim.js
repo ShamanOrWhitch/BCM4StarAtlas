@@ -117,6 +117,46 @@
           crewRoster.length +
           " · можно играть без кошелька."
         );
+
+        // Keep the 68-row local menu instant, then quietly attach official
+        // Star Atlas images/metadata where the names match.
+        const catalogPromise = window.BCMCrewWallet?.loadCatalog
+          ? window.BCMCrewWallet.loadCatalog()
+          : Promise.reject(new Error("Crew catalog loader unavailable"));
+
+        catalogPromise.then((catalog) => {
+          if (!(catalog instanceof Map) || !catalog.size || !crewRoster.length) return;
+
+          const byName = new Map();
+          catalog.forEach((card) => {
+            const key = String(card?.name || "").trim().toLowerCase();
+            if (key && !byName.has(key)) byName.set(key, card);
+          });
+
+          let enriched = 0;
+          crewRoster = crewRoster.map((crew) => {
+            const card = byName.get(String(crew.name || "").trim().toLowerCase());
+            if (!card) return crew;
+            enriched++;
+            return Object.assign({}, crew, {
+              image: crew.image || String(card.image || ""),
+              rarity: crew.rarity || String(card.rarity || ""),
+              species: crew.species || String(card.species || ""),
+              traits: crew.traits.length ? crew.traits : (Array.isArray(card.traits) ? card.traits : []),
+              source: crew.source === "default" ? "star-atlas-catalog" : crew.source
+            });
+          });
+
+          renderCrewPreflight();
+          crewSetStatus(
+            "Локальная база Crew: " +
+            crewRoster.length +
+            " · образы Star Atlas: " +
+            enriched +
+            " · можно играть без кошелька."
+          );
+        }).catch(() => {});
+
         return crewRoster;
       })
       .catch((error) => {
