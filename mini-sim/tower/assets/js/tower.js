@@ -1878,12 +1878,26 @@
     window.BCMTowerAPI.getCrewMatrix = () => window.BCMTowerCrewMatrix || null;
     window.BCMTowerAPI.getWallet = () => window.BCMiniCrewWallet || null;
     window.BCMTowerAPI.enter = () => {
-      // Show the Tower root and its black transition layer in the same task.
-      // This prevents perference bg.png from flashing for a frame before tower.mp4.
+      // Prepare the Tower behind the landing cutscene. The player sees only
+      // tower.mp4 until its last frame, then receives an already-built menu.
       root.hidden = false;
       menu.hidden = true;
-      status.textContent = "LANDING VIDEO...";
+      status.textContent = "LANDING VIDEO · PREPARING TOWER...";
+      try {
+        if (!tower) {
+          buildTower(makeSeed());
+        }
+      } catch (error) {
+        gameStarted = false;
+        status.textContent = "TOWER ERROR: " + (error?.message || "BUILD FAILED");
+        console.error("BCM Tower entry build failed", error);
+        return;
+      }
+
+      resize();
+      renderViews();
       triggerTransition();
+
       requestAnimationFrame(() => {
         resize();
         renderViews();
