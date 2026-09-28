@@ -264,7 +264,7 @@
 
     if (!canvas || !window.THREE) return;
 
-    doorTransitLayers = [0, 1].map((index) => {
+    let doorTransitLayers = [0, 1].map((index) => {
       const layer = document.createElement("div");
       layer.className = "bcm-tower-door-transition bcm-tower-door-p" + (index + 1);
       layer.hidden = true;
@@ -404,7 +404,6 @@
       { slot: 1, crewId: crewRoster[1].id, location: "ship", level: null }
     ];
     const doorTransit = [null, null];
-    let doorTransitLayers = [];
 
     function crewById(id) {
       return crewRoster.find((crew) => crew.id === id) || null;
@@ -1559,46 +1558,83 @@
       transitionVideo.pause();
       transitionVideo.removeAttribute("src");
       transitionVideo.load();
+      transitionVideo.style.opacity = "0";
       transitionStarted = false;
     }
 
     function transitionUrl() {
-      if (CONFIG.transition) return CONFIG.transition;
-      const fallbacks = Array.isArray(CONFIG.transitionFallbacks)
-        ? CONFIG.transitionFallbacks.filter(Boolean)
-        : [];
-      return fallbacks[0] || "";
+      // Tower entry must use tower.mp4 itself. Do not silently replace it with
+      // another portal clip: the landing clip is part of the handoff contract.
+      return CONFIG.transition || "";
     }
 
     function triggerTransition() {
-      if (transitionStarted) return;
+      if (transitionStarted) return false;
       const url = transitionUrl();
       if (!url) {
-        showMenu();
-        return;
+        status.textContent = "TOWER LANDING VIDEO MISSING · tower.mp4";
+        transition.hidden = false;
+        transitionVideo.style.opacity = "0";
+        return false;
       }
 
       transitionStarted = true;
       transition.hidden = false;
-      transitionVideo.src = url;
-      transitionVideo.currentTime = 0;
+      transitionVideo.style.opacity = "0";
+      transitionVideo.muted = true;
+      transitionVideo.defaultMuted = true;
+      transitionVideo.setAttribute("muted", "");
+      transitionVideo.setAttribute("playsinline", "");
+      transitionVideo.setAttribute("webkit-playsinline", "");
+      transitionVideo.playsInline = true;
+      transitionVideo.preload = "auto";
+      try { transitionVideo.fetchPriority = "high"; } catch (e) {}
 
+      let revealed = false;
+      const revealFirstFrame = () => {
+        if (revealed || !transitionStarted) return;
+        revealed = true;
+
+        // loadeddata means the first decoded frame is available. Reveal the
+        // transition only now, exactly like the mini-sim portal cutscenes.
+        try { transitionVideo.currentTime = 0; } catch (e) {}
+        transitionVideo.style.opacity = "1";
+
+        const playPromise = transitionVideo.play();
+        if (playPromise && playPromise.catch) {
+          playPromise.catch(() => {
+            status.textContent = "TOWER LANDING VIDEO READY · PLAY BLOCKED";
+          });
+        }
+      };
+
+      transitionVideo.onloadedmetadata = () => {
+        try { transitionVideo.currentTime = 0; } catch (e) {}
+      };
+      transitionVideo.onloadeddata = revealFirstFrame;
+      transitionVideo.oncanplay = revealFirstFrame;
+      transitionVideo.onplaying = () => {
+        transition.hidden = false;
+        transitionVideo.style.opacity = "1";
+      };
       transitionVideo.onended = () => {
         stopTransition();
         showMenu();
       };
+      transitionVideo.onerror = () => {
+        stopTransition();
+        status.textContent = "TOWER LANDING VIDEO ERROR · tower.mp4";
+      };
 
-      transitionVideo.play().catch(() => {
-        // Automatic planet entry can arrive without a fresh user-activation token.
-        // Retry the same landing video muted before falling back to the Tower menu.
-        transitionVideo.muted = true;
-        transitionVideo.defaultMuted = true;
-        transitionVideo.setAttribute("muted", "");
-        transitionVideo.play().catch(() => {
-          stopTransition();
-          showMenu();
-        });
-      });
+      transitionVideo.src = url;
+      transitionVideo.load();
+
+      // Muted autoplay should be allowed, but decoding/reveal is still gated
+      // by loadeddata so Tower never jumps ahead of the first frame.
+      const playPromise = transitionVideo.play();
+      if (playPromise && playPromise.catch) playPromise.catch(() => {});
+
+      return true;
     }
 
     function startNewTower() {
