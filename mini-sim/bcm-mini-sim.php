@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.39
+ * Version: 0.9.41
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.40');
+define('BCM_MINI_SIM_VERSION', '0.9.41');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -191,6 +191,142 @@ function bcm_mini_sim_crew_catalog() {
     return $index;
 }
 
+function bcm_mini_sim_solanafm_owner_tokens($owner, $token_type = null, $timeout = 20) {
+    $url = 'https://api.solana.fm/v1/addresses/' . rawurlencode($owner) . '/tokens';
+    if ($token_type !== null && $token_type !== '') {
+        $url .= '?tokenType=' . rawurlencode($token_type);
+    }
+    $json = bcm_mini_sim_remote_json($url, 'GET', null, $timeout);
+    if (!is_array($json) || !isset($json['tokens']) || !is_array($json['tokens'])) {
+        return null;
+    }
+    $out = array();
+    foreach ($json['tokens'] as $key => $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $info = isset($row['info']) && is_array($row['info']) ? $row['info'] : $row;
+        $mint = '';
+        foreach (array(
+            isset($info['mint']) ? $info['mint'] : '',
+            isset($row['mint']) ? $row['mint'] : '',
+            isset($row['tokenMint']) ? $row['tokenMint'] : '',
+        ) as $candidate) {
+            $candidate = (string) $candidate;
+            if (preg_match('/^[1-9A-HJ-NP-Za-km-z]{32,44}$/', $candidate)) {
+                $mint = $candidate;
+                break;
+            }
+        }
+        if ($mint === '') {
+            continue;
+        }
+        $amount = 1;
+        if (isset($info['tokenAmount']) && is_array($info['tokenAmount'])) {
+            if (isset($info['tokenAmount']['uiAmount']) && is_numeric($info['tokenAmount']['uiAmount'])) {
+                $amount = (float) $info['tokenAmount']['uiAmount'];
+            } elseif (isset($info['tokenAmount']['amount']) && is_numeric($info['tokenAmount']['amount'])) {
+                $amount = (float) $info['tokenAmount']['amount'];
+            }
+        } elseif (isset($info['amount']) && is_numeric($info['amount'])) {
+            $amount = (float) $info['amount'];
+        }
+        if ($amount <= 0) {
+            continue;
+        }
+        $out[$mint] = array('mint' => $mint, 'amount' => $amount, 'raw' => $row);
+    }
+    return $out;
+}
+
+function bcm_mini_sim_solanafm_token_metadata($mints, $timeout = 25) {
+    $mints = array_values(array_unique(array_filter(array_map('strval', (array) $mints))));
+    $out = array();
+    foreach (array_chunk($mints, 50) as $chunk) {
+        if (!$chunk) {
+            continue;
+        }
+        $json = bcm_mini_sim_remote_json('https://api.solana.fm/v1/tokens', 'POST', array(
+            'tokens' => $chunk,
+        ), $timeout);
+        if (!is_array($json)) {
+            continue;
+        }
+        foreach ($json as $mint => $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $key = (string) $mint;
+            $actual = isset($row['mint']) ? (string) $row['mint'] : $key;
+            if ($actual !== '') {
+                $out[$actual] = $row;
+            }
+        }
+    }
+    return $out;
+}
+
+function bcm_mini_sim_attr_map($attributes) {
+    $map = array();
+    if (!is_array($attributes)) {
+        return $map;
+    }
+    foreach ($attributes as $attr) {
+        if (!is_array($attr)) {
+            continue;
+        }
+        $trait = isset($attr['trait_type']) ? (string) $attr['trait_type'] : (isset($attr['trait']) ? (string) $attr['trait'] : '');
+        if ($trait === '' || !array_key_exists('value', $attr) || is_array($attr['value'])) {
+            continue;
+        }
+        $map[$trait] = $attr['value'];
+    }
+    return $map;
+}
+
+function bcm_mini_sim_case_trait($map, $name) {
+    foreach ((array) $map as $key => $value) {
+        if (strcasecmp((string) $key, $name) === 0) {
+            return $value;
+        }
+    }
+    return null;
+}
+
+function bcm_mini_sim_ocean_trait($map, $name) {
+    $value = bcm_mini_sim_case_trait($map, $name);
+    return bcm_mini_sim_ocean($value);
+}
+
+function bcm_mini_sim_extract_solanafm_metadata($row) {
+    if (!is_array($row)) {
+        return array();
+    }
+    $token_list = isset($row['tokenList']) && is_array($row['tokenList']) ? $row['tokenList'] : array();
+    $token_meta = isset($row['tokenMetadata']) && is_array($row['tokenMetadata']) ? $row['tokenMetadata'] : array();
+    $on_chain = isset($token_meta['onChainInfo']) && is_array($token_meta['onChainInfo']) ? $token_meta['onChainInfo'] : array();
+    $off_chain = isset($token_meta['offChainInfo']) && is_array($token_meta['offChainInfo']) ? $token_meta['offChainInfo'] : array();
+    if (!$off_chain && isset($row['offChainInfo']) && is_array($row['offChainInfo'])) {
+        $off_chain = $row['offChainInfo'];
+    }
+    $attributes = array();
+    if (isset($off_chain['attributes'])) {
+        $attributes = $off_chain['attributes'];
+    } elseif (isset($off_chain['data']['attributes'])) {
+        $attributes = $off_chain['data']['attributes'];
+    } elseif (isset($row['attributes'])) {
+        $attributes = $row['attributes'];
+    }
+    return array(
+        'name' => isset($off_chain['name']) ? (string) $off_chain['name'] : (isset($token_list['name']) ? (string) $token_list['name'] : ''),
+        'image' => isset($off_chain['image']) ? (string) $off_chain['image'] : (isset($token_list['image']) ? (string) $token_list['image'] : ''),
+        'symbol' => isset($off_chain['symbol']) ? (string) $off_chain['symbol'] : (isset($token_list['symbol']) ? (string) $token_list['symbol'] : ''),
+        'attributes' => is_array($attributes) ? $attributes : array(),
+        'uri' => isset($on_chain['uri']) ? (string) $on_chain['uri'] : '',
+        'raw' => $row,
+    );
+}
+
 function bcm_mini_sim_crew_rpc($method, $params, $timeout = 20) {
     // PublicNode is a standard RPC/indexer endpoint, not a DAS endpoint.
     // It rejects getAssetsByOwner unless a personal indexer token is used,
@@ -238,92 +374,116 @@ function bcm_mini_sim_server_crew_scan($owner) {
         return new WP_Error('bcm_mini_sim_owner', 'Нужен публичный ключ Solana.');
     }
 
-    $crew = array();
-    $seen = array();
+    $crew_catalog = bcm_mini_sim_crew_catalog();
+    $nft_tokens = bcm_mini_sim_solanafm_owner_tokens($owner, 'NonFungible', 20);
+    $fungible_tokens = bcm_mini_sim_solanafm_owner_tokens($owner, 'Fungible', 20);
     $errors = array();
-    for ($page = 1; $page <= 8; $page++) {
-        $result = bcm_mini_sim_crew_rpc('getAssetsByOwner', array(
-            'ownerAddress' => $owner,
-            'page' => $page,
-            'limit' => 100,
-            'displayOptions' => array(
-                'showFungible' => false,
-                'showZeroBalance' => false,
-            ),
-        ), 20);
-        if (!is_array($result)) {
-            $errors[] = 'DAS page ' . $page . ' не ответил';
-            break;
+    if ($nft_tokens === null) {
+        $errors[] = 'SolanaFM NFT bridge не ответил';
+    }
+    if ($fungible_tokens === null) {
+        $errors[] = 'SolanaFM fungible bridge не ответил';
+    }
+
+    $mint_rows = array();
+    foreach (array($nft_tokens, $fungible_tokens) as $bucket) {
+        if (!is_array($bucket)) {
+            continue;
         }
-        $rows = isset($result['items']) && is_array($result['items']) ? $result['items'] : array();
-        foreach ($rows as $asset) {
-            if (!is_array($asset) || empty($asset['id'])) {
-                continue;
-            }
-            $mint = (string) $asset['id'];
-            if (isset($seen[$mint])) {
-                continue;
-            }
-            $meta = isset($asset['content']['metadata']) && is_array($asset['content']['metadata']) ? $asset['content']['metadata'] : array();
-            $name = isset($meta['name']) ? (string) $meta['name'] : '';
-            $symbol = isset($meta['symbol']) ? (string) $meta['symbol'] : '';
-            $attrs = isset($meta['attributes']) && is_array($meta['attributes']) ? $meta['attributes'] : array();
-            $map = array();
-            foreach ($attrs as $attr) {
-                if (!is_array($attr) || empty($attr['trait_type']) || !isset($attr['value']) || is_array($attr['value'])) {
-                    continue;
-                }
-                $map[(string) $attr['trait_type']] = $attr['value'];
-            }
-            $blob = strtolower($name . ' ' . $symbol . ' ' . implode(' ', array_keys($map)));
-            if (strpos($blob, 'crew') === false && strpos($blob, 'openness') === false && strpos($blob, 'species') === false) {
-                continue;
-            }
-            $seen[$mint] = true;
-            $given = isset($map['name']) ? (string) $map['name'] : '';
-            if ($given !== '' && stripos($given, 'crew') === 0) {
-                $given = '';
-            }
-            $aptitudes = array();
-            foreach (array('Command', 'Flight', 'Operator', 'Engineering', 'Medical', 'Science', 'Fitness', 'Hospitality') as $apt) {
-                if (isset($map[$apt])) {
-                    $aptitudes[$apt] = (string) $map[$apt];
-                }
-            }
-            $links = isset($asset['content']['links']) && is_array($asset['content']['links']) ? $asset['content']['links'] : array();
-            $crew[] = array(
-                'id' => $mint,
-                'mint' => $mint,
-                'name' => $given !== '' ? $given : $name,
-                'image' => isset($links['image']) ? (string) $links['image'] : '',
-                'species' => isset($map['species']) ? (string) $map['species'] : '',
-                'rarity' => isset($map['rarity']) ? (string) $map['rarity'] : '',
-                'openness' => bcm_mini_sim_ocean(isset($map['openness']) ? $map['openness'] : null),
-                'conscientiousness' => bcm_mini_sim_ocean(isset($map['conscientiousness']) ? $map['conscientiousness'] : null),
-                'extraversion' => bcm_mini_sim_ocean(isset($map['extraversion']) ? $map['extraversion'] : null),
-                'agreeableness' => bcm_mini_sim_ocean(isset($map['agreeableness']) ? $map['agreeableness'] : null),
-                'neuroticism' => bcm_mini_sim_ocean(isset($map['neuroticism']) ? $map['neuroticism'] : null),
-                'aptitudes' => $aptitudes,
-                'source' => 'das-metadata',
-                'amount' => 1,
-            );
-        }
-        $total = isset($result['total']) ? (int) $result['total'] : count($rows);
-        if (!$rows || count($rows) < 100 || $page * 100 >= $total) {
-            break;
+        foreach ($bucket as $mint => $row) {
+            $mint_rows[$mint] = $row;
         }
     }
 
-    if (!$crew && $errors) {
-        return new WP_Error('bcm_mini_sim_das', implode(' · ', $errors));
+    $metadata = bcm_mini_sim_solanafm_token_metadata(array_keys($mint_rows), 25);
+    $crew = array();
+    $inventory = array();
+
+    foreach ($mint_rows as $mint => $hold) {
+        $row = isset($metadata[$mint]) && is_array($metadata[$mint]) ? bcm_mini_sim_extract_solanafm_metadata($metadata[$mint]) : array();
+        $map = bcm_mini_sim_attr_map(isset($row['attributes']) ? $row['attributes'] : array());
+        $galaxy = isset($crew_catalog[$mint]) ? $crew_catalog[$mint] : null;
+
+        $name = $galaxy && !empty($galaxy['name'])
+            ? (string) $galaxy['name']
+            : ((isset($row['name']) && $row['name'] !== '') ? $row['name'] : $mint);
+        $symbol = isset($row['symbol']) ? (string) $row['symbol'] : '';
+        $blob = strtolower($name . ' ' . $symbol . ' ' . implode(' ', array_keys($map)));
+
+        $looks_crew = (bool) preg_match('/crew|openness|conscientiousness|extraversion|agreeableness|neuroticism|species|engineering|science|flight|command|operator|medical|fitness|hospitality/i', $blob);
+        $species = $galaxy && !empty($galaxy['species'])
+            ? (string) $galaxy['species']
+            : (string) (bcm_mini_sim_case_trait($map, 'species') ?? bcm_mini_sim_case_trait($map, 'Species') ?? '');
+        $rarity = $galaxy && !empty($galaxy['rarity'])
+            ? (string) $galaxy['rarity']
+            : (string) (bcm_mini_sim_case_trait($map, 'rarity') ?? '');
+        if ($species !== '') {
+            $looks_crew = true;
+        }
+
+        if ($looks_crew) {
+            $aptitudes = array();
+            foreach (array('Command', 'Flight', 'Operator', 'Engineering', 'Medical', 'Science', 'Fitness', 'Hospitality') as $apt) {
+                $value = bcm_mini_sim_case_trait($map, $apt);
+                if ($value !== null) {
+                    $aptitudes[$apt] = (string) $value;
+                }
+            }
+            if ($galaxy && !empty($galaxy['raw']['aptitudes']) && is_array($galaxy['raw']['aptitudes'])) {
+                foreach ($galaxy['raw']['aptitudes'] as $apt => $value) {
+                    $aptitudes[(string) $apt] = (string) $value;
+                }
+            }
+            $crew[] = array(
+                'id' => $mint,
+                'mint' => $mint,
+                'name' => $name,
+                'image' => $galaxy && !empty($galaxy['image']) ? (string) $galaxy['image'] : (string) ($row['image'] ?? ''),
+                'species' => $species,
+                'rarity' => $rarity,
+                'openness' => bcm_mini_sim_ocean_trait($map, 'openness'),
+                'conscientiousness' => bcm_mini_sim_ocean_trait($map, 'conscientiousness'),
+                'extraversion' => bcm_mini_sim_ocean_trait($map, 'extraversion'),
+                'agreeableness' => bcm_mini_sim_ocean_trait($map, 'agreeableness'),
+                'neuroticism' => bcm_mini_sim_ocean_trait($map, 'neuroticism'),
+                'aptitudes' => $aptitudes,
+                'source' => $galaxy ? 'solanafm+galaxy-crew' : 'solanafm-nft-metadata',
+                'amount' => 1,
+            );
+            continue;
+        }
+
+        $kind = $galaxy && isset($galaxy['kind']) ? $galaxy['kind'] : 'nft';
+        $inventory[] = array(
+            'mint' => $mint,
+            'name' => $name,
+            'amount' => isset($hold['amount']) ? $hold['amount'] : 1,
+            'kind' => $kind,
+            'image' => $galaxy && !empty($galaxy['image']) ? (string) $galaxy['image'] : (string) ($row['image'] ?? ''),
+            'rarity' => $rarity,
+            'spec' => $galaxy && !empty($galaxy['spec']) ? (string) $galaxy['spec'] : '',
+        );
+    }
+
+    if (!$crew && !$inventory && $errors) {
+        return new WP_Error('bcm_mini_sim_solanafm', implode(' · ', $errors));
     }
 
     return array(
         'owner' => $owner,
         'items' => $crew,
-        'counts' => array('crew' => count($crew)),
+        'crew' => $crew,
+        'inventory' => $inventory,
+        'counts' => array(
+            'crew' => count($crew),
+            'ship' => count(array_filter($inventory, static function($row) { return ($row['kind'] ?? '') === 'ship'; })),
+            'resource' => count(array_filter($inventory, static function($row) { return ($row['kind'] ?? '') === 'resource'; })),
+            'structure' => count(array_filter($inventory, static function($row) { return ($row['kind'] ?? '') === 'structure'; })),
+            'nft' => count(array_filter($inventory, static function($row) { return ($row['kind'] ?? '') === 'nft'; })),
+            'other' => count(array_filter($inventory, static function($row) { return !in_array(($row['kind'] ?? 'other'), array('ship','resource','structure','nft','crew'), true); })),
+        ),
         'errors' => $errors,
-        'source' => 'bcm4sa-wallet-scan',
+        'source' => 'solanafm-wallet-bridge',
     );
 }
 
