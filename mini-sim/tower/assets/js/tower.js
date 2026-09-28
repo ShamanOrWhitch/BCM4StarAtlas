@@ -253,8 +253,16 @@
     const renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: false,
+      alpha: true,
       powerPreference: "high-performance"
     });
+
+    if (CONFIG.backgroundMenu) {
+      root.style.setProperty(
+        "--bcm-tower-background-image",
+        'url("' + String(CONFIG.backgroundMenu).replace(/"/g, "\\\"") + '")'
+      );
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.autoClear = false;
 
@@ -265,7 +273,9 @@
     }
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x02050a);
+    // Transparent WebGL clear lets the diagnostic CSS background remain visible
+    // even when Tower geometry/textures fail.
+    scene.background = null;
     scene.fog = new THREE.Fog(0x02050a, 70, 190);
 
     scene.add(new THREE.HemisphereLight(0xaad8ff, 0x061018, 1.25));
