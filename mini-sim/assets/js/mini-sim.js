@@ -1206,9 +1206,9 @@
       const base = String(asset.name || "").split(/[\\/]/).pop() || "";
       return /^planet[^/]*\\.(png|jpg|jpeg|webp)$/i.test(base);
     });
-    // Large Deep Space sphere: keep the existing object/position and give it
-    // the same OniStation skin used by the newly added docking asset.
-    const planetMaterial = textured("OniStation.png", 0x496b8f);
+    const planetMaterial = planetAsset
+      ? textured(planetAsset.name, 0x496b8f)
+      : new THREE.MeshBasicMaterial({ color: 0x496b8f });
     const planet = new THREE.Mesh(
       new THREE.SphereGeometry(11, 24, 16),
       planetMaterial
@@ -1985,28 +1985,16 @@
     transitionBusy = true;
 
     // Release the entire space-labyrinth WebGL application before Tower takes over.
-    // Tower owns the landing transition and plays tower.mp4 once.
-    // Keep the 0.9.25 handoff semantics, but tolerate a late Tower script init.
     disposeMiniSimResources();
 
     root.hidden = false;
-
-    let tries = 0;
-    const enter = () => {
-      if (window.BCMTowerAPI && typeof window.BCMTowerAPI.enter === "function") {
-        window.BCMTowerAPI.enter();
-        return;
-      }
-      tries++;
-      if (tries < 120) {
-        window.requestAnimationFrame(enter);
-        return;
-      }
+    if (window.BCMTowerAPI && typeof window.BCMTowerAPI.enter === "function") {
+      window.BCMTowerAPI.enter();
+    } else {
       towerGateTriggered = false;
       transitionBusy = false;
       setStatus("TOWER ENGINE NOT READY");
-    };
-    enter();
+    }
   }
 
   function enterTowerFromGate() {
