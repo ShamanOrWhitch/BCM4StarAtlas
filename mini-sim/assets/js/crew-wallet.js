@@ -299,36 +299,41 @@
   }
 
   async function scanWallet(owner) {
+    let direct = [];
     let directError = null;
 
     try {
-      const direct = await directScan(owner);
-      // Empty is a valid result only after SPL + DAS ownership scans complete.
-      return {
-        crew: direct,
-        source: "star-atlas-crew-api"
-      };
+      direct = await directScan(owner);
     } catch (error) {
       directError = error;
     }
 
+    // Do not trust an empty browser-side scan blindly. The working server-side
+    // Galia scanner can query Star Atlas DAS from WordPress and is the fallback
+    // for compressed/otherwise invisible Crew NFTs.
     try {
       const viaWp = await wpScan(owner);
-      return {
-        crew: viaWp,
-        source: "wordpress-galia-desk"
-      };
+      if (viaWp.length || !direct.length) {
+        return {
+          crew: viaWp,
+          source: "wordpress-galia-desk"
+        };
+      }
     } catch (error) {
-      if (directError) {
+      if (directError && !direct.length) {
         throw new Error(
-          "Star Atlas Crew API scan: " +
+          "Star Atlas Crew scan: " +
           (directError instanceof Error ? directError.message : String(directError)) +
           " · WP scan: " +
           (error instanceof Error ? error.message : String(error))
         );
       }
-      throw error;
     }
+
+    return {
+      crew: direct,
+      source: "star-atlas-crew-api"
+    };
   }
 
   async function connectAndScan() {
