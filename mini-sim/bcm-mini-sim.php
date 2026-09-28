@@ -110,7 +110,7 @@ function bcm_mini_sim_enqueue_assets()
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
         'threeUrl' => BCM_MINI_SIM_URL . 'assets/js/three.min.js',
         'towerApproach' => array(
-            // Entry target is the distant onicss gate in Deep Space.
+            // Entry target is the already-built Oni docking station in Deep Space.
             'x' => 0,
             'y' => 0,
             'z' => -155.0,
