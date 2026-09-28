@@ -88,13 +88,15 @@
     return tex;
   }
 
-  function makeMaterial(tex, color = 0xffffff, transparent = false) {
+  function makeMaterial(tex, color = 0xffffff, transparent = false, alphaTest = 0.0) {
     return new THREE.MeshStandardMaterial({
       map: tex || null,
       color: tex ? 0xffffff : color,
       roughness: 0.84,
       metalness: 0.08,
       transparent,
+      alphaTest,
+      depthWrite: !transparent,
       side: transparent ? THREE.DoubleSide : THREE.FrontSide
     });
   }
@@ -301,6 +303,7 @@
     let playerMarkers = [];
     let playerSprites = [];
     let playerTexture = null;
+    let birds = [];
 
     const radius = 8.4;
     // Tower gameplay is on the OUTSIDE skin of the cylinder. The player stays
@@ -419,7 +422,11 @@
         repeatY: 1
       });
 
-      const mesh = new THREE.Mesh(geometry, makeMaterial(tex, color));
+      const transparentSurface = cell.surface === "lift";
+      const mesh = new THREE.Mesh(
+        geometry,
+        makeMaterial(tex, color, transparentSurface, transparentSurface ? 0.08 : 0)
+      );
       mesh.position.copy(p);
       mesh.rotation.y = (cell.sector / tower.sectors) * Math.PI * 2;
       mesh.userData.cell = cell;
@@ -431,9 +438,10 @@
       }
 
       if (cell.surface === "lift") {
-        cell.motion = ["vertical", "radial", "orbit"][cell.sector % 3];
+        cell.motion = ["vertical", "radial", "orbit", "retract"][cell.sector % 4];
         cell.motionSpeed = 0.55 + ((cell.level + cell.sector) % 3) * 0.15;
         cell.motionAmp = 0.8 + ((cell.level + cell.sector) % 2) * 0.7;
+        cell.carryPlayer = cell.motion !== "retract";
       }
 
       towerRoot.add(mesh);
@@ -444,31 +452,38 @@
     function makeObject(cell) {
       if (!cell.object) return null;
 
-      const p = cellWorldPosition(cell, 1.0);
+      const objectRandom = mulberry32(seed ^ 0x6f41 ^ (cell.level * 97) ^ cell.sector);
       let url = "";
       let w = 1.9;
       let h = 2.2;
 
+      const isBoxObject =
+        cell.object === "safebox" ||
+        cell.object === "box" ||
+        cell.object === "dangerbox";
+
       if (cell.object === "landing") {
-        url = pick(assetPool("landingPool"), mulberry32(seed ^ 0x19af ^ cell.sector));
+        url = pick(assetPool("landingPool"), objectRandom);
         w = 2.2; h = 2.2;
-      } else if (cell.object === "safebox" || cell.object === "box") {
-        url = pick(assetPool("safeBoxPool").concat(assetPool("boxPool")), mulberry32(seed ^ 0x4b11 ^ cell.level));
-        w = 1.6; h = 1.4;
-      } else if (cell.object === "dangerbox") {
-        url = pick(assetPool("dangerBoxPool"), mulberry32(seed ^ 0x4b22 ^ cell.level));
+      } else if (isBoxObject) {
+        url = pick(
+          cell.object === "dangerbox"
+            ? assetPool("dangerBoxPool")
+            : assetPool("safeBoxPool").concat(assetPool("boxPool")),
+          objectRandom
+        );
         w = 1.6; h = 1.4;
       } else if (cell.object === "fire") {
-        url = pick(assetPool("firePool"), mulberry32(seed ^ 0x4b33 ^ cell.level));
+        url = pick(assetPool("firePool"), objectRandom);
         w = 1.45; h = 1.75;
       } else if (cell.object === "door") {
-        url = pick(assetPool("doorPool"), mulberry32(seed ^ 0x4b44 ^ cell.level));
+        url = pick(assetPool("doorPool"), objectRandom);
         w = 2.0; h = 3.0;
       } else if (cell.object === "walldoor") {
-        url = pick(assetPool("wallDoorPool"), mulberry32(seed ^ 0x4b55 ^ cell.level));
+        url = pick(assetPool("wallDoorPool"), objectRandom);
         w = 2.35; h = 3.25;
       } else if (cell.object === "npc") {
-        url = pick(assetPool("npcPool"), mulberry32(seed ^ 0x4b66 ^ cell.level));
+        url = pick(assetPool("npcPool"), objectRandom);
         w = 2.0; h = 2.7;
       }
 
@@ -476,21 +491,145 @@
       const tex = assetTexture(url, renderer, {});
       if (!tex) return null;
 
+      const sectorAngle = (cell.sector / tower.sectors) * Math.PI * 2;
+
+      if (isBoxObject) {
+        // Real 3D crate/container instead of a flat PNG card.
+        const depth = 1.15;
+        const radial = radius + depth * 0.5;
+        const material = makeMaterial(tex, 0xffffff, false, 0);
+        const materials = [material, material, material, material, material, material];
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(w, h, depth),
+          materials
+        );
+        mesh.position.set(
+          Math.sin(sectorAngle) * radial,
+          cellWorldY(cell) + h * 0.5,
+          Math.cos(sectorAngle) * radial
+        );
+        mesh.rotation.y = sectorAngle;
+        mesh.userData.cell = cell;
+        mesh.userData.objectType = cell.object;
+        towerRoot.add(mesh);
+        objectMeshes.push(mesh);
+        return mesh;
+      }
+
+      const extraRadius =
+        cell.object === "fire" ? 0.10 :
+        cell.object === "walldoor" ? 0.30 :
+        0.85;
+
       const mesh = new THREE.Mesh(
         new THREE.PlaneGeometry(w, h),
-        new THREE.MeshBasicMaterial({
+        new THREE.MeshStandardMaterial({
           map: tex,
           transparent: true,
+          alphaTest: 0.06,
           depthWrite: false,
+          roughness: 0.92,
+          metalness: 0.04,
           side: THREE.DoubleSide
         })
       );
-      mesh.position.set(p.x, p.y + h * 0.45, p.z);
+
+      // Face each card outward from the cylindrical wall. Fire is deliberately
+      // almost flush with the tower skin instead of floating in front of it.
+      mesh.position.set(
+        Math.sin(sectorAngle) * (radius + extraRadius),
+        cellWorldY(cell) + h * 0.45,
+        Math.cos(sectorAngle) * (radius + extraRadius)
+      );
+      mesh.rotation.y = sectorAngle;
       mesh.userData.cell = cell;
       mesh.userData.objectType = cell.object;
       towerRoot.add(mesh);
       objectMeshes.push(mesh);
       return mesh;
+    }
+
+    function buildBirds() {
+      birds = [];
+      const rand = mulberry32(seed ^ 0xB17D5EED);
+      const count = 3 + Math.floor(rand() * 3);
+
+      for (let i = 0; i < count; i++) {
+        const group = new THREE.Group();
+        const bodyMat = new THREE.MeshStandardMaterial({
+          color: 0x263441,
+          roughness: 0.78,
+          metalness: 0.05
+        });
+        const beakMat = new THREE.MeshBasicMaterial({ color: 0xd7b35a });
+
+        const body = new THREE.Mesh(
+          new THREE.SphereGeometry(0.28, 7, 5),
+          bodyMat
+        );
+        body.scale.set(1.45, 0.72, 0.9);
+        group.add(body);
+
+        const head = new THREE.Mesh(
+          new THREE.SphereGeometry(0.19, 7, 5),
+          bodyMat
+        );
+        head.position.set(0, 0.08, -0.23);
+        group.add(head);
+
+        const beak = new THREE.Mesh(
+          new THREE.ConeGeometry(0.07, 0.22, 5),
+          beakMat
+        );
+        beak.rotation.x = Math.PI / 2;
+        beak.position.set(0, 0.05, -0.42);
+        group.add(beak);
+
+        const wingGeo = new THREE.BoxGeometry(0.62, 0.06, 0.34);
+        const leftWing = new THREE.Mesh(wingGeo, bodyMat);
+        const rightWing = new THREE.Mesh(wingGeo, bodyMat);
+        leftWing.position.set(-0.34, 0.02, 0);
+        rightWing.position.set(0.34, 0.02, 0);
+        group.add(leftWing, rightWing);
+
+        const centerAngle = rand() * Math.PI * 2;
+        const state = {
+          group,
+          leftWing,
+          rightWing,
+          angle: centerAngle,
+          baseY: -8 + rand() * (towerHeight() - 18),
+          radius: radius + 2.5 + rand() * 4.0,
+          speed: 0.16 + rand() * 0.22,
+          phase: rand() * Math.PI * 2,
+          flap: 5.0 + rand() * 2.5
+        };
+
+        group.userData.bird = true;
+        towerRoot.add(group);
+        birds.push(state);
+      }
+    }
+
+    function updateBirds(time) {
+      if (!birds.length) return;
+      const t = time * 0.001;
+
+      for (const bird of birds) {
+        const a = bird.angle + t * bird.speed;
+        const y = bird.baseY + Math.sin(t * 0.8 + bird.phase) * 1.1;
+        const r = bird.radius + Math.sin(t * 0.47 + bird.phase) * 0.8;
+
+        bird.group.position.set(
+          Math.sin(a) * r,
+          y,
+          Math.cos(a) * r
+        );
+        bird.group.rotation.y = a + Math.PI;
+        const flap = Math.sin(t * bird.flap + bird.phase) * 0.52;
+        bird.leftWing.rotation.z = flap;
+        bird.rightWing.rotation.z = -flap;
+      }
     }
 
     function buildTower(nextSeed) {
@@ -526,6 +665,8 @@
         makeSurface(cell);
         makeObject(cell);
       }
+
+      buildBirds();
 
       playerTexture = null;
       if (inlineConfig.crewImage) {
@@ -767,10 +908,21 @@
           mesh.position.x = Math.sin(a) * r;
           mesh.position.z = Math.cos(a) * r;
           mesh.position.y = cell.runtimeY;
-        } else {
+        } else if (cell.motion === "orbit") {
           cell.runtimeY = base + Math.sin(t) * 0.4;
           const a = cell.sector * sectorWidth() + Math.sin(t) * 0.22;
           const r = radius + 0.4;
+          mesh.position.x = Math.sin(a) * r;
+          mesh.position.z = Math.cos(a) * r;
+          mesh.position.y = cell.runtimeY;
+        } else {
+          // Retracting lift: starts inside the tower and periodically extends
+          // through the cylindrical wall. Once it retracts beyond the player's
+          // radial reach, the player loses the surface and falls.
+          cell.runtimeY = base + Math.sin(t * 0.9) * 0.25;
+          const travel = 4.8;
+          const r = radius - 2.0 + (Math.sin(t) + 1) * 0.5 * travel;
+          const a = cell.sector * sectorWidth();
           mesh.position.x = Math.sin(a) * r;
           mesh.position.z = Math.cos(a) * r;
           mesh.position.y = cell.runtimeY;
@@ -779,7 +931,12 @@
     }
 
     function syncLiftRide(p) {
-      if (!p.grounded || p.currentCell?.surface !== "lift") {
+      if (
+        !p.grounded ||
+        p.currentCell?.surface !== "lift" ||
+        p.currentCell.motion === "retract" ||
+        p.currentCell.carryPlayer === false
+      ) {
         p.liftRide = null;
         return;
       }
@@ -1363,6 +1520,7 @@
       if (tower) {
         if (gameStarted) {
           updateLiftMotion(now);
+          updateBirds(now);
 
           for (let i = 0; i < (mode === "multi" ? 2 : 1); i++) {
             updatePlayer(i, dt);
