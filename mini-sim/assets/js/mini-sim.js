@@ -312,8 +312,11 @@
     group: null,
     walls: [],
     active: false,
-    startZ: -1.0,
-    endZ: -23.0
+    // Keep the seeded labyrinth behind the original Room 1 start.
+    // The former -1..-23 placement put invisible collision walls directly
+    // in front of the player while moving forward.
+    startZ: 1.0,
+    endZ: 23.0
   };
   // Only the two visible starbase corridor shells are collision geometry.
   // Deep Space itself has no map boundary.
@@ -979,8 +982,10 @@
 
   function updateRoom0Labyrinth() {
     if (!room0Labyrinth.group || !ship.position) return;
-    const active = ship.position.z <= room0Labyrinth.startZ + 0.15 &&
-      ship.position.z >= room0Labyrinth.endZ - 1.5 &&
+    const minZ = Math.min(room0Labyrinth.startZ, room0Labyrinth.endZ);
+    const maxZ = Math.max(room0Labyrinth.startZ, room0Labyrinth.endZ);
+    const active = ship.position.z >= minZ - 0.15 &&
+      ship.position.z <= maxZ + 1.5 &&
       Math.abs(ship.position.x) <= 5.35 &&
       Math.abs(ship.position.y) <= 3.25;
 
