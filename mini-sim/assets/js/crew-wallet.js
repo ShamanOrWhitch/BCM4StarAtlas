@@ -12,6 +12,7 @@
   ];
   const CREW_URL = "https://galaxy.staratlas.com/crew";
   const NFTS_URL = "https://galaxy.staratlas.com/nfts";
+  const SOLANAFM_URL = "https://api.solana.fm/v1/addresses/";
   const TOKEN_PROGRAMS = [
     "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
     "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
@@ -23,9 +24,12 @@
 
   function provider() {
     const win = window;
-    if (win.phantom?.solana?.isPhantom) return win.phantom.solana;
-    if (win.solana?.isPhantom) return win.solana;
-    return null;
+    const candidates = [
+      win.phantom?.solana,
+      win.solana,
+      ...(Array.isArray(win.solana?.providers) ? win.solana.providers : [])
+    ].filter(Boolean);
+    return candidates.find((candidate) => candidate?.isPhantom) || null;
   }
 
   function ocean(value) {
@@ -378,13 +382,12 @@
       throw new Error("Нужен публичный ключ Solana. Подпись не требуется.");
     }
 
-    // WordPress server-side scan first: avoids browser CORS and lets the
-    // site's PHP use the same DAS path without exposing a provider token.
+    // WordPress server-side bridge is primary. It can use SolanaFM REST
+    // without exposing provider credentials in the browser.
     try {
       const server = await serverScan(address);
       if (server) return server;
     } catch (error) {
-      // Keep the exact server error available if the direct fallback also fails.
       const direct = await scanChain(address).catch((directError) => {
         const directMessage = directError instanceof Error ? directError.message : String(directError);
         const serverMessage = error instanceof Error ? error.message : String(error);
