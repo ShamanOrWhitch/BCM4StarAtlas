@@ -706,7 +706,12 @@
     const leftName = seededVariant(opt.leftVariants || [opt.left], opt.z * 101 + 3, opt.left);
     const floor = tex(floorName, opt.floorColor);
     const ceil = tex(ceilingName, opt.ceilingColor);
-    const left = tex(leftName, opt.leftColor);
+    // The left wall is the main visual boundary when entering Room 2.
+    // Keep it eager-loaded so the player never reaches the room before that
+    // texture has a chance to leave the deferred queue.
+    const left = opt.eagerLeftTexture
+      ? textured(leftName, opt.leftColor)
+      : tex(leftName, opt.leftColor);
     plane(parent, 0, -3.5, opt.z, opt.w, opt.len, -Math.PI / 2, 0, 0, floor);
     plane(parent, 0, 3.5, opt.z, opt.w, opt.len, Math.PI / 2, 0, 0, ceil);
     plane(parent, -opt.w / 2, 0, opt.z, opt.len, opt.h, 0, Math.PI / 2, 0, left);
@@ -1254,6 +1259,7 @@
       rightVariants: ["wall1.png", "wall4.png", "wall5.png"],
       cornerVariants: ["roofa.png", "roofa1.png", "roofa2.png"],
       deferTextures: true,
+      eagerLeftTexture: true,
       floorColor: 0x343d48, ceilingColor: 0x7c838c,
       leftColor: 0x48535e, rightColor: 0x3a444f
     });
@@ -2789,6 +2795,106 @@
     return blocked;
   }
 
+  function collideCorridorShell(before) {
+    if (!before || !ship.position) return false;
+
+    let blocked = false;
+
+    const rooms = [
+      {
+        zMin: -24.5,
+        zMax: 5.45,
+        xEdge: 6.0,
+        yEdge: 3.5,
+        frontZ: -25.5,
+        rearZ: 5.5,
+        room1: true
+      },
+      {
+        zMin: -84.5,
+        zMax: -47.46,
+        xEdge: 6.0,
+        yEdge: 3.5,
+        frontZ: -47.5,
+        rearZ: -84.5,
+        room1: false
+      }
+    ];
+
+    for (const room of rooms) {
+      const inZBand =
+        (before.z >= room.zMin && before.z <= room.zMax) ||
+        (ship.position.z >= room.zMin && ship.position.z <= room.zMax);
+
+      if (!inZBand) continue;
+
+      const hitX =
+        (before.x < room.xEdge && ship.position.x >= room.xEdge) ||
+        (before.x > room.xEdge && ship.position.x <= room.xEdge) ||
+        (before.x > -room.xEdge && ship.position.x <= -room.xEdge) ||
+        (before.x < -room.xEdge && ship.position.x >= -room.xEdge);
+
+      if (hitX) {
+        ship.position.x = before.x <= 0
+          ? -room.xEdge - 0.06
+          : room.xEdge + 0.06;
+        ship.velocity.x = 0;
+        blocked = true;
+      }
+
+      const hitY =
+        (before.y < room.yEdge && ship.position.y >= room.yEdge) ||
+        (before.y > room.yEdge && ship.position.y <= room.yEdge) ||
+        (before.y > -room.yEdge && ship.position.y <= -room.yEdge) ||
+        (before.y < -room.yEdge && ship.position.y >= -room.yEdge);
+
+      if (hitY) {
+        ship.position.y = before.y <= 0
+          ? -room.yEdge - 0.06
+          : room.yEdge + 0.06;
+        ship.velocity.y = 0;
+        blocked = true;
+      }
+
+      // Room front openings are only legal through the central doorway envelope.
+      const crossedFront = shellCrossed(before.z, ship.position.z, room.frontZ);
+      if (crossedFront) {
+        const centralOpening =
+          Math.abs(ship.position.x) <= 5.85 &&
+          Math.abs(ship.position.y) <= 3.45;
+
+        if (!centralOpening) {
+          ship.position.z = before.z < room.frontZ
+            ? room.frontZ - 0.06
+            : room.frontZ + 0.06;
+          ship.velocity.z = 0;
+          blocked = true;
+        }
+      }
+
+      // Room 1 rear cap is closed. Room 2 rear cap remains the intended
+      // inside -> Deep Space exit and is allowed only from its corridor.
+      const crossedRear = shellCrossed(before.z, ship.position.z, room.rearZ);
+      if (crossedRear) {
+        if (room.room1) {
+          ship.position.z = before.z <= room.rearZ
+            ? room.rearZ - 0.06
+            : room.rearZ + 0.06;
+          ship.velocity.z = 0;
+          blocked = true;
+        } else if (before.z < room.rearZ && ship.position.z >= room.rearZ) {
+          ship.position.z = room.rearZ - 0.06;
+          ship.velocity.z = 0;
+          blocked = true;
+        } else if (before.z > room.rearZ && ship.position.z < room.rearZ) {
+          exteriorFlight = true;
+        }
+      }
+    }
+
+    return blocked;
+  }
+
   function collide() {
     const before = ship.position.clone();
 
@@ -2849,6 +2955,11 @@
       // The ONLY remaining solid object here is the physical starbase shell.
       collideStarbaseShell(before, true);
     }
+
+    // Enforce the visible corridor shell even when the previous frame
+    // started just outside the old inner clamp. This closes the small "ghost"
+    // penetration through Room 1/2 side walls.
+    collideCorridorShell(before);
 
     const blockedX = before.x !== ship.position.x;
     const blockedY = before.y !== ship.position.y;
@@ -2933,7 +3044,10 @@
     const planetDistance = planet && ship.position
       ? planet.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position)
       : Infinity;
-    const planetEntryRadius = 28;
+    // Keep the automatic Tower trigger tightly attached to the planet.
+    // The nearby Reshade-Rasta-Dance screen sits ~20 units from the planet,
+    // so 28 units caused that ordinary video zone to become an accidental gate.
+    const planetEntryRadius = 14;
 
     if (interaction) {
       if (planetDistance <= planetEntryRadius) {
