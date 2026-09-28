@@ -228,6 +228,31 @@ function bcm_mini_sim_crew_catalog() {
     return $index;
 }
 
+function bcm_mini_sim_crew_roster_names() {
+    $path = BCM_MINI_SIM_PATH . 'assets/crew-roster.json';
+    if (!is_readable($path)) {
+        return array();
+    }
+
+    $rows = json_decode((string) file_get_contents($path), true);
+    if (!is_array($rows)) {
+        return array();
+    }
+
+    $names = array();
+    foreach ($rows as $row) {
+        if (!is_array($row) || empty($row['name'])) {
+            continue;
+        }
+        $name = trim((string) $row['name']);
+        if ($name !== '') {
+            $names[mb_strtolower($name, 'UTF-8')] = $name;
+        }
+    }
+
+    return $names;
+}
+
 function bcm_mini_sim_crew_rpc($method, $params, $timeout = 20) {
     $rpcs = array(
         'https://solana-rpc.publicnode.com',
@@ -263,6 +288,7 @@ function bcm_mini_sim_server_crew_scan($owner) {
 
     $found = array();
     $seen = array();
+    $rosterNames = bcm_mini_sim_crew_roster_names();
 
     // Primary path: Star Atlas/Solana DAS ownership.
     for ($page = 1; $page <= 5; $page++) {
@@ -293,11 +319,38 @@ function bcm_mini_sim_server_crew_scan($owner) {
             }
 
             $mint = isset($asset['id']) ? (string) $asset['id'] : '';
-            if ($mint === '' || isset($seen[$mint]) || !isset($catalog[$mint])) {
+            if ($mint === '' || isset($seen[$mint])) {
                 continue;
             }
 
-            $card = $catalog[$mint];
+            // The local roster is the known set of Crew we own/use in the game.
+            // DAS gives the NFT's metadata name; this is more reliable here than
+            // assuming the asset id is identical to Galaxy Crew dasID.
+            $metadata = isset($asset['content']['metadata']) && is_array($asset['content']['metadata'])
+                ? $asset['content']['metadata']
+                : array();
+            $assetName = isset($metadata['name']) ? trim((string) $metadata['name']) : '';
+            $rosterKey = $assetName !== '' ? mb_strtolower($assetName, 'UTF-8') : '';
+
+            $card = null;
+            if ($rosterKey !== '' && isset($rosterNames[$rosterKey])) {
+                foreach ($catalog as $catalogCard) {
+                    if (mb_strtolower((string) $catalogCard['name'], 'UTF-8') === $rosterKey) {
+                        $card = $catalogCard;
+                        break;
+                    }
+                }
+            }
+
+            // Also accept a direct Galaxy id match when it is available.
+            if (!$card && isset($catalog[$mint])) {
+                $card = $catalog[$mint];
+            }
+
+            if (!$card) {
+                continue;
+            }
+
             $seen[$mint] = true;
             $found[] = array(
                 'id' => $mint,
