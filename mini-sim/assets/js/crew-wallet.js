@@ -1,23 +1,35 @@
 (() => {
   "use strict";
 
+  // Same public read as BCM4SA desk.impl.ts: token accounts, then DAS.
+  // api.mainnet.solana.com is the endpoint that actually returned this wallet.
   const RPCS = [
-    "https://solana-rpc.publicnode.com",
-    "https://api.mainnet-beta.solana.com"
+    "https://api.mainnet.solana.com",
+    "https://api.mainnet-beta.solana.com",
+    "https://solana-rpc.publicnode.com"
   ];
-  const GALAXY_NFTS_URL = "https://galaxy.staratlas.com/nfts";
+  const CREW_URL = "https://galaxy.staratlas.com/crew";
+  const NFTS_URL = "https://galaxy.staratlas.com/nfts";
   const TOKEN_PROGRAMS = [
     "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
     "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
   ];
+  const APTITUDES = ["Command", "Flight", "Operator", "Engineering", "Medical", "Science", "Fitness", "Hospitality"];
 
-  let crewCatalogPromise = null;
+  let crewByDas = null;
+  let nftByMint = null;
 
   function provider() {
     const win = window;
     if (win.phantom?.solana?.isPhantom) return win.phantom.solana;
     if (win.solana?.isPhantom) return win.solana;
     return null;
+  }
+
+  function ocean(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return null;
+    return n <= 1 ? Math.round(n * 100) : Math.round(n);
   }
 
   async function rpc(method, params, timeout = 18000) {
@@ -32,156 +44,147 @@
         });
         const json = await response.json();
         if (json?.error) {
-          lastError = json.error.message || lastError;
+          lastError = url + ": " + (json.error.message || "RPC ошибка");
           continue;
         }
         if (json?.result !== undefined) return json.result;
       } catch (error) {
-        lastError = error instanceof Error ? error.message : lastError;
+        lastError = url + ": " + (error instanceof Error ? error.message : String(error));
       }
     }
     throw new Error(lastError);
   }
 
-  function characteristicsFromCrewRow(row) {
-    const out = {};
-    if (!row || typeof row !== "object") return out;
-
-    ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"].forEach((key) => {
-      if (row[key] == null) return;
-      const n = Number(row[key]);
-      if (!Number.isFinite(n)) return;
-      out[key] = n <= 1 ? Math.round(n * 100) : Math.round(n);
+  async function loadCrewIndex() {
+    if (crewByDas) return crewByDas;
+    const response = await fetch(CREW_URL, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(20000) });
+    if (!response.ok) throw new Error("Galaxy /crew HTTP " + response.status);
+    const rows = await response.json();
+    const index = new Map();
+    (Array.isArray(rows) ? rows : []).forEach((row) => {
+      const mint = String(row?.dasID || "");
+      if (!mint) return;
+      index.set(mint, row);
     });
+    crewByDas = index;
+    return index;
+  }
 
-    if (row.aptitudes && typeof row.aptitudes === "object") {
-      out.aptitudes = Object.fromEntries(
-        Object.entries(row.aptitudes).map(([name, value]) => [String(name), Number.isFinite(Number(value)) ? Number(value) : String(value)])
-      );
-    }
+  async function loadNftIndex() {
+    if (nftByMint) return nftByMint;
+    const response = await fetch(NFTS_URL, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(25000) });
+    if (!response.ok) throw new Error("Galaxy /nfts HTTP " + response.status);
+    const rows = await response.json();
+    const index = new Map();
+    (Array.isArray(rows) ? rows : []).forEach((row) => {
+      const mint = String(row?.mint || "");
+      if (!mint) return;
+      const attrs = row.attributes && typeof row.attributes === "object" ? row.attributes : {};
+      const kind = String(attrs.itemType || "other").toLowerCase();
+      index.set(mint, {
+        mint,
+        name: String(row.name || mint),
+        image: String(row.image || ""),
+        kind: kind === "ship" || kind === "resource" || kind === "structure" || kind === "crew" ? kind : "other",
+        rarity: String(attrs.rarity || ""),
+        spec: String(attrs.spec || attrs.class || "")
+      });
+    });
+    nftByMint = index;
+    return index;
+  }
 
+  function traitsOf(meta) {
+    const raw = meta?.attributes;
+    const out = [];
+    if (!Array.isArray(raw)) return out;
+    raw.forEach((row) => {
+      if (!row || typeof row !== "object") return;
+      const trait = row.trait_type || row.trait;
+      if (!trait || row.value == null || typeof row.value === "object") return;
+      out.push({ trait: String(trait), value: String(row.value) });
+    });
     return out;
   }
 
-  function traitsFromCrewRow(row) {
-    const traits = [];
-    const add = (trait, value) => {
-      if (trait == null || value == null || value === "") return;
-      if (typeof value === "object") return;
-      traits.push({ trait: String(trait), value: String(value) });
-    };
+  function trait(traits, name) {
+    const hit = traits.find((row) => row.trait.toLowerCase() === name.toLowerCase());
+    return hit ? hit.value : "";
+  }
 
-    if (row && typeof row === "object") {
-      const map = {
-        openness: "Openness",
-        conscientiousness: "Conscientiousness",
-        extraversion: "Extraversion",
-        agreeableness: "Agreeableness",
-        neuroticism: "Neuroticism",
-        species: "Species",
-        rarity: "Rarity"
-      };
+  function isCrewAsset(name, symbol, traits) {
+    if (/crew/i.test(symbol) || /crew/i.test(name)) return true;
+    const blob = traits.map((row) => row.trait + " " + row.value).join(" ").toLowerCase();
+    return /flight|command|engineering|hospitality|operator|medical|science|fitness|openness|species|ustur|punaab|sogmian|mierese|hair/.test(blob);
+  }
 
-      Object.entries(map).forEach(([key, label]) => {
-        if (row[key] != null) {
-          const n = Number(row[key]);
-          add(label, Number.isFinite(n) && key !== "species" && key !== "rarity"
-            ? String(n <= 1 ? Math.round(n * 100) : Math.round(n))
-            : row[key]);
-        }
+  function aptitudesFrom(traits, galaxyRow) {
+    const out = {};
+    if (galaxyRow?.aptitudes && typeof galaxyRow.aptitudes === "object") {
+      Object.entries(galaxyRow.aptitudes).forEach(([name, level]) => {
+        out[name] = String(level);
       });
-
-      if (row.aptitudes && typeof row.aptitudes === "object") {
-        Object.entries(row.aptitudes).forEach(([name, level]) => add(name, level));
-      }
     }
-
-    return traits.slice(0, 48);
+    traits.forEach((row) => {
+      const hit = APTITUDES.find((name) => name.toLowerCase() === row.trait.toLowerCase());
+      if (hit && out[hit] == null) out[hit] = row.value;
+    });
+    return out;
   }
 
-  async function loadCrewCatalog() {
-    if (crewCatalogPromise) return crewCatalogPromise;
-
-    crewCatalogPromise = fetch(GALAXY_NFTS_URL, {
-      method: "GET",
-      credentials: "omit",
-      cache: "no-store",
-      headers: { "accept": "application/json" },
-      signal: AbortSignal.timeout(20000)
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error("Star Atlas NFT API HTTP " + response.status);
-        return response.json();
-      })
-      .then((rows) => {
-        const index = new Map();
-        const list = Array.isArray(rows) ? rows : [];
-
-        list.forEach((row) => {
-          if (!row || typeof row !== "object" || !row.mint) return;
-          const attrs = row.attributes && typeof row.attributes === "object" ? row.attributes : {};
-          if (String(attrs.itemType || "").toLowerCase() !== "crew") return;
-
-          index.set(String(row.mint), {
-            name: String(row.name || row.mint),
-            image: String(row.image || ""),
-            rarity: String(attrs.rarity || ""),
-            species: String(attrs.spec || ""),
-            traits: traitsFromCrewRow(attrs),
-            characteristics: {},
-            raw: row
-          });
-        });
-
-        if (!index.size) {
-          throw new Error("Star Atlas NFT API не содержит Crew.");
-        }
-        return index;
-      });
-
-    try {
-      return await crewCatalogPromise;
-    } catch (error) {
-      crewCatalogPromise = null;
-      throw error;
-    }
-  }
-
-
-  function tokenRows(result) {
-    return Array.isArray(result?.value) ? result.value : [];
-  }
-
-  function dasRows(result) {
-    return Array.isArray(result?.items) ? result.items : [];
-  }
-
-  function normalizeTokenCrew(mint, catalogCard, amount) {
+  function crewRecord(mint, amount, assetName, image, traits, galaxyRow) {
+    const named = trait(traits, "name");
+    const galaxyName = galaxyRow?.name ? String(galaxyRow.name) : "";
+    const name = galaxyName || (named && !/^crew\b/i.test(named) ? named : "") || assetName || mint;
+    const openness = ocean(galaxyRow?.openness ?? trait(traits, "openness"));
+    const conscientiousness = ocean(galaxyRow?.conscientiousness ?? trait(traits, "conscientiousness"));
+    const extraversion = ocean(galaxyRow?.extraversion ?? trait(traits, "extraversion"));
+    const agreeableness = ocean(galaxyRow?.agreeableness ?? trait(traits, "agreeableness"));
+    const neuroticism = ocean(galaxyRow?.neuroticism ?? trait(traits, "neuroticism"));
+    const species = String(galaxyRow?.species || trait(traits, "species") || "");
+    const rarity = String(galaxyRow?.rarity || trait(traits, "rarity") || "");
+    const aptitudes = aptitudesFrom(traits, galaxyRow);
     return {
       id: mint,
       mint,
-      name: catalogCard?.name || mint,
-      image: catalogCard?.image || "",
-      rarity: catalogCard?.rarity || "",
-      species: catalogCard?.species || "",
-      sex: "",
-      source: "wallet",
-      traits: Array.isArray(catalogCard?.traits) ? catalogCard.traits : [],
-      characteristics: catalogCard?.characteristics && typeof catalogCard.characteristics === "object"
-        ? catalogCard.characteristics
-        : {},
-      raw: catalogCard?.raw || null,
-      amount: Number(amount || 0)
+      name,
+      image: String(galaxyRow?.imageUrl || image || ""),
+      species,
+      rarity,
+      openness,
+      conscientiousness,
+      extraversion,
+      agreeableness,
+      neuroticism,
+      aptitudes,
+      amount: Number(amount || 1),
+      source: galaxyRow ? "galaxy-crew-dasID" : "das-metadata",
+      traits,
+      characteristics: {
+        openness,
+        conscientiousness,
+        extraversion,
+        agreeableness,
+        neuroticism,
+        aptitudes
+      }
     };
   }
 
-  async function directScan(owner) {
-    const catalog = await loadCrewCatalog();
-    const found = [];
-    const seen = new Set();
-    const errors = [];
+  function emptyCounts() {
+    return { crew: 0, ship: 0, resource: 0, structure: 0, nft: 0, other: 0 };
+  }
 
-    // 1) Standard SPL / Token-2022 ownership.
+  async function scanChain(owner) {
+    const [crewIndex, nftIndex] = await Promise.all([
+      loadCrewIndex().catch(() => new Map()),
+      loadNftIndex().catch(() => new Map())
+    ]);
+    const errors = [];
+    const crew = [];
+    const inventory = [];
+    const seen = new Set();
+
     for (const program of TOKEN_PROGRAMS) {
       try {
         const result = await rpc("getTokenAccountsByOwner", [
@@ -189,185 +192,180 @@
           { programId: program },
           { encoding: "jsonParsed" }
         ]);
-
-        for (const row of tokenRows(result)) {
+        const rows = Array.isArray(result?.value) ? result.value : [];
+        rows.forEach((row) => {
           const info = row?.account?.data?.parsed?.info;
-          if (!info?.mint) continue;
-
-          const amountText = info?.tokenAmount?.uiAmountString ?? info?.tokenAmount?.uiAmount ?? 0;
-          const amount = Number(amountText || 0);
-          if (!(amount > 0)) continue;
-
-          const mint = String(info.mint);
-          const card = catalog.get(mint);
-          if (!card || seen.has(mint)) continue;
-
+          const mint = String(info?.mint || "");
+          const amount = Number(info?.tokenAmount?.uiAmount ?? 0);
+          if (!mint || !(amount > 0) || seen.has(mint)) return;
+          const galaxy = crewIndex.get(mint);
+          if (galaxy) {
+            seen.add(mint);
+            crew.push(crewRecord(mint, amount, galaxy.name, galaxy.imageUrl, [], galaxy));
+            return;
+          }
+          const known = nftIndex.get(mint);
+          if (!known || known.kind === "crew") return;
           seen.add(mint);
-          found.push(normalizeTokenCrew(mint, card, amount));
-        }
+          inventory.push({
+            mint,
+            name: known.name,
+            amount,
+            kind: known.kind,
+            image: known.image,
+            rarity: known.rarity,
+            spec: known.spec
+          });
+        });
       } catch (error) {
         errors.push(error instanceof Error ? error.message : String(error));
       }
     }
 
-    // 2) DAS assets. Star Atlas Crew NFTs can be exposed here even when
-    // getTokenAccountsByOwner does not return a usable Crew token account.
-    let dasSucceeded = false;
-    for (let page = 1; page <= 5; page++) {
+    let dasOk = false;
+    for (let page = 1; page <= 8; page += 1) {
+      let result;
       try {
-        const result = await rpc("getAssetsByOwner", [{
+        result = await rpc("getAssetsByOwner", {
           ownerAddress: owner,
           page,
           limit: 100,
-          displayOptions: {
-            showFungible: false,
-            showZeroBalance: false
-          }
-        }]);
-
-        dasSucceeded = true;
-        const rows = dasRows(result);
-        if (!rows.length) break;
-
-        for (const asset of rows) {
-          const mint = String(asset?.id || asset?.content?.metadata?.mint || "");
-          if (!mint || seen.has(mint)) continue;
-
-          const card = catalog.get(mint);
-          if (!card) continue;
-
-          // Crew is an NFT here; one DAS asset represents one Crew.
-          const amount = 1;
-
-          seen.add(mint);
-          found.push(normalizeTokenCrew(mint, card, amount));
-        }
-
-        const total = Number(result?.total || 0);
-        if (total && page * 100 >= total) break;
-        if (rows.length < 100) break;
+          displayOptions: { showFungible: false, showZeroBalance: false }
+        });
+        dasOk = true;
       } catch (error) {
         errors.push(error instanceof Error ? error.message : String(error));
         break;
       }
+      const rows = Array.isArray(result?.items) ? result.items : [];
+      rows.forEach((asset) => {
+        const mint = String(asset?.id || "");
+        if (!mint || seen.has(mint)) return;
+        const meta = asset?.content?.metadata || {};
+        const traits = traitsOf(meta);
+        const assetName = String(meta.name || "");
+        const symbol = String(meta.symbol || "");
+        const image = String(asset?.content?.links?.image || "");
+        const galaxy = crewIndex.get(mint);
+        if (galaxy || isCrewAsset(assetName, symbol, traits)) {
+          seen.add(mint);
+          crew.push(crewRecord(mint, 1, assetName, image, traits, galaxy || null));
+          return;
+        }
+        const known = nftIndex.get(mint);
+        seen.add(mint);
+        inventory.push({
+          mint,
+          name: known?.name || assetName || mint.slice(0, 4),
+          amount: 1,
+          kind: known?.kind || "nft",
+          image: known?.image || image,
+          rarity: known?.rarity || "",
+          spec: known?.spec || ""
+        });
+      });
+      const total = Number(result?.total || 0);
+      if (!rows.length || rows.length < 100 || (total && page * 100 >= total)) break;
     }
 
-    if (found.length) return found;
-    if (!dasSucceeded) {
-      throw new Error(
-        errors.length
-          ? "DAS Crew scan не доступен: " + errors.join(" · ")
-          : "DAS Crew scan не вернул результат."
-      );
-    }
-    return [];
-  }
-  async function serverScan(owner) {
-    const cfg = window.BCMMiniSimConfig || {};
-    const ajax = String(cfg.crewServerAjax || "");
-    const nonce = String(cfg.crewServerNonce || "");
-    if (!ajax || !nonce) {
-      throw new Error("Mini-Sim server Crew scanner не настроен.");
+    if (!dasOk && !crew.length && !inventory.length) {
+      throw new Error(errors.join(" · ") || "DAS не ответил");
     }
 
-    const body = new FormData();
-    body.set("action", "bcm_mini_sim_crew_wallet");
-    body.set("nonce", nonce);
-    body.set("owner", owner);
-
-    const response = await fetch(ajax, {
-      method: "POST",
-      body,
-      credentials: "same-origin"
+    const counts = emptyCounts();
+    counts.crew = crew.length;
+    inventory.forEach((item) => {
+      if (counts[item.kind] == null) counts.other += 1;
+      else counts[item.kind] += 1;
     });
 
-    const json = await response.json();
-    if (!json?.success) {
-      throw new Error(json?.data?.message || "Mini-Sim server Crew scan failed");
-    }
+    return {
+      owner,
+      crew,
+      inventory,
+      counts,
+      errors,
+      source: "bcm4sa-wallet-scan",
+      ok: true
+    };
+  }
 
-    const items = Array.isArray(json.data?.items) ? json.data.items : [];
-    return items.map((item) => ({
-      id: String(item.id || item.mint || item.name || ""),
-      mint: String(item.mint || ""),
-      name: String(item.name || "Crew"),
-      image: String(item.image || ""),
-      rarity: String(item.rarity || ""),
-      species: String(item.species || ""),
-      sex: String(item.sex || ""),
-      source: "wallet",
-      traits: Array.isArray(item.traits) ? item.traits : [],
-      characteristics: item?.characteristics && typeof item.characteristics === "object"
-        ? item.characteristics
-        : {},
-      raw: item?.raw && typeof item.raw === "object" ? item.raw : null,
-      amount: Number(item.amount || 1)
-    }));
+  function formatDiagnostic(scan) {
+    const lines = [
+      "Wallet:",
+      scan?.owner || "",
+      "Crew found:",
+      String(scan?.crew?.length || 0),
+      "source: " + (scan?.source || ""),
+      "endpoint: getAssetsByOwner + getTokenAccountsByOwner @ api.mainnet.solana.com",
+      "crew data: Galaxy /crew by dasID, else DAS attributes name/OCEAN/species/aptitudes"
+    ];
+    (scan?.crew || []).forEach((crew) => {
+      const apts = crew.aptitudes ? Object.entries(crew.aptitudes).map(([name, level]) => name + " " + level).join(", ") : "";
+      lines.push(
+        [
+          crew.name,
+          crew.mint,
+          crew.species || "—",
+          crew.rarity || "—",
+          "O " + (crew.openness ?? "—"),
+          "C " + (crew.conscientiousness ?? "—"),
+          "E " + (crew.extraversion ?? "—"),
+          "A " + (crew.agreeableness ?? "—"),
+          "N " + (crew.neuroticism ?? "—"),
+          apts || "—"
+        ].join(" · ")
+      );
+    });
+    const counts = scan?.counts || emptyCounts();
+    lines.push("Inventory found:");
+    lines.push(String((scan?.inventory?.length || 0) + (scan?.crew?.length || 0)));
+    lines.push(
+      "crew " + counts.crew +
+      " · ship " + (counts.ship || 0) +
+      " · resource " + (counts.resource || 0) +
+      " · structure " + (counts.structure || 0) +
+      " · nft " + (counts.nft || 0) +
+      " · other " + (counts.other || 0)
+    );
+    if (scan?.errors?.length) lines.push("rpc notes: " + scan.errors.join(" · "));
+    return lines.join("\n");
   }
 
   async function scanWallet(owner) {
-    let serverError = null;
-
-    // Primary path: the Mini-Sim plugin itself talks to Star Atlas from the
-    // WordPress server, so browser CORS does not decide whether Crew is found.
-    try {
-      const server = await serverScan(owner);
-      if (server.length) {
-        return {
-          crew: server,
-          source: "mini-sim-star-atlas-server"
-        };
-      }
-    } catch (error) {
-      serverError = error;
+    const address = String(owner || "").trim();
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) {
+      throw new Error("Нужен публичный ключ Solana. Подпись не требуется.");
     }
+    return scanChain(address);
+  }
 
-    // Secondary path: direct browser access can still work in environments
-    // where the Star Atlas/RPC endpoints allow the request.
-    try {
-      const direct = await directScan(owner);
-      return {
-        crew: direct,
-        source: "star-atlas-crew-api"
-      };
-    } catch (error) {
-      if (serverError) {
-        throw new Error(
-          "Mini-Sim server scan: " +
-          (serverError instanceof Error ? serverError.message : String(serverError)) +
-          " · browser scan: " +
-          (error instanceof Error ? error.message : String(error))
-        );
-      }
-      throw error;
-    }
+  async function loadCrewForWallet(owner) {
+    const scan = await scanWallet(owner);
+    return scan.crew;
+  }
+
+  async function loadInventoryForWallet(owner) {
+    const scan = await scanWallet(owner);
+    return scan.inventory;
   }
 
   async function connectAndScan() {
     const wallet = provider();
-    if (!wallet) {
-      throw new Error(
-        "Phantom не найден. Нужен HTTPS/localhost; provider должен быть window.phantom.solana."
-      );
-    }
-
+    if (!wallet) throw new Error("Phantom не найден. Адрес можно вставить вручную.");
     const response = await wallet.connect();
     const owner = response?.publicKey?.toString?.() || "";
     if (!owner) throw new Error("Phantom не вернул публичный ключ.");
-
-    const result = await scanWallet(owner);
-    return {
-      provider: wallet,
-      owner,
-      crew: Array.isArray(result?.crew) ? result.crew : [],
-      source: result?.source || "unknown"
-    };
+    const scan = await scanWallet(owner);
+    return { provider: wallet, ...scan };
   }
 
   window.BCMCrewWallet = {
     provider,
     connectAndScan,
     scanWallet,
-    loadCatalog: loadCrewCatalog
+    loadCrewForWallet,
+    loadInventoryForWallet,
+    formatDiagnostic
   };
 })();

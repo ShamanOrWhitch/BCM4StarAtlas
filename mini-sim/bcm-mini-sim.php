@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.39');
+define('BCM_MINI_SIM_VERSION', '0.9.40');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -193,8 +193,9 @@ function bcm_mini_sim_crew_catalog() {
 
 function bcm_mini_sim_crew_rpc($method, $params, $timeout = 20) {
     $rpcs = array(
-        'https://solana-rpc.publicnode.com',
+        'https://api.mainnet.solana.com',
         'https://api.mainnet-beta.solana.com',
+        'https://solana-rpc.publicnode.com',
     );
 
     foreach ($rpcs as $url) {
@@ -213,90 +214,107 @@ function bcm_mini_sim_crew_rpc($method, $params, $timeout = 20) {
     return null;
 }
 
+function bcm_mini_sim_ocean($value) {
+    if (!is_numeric($value)) {
+        return null;
+    }
+    $n = (float) $value;
+    return $n <= 1 ? (int) round($n * 100) : (int) round($n);
+}
+
 function bcm_mini_sim_server_crew_scan($owner) {
     $owner = trim((string) $owner);
     if (!preg_match('/^[1-9A-HJ-NP-Za-km-z]{32,44}$/', $owner)) {
         return new WP_Error('bcm_mini_sim_owner', 'Нужен публичный ключ Solana.');
     }
 
-    $catalog = bcm_mini_sim_crew_catalog();
-    if (!$catalog) {
-        return new WP_Error('bcm_mini_sim_crew_catalog', 'Galaxy /nfts не вернул каталог Crew.');
-    }
-
-    $found = array();
+    $crew = array();
     $seen = array();
-
-    // This is the same ownership logic used by the old working Star Atlas app:
-    // read the wallet's SPL + Token-2022 accounts, then match token mint to the
-    // official Galaxy /nfts catalog where attributes.itemType === "crew".
-    foreach (array(
-        'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
-        'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
-    ) as $program) {
-        $result = bcm_mini_sim_crew_rpc('getTokenAccountsByOwner', array(
-            $owner,
-            array('programId' => $program),
-            array('encoding' => 'jsonParsed'),
+    $errors = array();
+    for ($page = 1; $page <= 8; $page++) {
+        $result = bcm_mini_sim_crew_rpc('getAssetsByOwner', array(
+            'ownerAddress' => $owner,
+            'page' => $page,
+            'limit' => 100,
+            'displayOptions' => array(
+                'showFungible' => false,
+                'showZeroBalance' => false,
+            ),
         ), 20);
-
-        $rows = is_array($result) && isset($result['value']) && is_array($result['value'])
-            ? $result['value']
-            : array();
-
-        foreach ($rows as $row) {
-            $info = isset($row['account']['data']['parsed']['info']) && is_array($row['account']['data']['parsed']['info'])
-                ? $row['account']['data']['parsed']['info']
-                : null;
-
-            if (!$info || empty($info['mint'])) {
+        if (!is_array($result)) {
+            $errors[] = 'DAS page ' . $page . ' не ответил';
+            break;
+        }
+        $rows = isset($result['items']) && is_array($result['items']) ? $result['items'] : array();
+        foreach ($rows as $asset) {
+            if (!is_array($asset) || empty($asset['id'])) {
                 continue;
             }
-
-            $amount = isset($info['tokenAmount']['uiAmount']) ? (float) $info['tokenAmount']['uiAmount'] : 0;
-            if ($amount <= 0) {
+            $mint = (string) $asset['id'];
+            if (isset($seen[$mint])) {
                 continue;
             }
-
-            $mint = (string) $info['mint'];
-            if (isset($seen[$mint]) || !isset($catalog[$mint])) {
-                continue;
-            }
-
-            $card = $catalog[$mint];
-            $attributes = isset($card['raw']['attributes']) && is_array($card['raw']['attributes'])
-                ? $card['raw']['attributes']
-                : array();
-            $traits = array();
-            foreach ($attributes as $trait => $value) {
-                if (is_array($value)) {
+            $meta = isset($asset['content']['metadata']) && is_array($asset['content']['metadata']) ? $asset['content']['metadata'] : array();
+            $name = isset($meta['name']) ? (string) $meta['name'] : '';
+            $symbol = isset($meta['symbol']) ? (string) $meta['symbol'] : '';
+            $attrs = isset($meta['attributes']) && is_array($meta['attributes']) ? $meta['attributes'] : array();
+            $map = array();
+            foreach ($attrs as $attr) {
+                if (!is_array($attr) || empty($attr['trait_type']) || !isset($attr['value']) || is_array($attr['value'])) {
                     continue;
                 }
-                $traits[] = array(
-                    'trait' => (string) $trait,
-                    'value' => (string) $value,
-                );
+                $map[(string) $attr['trait_type']] = $attr['value'];
             }
-
+            $blob = strtolower($name . ' ' . $symbol . ' ' . implode(' ', array_keys($map)));
+            if (strpos($blob, 'crew') === false && strpos($blob, 'openness') === false && strpos($blob, 'species') === false) {
+                continue;
+            }
             $seen[$mint] = true;
-            $found[] = array(
+            $given = isset($map['name']) ? (string) $map['name'] : '';
+            if ($given !== '' && stripos($given, 'crew') === 0) {
+                $given = '';
+            }
+            $aptitudes = array();
+            foreach (array('Command', 'Flight', 'Operator', 'Engineering', 'Medical', 'Science', 'Fitness', 'Hospitality') as $apt) {
+                if (isset($map[$apt])) {
+                    $aptitudes[$apt] = (string) $map[$apt];
+                }
+            }
+            $links = isset($asset['content']['links']) && is_array($asset['content']['links']) ? $asset['content']['links'] : array();
+            $crew[] = array(
                 'id' => $mint,
                 'mint' => $mint,
-                'name' => $card['name'],
-                'image' => $card['image'],
-                'rarity' => $card['rarity'],
-                'species' => $card['species'],
-                'sex' => '',
-                'source' => 'mini-sim-star-atlas-server',
-                'traits' => array_slice($traits, 0, 48),
-                'characteristics' => array(),
-                'raw' => $card['raw'],
-                'amount' => $amount,
+                'name' => $given !== '' ? $given : $name,
+                'image' => isset($links['image']) ? (string) $links['image'] : '',
+                'species' => isset($map['species']) ? (string) $map['species'] : '',
+                'rarity' => isset($map['rarity']) ? (string) $map['rarity'] : '',
+                'openness' => bcm_mini_sim_ocean(isset($map['openness']) ? $map['openness'] : null),
+                'conscientiousness' => bcm_mini_sim_ocean(isset($map['conscientiousness']) ? $map['conscientiousness'] : null),
+                'extraversion' => bcm_mini_sim_ocean(isset($map['extraversion']) ? $map['extraversion'] : null),
+                'agreeableness' => bcm_mini_sim_ocean(isset($map['agreeableness']) ? $map['agreeableness'] : null),
+                'neuroticism' => bcm_mini_sim_ocean(isset($map['neuroticism']) ? $map['neuroticism'] : null),
+                'aptitudes' => $aptitudes,
+                'source' => 'das-metadata',
+                'amount' => 1,
             );
+        }
+        $total = isset($result['total']) ? (int) $result['total'] : count($rows);
+        if (!$rows || count($rows) < 100 || $page * 100 >= $total) {
+            break;
         }
     }
 
-    return $found;
+    if (!$crew && $errors) {
+        return new WP_Error('bcm_mini_sim_das', implode(' · ', $errors));
+    }
+
+    return array(
+        'owner' => $owner,
+        'items' => $crew,
+        'counts' => array('crew' => count($crew)),
+        'errors' => $errors,
+        'source' => 'bcm4sa-wallet-scan',
+    );
 }
 
 function bcm_mini_sim_ajax_crew_wallet() {
@@ -309,11 +327,7 @@ function bcm_mini_sim_ajax_crew_wallet() {
         wp_send_json_error(array('message' => $crew->get_error_message()), 400);
     }
 
-    wp_send_json_success(array(
-        'owner' => $owner,
-        'items' => $crew,
-        'source' => 'mini-sim-star-atlas-server',
-    ));
+    wp_send_json_success($crew);
 }
 
 add_action('wp_ajax_bcm_mini_sim_crew_wallet', 'bcm_mini_sim_ajax_crew_wallet');
@@ -440,8 +454,11 @@ function bcm_mini_sim_shortcode($atts = array())
                 <div class="bcm-mini-sim-crew-preflight-kicker">STAR ATLAS · CREW</div>
                 <h2>ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ</h2>
                 <p class="bcm-mini-sim-crew-preflight-note">
-                    По умолчанию загружены 68 Crew из проекта. Phantom нужен только для чтения ваших собственных Crew из открытого Solana-реестра.
+                    Адрес Solana читается без Phantom. Подпись не нужна. 68 локальных Crew остаются только как demo, если на адресе никого нет.
                 </p>
+                <label class="bcm-mini-sim-crew-address">Публичный адрес
+                    <input type="text" data-crew-address spellcheck="false" autocomplete="off" placeholder="вставьте адрес кошелька" />
+                </label>
                 <div class="bcm-mini-sim-crew-preflight-grid">
                     <label>P1
                         <select data-crew-slot="0"></select>
@@ -451,12 +468,14 @@ function bcm_mini_sim_shortcode($atts = array())
                     </label>
                 </div>
                 <div class="bcm-mini-sim-crew-preflight-actions">
-                    <button type="button" data-crew-connect>ПОДКЛЮЧИТЬ PHANTOM</button>
+                    <button type="button" data-crew-scan>СКАН АДРЕСА</button>
+                    <button type="button" data-crew-connect>PHANTOM</button>
                     <button type="button" data-crew-start>НАЧАТЬ ЛАБИРИНТ</button>
                 </div>
                 <div class="bcm-mini-sim-crew-preflight-status" aria-live="polite">
-                    Команда по умолчанию готова.
+                    Команда по умолчанию — demo, пока адрес не прочитан.
                 </div>
+                <pre class="bcm-mini-sim-crew-diag" data-crew-diag></pre>
             </div>
         </div>
         <button class="bcm-mini-sim-music" type="button" hidden>♫</button>

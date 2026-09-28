@@ -665,6 +665,38 @@
   flex: 1 1 220px;
 }
 
+.bcm-mini-sim-crew-address {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+  color: rgba(232, 238, 242, 0.72);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.bcm-mini-sim-crew-address input {
+  height: 42px;
+  border: 1px solid rgba(232, 238, 242, 0.18);
+  border-radius: 8px;
+  background: #07090e;
+  color: #e8eef2;
+  padding: 0 10px;
+  font: 13px/1.2 ui-monospace, monospace;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.bcm-mini-sim-crew-diag {
+  max-height: 220px;
+  overflow: auto;
+  margin: 10px 0 0;
+  white-space: pre-wrap;
+  color: #9eb6c4;
+  font: 11px/1.45 ui-monospace, monospace;
+}
+
 .bcm-mini-sim-crew-preflight-status {
   margin-top: 10px;
   min-height: 18px;

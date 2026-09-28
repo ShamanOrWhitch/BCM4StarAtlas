@@ -27,6 +27,15 @@
   const crewConnectButton = crewPreflight
     ? crewPreflight.querySelector("[data-crew-connect]")
     : null;
+  const crewScanButton = crewPreflight
+    ? crewPreflight.querySelector("[data-crew-scan]")
+    : null;
+  const crewAddressInput = crewPreflight
+    ? crewPreflight.querySelector("[data-crew-address]")
+    : null;
+  const crewDiag = crewPreflight
+    ? crewPreflight.querySelector("[data-crew-diag]")
+    : null;
   const crewStartButton = crewPreflight
     ? crewPreflight.querySelector("[data-crew-start]")
     : null;
@@ -191,6 +200,56 @@
     });
   }
 
+  function applyWalletScan(scan) {
+    const found = Array.isArray(scan?.crew) ? scan.crew : [];
+    if (crewDiag && window.BCMCrewWallet?.formatDiagnostic) {
+      crewDiag.textContent = window.BCMCrewWallet.formatDiagnostic(scan);
+    }
+    window.BCMiniCrewWallet = {
+      provider: scan?.provider ? "Phantom" : "address",
+      publicKey: scan?.owner || "",
+      crewCount: found.length,
+      demo: false
+    };
+    if (!found.length) {
+      window.BCMiniCrewWallet = {
+        provider: scan?.provider ? "Phantom" : "address",
+        publicKey: "",
+        scanned: scan?.owner || "",
+        crewCount: 0,
+        demo: true
+      };
+      crewSetStatus("No Crew found / Demo mode. Локальные 68 не считаются владельцами этого кошелька.");
+      return;
+    }
+    crewRoster = found.map(normalizeCrewRow);
+    crewSelection = [
+      crewRoster[0]?.id || null,
+      crewRoster[1]?.id || crewRoster[0]?.id || null
+    ];
+    renderCrewPreflight();
+    crewSetStatus("Кошелёк " + String(scan.owner || "").slice(0, 6) + "… · Crew " + found.length + " · не demo.");
+  }
+
+  async function scanCrewAddress() {
+    const owner = String(crewAddressInput?.value || "").trim();
+    if (!window.BCMCrewWallet?.scanWallet) {
+      crewSetStatus("Wallet-модуль не загружен.");
+      return;
+    }
+    if (crewScanButton) crewScanButton.disabled = true;
+    crewSetStatus("Читаю публичный реестр…");
+    try {
+      const scan = await window.BCMCrewWallet.scanWallet(owner);
+      applyWalletScan(scan);
+    } catch (error) {
+      if (crewDiag) crewDiag.textContent = "rpc error: " + (error?.message || "scan failed");
+      crewSetStatus(error?.message || "rpc error. Demo roster не подставлен как ваш экипаж.");
+    } finally {
+      if (crewScanButton) crewScanButton.disabled = false;
+    }
+  }
+
   async function connectCrewWallet() {
     if (!crewConnectButton) return;
     if (!window.BCMCrewWallet?.connectAndScan) {
@@ -203,35 +262,8 @@
 
     try {
       const result = await window.BCMCrewWallet.connectAndScan();
-      const found = Array.isArray(result.crew) ? result.crew : [];
-
-      window.BCMiniCrewWallet = {
-        provider: "Phantom",
-        publicKey: result.owner || "",
-        crewCount: found.length
-      };
-
-      if (!found.length) {
-        crewSetStatus(
-          "Phantom подключён · на этом кошельке Crew не найдено. Остаётся локальная база."
-        );
-        return;
-      }
-
-      crewRoster = found.map(normalizeCrewRow);
-      crewSelection = [
-        crewRoster[0]?.id || null,
-        crewRoster[1]?.id || crewRoster[0]?.id || null
-      ];
-      renderCrewPreflight();
-      crewSetStatus(
-        "Phantom: " +
-        String(result.owner || "").slice(0, 6) +
-        "…" +
-        String(result.owner || "").slice(-6) +
-        " · найдено Crew: " +
-        found.length
-      );
+      if (crewAddressInput && result.owner) crewAddressInput.value = result.owner;
+      applyWalletScan({ ...result, provider: result.provider });
     } catch (error) {
       crewSetStatus(error?.message || "Phantom не подключился.");
     } finally {
@@ -3720,6 +3752,11 @@
     if (crewConnectButton) {
       crewConnectButton.addEventListener("click", () => {
         void connectCrewWallet();
+      });
+    }
+    if (crewScanButton) {
+      crewScanButton.addEventListener("click", () => {
+        void scanCrewAddress();
       });
     }
 
