@@ -5,8 +5,13 @@
     "https://solana-rpc.publicnode.com",
     "https://api.mainnet-beta.solana.com"
   ];
-  const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
-  const TOKEN_2022_PROGRAM = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
+  const GALAXY_CREW_URL = "https://galaxy.staratlas.com/crew";
+  const TOKEN_PROGRAMS = [
+    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+  ];
+
+  let crewCatalogPromise = null;
 
   function provider() {
     const win = window;
@@ -38,79 +43,135 @@
     throw new Error(lastError);
   }
 
-  function traitsOf(meta) {
-    const raw = meta?.attributes;
-    const out = [];
-    if (!Array.isArray(raw)) return out;
-    for (const row of raw) {
-      if (!row || typeof row !== "object") continue;
-      const trait = String(row.trait_type ?? row.trait ?? "").trim();
-      const value = row.value;
-      if (!trait || value == null || typeof value === "object") continue;
-      out.push({ trait, value: String(value) });
+  function traitsFromCrewRow(row) {
+    const traits = [];
+    const add = (trait, value) => {
+      if (trait == null || value == null || value === "") return;
+      if (typeof value === "object") return;
+      traits.push({ trait: String(trait), value: String(value) });
+    };
+
+    if (row && typeof row === "object") {
+      const map = {
+        openness: "Openness",
+        conscientiousness: "Conscientiousness",
+        extraversion: "Extraversion",
+        agreeableness: "Agreeableness",
+        neuroticism: "Neuroticism",
+        species: "Species",
+        rarity: "Rarity"
+      };
+
+      Object.entries(map).forEach(([key, label]) => {
+        if (row[key] != null) {
+          const n = Number(row[key]);
+          add(label, Number.isFinite(n) && key !== "species" && key !== "rarity"
+            ? String(n <= 1 ? Math.round(n * 100) : Math.round(n))
+            : row[key]);
+        }
+      });
+
+      if (row.aptitudes && typeof row.aptitudes === "object") {
+        Object.entries(row.aptitudes).forEach(([name, level]) => add(name, level));
+      }
     }
-    return out.slice(0, 48);
+
+    return traits.slice(0, 48);
   }
 
-  function isCrew(name, symbol, traits) {
-    if (/crew/i.test(name) || /crew/i.test(symbol)) return true;
-    const blob = traits.map((item) => item.trait + " " + item.value).join(" ").toLowerCase();
-    return /flight|command|engineering|hospitality|operator|medical|science|fitness|openness|species|ustur|punaab|sogmian|mierese|hair/.test(blob);
+  async function loadCrewCatalog() {
+    if (crewCatalogPromise) return crewCatalogPromise;
+
+    crewCatalogPromise = fetch(GALAXY_CREW_URL, {
+      method: "GET",
+      credentials: "omit",
+      cache: "no-store",
+      headers: { "accept": "application/json" },
+      signal: AbortSignal.timeout(20000)
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("Star Atlas Crew API HTTP " + response.status);
+        return response.json();
+      })
+      .then((rows) => {
+        const index = new Map();
+        const list = Array.isArray(rows) ? rows : [];
+
+        list.forEach((row) => {
+          if (!row || typeof row !== "object" || !row.dasID) return;
+          index.set(String(row.dasID), {
+            name: String(row.name || row.dasID),
+            image: String(row.imageUrl || ""),
+            rarity: String(row.rarity || ""),
+            species: String(row.species || ""),
+            traits: traitsFromCrewRow(row),
+            raw: row
+          });
+        });
+
+        if (!index.size) {
+          throw new Error("Star Atlas Crew API вернул пустой каталог.");
+        }
+        return index;
+      });
+
+    try {
+      return await crewCatalogPromise;
+    } catch (error) {
+      crewCatalogPromise = null;
+      throw error;
+    }
   }
 
-  function normalizeAsset(asset) {
-    const content = asset?.content && typeof asset.content === "object" ? asset.content : {};
-    const metadata = content.metadata && typeof content.metadata === "object" ? content.metadata : {};
-    const links = content.links && typeof content.links === "object" ? content.links : {};
-    const name = String(metadata.name || asset?.id || "").trim();
-    const symbol = String(metadata.symbol || "").trim();
-    const traits = traitsOf(metadata);
-    if (!isCrew(name, symbol, traits)) return null;
+  function tokenRows(result) {
+    return Array.isArray(result?.value) ? result.value : [];
+  }
 
-    const named = traits.find((item) => item.trait.toLowerCase() === "name")?.value || "";
-    const image = String(
-      links.image ||
-      content.files?.[0]?.uri ||
-      metadata.image ||
-      ""
-    );
-
+  function normalizeTokenCrew(mint, catalogCard, amount) {
     return {
-      id: String(asset.id || ""),
-      mint: String(asset.id || ""),
-      name: named && !/^crew\\b/i.test(named) ? named : (name || "Crew"),
-      image,
-      rarity: traits.find((item) => /rarity/i.test(item.trait))?.value || "",
-      species: traits.find((item) => /species/i.test(item.trait))?.value || "",
-      sex: traits.find((item) => /^sex$/i.test(item.trait))?.value || "",
+      id: mint,
+      mint,
+      name: catalogCard?.name || mint,
+      image: catalogCard?.image || "",
+      rarity: catalogCard?.rarity || "",
+      species: catalogCard?.species || "",
+      sex: "",
       source: "wallet",
-      traits,
-      raw: asset
+      traits: Array.isArray(catalogCard?.traits) ? catalogCard.traits : [],
+      raw: catalogCard?.raw || null,
+      amount: Number(amount || 0)
     };
   }
 
   async function directScan(owner) {
+    const catalog = await loadCrewCatalog();
     const found = [];
     const seen = new Set();
 
-    for (let page = 1; page <= 4; page++) {
-      const result = await rpc("getAssetsByOwner", [{
-        ownerAddress: owner,
-        page,
-        limit: 100,
-        displayOptions: {
-          showFungible: false,
-          showZeroBalance: false
-        }
-      }]);
-      const chunk = Array.isArray(result?.items) ? result.items : [];
-      for (const asset of chunk) {
-        const crew = normalizeAsset(asset);
-        if (!crew || seen.has(crew.id)) continue;
-        seen.add(crew.id);
-        found.push(crew);
+    // This is the same ownership source used by the working WP Galia Desk:
+    // normal Solana token accounts, then mint -> official Galaxy Crew catalog.
+    for (const program of TOKEN_PROGRAMS) {
+      const result = await rpc("getTokenAccountsByOwner", [
+        owner,
+        { programId: program },
+        { encoding: "jsonParsed" }
+      ]);
+
+      for (const row of tokenRows(result)) {
+        const info = row?.account?.data?.parsed?.info;
+        if (!info?.mint) continue;
+
+        const amountText = info?.tokenAmount?.uiAmountString ?? info?.tokenAmount?.uiAmount ?? 0;
+        const amount = Number(amountText || 0);
+        if (!(amount > 0)) continue;
+
+        const mint = String(info.mint);
+        const card = catalog.get(mint);
+        if (!card || seen.has(mint)) continue;
+
+        seen.add(mint);
+        found.push(normalizeTokenCrew(mint, card, amount));
       }
-      if (!chunk.length || (result?.total != null && found.length >= Number(result.total))) break;
     }
 
     return found;
@@ -119,6 +180,7 @@
   async function wpScan(owner) {
     const wp = window.GALIA_WP;
     if (!wp?.ajax || !wp?.nonce) return [];
+
     const body = new FormData();
     body.set("action", "galia_desk_wallet");
     body.set("nonce", wp.nonce);
@@ -130,7 +192,9 @@
       credentials: "same-origin"
     });
     const json = await response.json();
-    if (!json?.success) throw new Error(json?.data?.message || "WP wallet scan failed");
+    if (!json?.success) {
+      throw new Error(json?.data?.message || "WP wallet scan failed");
+    }
 
     const items = Array.isArray(json.data?.items) ? json.data.items : [];
     return items
@@ -150,28 +214,35 @@
 
   async function scanWallet(owner) {
     let directError = null;
+
     try {
       const direct = await directScan(owner);
-      if (direct.length) return direct;
+      // Empty is a valid result: the wallet may genuinely have no Crew.
+      return {
+        crew: direct,
+        source: "star-atlas-crew-api"
+      };
     } catch (error) {
       directError = error;
     }
 
     try {
       const viaWp = await wpScan(owner);
-      if (viaWp.length || !directError) return viaWp;
+      return {
+        crew: viaWp,
+        source: "wordpress-galia-desk"
+      };
     } catch (error) {
       if (directError) {
         throw new Error(
-          "Прямой Solana scan: " +
+          "Star Atlas Crew API scan: " +
           (directError instanceof Error ? directError.message : String(directError)) +
           " · WP scan: " +
           (error instanceof Error ? error.message : String(error))
         );
       }
+      throw error;
     }
-
-    return [];
   }
 
   async function connectAndScan() {
@@ -186,11 +257,12 @@
     const owner = response?.publicKey?.toString?.() || "";
     if (!owner) throw new Error("Phantom не вернул публичный ключ.");
 
-    const crew = await scanWallet(owner);
+    const result = await scanWallet(owner);
     return {
       provider: wallet,
       owner,
-      crew
+      crew: Array.isArray(result?.crew) ? result.crew : [],
+      source: result?.source || "unknown"
     };
   }
 
