@@ -1,5 +1,6 @@
 import { useEffect, useState, type ComponentType } from "react";
 import { createRoot } from "react-dom/client";
+import { AppChrome } from "@/components/app-chrome";
 import { CrewBay } from "@/components/crew/bay";
 import { ShipsPage } from "@/routes/ships";
 import { MarketPage } from "@/routes/market";
@@ -17,19 +18,45 @@ function tabFromHash(): Tab {
   return "crew";
 }
 
+function MapTab() {
+  const [View, setView] = useState<ComponentType | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let alive = true;
+    void import("@/routes/map")
+      .then((mod) => {
+        if (alive) setView(() => mod.MapPage);
+      })
+      .catch((err: unknown) => {
+        if (alive) setError(err instanceof Error ? err.message : "map.js не загрузился");
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return (
+    <AppChrome current="map" kicker="Galia · карта" title="Карта">
+      {error ? (
+        <p className="p-6 text-sm text-muted">
+          Карта не загрузилась ({error}). Файл map.js должен лежать в той же папке, что и app.js. Меню сверху работает.
+        </p>
+      ) : View ? (
+        <View />
+      ) : (
+        <p className="p-6 text-sm text-muted">Карта откроется по запросу, без автокручения.</p>
+      )}
+    </AppChrome>
+  );
+}
+
 function Shell() {
   const [tab, setTab] = useState<Tab>(tabFromHash);
-  const [MapView, setMapView] = useState<ComponentType | null>(null);
   useEffect(() => {
     const onHash = () => setTab(tabFromHash());
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
-  useEffect(() => {
-    if (tab !== "map" || MapView) return;
-    void import("@/routes/map").then((mod) => setMapView(() => mod.MapPage));
-  }, [tab, MapView]);
-  if (tab === "map") return MapView ? <MapView /> : <p className="p-6 text-muted">Карта откроется по запросу, без автокручения.</p>;
+  if (tab === "map") return <MapTab />;
   if (tab === "ships") return <ShipsPage />;
   if (tab === "market") return <MarketPage />;
   if (tab === "wallet") return <WalletPage />;

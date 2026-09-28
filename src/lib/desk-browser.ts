@@ -1,3 +1,4 @@
+import { directMarket, directWallet } from "./desk-direct";
 import type { MarketSnap, TokenQuote, WalletScan } from "./desk-types";
 
 export type {
@@ -47,7 +48,32 @@ function quote(raw: unknown): TokenQuote {
 }
 
 export async function loadMarket(): Promise<MarketSnap> {
-  const data = await post("galia_desk_market");
+  try {
+    return await directMarket();
+  } catch (err) {
+    const viaSite = await withTimeout(post("galia_desk_market"), 12000);
+    if (viaSite) return snapFromPhp(viaSite);
+    throw err instanceof Error ? err : new Error("Рынок не открылся ни напрямую, ни через сайт");
+  }
+}
+
+function withTimeout(work: Promise<Record<string, unknown>>, ms: number): Promise<Record<string, unknown> | null> {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => resolve(null), ms);
+    work.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        window.clearTimeout(timer);
+        resolve(null);
+      },
+    );
+  });
+}
+
+function snapFromPhp(data: Record<string, unknown>): MarketSnap {
   return {
     at: Number(data.at ?? 0),
     orderCount: Number(data.orderCount ?? 0),
@@ -67,15 +93,18 @@ export async function loadMarket(): Promise<MarketSnap> {
 }
 
 export async function scanDeskWallet({ data }: { data: { owner: string } }): Promise<WalletScan> {
-  const scan = await post("galia_desk_wallet", { owner: data.owner });
-  const profiles = Array.isArray(scan.profiles) ? scan.profiles : [];
+  const direct = await directWallet(data.owner);
+  if (direct.items.length || !direct.rpcWarning) return direct;
+  const viaSite = await withTimeout(post("galia_desk_wallet", { owner: data.owner }), 12000);
+  if (!viaSite) return direct;
+  const profiles = Array.isArray(viaSite.profiles) ? viaSite.profiles : [];
   return {
-    owner: String(scan.owner ?? data.owner),
-    at: Number(scan.at ?? Date.now()),
-    items: Array.isArray(scan.items) ? (scan.items as WalletScan["items"]) : [],
-    skippedMeta: Number(scan.skippedMeta ?? 0),
+    owner: String(viaSite.owner ?? data.owner),
+    at: Number(viaSite.at ?? Date.now()),
+    items: Array.isArray(viaSite.items) ? (viaSite.items as WalletScan["items"]) : direct.items,
+    skippedMeta: Number(viaSite.skippedMeta ?? 0),
     profiles: profiles as WalletScan["profiles"],
-    rpcWarning: typeof scan.rpcWarning === "string" ? scan.rpcWarning : "",
-    note: typeof scan.note === "string" ? scan.note : "",
+    rpcWarning: typeof viaSite.rpcWarning === "string" ? viaSite.rpcWarning : direct.rpcWarning,
+    note: typeof viaSite.note === "string" ? viaSite.note : direct.note,
   };
 }
