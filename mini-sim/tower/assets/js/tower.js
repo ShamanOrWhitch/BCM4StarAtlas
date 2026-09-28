@@ -67,7 +67,20 @@
     const cache = assetTexture.cache || (assetTexture.cache = new Map());
     if (cache.has(url)) return cache.get(url);
 
-    const tex = new THREE.TextureLoader().load(url);
+    const loader = new THREE.TextureLoader();
+    const tex = loader.load(
+      url,
+      () => {
+        tex.userData = tex.userData || {};
+        tex.userData.bcmLoaded = true;
+      },
+      undefined,
+      () => {
+        tex.userData = tex.userData || {};
+        tex.userData.bcmLoadError = true;
+        console.warn("BCM Tower texture failed:", url);
+      }
+    );
     if ("colorSpace" in tex && THREE.SRGBColorSpace !== undefined) {
       tex.colorSpace = THREE.SRGBColorSpace;
     } else if (THREE.sRGBEncoding !== undefined) {
@@ -298,6 +311,8 @@
     let playerMarkers = [];
     let playerSprites = [];
     let playerTexture = null;
+    let assetProbeTexture = null;
+    let assetProbeSprite = null;
 
     const radius = 8.4;
     const cameraRadius = radius + 3.2;
@@ -353,6 +368,40 @@
       wallMesh = null;
       platformMeshes = [];
       objectMeshes = [];
+    }
+
+    function setupAssetProbe() {
+      if (assetProbeSprite) {
+        scene.remove(assetProbeSprite);
+        safeDispose(assetProbeSprite);
+        assetProbeSprite = null;
+      }
+
+      const url = CONFIG.assetProbe || CONFIG.backgroundMenu || "";
+      assetProbeTexture = url ? assetTexture(url, renderer, {}) : null;
+      if (!assetProbeTexture) return;
+
+      assetProbeSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: assetProbeTexture,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false
+      }));
+      assetProbeSprite.scale.set(3.8, 3.8, 1);
+      assetProbeSprite.renderOrder = 200;
+      scene.add(assetProbeSprite);
+    }
+
+    function positionAssetProbe() {
+      if (!assetProbeSprite || !tower) return;
+      const p = players[0];
+      const a = p.angle;
+      const r = 6.2;
+      assetProbeSprite.position.set(
+        Math.sin(a) * r,
+        p.y + 1.8,
+        Math.cos(a) * r
+      );
     }
 
     function cellBaseY(cell) {
@@ -538,6 +587,11 @@
         }
       }
 
+      if (assetProbeSprite) {
+        scene.remove(assetProbeSprite);
+        assetProbeSprite = null;
+      }
+
       for (let i = 0; i < 2; i++) {
         const marker = new THREE.Mesh(
           new THREE.SphereGeometry(0.48, 10, 8),
@@ -567,6 +621,15 @@
       }
 
       for (let i = 0; i < 2; i++) resetPlayer(i, i === 0 ? 0 : 0.85);
+
+      setupAssetProbe();
+      positionAssetProbe();
+
+      const probeImage = root.querySelector(".bcm-tower-asset-probe-image");
+      if (probeImage && CONFIG.assetProbe) {
+        probeImage.src = CONFIG.assetProbe;
+      }
+
       status.textContent = "TOWER READY";
       restartButton.hidden = true;
     }
@@ -820,6 +883,8 @@
         sprite.position.set(x, p.y + 1.35, z);
         sprite.quaternion.copy(cameras[index].quaternion);
       }
+
+      if (index === 0) positionAssetProbe();
     }
 
     function updateCamera(index, viewport) {
