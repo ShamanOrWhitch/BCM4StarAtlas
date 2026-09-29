@@ -42,7 +42,11 @@ function priced(row: ResourceRow, quote: "USDC" | "ATLAS" | "POLIS"): ResourceRo
   });
   if (quote === "ATLAS") return pack(row.atlasAsk, row.atlasBid, "ATLAS");
   if (quote === "POLIS") return pack(row.polisAsk, row.polisBid, "POLIS");
-  return pack(row.usdcAsk, row.usdcBid, "USDC");
+  if (row.usdcAsk != null || row.usdcBid != null) return pack(row.usdcAsk, row.usdcBid, "USDC");
+  // Some assets, e.g. CARBON, really trade only in ATLAS. Show that
+  // real market in the default USDC view instead of inventing a zero price.
+  if (row.atlasAsk != null || row.atlasBid != null) return pack(row.atlasAsk, row.atlasBid, "ATLAS");
+  return pack(null, null, "USDC");
 }
 function money(row: ResourceRow): string {
   const n = row.ask ?? row.bid;
@@ -233,7 +237,7 @@ export function MarketPage() {
               </button>
             ))}
           </div>
-          <BubbleField title={quote === "USDC" ? "Ресурсы · USDC, если пусто то ATLAS, затем POLIS" : `Ресурсы · ${quote}`} rows={viewRows.filter((row) => row.ask != null)} previous={previous} />
+          <BubbleField title={quote === "USDC" ? "Ресурсы · USDC, без USDC показывается реальный ATLAS" : `Ресурсы · ${quote}`} rows={viewRows.filter((row) => row.ask != null)} previous={previous} />
           <BubbleField title={`Корабли · ${quote}`} rows={viewShips} previous={previous} />
           <ResourceTape rows={rows} tape={tape} mint={resourceMint} onMint={setResourceMint} />
           <p className="text-sm text-muted">
