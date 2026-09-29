@@ -564,16 +564,17 @@ function bcm_mini_sim_server_crew_scan($owner) {
     }
 
     $render = bcm_mini_sim_render_wallet_scan($owner);
-    if (is_array($render)) {
+    if (is_array($render) && (!empty($render['items']) || !empty($render['crew']) || empty($render['errors']))) {
         $render['source'] = 'render-wallet-scan';
         return $render;
     }
-    if (is_wp_error($render)) {
-        return $render;
-    }
 
+    $render_error = is_wp_error($render) ? $render->get_error_message() : '';
     $das = bcm_mini_sim_das_wallet_scan($owner);
     if (is_array($das) && (!empty($das['items']) || empty($das['errors']))) {
+        if ($render_error !== '') {
+            $das['errors'] = array_merge(array($render_error), isset($das['errors']) && is_array($das['errors']) ? $das['errors'] : array());
+        }
         return $das;
     }
 
