@@ -21,9 +21,12 @@
   const transitionVideo = root.querySelector(".bcm-mini-sim-transition-video");
   const transitionLabel = root.querySelector(".bcm-mini-sim-transition-label");
   const crewPreflight = root.querySelector(".bcm-mini-sim-crew-preflight");
-  const crewSlotSelects = crewPreflight
+  let crewSlotSelects = crewPreflight
     ? [...crewPreflight.querySelectorAll("[data-crew-slot]")]
     : [];
+  const crewSlotContainer = crewPreflight
+    ? crewPreflight.querySelector("[data-crew-slots]")
+    : null;
   const crewConnectButton = crewPreflight
     ? crewPreflight.querySelector("[data-crew-connect]")
     : null;
@@ -60,6 +63,8 @@
   let crewRoster = [];
   let crewRosterPromise = null;
   let crewSelection = [null, null];
+  let playerCapacity = 2;
+  let fleetCapacityData = { capacity: 2, ships: [] };
 
   const PROFESSION_LABELS = {
     Command: "Командир",
@@ -131,6 +136,68 @@
     ].join(" · ");
   }
 
+  function calculateFleetCapacity(scan) {
+    const inventory = Array.isArray(scan?.inventory) ? scan.inventory : [];
+    const ships = inventory.filter((item) =>
+      item && item.kind === "ship" && item.spec !== "мой ордер"
+    );
+    let capacity = 0;
+    const rows = [];
+
+    ships.forEach((ship) => {
+      const quantity = Math.max(1, Math.floor(Number(ship.amount || 1)));
+      const crew = Math.max(0, Math.floor(Number(ship.crew || 0)));
+      if (crew <= 0) return;
+      capacity += quantity * crew;
+      rows.push({
+        mint: String(ship.mint || ""),
+        name: String(ship.name || "Корабль"),
+        quantity,
+        crew,
+        capacity: quantity * crew
+      });
+    });
+
+    // Без кошелька и для старых/неполных данных игра остаётся двухместной.
+    if (capacity <= 0) capacity = 2;
+    return { capacity, ships: rows };
+  }
+
+  function renderCrewSlots() {
+    if (!crewSlotContainer) {
+      crewSlotSelects = crewPreflight
+        ? [...crewPreflight.querySelectorAll("[data-crew-slot]")]
+        : [];
+      return;
+    }
+
+    const oldValues = crewSlotSelects.map((select) => String(select.value || ""));
+    const count = Math.max(2, Math.floor(playerCapacity || 2));
+    crewSlotContainer.innerHTML = Array.from({ length: count }, (_, index) => {
+      const wanted = String(crewSelection[index] || oldValues[index] || "");
+      const options = crewRoster.map((crew) => {
+        const selected = wanted === crew.id ? " selected" : "";
+        return '<option value="' + escapeHtml(crew.id) + '"' + selected + '>' +
+          escapeHtml(crewLabel(crew)) +
+          '</option>';
+      }).join("");
+      return '<label>P' + (index + 1) +
+        '<select data-crew-slot="' + index + '">' +
+        (options || '<option value="">— без Crew —</option>') +
+        '</select></label>';
+    }).join("");
+
+    crewSlotSelects = [...crewSlotContainer.querySelectorAll("[data-crew-slot]")];
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
   function crewById(id) {
     return crewRoster.find((crew) => crew.id === id) || null;
   }
@@ -140,14 +207,8 @@
   }
 
   function renderCrewPreflight() {
+    renderCrewSlots();
     crewSlotSelects.forEach((select, index) => {
-      select.innerHTML = "";
-      crewRoster.forEach((crew) => {
-        const option = document.createElement("option");
-        option.value = crew.id;
-        option.textContent = crewLabel(crew);
-        select.appendChild(option);
-      });
       const wanted = crewSelection[index];
       if (wanted && crewById(wanted)) {
         select.value = wanted;
@@ -255,8 +316,20 @@
 
   function applyWalletScan(scan) {
     const found = Array.isArray(scan?.crew) ? scan.crew : [];
+    fleetCapacityData = calculateFleetCapacity(scan);
+    playerCapacity = fleetCapacityData.capacity;
+
     if (crewDiag && window.BCMCrewWallet?.formatDiagnostic) {
-      crewDiag.textContent = window.BCMCrewWallet.formatDiagnostic(scan);
+      const base = window.BCMCrewWallet.formatDiagnostic(scan);
+      const fleetLines = fleetCapacityData.ships.length
+        ? fleetCapacityData.ships.map((ship) =>
+          ship.name + " · ×" + ship.quantity + " · crew " + ship.crew
+        )
+        : ["Opal Jetjet · 2 места по умолчанию"];
+      crewDiag.textContent =
+        base +
+        "\nFleet capacity: " + playerCapacity + " players" +
+        "\n" + fleetLines.join("\n");
     }
     window.BCMiniCrewWallet = {
       provider: scan?.provider ? "Phantom" : "address",
@@ -276,10 +349,9 @@
       return;
     }
     crewRoster = found.map(normalizeCrewRow);
-    crewSelection = [
-      crewRoster[0]?.id || null,
-      crewRoster[1]?.id || crewRoster[0]?.id || null
-    ];
+    crewSelection = Array.from({ length: playerCapacity }, (_, index) =>
+      crewRoster[index]?.id || null
+    );
     renderCrewPreflight();
     crewSetStatus("Кошелёк " + String(scan.owner || "").slice(0, 6) + "… · Crew " + found.length + " · не demo.");
   }
@@ -337,7 +409,9 @@
     window.BCMMiniCrewSelection = {
       source: window.BCMiniCrewWallet?.publicKey ? "wallet" : "default",
       wallet: window.BCMiniCrewWallet?.publicKey || "",
-      players: picked
+      players: picked,
+      maxPlayers: playerCapacity,
+      fleet: fleetCapacityData
     };
 
     return picked;
