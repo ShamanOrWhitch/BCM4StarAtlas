@@ -401,6 +401,60 @@
     }
   }
 
+  function handleGaliaPlayRequest(event) {
+    const detail = event?.detail && typeof event.detail === "object" ? event.detail : null;
+    if (!detail) return;
+
+    const incomingCrew = Array.isArray(detail.crew) ? detail.crew.map(normalizeCrewRow) : [];
+    if (incomingCrew.length) {
+      crewRoster = incomingCrew;
+    }
+
+    const requestedCapacity = Math.max(2, Math.floor(Number(detail.maxPlayers || 2)));
+    playerCapacity = requestedCapacity;
+
+    fleetCapacityData = {
+      capacity: requestedCapacity,
+      ships: Array.isArray(detail.ships)
+        ? detail.ships.map((ship) => ({
+            mint: String(ship.mint || ""),
+            name: String(ship.name || "Корабль"),
+            quantity: Math.max(1, Math.floor(Number(ship.quantity || 1))),
+            crew: Math.max(0, Math.floor(Number(ship.crew || 0))),
+            capacity: Math.max(0, Math.floor(Number(ship.quantity || 1))) * Math.max(0, Math.floor(Number(ship.crew || 0)))
+          }))
+        : []
+    };
+
+    window.BCMiniCrewWallet = {
+      provider: detail.source === "wallet" ? "galia" : "default",
+      publicKey: String(detail.owner || ""),
+      crewCount: crewRoster.length,
+      demo: detail.source !== "wallet"
+    };
+
+    crewSelection = Array.from({ length: playerCapacity }, (_, index) =>
+      crewRoster[index]?.id || null
+    );
+
+    renderCrewPreflight();
+    crewSetStatus(
+      (detail.source === "wallet" ? "Galia · " : "Играть · ") +
+      "Crew " + crewRoster.length +
+      " · игроков по флоту " + playerCapacity
+    );
+
+    // Galia is the launcher: the separate preflight is no longer required here.
+    // beginFlight still enforces the minimum two active players.
+    if (crewRoster.length >= 2) {
+      if (crewPreflight) crewPreflight.hidden = true;
+      startButton.classList.add("hidden");
+      beginFlight();
+    } else {
+      if (crewPreflight) crewPreflight.hidden = false;
+    }
+  }
+
   async function connectCrewWallet() {
     if (!crewConnectButton) return;
     if (!window.BCMCrewWallet?.connectAndScan) {
@@ -3902,6 +3956,12 @@
       if (videoCheckButton) videoCheckButton.addEventListener("click", checkAllVideoSources);
       if (cl) cl.addEventListener("click", toggleSettings);
     }
+    window.addEventListener("galia-play-request", handleGaliaPlayRequest);
+
+    if (window.GALIA_PLAY_STATE) {
+      handleGaliaPlayRequest({ detail: window.GALIA_PLAY_STATE });
+    }
+
     if (crewConnectButton) {
       crewConnectButton.addEventListener("click", () => {
         void connectCrewWallet();
