@@ -2,6 +2,8 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppChrome } from "@/components/app-chrome";
 import { scanDeskWallet, type WalletItem, type WalletScan } from "@/lib/desk";
+import { displayName, type Crew } from "@/data/crew";
+import { walletCrew } from "@/lib/wallet-crew";
 
 export const Route = createFileRoute("/wallet")({ component: WalletPage });
 
@@ -151,7 +153,7 @@ export function WalletPage() {
                             <div className="size-16 shrink-0 rounded-lg bg-surface-2" />
                           )}
                           <div className="min-w-0">
-                            <p className="truncate font-display text-base text-fg">{item.name}</p>
+                            <p className="truncate font-display text-base text-fg">{item.kind === "crew" ? crewDisplayName(item) : item.name}</p>
                             <p className="text-sm text-muted">
                               {item.kind === "crew"
                                 ? item.rarity || ""
@@ -174,17 +176,31 @@ export function WalletPage() {
   );
 }
 
+function crewDisplayName(item: WalletItem): string {
+  const normalized = walletCrew([item])[0] as Crew | undefined;
+  return normalized ? displayName(normalized) : item.name;
+}
+
 function TraitBlock({ item }: { item: WalletItem }) {
-  return (
-    <>
-      {item.traits.length ? (
-        <p className="mt-1 text-sm text-ice">
-          {item.traits
-            .filter((trait) => /flight|command|engineering|medical|science|fitness|hospitality|operator/i.test(trait.trait))
-            .map((trait) => `${trait.trait} ${/minor|25/i.test(trait.value) ? "minor" : "major"}`)
-            .join(" · ")}
-        </p>
-      ) : null}
-    </>
-  );
+  if (item.kind === "crew") {
+    const normalized = walletCrew([item])[0] as Crew | undefined;
+    if (normalized) {
+      const aptitudes = normalized.aptitudes.map((apt) => `${apt.name} ${apt.xp === 25 ? "minor" : "major"}`);
+      return (
+        <div className="mt-1 flex flex-col gap-1 text-sm">
+          <p className="text-ice">{normalized.species} · O{normalized.o} C{normalized.c} E{normalized.e} A{normalized.a} N{normalized.n}</p>
+          <p className="text-ice">{aptitudes.join(" · ")}</p>
+        </div>
+      );
+    }
+  }
+
+  return item.traits.length ? (
+    <p className="mt-1 text-sm text-ice">
+      {item.traits
+        .filter((trait) => /flight|command|engineering|medical|science|fitness|hospitality|operator/i.test(trait.trait))
+        .map((trait) => `${trait.trait} ${/minor|25/i.test(trait.value) ? "minor" : "major"}`)
+        .join(" · ")}
+    </p>
+  ) : null;
 }
