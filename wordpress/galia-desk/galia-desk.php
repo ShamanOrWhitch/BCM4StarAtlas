@@ -782,6 +782,28 @@ function galia_desk_wallet($owner) {
             }
         }
         $symbol = isset($meta['symbol']) ? $meta['symbol'] : '';
+        if (!$card && isset($catalog[$mint]) && ($catalog[$mint]['kind'] ?? 'other') !== 'other') {
+            $known = $catalog[$mint];
+            $items[] = array(
+                'mint' => $mint,
+                'amount' => 1,
+                'name' => $known['name'],
+                'kind' => $known['kind'],
+                'className' => $known['className'],
+                'rarity' => $known['rarity'],
+                'spec' => $known['spec'],
+                'image' => $known['image'],
+                'video' => '',
+                'traits' => $traits,
+                'description' => $known['description'],
+                'gallery' => $known['gallery'],
+                'make' => $known['make'],
+                'crew' => $known['crew'],
+                'slots' => $known['slots'],
+                'msrp' => $known['msrp'],
+            );
+            continue;
+        }
         if (!$card && !galia_desk_is_crew($name, $symbol, $traits)) {
             continue;
         }
@@ -985,9 +1007,17 @@ function galia_desk_ajax_market() {
 
 function galia_desk_ajax_wallet() {
     check_ajax_referer('galia_desk', 'nonce');
-    $scan = galia_desk_render_wallet_scan(isset($_POST['owner']) ? sanitize_text_field(wp_unslash($_POST['owner'])) : '');
+    $owner = isset($_POST['owner']) ? sanitize_text_field(wp_unslash($_POST['owner'])) : '';
+    $scan = galia_desk_render_wallet_scan($owner);
     if (is_wp_error($scan)) {
-        wp_send_json_error(array('message' => $scan->get_error_message()), 400);
+        $fallback = galia_desk_wallet($owner);
+        if (!is_wp_error($fallback)) {
+            $fallback['source'] = 'wordpress-rpc-galaxy-fallback';
+            wp_send_json_success($fallback);
+        }
+        wp_send_json_error(array(
+            'message' => $scan->get_error_message() . ' · fallback: ' . $fallback->get_error_message(),
+        ), 400);
     }
     wp_send_json_success($scan);
 }
