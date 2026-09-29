@@ -61,22 +61,72 @@
   let crewRosterPromise = null;
   let crewSelection = [null, null];
 
+  const PROFESSION_LABELS = {
+    Command: "Командир",
+    Flight: "Пилот",
+    Operator: "Оператор",
+    Engineering: "Инженер",
+    Medical: "Медик",
+    Science: "Учёный",
+    Fitness: "Боец",
+    Hospitality: "Обслуживание"
+  };
+
+  function professionList(value) {
+    const out = [];
+    const add = (name) => {
+      const raw = String(name || "").trim();
+      if (!raw) return;
+      const canonical = Object.keys(PROFESSION_LABELS).find(
+        (key) => key.toLowerCase() === raw.toLowerCase()
+      );
+      const label = canonical ? PROFESSION_LABELS[canonical] : raw;
+      if (!out.includes(label)) out.push(label);
+    };
+
+    if (value && value.aptitudes && typeof value.aptitudes === "object") {
+      Object.keys(value.aptitudes).forEach(add);
+    }
+    if (Array.isArray(value?.traits)) {
+      value.traits.forEach((trait) => {
+        if (!trait || typeof trait !== "object") return;
+        add(trait.trait);
+      });
+    }
+    return out;
+  }
+
   function normalizeCrewRow(row, index) {
     const value = row && typeof row === "object" ? row : {};
     const name = String(value.name || ("Crew " + (index + 1))).trim();
+    const species = String(value.species || value.spec || "").trim();
+    const traits = Array.isArray(value.traits) ? value.traits : [];
     return {
       id: String(value.id || value.mint || name || ("crew-" + index)),
       mint: String(value.mint || ""),
       name,
+      species,
+      profession: professionList(value),
       image: String(value.image || ""),
       seats: String(value.seats || ""),
       ocean: String(value.ocean || ""),
       mission: String(value.mission || ""),
       source: value.source || "default",
-      traits: Array.isArray(value.traits) ? value.traits : [],
+      traits,
       characteristics: value.characteristics && typeof value.characteristics === "object" ? value.characteristics : {},
       raw: value.raw && typeof value.raw === "object" ? value.raw : null
     };
+  }
+
+  function crewLabel(crew) {
+    const professions = Array.isArray(crew.profession) && crew.profession.length
+      ? crew.profession.join(", ")
+      : "Профессия не указана";
+    return [
+      crew.name || "Без имени",
+      crew.species || "Раса не указана",
+      professions
+    ].join(" · ");
   }
 
   function crewById(id) {
@@ -93,7 +143,7 @@
       crewRoster.forEach((crew) => {
         const option = document.createElement("option");
         option.value = crew.id;
-        option.textContent = crew.name;
+        option.textContent = crewLabel(crew);
         select.appendChild(option);
       });
       const wanted = crewSelection[index];
@@ -154,6 +204,7 @@
               rarity: crew.rarity || String(card.rarity || ""),
               species: crew.species || String(card.species || ""),
               traits: crew.traits.length ? crew.traits : (Array.isArray(card.traits) ? card.traits : []),
+              profession: crew.profession?.length ? crew.profession : professionList(card),
               characteristics: Object.keys(crew.characteristics || {}).length
                 ? crew.characteristics
                 : (card.characteristics || {}),
