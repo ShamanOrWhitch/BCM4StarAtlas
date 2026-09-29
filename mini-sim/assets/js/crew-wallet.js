@@ -303,7 +303,7 @@
       "Crew found:",
       String(scan?.crew?.length || 0),
       "source: " + (scan?.source || ""),
-      "endpoint: WordPress DAS scan → getAssetsByOwner; direct fallback → standard Solana RPC",
+      "endpoint: WordPress → getAssetsByOwner https://api.mainnet.solana.com",
       "crew data: Galaxy /crew by dasID, else DAS attributes name/OCEAN/species/aptitudes"
     ];
     (scan?.crew || []).forEach((crew) => {
@@ -382,22 +382,23 @@
       throw new Error("Нужен публичный ключ Solana. Подпись не требуется.");
     }
 
-    // WordPress server-side bridge is primary. It can use SolanaFM REST
-    // without exposing provider credentials in the browser.
+    // The page on walkingyog.com must not call Solana itself.
+    // PublicNode blocks the browser, and api.mainnet.solana.com answers
+    // the WordPress server. Browser RPC is only a last resort, never PublicNode.
     try {
       const server = await serverScan(address);
-      if (server) return server;
+      if (server && (server.crew.length || !server.errors.length)) return server;
     } catch (error) {
-      const direct = await scanChain(address).catch((directError) => {
+      const serverMessage = error instanceof Error ? error.message : String(error);
+      try {
+        const direct = await scanChain(address);
+        direct.errors = [serverMessage, ...(direct.errors || [])];
+        direct.source = "browser-das-after-wordpress-error";
+        return direct;
+      } catch (directError) {
         const directMessage = directError instanceof Error ? directError.message : String(directError);
-        const serverMessage = error instanceof Error ? error.message : String(error);
-        throw new Error(serverMessage + " · direct: " + directMessage);
-      });
-      direct.errors = [
-        error instanceof Error ? error.message : String(error),
-        ...(Array.isArray(direct.errors) ? direct.errors : [])
-      ];
-      return direct;
+        throw new Error(serverMessage + " · " + directMessage);
+      }
     }
 
     return scanChain(address);

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.41
+ * Version: 0.9.42
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.41');
+define('BCM_MINI_SIM_VERSION', '0.9.42');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 
@@ -385,10 +385,150 @@ function bcm_mini_sim_ocean($value) {
     return $n <= 1 ? (int) round($n * 100) : (int) round($n);
 }
 
+function bcm_mini_sim_galaxy_crew_by_das() {
+    $rows = bcm_mini_sim_remote_json('https://galaxy.staratlas.com/crew', 'GET', null, 20);
+    $index = array();
+    if (!is_array($rows)) {
+        return $index;
+    }
+    foreach ($rows as $row) {
+        if (!is_array($row) || empty($row['dasID'])) {
+            continue;
+        }
+        $index[(string) $row['dasID']] = $row;
+    }
+    return $index;
+}
+
+function bcm_mini_sim_das_wallet_scan($owner) {
+    $galaxy = bcm_mini_sim_galaxy_crew_by_das();
+    $crew = array();
+    $inventory = array();
+    $seen = array();
+    $errors = array();
+    $das_ok = false;
+
+    for ($page = 1; $page <= 4; $page++) {
+        $result = bcm_mini_sim_crew_rpc('getAssetsByOwner', array(
+            'ownerAddress' => $owner,
+            'page' => $page,
+            'limit' => 100,
+            'displayOptions' => array(
+                'showFungible' => false,
+                'showZeroBalance' => false,
+            ),
+        ), 22);
+
+        if (!is_array($result)) {
+            $errors[] = 'DAS getAssetsByOwner не ответил на https://api.mainnet.solana.com';
+            break;
+        }
+
+        $das_ok = true;
+        $rows = isset($result['items']) && is_array($result['items']) ? $result['items'] : array();
+        foreach ($rows as $asset) {
+            if (!is_array($asset) || empty($asset['id'])) {
+                continue;
+            }
+            $mint = (string) $asset['id'];
+            if (isset($seen[$mint])) {
+                continue;
+            }
+            $seen[$mint] = true;
+            $meta = isset($asset['content']['metadata']) && is_array($asset['content']['metadata']) ? $asset['content']['metadata'] : array();
+            $chain_name = isset($meta['name']) ? (string) $meta['name'] : '';
+            $symbol = isset($meta['symbol']) ? (string) $meta['symbol'] : '';
+            $map = bcm_mini_sim_attr_map(isset($meta['attributes']) ? $meta['attributes'] : array());
+            $card = isset($galaxy[$mint]) ? $galaxy[$mint] : null;
+            $links = isset($asset['content']['links']) && is_array($asset['content']['links']) ? $asset['content']['links'] : array();
+            $image = isset($links['image']) ? (string) $links['image'] : '';
+            $blob = strtolower($chain_name . ' ' . $symbol . ' ' . implode(' ', array_keys($map)));
+            $is_crew = $card || preg_match('/crew|openness|species/', $blob);
+
+            if ($is_crew) {
+                $given = $card && !empty($card['name']) ? (string) $card['name'] : (string) (bcm_mini_sim_case_trait($map, 'name') ?? '');
+                if ($given !== '' && stripos($given, 'crew') === 0) {
+                    $given = '';
+                }
+                $aptitudes = array();
+                if ($card && !empty($card['aptitudes']) && is_array($card['aptitudes'])) {
+                    foreach ($card['aptitudes'] as $apt => $level) {
+                        $aptitudes[(string) $apt] = (string) $level;
+                    }
+                }
+                foreach (array('Command', 'Flight', 'Operator', 'Engineering', 'Medical', 'Science', 'Fitness', 'Hospitality') as $apt) {
+                    $value = bcm_mini_sim_case_trait($map, $apt);
+                    if ($value !== null && !isset($aptitudes[$apt])) {
+                        $aptitudes[$apt] = (string) $value;
+                    }
+                }
+                $crew[] = array(
+                    'id' => $mint,
+                    'mint' => $mint,
+                    'name' => $given !== '' ? $given : $chain_name,
+                    'image' => $card && !empty($card['imageUrl']) ? (string) $card['imageUrl'] : $image,
+                    'species' => $card && !empty($card['species']) ? (string) $card['species'] : (string) (bcm_mini_sim_case_trait($map, 'species') ?? ''),
+                    'rarity' => $card && !empty($card['rarity']) ? (string) $card['rarity'] : (string) (bcm_mini_sim_case_trait($map, 'rarity') ?? ''),
+                    'openness' => bcm_mini_sim_ocean(is_array($card) && array_key_exists('openness', $card) ? $card['openness'] : bcm_mini_sim_case_trait($map, 'openness')),
+                    'conscientiousness' => bcm_mini_sim_ocean(is_array($card) && array_key_exists('conscientiousness', $card) ? $card['conscientiousness'] : bcm_mini_sim_case_trait($map, 'conscientiousness')),
+                    'extraversion' => bcm_mini_sim_ocean(is_array($card) && array_key_exists('extraversion', $card) ? $card['extraversion'] : bcm_mini_sim_case_trait($map, 'extraversion')),
+                    'agreeableness' => bcm_mini_sim_ocean(is_array($card) && array_key_exists('agreeableness', $card) ? $card['agreeableness'] : bcm_mini_sim_case_trait($map, 'agreeableness')),
+                    'neuroticism' => bcm_mini_sim_ocean(is_array($card) && array_key_exists('neuroticism', $card) ? $card['neuroticism'] : bcm_mini_sim_case_trait($map, 'neuroticism')),
+                    'aptitudes' => $aptitudes,
+                    'source' => $card ? 'galaxy-crew-dasID' : 'das-metadata',
+                    'amount' => 1,
+                );
+                continue;
+            }
+
+            $inventory[] = array(
+                'mint' => $mint,
+                'name' => $chain_name !== '' ? $chain_name : $mint,
+                'amount' => 1,
+                'kind' => 'nft',
+                'image' => $image,
+                'rarity' => (string) (bcm_mini_sim_case_trait($map, 'rarity') ?? ''),
+                'spec' => '',
+            );
+        }
+
+        $total = isset($result['total']) ? (int) $result['total'] : count($rows);
+        if (!$rows || count($rows) < 100 || $page * 100 >= $total) {
+            break;
+        }
+    }
+
+    if (!$das_ok) {
+        return null;
+    }
+
+    return array(
+        'owner' => $owner,
+        'items' => $crew,
+        'crew' => $crew,
+        'inventory' => $inventory,
+        'counts' => array(
+            'crew' => count($crew),
+            'ship' => 0,
+            'resource' => 0,
+            'structure' => 0,
+            'nft' => count($inventory),
+            'other' => 0,
+        ),
+        'errors' => $errors,
+        'source' => 'wordpress-das-api.mainnet.solana.com',
+    );
+}
+
 function bcm_mini_sim_server_crew_scan($owner) {
     $owner = trim((string) $owner);
     if (!preg_match('/^[1-9A-HJ-NP-Za-km-z]{32,44}$/', $owner)) {
         return new WP_Error('bcm_mini_sim_owner', 'Нужен публичный ключ Solana.');
+    }
+
+    $das = bcm_mini_sim_das_wallet_scan($owner);
+    if (is_array($das) && (!empty($das['items']) || empty($das['errors']))) {
+        return $das;
     }
 
     $crew_catalog = bcm_mini_sim_crew_catalog();
