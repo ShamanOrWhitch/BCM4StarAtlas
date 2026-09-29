@@ -56,6 +56,49 @@ function galia_desk_rpc($method, $params, $timeout = 20) {
     return null;
 }
 
+function galia_desk_usdc_rpc($method, $params, $timeout = 20) {
+    $urls = array(
+        'https://solana-rpc.publicnode.com',
+        'https://api.mainnet.solana.com',
+        'https://api.mainnet-beta.solana.com',
+    );
+    $errors = array();
+    for ($pass = 0; $pass < 2; $pass++) {
+        foreach ($urls as $url) {
+            $response = wp_remote_post($url, array(
+                'timeout' => $timeout,
+                'headers' => array('Content-Type' => 'application/json'),
+                'body' => wp_json_encode(array(
+                    'jsonrpc' => '2.0',
+                    'id' => 1,
+                    'method' => $method,
+                    'params' => $params,
+                )),
+            ));
+            if (is_wp_error($response)) {
+                $errors[] = $url . ': ' . $response->get_error_message();
+                continue;
+            }
+            $code = (int) wp_remote_retrieve_response_code($response);
+            $json = json_decode(wp_remote_retrieve_body($response), true);
+            if ($code < 200 || $code >= 300 || !is_array($json)) {
+                $errors[] = $url . ': HTTP ' . $code;
+                continue;
+            }
+            if (isset($json['error']['message'])) {
+                $errors[] = $url . ': ' . $json['error']['message'];
+                continue;
+            }
+            return $json;
+        }
+        if ($pass === 0) {
+            usleep(250000);
+        }
+    }
+    $GLOBALS['galia_desk_usdc_error'] = implode(' · ', $errors);
+    return null;
+}
+
 function galia_desk_show($mint) {
     static $shows = null;
     if ($shows === null) {
@@ -313,7 +356,7 @@ function galia_desk_market() {
         }
     }
 
-    $usdc = galia_desk_rpc('getProgramAccounts', array(
+    $usdc = galia_desk_usdc_rpc('getProgramAccounts', array(
         GALIA_DESK_GM,
         array(
             'encoding' => 'base64',
@@ -323,7 +366,7 @@ function galia_desk_market() {
                 array('memcmp' => array('offset' => 40, 'bytes' => GALIA_DESK_USDC)),
             ),
         ),
-    ), 12);
+    ), 20);
     $usdc_asks = array();
     $usdc_bids = array();
     $usdc_ask_lv = array();
