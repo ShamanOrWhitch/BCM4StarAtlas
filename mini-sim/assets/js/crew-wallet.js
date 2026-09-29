@@ -303,7 +303,7 @@
       "Crew found:",
       String(scan?.crew?.length || 0),
       "source: " + (scan?.source || ""),
-      "endpoint: WordPress → Render https://bcm4staratlas.onrender.com/api/wallet-scan → Solana/Galaxy",
+      "endpoint: Browser → Render https://bcm4staratlas.onrender.com/api/wallet-scan → Solana/Galaxy",
       "crew data: Galaxy /crew by dasID, else DAS attributes name/OCEAN/species/aptitudes"
     ];
     (scan?.crew || []).forEach((crew) => {
@@ -339,43 +339,44 @@
   }
 
   async function serverScan(owner) {
-    const config = window.BCMMiniSimConfig || {};
-    const ajax = String(config.crewServerAjax || "");
-    const nonce = String(config.crewServerNonce || "");
-    if (!ajax || !nonce) return null;
-
-    const body = new FormData();
-    body.set("action", "bcm_mini_sim_crew_wallet");
-    body.set("nonce", nonce);
-    body.set("owner", owner);
-
-    const response = await fetch(ajax, {
+    const response = await fetch("https://bcm4staratlas.onrender.com/api/wallet-scan", {
       method: "POST",
-      body,
-      credentials: "same-origin",
-      signal: AbortSignal.timeout(30000)
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({ owner }),
+      signal: AbortSignal.timeout(45000)
     });
     const json = await response.json().catch(() => null);
 
-    if (!json?.success) {
-      const message = json?.data?.message || ("WordPress wallet scan HTTP " + response.status);
-      throw new Error(message);
+    if (!response.ok) {
+      throw new Error(json?.error || ("Render wallet API HTTP " + response.status));
     }
 
-    const data = json.data || {};
+    const data = json || {};
     const items = Array.isArray(data.items) ? data.items : [];
+    const crew = items.filter((item) => item?.kind === "crew");
+    const inventory = items.filter((item) => item?.kind !== "crew");
+
     return {
       owner: String(data.owner || owner),
-      crew: items,
-      inventory: Array.isArray(data.inventory) ? data.inventory : [],
-      counts: data.counts || { crew: items.length },
-      errors: Array.isArray(data.errors) ? data.errors : [],
-      source: String(data.source || "wordpress-das"),
+      crew,
+      inventory,
+      counts: {
+        crew: crew.length,
+        ship: inventory.filter((item) => item?.kind === "ship").length,
+        resource: inventory.filter((item) => item?.kind === "resource").length,
+        structure: inventory.filter((item) => item?.kind === "structure").length,
+        nft: inventory.filter((item) => item?.kind === "nft").length,
+        other: inventory.filter((item) => !["ship", "resource", "structure", "nft"].includes(item?.kind)).length
+      },
+      errors: [],
+      source: "render-wallet-scan",
       ok: true,
       server: true
     };
   }
-
   async function scanWallet(owner) {
     const address = String(owner || "").trim();
     if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) {
