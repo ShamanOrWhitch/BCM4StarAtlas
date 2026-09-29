@@ -87,10 +87,12 @@
     if (value && value.aptitudes && typeof value.aptitudes === "object") {
       Object.keys(value.aptitudes).forEach(add);
     }
+    const aptitudeNames = Object.keys(PROFESSION_LABELS).map((key) => key.toLowerCase());
     if (Array.isArray(value?.traits)) {
       value.traits.forEach((trait) => {
         if (!trait || typeof trait !== "object") return;
-        add(trait.trait);
+        const raw = String(trait.trait || "").trim();
+        if (aptitudeNames.includes(raw.toLowerCase())) add(raw);
       });
     }
     return out;
