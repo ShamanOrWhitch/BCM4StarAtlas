@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.42
+ * Version: 0.9.43
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,9 +11,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.42');
+define('BCM_MINI_SIM_VERSION', '0.9.43');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
+define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
 
 function bcm_mini_sim_get_assets()
 {
@@ -520,10 +521,55 @@ function bcm_mini_sim_das_wallet_scan($owner) {
     );
 }
 
+function bcm_mini_sim_render_wallet_scan($owner) {
+    $response = wp_remote_post(BCM_MINI_SIM_BACKEND, array(
+        'timeout' => 45,
+        'headers' => array(
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+        ),
+        'body' => wp_json_encode(array('owner' => $owner)),
+    ));
+
+    if (is_wp_error($response)) {
+        return new WP_Error(
+            'bcm_mini_sim_backend',
+            'Render wallet API: ' . $response->get_error_message()
+        );
+    }
+
+    $code = (int) wp_remote_retrieve_response_code($response);
+    $body = wp_remote_retrieve_body($response);
+    $json = json_decode($body, true);
+
+    if ($code < 200 || $code >= 300 || !is_array($json)) {
+        return new WP_Error(
+            'bcm_mini_sim_backend_http',
+            'Render wallet API HTTP ' . $code
+        );
+    }
+
+    if (!isset($json['owner'])) {
+        $message = isset($json['error']) ? (string) $json['error'] : 'Render wallet API вернул неполный ответ.';
+        return new WP_Error('bcm_mini_sim_backend_data', $message);
+    }
+
+    return $json;
+}
+
 function bcm_mini_sim_server_crew_scan($owner) {
     $owner = trim((string) $owner);
     if (!preg_match('/^[1-9A-HJ-NP-Za-km-z]{32,44}$/', $owner)) {
         return new WP_Error('bcm_mini_sim_owner', 'Нужен публичный ключ Solana.');
+    }
+
+    $render = bcm_mini_sim_render_wallet_scan($owner);
+    if (is_array($render)) {
+        $render['source'] = 'render-wallet-scan';
+        return $render;
+    }
+    if (is_wp_error($render)) {
+        return $render;
     }
 
     $das = bcm_mini_sim_das_wallet_scan($owner);
