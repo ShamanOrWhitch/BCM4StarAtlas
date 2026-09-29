@@ -234,10 +234,10 @@ export async function directMarket(): Promise<MarketSnap> {
       atlasBid: atlas?.bid ?? null,
       polisAsk: polis?.ask ?? null,
       polisBid: polis?.bid ?? null,
-      ask: usdc?.ask ?? atlas?.ask ?? polis?.ask ?? null,
-      bid: usdc?.bid ?? atlas?.bid ?? polis?.bid ?? null,
-      askQty: usdc?.asks[0]?.qty ?? 0,
-      quote: usdc?.ask != null ? "USDC" : atlas?.ask != null ? "ATLAS" : "POLIS",
+      ask: usdc?.ask ?? atlas?.ask ?? null,
+      bid: usdc?.bid ?? atlas?.bid ?? null,
+      askQty: usdc?.asks[0]?.qty ?? atlas?.asks[0]?.qty ?? 0,
+      quote: usdc?.ask != null || usdc?.bid != null ? "USDC" : atlas?.ask != null || atlas?.bid != null ? "ATLAS" : "USDC",
     };
     if (item.kind === "resource") resources.push(row);
     else {
