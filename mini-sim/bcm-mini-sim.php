@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.45
+ * Version: 0.9.46
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.45');
+define('BCM_MINI_SIM_VERSION', '0.9.46');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -803,7 +803,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.33</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.46</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ВНЕШНИЕ ЭКРАНЫ</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
@@ -826,19 +826,12 @@ function bcm_mini_sim_shortcode($atts = array())
                 <div class="bcm-mini-sim-crew-preflight-kicker">STAR ATLAS · CREW</div>
                 <h2>ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ</h2>
                 <p class="bcm-mini-sim-crew-preflight-note">
-                    Адрес Solana читается без Phantom. Подпись не нужна. 68 локальных Crew остаются только как demo, если на адресе никого нет.
+                    Без кошелька используется двухместный Opal Jetjet. После скана число P1…Pn зависит от вместимости кораблей в инвентаре: Crew на корабле = места для игроков. Можно собрать несколько кораблей в один игровой флот.
                 </p>
                 <label class="bcm-mini-sim-crew-address">Публичный адрес
                     <input type="text" data-crew-address spellcheck="false" autocomplete="off" placeholder="вставьте адрес кошелька" />
                 </label>
-                <div class="bcm-mini-sim-crew-preflight-grid">
-                    <label>P1
-                        <select data-crew-slot="0"></select>
-                    </label>
-                    <label>P2
-                        <select data-crew-slot="1"></select>
-                    </label>
-                </div>
+                <div class="bcm-mini-sim-crew-preflight-grid" data-crew-slots></div>
                 <div class="bcm-mini-sim-crew-preflight-actions">
                     <button type="button" data-crew-scan>СКАН АДРЕСА</button>
                     <button type="button" data-crew-connect>PHANTOM</button>
