@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.8.4
+ * Version: 0.8.5
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -1016,6 +1016,7 @@ function galia_desk_shortcode() {
       <h3 class="galia-desk-title">Сейф</h3>
       <form class="galia-desk-row" data-galia-wallet>
         <input type="text" name="owner" placeholder="Публичный ключ" autocomplete="off" spellcheck="false" />
+        <button type="button" data-galia-phantom>Phantom</button>
         <button type="submit">Показать</button>
       </form>
       <div data-galia-hold></div>
@@ -1148,8 +1149,16 @@ function galia_desk_shortcode() {
           var owner = new FormData(event.currentTarget).get("owner");
           var hold = root.querySelector("[data-galia-hold]");
           hold.textContent = "Читаю кошелёк…";
-          post("galia_desk_wallet", { owner: owner }).then(function (res) { return res.json(); }).then(function (json) {
-            if (!json.success) throw new Error((json.data && json.data.message) || "wallet");
+          fetch("https://bcm4staratlas.onrender.com/api/wallet-scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            body: JSON.stringify({ owner: owner })
+          }).then(function (res) {
+            return res.json().then(function (json) {
+              if (!res.ok) throw new Error((json && json.error) || "Render wallet API HTTP " + res.status);
+              return json;
+            });
+          }).then(function (json) {
             var items = (json.data.items || []).slice().sort(function (a, b) {
               var rank = { Anomaly: 0, Legendary: 1, Epic: 2, Rare: 3, Uncommon: 4, Common: 5 };
               var ar = a.kind === "crew" ? (rank[a.rarity] == null ? 9 : rank[a.rarity]) : 20;
@@ -1181,6 +1190,21 @@ function galia_desk_shortcode() {
             window.GALIA_HOLDINGS = items;
             document.dispatchEvent(new CustomEvent("galia-holdings", { detail: items }));
           }).catch(function (err) { hold.textContent = err.message || "Кошелёк не прочитался."; });
+        });
+        root.querySelector("[data-galia-phantom]").addEventListener("click", function () {
+          var provider = window.phantom && window.phantom.solana ? window.phantom.solana : (window.solana && window.solana.isPhantom ? window.solana : null);
+          if (!provider || !provider.connect) {
+            root.querySelector("[data-galia-hold]").textContent = "Phantom в этом браузере не найден. Можно вставить публичный ключ вручную.";
+            return;
+          }
+          provider.connect().then(function (response) {
+            var key = response && response.publicKey && response.publicKey.toString ? response.publicKey.toString() : "";
+            if (!key) throw new Error("Phantom не вернул публичный ключ.");
+            root.querySelector('input[name="owner"]').value = key;
+            root.querySelector("[data-galia-wallet]").requestSubmit();
+          }).catch(function (err) {
+            root.querySelector("[data-galia-hold]").textContent = err && err.message ? err.message : "Phantom не подключился.";
+          });
         });
         load();
       })();
