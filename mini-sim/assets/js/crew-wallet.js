@@ -348,6 +348,45 @@
     return lines.join("\n");
   }
 
+  async function wordpressScan(owner) {
+    const config = window.BCMMiniSimConfig || {};
+    const ajax = String(config.crewServerAjax || "");
+    const nonce = String(config.crewServerNonce || "");
+    if (!ajax || !nonce) throw new Error("WordPress wallet fallback не настроен.");
+
+    const body = new URLSearchParams();
+    body.set("action", "bcm_mini_sim_crew_wallet");
+    body.set("nonce", nonce);
+    body.set("owner", owner);
+
+    const response = await fetch(ajax, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+      signal: AbortSignal.timeout(45000)
+    });
+    const json = await response.json().catch(() => null);
+    if (!response.ok || !json?.success) {
+      throw new Error(json?.data?.message || "WordPress wallet fallback HTTP " + response.status);
+    }
+
+    const data = json.data || {};
+    const crew = Array.isArray(data.crew) ? data.crew : [];
+    const inventory = Array.isArray(data.inventory) ? data.inventory : [];
+    return {
+      owner: String(data.owner || owner),
+      crew,
+      inventory,
+      profiles: Array.isArray(data.profiles) ? data.profiles : [],
+      counts: data.counts || {},
+      errors: Array.isArray(data.errors) ? data.errors : [],
+      source: "wordpress-wallet-fallback",
+      ok: true,
+      server: true
+    };
+  }
+
   async function serverScan(owner) {
     const response = await fetch("https://bcm4staratlas.onrender.com/api/wallet-scan", {
       method: "POST",
@@ -404,23 +443,38 @@
     // The page on walkingyog.com must not call Solana itself.
     // PublicNode blocks the browser, and api.mainnet.solana.com answers
     // the WordPress server. Browser RPC is only a last resort, never PublicNode.
+    let serverMessage = "";
     try {
       const server = await serverScan(address);
-      if (server && (server.crew.length || !server.errors.length)) return server;
+      if (server && (server.crew.length || server.inventory.length || !server.errors.length)) return server;
+      serverMessage = (server?.errors || []).join(" · ");
     } catch (error) {
-      const serverMessage = error instanceof Error ? error.message : String(error);
-      try {
-        const direct = await scanChain(address);
-        direct.errors = [serverMessage, ...(direct.errors || [])];
-        direct.source = "browser-das-after-wordpress-error";
-        return direct;
-      } catch (directError) {
-        const directMessage = directError instanceof Error ? directError.message : String(directError);
-        throw new Error(serverMessage + " · " + directMessage);
-      }
+      serverMessage = error instanceof Error ? error.message : String(error);
     }
 
-    return scanChain(address);
+    try {
+      const direct = await scanChain(address);
+      const useful = (direct.crew?.length || direct.inventory?.length) > 0;
+      direct.errors = serverMessage
+        ? [serverMessage, ...(direct.errors || [])]
+        : (direct.errors || []);
+      direct.source = "browser-das-fallback";
+      if (useful || !direct.errors.length) return direct;
+    } catch (directError) {
+      const directMessage = directError instanceof Error ? directError.message : String(directError);
+      serverMessage = [serverMessage, directMessage].filter(Boolean).join(" · ");
+    }
+
+    try {
+      const wordpress = await wordpressScan(address);
+      wordpress.errors = serverMessage
+        ? [serverMessage, ...(wordpress.errors || [])]
+        : (wordpress.errors || []);
+      return wordpress;
+    } catch (wordpressError) {
+      const message = wordpressError instanceof Error ? wordpressError.message : String(wordpressError);
+      throw new Error([serverMessage, message].filter(Boolean).join(" · ") || "Кошелёк не прочитался");
+    }
   }
 
   async function loadCrewForWallet(owner) {
