@@ -297,6 +297,16 @@
   }
 
   function formatDiagnostic(scan) {
+    const professionLabels = {
+      Command: "Командир",
+      Flight: "Пилот",
+      Operator: "Оператор",
+      Engineering: "Инженер",
+      Medical: "Медик",
+      Science: "Учёный",
+      Fitness: "Боец",
+      Hospitality: "Обслуживание"
+    };
     const lines = [
       "Wallet:",
       scan?.owner || "",
@@ -304,7 +314,7 @@
       String(scan?.crew?.length || 0),
       "source: " + (scan?.source || ""),
       "endpoint: Browser → Render https://bcm4staratlas.onrender.com/api/wallet-scan → Solana/Galaxy",
-      "crew data: Galaxy /crew by dasID, else DAS attributes name/OCEAN/species/aptitudes"
+      "crew data: Galaxy /crew by dasID, real wallet only"
     ];
     (scan?.crew || []).forEach((crew) => {
       const apts = crew.aptitudes ? Object.entries(crew.aptitudes).map(([name, level]) => name + " " + level).join(", ") : "";
@@ -314,12 +324,12 @@
           crew.mint,
           crew.species || "—",
           crew.rarity || "—",
-          "O " + (crew.openness ?? "—"),
-          "C " + (crew.conscientiousness ?? "—"),
-          "E " + (crew.extraversion ?? "—"),
-          "A " + (crew.agreeableness ?? "—"),
-          "N " + (crew.neuroticism ?? "—"),
-          apts || "—"
+          "раса " + (crew.species || "—"),
+          "профессии " + (
+            Object.keys(crew.aptitudes || {})
+              .map((name) => professionLabels[name] || name)
+              .join(", ") || "—"
+          )
         ].join(" · ")
       );
     });
