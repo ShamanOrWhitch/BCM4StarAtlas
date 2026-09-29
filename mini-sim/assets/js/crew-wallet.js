@@ -291,7 +291,7 @@
       inventory,
       counts,
       errors,
-      source: "bcm4sa-wallet-scan",
+      source: "render-wallet-scan",
       ok: true
     };
   }
@@ -303,7 +303,7 @@
       "Crew found:",
       String(scan?.crew?.length || 0),
       "source: " + (scan?.source || ""),
-      "endpoint: WordPress → getAssetsByOwner https://api.mainnet.solana.com",
+      "endpoint: WordPress → Render https://bcm4staratlas.onrender.com/api/wallet-scan → Solana/Galaxy",
       "crew data: Galaxy /crew by dasID, else DAS attributes name/OCEAN/species/aptitudes"
     ];
     (scan?.crew || []).forEach((crew) => {
