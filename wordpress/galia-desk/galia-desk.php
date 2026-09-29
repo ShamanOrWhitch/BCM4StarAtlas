@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.8.2
+ * Version: 0.8.3
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -15,7 +15,45 @@ const GALIA_DESK_GM = 'traderDnaR5w6Tcoi3NFm53i48FTDNbGjBSZwWXDRrg';
 const GALIA_DESK_ATLAS = 'ATLASXmbPQxBUYbxPsV97usA3fPQYEqzQBUHgiFCUsXx';
 const GALIA_DESK_USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 const GALIA_DESK_POLIS = 'poLisWXnNRwC6oBu1vHiuKQzFjGL4XDSu4g9qjz9qVk';
-const GALIA_DESK_RPC = 'https://api.mainnet-beta.solana.com';
+const GALIA_DESK_RPC = 'https://api.mainnet.solana.com';
+
+function galia_desk_rpc($method, $params, $timeout = 20) {
+    $urls = array(
+        'https://api.mainnet.solana.com',
+        'https://api.mainnet-beta.solana.com',
+    );
+    $errors = array();
+    foreach ($urls as $url) {
+        $response = wp_remote_post($url, array(
+            'timeout' => $timeout,
+            'headers' => array('Content-Type' => 'application/json'),
+            'body' => wp_json_encode(array(
+                'jsonrpc' => '2.0',
+                'id' => 1,
+                'method' => $method,
+                'params' => $params,
+            )),
+        ));
+        if (is_wp_error($response)) {
+            $errors[] = $url . ': ' . $response->get_error_message();
+            continue;
+        }
+        $code = (int) wp_remote_retrieve_response_code($response);
+        $json = json_decode(wp_remote_retrieve_body($response), true);
+        if ($code < 200 || $code >= 300 || !is_array($json)) {
+            $errors[] = $url . ': HTTP ' . $code;
+            continue;
+        }
+        if (isset($json['error']['message'])) {
+            $errors[] = $url . ': ' . $json['error']['message'];
+            continue;
+        }
+        $GLOBALS['galia_desk_rpc_error'] = '';
+        return $json;
+    }
+    $GLOBALS['galia_desk_rpc_error'] = implode(' · ', $errors);
+    return null;
+}
 
 function galia_desk_show($mint) {
     static $shows = null;
@@ -100,24 +138,6 @@ function galia_desk_remote_json($url, $args = array()) {
     }
     $code = wp_remote_retrieve_response_code($response);
     if ($code < 200 || $code >= 300) {
-        return null;
-    }
-    $json = json_decode(wp_remote_retrieve_body($response), true);
-    return is_array($json) ? $json : null;
-}
-
-function galia_desk_rpc($method, $params, $timeout = 20) {
-    $response = wp_remote_post(GALIA_DESK_RPC, array(
-        'timeout' => $timeout,
-        'headers' => array('Content-Type' => 'application/json'),
-        'body' => wp_json_encode(array(
-            'jsonrpc' => '2.0',
-            'id' => 1,
-            'method' => $method,
-            'params' => $params,
-        )),
-    ));
-    if (is_wp_error($response)) {
         return null;
     }
     $json = json_decode(wp_remote_retrieve_body($response), true);
@@ -752,6 +772,14 @@ function galia_desk_wallet($owner) {
         }
         $card = isset($crew_index[$mint]) ? $crew_index[$mint] : null;
         $name = $card ? $card['name'] : (isset($meta['name']) ? $meta['name'] : '');
+        foreach ($traits as $trait) {
+            if (isset($trait['trait']) && strcasecmp((string) $trait['trait'], 'name') === 0) {
+                $given = (string) $trait['value'];
+                if ($given !== '' && stripos($given, 'crew') !== 0) {
+                    $name = $given;
+                }
+            }
+        }
         $symbol = isset($meta['symbol']) ? $meta['symbol'] : '';
         if (!$card && !galia_desk_is_crew($name, $symbol, $traits)) {
             continue;
@@ -822,7 +850,9 @@ function galia_desk_wallet($owner) {
         'owner' => $owner,
         'items' => $items,
         'profiles' => $game['profiles'],
-        'note' => 'Экипаж снят с инвентаря ключа: официальные карточки Galaxy и NFT, которые реестр помечает как crew. Если человек уже в Starbase, на адресе его нет. '
+        'note' => (empty($items) && !empty($GLOBALS['galia_desk_rpc_error'])
+            ? 'RPC с этого хоста не отдал кошелёк: ' . $GLOBALS['galia_desk_rpc_error'] . ' '
+            : 'Экипаж снят с инвентаря ключа: официальные карточки Galaxy и NFT, которые реестр помечает как crew. Если человек уже в Starbase, на адресе его нет. ')
             . $game['note'],
     );
 }
