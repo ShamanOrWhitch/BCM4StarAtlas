@@ -6,7 +6,11 @@ const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const GM = "traderDnaR5w6Tcoi3NFm53i48FTDNbGjBSZwWXDRrg";
 const TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const TOKEN_22 = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
-const RPCS = ["https://solana-rpc.publicnode.com", "https://api.mainnet-beta.solana.com"];
+const RPCS = [
+  "https://api.mainnet.solana.com",
+  "https://api.mainnet-beta.solana.com",
+  "https://solana-rpc.publicnode.com",
+];
 const KEEP = new Set(["consumable", "raw material", "component", "compound material", "material bundle", "contracts", "data"]);
 const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
@@ -113,15 +117,29 @@ async function catalog(): Promise<Cat[]> {
 
 type Side = { ask: number | null; bid: number | null; asks: BookLevel[]; bids: BookLevel[] };
 
-async function book(currency: string, decimals: number): Promise<Map<string, Side>> {
-  const result = await rpc<Array<{ account?: { data?: [string, string] } }>>("getProgramAccounts", [
+async function book(currency: string, decimals: number, retries = currency === USDC ? 4 : 1): Promise<Map<string, Side>> {
+  const params = [
     GM,
     {
       encoding: "base64",
       dataSlice: { offset: 40, length: 153 },
       filters: [{ dataSize: 201 }, { memcmp: { offset: 40, bytes: currency } }],
     },
-  ]);
+  ];
+  let result: Array<{ account?: { data?: [string, string] } }> = [];
+  for (let pass = 0; pass < retries; pass += 1) {
+    try {
+      result = await rpc<Array<{ account?: { data?: [string, string] } }>>("getProgramAccounts", params);
+      if (result.length > 0 || currency !== USDC) break;
+    } catch {
+      if (pass + 1 >= retries) {
+        throw new Error("USDC orderbook RPC не ответил после нескольких попыток");
+      }
+    }
+    if (currency === USDC && pass + 1 < retries) {
+      await new Promise((resolve) => setTimeout(resolve, 350 * (pass + 1)));
+    }
+  }
   const bags = new Map<string, { asks: BookLevel[]; bids: BookLevel[] }>();
   const scale = 10 ** decimals;
   for (const row of result) {
@@ -191,9 +209,9 @@ export async function directMarket(): Promise<MarketSnap> {
     ).catch(() => ({}) as Record<string, { usdPrice?: number; priceChange24h?: number }>),
     candles("ATLASUSD").catch(() => []),
     candles("POLISUSD").catch(() => []),
-    withTimeout(book(USDC, 6), 14000),
-    withTimeout(book(ATLAS, 8), 14000),
-    withTimeout(book(POLIS, 8), 14000),
+    withTimeout(book(USDC, 6, 4), 60_000),
+    withTimeout(book(ATLAS, 8, 2), 24_000),
+    withTimeout(book(POLIS, 8, 2), 24_000),
   ]);
   const resources: ResourceRow[] = [];
   const ships: ResourceRow[] = [];
