@@ -226,7 +226,7 @@ export function MarketPage() {
           )}
 
           <div className="flex gap-2">
-            {(["USDC", "ATLAS", "POLIS"] as const).map((item) => (
+            {(["USDC", "ATLAS"] as const).map((item) => (
               <button
                 key={item}
                 type="button"
@@ -236,6 +236,7 @@ export function MarketPage() {
                 {item}
               </button>
             ))}
+
           </div>
           <BubbleField title={quote === "USDC" ? "Ресурсы · USDC, без USDC показывается реальный ATLAS" : `Ресурсы · ${quote}`} rows={viewRows.filter((row) => row.ask != null)} previous={previous} />
           <BubbleField title={`Корабли · ${quote}`} rows={viewShips} previous={previous} />
