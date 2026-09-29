@@ -42,9 +42,7 @@ function priced(row: ResourceRow, quote: "USDC" | "ATLAS" | "POLIS"): ResourceRo
   });
   if (quote === "ATLAS") return pack(row.atlasAsk, row.atlasBid, "ATLAS");
   if (quote === "POLIS") return pack(row.polisAsk, row.polisBid, "POLIS");
-  if (row.usdcAsk != null || row.usdcBid != null) return pack(row.usdcAsk, row.usdcBid, "USDC");
-  if (row.atlasAsk != null || row.atlasBid != null) return pack(row.atlasAsk, row.atlasBid, "ATLAS");
-  return pack(row.polisAsk, row.polisBid, "POLIS");
+  return pack(row.usdcAsk, row.usdcBid, "USDC");
 }
 function money(row: ResourceRow): string {
   const n = row.ask ?? row.bid;
