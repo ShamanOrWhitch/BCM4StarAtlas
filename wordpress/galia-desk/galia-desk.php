@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.8.7
+ * Version: 0.8.8
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
