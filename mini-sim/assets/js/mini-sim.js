@@ -188,10 +188,23 @@
               '</option>';
           })
       ).join("");
-      return '<label>P' + (index + 1) +
-        '<select data-crew-slot="' + index + '">' +
-        options +
-        '</select></label>';
+      const crew = crewRoster.find((item) => item.id === wanted) || crewRoster[index] || null;
+      const rarity = String(crew?.rarity || "common").toLowerCase().replace(/[^a-z]/g, "");
+      const image = crew?.image
+        ? '<img class="bcm-mini-sim-crew-slot-image" src="' + escapeHtml(crew.image) + '" alt="">'
+        : '<span class="bcm-mini-sim-crew-slot-image bcm-mini-sim-crew-slot-empty">CREW</span>';
+      const meta = crew
+        ? escapeHtml((crew.species || "Раса —") + " · " + (Array.isArray(crew.profession) && crew.profession.length ? crew.profession.join(", ") : "Профессия —"))
+        : "Команда не назначена";
+      return '<label class="bcm-mini-sim-crew-slot-card rarity-' + rarity + '">' +
+        image +
+        '<span class="bcm-mini-sim-crew-slot-main">' +
+          '<span class="bcm-mini-sim-crew-slot-player">P' + (index + 1) + '</span>' +
+          '<strong>' + escapeHtml(crew?.name || "Без Crew") + '</strong>' +
+          '<span>' + meta + '</span>' +
+          '<select data-crew-slot="' + index + '">' + options + '</select>' +
+        '</span>' +
+      '</label>';
     }).join("");
 
     crewSlotSelects = [...crewSlotContainer.querySelectorAll("[data-crew-slot]")];
