@@ -364,8 +364,15 @@
       throw new Error(json?.error || ("Render wallet API HTTP " + response.status));
     }
 
-    const data = json || {};
-    const items = Array.isArray(data.items) ? data.items : [];
+    const data = json?.data && typeof json.data === "object" && Array.isArray(json.data.items)
+      ? json.data
+      : json;
+
+    if (!data || !Array.isArray(data.items) || !data.owner) {
+      throw new Error("Render wallet API вернул неполный ответ.");
+    }
+
+    const items = data.items;
     const crew = items.filter((item) => item?.kind === "crew");
     const inventory = items.filter((item) => item?.kind !== "crew");
 
@@ -373,6 +380,7 @@
       owner: String(data.owner || owner),
       crew,
       inventory,
+      profiles: Array.isArray(data.profiles) ? data.profiles : [],
       counts: {
         crew: crew.length,
         ship: inventory.filter((item) => item?.kind === "ship").length,
@@ -381,7 +389,7 @@
         nft: inventory.filter((item) => item?.kind === "nft").length,
         other: inventory.filter((item) => !["ship", "resource", "structure", "nft"].includes(item?.kind)).length
       },
-      errors: [],
+      errors: data.rpcWarning ? [String(data.rpcWarning)] : [],
       source: "render-wallet-scan",
       ok: true,
       server: true
