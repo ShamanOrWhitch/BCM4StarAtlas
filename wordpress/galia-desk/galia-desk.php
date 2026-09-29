@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.8.3
+ * Version: 0.8.4
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -16,6 +16,7 @@ const GALIA_DESK_ATLAS = 'ATLASXmbPQxBUYbxPsV97usA3fPQYEqzQBUHgiFCUsXx';
 const GALIA_DESK_USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 const GALIA_DESK_POLIS = 'poLisWXnNRwC6oBu1vHiuKQzFjGL4XDSu4g9qjz9qVk';
 const GALIA_DESK_RPC = 'https://api.mainnet.solana.com';
+const GALIA_DESK_BACKEND = 'https://bcm4staratlas.onrender.com/api/wallet-scan';
 
 function galia_desk_rpc($method, $params, $timeout = 20) {
     $urls = array(
@@ -936,6 +937,47 @@ function galia_desk_fleets($profile) {
     return $out;
 }
 
+function galia_desk_render_wallet_scan($owner) {
+    $owner = trim((string) $owner);
+    if (!preg_match('/^[1-9A-HJ-NP-Za-km-z]{32,44}$/', $owner)) {
+        return new WP_Error('galia_owner', 'Нужен публичный ключ Solana.');
+    }
+
+    $response = wp_remote_post(GALIA_DESK_BACKEND, array(
+        'timeout' => 45,
+        'headers' => array(
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+        ),
+        'body' => wp_json_encode(array('owner' => $owner)),
+    ));
+
+    if (is_wp_error($response)) {
+        return new WP_Error(
+            'galia_backend',
+            'Render wallet API: ' . $response->get_error_message()
+        );
+    }
+
+    $code = (int) wp_remote_retrieve_response_code($response);
+    $body = wp_remote_retrieve_body($response);
+    $json = json_decode($body, true);
+
+    if ($code < 200 || $code >= 300 || !is_array($json)) {
+        return new WP_Error(
+            'galia_backend_http',
+            'Render wallet API HTTP ' . $code
+        );
+    }
+
+    if (!isset($json['owner'])) {
+        $message = isset($json['error']) ? (string) $json['error'] : 'Render wallet API вернул неполный ответ.';
+        return new WP_Error('galia_backend_data', $message);
+    }
+
+    return $json;
+}
+
 function galia_desk_ajax_market() {
     check_ajax_referer('galia_desk', 'nonce');
     wp_send_json_success(galia_desk_market());
@@ -943,7 +985,7 @@ function galia_desk_ajax_market() {
 
 function galia_desk_ajax_wallet() {
     check_ajax_referer('galia_desk', 'nonce');
-    $scan = galia_desk_wallet(isset($_POST['owner']) ? sanitize_text_field(wp_unslash($_POST['owner'])) : '');
+    $scan = galia_desk_render_wallet_scan(isset($_POST['owner']) ? sanitize_text_field(wp_unslash($_POST['owner'])) : '');
     if (is_wp_error($scan)) {
         wp_send_json_error(array('message' => $scan->get_error_message()), 400);
     }
