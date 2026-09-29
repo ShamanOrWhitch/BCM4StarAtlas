@@ -53,7 +53,46 @@ const KNOWN_FUNGIBLE: Record<string, { name: string; symbol: string }> = {
 };
 
 const connection = new Connection(RPC_URL, "confirmed");
+const marketConnections = [
+  connection,
+  new Connection("https://api.mainnet.solana.com", "confirmed"),
+  new Connection("https://solana-rpc.publicnode.com", "confirmed"),
+];
 const serverTape: TapePoint[] = [];
+
+async function marketProgramAccounts(
+  mint: string,
+  maxPasses = mint === USDC ? 3 : 1,
+): Promise<Awaited<ReturnType<Connection["getProgramAccounts"]>>[number][]> {
+  const args = {
+    commitment: "confirmed" as const,
+    dataSlice: { offset: 40, length: 153 },
+    filters: [{ dataSize: 201 }, { memcmp: { offset: 40, bytes: mint } }],
+  };
+  let lastError: unknown = null;
+
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    for (const client of marketConnections) {
+      try {
+        const rows = await Promise.race([
+          client.getProgramAccounts(new PublicKey(GM), args),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("market RPC timeout")), mint === USDC ? 22000 : 12000),
+          ),
+        ]);
+        if (rows.length > 0 || mint !== USDC) return rows;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (mint === USDC && pass + 1 < maxPasses) {
+      await new Promise((resolve) => setTimeout(resolve, 250 * (pass + 1)));
+    }
+  }
+
+  void lastError;
+  return [];
+}
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { headers: { accept: "application/json" } });
@@ -231,11 +270,6 @@ export async function buildMarket(): Promise<MarketSnap> {
   const atlasHex = new PublicKey(ATLAS).toBuffer().toString("hex");
   const usdcHex = new PublicKey(USDC).toBuffer().toString("hex");
   const polisHex = new PublicKey(POLIS).toBuffer().toString("hex");
-  const bookArgs = (mint: string) => ({
-    commitment: "confirmed" as const,
-    dataSlice: { offset: 40, length: 153 },
-    filters: [{ dataSize: 201 }, { memcmp: { offset: 40, bytes: mint } }],
-  });
   const [nfts, atlasTok, polisTok, prices, orders, usdcOrders, polisOrders, candles, polisCandles, atlasPool, polisPool] = await Promise.all([
     loadCatalog(),
     getJson<Record<string, number | string>>("https://galaxy.staratlas.com/tokens/atlas").catch(() => null),
@@ -243,9 +277,9 @@ export async function buildMarket(): Promise<MarketSnap> {
     getJson<Record<string, { usdPrice?: number; priceChange24h?: number }>>(
       `https://lite-api.jup.ag/price/v3?ids=${ATLAS},${POLIS}`,
     ).catch(() => ({}) as Record<string, { usdPrice?: number; priceChange24h?: number }>),
-    connection.getProgramAccounts(new PublicKey(GM), bookArgs(ATLAS)).catch(() => []),
-    connection.getProgramAccounts(new PublicKey(GM), bookArgs(USDC)).catch(() => []),
-    connection.getProgramAccounts(new PublicKey(GM), bookArgs(POLIS)).catch(() => []),
+    marketProgramAccounts(ATLAS),
+    marketProgramAccounts(USDC, 4),
+    marketProgramAccounts(POLIS),
     atlasCandles(),
     krakenCandles("POLISUSD"),
     poolCandles("2bnZ1edbvK3CK3LTNZ5jH9anvXYCmzPR4W2HQ6Ngsv5K"),
