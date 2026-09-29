@@ -669,6 +669,12 @@ async function ownOrders(owner: string, catalog: Map<string, CatItem>): Promise<
       rarity: known.rarity,
       spec: "мой ордер",
       traits: [],
+      description: known.description,
+      gallery: known.gallery,
+      make: known.make,
+      crew: known.crew,
+      slots: known.slots,
+      msrp: known.msrp,
     });
   }
   return out;
@@ -708,6 +714,12 @@ export async function scanWallet(ownerText: string): Promise<WalletScan> {
         rarity: known.rarity,
         spec: known.spec,
         traits: [],
+        description: known.description,
+        gallery: known.gallery,
+        make: known.make,
+        crew: known.crew,
+        slots: known.slots,
+        msrp: known.msrp,
       });
       continue;
     }
