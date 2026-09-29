@@ -60,7 +60,7 @@ export function AppNav({
             <span className="hidden lg:inline">{label}</span>
           </>
         );
-        if (window.GALIA_WP) {
+        if (typeof window !== "undefined" && window.GALIA_WP) {
           return (
             <a key={id} href={to === "/" ? "#/" : `#${to}`} className={className}>
               {inner}
