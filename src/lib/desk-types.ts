@@ -75,6 +75,12 @@ export type WalletItem = {
   rarity: string;
   spec: string;
   traits: WalletTrait[];
+  description?: string;
+  gallery?: string[];
+  make?: string;
+  crew?: number;
+  slots?: string[];
+  msrp?: number | null;
 };
 
 export type FleetPeek = { name: string; faction: number };
