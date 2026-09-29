@@ -631,6 +631,77 @@
   opacity: .8;
 }
 
+.bcm-mini-sim-crew-slot-card{
+  display:grid;
+  grid-template-columns:58px minmax(0,1fr);
+  gap:10px;
+  align-items:center;
+  min-width:0;
+  padding:8px;
+  border:2px solid rgba(232,238,242,.14);
+  border-radius:12px;
+  background:#10141c;
+  cursor:pointer;
+  transition:border-color .15s, background .15s, transform .15s;
+}
+.bcm-mini-sim-crew-slot-card:hover{
+  background:#151c26;
+  transform:translateY(-1px);
+}
+.bcm-mini-sim-crew-slot-card.rarity-anomaly{border-color:rgba(232,92,255,.68)}
+.bcm-mini-sim-crew-slot-card.rarity-legendary{border-color:rgba(226,182,87,.68)}
+.bcm-mini-sim-crew-slot-card.rarity-epic{border-color:rgba(160,107,255,.68)}
+.bcm-mini-sim-crew-slot-card.rarity-rare{border-color:rgba(76,141,255,.68)}
+.bcm-mini-sim-crew-slot-card.rarity-uncommon{border-color:rgba(61,186,122,.68)}
+.bcm-mini-sim-crew-slot-card.rarity-common{border-color:rgba(107,114,128,.55)}
+.bcm-mini-sim-crew-slot-image{
+  width:58px;
+  height:58px;
+  border-radius:9px;
+  object-fit:cover;
+  background:#080c12;
+}
+.bcm-mini-sim-crew-slot-empty{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#687683;
+  font:700 9px/1 Arial,sans-serif;
+}
+.bcm-mini-sim-crew-slot-main{
+  display:grid;
+  gap:3px;
+  min-width:0;
+}
+.bcm-mini-sim-crew-slot-main strong{
+  font:600 15px/1.15 Arial,sans-serif;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.bcm-mini-sim-crew-slot-main > span:not(.bcm-mini-sim-crew-slot-player){
+  color:#aab5bf;
+  font-size:10px;
+  line-height:1.3;
+  white-space:normal;
+}
+.bcm-mini-sim-crew-slot-player{
+  color:#c4a35a;
+  font:700 9px/1 Arial,sans-serif;
+  letter-spacing:.15em;
+}
+.bcm-mini-sim-crew-slot-card select{
+  width:100%;
+  min-height:38px;
+  margin-top:4px;
+  padding:7px 9px;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:8px;
+  background:#08111b;
+  color:#fff;
+  font:12px/1.2 Arial,sans-serif;
+}
+
 .bcm-mini-sim-crew-preflight-grid select {
   width: 100%;
   min-height: 42px;
