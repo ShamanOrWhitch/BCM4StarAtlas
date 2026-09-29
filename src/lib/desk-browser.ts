@@ -92,11 +92,45 @@ function snapFromPhp(data: Record<string, unknown>): MarketSnap {
   };
 }
 
+const RENDER_WALLET = "https://bcm4staratlas.onrender.com/api/wallet-scan";
+
+async function renderWallet(owner: string): Promise<WalletScan> {
+  const res = await fetch(RENDER_WALLET, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({ owner }),
+    signal: AbortSignal.timeout(45_000),
+  });
+  const json = (await res.json()) as WalletScan & { error?: string };
+  if (!res.ok) throw new Error(json.error || `Render wallet API HTTP ${res.status}`);
+  if (!json.owner || !Array.isArray(json.items)) throw new Error("Render wallet API вернул неполный ответ.");
+  return {
+    owner: String(json.owner),
+    at: Number(json.at ?? Date.now()),
+    items: json.items,
+    skippedMeta: Number(json.skippedMeta ?? 0),
+    profiles: Array.isArray(json.profiles) ? json.profiles : [],
+    rpcWarning: String(json.rpcWarning ?? ""),
+    note: String(json.note ?? "Кошелёк прочитан через Render wallet scan."),
+  };
+}
+
 export async function scanDeskWallet({ data }: { data: { owner: string } }): Promise<WalletScan> {
+  let renderError: Error | null = null;
+  try {
+    return await renderWallet(data.owner);
+  } catch (err) {
+    renderError = err instanceof Error ? err : new Error("Render wallet scan failed");
+  }
+
   const direct = await directWallet(data.owner);
   if (direct.items.length || !direct.rpcWarning) return direct;
-  const viaSite = await withTimeout(post("galia_desk_wallet", { owner: data.owner }), 12000);
-  if (!viaSite) return direct;
+
+  const viaSite = await withTimeout(post("galia_desk_wallet", { owner: data.owner }), 12_000);
+  if (!viaSite) {
+    throw new Error(renderError ? `${renderError.message} · ${direct.rpcWarning || "прямой RPC не дал данных"}` : (direct.rpcWarning || "Кошелёк не прочитался"));
+  }
+
   const profiles = Array.isArray(viaSite.profiles) ? viaSite.profiles : [];
   return {
     owner: String(viaSite.owner ?? data.owner),
