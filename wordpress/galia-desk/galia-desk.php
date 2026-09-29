@@ -58,12 +58,12 @@ function galia_desk_rpc($method, $params, $timeout = 20) {
 
 function galia_desk_usdc_rpc($method, $params, $timeout = 20) {
     $urls = array(
-        'https://solana-rpc.publicnode.com',
         'https://api.mainnet.solana.com',
         'https://api.mainnet-beta.solana.com',
+        'https://solana-rpc.publicnode.com',
     );
     $errors = array();
-    for ($pass = 0; $pass < 2; $pass++) {
+    for ($pass = 0; $pass < 4; $pass++) {
         foreach ($urls as $url) {
             $response = wp_remote_post($url, array(
                 'timeout' => $timeout,
