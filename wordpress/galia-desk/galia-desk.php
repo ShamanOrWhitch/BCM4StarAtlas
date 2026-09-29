@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.8.5
+ * Version: 0.8.6
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -1037,6 +1037,27 @@ function galia_desk_shortcode() {
       .galia-desk table{width:100%;border-collapse:collapse;font-size:.9rem}
       .galia-desk th,.galia-desk td{text-align:left;padding:.45rem .4rem;border-top:1px solid rgba(232,238,242,.12)}
       .galia-desk-card{border:1px solid rgba(232,238,242,.12);border-radius:10px;padding:.6rem .75rem;margin:.4rem 0;background:#10141c}
+      .galia-wallet-section{margin-top:.9rem}
+      .galia-wallet-section h4{margin:.25rem 0 .45rem;color:#c4a35a;letter-spacing:.06em}
+      .galia-wallet-card{display:flex;gap:.65rem;align-items:flex-start;border:1px solid rgba(232,238,242,.12);border-radius:10px;padding:.55rem .65rem;margin:.45rem 0;background:#10141c}
+      .galia-wallet-image{width:64px;height:64px;object-fit:cover;border-radius:8px;flex:0 0 64px;background:#080c12}
+      .galia-wallet-empty{display:flex;align-items:center;justify-content:center;font:700 10px/1 Arial;color:#8b96a3}
+      .galia-wallet-main{min-width:0}
+      .galia-wallet-meta{color:#aab5bf;font-size:.82rem;margin-top:.18rem}
+      .galia-wallet-mint{color:#687683;font:10px/1.3 ui-monospace,monospace;margin-top:.22rem;overflow-wrap:anywhere}
+      .galia-wallet-thumb{width:48px;height:48px;flex:0 0 48px}
+      .galia-wallet-thumb img{width:48px;height:48px;object-fit:cover;border-radius:7px}
+      .galia-fleet-list{display:grid;gap:.45rem}
+      .galia-fleet-row{display:grid;grid-template-columns:64px 48px minmax(0,1fr);gap:.55rem;align-items:center;border:1px solid rgba(232,238,242,.12);border-radius:10px;padding:.45rem .55rem;background:#10141c}
+      .galia-fleet-row input{min-width:0;width:64px;flex:none;flex:0 0 64px}
+      .galia-fleet-main{display:grid;gap:.12rem;min-width:0}
+      .galia-fleet-main span{color:#aab5bf;font-size:.78rem}
+      .galia-fleet-summary{display:flex;gap:.7rem;flex-wrap:wrap;margin-top:.55rem;padding:.6rem .7rem;border:1px solid rgba(196,163,90,.35);border-radius:9px;background:rgba(196,163,90,.05)}
+      .galia-fleet-summary span{color:#aab5bf}
+      .galia-player-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.45rem;margin-top:.55rem}
+      .galia-player-grid label{display:grid;gap:.25rem;color:#aab5bf;font-size:.75rem}
+      .galia-player-grid select{width:100%;min-width:0;height:40px;border:1px solid rgba(232,238,242,.18);border-radius:8px;background:#0d1219;color:#e8eef2;padding:0 .45rem}
+      @media (max-width:620px){.galia-fleet-row{grid-template-columns:58px 42px minmax(0,1fr)}.galia-wallet-image{width:54px;height:54px;flex-basis:54px}}
     </style>
     <script>
       (function () {
@@ -1159,36 +1180,207 @@ function galia_desk_shortcode() {
               return json;
             });
           }).then(function (json) {
-            var items = (json.data.items || []).slice().sort(function (a, b) {
-              var rank = { Anomaly: 0, Legendary: 1, Epic: 2, Rare: 3, Uncommon: 4, Common: 5 };
-              var ar = a.kind === "crew" ? (rank[a.rarity] == null ? 9 : rank[a.rarity]) : 20;
-              var br = b.kind === "crew" ? (rank[b.rarity] == null ? 9 : rank[b.rarity]) : 20;
-              return ar - br;
+            var data = json && json.data && Array.isArray(json.data.items) ? json.data : json;
+            if (!data || !Array.isArray(data.items)) {
+              throw new Error("Render wallet API вернул ответ без inventory.");
+            }
+
+            function esc(value) {
+              return String(value == null ? "" : value)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+            }
+            function shortMint(value) {
+              var text = String(value || "");
+              return text.length > 14 ? text.slice(0, 7) + "…" + text.slice(-7) : text;
+            }
+            function traitValue(item, wanted) {
+              var traits = Array.isArray(item.traits) ? item.traits : [];
+              var hit = traits.find(function (row) {
+                return row && String(row.trait || "").toLowerCase() === wanted.toLowerCase();
+              });
+              return hit ? String(hit.value || "") : "";
+            }
+            function aptitudeRows(item) {
+              var names = [];
+              (item.traits || []).forEach(function (trait) {
+                if (!trait) return;
+                var name = String(trait.trait || "");
+                if (/^(command|flight|operator|engineering|medical|science|fitness|hospitality)$/i.test(name)) {
+                  if (!names.some(function (row) { return row.name.toLowerCase() === name.toLowerCase(); })) {
+                    names.push({ name: name, value: String(trait.value || "") });
+                  }
+                }
+              });
+              var labels = {
+                Command: "Командир",
+                Flight: "Пилот",
+                Operator: "Оператор",
+                Engineering: "Инженер",
+                Medical: "Медик",
+                Science: "Учёный",
+                Fitness: "Боец",
+                Hospitality: "Обслуживание"
+              };
+              return names.map(function (row) {
+                return (labels[row.name] || row.name) + " " + row.value;
+              });
+            }
+
+            var items = data.items.slice().sort(function (a, b) {
+              var rank = { crew: 0, ship: 1, structure: 2, resource: 3, nft: 4, other: 5 };
+              return (rank[a.kind] == null ? 9 : rank[a.kind]) - (rank[b.kind] == null ? 9 : rank[b.kind]);
             });
-            var profiles = json.data.profiles || [];
+            var crews = items.filter(function (item) { return item.kind === "crew"; });
+            var ships = items.filter(function (item) { return item.kind === "ship" && item.spec !== "мой ордер"; });
+            var inventory = items.filter(function (item) { return item.kind !== "crew" && item.kind !== "ship"; });
+
+            var profiles = data.profiles || [];
             var html = profiles.map(function (profile) {
               var fleets = (profile.fleets || []).map(function (fleet) {
-                return fleet.name + " · фракция " + fleet.faction;
+                return esc(fleet.name) + " · фракция " + esc(fleet.faction);
               }).join(", ") || "флотов не видно";
-              return '<div class="galia-desk-card"><strong>В игре</strong><br>' + profile.profile + '<br>' + fleets + '</div>';
+              return '<div class="galia-desk-card"><strong>В игре</strong><br><code>' + esc(profile.profile) + '</code><br>' + fleets + '</div>';
             }).join("");
-            html += items.map(function (item) {
-              var media = item.image ? '<img alt="" src="' + item.image + '" style="width:72px;height:72px;object-fit:cover;border-radius:8px" />' : '';
-              var jobs = (item.traits || []).filter(function (trait) {
-                return /flight|command|engineering|medical|science|fitness|hospitality|operator/i.test(trait.trait);
-              }).map(function (trait) {
-                return trait.trait + " " + (/minor|25/i.test(String(trait.value)) ? "minor" : "major");
-              }).join(" · ");
-              var line = item.kind === "crew"
-                ? ((item.rarity || "") + (jobs ? " · " + jobs : ""))
-                : ("×" + num(item.amount) + (item.spec === "мой ордер" ? " · в продаже" : "") + (item.quote ? " · " + item.quote : ""));
-              return '<div class="galia-desk-card" style="display:flex;gap:.6rem;align-items:flex-start">' + media + '<div><strong>' + item.name + '</strong><div>' + line + '</div></div></div>';
-            }).join("");
-            if (!items.length) html += "<p>На ключе нет токенов Star Atlas. Подпись это не лечит: груз игры и экипаж в крио SAGE лежат не на адресе.</p>";
+
+            if (crews.length) {
+              html += '<div class="galia-wallet-section"><h4>Экипаж · ' + crews.length + '</h4>';
+              html += crews.map(function (item) {
+                var ocean = [
+                  traitValue(item, "Openness"),
+                  traitValue(item, "Conscientiousness"),
+                  traitValue(item, "Extraversion"),
+                  traitValue(item, "Agreeableness"),
+                  traitValue(item, "Neuroticism")
+                ];
+                var aptitudes = aptitudeRows(item);
+                var media = item.image ? '<img alt="" src="' + esc(item.image) + '" class="galia-wallet-image" />' : '<div class="galia-wallet-image galia-wallet-empty">CREW</div>';
+                return '<div class="galia-wallet-card">' +
+                  media +
+                  '<div class="galia-wallet-main"><strong>' + esc(item.name) + '</strong>' +
+                  '<div class="galia-wallet-meta">' + esc(item.rarity || "Rarity —") + ' · ' + esc(item.spec || "Раса —") + '</div>' +
+                  '<div class="galia-wallet-meta">OCEAN · ' + esc(ocean.join(" / ") || "—") + '</div>' +
+                  '<div class="galia-wallet-meta">' + esc(aptitudes.join(" · ") || "Профессии —") + '</div>' +
+                  '<div class="galia-wallet-mint">' + esc(shortMint(item.mint)) + '</div></div></div>';
+              }).join("");
+              html += '</div>';
+            }
+
+            var selected = {};
+            if (ships.length) {
+              var opal = ships.find(function (item) { return /opal\s*jetjet/i.test(String(item.name || "")); });
+              if (opal) selected[opal.mint] = Math.min(1, Number(opal.amount || 1));
+              html += '<div class="galia-wallet-section"><h4>Флот для игры</h4>' +
+                '<p class="galia-desk-note">Место Crew на корабле = потенциальное число игроков. Можно собрать несколько кораблей в один игровой флот.</p>' +
+                '<div class="galia-fleet-list">';
+              ships.forEach(function (ship) {
+                var max = Math.max(0, Math.floor(Number(ship.amount || 1)));
+                var value = selected[ship.mint] || 0;
+                var slots = Number(ship.crew || 0);
+                var slotText = slots ? (slots + " игроков") : "вместимость не указана";
+                var specs = [
+                  ship.className,
+                  ship.spec,
+                  ship.make,
+                  Array.isArray(ship.slots) && ship.slots.length ? ship.slots.join(", ") : ""
+                ].filter(Boolean).join(" · ");
+                html += '<label class="galia-fleet-row">' +
+                  '<input type="number" min="0" max="' + max + '" value="' + value + '" data-galia-ship-qty data-mint="' + esc(ship.mint) + '" data-crew="' + slots + '" data-name="' + esc(ship.name) + '">' +
+                  '<span class="galia-wallet-thumb">' + (ship.image ? '<img alt="" src="' + esc(ship.image) + '" />' : '') + '</span>' +
+                  '<span class="galia-fleet-main"><strong>' + esc(ship.name) + '</strong>' +
+                  '<span>' + esc(ship.rarity || "") + ' · ' + esc(slotText) + '</span>' +
+                  '<span>' + esc(specs || "параметры корабля доступны") + '</span>' +
+                  '<span class="galia-wallet-mint">' + esc(shortMint(ship.mint)) + '</span></span></label>';
+              });
+              html += '</div><div data-galia-fleet-summary></div><div data-galia-player-slots></div></div>';
+            }
+
+            if (inventory.length) {
+              html += '<div class="galia-wallet-section"><h4>Остальной инвентарь · ' + inventory.length + '</h4>';
+              html += inventory.map(function (item) {
+                var media = item.image ? '<img alt="" src="' + esc(item.image) + '" class="galia-wallet-image" />' : '';
+                var details = [
+                  item.kind,
+                  item.rarity,
+                  item.className,
+                  item.spec,
+                  "×" + num(item.amount)
+                ].filter(Boolean).join(" · ");
+                return '<div class="galia-wallet-card">' + media + '<div><strong>' + esc(item.name) + '</strong><div class="galia-wallet-meta">' + esc(details) + '</div><div class="galia-wallet-mint">' + esc(shortMint(item.mint)) + '</div></div></div>';
+              }).join("");
+              html += '</div>';
+            }
+
+            if (!items.length) {
+              html += "<p>На ключе не найден инвентарь Star Atlas. Для игры без кошелька используется Opal Jetjet на 2 места.</p>";
+            }
+
+            html += "<p class='galia-desk-note'>" + esc(data.note || "") + "</p>";
             hold.innerHTML = html;
-            hold.insertAdjacentHTML("beforeend", "<p class='galia-desk-note'>" + (json.data.note || "") + "</p>");
+
+            var fleetSummary = root.querySelector("[data-galia-fleet-summary]");
+            var playerSlots = root.querySelector("[data-galia-player-slots]");
+            function renderFleetBuilder() {
+              if (!fleetSummary || !playerSlots) return;
+              var rows = Array.from(root.querySelectorAll("[data-galia-ship-qty]"));
+              var totalCapacity = 0;
+              var chosenShips = [];
+              rows.forEach(function (input) {
+                var qty = Math.max(0, Number(input.value || 0));
+                var crewPer = Math.max(0, Number(input.getAttribute("data-crew") || 0));
+                if (qty > 0) {
+                  totalCapacity += qty * crewPer;
+                  chosenShips.push({
+                    mint: input.getAttribute("data-mint") || "",
+                    name: input.getAttribute("data-name") || "",
+                    quantity: qty,
+                    crew: crewPer
+                  });
+                }
+              });
+              var maxPlayers = totalCapacity > 0 ? totalCapacity : 2;
+              fleetSummary.innerHTML =
+                '<div class="galia-fleet-summary"><strong>Игроков доступно: ' + maxPlayers + '</strong>' +
+                '<span>кораблей: ' + chosenShips.length + ' · мест Crew: ' + totalCapacity + '</span></div>';
+
+              var options = '<option value="">— без Crew —</option>' + crews.map(function (crew) {
+                return '<option value="' + esc(crew.mint) + '">' + esc(crew.name) + ' · ' + esc(crew.spec || "раса —") + '</option>';
+              }).join("");
+              playerSlots.innerHTML = '<div class="galia-player-grid">' +
+                Array.from({length: maxPlayers}, function (_, index) {
+                  var value = crews[index] ? crews[index].mint : "";
+                  return '<label>Игрок ' + (index + 1) + '<select data-galia-player><option value="">— без Crew —</option>' +
+                    crews.map(function (crew) {
+                      var selectedAttr = value === crew.mint ? ' selected' : '';
+                      return '<option value="' + esc(crew.mint) + '"' + selectedAttr + '>' + esc(crew.name) + '</option>';
+                    }).join("") + '</select></label>';
+                }).join("") + '</div>';
+
+              var config = {
+                owner: data.owner || "",
+                ships: chosenShips,
+                players: Array.from(root.querySelectorAll("[data-galia-player]")).map(function (select, index) {
+                  var crew = crews.find(function (item) { return item.mint === select.value; });
+                  return { slot: index + 1, crew: crew ? crew.mint : "", crewName: crew ? crew.name : "" };
+                }),
+                maxPlayers: maxPlayers
+              };
+              window.GALIA_FLEET = config;
+              document.dispatchEvent(new CustomEvent("galia-fleet-config", { detail: config }));
+            }
+
+            root.querySelectorAll("[data-galia-ship-qty]").forEach(function (input) {
+              input.addEventListener("input", renderFleetBuilder);
+              input.addEventListener("change", renderFleetBuilder);
+            });
+            renderFleetBuilder();
+
             window.GALIA_HOLDINGS = items;
+            window.GALIA_WALLET_SCAN = data;
             document.dispatchEvent(new CustomEvent("galia-holdings", { detail: items }));
+            document.dispatchEvent(new CustomEvent("galia-wallet-scan", { detail: data }));
           }).catch(function (err) { hold.textContent = err.message || "Кошелёк не прочитался."; });
         });
         root.querySelector("[data-galia-phantom]").addEventListener("click", function () {
