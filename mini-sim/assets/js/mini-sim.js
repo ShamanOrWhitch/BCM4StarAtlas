@@ -175,15 +175,22 @@
     const count = Math.max(2, Math.floor(playerCapacity || 2));
     crewSlotContainer.innerHTML = Array.from({ length: count }, (_, index) => {
       const wanted = String(crewSelection[index] || oldValues[index] || "");
-      const options = crewRoster.map((crew) => {
-        const selected = wanted === crew.id ? " selected" : "";
-        return '<option value="' + escapeHtml(crew.id) + '"' + selected + '>' +
-          escapeHtml(crewLabel(crew)) +
-          '</option>';
-      }).join("");
+      const usedByOthers = crewSelection
+        .filter((id, otherIndex) => otherIndex !== index && id)
+        .map((id) => String(id));
+      const options = ['<option value="">— без Crew —</option>'].concat(
+        crewRoster
+          .filter((crew) => !usedByOthers.includes(crew.id) || crew.id === wanted)
+          .map((crew) => {
+            const selected = wanted === crew.id ? " selected" : "";
+            return '<option value="' + escapeHtml(crew.id) + '"' + selected + '>' +
+              escapeHtml(crewLabel(crew)) +
+              '</option>';
+          })
+      ).join("");
       return '<label>P' + (index + 1) +
         '<select data-crew-slot="' + index + '">' +
-        (options || '<option value="">— без Crew —</option>') +
+        options +
         '</select></label>';
     }).join("");
 
@@ -353,7 +360,13 @@
       crewRoster[index]?.id || null
     );
     renderCrewPreflight();
-    crewSetStatus("Кошелёк " + String(scan.owner || "").slice(0, 6) + "… · Crew " + found.length + " · не demo.");
+    const fleetText = fleetCapacityData.ships.length
+      ? fleetCapacityData.ships.map((ship) => ship.name + " ×" + ship.quantity + " / " + ship.crew + " мест").join(" · ")
+      : "Opal Jetjet · 2 места";
+    crewSetStatus(
+      "Кошелёк " + String(scan.owner || "").slice(0, 6) + "… · Crew " + found.length +
+      " · игроков по флоту " + playerCapacity + " · " + fleetText
+    );
   }
 
   async function scanCrewAddress() {
