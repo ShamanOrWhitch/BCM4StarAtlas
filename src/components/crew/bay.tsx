@@ -163,6 +163,7 @@ export function CrewBay() {
   const [stars, setStars] = useState<string[]>(() => (typeof window === "undefined" ? [] : loadStars()));
   const [live, setLive] = useState<Crew[] | null>(null);
   const [holds, setHolds] = useState<FleetHold[]>([]);
+  const [walletItems, setWalletItems] = useState<WalletItem[]>([]);
   const source = live ?? CREW;
 
   const rows = useMemo(() => filterCrew(query, source), [query, source]);
@@ -209,6 +210,7 @@ export function CrewBay() {
           <HeldCrew
             onLive={(crew, items) => {
               setLive(crew);
+              setWalletItems(crew ? items : []);
               setHolds(crew ? walletFleet(items, crew) : []);
               setPicked(crew?.[0]?.id ?? CREW[0]?.id ?? null);
             }}
@@ -361,7 +363,38 @@ export function CrewBay() {
 
         {selected ? (
           <div className="hidden w-80 shrink-0 overflow-y-auto border-l border-line lg:block">
-            <Detail crew={selected} starred={stars.includes(selected.id)} onStar={() => toggleStar(selected.id)} />
+            <Detail
+              crew={selected}
+              starred={stars.includes(selected.id)}
+              onStar={() => toggleStar(selected.id)}
+              onPlay={() => {
+                const availableCrew = live ?? [
+                  selected,
+                  ...source.filter((crew) => crew.id !== selected.id).slice(0, 1),
+                ];
+                const ships = walletItems
+                  .filter((item) => item.kind === "ship" && item.spec !== "мой ордер")
+                  .map((item) => ({
+                    mint: item.mint,
+                    name: item.name,
+                    quantity: Number(item.amount || 1),
+                    crew: Number(item.crew || 0),
+                    slots: Array.isArray(item.slots) ? item.slots : [],
+                  }));
+                const capacity = ships.reduce((sum, ship) => sum + ship.quantity * ship.crew, 0) || 2;
+                const payload = {
+                  source: live ? "wallet" : "default",
+                  owner: live ? localStorage.getItem("galia-owner") || "" : "",
+                  crew: availableCrew,
+                  ships,
+                  maxPlayers: capacity,
+                  startMode: "space-labyrinth",
+                };
+                window.GALIA_PLAY_STATE = payload;
+                window.dispatchEvent(new CustomEvent("galia-play-request", { detail: payload }));
+                document.querySelector(".bcm-mini-sim")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            />
           </div>
         ) : null}
       </div>
@@ -394,7 +427,38 @@ export function CrewBay() {
                 <X className="size-5" />
               </button>
             </div>
-            <Detail crew={selected} starred={stars.includes(selected.id)} onStar={() => toggleStar(selected.id)} />
+            <Detail
+              crew={selected}
+              starred={stars.includes(selected.id)}
+              onStar={() => toggleStar(selected.id)}
+              onPlay={() => {
+                const availableCrew = live ?? [
+                  selected,
+                  ...source.filter((crew) => crew.id !== selected.id).slice(0, 1),
+                ];
+                const ships = walletItems
+                  .filter((item) => item.kind === "ship" && item.spec !== "мой ордер")
+                  .map((item) => ({
+                    mint: item.mint,
+                    name: item.name,
+                    quantity: Number(item.amount || 1),
+                    crew: Number(item.crew || 0),
+                    slots: Array.isArray(item.slots) ? item.slots : [],
+                  }));
+                const capacity = ships.reduce((sum, ship) => sum + ship.quantity * ship.crew, 0) || 2;
+                const payload = {
+                  source: live ? "wallet" : "default",
+                  owner: live ? localStorage.getItem("galia-owner") || "" : "",
+                  crew: availableCrew,
+                  ships,
+                  maxPlayers: capacity,
+                  startMode: "space-labyrinth",
+                };
+                window.GALIA_PLAY_STATE = payload;
+                window.dispatchEvent(new CustomEvent("galia-play-request", { detail: payload }));
+                document.querySelector(".bcm-mini-sim")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            />
           </div>
         </div>
       ) : null}
@@ -566,7 +630,17 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
   );
 }
 
-function Detail({ crew, starred, onStar }: { crew: Crew; starred: boolean; onStar: () => void }) {
+function Detail({
+  crew,
+  starred,
+  onStar,
+  onPlay,
+}: {
+  crew: Crew;
+  starred: boolean;
+  onStar: () => void;
+  onPlay: () => void;
+}) {
   const [big, setBig] = useState(false);
   const gem = diamondRecipe(crew.official);
   return (
@@ -587,9 +661,18 @@ function Detail({ crew, starred, onStar }: { crew: Crew; starred: boolean; onSta
             ) : null}
           </div>
         </div>
-        <button type="button" onClick={onStar} className="flex size-11 items-center justify-center rounded-md border border-line">
-          <Star className={`size-4 ${starred ? "fill-brass text-brass" : "text-muted"}`} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onPlay}
+            className="h-11 rounded-md border border-brass-dim bg-surface-2 px-3 font-display text-sm text-fg"
+          >
+            Играть
+          </button>
+          <button type="button" onClick={onStar} className="flex size-11 items-center justify-center rounded-md border border-line">
+            <Star className={`size-4 ${starred ? "fill-brass text-brass" : "text-muted"}`} />
+          </button>
+        </div>
       </div>
 
       <dl className="mt-5 grid grid-cols-2 gap-2">
