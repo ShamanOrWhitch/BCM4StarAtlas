@@ -3154,8 +3154,8 @@
     // Keep an explicitly selected focus target until it leaves its own active radius.
     if (interaction) {
       interaction.textContent = nearest.distance <= near
-        ? "CINEMA · 100% · OST 0%"
-        : "CINEMA · " + Math.round(filmGain * 100) + "% · OST " + Math.round(ostGain * 100) + "%";
+        ? "CINEMA · 100% · PLACE AUDIO"
+        : "CINEMA · " + Math.round(filmGain * 100) + "% · PLACE AUDIO";
     }
   }
 
