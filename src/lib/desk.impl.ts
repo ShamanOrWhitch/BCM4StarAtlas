@@ -456,7 +456,17 @@ export async function buildMarket(): Promise<MarketSnap> {
       "Рынок читается сервером. Ресурсы и корабли сначала ищутся в USDC; если прямого USDC-ордера нет, цена ATLAS переводится в USDC по текущему курсу ATLAS/USDC. Отдельно сохраняются стаканы ATLAS и POLIS. Графики: ATLAS/USDC, POLIS/USDC и POLIS/ATLAS.",
   };
 
-  marketCache = { at: Date.now(), data };
+  const hasUsefulMarketData =
+    nfts.size > 0 ||
+    orders.length > 0 ||
+    usdcOrders.length > 0 ||
+    polisOrders.length > 0 ||
+    atlasUsdcCandles.length > 1 ||
+    polisUsdcCandles.length > 1;
+
+  if (hasUsefulMarketData) {
+    marketCache = { at: Date.now(), data };
+  }
   return data;
 }
 
