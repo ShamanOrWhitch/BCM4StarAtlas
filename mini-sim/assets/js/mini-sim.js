@@ -3694,7 +3694,13 @@
     const gateCoverage = towerGateCoverage();
     const gateUiRadius = config.towerApproach && Number(config.towerApproach.uiRadius)
       ? Number(config.towerApproach.uiRadius)
-      : 180;
+      : 200;
+    const gatePlayProgress = gate?.el && Number.isFinite(gate.el.duration) && gate.el.duration > 0
+      ? Math.max(0, Math.min(1, gate.el.currentTime / gate.el.duration))
+      : 0;
+    const gateAutoProgress = config.towerApproach && Number(config.towerApproach.gateAutoProgress)
+      ? Number(config.towerApproach.gateAutoProgress)
+      : 0.85;
 
     // The already-built Oni station sphere is also an immediate landing trigger.
     // This does not create a new object and does not change its geometry/placement.
@@ -3722,7 +3728,12 @@
     const sphereLanding =
       stationSphereDistance <= stationSphereEntryRadius;
     const videoLanding =
-      !!gate && gateDistance <= Number(gate.radius || 24);
+      !!gate &&
+      gate.active &&
+      gate.el &&
+      gate.el.readyState >= 2 &&
+      gateDistance <= Number(gate.radius || 36) * 1.15 &&
+      gatePlayProgress >= gateAutoProgress;
 
     if (!towerGateTriggered && !transitionBusy && (sphereLanding || videoLanding)) {
       enterTowerFromGate();
