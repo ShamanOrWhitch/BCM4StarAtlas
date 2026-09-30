@@ -1722,14 +1722,12 @@
         window.BCMMiniSimAPI?.stopAudio?.();
       } catch (e) {}
 
-      document.querySelectorAll("audio").forEach((audio) => {
+      document.querySelectorAll(".bcm-mini-sim-music-audio").forEach((audio) => {
         if (audio === towerAudio) return;
-        if (!audio.closest(".bcm-tower")) {
-          try {
-            audio.pause();
-            audio.volume = 0;
-          } catch (e) {}
-        }
+        try {
+          audio.pause();
+          audio.volume = 0;
+        } catch (e) {}
       });
     }
 
