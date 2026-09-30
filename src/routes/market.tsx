@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppChrome } from "@/components/app-chrome";
 import { loadMarket, type Candle, type MarketSnap, type ResourceRow, type TapePoint } from "@/lib/desk";
@@ -425,7 +425,7 @@ function CandleChart({ title, candles, source }: { title: string; candles: Candl
   const dateOf = (t: number) => new Date(t > 1e12 ? t : t * 1000).toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
   const marks = candles.filter((_, index) => index % Math.ceil(candles.length / 5) === 0 || index === candles.length - 1);
 
-  function onMove(event: React.MouseEvent<SVGSVGElement>) {
+  function onMove(event: MouseEvent<SVGSVGElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
     const px = ((event.clientX - rect.left) / rect.width) * w;
