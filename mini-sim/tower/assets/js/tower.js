@@ -2,7 +2,8 @@
   "use strict";
 
   const CONFIG = window.BCMTowerConfig || {};
-  const TOWER_VERSION = "0.2.21";
+  if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
+  const TOWER_VERSION = "0.2.22";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -1744,9 +1745,11 @@
 
     function helipadMarkerUrl() {
       const pool = assetPool("hMarkerPool");
+      const first = pool.find((url) => /(?:^|\/)H1(?:\d*)\.png(?:[?#].*)?$/i.test(url));
+      if (first) return first;
       if (pool.length) return pool[0];
       const landing = assetPool("landingPool");
-      return landing.find((url) => /H1?(?:\d*)\.png(?:[?#].*)?$/i.test(url)) || "";
+      return landing.find((url) => /(?:^|\/)H1(?:\d*)\.png(?:[?#].*)?$/i.test(url)) || "";
     }
 
     function transitionUrl() {
