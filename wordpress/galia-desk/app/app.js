@@ -135,7 +135,14 @@ function Si({title:e,candles:t,source:n}) {
         (0,k.jsx)("line",{x1:n,x2:n,y1:y(e.h),y2:y(e.l),stroke:r,strokeWidth:"1.2"}),
         (0,k.jsx)("rect",{x:n-Math.max(1.2,slot*.28),y:a,width:Math.max(2,slot*.56),height:Math.max(1.2,o-a),fill:r})
       ]},e.t)}),
-      marks.map(e=>{const t=pad+((t=e),0);return t})
+      marks.map(e=>{const index=t.indexOf(e),x=pad+index*slot+slot/2;return (0,k.jsx)("text",{x:x,y:h-6,textAnchor:"middle",fill:"#8b96a3",fontSize:"11",children:date(e.t)},"d-"+e.t)}),
+      r?(0,k.jsxs)("g",{pointerEvents:"none",children:[
+        (0,k.jsx)("line",{x1:r.x,x2:r.x,y1:pad,y2:h-padB,stroke:"#8b96a3",strokeWidth:"1",strokeDasharray:"4 3"}),
+        (0,k.jsx)("line",{x1:pad,x2:w-padR,y1:r.y,y2:r.y,stroke:"#8b96a3",strokeWidth:"1",strokeDasharray:"4 3"}),
+        (0,k.jsx)("rect",{x:w-padR+8,y:Math.max(pad,Math.min(h-padB-22,r.y-11)),width:padR-16,height:"22",rx:"3",fill:"#07090e",stroke:"#8b96a3"}),
+        (0,k.jsx)("text",{x:w-padR+12,y:Math.max(pad+14,Math.min(h-padB-8,r.y+4)),fill:"#e8eef2",fontSize:"11",children:fmt(r.price)}),
+        (0,k.jsx)("circle",{cx:r.x,cy:y(t[r.index].c),r:"3",fill:"#e8eef2"})
+      ]}):null
     ]}),
     (0,k.jsx)("p",{className:"mt-1 text-sm text-muted",children:n??"Наведи курсор для линий и цены."})
   ]});
