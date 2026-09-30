@@ -291,7 +291,7 @@
       inventory,
       counts,
       errors,
-      source: "render-wallet-scan",
+      source: "server",
       ok: true
     };
   }
