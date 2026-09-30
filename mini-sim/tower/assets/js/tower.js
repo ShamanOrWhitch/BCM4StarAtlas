@@ -44,8 +44,34 @@
     return ((s % count) + count) % count;
   }
 
+  function configAssets() {
+    const list = Array.isArray(CONFIG.assets)
+      ? CONFIG.assets
+      : Array.isArray(CONFIG.assetList)
+        ? CONFIG.assetList
+        : [];
+    return list.filter((item) => item && typeof item === "object");
+  }
+
   function assetPool(name) {
-    return Array.isArray(CONFIG[name]) ? CONFIG[name].filter(Boolean) : [];
+    const explicit = Array.isArray(CONFIG[name]) ? CONFIG[name].filter(Boolean) : [];
+    if (explicit.length) return explicit;
+
+    const aliases = {
+      upperPlatformPool: /(^|\\/)upperplatform(?:\\d+)?\\.(?:jpe?g|png)$/i,
+      hMarkerPool: /(^|\\/)H1?(?:\\d*)\\.png$/i,
+      landingPool: /(^|\\/)H1?(?:\\d*)\\.png$/i
+    };
+    const re = aliases[name];
+    if (!re) return [];
+    return configAssets()
+      .filter((item) => re.test(String(item.name || item.url || "")))
+      .map((item) => String(item.url || ""))
+      .filter(Boolean);
+  }
+
+  function rasterUrl(url) {
+    return /\\.(?:png|jpe?g|webp)(?:[?#].*)?$/i.test(String(url || ""));
   }
 
   function pick(pool, rand) {
@@ -71,7 +97,7 @@
 
     let tex;
 
-    if (options.removeWhite && /\\.png(?:[?#].*)?$/i.test(String(url))) {
+    if (options.removeWhite && rasterUrl(url)) {
       // Some of the supplied PNG cards contain an opaque white matte instead
       // of real alpha. Remove only near-white pixels and preserve antialiased
       // edges so doors, NPCs and landing cards behave as cut-outs.
@@ -103,9 +129,11 @@
 
             if (!a) continue;
 
-            if (r >= 246 && g >= 246 && b >= 246) {
+            const nearWhite = Math.min(r, g, b) >= 246 && Math.max(r, g, b) <= 255;
+            const softWhite = Math.min(r, g, b) >= 232;
+            if (nearWhite) {
               pixels[i + 3] = 0;
-            } else if (r >= 232 && g >= 232 && b >= 232) {
+            } else if (softWhite) {
               const fade = Math.max(0, Math.min(1, (246 - Math.min(r, g, b)) / 14));
               pixels[i + 3] = Math.round(a * fade);
             }
@@ -465,13 +493,13 @@
         y: 0, vy: 0, angle: 0, radial: 0, jumps: 0, grounded: false,
         currentCell: null, liftRide: null, hazard: 0, slide: 0, finished: false,
         doorCooldown: 0, collected: 0, jumpStarted: false, fallStartY: null,
-        maxFallSpeed: 0, birdHitCooldown: 0
+        maxFallSpeed: 0, birdHitCooldown: 0, visualFacing: 1, visualAngle: 0
       },
       {
         y: 0, vy: 0, angle: 0, radial: 0, jumps: 0, grounded: false,
         currentCell: null, liftRide: null, hazard: 0, slide: 0, finished: false,
         doorCooldown: 0, collected: 0, jumpStarted: false, fallStartY: null,
-        maxFallSpeed: 0, birdHitCooldown: 0
+        maxFallSpeed: 0, birdHitCooldown: 0, visualFacing: 1, visualAngle: 0
       }
     ];
 
@@ -602,7 +630,7 @@
       }
 
       const tex = assetTexture(texUrl, renderer, {
-        removeWhite: /\\.png(?:[?#].*)?$/i.test(String(texUrl)),
+        removeWhite: rasterUrl(texUrl),
         repeat: cell.surface === "platform" || cell.surface === "ice" || cell.surface === "lava",
         repeatX: 1,
         repeatY: 1
@@ -829,7 +857,8 @@
           const dx = p.radial * Math.sin(p.angle) - bird.group.position.x;
           const dy = (p.y + 0.9) - bird.group.position.y;
           const dz = p.radial * Math.cos(p.angle) - bird.group.position.z;
-          if (dx * dx + dy * dy + dz * dz > 1.15 * 1.15) continue;
+          const birdHitRadius = 2.6;
+          if (dx * dx + dy * dy + dz * dz > birdHitRadius * birdHitRadius) continue;
 
           p.birdHitCooldown = 0.9;
           p.grounded = false;
@@ -1009,6 +1038,8 @@
       p.fallStartY = null;
       p.maxFallSpeed = 0;
       p.birdHitCooldown = 0;
+      p.visualFacing = 1;
+      p.visualAngle = p.angle;
     }
 
     function surfaceCandidates(player) {
@@ -1466,8 +1497,16 @@
 
       const sprite = playerSprites[index];
       if (sprite) {
-        sprite.position.set(x, p.y + 1.35, z);
+        const delta = angleDelta(a, p.visualAngle ?? a);
+        if (Math.abs(delta) > 0.001) {
+          p.visualFacing = delta > 0 ? -1 : 1;
+          p.visualAngle = a;
+        }
+        const moving = Math.abs(p.vy) > 0.4 || Math.abs(delta) > 0.01 || (!p.grounded && Math.abs(p.vy) > 0.1);
+        const bob = moving && !p.finished ? Math.sin(performance.now() * 0.018 + index) * 0.055 : 0;
+        sprite.position.set(x, p.y + 1.35 + bob, z);
         sprite.quaternion.copy(cameras[index].quaternion);
+        sprite.scale.x = 1.65 * (p.visualFacing || 1);
       }
     }
 
@@ -1695,11 +1734,19 @@
 
     function stopTransition() {
       transition.hidden = true;
+      transition.style.backgroundImage = "";
       transitionVideo.pause();
       transitionVideo.removeAttribute("src");
       transitionVideo.load();
       transitionVideo.style.opacity = "0";
       transitionStarted = false;
+    }
+
+    function helipadMarkerUrl() {
+      const pool = assetPool("hMarkerPool");
+      if (pool.length) return pool[0];
+      const landing = assetPool("landingPool");
+      return landing.find((url) => /H1?(?:\\d*)\\.png(?:[?#].*)?$/i.test(url)) || "";
     }
 
     function transitionUrl() {
@@ -1721,6 +1768,15 @@
       transitionStarted = true;
       transition.hidden = false;
       transitionVideo.style.opacity = "0";
+      const markerUrl = helipadMarkerUrl();
+      if (markerUrl) {
+        transition.style.backgroundImage = 'url("' + markerUrl.replace(/"/g, "\\"") + '")';
+        transition.style.backgroundPosition = "center";
+        transition.style.backgroundSize = "contain";
+        transition.style.backgroundRepeat = "no-repeat";
+      } else {
+        transition.style.backgroundImage = "";
+      }
       transitionVideo.muted = true;
       transitionVideo.defaultMuted = true;
       transitionVideo.setAttribute("muted", "");
