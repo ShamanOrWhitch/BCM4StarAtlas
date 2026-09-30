@@ -25,7 +25,12 @@ const FILTERS = [
   { id: "contracts", label: "контракты" },
 ];
 
-const PINNED = ["Food", "Fuel", "Ammunition"];
+const SPECIAL_RESOURCES = [
+  { label: "Еда", re: /^food$/i },
+  { label: "Топливо", re: /^fuel$/i },
+  { label: "Амуниция", re: /ammunition|ammo/i },
+  { label: "Ремкомплекты", re: /repair|repair kit|repairkit/i },
+];
 
 function fmtAtlas(n: number | null): string {
   if (n == null) return "—";
@@ -43,10 +48,7 @@ function priced(row: ResourceRow, quote: "USDC" | "ATLAS" | "POLIS"): ResourceRo
   if (quote === "ATLAS") return pack(row.atlasAsk, row.atlasBid, "ATLAS");
   if (quote === "POLIS") return pack(row.polisAsk, row.polisBid, "POLIS");
   if (row.usdcAsk != null || row.usdcBid != null) return pack(row.usdcAsk, row.usdcBid, "USDC");
-  // Some assets, e.g. CARBON, really trade only in ATLAS. Show that
-  // real market in the default USDC view instead of inventing a zero price.
-  if (row.atlasAsk != null || row.atlasBid != null) return pack(row.atlasAsk, row.atlasBid, "ATLAS");
-  return pack(null, null, "USDC");
+  return pack(row.usdcAsk, row.usdcBid, "USDC");
 }
 function money(row: ResourceRow): string {
   const n = row.ask ?? row.bid;
@@ -150,31 +152,39 @@ export function MarketPage() {
       .slice(0, 6);
   }, [snap, previous]);
 
-  const pinned = PINNED.map((name) => snap?.resources.find((row) => row.name === name)).filter(
-    (row): row is ResourceRow => Boolean(row),
-  );
+  const specialResources = SPECIAL_RESOURCES
+    .map((item) => ({
+      ...item,
+      row: snap?.resources.find((row) => item.re.test(row.name)) ?? null,
+    }))
+    .filter((item): item is typeof SPECIAL_RESOURCES[number] & { row: ResourceRow } => Boolean(item.row));
 
   return (
     <AppChrome current="market" kicker="Galaxy · Galactic Marketplace" title="Цены ресурсов">
       <div className="h-full overflow-y-auto">
         <div className="mx-auto flex max-w-5xl flex-col gap-4 px-3 py-4 md:px-6">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <TokenCard name="ATLAS" quote={snap?.atlas} />
-            <TokenCard name="POLIS" quote={snap?.polis} />
-          </div>
-          <CandleChart title="ATLAS / USD" candles={snap?.candles ?? []} source="Дневные свечи пула Raydium ATLAS/USDC в Solana. Если пул не ответил — запасной Kraken." />
-          <CandleChart title="POLIS / ATLAS" candles={snap?.pairCandles ?? []} source="Сколько ATLAS за один POLIS: Raydium POLIS/USDC разделить на Raydium ATLAS/USDC. Наведи на свечу — дата и цены." />
-
           <div className="grid gap-3 sm:grid-cols-3">
-            {pinned.map((row) => (
-              <article key={row.mint} className="galia-hop rounded-xl border border-line bg-surface p-3">
-                <p className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{row.name}</p>
-                <p className="mt-1 font-mono text-xl text-fg">{money(priced(row, quote))}</p>
-                <p className="text-sm text-muted">
-                  покупка {fmtAtlas(priced(row, quote).bid)} {quote}
-                </p>
-              </article>
-            ))}
+            <PairCard name="ATLAS / USDC" value={snap?.pairQuotes?.atlasUsdc ?? snap?.atlas?.usd ?? null} unit="USDC" />
+            <PairCard name="POLIS / USDC" value={snap?.pairQuotes?.polisUsdc ?? snap?.polis?.usd ?? null} unit="USDC" />
+            <PairCard name="POLIS / ATLAS" value={snap?.pairQuotes?.polisAtlas ?? null} unit="ATLAS" />
+          </div>
+          <CandleChart title="ATLAS / USDC" candles={snap?.candles ?? []} source="Дневные свечи пула ATLAS/USDC. Наведи курсор — вертикаль, горизонталь и цена в точке." />
+          <CandleChart title="POLIS / USDC" candles={snap?.polisUsdcCandles ?? []} source="Дневные свечи пула POLIS/USDC. Наведи курсор — вертикаль, горизонталь и цена в точке." />
+          <CandleChart title="POLIS / ATLAS" candles={snap?.pairCandles ?? []} source="Расчётный курс одного POLIS в ATLAS из двух USDC-пар. Наведи курсор — цена в точке." />
+
+          <div className="grid gap-3 sm:grid-cols-4">
+            {specialResources.map(({ label, row }) => {
+              const view = priced(row, quote);
+              return (
+                <article key={row.mint} className="galia-hop rounded-xl border border-line bg-surface p-3">
+                  <p className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{label}</p>
+                  <p className="mt-1 font-mono text-xl text-fg">{money(view)}</p>
+                  <p className="text-sm text-muted">
+                    {view.usdcDerived ? "USDC по текущему ATLAS/USDC" : `покупка ${fmtAtlas(view.bid)} ${view.quote}`}
+                  </p>
+                </article>
+              );
+            })}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -220,13 +230,13 @@ export function MarketPage() {
           ) : (
             <p className="text-sm text-muted">
               {tape.length < 2
-                ? "Свечи ATLAS уже с общего рынка. По ресурсам Galaxy историю не отдаёт: первый общий снимок сервера записан, следующий покажет Δ, не внутренний ноль."
+                ? "Первый серверный снимок записан. Цены ресурсов и кораблей берутся из стаканов; если прямого USDC нет, ATLAS пересчитывается по текущему ATLAS/USDC."
                 : `Общих снимков сервера: ${tape.length}. Ноль значит, что стакан между ними не сдвинулся.`}
             </p>
           )}
 
           <div className="flex gap-2">
-            {(["USDC", "ATLAS"] as const).map((item) => (
+            {(["USDC", "ATLAS", "POLIS"] as const).map((item) => (
               <button
                 key={item}
                 type="button"
@@ -238,7 +248,7 @@ export function MarketPage() {
             ))}
 
           </div>
-          <BubbleField title={quote === "USDC" ? "Ресурсы · USDC, без USDC показывается реальный ATLAS" : `Ресурсы · ${quote}`} rows={viewRows.filter((row) => row.ask != null)} previous={previous} />
+          <BubbleField title={quote === "USDC" ? "Ресурсы · USDC (ATLAS пересчитан, если прямого USDC нет)" : `Ресурсы · ${quote}`} rows={viewRows.filter((row) => row.ask != null)} previous={previous} />
           <BubbleField title={`Корабли · ${quote}`} rows={viewShips} previous={previous} />
           <ResourceTape rows={rows} tape={tape} mint={resourceMint} onMint={setResourceMint} />
           <p className="text-sm text-muted">
@@ -394,6 +404,8 @@ function TapeLine({ name, points }: { name: string; points: { t: number; v: numb
 }
 
 function CandleChart({ title, candles, source }: { title: string; candles: Candle[]; source?: string }) {
+  const [hover, setHover] = useState<{ x: number; y: number; index: number; price: number } | null>(null);
+
   if (candles.length < 2) return <p className="text-sm text-muted">{title}: свечи ещё не пришли.</p>;
   const w = 720;
   const h = 260;
@@ -412,6 +424,19 @@ function CandleChart({ title, candles, source }: { title: string; candles: Candl
   const fmtTick = (n: number) => (n >= 100 ? n.toFixed(2) : n >= 1 ? n.toFixed(2) : n.toFixed(6));
   const dateOf = (t: number) => new Date(t > 1e12 ? t : t * 1000).toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
   const marks = candles.filter((_, index) => index % Math.ceil(candles.length / 5) === 0 || index === candles.length - 1);
+
+  function onMove(event: React.MouseEvent<SVGSVGElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const px = ((event.clientX - rect.left) / rect.width) * w;
+    const py = ((event.clientY - rect.top) / rect.height) * h;
+    if (px < pad || px > w - padR || py < pad || py > h - padB) return;
+    const index = Math.max(0, Math.min(candles.length - 1, Math.round((px - pad - slot / 2) / slot)));
+    const x = pad + index * slot + slot / 2;
+    const price = Math.max(min, Math.min(max, max - ((py - pad) / (h - pad - padB)) * span));
+    setHover({ x, y: py, index, price });
+  }
+
   return (
     <figure className="rounded-xl border border-line bg-surface p-3">
       <figcaption className="mb-2 flex flex-wrap items-baseline justify-between gap-3">
@@ -421,7 +446,7 @@ function CandleChart({ title, candles, source }: { title: string; candles: Candl
         </span>
         <span className={`font-mono text-sm ${move != null && move < 0 ? "text-danger" : "text-ok"}`}>{fmtPct(move)}</span>
       </figcaption>
-      <svg viewBox={`0 0 ${w} ${h}`} className="h-64 w-full" role="img" aria-label={title}>
+      <svg viewBox={`0 0 ${w} ${h}`} className="h-64 w-full" role="img" aria-label={title} onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
         {ticks.map((tick) => (
           <g key={tick}>
             <line x1={pad} x2={w - padR} y1={y(tick)} y2={y(tick)} stroke="rgba(232,238,242,0.18)" />
@@ -444,6 +469,17 @@ function CandleChart({ title, candles, source }: { title: string; candles: Candl
             </g>
           );
         })}
+        {hover ? (
+          <g pointerEvents="none">
+            <line x1={hover.x} x2={hover.x} y1={pad} y2={h - padB} stroke="#8b96a3" strokeWidth="1" strokeDasharray="4 3" />
+            <line x1={pad} x2={w - padR} y1={hover.y} y2={hover.y} stroke="#8b96a3" strokeWidth="1" strokeDasharray="4 3" />
+            <rect x={w - padR + 8} y={Math.max(pad, Math.min(h - padB - 22, hover.y - 11))} width={padR - 16} height="22" rx="3" fill="#07090e" stroke="#8b96a3" />
+            <text x={w - padR + 12} y={Math.max(pad + 14, Math.min(h - padB - 8, hover.y + 4))} fill="#e8eef2" fontSize="11">
+              {fmtTick(hover.price)}
+            </text>
+            <circle cx={hover.x} cy={y(candles[hover.index].c)} r="3" fill="#e8eef2" />
+          </g>
+        ) : null}
         {marks.map((candle) => {
           const index = candles.indexOf(candle);
           const x = pad + index * slot + slot / 2;
@@ -456,6 +492,16 @@ function CandleChart({ title, candles, source }: { title: string; candles: Candl
       </svg>
       <p className="mt-1 text-sm text-muted">{source ?? "Дневные свечи. Ось справа — цена. Наведи на свечу: дата и OHLC."}</p>
     </figure>
+  );
+}
+
+function PairCard({ name, value, unit }: { name: string; value: number | null; unit: "USDC" | "ATLAS" }) {
+  return (
+    <article className="rounded-xl border border-line bg-surface p-3">
+      <p className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{name}</p>
+      <p className="mt-1 font-mono text-2xl text-fg">{fmtAtlas(value)} {unit}</p>
+      <p className="text-sm text-muted">текущий курс</p>
+    </article>
   );
 }
 
