@@ -3717,8 +3717,9 @@
         interaction.textContent = "ONI STATION · TOWER ENTRY " +
           Math.max(0, Math.round(100 - (gateDistance / Math.max(1, gate.radius)) * 100)) + "%";
       } else {
-        interaction.textContent = portal.coverage >= 0.69
-          ? "PORTAL LOCK 69% · CUTSCENE"
+        const portalUiThreshold = Number(config.towerApproach?.portalCoverageThreshold) || 0.60;
+        interaction.textContent = portal.coverage >= portalUiThreshold
+          ? "PORTAL LOCK · CUTSCENE"
           : "PORTAL " + Math.round(portal.coverage * 100) + "%";
       }
     }
@@ -4095,7 +4096,7 @@
       bind();
       resize();
       setSpeedMode(1);
-      setStatus("ENGINE READY · LOCAL r128 · " + (config.version || "0.9.18") + " · SPEED 1");
+      setStatus("ENGINE READY · LOCAL r128 · " + (config.version || "0.9.49") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {
