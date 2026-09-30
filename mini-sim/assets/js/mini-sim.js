@@ -3108,7 +3108,7 @@
 
         if (!zone.active) {
           zone.active = true;
-          zone.el.loop = true;
+          zone.el.loop = zone.towerGate ? false : true;
           zone.el.muted = cinema.mute;
           const p = zone.el.play();
           if (p && p.catch) {
@@ -3145,12 +3145,11 @@
     const d = Math.max(near, Math.min(radius, nearest.distance));
     const t = (d - near) / (radius - near);
 
-    // Film rises toward the screen; OST falls much faster.
+    // The active place owns the soundtrack. Never mix two place tracks.
     const filmGain = Math.pow(1 - t, 0.5);
-    const ostGain = Math.pow(t, 2.6);
 
     if (!cinema.mute) nearest.el.volume = Math.max(0, Math.min(1, settings.volume * filmGain));
-    if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume * ostGain;
+    if (musicAudio && !cinema.mute) musicAudio.volume = 0;
 
     // Keep an explicitly selected focus target until it leaves its own active radius.
     if (interaction) {
@@ -3713,7 +3712,7 @@
 
     if (interaction) {
       if (stationSphereDistance <= stationSphereEntryRadius) {
-        interaction.textContent = "ONI STATION · LANDING";
+        interaction.textContent = "ONI STATION · ONICSS GATE";
       } else if (gate && gateDistance <= gateUiRadius) {
         interaction.textContent = "ONI STATION · TOWER ENTRY " +
           Math.max(0, Math.round(100 - (gateDistance / Math.max(1, gate.radius)) * 100)) + "%";
@@ -3724,11 +3723,8 @@
       }
     }
 
-    // Either the existing onicss.mp4 gate or flying directly into the existing
-    // Oni station sphere starts the same Tower landing animation.
-    // tower.mp4 remains Tower's landing transition.
-    const sphereLanding =
-      stationSphereDistance <= stationSphereEntryRadius;
+    // onicss.mp4 is the sole automatic Tower gate. The existing ONI
+    // docking sphere remains a landmark but can no longer skip the animation.
     const videoLanding =
       !!gate &&
       gate.active &&
@@ -3737,7 +3733,7 @@
       gateDistance <= Number(gate.radius || 36) * 1.15 &&
       gatePlayProgress >= gateAutoProgress;
 
-    if (!towerGateTriggered && !transitionBusy && (sphereLanding || videoLanding)) {
+    if (!towerGateTriggered && !transitionBusy && videoLanding) {
       enterTowerFromGate();
     }
 
