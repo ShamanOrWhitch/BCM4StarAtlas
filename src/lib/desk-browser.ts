@@ -68,7 +68,7 @@ async function renderMarket(): Promise<MarketSnap> {
       }
     }
   }
-  throw lastError ?? new Error("Сейчас запускаем сервер чтения. Первый запуск может занять 1–3 минуты — повторите попытку позже.");
+  throw lastError ?? new Error("Render просыпается. Повторите через 1–3 минуты.");
 }
 
 export async function loadMarket(): Promise<MarketSnap> {
