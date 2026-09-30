@@ -58,9 +58,9 @@
     if (explicit.length) return explicit;
 
     const aliases = {
-      upperPlatformPool: /(^|\\/)upperplatform(?:\\d+)?\\.(?:jpe?g|png)$/i,
-      hMarkerPool: /(^|\\/)H1?(?:\\d*)\\.png$/i,
-      landingPool: /(^|\\/)H1?(?:\\d*)\\.png$/i
+      upperPlatformPool: /(^|\/)upperplatform(?:\d+)?\.(?:jpe?g|png)$/i,
+      hMarkerPool: /(^|\/)H1?(?:\d*)\.png$/i,
+      landingPool: /(^|\/)H1?(?:\d*)\.png$/i
     };
     const re = aliases[name];
     if (!re) return [];
@@ -71,7 +71,7 @@
   }
 
   function rasterUrl(url) {
-    return /\\.(?:png|jpe?g|webp)(?:[?#].*)?$/i.test(String(url || ""));
+    return /\.(?:png|jpe?g|webp)(?:[?#].*)?$/i.test(String(url || ""));
   }
 
   function pick(pool, rand) {
@@ -1746,7 +1746,7 @@
       const pool = assetPool("hMarkerPool");
       if (pool.length) return pool[0];
       const landing = assetPool("landingPool");
-      return landing.find((url) => /H1?(?:\\d*)\\.png(?:[?#].*)?$/i.test(url)) || "";
+      return landing.find((url) => /H1?(?:\d*)\.png(?:[?#].*)?$/i.test(url)) || "";
     }
 
     function transitionUrl() {
