@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.23";
+  const TOWER_VERSION = "0.2.24";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -1542,11 +1542,22 @@
       const sprite = playerSprites[index];
       if (sprite) {
         const delta = angleDelta(a, p.visualAngle ?? a);
-        if (Math.abs(delta) > 0.001) {
+        const turnInput = (controls[index]?.right ? 1 : 0) - (controls[index]?.left ? 1 : 0);
+        if (turnInput !== 0) {
+          // Right/left is the authoritative visual direction. This prevents
+          // the billboard sprite from keeping its old face while the player
+          // walks around the cylinder.
+          p.visualFacing = turnInput > 0 ? -1 : 1;
+        } else if (Math.abs(delta) > 0.001) {
+          // Keep mouse/touch and carried-lift rotation working as before.
           p.visualFacing = delta > 0 ? -1 : 1;
-          p.visualAngle = a;
         }
-        const moving = Math.abs(p.vy) > 0.4 || Math.abs(delta) > 0.01 || (!p.grounded && Math.abs(p.vy) > 0.1);
+        p.visualAngle = a;
+
+        const moving = Math.abs(p.vy) > 0.4 ||
+          Math.abs(delta) > 0.01 ||
+          turnInput !== 0 ||
+          (!p.grounded && Math.abs(p.vy) > 0.1);
         const bob = moving && !p.finished ? Math.sin(performance.now() * 0.018 + index) * 0.055 : 0;
         sprite.position.set(x, p.y + 1.35 + bob, z);
         sprite.quaternion.copy(cameras[index].quaternion);
@@ -1706,9 +1717,26 @@
       return towerAudio;
     }
 
+    function stopOtherGameAudio() {
+      try {
+        window.BCMMiniSimAPI?.stopAudio?.();
+      } catch (e) {}
+
+      document.querySelectorAll(".bcm-mini-sim-music-audio").forEach((audio) => {
+        if (audio === towerAudio) return;
+        try {
+          audio.pause();
+          audio.volume = 0;
+        } catch (e) {}
+      });
+    }
+
     function playTowerAudio() {
+      stopOtherGameAudio();
       const audio = ensureTowerAudio();
       if (!audio) return;
+      audio.muted = false;
+      audio.volume = 0.48;
       const promise = audio.play();
       if (promise && promise.catch) {
         promise.catch(() => {
@@ -2136,6 +2164,7 @@
     window.BCMTowerAPI = window.BCMTowerAPI || {};
     window.BCMTowerAPI.getCrewMatrix = () => window.BCMTowerCrewMatrix || null;
     window.BCMTowerAPI.getWallet = () => window.BCMiniCrewWallet || null;
+    window.BCMTowerAPI.stopAudio = () => stopTowerAudio();
     window.BCMTowerAPI.enter = () => {
       // Prepare the Tower behind the landing cutscene. The player sees only
       // tower.mp4 until its last frame, then receives an already-built menu.
@@ -2156,7 +2185,6 @@
       resize();
       renderViews();
       triggerTransition();
-      playTowerAudio();
 
       requestAnimationFrame(() => {
         resize();

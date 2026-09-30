@@ -1,760 +1,5372 @@
 [
   {
+    "id": "arlinasija",
+    "crewId": "arlinasija",
+    "mint": "",
     "name": "Arlinasija Otheelkorgar",
+    "given": "Arlinasija",
+    "family": "Otheelkorgar",
+    "ustur": "",
+    "species": "Profound Punaab",
+    "sex": "Male",
+    "official": "Rare",
+    "tensorRank": 1868,
+    "aptitudes": [
+      {
+        "name": "Hospitality",
+        "xp": 50
+      },
+      {
+        "name": "Command",
+        "xp": 25
+      },
+      {
+        "name": "Science",
+        "xp": 25
+      }
+    ],
+    "o": 95,
+    "c": 12,
+    "e": 51,
+    "a": 46,
+    "n": 67,
+    "characteristics": {
+      "openness": 95,
+      "conscientiousness": 12,
+      "extraversion": 51,
+      "agreeableness": 46,
+      "neuroticism": 67,
+      "aptitudes": {
+        "Hospitality": 50,
+        "Command": 25,
+        "Science": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "95"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "12"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "51"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "46"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "67"
+      },
+      {
+        "trait": "Hospitality",
+        "value": "50"
+      },
+      {
+        "trait": "Command",
+        "value": "25"
+      },
+      {
+        "trait": "Science",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "Profound Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "XO · камбуз · станция",
     "ocean": "O95 C12 E51 A46 N67",
     "mission": "15%",
-    "species": "Profound Punaab",
-    "sex": "Male",
-    "given": "Arlinasija",
-    "family": "Otheelkorgar",
-    "crewId": "arlinasija"
+    "university": "ONI Institute",
+    "age": 31,
+    "house": "",
+    "note": "Tensor-аномалия #1868. Лицо флота, не чеклист."
   },
   {
+    "id": "arpaikva",
+    "crewId": "arpaikva",
+    "mint": "",
     "name": "Arpaikva Varishkey",
+    "given": "Arpaikva",
+    "family": "Varishkey",
+    "ustur": "",
+    "species": "Profound Punaab",
+    "sex": "Female",
+    "official": "Rare",
+    "tensorRank": 3718,
+    "aptitudes": [
+      {
+        "name": "Fitness",
+        "xp": 50
+      },
+      {
+        "name": "Command",
+        "xp": 25
+      },
+      {
+        "name": "Science",
+        "xp": 25
+      }
+    ],
+    "o": 78,
+    "c": 44,
+    "e": 61,
+    "a": 6,
+    "n": 99,
+    "characteristics": {
+      "openness": 78,
+      "conscientiousness": 44,
+      "extraversion": 61,
+      "agreeableness": 6,
+      "neuroticism": 99,
+      "aptitudes": {
+        "Fitness": 50,
+        "Command": 25,
+        "Science": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "78"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "44"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "61"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "6"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "99"
+      },
+      {
+        "trait": "Fitness",
+        "value": "50"
+      },
+      {
+        "trait": "Command",
+        "value": "25"
+      },
+      {
+        "trait": "Science",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "Profound Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "XO · станция · пехота",
     "ocean": "O78 C44 E61 A6 N99",
     "mission": "15%",
-    "species": "Profound Punaab",
-    "sex": "Female",
-    "given": "Arpaikva",
-    "family": "Varishkey",
-    "crewId": "arpaikva"
+    "university": "ONI Institute",
+    "age": 33,
+    "house": "",
+    "note": "Tensor-аномалия #3718. Алмаз Rare, Command minor. N99 — не мостик, лицо."
   },
   {
+    "id": "tiora",
+    "crewId": "tiora",
+    "mint": "",
     "name": "Tiora Outro",
+    "given": "Tiora",
+    "family": "Outro",
+    "ustur": "",
+    "species": "Sogmian",
+    "sex": "Male",
+    "official": "Rare",
+    "tensorRank": 16615,
+    "aptitudes": [
+      {
+        "name": "Hospitality",
+        "xp": 50
+      },
+      {
+        "name": "Command",
+        "xp": 25
+      },
+      {
+        "name": "Flight",
+        "xp": 25
+      }
+    ],
+    "o": 17,
+    "c": 26,
+    "e": 96,
+    "a": 79,
+    "n": 2,
+    "characteristics": {
+      "openness": 17,
+      "conscientiousness": 26,
+      "extraversion": 96,
+      "agreeableness": 79,
+      "neuroticism": 2,
+      "aptitudes": {
+        "Hospitality": 50,
+        "Command": 25,
+        "Flight": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "17"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "26"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "96"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "79"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "2"
+      },
+      {
+        "trait": "Hospitality",
+        "value": "50"
+      },
+      {
+        "trait": "Command",
+        "value": "25"
+      },
+      {
+        "trait": "Flight",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "Sogmian"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "XO · не штурвал · камбуз",
     "ocean": "O17 C26 E96 A79 N2",
     "mission": "24%",
-    "species": "Sogmian",
-    "sex": "Male",
-    "given": "Tiora",
-    "family": "Outro",
-    "crewId": "tiora"
+    "university": "ONI Institute",
+    "age": 32,
+    "house": "Outro",
+    "note": "Tensor-легенда. Официально Rare. Лёд. Лицо дома Outro."
   },
   {
+    "id": "gunge",
+    "crewId": "gunge",
+    "mint": "",
     "name": "Gunge Lex Scarka",
+    "given": "Gunge",
+    "family": "Lex Scarka",
+    "ustur": "",
+    "species": "Mierese",
+    "sex": "Male",
+    "official": "Rare",
+    "tensorRank": 17199,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      },
+      {
+        "name": "Command",
+        "xp": 25
+      },
+      {
+        "name": "Science",
+        "xp": 25
+      }
+    ],
+    "o": 16,
+    "c": 73,
+    "e": 4,
+    "a": 79,
+    "n": 69,
+    "characteristics": {
+      "openness": 16,
+      "conscientiousness": 73,
+      "extraversion": 4,
+      "agreeableness": 79,
+      "neuroticism": 69,
+      "aptitudes": {
+        "Flight": 50,
+        "Command": 25,
+        "Science": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "16"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "73"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "4"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "79"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "69"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Command",
+        "value": "25"
+      },
+      {
+        "trait": "Science",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "Mierese"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "XO · не штурвал · станция",
     "ocean": "O16 C73 E4 A79 N69",
     "mission": "21%",
-    "species": "Mierese",
-    "sex": "Male",
-    "given": "Gunge",
-    "family": "Lex Scarka",
-    "crewId": "gunge"
+    "university": "ONI Institute",
+    "age": 29,
+    "house": "",
+    "note": "Tensor-легенда, кэп-пилот. Интроверт."
   },
   {
+    "id": "yuma",
+    "crewId": "yuma",
+    "mint": "",
     "name": "Yuma Lutavira",
+    "given": "Yuma",
+    "family": "Lutavira",
+    "ustur": "",
+    "species": "Sogmian",
+    "sex": "Female",
+    "official": "Rare",
+    "tensorRank": 18445,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      },
+      {
+        "name": "Command",
+        "xp": 25
+      },
+      {
+        "name": "Science",
+        "xp": 25
+      }
+    ],
+    "o": 70,
+    "c": 75,
+    "e": 8,
+    "a": 77,
+    "n": 38,
+    "characteristics": {
+      "openness": 70,
+      "conscientiousness": 75,
+      "extraversion": 8,
+      "agreeableness": 77,
+      "neuroticism": 38,
+      "aptitudes": {
+        "Flight": 50,
+        "Command": 25,
+        "Science": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "70"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "75"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "8"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "77"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "38"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Command",
+        "value": "25"
+      },
+      {
+        "trait": "Science",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "Sogmian"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "XO · штурвал · станция",
     "ocean": "O70 C75 E8 A77 N38",
     "mission": "27%",
-    "species": "Sogmian",
-    "sex": "Female",
-    "given": "Yuma",
-    "family": "Lutavira",
-    "crewId": "yuma"
+    "university": "ONI Institute",
+    "age": 42,
+    "house": "Lutavira",
+    "note": "Лучший золотой XO. Палка + Command."
   },
   {
+    "id": "ooniseth",
+    "crewId": "ooniseth",
+    "mint": "",
     "name": "Ooniseth Parnathgera",
+    "given": "Ooniseth",
+    "family": "Parnathgera",
+    "ustur": "",
+    "species": "Profound Punaab",
+    "sex": "Female",
+    "official": "Rare",
+    "tensorRank": 70269,
+    "aptitudes": [
+      {
+        "name": "Operator",
+        "xp": 50
+      },
+      {
+        "name": "Flight",
+        "xp": 25
+      },
+      {
+        "name": "Hospitality",
+        "xp": 25
+      }
+    ],
+    "o": 71,
+    "c": 67,
+    "e": 18,
+    "a": 38,
+    "n": 11,
+    "characteristics": {
+      "openness": 71,
+      "conscientiousness": 67,
+      "extraversion": 18,
+      "agreeableness": 38,
+      "neuroticism": 11,
+      "aptitudes": {
+        "Operator": 50,
+        "Flight": 25,
+        "Hospitality": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "71"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "67"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "18"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "38"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "11"
+      },
+      {
+        "trait": "Operator",
+        "value": "50"
+      },
+      {
+        "trait": "Flight",
+        "value": "25"
+      },
+      {
+        "trait": "Hospitality",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "Profound Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "штурвал · автоматика · камбуз",
     "ocean": "O71 C67 E18 A38 N11",
     "mission": "16%",
-    "species": "Profound Punaab",
-    "sex": "Female",
-    "given": "Ooniseth",
-    "family": "Parnathgera",
-    "crewId": "ooniseth"
+    "university": "ONI Institute",
+    "age": 34,
+    "house": "",
+    "note": "Принцесса. Jetjet одним телом. N11."
   },
   {
+    "id": "enyavana",
+    "crewId": "enyavana",
+    "mint": "",
     "name": "Enyavana Aatiocenothea",
+    "given": "Enyavana",
+    "family": "Aatiocenothea",
+    "ustur": "",
+    "species": "High Punaab",
+    "sex": "Female",
+    "official": "Rare",
+    "tensorRank": 100432,
+    "aptitudes": [
+      {
+        "name": "Fitness",
+        "xp": 50
+      },
+      {
+        "name": "Flight",
+        "xp": 25
+      },
+      {
+        "name": "Medical",
+        "xp": 25
+      }
+    ],
+    "o": 76,
+    "c": 25,
+    "e": 59,
+    "a": 50,
+    "n": 55,
+    "characteristics": {
+      "openness": 76,
+      "conscientiousness": 25,
+      "extraversion": 59,
+      "agreeableness": 50,
+      "neuroticism": 55,
+      "aptitudes": {
+        "Fitness": 50,
+        "Flight": 25,
+        "Medical": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "76"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "25"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "59"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "50"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "55"
+      },
+      {
+        "trait": "Fitness",
+        "value": "50"
+      },
+      {
+        "trait": "Flight",
+        "value": "25"
+      },
+      {
+        "trait": "Medical",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "не штурвал · медик",
     "ocean": "O76 C25 E59 A50 N55",
     "mission": "9%",
-    "species": "High Punaab",
-    "sex": "Female",
-    "given": "Enyavana",
-    "family": "Aatiocenothea",
-    "crewId": "enyavana"
+    "university": "ONI Institute",
+    "age": 45,
+    "house": "",
+    "note": ""
   },
   {
+    "id": "lilara",
+    "crewId": "lilara",
+    "mint": "",
     "name": "Lilara Outro",
+    "given": "Lilara",
+    "family": "Outro",
+    "ustur": "",
+    "species": "Sogmian",
+    "sex": "Female",
+    "official": "Rare",
+    "tensorRank": 115129,
+    "aptitudes": [
+      {
+        "name": "Fitness",
+        "xp": 50
+      },
+      {
+        "name": "Flight",
+        "xp": 25
+      },
+      {
+        "name": "Engineering",
+        "xp": 25
+      }
+    ],
+    "o": 5,
+    "c": 79,
+    "e": 6,
+    "a": 48,
+    "n": 75,
+    "characteristics": {
+      "openness": 5,
+      "conscientiousness": 79,
+      "extraversion": 6,
+      "agreeableness": 48,
+      "neuroticism": 75,
+      "aptitudes": {
+        "Fitness": 50,
+        "Flight": 25,
+        "Engineering": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "5"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "79"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "6"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "48"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "75"
+      },
+      {
+        "trait": "Fitness",
+        "value": "50"
+      },
+      {
+        "trait": "Flight",
+        "value": "25"
+      },
+      {
+        "trait": "Engineering",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "Sogmian"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "не штурвал · инж",
     "ocean": "O5 C79 E6 A48 N75",
     "mission": "9%",
-    "species": "Sogmian",
-    "sex": "Female",
-    "given": "Lilara",
-    "family": "Outro",
-    "crewId": "lilara"
+    "university": "ONI Institute",
+    "age": 43,
+    "house": "Outro",
+    "note": ""
   },
   {
+    "id": "marnx",
+    "crewId": "marnx",
+    "mint": "",
     "name": "Marnx Valeze Eko",
+    "given": "Marnx",
+    "family": "Valeze Eko",
+    "ustur": "",
+    "species": "Mierese",
+    "sex": "Female",
+    "official": "Rare",
+    "tensorRank": 134081,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      },
+      {
+        "name": "Science",
+        "xp": 25
+      },
+      {
+        "name": "Fitness",
+        "xp": 25
+      }
+    ],
+    "o": 73,
+    "c": 27,
+    "e": 71,
+    "a": 65,
+    "n": 80,
+    "characteristics": {
+      "openness": 73,
+      "conscientiousness": 27,
+      "extraversion": 71,
+      "agreeableness": 65,
+      "neuroticism": 80,
+      "aptitudes": {
+        "Flight": 50,
+        "Science": 25,
+        "Fitness": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "73"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "27"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "71"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "65"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "80"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Science",
+        "value": "25"
+      },
+      {
+        "trait": "Fitness",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "Mierese"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "не штурвал · станция",
     "ocean": "O73 C27 E71 A65 N80",
     "mission": "3%",
-    "species": "Mierese",
-    "sex": "Female",
-    "given": "Marnx",
-    "family": "Valeze Eko",
-    "crewId": "marnx"
+    "university": "ONI Institute",
+    "age": 42,
+    "house": "",
+    "note": "Не штурвал. N80."
   },
   {
+    "id": "deceon",
+    "crewId": "deceon",
+    "mint": "",
     "name": "Deceon .lrnr",
-    "seats": "не штурвал · автоматика · камбуз",
-    "ocean": "O77 C78 E54 A78 N69",
-    "mission": "9%",
-    "species": "Ustur",
-    "sex": "Body 1",
     "given": "Deceon",
     "family": "",
     "ustur": ".lrnr",
-    "crewId": "deceon"
+    "species": "Ustur",
+    "sex": "Body 1",
+    "official": "Rare",
+    "tensorRank": 137770,
+    "aptitudes": [
+      {
+        "name": "Operator",
+        "xp": 50
+      },
+      {
+        "name": "Flight",
+        "xp": 25
+      },
+      {
+        "name": "Hospitality",
+        "xp": 25
+      }
+    ],
+    "o": 77,
+    "c": 78,
+    "e": 54,
+    "a": 78,
+    "n": 69,
+    "characteristics": {
+      "openness": 77,
+      "conscientiousness": 78,
+      "extraversion": 54,
+      "agreeableness": 78,
+      "neuroticism": 69,
+      "aptitudes": {
+        "Operator": 50,
+        "Flight": 25,
+        "Hospitality": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "77"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "78"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "54"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "78"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "69"
+      },
+      {
+        "trait": "Operator",
+        "value": "50"
+      },
+      {
+        "trait": "Flight",
+        "value": "25"
+      },
+      {
+        "trait": "Hospitality",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "Ustur"
+      },
+      {
+        "trait": "Sex",
+        "value": "Body 1"
+      }
+    ],
+    "seats": "не штурвал · автоматика · камбуз",
+    "ocean": "O77 C78 E54 A78 N69",
+    "mission": "9%",
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "Jetjet автоматика. Официально Rare, Tensor epic."
   },
   {
+    "id": "moon-naima",
+    "crewId": "moon-naima",
+    "mint": "",
     "name": "Moon Naima",
+    "given": "Moon",
+    "family": "Naima",
+    "ustur": "",
+    "species": "Human",
+    "sex": "Female",
+    "official": "Rare",
+    "tensorRank": 140112,
+    "aptitudes": [
+      {
+        "name": "Hospitality",
+        "xp": 50
+      },
+      {
+        "name": "Science",
+        "xp": 25
+      },
+      {
+        "name": "Fitness",
+        "xp": 25
+      }
+    ],
+    "o": 58,
+    "c": 65,
+    "e": 71,
+    "a": 27,
+    "n": 70,
+    "characteristics": {
+      "openness": 58,
+      "conscientiousness": 65,
+      "extraversion": 71,
+      "agreeableness": 27,
+      "neuroticism": 70,
+      "aptitudes": {
+        "Hospitality": 50,
+        "Science": 25,
+        "Fitness": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "58"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "65"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "71"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "27"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "70"
+      },
+      {
+        "trait": "Hospitality",
+        "value": "50"
+      },
+      {
+        "trait": "Science",
+        "value": "25"
+      },
+      {
+        "trait": "Fitness",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "Human"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "камбуз · станция · пехота",
     "ocean": "O58 C65 E71 A27 N70",
     "mission": "0%",
-    "species": "Human",
-    "sex": "Female",
-    "given": "Moon",
-    "family": "Naima",
-    "crewId": "moon-naima"
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "Алмаз Rare, три ветки. Не Command. Камбуз + станция. C65 держит кухню."
   },
   {
+    "id": "seraimal",
+    "crewId": "seraimal",
+    "mint": "",
     "name": "Seraimal Horgorwroo",
+    "given": "Seraimal",
+    "family": "Horgorwroo",
+    "ustur": "",
+    "species": "High Punaab",
+    "sex": "Female",
+    "official": "Uncommon",
+    "tensorRank": 140223,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      },
+      {
+        "name": "Engineering",
+        "xp": 25
+      }
+    ],
+    "o": 26,
+    "c": 95,
+    "e": 51,
+    "a": 9,
+    "n": 22,
+    "characteristics": {
+      "openness": 26,
+      "conscientiousness": 95,
+      "extraversion": 51,
+      "agreeableness": 9,
+      "neuroticism": 22,
+      "aptitudes": {
+        "Flight": 50,
+        "Engineering": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "26"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "95"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "51"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "9"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "22"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Engineering",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "штурвал · инж",
     "ocean": "O26 C95 E51 A9 N22",
     "mission": "24%",
-    "species": "High Punaab",
-    "sex": "Female",
-    "given": "Seraimal",
-    "family": "Horgorwroo",
-    "crewId": "seraimal"
+    "university": "ONI Institute",
+    "age": 27,
+    "house": "",
+    "note": "Официально N22 C95 — палка, не паника. Tensor врал."
   },
   {
+    "id": "lelilintha",
+    "crewId": "lelilintha",
+    "mint": "",
     "name": "Lelilintha Srootosothia",
+    "given": "Lelilintha",
+    "family": "Srootosothia",
+    "ustur": "",
+    "species": "High Punaab",
+    "sex": "Female",
+    "official": "Common",
+    "tensorRank": 142226,
+    "aptitudes": [
+      {
+        "name": "Operator",
+        "xp": 50
+      }
+    ],
+    "o": 19,
+    "c": 10,
+    "e": 10,
+    "a": 53,
+    "n": 22,
+    "characteristics": {
+      "openness": 19,
+      "conscientiousness": 10,
+      "extraversion": 10,
+      "agreeableness": 53,
+      "neuroticism": 22,
+      "aptitudes": {
+        "Operator": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "19"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "10"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "10"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "53"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "22"
+      },
+      {
+        "trait": "Operator",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "автоматика",
     "ocean": "O19 C10 E10 A53 N22",
     "mission": "5%",
-    "species": "High Punaab",
-    "sex": "Female",
-    "given": "Lelilintha",
-    "family": "Srootosothia",
-    "crewId": "lelilintha"
+    "university": "ONI Institute",
+    "age": 30,
+    "house": "",
+    "note": ""
   },
   {
-    "name": "Phulelonva Arianzirfiro",
-    "seats": "инж",
-    "ocean": "O5 C10 E38 A95 N21",
-    "mission": "9%",
-    "species": "Profound Punaab",
-    "sex": "Male",
-    "given": "Phulelonva",
-    "family": "Arianzirfiro",
-    "crewId": "phulelonva"
-  },
-  {
+    "id": "norraphilind",
+    "crewId": "norraphilind",
+    "mint": "",
     "name": "Norraphilind Thionalatho",
+    "given": "Norraphilind",
+    "family": "Thionalatho",
+    "ustur": "",
+    "species": "High Punaab",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 206872,
+    "aptitudes": [
+      {
+        "name": "Hospitality",
+        "xp": 50
+      }
+    ],
+    "o": 60,
+    "c": 98,
+    "e": 100,
+    "a": 15,
+    "n": 21,
+    "characteristics": {
+      "openness": 60,
+      "conscientiousness": 98,
+      "extraversion": 100,
+      "agreeableness": 15,
+      "neuroticism": 21,
+      "aptitudes": {
+        "Hospitality": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "60"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "98"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "100"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "15"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "21"
+      },
+      {
+        "trait": "Hospitality",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "камбуз",
     "ocean": "O60 C98 E100 A15 N21",
     "mission": "0%",
-    "species": "High Punaab",
-    "sex": "Male",
-    "given": "Norraphilind",
-    "family": "Thionalatho",
-    "crewId": "norraphilind"
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "Камбуз. C98 E100."
   },
   {
+    "id": "camposs",
+    "crewId": "camposs",
+    "mint": "",
     "name": "Camposs Sinsirath",
+    "given": "Camposs",
+    "family": "Sinsirath",
+    "ustur": "",
+    "species": "Human",
+    "sex": "Female",
+    "official": "Rare",
+    "tensorRank": 218379,
+    "aptitudes": [
+      {
+        "name": "Fitness",
+        "xp": 50
+      },
+      {
+        "name": "Engineering",
+        "xp": 25
+      },
+      {
+        "name": "Operator",
+        "xp": 25
+      }
+    ],
+    "o": 64,
+    "c": 80,
+    "e": 4,
+    "a": 60,
+    "n": 87,
+    "characteristics": {
+      "openness": 64,
+      "conscientiousness": 80,
+      "extraversion": 4,
+      "agreeableness": 60,
+      "neuroticism": 87,
+      "aptitudes": {
+        "Fitness": 50,
+        "Engineering": 25,
+        "Operator": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "64"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "80"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "4"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "60"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "87"
+      },
+      {
+        "trait": "Fitness",
+        "value": "50"
+      },
+      {
+        "trait": "Engineering",
+        "value": "25"
+      },
+      {
+        "trait": "Operator",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "Human"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "автоматика · инж · пехота",
     "ocean": "O64 C80 E4 A60 N87",
     "mission": "9%",
-    "species": "Human",
-    "sex": "Female",
-    "given": "Camposs",
-    "family": "Sinsirath",
-    "crewId": "camposs"
+    "university": "MUD Academy",
+    "age": 41,
+    "house": "",
+    "note": "N87. Не палка. Тройное дерево."
   },
   {
+    "id": "gaarthoren",
+    "crewId": "gaarthoren",
+    "mint": "",
     "name": "Gaarthoren Raragnilaath",
+    "given": "Gaarthoren",
+    "family": "Raragnilaath",
+    "ustur": "",
+    "species": "Profound Punaab",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 223611,
+    "aptitudes": [
+      {
+        "name": "Fitness",
+        "xp": 50
+      }
+    ],
+    "o": 93,
+    "c": 36,
+    "e": 19,
+    "a": 40,
+    "n": 32,
+    "characteristics": {
+      "openness": 93,
+      "conscientiousness": 36,
+      "extraversion": 19,
+      "agreeableness": 40,
+      "neuroticism": 32,
+      "aptitudes": {
+        "Fitness": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "93"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "36"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "19"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "40"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "32"
+      },
+      {
+        "trait": "Fitness",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Profound Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "пехота",
     "ocean": "O93 C36 E19 A40 N32",
     "mission": "0%",
-    "species": "Profound Punaab",
-    "sex": "Male",
-    "given": "Gaarthoren",
-    "family": "Raragnilaath",
-    "crewId": "gaarthoren"
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": ""
   },
   {
+    "id": "thartine",
+    "crewId": "thartine",
+    "mint": "",
     "name": "Thartine Vichorichand",
+    "given": "Thartine",
+    "family": "Vichorichand",
+    "ustur": "",
+    "species": "High Punaab",
+    "sex": "Female",
+    "official": "Common",
+    "tensorRank": 239290,
+    "aptitudes": [
+      {
+        "name": "Fitness",
+        "xp": 50
+      }
+    ],
+    "o": 98,
+    "c": 32,
+    "e": 11,
+    "a": 89,
+    "n": 52,
+    "characteristics": {
+      "openness": 98,
+      "conscientiousness": 32,
+      "extraversion": 11,
+      "agreeableness": 89,
+      "neuroticism": 52,
+      "aptitudes": {
+        "Fitness": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "98"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "32"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "11"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "89"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "52"
+      },
+      {
+        "trait": "Fitness",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "пехота",
     "ocean": "O98 C32 E11 A89 N52",
     "mission": "0%",
-    "species": "High Punaab",
-    "sex": "Female",
-    "given": "Thartine",
-    "family": "Vichorichand",
-    "crewId": "thartine"
+    "university": "ONI Institute",
+    "age": 41,
+    "house": "",
+    "note": ""
   },
   {
+    "id": "aanothin",
+    "crewId": "aanothin",
+    "mint": "",
     "name": "Aanothin Thalaramgroo",
+    "given": "Aanothin",
+    "family": "Thalaramgroo",
+    "ustur": "",
+    "species": "Profound Punaab",
+    "sex": "Female",
+    "official": "Common",
+    "tensorRank": 255135,
+    "aptitudes": [
+      {
+        "name": "Medical",
+        "xp": 50
+      }
+    ],
+    "o": 1,
+    "c": 40,
+    "e": 56,
+    "a": 5,
+    "n": 51,
+    "characteristics": {
+      "openness": 1,
+      "conscientiousness": 40,
+      "extraversion": 56,
+      "agreeableness": 5,
+      "neuroticism": 51,
+      "aptitudes": {
+        "Medical": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "1"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "40"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "56"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "5"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "51"
+      },
+      {
+        "trait": "Medical",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Profound Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "медик",
     "ocean": "O1 C40 E56 A5 N51",
     "mission": "10%",
-    "species": "Profound Punaab",
-    "sex": "Female",
-    "given": "Aanothin",
-    "family": "Thalaramgroo",
-    "crewId": "aanothin"
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": ""
   },
   {
+    "id": "jaenfatali",
+    "crewId": "jaenfatali",
+    "mint": "",
     "name": "Jaenfatali Arirathonan",
+    "given": "Jaenfatali",
+    "family": "Arirathonan",
+    "ustur": "",
+    "species": "Profound Punaab",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 264836,
+    "aptitudes": [
+      {
+        "name": "Engineering",
+        "xp": 50
+      }
+    ],
+    "o": 86,
+    "c": 3,
+    "e": 41,
+    "a": 2,
+    "n": 49,
+    "characteristics": {
+      "openness": 86,
+      "conscientiousness": 3,
+      "extraversion": 41,
+      "agreeableness": 2,
+      "neuroticism": 49,
+      "aptitudes": {
+        "Engineering": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "86"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "3"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "41"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "2"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "49"
+      },
+      {
+        "trait": "Engineering",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Profound Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "инж",
     "ocean": "O86 C3 E41 A2 N49",
     "mission": "7%",
-    "species": "Profound Punaab",
-    "sex": "Male",
-    "given": "Jaenfatali",
-    "family": "Arirathonan",
-    "crewId": "jaenfatali"
+    "university": "ONI Institute",
+    "age": 31,
+    "house": "",
+    "note": "C3. Не чеклист."
   },
   {
+    "id": "othnisatehaph",
+    "crewId": "othnisatehaph",
+    "mint": "",
     "name": "Othnisatehaph Barorooanthos",
+    "given": "Othnisatehaph",
+    "family": "Barorooanthos",
+    "ustur": "",
+    "species": "Profound Punaab",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 282810,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      }
+    ],
+    "o": 65,
+    "c": 98,
+    "e": 49,
+    "a": 60,
+    "n": 93,
+    "characteristics": {
+      "openness": 65,
+      "conscientiousness": 98,
+      "extraversion": 49,
+      "agreeableness": 60,
+      "neuroticism": 93,
+      "aptitudes": {
+        "Flight": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "65"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "98"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "49"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "60"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "93"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Profound Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "не штурвал",
     "ocean": "O65 C98 E49 A60 N93",
     "mission": "2%",
-    "species": "Profound Punaab",
-    "sex": "Male",
-    "given": "Othnisatehaph",
-    "family": "Barorooanthos",
-    "crewId": "othnisatehaph"
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "C98 но N93. Не штурвал."
   },
   {
-    "name": "Uusathar Rathianaelhor",
-    "seats": "штурвал",
-    "ocean": "O8 C42 E99 A42 N9",
-    "mission": "15%",
-    "species": "Profound Punaab",
-    "sex": "Female",
-    "given": "Uusathar",
-    "family": "Rathianaelhor",
-    "crewId": "uusathar"
-  },
-  {
+    "id": "alkathve",
+    "crewId": "alkathve",
+    "mint": "",
     "name": "Alkathve Jorcoreliro",
+    "given": "Alkathve",
+    "family": "Jorcoreliro",
+    "ustur": "",
+    "species": "High Punaab",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 315822,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      }
+    ],
+    "o": 48,
+    "c": 85,
+    "e": 94,
+    "a": 68,
+    "n": 48,
+    "characteristics": {
+      "openness": 48,
+      "conscientiousness": 85,
+      "extraversion": 94,
+      "agreeableness": 68,
+      "neuroticism": 48,
+      "aptitudes": {
+        "Flight": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "48"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "85"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "94"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "68"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "48"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "штурвал",
     "ocean": "O48 C85 E94 A68 N48",
     "mission": "11%",
-    "species": "High Punaab",
-    "sex": "Male",
-    "given": "Alkathve",
-    "family": "Jorcoreliro",
-    "crewId": "alkathve"
+    "university": "ONI Institute",
+    "age": 18,
+    "house": "",
+    "note": ""
   },
   {
+    "id": "jailaanqa",
+    "crewId": "jailaanqa",
+    "mint": "",
     "name": "Jailaanqa Daranrathion",
+    "given": "Jailaanqa",
+    "family": "Daranrathion",
+    "ustur": "",
+    "species": "Profound Punaab",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 322407,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      }
+    ],
+    "o": 69,
+    "c": 38,
+    "e": 2,
+    "a": 31,
+    "n": 27,
+    "characteristics": {
+      "openness": 69,
+      "conscientiousness": 38,
+      "extraversion": 2,
+      "agreeableness": 31,
+      "neuroticism": 27,
+      "aptitudes": {
+        "Flight": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "69"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "38"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "2"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "31"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "27"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Profound Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "штурвал",
     "ocean": "O69 C38 E2 A31 N27",
     "mission": "11%",
-    "species": "Profound Punaab",
-    "sex": "Male",
-    "given": "Jailaanqa",
-    "family": "Daranrathion",
-    "crewId": "jailaanqa"
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": ""
   },
   {
+    "id": "caonlekr",
+    "crewId": "caonlekr",
+    "mint": "",
     "name": "Caonlekr Keyrordarxroo",
+    "given": "Caonlekr",
+    "family": "Keyrordarxroo",
+    "ustur": "",
+    "species": "High Punaab",
+    "sex": "Female",
+    "official": "Common",
+    "tensorRank": 340303,
+    "aptitudes": [
+      {
+        "name": "Fitness",
+        "xp": 50
+      }
+    ],
+    "o": 81,
+    "c": 39,
+    "e": 65,
+    "a": 8,
+    "n": 87,
+    "characteristics": {
+      "openness": 81,
+      "conscientiousness": 39,
+      "extraversion": 65,
+      "agreeableness": 8,
+      "neuroticism": 87,
+      "aptitudes": {
+        "Fitness": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "81"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "39"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "65"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "8"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "87"
+      },
+      {
+        "trait": "Fitness",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "пехота",
     "ocean": "O81 C39 E65 A8 N87",
     "mission": "0%",
-    "species": "High Punaab",
-    "sex": "Female",
-    "given": "Caonlekr",
-    "family": "Keyrordarxroo",
-    "crewId": "caonlekr"
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": ""
   },
   {
-    "name": "Anbeloon Rathumbarjor",
-    "seats": "медик",
-    "ocean": "O96 C59 E25 A14 N67",
-    "mission": "10%",
-    "species": "High Punaab",
-    "sex": "Female",
-    "given": "Anbeloon",
-    "family": "Rathumbarjor",
-    "crewId": "anbeloon"
-  },
-  {
+    "id": "arsamehafa",
+    "crewId": "arsamehafa",
+    "mint": "",
     "name": "Arsamehafa Bareltarleean",
+    "given": "Arsamehafa",
+    "family": "Bareltarleean",
+    "ustur": "",
+    "species": "Profound Punaab",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 345053,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      }
+    ],
+    "o": 51,
+    "c": 30,
+    "e": 26,
+    "a": 73,
+    "n": 2,
+    "characteristics": {
+      "openness": 51,
+      "conscientiousness": 30,
+      "extraversion": 26,
+      "agreeableness": 73,
+      "neuroticism": 2,
+      "aptitudes": {
+        "Flight": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "51"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "30"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "26"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "73"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "2"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Profound Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "штурвал",
     "ocean": "O51 C30 E26 A73 N2",
     "mission": "15%",
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "Лёд гамми. N2. Jetjet с Ooniseth."
+  },
+  {
+    "id": "aniruuddh",
+    "crewId": "aniruuddh",
+    "mint": "",
+    "name": "Aniruuddh Xorecrowntar",
+    "given": "Aniruuddh",
+    "family": "Xorecrowntar",
+    "ustur": "",
     "species": "Profound Punaab",
     "sex": "Male",
-    "given": "Arsamehafa",
-    "family": "Bareltarleean",
-    "crewId": "arsamehafa"
-  },
-  {
-    "name": "Aaveortearsi Rinthuscarard",
-    "seats": "автоматика",
-    "ocean": "O94 C77 E60 A95 N78",
-    "mission": "7%",
-    "species": "High Punaab",
-    "sex": "Male",
-    "given": "Aaveortearsi",
-    "family": "Rinthuscarard",
-    "crewId": "aaveortearsi"
-  },
-  {
-    "name": "Urtelaorilve Ethannirari",
-    "seats": "автоматика",
-    "ocean": "O56 C12 E98 A68 N14",
-    "mission": "8%",
-    "species": "High Punaab",
-    "sex": "Male",
-    "given": "Urtelaorilve",
-    "family": "Ethannirari",
-    "crewId": "urtelaorilve"
-  },
-  {
-    "name": "Aniruuddh Xorecrowntar",
+    "official": "Common",
+    "tensorRank": 356750,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      }
+    ],
+    "o": 58,
+    "c": 2,
+    "e": 55,
+    "a": 51,
+    "n": 86,
+    "characteristics": {
+      "openness": 58,
+      "conscientiousness": 2,
+      "extraversion": 55,
+      "agreeableness": 51,
+      "neuroticism": 86,
+      "aptitudes": {
+        "Flight": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "58"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "2"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "55"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "51"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "86"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Profound Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "не штурвал",
     "ocean": "O58 C2 E55 A51 N86",
     "mission": "2%",
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "C2 N86. Не штурвал."
+  },
+  {
+    "id": "paakroonee",
+    "crewId": "paakroonee",
+    "mint": "",
+    "name": "Paakroonee Ethuloanthal",
+    "given": "Paakroonee",
+    "family": "Ethuloanthal",
+    "ustur": "",
     "species": "Profound Punaab",
     "sex": "Male",
-    "given": "Aniruuddh",
-    "family": "Xorecrowntar",
-    "crewId": "aniruuddh"
-  },
-  {
-    "name": "Raurtawa Zolamontvish",
-    "seats": "инж",
-    "ocean": "O8 C73 E89 A32 N37",
-    "mission": "14%",
-    "species": "Profound Punaab",
-    "sex": "Female",
-    "given": "Raurtawa",
-    "family": "Zolamontvish",
-    "crewId": "raurtawa"
-  },
-  {
-    "name": "Sena Lutavira",
-    "seats": "камбуз · пехота",
-    "ocean": "O23 C26 E41 A63 N87",
-    "mission": "0%",
-    "species": "Sogmian",
-    "sex": "Female",
-    "given": "Sena",
-    "family": "Lutavira",
-    "crewId": "sena"
-  },
-  {
-    "name": "Paakroonee Ethuloanthal",
+    "official": "Common",
+    "tensorRank": 415013,
+    "aptitudes": [
+      {
+        "name": "Hospitality",
+        "xp": 50
+      }
+    ],
+    "o": 79,
+    "c": 73,
+    "e": 66,
+    "a": 20,
+    "n": 66,
+    "characteristics": {
+      "openness": 79,
+      "conscientiousness": 73,
+      "extraversion": 66,
+      "agreeableness": 20,
+      "neuroticism": 66,
+      "aptitudes": {
+        "Hospitality": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "79"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "73"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "66"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "20"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "66"
+      },
+      {
+        "trait": "Hospitality",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Profound Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "камбуз",
     "ocean": "O79 C73 E66 A20 N66",
     "mission": "0%",
-    "species": "Profound Punaab",
-    "sex": "Male",
-    "given": "Paakroonee",
-    "family": "Ethuloanthal",
-    "crewId": "paakroonee"
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": ""
   },
   {
-    "name": "Shimadair Xeny",
-    "seats": "штурвал · медик",
-    "ocean": "O1 C75 E32 A17 N30",
-    "mission": "18%",
-    "species": "Human",
-    "sex": "Female",
-    "given": "Shimadair",
-    "family": "Xeny",
-    "crewId": "shimadair"
-  },
-  {
+    "id": "qaethian",
+    "crewId": "qaethian",
+    "mint": "",
     "name": "Qaethian Vasbrooroy",
+    "given": "Qaethian",
+    "family": "Vasbrooroy",
+    "ustur": "",
+    "species": "Profound Punaab",
+    "sex": "Female",
+    "official": "Common",
+    "tensorRank": 432543,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      }
+    ],
+    "o": 36,
+    "c": 93,
+    "e": 67,
+    "a": 70,
+    "n": 28,
+    "characteristics": {
+      "openness": 36,
+      "conscientiousness": 93,
+      "extraversion": 67,
+      "agreeableness": 70,
+      "neuroticism": 28,
+      "aptitudes": {
+        "Flight": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "36"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "93"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "67"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "70"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "28"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Profound Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "штурвал",
     "ocean": "O36 C93 E67 A70 N28",
     "mission": "16%",
-    "species": "Profound Punaab",
-    "sex": "Female",
-    "given": "Qaethian",
-    "family": "Vasbrooroy",
-    "crewId": "qaethian"
+    "university": "ONI Institute",
+    "age": 38,
+    "house": "",
+    "note": ""
   },
   {
-    "name": "Laraellipa Milelliethio",
-    "seats": "автоматика",
-    "ocean": "O56 C24 E24 A44 N27",
-    "mission": "7%",
+    "id": "horranepheer",
+    "crewId": "horranepheer",
+    "mint": "",
+    "name": "Horranepheer Vorterotheo",
+    "given": "Horranepheer",
+    "family": "Vorterotheo",
+    "ustur": "",
     "species": "High Punaab",
     "sex": "Male",
-    "given": "Laraellipa",
-    "family": "Milelliethio",
-    "crewId": "laraellipa"
-  },
-  {
-    "name": "Horranepheer Vorterotheo",
+    "official": "Common",
+    "tensorRank": 440240,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      }
+    ],
+    "o": 10,
+    "c": 99,
+    "e": 97,
+    "a": 2,
+    "n": 93,
+    "characteristics": {
+      "openness": 10,
+      "conscientiousness": 99,
+      "extraversion": 97,
+      "agreeableness": 2,
+      "neuroticism": 93,
+      "aptitudes": {
+        "Flight": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "10"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "99"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "97"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "2"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "93"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "не штурвал",
     "ocean": "O10 C99 E97 A2 N93",
     "mission": "2%",
-    "species": "High Punaab",
-    "sex": "Male",
-    "given": "Horranepheer",
-    "family": "Vorterotheo",
-    "crewId": "horranepheer"
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "Чеклист 99, паника 93."
   },
   {
+    "id": "iansapha",
+    "crewId": "iansapha",
+    "mint": "",
     "name": "Iansapha Aalkmesphin",
+    "given": "Iansapha",
+    "family": "Aalkmesphin",
+    "ustur": "",
+    "species": "High Punaab",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 442047,
+    "aptitudes": [
+      {
+        "name": "Fitness",
+        "xp": 50
+      }
+    ],
+    "o": 95,
+    "c": 82,
+    "e": 95,
+    "a": 96,
+    "n": 75,
+    "characteristics": {
+      "openness": 95,
+      "conscientiousness": 82,
+      "extraversion": 95,
+      "agreeableness": 96,
+      "neuroticism": 75,
+      "aptitudes": {
+        "Fitness": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "95"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "82"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "95"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "96"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "75"
+      },
+      {
+        "trait": "Fitness",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "пехота",
     "ocean": "O95 C82 E95 A96 N75",
     "mission": "0%",
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": ""
+  },
+  {
+    "id": "labruuphka",
+    "crewId": "labruuphka",
+    "mint": "",
+    "name": "Labruuphka Inthoshallriv",
+    "given": "Labruuphka",
+    "family": "Inthoshallriv",
+    "ustur": "",
     "species": "High Punaab",
     "sex": "Male",
-    "given": "Iansapha",
-    "family": "Aalkmesphin",
-    "crewId": "iansapha"
-  },
-  {
-    "name": "Viurneca Oleaantheokar",
-    "seats": "не штурвал",
-    "ocean": "O69 C51 E84 A9 N82",
-    "mission": "3%",
-    "species": "Profound Punaab",
-    "sex": "Female",
-    "given": "Viurneca",
-    "family": "Oleaantheokar",
-    "crewId": "viurneca"
-  },
-  {
-    "name": "Labruuphka Inthoshallriv",
+    "official": "Common",
+    "tensorRank": 442349,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      }
+    ],
+    "o": 32,
+    "c": 50,
+    "e": 79,
+    "a": 7,
+    "n": 83,
+    "characteristics": {
+      "openness": 32,
+      "conscientiousness": 50,
+      "extraversion": 79,
+      "agreeableness": 7,
+      "neuroticism": 83,
+      "aptitudes": {
+        "Flight": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "32"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "50"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "79"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "7"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "83"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "не штурвал",
     "ocean": "O32 C50 E79 A7 N83",
     "mission": "3%",
-    "species": "High Punaab",
-    "sex": "Male",
-    "given": "Labruuphka",
-    "family": "Inthoshallriv",
-    "crewId": "labruuphka"
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": ""
   },
   {
-    "name": "Yarrindilpho Etheoolopoll",
-    "seats": "автоматика",
-    "ocean": "O12 C52 E86 A89 N68",
-    "mission": "3%",
-    "species": "High Punaab",
-    "sex": "Male",
-    "given": "Yarrindilpho",
-    "family": "Etheoolopoll",
-    "crewId": "yarrindilpho"
-  },
-  {
+    "id": "zelna",
+    "crewId": "zelna",
+    "mint": "",
     "name": "Zelna Exinado",
+    "given": "Zelna",
+    "family": "Exinado",
+    "ustur": "",
+    "species": "Sogmian",
+    "sex": "Female",
+    "official": "Common",
+    "tensorRank": 445389,
+    "aptitudes": [
+      {
+        "name": "Command",
+        "xp": 50
+      }
+    ],
+    "o": 96,
+    "c": 1,
+    "e": 74,
+    "a": 34,
+    "n": 38,
+    "characteristics": {
+      "openness": 96,
+      "conscientiousness": 1,
+      "extraversion": 74,
+      "agreeableness": 34,
+      "neuroticism": 38,
+      "aptitudes": {
+        "Command": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "96"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "1"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "74"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "34"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "38"
+      },
+      {
+        "trait": "Command",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Sogmian"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "капитан",
     "ocean": "O96 C1 E74 A34 N38",
     "mission": "31%",
-    "species": "Sogmian",
-    "sex": "Female",
-    "given": "Zelna",
-    "family": "Exinado",
-    "crewId": "zelna"
+    "university": "",
+    "age": null,
+    "house": "Exinado",
+    "note": "Command major. C1 — только с XO."
   },
   {
+    "id": "koben",
+    "crewId": "koben",
+    "mint": "",
     "name": "Koben Outro",
+    "given": "Koben",
+    "family": "Outro",
+    "ustur": "",
+    "species": "Sogmian",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 454539,
+    "aptitudes": [
+      {
+        "name": "Command",
+        "xp": 50
+      }
+    ],
+    "o": 55,
+    "c": 41,
+    "e": 17,
+    "a": 44,
+    "n": 75,
+    "characteristics": {
+      "openness": 55,
+      "conscientiousness": 41,
+      "extraversion": 17,
+      "agreeableness": 44,
+      "neuroticism": 75,
+      "aptitudes": {
+        "Command": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "55"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "41"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "17"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "44"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "75"
+      },
+      {
+        "trait": "Command",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Sogmian"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "капитан",
     "ocean": "O55 C41 E17 A44 N75",
     "mission": "30%",
-    "species": "Sogmian",
-    "sex": "Male",
-    "given": "Koben",
-    "family": "Outro",
-    "crewId": "koben"
+    "university": "ONI Institute",
+    "age": 32,
+    "house": "Outro",
+    "note": "Кэп-1. Command major."
   },
   {
+    "id": "norina",
+    "crewId": "norina",
+    "mint": "",
     "name": "Norina Xictus",
+    "given": "Norina",
+    "family": "Xictus",
+    "ustur": "",
+    "species": "Sogmian",
+    "sex": "Female",
+    "official": "Common",
+    "tensorRank": 455950,
+    "aptitudes": [
+      {
+        "name": "Hospitality",
+        "xp": 50
+      }
+    ],
+    "o": 48,
+    "c": 80,
+    "e": 23,
+    "a": 92,
+    "n": 62,
+    "characteristics": {
+      "openness": 48,
+      "conscientiousness": 80,
+      "extraversion": 23,
+      "agreeableness": 92,
+      "neuroticism": 62,
+      "aptitudes": {
+        "Hospitality": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "48"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "80"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "23"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "92"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "62"
+      },
+      {
+        "trait": "Hospitality",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Sogmian"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "камбуз",
     "ocean": "O48 C80 E23 A92 N62",
     "mission": "0%",
-    "species": "Sogmian",
-    "sex": "Female",
-    "given": "Norina",
-    "family": "Xictus",
-    "crewId": "norina"
+    "university": "ONI Institute",
+    "age": 31,
+    "house": "Xictus",
+    "note": ""
   },
   {
+    "id": "yandor",
+    "crewId": "yandor",
+    "mint": "",
     "name": "Yandor Xictus",
+    "given": "Yandor",
+    "family": "Xictus",
+    "ustur": "",
+    "species": "Sogmian",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 457018,
+    "aptitudes": [
+      {
+        "name": "Hospitality",
+        "xp": 50
+      }
+    ],
+    "o": 18,
+    "c": 62,
+    "e": 50,
+    "a": 5,
+    "n": 96,
+    "characteristics": {
+      "openness": 18,
+      "conscientiousness": 62,
+      "extraversion": 50,
+      "agreeableness": 5,
+      "neuroticism": 96,
+      "aptitudes": {
+        "Hospitality": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "18"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "62"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "50"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "5"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "96"
+      },
+      {
+        "trait": "Hospitality",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Sogmian"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "камбуз",
     "ocean": "O18 C62 E50 A5 N96",
     "mission": "0%",
-    "species": "Sogmian",
-    "sex": "Male",
-    "given": "Yandor",
-    "family": "Xictus",
-    "crewId": "yandor"
+    "university": "",
+    "age": null,
+    "house": "Xictus",
+    "note": "N96. Камбуз, не мостик."
   },
   {
+    "id": "paalthar",
+    "crewId": "paalthar",
+    "mint": "",
     "name": "Paalthar Ardroraquxroo",
+    "given": "Paalthar",
+    "family": "Ardroraquxroo",
+    "ustur": "",
+    "species": "High Punaab",
+    "sex": "Female",
+    "official": "Common",
+    "tensorRank": 466746,
+    "aptitudes": [
+      {
+        "name": "Science",
+        "xp": 50
+      }
+    ],
+    "o": 57,
+    "c": 28,
+    "e": 56,
+    "a": 15,
+    "n": 86,
+    "characteristics": {
+      "openness": 57,
+      "conscientiousness": 28,
+      "extraversion": 56,
+      "agreeableness": 15,
+      "neuroticism": 86,
+      "aptitudes": {
+        "Science": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "57"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "28"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "56"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "15"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "86"
+      },
+      {
+        "trait": "Science",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "станция",
     "ocean": "O57 C28 E56 A15 N86",
     "mission": "0%",
-    "species": "High Punaab",
-    "sex": "Female",
-    "given": "Paalthar",
-    "family": "Ardroraquxroo",
-    "crewId": "paalthar"
+    "university": "ONI Institute",
+    "age": 32,
+    "house": "",
+    "note": ""
   },
   {
-    "name": "Taakorinthilo Vrooxylathio",
-    "seats": "не штурвал",
-    "ocean": "O95 C48 E40 A47 N69",
-    "mission": "5%",
-    "species": "High Punaab",
-    "sex": "Male",
-    "given": "Taakorinthilo",
-    "family": "Vrooxylathio",
-    "crewId": "taakorinthilo"
-  },
-  {
+    "id": "uraiwatica",
+    "crewId": "uraiwatica",
+    "mint": "",
     "name": "Uraiwatica Inthelwoodton",
+    "given": "Uraiwatica",
+    "family": "Inthelwoodton",
+    "ustur": "",
+    "species": "Profound Punaab",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 502627,
+    "aptitudes": [
+      {
+        "name": "Medical",
+        "xp": 50
+      }
+    ],
+    "o": 81,
+    "c": 94,
+    "e": 33,
+    "a": 3,
+    "n": 78,
+    "characteristics": {
+      "openness": 81,
+      "conscientiousness": 94,
+      "extraversion": 33,
+      "agreeableness": 3,
+      "neuroticism": 78,
+      "aptitudes": {
+        "Medical": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "81"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "94"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "33"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "3"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "78"
+      },
+      {
+        "trait": "Medical",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Profound Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "медик",
     "ocean": "O81 C94 E33 A3 N78",
     "mission": "10%",
-    "species": "Profound Punaab",
-    "sex": "Male",
-    "given": "Uraiwatica",
-    "family": "Inthelwoodton",
-    "crewId": "uraiwatica"
+    "university": "ONI Institute",
+    "age": 35,
+    "house": "",
+    "note": ""
   },
   {
+    "id": "armalius",
+    "crewId": "armalius",
+    "mint": "",
     "name": "Armalius Busan",
+    "given": "Armalius",
+    "family": "Busan",
+    "ustur": "",
+    "species": "Sogmian",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 504480,
+    "aptitudes": [
+      {
+        "name": "Engineering",
+        "xp": 50
+      }
+    ],
+    "o": 35,
+    "c": 38,
+    "e": 18,
+    "a": 49,
+    "n": 77,
+    "characteristics": {
+      "openness": 35,
+      "conscientiousness": 38,
+      "extraversion": 18,
+      "agreeableness": 49,
+      "neuroticism": 77,
+      "aptitudes": {
+        "Engineering": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "35"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "38"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "18"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "49"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "77"
+      },
+      {
+        "trait": "Engineering",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Sogmian"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "инж",
     "ocean": "O35 C38 E18 A49 N77",
     "mission": "10%",
-    "species": "Sogmian",
-    "sex": "Male",
-    "given": "Armalius",
-    "family": "Busan",
-    "crewId": "armalius"
+    "university": "",
+    "age": null,
+    "house": "Busan",
+    "note": ""
   },
   {
-    "name": "Elizondo Menkabi",
-    "seats": "автоматика · камбуз",
-    "ocean": "O62 C63 E32 A47 N62",
-    "mission": "3%",
-    "species": "Human",
-    "sex": "Female",
-    "given": "Elizondo",
-    "family": "Menkabi",
-    "crewId": "elizondo"
-  },
-  {
+    "id": "convog",
+    "crewId": "convog",
+    "mint": "",
     "name": "Convog .tchr",
-    "seats": "станция",
-    "ocean": "O58 C58 E51 A16 N6",
-    "mission": "0%",
-    "species": "Ustur",
-    "sex": "Body 1",
     "given": "Convog",
     "family": "",
     "ustur": ".tchr",
-    "crewId": "convog"
+    "species": "Ustur",
+    "sex": "Body 1",
+    "official": "Common",
+    "tensorRank": 543287,
+    "aptitudes": [
+      {
+        "name": "Science",
+        "xp": 50
+      }
+    ],
+    "o": 58,
+    "c": 58,
+    "e": 51,
+    "a": 16,
+    "n": 6,
+    "characteristics": {
+      "openness": 58,
+      "conscientiousness": 58,
+      "extraversion": 51,
+      "agreeableness": 16,
+      "neuroticism": 6,
+      "aptitudes": {
+        "Science": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "58"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "58"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "51"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "16"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "6"
+      },
+      {
+        "trait": "Science",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Ustur"
+      },
+      {
+        "trait": "Sex",
+        "value": "Body 1"
+      }
+    ],
+    "seats": "станция",
+    "ocean": "O58 C58 E51 A16 N6",
+    "mission": "0%",
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "Спокойный робот-учёный. N6."
   },
   {
+    "id": "qaethpaondaja",
+    "crewId": "qaethpaondaja",
+    "mint": "",
     "name": "Qaethpaondaja Ilathiaill",
+    "given": "Qaethpaondaja",
+    "family": "Ilathiaill",
+    "ustur": "",
+    "species": "High Punaab",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 555287,
+    "aptitudes": [
+      {
+        "name": "Engineering",
+        "xp": 50
+      }
+    ],
+    "o": 43,
+    "c": 12,
+    "e": 47,
+    "a": 62,
+    "n": 5,
+    "characteristics": {
+      "openness": 43,
+      "conscientiousness": 12,
+      "extraversion": 47,
+      "agreeableness": 62,
+      "neuroticism": 5,
+      "aptitudes": {
+        "Engineering": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "43"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "12"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "47"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "62"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "5"
+      },
+      {
+        "trait": "Engineering",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "инж",
     "ocean": "O43 C12 E47 A62 N5",
     "mission": "9%",
-    "species": "High Punaab",
-    "sex": "Male",
-    "given": "Qaethpaondaja",
-    "family": "Ilathiaill",
-    "crewId": "qaethpaondaja"
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "Лёд. C12."
   },
   {
+    "id": "hareoe",
+    "crewId": "hareoe",
+    "mint": "",
     "name": "Hareoe .bod",
-    "seats": "медик",
-    "ocean": "O78 C92 E75 A42 N92",
-    "mission": "11%",
-    "species": "Ustur",
-    "sex": "Body 1",
     "given": "Hareoe",
     "family": "",
     "ustur": ".bod",
-    "crewId": "hareoe"
-  },
-  {
-    "name": "Takedaani Elvira",
-    "seats": "штурвал · медик",
-    "ocean": "O39 C83 E36 A8 N28",
-    "mission": "17%",
-    "species": "Human",
-    "sex": "Female",
-    "given": "Takedaani",
-    "family": "Elvira",
-    "crewId": "takedaani"
-  },
-  {
-    "name": "Bandoz .bod",
-    "seats": "не штурвал",
-    "ocean": "O62 C78 E63 A2 N87",
-    "mission": "2%",
     "species": "Ustur",
     "sex": "Body 1",
+    "official": "Common",
+    "tensorRank": 575818,
+    "aptitudes": [
+      {
+        "name": "Medical",
+        "xp": 50
+      }
+    ],
+    "o": 78,
+    "c": 92,
+    "e": 75,
+    "a": 42,
+    "n": 92,
+    "characteristics": {
+      "openness": 78,
+      "conscientiousness": 92,
+      "extraversion": 75,
+      "agreeableness": 42,
+      "neuroticism": 92,
+      "aptitudes": {
+        "Medical": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "78"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "92"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "75"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "42"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "92"
+      },
+      {
+        "trait": "Medical",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Ustur"
+      },
+      {
+        "trait": "Sex",
+        "value": "Body 1"
+      }
+    ],
+    "seats": "медик",
+    "ocean": "O78 C92 E75 A42 N92",
+    "mission": "11%",
+    "university": "Ustur Central University",
+    "age": 26,
+    "house": "",
+    "note": "Медик-запас. N92."
+  },
+  {
+    "id": "bandoz",
+    "crewId": "bandoz",
+    "mint": "",
+    "name": "Bandoz .bod",
     "given": "Bandoz",
     "family": "",
     "ustur": ".bod",
-    "crewId": "bandoz"
+    "species": "Ustur",
+    "sex": "Body 1",
+    "official": "Common",
+    "tensorRank": 677252,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      }
+    ],
+    "o": 62,
+    "c": 78,
+    "e": 63,
+    "a": 2,
+    "n": 87,
+    "characteristics": {
+      "openness": 62,
+      "conscientiousness": 78,
+      "extraversion": 63,
+      "agreeableness": 2,
+      "neuroticism": 87,
+      "aptitudes": {
+        "Flight": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "62"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "78"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "63"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "2"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "87"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Ustur"
+      },
+      {
+        "trait": "Sex",
+        "value": "Body 1"
+      }
+    ],
+    "seats": "не штурвал",
+    "ocean": "O62 C78 E63 A2 N87",
+    "mission": "2%",
+    "university": "Ustur Central University",
+    "age": 22,
+    "house": "",
+    "note": "Не штурвал. N87 A2."
   },
   {
+    "id": "bocoqebu",
+    "crewId": "bocoqebu",
+    "mint": "",
     "name": "Bocoqebu Bayou Valel",
+    "given": "Bocoqebu",
+    "family": "Bayou Valel",
+    "ustur": "",
+    "species": "Mierese",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 700727,
+    "aptitudes": [
+      {
+        "name": "Engineering",
+        "xp": 50
+      }
+    ],
+    "o": 46,
+    "c": 37,
+    "e": 66,
+    "a": 59,
+    "n": 29,
+    "characteristics": {
+      "openness": 46,
+      "conscientiousness": 37,
+      "extraversion": 66,
+      "agreeableness": 59,
+      "neuroticism": 29,
+      "aptitudes": {
+        "Engineering": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "46"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "37"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "66"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "59"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "29"
+      },
+      {
+        "trait": "Engineering",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Mierese"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "инж",
     "ocean": "O46 C37 E66 A59 N29",
     "mission": "11%",
-    "species": "Mierese",
-    "sex": "Male",
-    "given": "Bocoqebu",
-    "family": "Bayou Valel",
-    "crewId": "bocoqebu"
+    "university": "ONI Institute",
+    "age": 30,
+    "house": "",
+    "note": ""
   },
   {
+    "id": "tavia",
+    "crewId": "tavia",
+    "mint": "",
     "name": "Tavia Outro",
+    "given": "Tavia",
+    "family": "Outro",
+    "ustur": "",
+    "species": "Sogmian",
+    "sex": "Female",
+    "official": "Common",
+    "tensorRank": 850523,
+    "aptitudes": [
+      {
+        "name": "Science",
+        "xp": 50
+      }
+    ],
+    "o": 27,
+    "c": 84,
+    "e": 83,
+    "a": 21,
+    "n": 38,
+    "characteristics": {
+      "openness": 27,
+      "conscientiousness": 84,
+      "extraversion": 83,
+      "agreeableness": 21,
+      "neuroticism": 38,
+      "aptitudes": {
+        "Science": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "27"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "84"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "83"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "21"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "38"
+      },
+      {
+        "trait": "Science",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Sogmian"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "станция",
     "ocean": "O27 C84 E83 A21 N38",
     "mission": "0%",
-    "species": "Sogmian",
-    "sex": "Female",
-    "given": "Tavia",
-    "family": "Outro",
-    "crewId": "tavia"
+    "university": "ONI Institute",
+    "age": 40,
+    "house": "Outro",
+    "note": ""
   },
   {
+    "id": "rousseau",
+    "crewId": "rousseau",
+    "mint": "",
     "name": "Rousseau Varonis",
+    "given": "Rousseau",
+    "family": "Varonis",
+    "ustur": "",
+    "species": "Human",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 973543,
+    "aptitudes": [
+      {
+        "name": "Operator",
+        "xp": 50
+      }
+    ],
+    "o": 68,
+    "c": 1,
+    "e": 93,
+    "a": 57,
+    "n": 81,
+    "characteristics": {
+      "openness": 68,
+      "conscientiousness": 1,
+      "extraversion": 93,
+      "agreeableness": 57,
+      "neuroticism": 81,
+      "aptitudes": {
+        "Operator": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "68"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "1"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "93"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "57"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "81"
+      },
+      {
+        "trait": "Operator",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Human"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "автоматика",
     "ocean": "O68 C1 E93 A57 N81",
     "mission": "5%",
-    "species": "Human",
-    "sex": "Male",
-    "given": "Rousseau",
-    "family": "Varonis",
-    "crewId": "rousseau"
+    "university": "MUD Academy",
+    "age": 42,
+    "house": "",
+    "note": "C1. Не автоматика."
   },
   {
+    "id": "rhumoj",
+    "crewId": "rhumoj",
+    "mint": "",
     "name": "Rhumoj .tchr",
-    "seats": "медик",
-    "ocean": "O84 C60 E86 A75 N62",
-    "mission": "12%",
-    "species": "Ustur",
-    "sex": "Body 1",
     "given": "Rhumoj",
     "family": "",
     "ustur": ".tchr",
-    "crewId": "rhumoj"
+    "species": "Ustur",
+    "sex": "Body 1",
+    "official": "Common",
+    "tensorRank": 1117803,
+    "aptitudes": [
+      {
+        "name": "Medical",
+        "xp": 50
+      }
+    ],
+    "o": 84,
+    "c": 60,
+    "e": 86,
+    "a": 75,
+    "n": 62,
+    "characteristics": {
+      "openness": 84,
+      "conscientiousness": 60,
+      "extraversion": 86,
+      "agreeableness": 75,
+      "neuroticism": 62,
+      "aptitudes": {
+        "Medical": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "84"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "60"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "86"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "75"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "62"
+      },
+      {
+        "trait": "Medical",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Ustur"
+      },
+      {
+        "trait": "Sex",
+        "value": "Body 1"
+      }
+    ],
+    "seats": "медик",
+    "ocean": "O84 C60 E86 A75 N62",
+    "mission": "12%",
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "Лид-медик."
   },
   {
+    "id": "estevess",
+    "crewId": "estevess",
+    "mint": "",
     "name": "Estevess Silvio",
+    "given": "Estevess",
+    "family": "Silvio",
+    "ustur": "",
+    "species": "Human",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 1122056,
+    "aptitudes": [
+      {
+        "name": "Engineering",
+        "xp": 50
+      }
+    ],
+    "o": 38,
+    "c": 46,
+    "e": 80,
+    "a": 31,
+    "n": 30,
+    "characteristics": {
+      "openness": 38,
+      "conscientiousness": 46,
+      "extraversion": 80,
+      "agreeableness": 31,
+      "neuroticism": 30,
+      "aptitudes": {
+        "Engineering": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "38"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "46"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "80"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "31"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "30"
+      },
+      {
+        "trait": "Engineering",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Human"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "инж",
     "ocean": "O38 C46 E80 A31 N30",
     "mission": "12%",
-    "species": "Human",
-    "sex": "Male",
-    "given": "Estevess",
-    "family": "Silvio",
-    "crewId": "estevess"
+    "university": "MUD Academy",
+    "age": 35,
+    "house": "",
+    "note": "Человек-инж. Дреды."
   },
   {
+    "id": "javictorn",
+    "crewId": "javictorn",
+    "mint": "",
     "name": "Ja Victorn",
+    "given": "Ja Victorn",
+    "family": "",
+    "ustur": "",
+    "species": "Human",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 1140687,
+    "aptitudes": [
+      {
+        "name": "Operator",
+        "xp": 50
+      }
+    ],
+    "o": 45,
+    "c": 98,
+    "e": 52,
+    "a": 59,
+    "n": 71,
+    "characteristics": {
+      "openness": 45,
+      "conscientiousness": 98,
+      "extraversion": 52,
+      "agreeableness": 59,
+      "neuroticism": 71,
+      "aptitudes": {
+        "Operator": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "45"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "98"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "52"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "59"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "71"
+      },
+      {
+        "trait": "Operator",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Human"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "автоматика",
     "ocean": "O45 C98 E52 A59 N71",
     "mission": "4%",
-    "species": "Human",
-    "sex": "Male",
-    "given": "Ja Victorn",
-    "family": "",
-    "crewId": "javictorn"
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "C98. Орудия с Deceon."
   },
   {
+    "id": "pricer",
+    "crewId": "pricer",
+    "mint": "",
     "name": "Pricer .doer",
-    "seats": "штурвал",
-    "ocean": "O8 C53 E84 A90 N25",
-    "mission": "14%",
-    "species": "Ustur",
-    "sex": "Body 2",
     "given": "Pricer",
     "family": "",
     "ustur": ".doer",
-    "crewId": "pricer"
+    "species": "Ustur",
+    "sex": "Body 2",
+    "official": "Common",
+    "tensorRank": 1157724,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      }
+    ],
+    "o": 8,
+    "c": 53,
+    "e": 84,
+    "a": 90,
+    "n": 25,
+    "characteristics": {
+      "openness": 8,
+      "conscientiousness": 53,
+      "extraversion": 84,
+      "agreeableness": 90,
+      "neuroticism": 25,
+      "aptitudes": {
+        "Flight": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "8"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "53"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "84"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "90"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "25"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Ustur"
+      },
+      {
+        "trait": "Sex",
+        "value": "Body 2"
+      }
+    ],
+    "seats": "штурвал",
+    "ocean": "O8 C53 E84 A90 N25",
+    "mission": "14%",
+    "university": "Ustur Central University",
+    "age": 26,
+    "house": "",
+    "note": "Спокойный робот-пилот."
   },
   {
+    "id": "baleof",
+    "crewId": "baleof",
+    "mint": "",
     "name": "Baleof .doer",
-    "seats": "штурвал",
-    "ocean": "O14 C49 E80 A45 N45",
-    "mission": "9%",
-    "species": "Ustur",
-    "sex": "Body 1",
     "given": "Baleof",
     "family": "",
     "ustur": ".doer",
-    "crewId": "baleof"
-  },
-  {
-    "name": "Bracix .lrnr",
-    "seats": "станция",
-    "ocean": "O34 C59 E2 A0 N6",
-    "mission": "0%",
     "species": "Ustur",
     "sex": "Body 1",
+    "official": "Common",
+    "tensorRank": 1210532,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      }
+    ],
+    "o": 14,
+    "c": 49,
+    "e": 80,
+    "a": 45,
+    "n": 45,
+    "characteristics": {
+      "openness": 14,
+      "conscientiousness": 49,
+      "extraversion": 80,
+      "agreeableness": 45,
+      "neuroticism": 45,
+      "aptitudes": {
+        "Flight": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "14"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "49"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "80"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "45"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "45"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Ustur"
+      },
+      {
+        "trait": "Sex",
+        "value": "Body 1"
+      }
+    ],
+    "seats": "штурвал",
+    "ocean": "O14 C49 E80 A45 N45",
+    "mission": "9%",
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": ""
+  },
+  {
+    "id": "bracix",
+    "crewId": "bracix",
+    "mint": "",
+    "name": "Bracix .lrnr",
     "given": "Bracix",
     "family": "",
     "ustur": ".lrnr",
-    "crewId": "bracix"
+    "species": "Ustur",
+    "sex": "Body 1",
+    "official": "Common",
+    "tensorRank": 1213145,
+    "aptitudes": [
+      {
+        "name": "Science",
+        "xp": 50
+      }
+    ],
+    "o": 34,
+    "c": 59,
+    "e": 2,
+    "a": 0,
+    "n": 6,
+    "characteristics": {
+      "openness": 34,
+      "conscientiousness": 59,
+      "extraversion": 2,
+      "agreeableness": 0,
+      "neuroticism": 6,
+      "aptitudes": {
+        "Science": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "34"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "59"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "2"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "0"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "6"
+      },
+      {
+        "trait": "Science",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Ustur"
+      },
+      {
+        "trait": "Sex",
+        "value": "Body 1"
+      }
+    ],
+    "seats": "станция",
+    "ocean": "O34 C59 E2 A0 N6",
+    "mission": "0%",
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "A0 N6. Станция с Convog."
   },
   {
+    "id": "pelir",
+    "crewId": "pelir",
+    "mint": "",
     "name": "Pelir Kaanni Jura",
+    "given": "Pelir",
+    "family": "Kaanni Jura",
+    "ustur": "",
+    "species": "Mierese",
+    "sex": "Female",
+    "official": "Common",
+    "tensorRank": 1230130,
+    "aptitudes": [
+      {
+        "name": "Science",
+        "xp": 50
+      }
+    ],
+    "o": 36,
+    "c": 10,
+    "e": 70,
+    "a": 61,
+    "n": 38,
+    "characteristics": {
+      "openness": 36,
+      "conscientiousness": 10,
+      "extraversion": 70,
+      "agreeableness": 61,
+      "neuroticism": 38,
+      "aptitudes": {
+        "Science": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "36"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "10"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "70"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "61"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "38"
+      },
+      {
+        "trait": "Science",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Mierese"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
     "seats": "станция",
     "ocean": "O36 C10 E70 A61 N38",
     "mission": "0%",
-    "species": "Mierese",
-    "sex": "Female",
-    "given": "Pelir",
-    "family": "Kaanni Jura",
-    "crewId": "pelir"
+    "university": "ONI Institute",
+    "age": 20,
+    "house": "",
+    "note": ""
   },
   {
+    "id": "nazim",
+    "crewId": "nazim",
+    "mint": "",
     "name": "Nazim Faipor",
+    "given": "Nazim",
+    "family": "Faipor",
+    "ustur": "",
+    "species": "Human",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 1260840,
+    "aptitudes": [
+      {
+        "name": "Science",
+        "xp": 50
+      }
+    ],
+    "o": 82,
+    "c": 72,
+    "e": 46,
+    "a": 38,
+    "n": 75,
+    "characteristics": {
+      "openness": 82,
+      "conscientiousness": 72,
+      "extraversion": 46,
+      "agreeableness": 38,
+      "neuroticism": 75,
+      "aptitudes": {
+        "Science": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "82"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "72"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "46"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "38"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "75"
+      },
+      {
+        "trait": "Science",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Human"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
     "seats": "станция",
     "ocean": "O82 C72 E46 A38 N75",
     "mission": "0%",
-    "species": "Human",
-    "sex": "Male",
-    "given": "Nazim",
-    "family": "Faipor",
-    "crewId": "nazim"
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "Дреды. Учёный."
   },
   {
+    "id": "unkiai",
+    "crewId": "unkiai",
+    "mint": "",
     "name": "Unkiai .bod",
-    "seats": "штурвал",
-    "ocean": "O74 C80 E58 A31 N31",
-    "mission": "14%",
-    "species": "Ustur",
-    "sex": "Body 1",
     "given": "Unkiai",
     "family": "",
     "ustur": ".bod",
-    "crewId": "unkiai"
+    "species": "Ustur",
+    "sex": "Body 1",
+    "official": "Common",
+    "tensorRank": 1462472,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      }
+    ],
+    "o": 74,
+    "c": 80,
+    "e": 58,
+    "a": 31,
+    "n": 31,
+    "characteristics": {
+      "openness": 74,
+      "conscientiousness": 80,
+      "extraversion": 58,
+      "agreeableness": 31,
+      "neuroticism": 31,
+      "aptitudes": {
+        "Flight": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "74"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "80"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "58"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "31"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "31"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Ustur"
+      },
+      {
+        "trait": "Sex",
+        "value": "Body 1"
+      }
+    ],
+    "seats": "штурвал",
+    "ocean": "O74 C80 E58 A31 N31",
+    "mission": "14%",
+    "university": "Ustur Central University",
+    "age": 38,
+    "house": "",
+    "note": "Лучший робот-пилот. N31 C80."
   },
   {
-    "name": "Trovam .idtt",
-    "seats": "инж · камбуз",
-    "ocean": "O78 C35 E23 A55 N60",
+    "id": "phulelonva",
+    "crewId": "phulelonva",
+    "mint": "",
+    "name": "Phulelonva Arianzirfiro",
+    "given": "Phulelonva",
+    "family": "Arianzirfiro",
+    "ustur": "",
+    "species": "Profound Punaab",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 187866,
+    "aptitudes": [
+      {
+        "name": "Engineering",
+        "xp": 50
+      }
+    ],
+    "o": 5,
+    "c": 10,
+    "e": 38,
+    "a": 95,
+    "n": 21,
+    "characteristics": {
+      "openness": 5,
+      "conscientiousness": 10,
+      "extraversion": 38,
+      "agreeableness": 95,
+      "neuroticism": 21,
+      "aptitudes": {
+        "Engineering": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "5"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "10"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "38"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "95"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "21"
+      },
+      {
+        "trait": "Engineering",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Profound Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
+    "seats": "инж",
+    "ocean": "O5 C10 E38 A95 N21",
+    "mission": "9%",
+    "university": "ONI Institute",
+    "age": 31,
+    "house": "",
+    "note": "Помощник Raurtawa. N21, C10 — не один с чипами."
+  },
+  {
+    "id": "uusathar",
+    "crewId": "uusathar",
+    "mint": "",
+    "name": "Uusathar Rathianaelhor",
+    "given": "Uusathar",
+    "family": "Rathianaelhor",
+    "ustur": "",
+    "species": "Profound Punaab",
+    "sex": "Female",
+    "official": "Common",
+    "tensorRank": 305405,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      }
+    ],
+    "o": 8,
+    "c": 42,
+    "e": 99,
+    "a": 42,
+    "n": 9,
+    "characteristics": {
+      "openness": 8,
+      "conscientiousness": 42,
+      "extraversion": 99,
+      "agreeableness": 42,
+      "neuroticism": 9,
+      "aptitudes": {
+        "Flight": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "8"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "42"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "99"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "42"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "9"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Profound Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
+    "seats": "штурвал",
+    "ocean": "O8 C42 E99 A42 N9",
+    "mission": "15%",
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "Лучшая новая гамми-палка. N9 E99."
+  },
+  {
+    "id": "anbeloon",
+    "crewId": "anbeloon",
+    "mint": "",
+    "name": "Anbeloon Rathumbarjor",
+    "given": "Anbeloon",
+    "family": "Rathumbarjor",
+    "ustur": "",
+    "species": "High Punaab",
+    "sex": "Female",
+    "official": "Common",
+    "tensorRank": 342405,
+    "aptitudes": [
+      {
+        "name": "Medical",
+        "xp": 50
+      }
+    ],
+    "o": 96,
+    "c": 59,
+    "e": 25,
+    "a": 14,
+    "n": 67,
+    "characteristics": {
+      "openness": 96,
+      "conscientiousness": 59,
+      "extraversion": 25,
+      "agreeableness": 14,
+      "neuroticism": 67,
+      "aptitudes": {
+        "Medical": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "96"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "59"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "25"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "14"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "67"
+      },
+      {
+        "trait": "Medical",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
+    "seats": "медик",
+    "ocean": "O96 C59 E25 A14 N67",
+    "mission": "10%",
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "Запас госпиталя. N67."
+  },
+  {
+    "id": "aaveortearsi",
+    "crewId": "aaveortearsi",
+    "mint": "",
+    "name": "Aaveortearsi Rinthuscarard",
+    "given": "Aaveortearsi",
+    "family": "Rinthuscarard",
+    "ustur": "",
+    "species": "High Punaab",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 345385,
+    "aptitudes": [
+      {
+        "name": "Operator",
+        "xp": 50
+      }
+    ],
+    "o": 94,
+    "c": 77,
+    "e": 60,
+    "a": 95,
+    "n": 78,
+    "characteristics": {
+      "openness": 94,
+      "conscientiousness": 77,
+      "extraversion": 60,
+      "agreeableness": 95,
+      "neuroticism": 78,
+      "aptitudes": {
+        "Operator": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "94"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "77"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "60"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "95"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "78"
+      },
+      {
+        "trait": "Operator",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
+    "seats": "автоматика",
+    "ocean": "O94 C77 E60 A95 N78",
+    "mission": "7%",
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "Ангар. C77 но N78 — не засада."
+  },
+  {
+    "id": "urtelaorilve",
+    "crewId": "urtelaorilve",
+    "mint": "",
+    "name": "Urtelaorilve Ethannirari",
+    "given": "Urtelaorilve",
+    "family": "Ethannirari",
+    "ustur": "",
+    "species": "High Punaab",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 356135,
+    "aptitudes": [
+      {
+        "name": "Operator",
+        "xp": 50
+      }
+    ],
+    "o": 56,
+    "c": 12,
+    "e": 98,
+    "a": 68,
+    "n": 14,
+    "characteristics": {
+      "openness": 56,
+      "conscientiousness": 12,
+      "extraversion": 98,
+      "agreeableness": 68,
+      "neuroticism": 14,
+      "aptitudes": {
+        "Operator": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "56"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "12"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "98"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "68"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "14"
+      },
+      {
+        "trait": "Operator",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
+    "seats": "автоматика",
+    "ocean": "O56 C12 E98 A68 N14",
+    "mission": "8%",
+    "university": "ONI Institute",
+    "age": 30,
+    "house": "",
+    "note": "Спокойный оператор. C12 — рядом кэп."
+  },
+  {
+    "id": "raurtawa",
+    "crewId": "raurtawa",
+    "mint": "",
+    "name": "Raurtawa Zolamontvish",
+    "given": "Raurtawa",
+    "family": "Zolamontvish",
+    "ustur": "",
+    "species": "Profound Punaab",
+    "sex": "Female",
+    "official": "Common",
+    "tensorRank": 401586,
+    "aptitudes": [
+      {
+        "name": "Engineering",
+        "xp": 50
+      }
+    ],
+    "o": 8,
+    "c": 73,
+    "e": 89,
+    "a": 32,
+    "n": 37,
+    "characteristics": {
+      "openness": 8,
+      "conscientiousness": 73,
+      "extraversion": 89,
+      "agreeableness": 32,
+      "neuroticism": 37,
+      "aptitudes": {
+        "Engineering": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "8"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "73"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "89"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "32"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "37"
+      },
+      {
+        "trait": "Engineering",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Profound Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
+    "seats": "инж",
+    "ocean": "O8 C73 E89 A32 N37",
+    "mission": "14%",
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "Ремонт Ustur. Лучший новый инж-гамми."
+  },
+  {
+    "id": "sena",
+    "crewId": "sena",
+    "mint": "",
+    "name": "Sena Lutavira",
+    "given": "Sena",
+    "family": "Lutavira",
+    "ustur": "",
+    "species": "Sogmian",
+    "sex": "Female",
+    "official": "Uncommon",
+    "tensorRank": 411584,
+    "aptitudes": [
+      {
+        "name": "Fitness",
+        "xp": 50
+      },
+      {
+        "name": "Hospitality",
+        "xp": 25
+      }
+    ],
+    "o": 23,
+    "c": 26,
+    "e": 41,
+    "a": 63,
+    "n": 87,
+    "characteristics": {
+      "openness": 23,
+      "conscientiousness": 26,
+      "extraversion": 41,
+      "agreeableness": 63,
+      "neuroticism": 87,
+      "aptitudes": {
+        "Fitness": 50,
+        "Hospitality": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "23"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "26"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "41"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "63"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "87"
+      },
+      {
+        "trait": "Fitness",
+        "value": "50"
+      },
+      {
+        "trait": "Hospitality",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "Sogmian"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
+    "seats": "камбуз · пехота",
+    "ocean": "O23 C26 E41 A63 N87",
+    "mission": "0%",
+    "university": "",
+    "age": null,
+    "house": "Lutavira",
+    "note": "N87. Высадка/камбуз, не мостик. Дом Yuma."
+  },
+  {
+    "id": "shimadair",
+    "crewId": "shimadair",
+    "mint": "",
+    "name": "Shimadair Xeny",
+    "given": "Shimadair",
+    "family": "Xeny",
+    "ustur": "",
+    "species": "Human",
+    "sex": "Female",
+    "official": "Uncommon",
+    "tensorRank": 431142,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      },
+      {
+        "name": "Medical",
+        "xp": 25
+      }
+    ],
+    "o": 1,
+    "c": 75,
+    "e": 32,
+    "a": 17,
+    "n": 30,
+    "characteristics": {
+      "openness": 1,
+      "conscientiousness": 75,
+      "extraversion": 32,
+      "agreeableness": 17,
+      "neuroticism": 30,
+      "aptitudes": {
+        "Flight": 50,
+        "Medical": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "1"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "75"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "32"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "17"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "30"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Medical",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "Human"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
+    "seats": "штурвал · медик",
+    "ocean": "O1 C75 E32 A17 N30",
+    "mission": "18%",
+    "university": "MUD Academy",
+    "age": 32,
+    "house": "",
+    "note": "Лампа-2. O1 закрытая. Полёт + аптечка."
+  },
+  {
+    "id": "laraellipa",
+    "crewId": "laraellipa",
+    "mint": "",
+    "name": "Laraellipa Milelliethio",
+    "given": "Laraellipa",
+    "family": "Milelliethio",
+    "ustur": "",
+    "species": "High Punaab",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 432595,
+    "aptitudes": [
+      {
+        "name": "Operator",
+        "xp": 50
+      }
+    ],
+    "o": 56,
+    "c": 24,
+    "e": 24,
+    "a": 44,
+    "n": 27,
+    "characteristics": {
+      "openness": 56,
+      "conscientiousness": 24,
+      "extraversion": 24,
+      "agreeableness": 44,
+      "neuroticism": 27,
+      "aptitudes": {
+        "Operator": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "56"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "24"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "24"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "44"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "27"
+      },
+      {
+        "trait": "Operator",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
+    "seats": "автоматика",
+    "ocean": "O56 C24 E24 A44 N27",
+    "mission": "7%",
+    "university": "ONI Institute",
+    "age": 37,
+    "house": "",
+    "note": "Запас Туфы / база."
+  },
+  {
+    "id": "viurneca",
+    "crewId": "viurneca",
+    "mint": "",
+    "name": "Viurneca Oleaantheokar",
+    "given": "Viurneca",
+    "family": "Oleaantheokar",
+    "ustur": "",
+    "species": "Profound Punaab",
+    "sex": "Female",
+    "official": "Common",
+    "tensorRank": 442185,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      }
+    ],
+    "o": 69,
+    "c": 51,
+    "e": 84,
+    "a": 9,
+    "n": 82,
+    "characteristics": {
+      "openness": 69,
+      "conscientiousness": 51,
+      "extraversion": 84,
+      "agreeableness": 9,
+      "neuroticism": 82,
+      "aptitudes": {
+        "Flight": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "69"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "51"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "84"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "9"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "82"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "Profound Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
+    "seats": "не штурвал",
+    "ocean": "O69 C51 E84 A9 N82",
+    "mission": "3%",
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "Проба лампа-1. N82 — не именной штурвал."
+  },
+  {
+    "id": "yarrindilpho",
+    "crewId": "yarrindilpho",
+    "mint": "",
+    "name": "Yarrindilpho Etheoolopoll",
+    "given": "Yarrindilpho",
+    "family": "Etheoolopoll",
+    "ustur": "",
+    "species": "High Punaab",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 442540,
+    "aptitudes": [
+      {
+        "name": "Operator",
+        "xp": 50
+      }
+    ],
+    "o": 12,
+    "c": 52,
+    "e": 86,
+    "a": 89,
+    "n": 68,
+    "characteristics": {
+      "openness": 12,
+      "conscientiousness": 52,
+      "extraversion": 86,
+      "agreeableness": 89,
+      "neuroticism": 68,
+      "aptitudes": {
+        "Operator": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "12"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "52"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "86"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "89"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "68"
+      },
+      {
+        "trait": "Operator",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
+    "seats": "автоматика",
+    "ocean": "O12 C52 E86 A89 N68",
+    "mission": "3%",
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "Проба лампа-1. N68."
+  },
+  {
+    "id": "taakorinthilo",
+    "crewId": "taakorinthilo",
+    "mint": "",
+    "name": "Taakorinthilo Vrooxylathio",
+    "given": "Taakorinthilo",
+    "family": "Vrooxylathio",
+    "ustur": "",
+    "species": "High Punaab",
+    "sex": "Male",
+    "official": "Common",
+    "tensorRank": 499850,
+    "aptitudes": [
+      {
+        "name": "Flight",
+        "xp": 50
+      }
+    ],
+    "o": 95,
+    "c": 48,
+    "e": 40,
+    "a": 47,
+    "n": 69,
+    "characteristics": {
+      "openness": 95,
+      "conscientiousness": 48,
+      "extraversion": 40,
+      "agreeableness": 47,
+      "neuroticism": 69,
+      "aptitudes": {
+        "Flight": 50
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "95"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "48"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "40"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "47"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "69"
+      },
+      {
+        "trait": "Flight",
+        "value": "50"
+      },
+      {
+        "trait": "Species",
+        "value": "High Punaab"
+      },
+      {
+        "trait": "Sex",
+        "value": "Male"
+      }
+    ],
+    "seats": "не штурвал",
+    "ocean": "O95 C48 E40 A47 N69",
     "mission": "5%",
-    "species": "Ustur",
-    "sex": "Body 2",
+    "university": "",
+    "age": null,
+    "house": "",
+    "note": "Запас пробы. N69."
+  },
+  {
+    "id": "elizondo",
+    "crewId": "elizondo",
+    "mint": "",
+    "name": "Elizondo Menkabi",
+    "given": "Elizondo",
+    "family": "Menkabi",
+    "ustur": "",
+    "species": "Human",
+    "sex": "Female",
+    "official": "Uncommon",
+    "tensorRank": 505007,
+    "aptitudes": [
+      {
+        "name": "Hospitality",
+        "xp": 50
+      },
+      {
+        "name": "Operator",
+        "xp": 25
+      }
+    ],
+    "o": 62,
+    "c": 63,
+    "e": 32,
+    "a": 47,
+    "n": 62,
+    "characteristics": {
+      "openness": 62,
+      "conscientiousness": 63,
+      "extraversion": 32,
+      "agreeableness": 47,
+      "neuroticism": 62,
+      "aptitudes": {
+        "Hospitality": 50,
+        "Operator": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "62"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "63"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "32"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "47"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "62"
+      },
+      {
+        "trait": "Hospitality",
+        "value": "50"
+      },
+      {
+        "trait": "Operator",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "Human"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
+    "seats": "автоматика · камбуз",
+    "ocean": "O62 C63 E32 A47 N62",
+    "mission": "3%",
+    "university": "MUD Academy",
+    "age": 35,
+    "house": "",
+    "note": "Кухня ONI CSS + операторка. Не корпус Туфы."
+  },
+  {
+    "id": "takedaani",
+    "crewId": "takedaani",
+    "mint": "",
+    "name": "Takedaani Elvira",
+    "given": "Takedaani",
+    "family": "Elvira",
+    "ustur": "",
+    "species": "Human",
+    "sex": "Female",
+    "official": "Uncommon",
+    "tensorRank": 577280,
+    "aptitudes": [
+      {
+        "name": "Medical",
+        "xp": 50
+      },
+      {
+        "name": "Flight",
+        "xp": 25
+      }
+    ],
+    "o": 39,
+    "c": 83,
+    "e": 36,
+    "a": 8,
+    "n": 28,
+    "characteristics": {
+      "openness": 39,
+      "conscientiousness": 83,
+      "extraversion": 36,
+      "agreeableness": 8,
+      "neuroticism": 28,
+      "aptitudes": {
+        "Medical": 50,
+        "Flight": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "39"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "83"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "36"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "8"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "28"
+      },
+      {
+        "trait": "Medical",
+        "value": "50"
+      },
+      {
+        "trait": "Flight",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "Human"
+      },
+      {
+        "trait": "Sex",
+        "value": "Female"
+      }
+    ],
+    "seats": "штурвал · медик",
+    "ocean": "O39 C83 E36 A8 N28",
+    "mission": "17%",
+    "university": "MUD Academy",
+    "age": 27,
+    "house": "",
+    "note": "Госпиталь CSS, второй слот лампы-2. Зеркало Shimadair."
+  },
+  {
+    "id": "trovam",
+    "crewId": "trovam",
+    "mint": "",
+    "name": "Trovam .idtt",
     "given": "Trovam",
     "family": "",
     "ustur": ".idtt",
-    "crewId": "trovam"
+    "species": "Ustur",
+    "sex": "Body 2",
+    "official": "Uncommon",
+    "tensorRank": null,
+    "aptitudes": [
+      {
+        "name": "Hospitality",
+        "xp": 50
+      },
+      {
+        "name": "Engineering",
+        "xp": 25
+      }
+    ],
+    "o": 78,
+    "c": 35,
+    "e": 23,
+    "a": 55,
+    "n": 60,
+    "characteristics": {
+      "openness": 78,
+      "conscientiousness": 35,
+      "extraversion": 23,
+      "agreeableness": 55,
+      "neuroticism": 60,
+      "aptitudes": {
+        "Hospitality": 50,
+        "Engineering": 25
+      }
+    },
+    "traits": [
+      {
+        "trait": "Openness",
+        "value": "78"
+      },
+      {
+        "trait": "Conscientiousness",
+        "value": "35"
+      },
+      {
+        "trait": "Extraversion",
+        "value": "23"
+      },
+      {
+        "trait": "Agreeableness",
+        "value": "55"
+      },
+      {
+        "trait": "Neuroticism",
+        "value": "60"
+      },
+      {
+        "trait": "Hospitality",
+        "value": "50"
+      },
+      {
+        "trait": "Engineering",
+        "value": "25"
+      },
+      {
+        "trait": "Species",
+        "value": "Ustur"
+      },
+      {
+        "trait": "Sex",
+        "value": "Body 2"
+      }
+    ],
+    "seats": "инж · камбуз",
+    "ocean": "O78 C35 E23 A55 N60",
+    "mission": "5%",
+    "university": "Ustur Central University",
+    "age": 39,
+    "house": "",
+    "note": "Ustur не спит. Камбуз CSS + ремонт роботов (инж, не медик). C35 — кухню не держит один, рядом Elizondo."
   }
 ]

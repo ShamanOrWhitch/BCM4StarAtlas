@@ -2600,6 +2600,8 @@
   function returnToStart() {
     if (!running || transitionBusy || !ship.position) return;
     pauseAllCinemaVideos();
+    stopMiniSimAudio();
+    try { window.BCMTowerAPI?.stopAudio?.(); } catch (e) {}
     exteriorFlight = false;
     ship.position.set(0, 0, 2);
     ship.velocity.set(0, 0, 0);
@@ -2709,7 +2711,9 @@
 
       const p = transitionVideo.play();
       if (p && p.catch) {
-        p.catch(finishTeleport);
+        p.catch(() => {
+          setStatus("PORTAL VIDEO PLAY BLOCKED · ИСПОЛЬЗУЙТЕ G / Y ЕЩЁ РАЗ");
+        });
       }
     };
 
@@ -2761,7 +2765,8 @@
     const isBack = side === "BACK";
 
     if (isBack) {
-      if (triggerDistance > 7.5) {
+      const backTrigger = Number(config.towerApproach?.backPortalDistance) || 8.5;
+      if (triggerDistance > backTrigger) {
         setStatus("PORTAL RETURN · APPROACH");
         return;
       }
@@ -2773,8 +2778,9 @@
       ? portal.mesh.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position)
       : 99;
 
-    if (portal.coverage < 0.69) {
-      setStatus("PORTAL · " + Math.round(portal.coverage * 100) + "% / NEED 69%");
+    const portalCoverageThreshold = Number(config.towerApproach?.portalCoverageThreshold) || 0.60;
+    if (portal.coverage < portalCoverageThreshold) {
+      setStatus("PORTAL · " + Math.round(portal.coverage * 100) + "% / NEED " + Math.round(portalCoverageThreshold * 100) + "%");
       return;
     }
     playPortalVideo("FORWARD");
@@ -3102,7 +3108,7 @@
 
         if (!zone.active) {
           zone.active = true;
-          zone.el.loop = true;
+          zone.el.loop = zone.towerGate ? false : true;
           zone.el.muted = cinema.mute;
           const p = zone.el.play();
           if (p && p.catch) {
@@ -3139,18 +3145,17 @@
     const d = Math.max(near, Math.min(radius, nearest.distance));
     const t = (d - near) / (radius - near);
 
-    // Film rises toward the screen; OST falls much faster.
+    // The active place owns the soundtrack. Never mix two place tracks.
     const filmGain = Math.pow(1 - t, 0.5);
-    const ostGain = Math.pow(t, 2.6);
 
     if (!cinema.mute) nearest.el.volume = Math.max(0, Math.min(1, settings.volume * filmGain));
-    if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume * ostGain;
+    if (musicAudio && !cinema.mute) musicAudio.volume = 0;
 
     // Keep an explicitly selected focus target until it leaves its own active radius.
     if (interaction) {
       interaction.textContent = nearest.distance <= near
-        ? "CINEMA · 100% · OST 0%"
-        : "CINEMA · " + Math.round(filmGain * 100) + "% · OST " + Math.round(ostGain * 100) + "%";
+        ? "CINEMA · 100% · PLACE AUDIO"
+        : "CINEMA · " + Math.round(filmGain * 100) + "% · PLACE AUDIO";
     }
   }
 
@@ -3690,7 +3695,13 @@
     const gateCoverage = towerGateCoverage();
     const gateUiRadius = config.towerApproach && Number(config.towerApproach.uiRadius)
       ? Number(config.towerApproach.uiRadius)
-      : 180;
+      : 200;
+    const gatePlayProgress = gate?.el && Number.isFinite(gate.el.duration) && gate.el.duration > 0
+      ? Math.max(0, Math.min(1, gate.el.currentTime / gate.el.duration))
+      : 0;
+    const gateAutoProgress = config.towerApproach && Number(config.towerApproach.gateAutoProgress)
+      ? Number(config.towerApproach.gateAutoProgress)
+      : 0.85;
 
     // The already-built Oni station sphere is also an immediate landing trigger.
     // This does not create a new object and does not change its geometry/placement.
@@ -3701,32 +3712,37 @@
 
     if (interaction) {
       if (stationSphereDistance <= stationSphereEntryRadius) {
-        interaction.textContent = "ONI STATION · LANDING";
+        interaction.textContent = "ONI STATION · ONICSS GATE";
       } else if (gate && gateDistance <= gateUiRadius) {
         interaction.textContent = "ONI STATION · TOWER ENTRY " +
           Math.max(0, Math.round(100 - (gateDistance / Math.max(1, gate.radius)) * 100)) + "%";
       } else {
-        interaction.textContent = portal.coverage >= 0.69
-          ? "PORTAL LOCK 69% · CUTSCENE"
+        const portalUiThreshold = Number(config.towerApproach?.portalCoverageThreshold) || 0.60;
+        interaction.textContent = portal.coverage >= portalUiThreshold
+          ? "PORTAL LOCK · CUTSCENE"
           : "PORTAL " + Math.round(portal.coverage * 100) + "%";
       }
     }
 
-    // Either the existing onicss.mp4 gate or flying directly into the existing
-    // Oni station sphere starts the same Tower landing animation.
-    // tower.mp4 remains Tower's landing transition.
-    const sphereLanding =
-      stationSphereDistance <= stationSphereEntryRadius;
+    // onicss.mp4 is the sole automatic Tower gate. The existing ONI
+    // docking sphere remains a landmark but can no longer skip the animation.
     const videoLanding =
-      !!gate && gateDistance <= Number(gate.radius || 24);
+      !!gate &&
+      gate.active &&
+      gate.el &&
+      gate.el.readyState >= 2 &&
+      gateDistance <= Number(gate.radius || 36) * 1.15 &&
+      gatePlayProgress >= gateAutoProgress;
 
-    if (!towerGateTriggered && !transitionBusy && (sphereLanding || videoLanding)) {
+    if (!towerGateTriggered && !transitionBusy && videoLanding) {
       enterTowerFromGate();
     }
 
     if (!cinema.focus) {
-      if (portalSide() === "FRONT" && portal.coverage >= 0.69) tryPortal();
-      if (portalSide() === "BACK" && portalTriggerDistance("BACK") <= 7.5) tryPortal();
+      const portalCoverageThreshold = Number(config.towerApproach?.portalCoverageThreshold) || 0.60;
+      const backTrigger = Number(config.towerApproach?.backPortalDistance) || 8.5;
+      if (portalSide() === "FRONT" && portal.coverage >= portalCoverageThreshold) tryPortal();
+      if (portalSide() === "BACK" && portalTriggerDistance("BACK") <= backTrigger) tryPortal();
     }
 
     if (mobileLandscape() && interaction && !transitionBusy && !towerGateTriggered && gateDistance > gateUiRadius) {
@@ -3786,9 +3802,22 @@
     }
   }
 
+  function stopMiniSimAudio() {
+    if (!musicAudio) return;
+    try {
+      musicAudio.pause();
+      musicAudio.currentTime = 0;
+      musicAudio.volume = 0;
+    } catch (e) {}
+  }
+
   function startMusic() {
     if (!musicAllowed || !musicAudio || !config.musicUrl) return;
+    try {
+      window.BCMTowerAPI?.stopAudio?.();
+    } catch (e) {}
     if (!musicAudio.src) musicAudio.src = config.musicUrl;
+    musicAudio.muted = false;
     musicAudio.loop = true;
     musicAudio.volume = settings.volume;
     musicAudio.play().catch(() => {});
@@ -3992,6 +4021,9 @@
       if (videoCheckButton) videoCheckButton.addEventListener("click", checkAllVideoSources);
       if (cl) cl.addEventListener("click", toggleSettings);
     }
+    window.BCMiniSimAPI = window.BCMiniSimAPI || {};
+    window.BCMiniSimAPI.stopAudio = stopMiniSimAudio;
+
     window.addEventListener("galia-play-request", handleGaliaPlayRequest);
 
     if (window.GALIA_PLAY_STATE) {
@@ -4064,7 +4096,7 @@
       bind();
       resize();
       setSpeedMode(1);
-      setStatus("ENGINE READY · LOCAL r128 · " + (config.version || "0.9.18") + " · SPEED 1");
+      setStatus("ENGINE READY · LOCAL r128 · " + (config.version || "0.9.49") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
     } catch (err) {

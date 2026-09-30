@@ -69,35 +69,47 @@ async function marketProgramAccounts(
     dataSlice: { offset: 40, length: 153 },
     filters: [{ dataSize: 201 }, { memcmp: { offset: 40, bytes: mint } }],
   };
-  let lastError: unknown = null;
+  const timeoutMs = mint === USDC ? 8000 : 7000;
 
   for (let pass = 0; pass < maxPasses; pass += 1) {
-    for (const client of marketConnections) {
-      try {
-        const rows = await Promise.race([
+    const results = await Promise.allSettled(
+      marketConnections.map((client) =>
+        Promise.race([
           client.getProgramAccounts(new PublicKey(GM), args),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("market RPC timeout")), mint === USDC ? 22000 : 12000),
+            setTimeout(() => reject(new Error("market RPC timeout")), timeoutMs),
           ),
-        ]);
-        if (rows.length > 0 || mint !== USDC) return rows;
-      } catch (error) {
-        lastError = error;
-      }
-    }
+        ]),
+      ),
+    );
+
+    const nonEmpty = results.find(
+      (result): result is PromiseFulfilledResult<Awaited<ReturnType<Connection["getProgramAccounts"]>>> =>
+        result.status === "fulfilled" && result.value.length > 0,
+    );
+    if (nonEmpty) return nonEmpty.value;
+
+    const emptyAllowed = results.find(
+      (result): result is PromiseFulfilledResult<Awaited<ReturnType<Connection["getProgramAccounts"]>>> =>
+        result.status === "fulfilled",
+    );
+    if (emptyAllowed && mint !== USDC) return emptyAllowed.value;
+
     if (mint === USDC && pass + 1 < maxPasses) {
-      await new Promise((resolve) => setTimeout(resolve, 250 * (pass + 1)));
+      await new Promise((resolve) => setTimeout(resolve, 150 * (pass + 1)));
     }
   }
 
-  void lastError;
   return [];
 }
 
-async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { headers: { accept: "application/json" } });
-  if (!res.ok) throw new Error(`${res.status} ${url}`);
-  return (await res.json()) as T;
+async function getJson<T>(url: string, timeoutMs = 10000): Promise<T> {
+  const response = await fetch(url, {
+    headers: { accept: "application/json" },
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!response.ok) throw new Error(`${response.status} ${url}`);
+  return (await response.json()) as T;
 }
 
 function emptyQuote(): TokenQuote {
@@ -105,10 +117,15 @@ function emptyQuote(): TokenQuote {
 }
 
 function kindOf(itemType: string): WalletItem["kind"] {
-  if (itemType === "resource") return "resource";
-  if (itemType === "ship") return "ship";
-  if (itemType === "crew") return "crew";
-  if (itemType === "structure") return "structure";
+  const value = String(itemType || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/s$/, "");
+  if (value === "resource") return "resource";
+  if (value === "ship") return "ship";
+  if (value === "crew") return "crew";
+  if (value === "structure") return "structure";
   return "other";
 }
 
@@ -120,7 +137,13 @@ async function loadCatalog(): Promise<Map<string, CatItem>> {
     const mint = String(row.mint ?? "");
     if (!mint) continue;
     const attrs = (row.attributes ?? {}) as Record<string, unknown>;
-    const itemType = String(attrs.itemType ?? "");
+    const itemType = String(
+      attrs.itemType ??
+      attrs.type ??
+      row.itemType ??
+      row.type ??
+      "",
+    );
     const media = (row.media ?? {}) as { gallery?: unknown };
     const slots = (row.slots ?? {}) as { crewSlots?: Array<{ type?: string; quantity?: number }> };
     const crewSlots = Array.isArray(slots.crewSlots) ? slots.crewSlots : [];
@@ -272,33 +295,38 @@ export async function buildMarket(): Promise<MarketSnap> {
   const usdcHex = new PublicKey(USDC).toBuffer().toString("hex");
   const polisHex = new PublicKey(POLIS).toBuffer().toString("hex");
 
-  const [
-    nfts,
-    atlasTok,
-    polisTok,
-    prices,
-    orders,
-    usdcOrders,
-    polisOrders,
-    atlasFallbackCandles,
-    polisFallbackCandles,
-    atlasPool,
-    polisPool,
-  ] = await Promise.all([
+  const settled = await Promise.allSettled([
     loadCatalog(),
-    getJson<Record<string, number | string>>("https://galaxy.staratlas.com/tokens/atlas").catch(() => null),
-    getJson<Record<string, number | string>>("https://galaxy.staratlas.com/tokens/polis").catch(() => null),
+    getJson<Record<string, number | string>>("https://galaxy.staratlas.com/tokens/atlas"),
+    getJson<Record<string, number | string>>("https://galaxy.staratlas.com/tokens/polis"),
     getJson<Record<string, { usdPrice?: number; priceChange24h?: number }>>(
       `https://lite-api.jup.ag/price/v3?ids=${ATLAS},${POLIS}`,
-    ).catch(() => ({}) as Record<string, { usdPrice?: number; priceChange24h?: number }>),
+    ),
     marketProgramAccounts(ATLAS),
-    marketProgramAccounts(USDC, 4),
+    marketProgramAccounts(USDC, 3),
     marketProgramAccounts(POLIS),
     atlasCandles(),
     krakenCandles("POLISUSD"),
     poolCandles("2bnZ1edbvK3CK3LTNZ5jH9anvXYCmzPR4W2HQ6Ngsv5K"),
     poolCandles("9xyCzsHi1wUWva7t5Z8eAvZDRmUCVhRrbaFfm3VbU4Mf"),
   ]);
+
+  const valueOr = <T,>(index: number, fallback: T): T => {
+    const result = settled[index];
+    return result.status === "fulfilled" ? (result.value as T) : fallback;
+  };
+
+  const nfts = valueOr(0, new Map<string, CatItem>());
+  const atlasTok = valueOr<Record<string, number | string> | null>(1, null);
+  const polisTok = valueOr<Record<string, number | string> | null>(2, null);
+  const prices = valueOr<Record<string, { usdPrice?: number; priceChange24h?: number }>>(3, {});
+  const orders = valueOr(4, []);
+  const usdcOrders = valueOr(5, []);
+  const polisOrders = valueOr(6, []);
+  const atlasFallbackCandles = valueOr(7, []);
+  const polisFallbackCandles = valueOr(8, []);
+  const atlasPool = valueOr(9, []);
+  const polisPool = valueOr(10, []);
 
   const book = readBook(orders, atlasHex, 8);
   const usdcBook = readBook(usdcOrders, usdcHex, 6);
@@ -428,7 +456,17 @@ export async function buildMarket(): Promise<MarketSnap> {
       "Рынок читается сервером. Ресурсы и корабли сначала ищутся в USDC; если прямого USDC-ордера нет, цена ATLAS переводится в USDC по текущему курсу ATLAS/USDC. Отдельно сохраняются стаканы ATLAS и POLIS. Графики: ATLAS/USDC, POLIS/USDC и POLIS/ATLAS.",
   };
 
-  marketCache = { at: Date.now(), data };
+  const hasUsefulMarketData =
+    nfts.size > 0 ||
+    orders.length > 0 ||
+    usdcOrders.length > 0 ||
+    polisOrders.length > 0 ||
+    atlasUsdcCandles.length > 1 ||
+    polisUsdcCandles.length > 1;
+
+  if (hasUsefulMarketData) {
+    marketCache = { at: Date.now(), data };
+  }
   return data;
 }
 
@@ -877,29 +915,60 @@ export async function scanWallet(ownerText: string): Promise<WalletScan> {
   const assets = await assetsOf(owner.toBase58()).catch(() => []);
   for (const asset of assets) {
     const card = crewCards.get(asset.id);
-    if (!card && !isCrew(asset.name, asset.symbol, asset.traits)) continue;
-    const row = card
-      ? crewItem(card, 1, asset.image, asset.traits)
+    const crewAsset = !!card || isCrew(asset.name, asset.symbol, asset.traits);
+    const known = catalog.get(asset.id);
+
+    if (!crewAsset && (!known || known.kind === "other")) continue;
+
+    const row: WalletItem = crewAsset
+      ? card
+        ? crewItem(card, 1, asset.image, asset.traits)
+        : {
+            mint: asset.id,
+            amount: 1,
+            name: asset.name || asset.id.slice(0, 4) + "…" + asset.id.slice(-4),
+            kind: "crew",
+            image: asset.image,
+            className: "crew",
+            rarity: asset.traits.find((trait) => trait.trait.toLowerCase() === "rarity")?.value || "",
+            spec: asset.traits.find((trait) => /species/i.test(trait.trait))?.value || "",
+            traits: asset.traits,
+          }
       : {
           mint: asset.id,
           amount: 1,
-          name: asset.name || asset.id.slice(0, 4) + "…" + asset.id.slice(-4),
-          kind: "crew" as const,
-          image: asset.image,
-          className: "crew",
-          rarity: asset.traits.find((trait) => trait.trait.toLowerCase() === "rarity")?.value || "",
-          spec: asset.traits.find((trait) => /species/i.test(trait.trait))?.value || "",
+          name: known?.name || asset.name || asset.id.slice(0, 4) + "…" + asset.id.slice(-4),
+          kind: known?.kind || "other",
+          image: known?.image || asset.image,
+          className: known?.className || "",
+          rarity: known?.rarity || asset.traits.find((trait) => trait.trait.toLowerCase() === "rarity")?.value || "",
+          spec: known?.spec || asset.traits.find((trait) => /spec|class/i.test(trait.trait))?.value || "",
           traits: asset.traits,
+          description: known?.description || "",
+          gallery: known?.gallery || [],
+          make: known?.make || "",
+          crew: known?.crew || 0,
+          slots: known?.slots || [],
+          msrp: known?.msrp ?? null,
         };
+
     const existing = items.find((item) => item.mint === asset.id);
     if (existing) {
-      existing.kind = "crew";
+      existing.kind = row.kind;
       existing.name = row.name || existing.name;
       existing.image = row.image || existing.image;
       existing.traits = row.traits.length ? row.traits : existing.traits;
-      existing.rarity = asset.traits.find((trait) => trait.trait.toLowerCase() === "rarity")?.value || row.rarity || existing.rarity;
+      existing.rarity = row.rarity || existing.rarity;
       existing.spec = row.spec || existing.spec;
-      existing.className = "crew";
+      existing.className = row.className || existing.className;
+      if (row.kind === "ship" || row.kind === "resource" || row.kind === "structure") {
+        existing.description = row.description || existing.description;
+        existing.gallery = row.gallery?.length ? row.gallery : existing.gallery;
+        existing.make = row.make || existing.make;
+        existing.crew = row.crew || existing.crew;
+        existing.slots = row.slots?.length ? row.slots : existing.slots;
+        existing.msrp = row.msrp ?? existing.msrp;
+      }
     } else if (!seen.has(asset.id)) {
       items.push(row);
       seen.add(asset.id);
