@@ -2600,6 +2600,8 @@
   function returnToStart() {
     if (!running || transitionBusy || !ship.position) return;
     pauseAllCinemaVideos();
+    stopMiniSimAudio();
+    try { window.BCMTowerAPI?.stopAudio?.(); } catch (e) {}
     exteriorFlight = false;
     ship.position.set(0, 0, 2);
     ship.velocity.set(0, 0, 0);
@@ -3803,9 +3805,22 @@
     }
   }
 
+  function stopMiniSimAudio() {
+    if (!musicAudio) return;
+    try {
+      musicAudio.pause();
+      musicAudio.currentTime = 0;
+      musicAudio.volume = 0;
+    } catch (e) {}
+  }
+
   function startMusic() {
     if (!musicAllowed || !musicAudio || !config.musicUrl) return;
+    try {
+      window.BCMTowerAPI?.stopAudio?.();
+    } catch (e) {}
     if (!musicAudio.src) musicAudio.src = config.musicUrl;
+    musicAudio.muted = false;
     musicAudio.loop = true;
     musicAudio.volume = settings.volume;
     musicAudio.play().catch(() => {});
@@ -4009,6 +4024,9 @@
       if (videoCheckButton) videoCheckButton.addEventListener("click", checkAllVideoSources);
       if (cl) cl.addEventListener("click", toggleSettings);
     }
+    window.BCMiniSimAPI = window.BCMiniSimAPI || {};
+    window.BCMiniSimAPI.stopAudio = stopMiniSimAudio;
+
     window.addEventListener("galia-play-request", handleGaliaPlayRequest);
 
     if (window.GALIA_PLAY_STATE) {
