@@ -3108,7 +3108,7 @@
 
         if (!zone.active) {
           zone.active = true;
-          zone.el.loop = zone.towerGate ? false : true;
+          zone.el.loop = true;
           zone.el.muted = cinema.mute;
           const p = zone.el.play();
           if (p && p.catch) {
@@ -3692,30 +3692,16 @@
     portal.coverage = portalCoverage();
     const gate = getTowerGateZone();
     const gateDistance = towerGateDistance();
-    const gateCoverage = towerGateCoverage();
     const gateUiRadius = config.towerApproach && Number(config.towerApproach.uiRadius)
       ? Number(config.towerApproach.uiRadius)
       : 200;
-    const gatePlayProgress = gate?.el && Number.isFinite(gate.el.duration) && gate.el.duration > 0
-      ? Math.max(0, Math.min(1, gate.el.currentTime / gate.el.duration))
-      : 0;
-    const gateAutoProgress = config.towerApproach && Number(config.towerApproach.gateAutoProgress)
-      ? Number(config.towerApproach.gateAutoProgress)
-      : 0.85;
-
-    // The already-built Oni station sphere is also an immediate landing trigger.
-    // This does not create a new object and does not change its geometry/placement.
-    const stationSphereDistance = spaceSatellite.stationMesh && ship.position
-      ? spaceSatellite.stationMesh.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position)
-      : Infinity;
-    const stationSphereEntryRadius = 5.6;
+    const towerLandingDistance = config.towerApproach && Number(config.towerApproach.landingDistance)
+      ? Number(config.towerApproach.landingDistance)
+      : 42;
 
     if (interaction) {
-      if (stationSphereDistance <= stationSphereEntryRadius) {
-        interaction.textContent = "ONI STATION · ONICSS GATE";
-      } else if (gate && gateDistance <= gateUiRadius) {
-        interaction.textContent = "ONI STATION · TOWER ENTRY " +
-          Math.max(0, Math.round(100 - (gateDistance / Math.max(1, gate.radius)) * 100)) + "%";
+      if (gate && gateDistance <= gateUiRadius) {
+        interaction.textContent = "DEEP SPACE · PLANET APPROACH";
       } else {
         const portalUiThreshold = Number(config.towerApproach?.portalCoverageThreshold) || 0.60;
         interaction.textContent = portal.coverage >= portalUiThreshold
@@ -3724,25 +3710,16 @@
       }
     }
 
-    // onicss.mp4 is the sole automatic Tower gate. The existing ONI
-    // docking sphere remains a landmark but can no longer skip the animation.
-    const videoLanding =
-      !!gate &&
-      gate.active &&
-      gate.el &&
-      gate.el.readyState >= 2 &&
-      gateDistance <= Number(gate.radius || 36) * 1.15 &&
-      gatePlayProgress >= gateAutoProgress;
-
-    if (!towerGateTriggered && !transitionBusy && videoLanding) {
+    // onicss.mp4 is the distant animated planet/approach target.
+    // The OniStation sphere is decoration only and is never used for Tower entry.
+    if (!towerGateTriggered && !transitionBusy && gate && gateDistance <= towerLandingDistance) {
       enterTowerFromGate();
     }
 
+    // Ordinary Room 1/Room 2 portal logic stays independent from the Tower landing.
     if (!cinema.focus) {
-      const portalCoverageThreshold = Number(config.towerApproach?.portalCoverageThreshold) || 0.60;
-      const backTrigger = Number(config.towerApproach?.backPortalDistance) || 8.5;
-      if (portalSide() === "FRONT" && portal.coverage >= portalCoverageThreshold) tryPortal();
-      if (portalSide() === "BACK" && portalTriggerDistance("BACK") <= backTrigger) tryPortal();
+      if (portalSide() === "FRONT" && portal.coverage >= 0.69) tryPortal();
+      if (portalSide() === "BACK" && portalTriggerDistance("BACK") <= 7.5) tryPortal();
     }
 
     if (mobileLandscape() && interaction && !transitionBusy && !towerGateTriggered && gateDistance > gateUiRadius) {
