@@ -2709,7 +2709,9 @@
 
       const p = transitionVideo.play();
       if (p && p.catch) {
-        p.catch(finishTeleport);
+        p.catch(() => {
+          setStatus("PORTAL VIDEO PLAY BLOCKED · ИСПОЛЬЗУЙТЕ G / Y ЕЩЁ РАЗ");
+        });
       }
     };
 
