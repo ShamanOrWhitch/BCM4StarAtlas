@@ -2763,7 +2763,8 @@
     const isBack = side === "BACK";
 
     if (isBack) {
-      if (triggerDistance > 7.5) {
+      const backTrigger = Number(config.towerApproach?.backPortalDistance) || 8.5;
+      if (triggerDistance > backTrigger) {
         setStatus("PORTAL RETURN · APPROACH");
         return;
       }
@@ -2775,8 +2776,9 @@
       ? portal.mesh.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position)
       : 99;
 
-    if (portal.coverage < 0.69) {
-      setStatus("PORTAL · " + Math.round(portal.coverage * 100) + "% / NEED 69%");
+    const portalCoverageThreshold = Number(config.towerApproach?.portalCoverageThreshold) || 0.60;
+    if (portal.coverage < portalCoverageThreshold) {
+      setStatus("PORTAL · " + Math.round(portal.coverage * 100) + "% / NEED " + Math.round(portalCoverageThreshold * 100) + "%");
       return;
     }
     playPortalVideo("FORWARD");
@@ -3727,8 +3729,10 @@
     }
 
     if (!cinema.focus) {
-      if (portalSide() === "FRONT" && portal.coverage >= 0.69) tryPortal();
-      if (portalSide() === "BACK" && portalTriggerDistance("BACK") <= 7.5) tryPortal();
+      const portalCoverageThreshold = Number(config.towerApproach?.portalCoverageThreshold) || 0.60;
+      const backTrigger = Number(config.towerApproach?.backPortalDistance) || 8.5;
+      if (portalSide() === "FRONT" && portal.coverage >= portalCoverageThreshold) tryPortal();
+      if (portalSide() === "BACK" && portalTriggerDistance("BACK") <= backTrigger) tryPortal();
     }
 
     if (mobileLandscape() && interaction && !transitionBusy && !towerGateTriggered && gateDistance > gateUiRadius) {
