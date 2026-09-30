@@ -3692,28 +3692,16 @@
     portal.coverage = portalCoverage();
     const gate = getTowerGateZone();
     const gateDistance = towerGateDistance();
-    const gateCoverage = towerGateCoverage();
     const gateUiRadius = config.towerApproach && Number(config.towerApproach.uiRadius)
       ? Number(config.towerApproach.uiRadius)
       : 200;
-    const gatePlayProgress = gate?.el && Number.isFinite(gate.el.duration) && gate.el.duration > 0
-      ? Math.max(0, Math.min(1, gate.el.currentTime / gate.el.duration))
-      : 0;
-    // The distant onicss.mp4 is only a visual approach landmark.
-    // Tower entry itself happens when the ship reaches the existing OniStation sphere.
-    // This does not create a new object and does not change its geometry/placement.
-    const stationSphereDistance = spaceSatellite.stationMesh && ship.position
-      ? spaceSatellite.stationMesh.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position)
-      : Infinity;
-    const stationSphereEntryRadius =
-      Number(config.towerApproach?.stationEntryRadius) || 7.5;
+    const towerLandingDistance = config.towerApproach && Number(config.towerApproach.landingDistance)
+      ? Number(config.towerApproach.landingDistance)
+      : 42;
 
     if (interaction) {
-      if (stationSphereDistance <= stationSphereEntryRadius) {
-        interaction.textContent = "ONI STATION · ONICSS GATE";
-      } else if (gate && gateDistance <= gateUiRadius) {
-        interaction.textContent = "ONI STATION · TOWER ENTRY " +
-          Math.max(0, Math.round(100 - (gateDistance / Math.max(1, gate.radius)) * 100)) + "%";
+      if (gate && gateDistance <= gateUiRadius) {
+        interaction.textContent = "DEEP SPACE · PLANET APPROACH";
       } else {
         const portalUiThreshold = Number(config.towerApproach?.portalCoverageThreshold) || 0.60;
         interaction.textContent = portal.coverage >= portalUiThreshold
@@ -3722,15 +3710,13 @@
       }
     }
 
-    // onicss.mp4 is the distant visual approach/landing preview.
-    // The actual Tower transition remains tied to the existing OniStation sphere.
-    const sphereLanding = stationSphereDistance <= stationSphereEntryRadius;
-
-    if (!towerGateTriggered && !transitionBusy && sphereLanding) {
+    // onicss.mp4 is the distant animated planet/approach target.
+    // The OniStation sphere is decoration only and is never used for Tower entry.
+    if (!towerGateTriggered && !transitionBusy && gate && gateDistance <= towerLandingDistance) {
       enterTowerFromGate();
     }
 
-    // Keep the ordinary Room 1/Room 2 portal logic unchanged.
+    // Ordinary Room 1/Room 2 portal logic stays independent from the Tower landing.
     if (!cinema.focus) {
       if (portalSide() === "FRONT" && portal.coverage >= 0.69) tryPortal();
       if (portalSide() === "BACK" && portalTriggerDistance("BACK") <= 7.5) tryPortal();
