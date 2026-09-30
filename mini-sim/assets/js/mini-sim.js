@@ -425,13 +425,13 @@
       return;
     }
     if (crewScanButton) crewScanButton.disabled = true;
-    crewSetStatus("Запускаю сервер чтения… первый запуск может занять 1–3 минуты.");
+    crewSetStatus("Разбудим Render… первый запуск может занять 1–3 минуты.");
     try {
       const scan = await window.BCMCrewWallet.scanWallet(owner);
       applyWalletScan(scan);
     } catch (error) {
       if (crewDiag) crewDiag.textContent = "";
-      crewSetStatus("Сейчас запускаем сервер чтения. Первый запуск может занять 1–3 минуты — повторите попытку позже.");
+      crewSetStatus("Render просыпается. Повторите через 1–3 минуты.");
     } finally {
       if (crewScanButton) crewScanButton.disabled = false;
     }
