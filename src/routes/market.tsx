@@ -173,18 +173,16 @@ export function MarketPage() {
           <CandleChart title="POLIS / ATLAS" candles={snap?.pairCandles ?? []} source="Расчётный курс одного POLIS в ATLAS из двух USDC-пар. Наведи курсор — цена в точке." />
 
           <div className="grid gap-3 sm:grid-cols-4">
-            {specialResources.map(({ label, row }) => {
-              const view = priced(row, quote);
-              return (
-                <article key={row.mint} className="galia-hop rounded-xl border border-line bg-surface p-3">
-                  <p className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{label}</p>
-                  <p className="mt-1 font-mono text-xl text-fg">{money(view)}</p>
-                  <p className="text-sm text-muted">
-                    {view.usdcDerived ? "USDC по текущему ATLAS/USDC" : `покупка ${fmtAtlas(view.bid)} ${view.quote}`}
-                  </p>
-                </article>
-              );
-            })}
+            {specialResources.map(({ label, row }) => (
+              <article key={row.mint} className="galia-hop rounded-xl border border-line bg-surface p-3">
+                <p className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{label}</p>
+                <p className="mt-1 font-mono text-lg text-fg">USDC {fmtAtlas(row.usdcAsk)}</p>
+                <p className="font-mono text-sm text-muted">ATLAS {fmtAtlas(row.atlasAsk)}</p>
+                <p className="text-xs text-faint">
+                  {row.usdcDerived ? "USDC рассчитан из ATLAS/USDC" : "USDC из прямого стакана"}
+                </p>
+              </article>
+            ))}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -211,7 +209,7 @@ export function MarketPage() {
               onClick={() => void pull(true)}
               className="h-11 rounded-lg border border-line bg-surface px-3 font-display text-sm text-fg"
             >
-              {loading && !snap ? "Снимаю…" : "Обновить"}
+              {loading && !snap ? "Разбудить Render…" : "Обновить"}
             </button>
           </div>
 
