@@ -1491,6 +1491,10 @@ function galia_desk_valid_url($raw) {
     return esc_url_raw($raw);
 }
 
+function galia_desk_asset_base() {
+    return plugin_dir_url(__FILE__) . 'app/';
+}
+
 function galia_desk_app_url($override = '') {
     $raw = $override !== '' ? $override : (string) get_option('galia_app_url', '');
     return galia_desk_valid_url($raw);
