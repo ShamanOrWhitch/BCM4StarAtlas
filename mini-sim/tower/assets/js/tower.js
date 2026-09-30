@@ -1364,6 +1364,7 @@
         p.vy = 0;
         p.grounded = false;
         status.textContent = mode === "multi" ? "ИГРОК ДОШЁЛ ДО ОСНОВАНИЯ" : "СПУСК ЗАВЕРШЁН";
+        showEndLevelMarker();
         return;
       }
 
@@ -1750,6 +1751,22 @@
       if (pool.length) return pool[0];
       const landing = assetPool("landingPool");
       return landing.find((url) => /(?:^|\/)H1(?:\d*)\.png(?:[?#].*)?$/i.test(url)) || "";
+    }
+
+    function showEndLevelMarker() {
+      const markerUrl = helipadMarkerUrl();
+      if (!markerUrl) return;
+      transition.hidden = false;
+      transition.style.backgroundImage = 'url("' + markerUrl.replace(/"/g, "\\"") + '")';
+      transition.style.backgroundPosition = "center";
+      transition.style.backgroundSize = "contain";
+      transition.style.backgroundRepeat = "no-repeat";
+      transitionVideo.style.opacity = "0";
+      window.clearTimeout(showEndLevelMarker.timer);
+      showEndLevelMarker.timer = window.setTimeout(() => {
+        transition.hidden = true;
+        transition.style.backgroundImage = "";
+      }, 2200);
     }
 
     function transitionUrl() {
