@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.22";
+  const TOWER_VERSION = "0.2.23";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -457,6 +457,7 @@
     let wallMesh = null;
     let platformMeshes = [];
     let objectMeshes = [];
+    let wallCapMeshes = [];
     let playerMarkers = [];
     let playerSprites = [];
     let playerTextures = [null, null];
@@ -575,6 +576,7 @@
       towerRoot = new THREE.Group();
       scene.add(towerRoot);
       wallMesh = null;
+      wallCapMeshes = [];
       platformMeshes = [];
       objectMeshes = [];
     }
@@ -903,6 +905,46 @@
       const towerTopY = 6;
       wallMesh.position.y = (towerBottomY + towerTopY) * 0.5;
       towerRoot.add(wallMesh);
+
+      // H1 is the original Tower top/bottom cylinder texture. Keep its
+      // existing door/landing use, but also use the same artwork to close the
+      // actual top and bottom of the cylindrical shaft.
+      const h1Url = assetPool("landingPool").find((url) => /(?:^|\/)H1\.png(?:[?#].*)?$/i.test(String(url || "")))
+        || assetPool("landingPool").find((url) => /(?:^|\/)H1/i.test(String(url || "")))
+        || "";
+      if (h1Url) {
+        const h1Tex = assetTexture(h1Url, renderer, { removeWhite: true });
+        if (h1Tex) {
+          const capMaterial = new THREE.MeshStandardMaterial({
+            map: h1Tex,
+            transparent: h1Tex.format === THREE.RGBAFormat,
+            alphaTest: 0.02,
+            roughness: 0.92,
+            metalness: 0.05,
+            side: THREE.DoubleSide
+          });
+
+          const topCap = new THREE.Mesh(
+            new THREE.CircleGeometry(radius, 48),
+            capMaterial
+          );
+          topCap.rotation.x = -Math.PI / 2;
+          topCap.position.y = towerTopY;
+          topCap.userData.towerCap = "top";
+          towerRoot.add(topCap);
+          wallCapMeshes.push(topCap);
+
+          const bottomCap = new THREE.Mesh(
+            new THREE.CircleGeometry(radius, 48),
+            capMaterial.clone()
+          );
+          bottomCap.rotation.x = Math.PI / 2;
+          bottomCap.position.y = towerBottomY;
+          bottomCap.userData.towerCap = "bottom";
+          towerRoot.add(bottomCap);
+          wallCapMeshes.push(bottomCap);
+        }
+      }
 
       for (const cell of tower.cells.values()) {
         makeSurface(cell);
