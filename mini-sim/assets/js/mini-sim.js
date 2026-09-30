@@ -1956,7 +1956,9 @@
         loaded: !!zone.preloadWhenStarted,
         keepLoaded: !!zone.preloadWhenStarted,
         towerGate: !!zone.towerGate,
-        distance: 99
+        distance: 99,
+        previousDistance: 99,
+        approachDirection: "toward"
       };
 
       video.addEventListener("loadedmetadata", () => {
@@ -3073,7 +3075,12 @@
     const candidates = [];
 
     cinema.zones.forEach((zone) => {
+      zone.previousDistance = zone.distance;
       zone.distance = zone.mesh.position.distanceTo(ship.position);
+      const distanceDelta = zone.previousDistance - zone.distance;
+      if (Math.abs(distanceDelta) > 0.02) {
+        zone.approachDirection = distanceDelta > 0 ? "toward" : "away";
+      }
       const portalDistance = zone.mesh.position.distanceTo(
         portal.mesh ? portal.mesh.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(0, 0, portal.z)
       );
@@ -3098,7 +3105,14 @@
       if (!zone.el) return;
 
       if (zone === nearest) {
-        if (!zone.loaded && zone.url) {
+        // The distant planet clip is useful only while approaching it.
+        // When the ship turns around and flies away, stop decoding/playback
+        // immediately; the buffered source stays available for the next approach.
+        if (zone.towerGate && zone.approachDirection === "away") {
+          if (zone.active) zone.el.pause();
+          zone.el.volume = 0;
+          zone.active = false;
+        } else if (!zone.loaded && zone.url) {
           zone.el.preload = mobileLandscape() ? "auto" : "metadata";
           try { zone.el.fetchPriority = mobileLandscape() ? "high" : "auto"; } catch (e) {}
           zone.el.src = zone.url;
@@ -3107,6 +3121,9 @@
         }
 
         if (!zone.active) {
+          if (zone.towerGate && zone.approachDirection === "away") {
+            return;
+          }
           zone.active = true;
           zone.el.loop = true;
           zone.el.muted = cinema.mute;
