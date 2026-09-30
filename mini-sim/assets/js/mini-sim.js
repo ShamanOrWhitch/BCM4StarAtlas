@@ -3108,7 +3108,7 @@
 
         if (!zone.active) {
           zone.active = true;
-          zone.el.loop = zone.towerGate ? false : true;
+          zone.el.loop = true;
           zone.el.muted = cinema.mute;
           const p = zone.el.play();
           if (p && p.catch) {
