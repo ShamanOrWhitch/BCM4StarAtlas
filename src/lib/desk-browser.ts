@@ -47,13 +47,37 @@ function quote(raw: unknown): TokenQuote {
   };
 }
 
+const RENDER_MARKET = "https://bcm4staratlas.onrender.com/api/market";
+
+async function renderMarket(): Promise<MarketSnap> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const res = await fetch(RENDER_MARKET, {
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(attempt === 0 ? 40_000 : 75_000),
+      });
+      const json = (await res.json()) as MarketSnap & { error?: string };
+      if (!res.ok) throw new Error(json.error || "Сервер чтения рынка пока не ответил.");
+      if (!json.resources || !json.atlas || !json.polis) throw new Error("Сервер чтения рынка вернул неполные данные.");
+      return json;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error("Сервер чтения рынка не ответил.");
+      if (attempt === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 4000));
+      }
+    }
+  }
+  throw lastError ?? new Error("Render просыпается. Повторите через 1–3 минуты.");
+}
+
 export async function loadMarket(): Promise<MarketSnap> {
   try {
-    return await directMarket();
-  } catch (err) {
-    const viaSite = await withTimeout(post("galia_desk_market"), 12000);
+    return await renderMarket();
+  } catch (renderError) {
+    const viaSite = await withTimeout(post("galia_desk_market"), 15000);
     if (viaSite) return snapFromPhp(viaSite);
-    throw err instanceof Error ? err : new Error("Рынок не открылся ни напрямую, ни через сайт");
+    throw new Error("Сейчас запускаем сервер чтения. Первый запуск может занять 1–3 минуты — повторите попытку позже.");
   }
 }
 
@@ -84,6 +108,8 @@ function snapFromPhp(data: Record<string, unknown>): MarketSnap {
     marketShips: Array.isArray(data.marketShips) ? (data.marketShips as MarketSnap["marketShips"]) : [],
     candles: Array.isArray(data.candles) ? (data.candles as MarketSnap["candles"]) : [],
     pairCandles: Array.isArray(data.pairCandles) ? (data.pairCandles as MarketSnap["pairCandles"]) : [],
+    polisUsdcCandles: Array.isArray(data.polisUsdcCandles) ? (data.polisUsdcCandles as MarketSnap["polisUsdcCandles"]) : [],
+    pairQuotes: data.pairQuotes && typeof data.pairQuotes === "object" ? data.pairQuotes as MarketSnap["pairQuotes"] : undefined,
     tape: Array.isArray(data.tape) ? (data.tape as MarketSnap["tape"]) : [],
     note:
       typeof data.note === "string"
@@ -111,7 +137,7 @@ async function renderWallet(owner: string): Promise<WalletScan> {
     skippedMeta: Number(json.skippedMeta ?? 0),
     profiles: Array.isArray(json.profiles) ? json.profiles : [],
     rpcWarning: String(json.rpcWarning ?? ""),
-    note: String(json.note ?? "Кошелёк прочитан через Render wallet scan."),
+    note: String(json.note ?? "Кошелёк прочитан сервером."),
   };
 }
 
@@ -128,7 +154,7 @@ export async function scanDeskWallet({ data }: { data: { owner: string } }): Pro
 
   const viaSite = await withTimeout(post("galia_desk_wallet", { owner: data.owner }), 12_000);
   if (!viaSite) {
-    throw new Error(renderError ? `${renderError.message} · ${direct.rpcWarning || "прямой RPC не дал данных"}` : (direct.rpcWarning || "Кошелёк не прочитался"));
+    throw new Error("Сейчас запускаем сервер чтения. Первый запуск может занять 1–3 минуты — повторите попытку позже.");
   }
 
   const profiles = Array.isArray(viaSite.profiles) ? viaSite.profiles : [];

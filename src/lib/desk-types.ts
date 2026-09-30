@@ -41,12 +41,20 @@ export type ResourceRow = {
   bid: number | null;
   askQty: number;
   quote?: "ATLAS" | "USDC" | "POLIS";
+  /** true when the displayed USDC value was calculated from an ATLAS book. */
+  usdcDerived?: boolean;
   usdcAsk?: number | null;
   usdcBid?: number | null;
   atlasAsk?: number | null;
   atlasBid?: number | null;
   polisAsk?: number | null;
   polisBid?: number | null;
+};
+
+export type MarketPairQuotes = {
+  atlasUsdc: number | null;
+  polisUsdc: number | null;
+  polisAtlas: number | null;
 };
 
 export type MarketSnap = {
@@ -58,7 +66,11 @@ export type MarketSnap = {
   ships: ResourceRow[];
   marketShips: MarketShip[];
   candles: Candle[];
+  /** POLIS/ATLAS candles kept for the ratio chart. */
   pairCandles: Candle[];
+  /** POLIS/USDC candles. */
+  polisUsdcCandles?: Candle[];
+  pairQuotes?: MarketPairQuotes;
   tape: TapePoint[];
   note: string;
 };

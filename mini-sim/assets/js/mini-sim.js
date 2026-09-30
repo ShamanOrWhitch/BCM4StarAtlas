@@ -103,25 +103,50 @@
     return out;
   }
 
+  function crewPersonName(value, index) {
+    const direct = String(value?.name || "").trim();
+    if (direct) return direct;
+    const given = String(value?.given || "").trim();
+    const family = String(value?.family || "").trim();
+    const ustur = String(value?.ustur || "").trim();
+    const person = ustur
+      ? [given, ustur].filter(Boolean).join(" ")
+      : [given, family].filter(Boolean).join(" ");
+    return person || ("Crew " + (index + 1));
+  }
+
+  function crewPortraitFallback(value) {
+    const base = String(config.galiaAssetBase || "").replace(/\/+$/, "");
+    if (!base) return "";
+    const species = String(value?.species || value?.spec || "Human").trim().toLowerCase();
+    const sex = String(value?.sex || "Male").trim().toLowerCase();
+    const slug = species.replace(/\s+/g, "-");
+    let suffix = sex === "female" ? "female" : sex === "body 1" ? "body1" : sex === "body 2" ? "body2" : "male";
+    if (slug === "ustur") suffix = suffix === "body1" ? "body1" : suffix === "body2" ? "body2" : "body1";
+    return base + "/portraits/" + slug + "-" + suffix + ".jpg";
+  }
+
   function normalizeCrewRow(row, index) {
     const value = row && typeof row === "object" ? row : {};
-    const name = String(value.name || ("Crew " + (index + 1))).trim();
+    const name = crewPersonName(value, index);
     const species = String(value.species || value.spec || "").trim();
     const traits = Array.isArray(value.traits) ? value.traits : [];
+    const image = String(value.image || "").trim() || crewPortraitFallback(value);
     return {
       id: String(value.id || value.mint || name || ("crew-" + index)),
       mint: String(value.mint || ""),
       name,
       species,
+      sex: String(value.sex || ""),
       profession: professionList(value),
-      image: String(value.image || ""),
+      image,
       seats: String(value.seats || ""),
       ocean: String(value.ocean || ""),
       mission: String(value.mission || ""),
       source: value.source || "default",
       traits,
       characteristics: value.characteristics && typeof value.characteristics === "object" ? value.characteristics : {},
-      raw: value.raw && typeof value.raw === "object" ? value.raw : null
+      raw: value.raw && typeof value.raw === "object" ? value.raw : value
     };
   }
 
@@ -199,8 +224,8 @@
       return '<label class="bcm-mini-sim-crew-slot-card rarity-' + rarity + '">' +
         image +
         '<span class="bcm-mini-sim-crew-slot-main">' +
+          '<strong>' + escapeHtml(crew?.name || "Без имени") + '</strong>' +
           '<span class="bcm-mini-sim-crew-slot-player">P' + (index + 1) + '</span>' +
-          '<strong>' + escapeHtml(crew?.name || "Без Crew") + '</strong>' +
           '<span>' + meta + '</span>' +
           '<select data-crew-slot="' + index + '">' + options + '</select>' +
         '</span>' +
@@ -208,6 +233,17 @@
     }).join("");
 
     crewSlotSelects = [...crewSlotContainer.querySelectorAll("[data-crew-slot]")];
+    crewSlotSelects.forEach((select, index) => {
+      select.addEventListener("change", () => {
+        crewSelection[index] = String(select.value || "");
+        renderCrewSlots();
+        const chosen = crewById(crewSelection[index]);
+        crewSetStatus(chosen
+          ? "P" + (index + 1) + " · " + chosen.name + " · " + (chosen.species || "Раса не указана")
+          : "P" + (index + 1) + " · Crew не выбран"
+        );
+      });
+    });
   }
 
   function escapeHtml(value) {
@@ -389,13 +425,13 @@
       return;
     }
     if (crewScanButton) crewScanButton.disabled = true;
-    crewSetStatus("Читаю публичный реестр…");
+    crewSetStatus("Разбудим Render… первый запуск может занять 1–3 минуты.");
     try {
       const scan = await window.BCMCrewWallet.scanWallet(owner);
       applyWalletScan(scan);
     } catch (error) {
-      if (crewDiag) crewDiag.textContent = "rpc error: " + (error?.message || "scan failed");
-      crewSetStatus(error?.message || "rpc error. Demo roster не подставлен как ваш экипаж.");
+      if (crewDiag) crewDiag.textContent = "";
+      crewSetStatus("Render просыпается. Повторите через 1–3 минуты.");
     } finally {
       if (crewScanButton) crewScanButton.disabled = false;
     }

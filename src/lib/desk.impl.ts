@@ -267,10 +267,24 @@ function pushTape(resources: ResourceRow[]): TapePoint[] {
 
 export async function buildMarket(): Promise<MarketSnap> {
   if (marketCache && Date.now() - marketCache.at < MARKET_TTL) return marketCache.data;
+
   const atlasHex = new PublicKey(ATLAS).toBuffer().toString("hex");
   const usdcHex = new PublicKey(USDC).toBuffer().toString("hex");
   const polisHex = new PublicKey(POLIS).toBuffer().toString("hex");
-  const [nfts, atlasTok, polisTok, prices, orders, usdcOrders, polisOrders, candles, polisCandles, atlasPool, polisPool] = await Promise.all([
+
+  const [
+    nfts,
+    atlasTok,
+    polisTok,
+    prices,
+    orders,
+    usdcOrders,
+    polisOrders,
+    atlasFallbackCandles,
+    polisFallbackCandles,
+    atlasPool,
+    polisPool,
+  ] = await Promise.all([
     loadCatalog(),
     getJson<Record<string, number | string>>("https://galaxy.staratlas.com/tokens/atlas").catch(() => null),
     getJson<Record<string, number | string>>("https://galaxy.staratlas.com/tokens/polis").catch(() => null),
@@ -290,34 +304,76 @@ export async function buildMarket(): Promise<MarketSnap> {
   const usdcBook = readBook(usdcOrders, usdcHex, 6);
   const polisBook = readBook(polisOrders, polisHex, 8);
 
+  const atlasUsd = num(prices[ATLAS]?.usdPrice);
+  const polisUsd = num(prices[POLIS]?.usdPrice);
+
+  const atlas: TokenQuote = {
+    ...emptyQuote(),
+    usd: atlasUsd,
+    change24h: prices[ATLAS]?.priceChange24h ?? null,
+    circulating: num(atlasTok?.circulating),
+    totalSupply: num(atlasTok?.totalSupply),
+    lockedSupply: num(atlasTok?.lockedSupply),
+  };
+  const polis: TokenQuote = {
+    ...emptyQuote(),
+    usd: polisUsd,
+    change24h: prices[POLIS]?.priceChange24h ?? null,
+    circulating: num(polisTok?.circulating),
+    totalSupply: num(polisTok?.totalSupply),
+    lockedSupply: num(polisTok?.lockedSupply),
+  };
+
   const resources: ResourceRow[] = [];
   const ships: ResourceRow[] = [];
+
   for (const item of nfts.values()) {
+    if (item.kind !== "resource" && item.kind !== "ship") continue;
+    if (item.kind === "resource" && !CLASS_KEEP.has(item.className)) continue;
+
     const atlasSide = book.get(item.mint);
     const usdcSide = usdcBook.get(item.mint);
     const polisSide = polisBook.get(item.mint);
+
+    const hasDirectUsdc = usdcSide?.ask != null || usdcSide?.bid != null;
+    const derivedAsk =
+      usdcSide?.ask ??
+      (atlasSide?.ask != null && atlasUsd != null && atlasUsd > 0 ? atlasSide.ask * atlasUsd : null);
+    const derivedBid =
+      usdcSide?.bid ??
+      (atlasSide?.bid != null && atlasUsd != null && atlasUsd > 0 ? atlasSide.bid * atlasUsd : null);
+
     const row: ResourceRow = {
       mint: item.mint,
       name: item.name,
       symbol: item.symbol,
       className: item.className,
       image: item.image,
-      ask: usdcSide?.ask ?? null,
-      bid: usdcSide?.bid ?? null,
-      askQty: usdcSide?.askQty ?? 0,
-      quote: "USDC",
-      usdcAsk: usdcSide?.ask ?? null,
-      usdcBid: usdcSide?.bid ?? null,
+      ask: derivedAsk ?? atlasSide?.ask ?? polisSide?.ask ?? null,
+      bid: derivedBid ?? atlasSide?.bid ?? polisSide?.bid ?? null,
+      askQty: usdcSide?.askQty ?? atlasSide?.askQty ?? polisSide?.askQty ?? 0,
+      quote: derivedAsk != null || derivedBid != null ? "USDC" : atlasSide?.ask != null || atlasSide?.bid != null ? "ATLAS" : "POLIS",
+      usdcDerived: !hasDirectUsdc && (atlasSide?.ask != null || atlasSide?.bid != null),
+      usdcAsk: derivedAsk,
+      usdcBid: derivedBid,
       atlasAsk: atlasSide?.ask ?? null,
       atlasBid: atlasSide?.bid ?? null,
       polisAsk: polisSide?.ask ?? null,
       polisBid: polisSide?.bid ?? null,
     };
-    if (item.kind === "resource" && CLASS_KEEP.has(item.className)) resources.push(row);
-    else if (item.kind === "ship") ships.push(row);
+
+    if (item.kind === "resource") resources.push(row);
+    else ships.push(row);
   }
+
   resources.sort((a, b) => a.name.localeCompare(b.name, "en"));
-  ships.sort((a, b) => (a.usdcAsk == null ? 1 : 0) - (b.usdcAsk == null ? 1 : 0) || a.name.localeCompare(b.name, "en"));
+  ships.sort(
+    (a, b) =>
+      (a.usdcAsk == null ? 1 : 0) -
+        (b.usdcAsk == null ? 1 : 0) ||
+      a.name.localeCompare(b.name, "en"),
+  );
+
   const marketShips: MarketShip[] = [];
   for (const item of nfts.values()) {
     if (item.kind !== "ship") continue;
@@ -342,41 +398,36 @@ export async function buildMarket(): Promise<MarketSnap> {
   }
   marketShips.sort((a, b) => a.className.localeCompare(b.className) || a.name.localeCompare(b.name, "en"));
 
-  const atlas: TokenQuote = {
-    ...emptyQuote(),
-    usd: prices[ATLAS]?.usdPrice ?? null,
-    change24h: prices[ATLAS]?.priceChange24h ?? null,
-    circulating: num(atlasTok?.circulating),
-    totalSupply: num(atlasTok?.totalSupply),
-    lockedSupply: num(atlasTok?.lockedSupply),
-  };
-  const polis: TokenQuote = {
-    ...emptyQuote(),
-    usd: prices[POLIS]?.usdPrice ?? null,
-    change24h: prices[POLIS]?.priceChange24h ?? null,
-    circulating: num(polisTok?.circulating),
-    totalSupply: num(polisTok?.totalSupply),
-    lockedSupply: num(polisTok?.lockedSupply),
+  const atlasUsdcCandles = atlasPool.length > 20 ? atlasPool : atlasFallbackCandles;
+  const polisUsdcCandles = polisPool.length > 20 ? polisPool : polisFallbackCandles;
+  const pairCandles = ratioCandles(polisUsdcCandles, atlasUsdcCandles);
+
+  const pairQuotes = {
+    atlasUsdc: atlasUsd,
+    polisUsdc: polisUsd,
+    polisAtlas:
+      atlasUsd != null && atlasUsd > 0 && polisUsd != null
+        ? polisUsd / atlasUsd
+        : null,
   };
 
-  const chainPair = ratioCandles(polisPool, atlasPool);
-  const fallbackPair = ratioCandles(
-    polisCandles.map((row) => ({ ...row, t: Math.floor(row.t / 1000) })),
-    candles.map((row) => ({ ...row, t: Math.floor(row.t / 1000) })),
-  );
   const data: MarketSnap = {
     at: Date.now(),
-    orderCount: orders.length,
+    orderCount: orders.length + usdcOrders.length + polisOrders.length,
     atlas,
     polis,
     resources,
     ships,
     marketShips,
-    candles: atlasPool.length > 20 ? atlasPool : candles,
-    pairCandles: chainPair.length > 20 ? chainPair : fallbackPair,
+    candles: atlasUsdcCandles,
+    pairCandles,
+    polisUsdcCandles,
+    pairQuotes,
     tape: pushTape([...resources, ...ships]),
-    note: "Корабли — каталог Galaxy. Стакан USDC считается с 6 знаками, ATLAS и POLIS с 8. Иначе 16 USDC выглядели как 0,16.",
+    note:
+      "Рынок читается сервером. Ресурсы и корабли сначала ищутся в USDC; если прямого USDC-ордера нет, цена ATLAS переводится в USDC по текущему курсу ATLAS/USDC. Отдельно сохраняются стаканы ATLAS и POLIS. Графики: ATLAS/USDC, POLIS/USDC и POLIS/ATLAS.",
   };
+
   marketCache = { at: Date.now(), data };
   return data;
 }
