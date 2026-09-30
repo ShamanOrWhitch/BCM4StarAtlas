@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.48
+ * Version: 0.9.49
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.48');
+define('BCM_MINI_SIM_VERSION', '0.9.49');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -738,9 +738,12 @@ function bcm_mini_sim_enqueue_assets()
             'x' => 0.0,
             'y' => -2.0,
             'z' => -260.0,
-            'preloadRadius' => 120.0,
+            'preloadRadius' => 150.0,
             'coverageThreshold' => 0.69,
-            'uiRadius' => 180.0,
+            'uiRadius' => 200.0,
+            'gateAutoProgress' => 0.85,
+            'portalCoverageThreshold' => 0.60,
+            'backPortalDistance' => 8.5,
         ),
         'towerJsUrl' => BCM_MINI_SIM_URL . 'tower/assets/js/tower.js',
         'towerCssUrl' => BCM_MINI_SIM_URL . 'tower/assets/css/tower.css',
@@ -762,8 +765,8 @@ function bcm_mini_sim_enqueue_assets()
                 'y' => -2.0,
                 // Deliberately far beyond the satellite and the existing space screens.
                 'z' => -260.0,
-                'radius' => 24,
-                'preloadRadius' => 180,
+                'radius' => 36,
+                'preloadRadius' => 200,
                 'maxWidth' => 13.0,
                 'maxHeight' => 8.0,
                 'preloadWhenStarted' => true,
