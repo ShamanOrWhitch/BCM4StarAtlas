@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.49
+ * Version: 0.9.50
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -741,9 +741,10 @@ function bcm_mini_sim_enqueue_assets()
             'preloadRadius' => 150.0,
             'coverageThreshold' => 0.69,
             'uiRadius' => 200.0,
-            'gateAutoProgress' => 0.85,
+            // Tower landing is tied to the animated planet approach, not the OniStation sphere.
+            'landingDistance' => 42.0,
             'portalCoverageThreshold' => 0.60,
-            'backPortalDistance' => 8.5,
+            'backPortalDistance' => 7.5,
         ),
         'towerJsUrl' => BCM_MINI_SIM_URL . 'tower/assets/js/tower.js',
         'towerCssUrl' => BCM_MINI_SIM_URL . 'tower/assets/css/tower.css',
@@ -765,7 +766,7 @@ function bcm_mini_sim_enqueue_assets()
                 'y' => -2.0,
                 // Deliberately far beyond the satellite and the existing space screens.
                 'z' => -260.0,
-                'radius' => 36,
+                'radius' => 52,
                 'preloadRadius' => 200,
                 'maxWidth' => 13.0,
                 'maxHeight' => 8.0,
@@ -810,7 +811,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.49</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.50</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ВНЕШНИЕ ЭКРАНЫ</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
