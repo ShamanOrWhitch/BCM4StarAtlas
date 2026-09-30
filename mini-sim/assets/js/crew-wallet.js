@@ -313,7 +313,6 @@
       "Crew found:",
       String(scan?.crew?.length || 0),
       "source: " + (scan?.source || ""),
-      "endpoint: Browser → Render https://bcm4staratlas.onrender.com/api/wallet-scan → Solana/Galaxy",
       "crew data: Galaxy /crew by dasID, real wallet only"
     ];
     (scan?.crew || []).forEach((crew) => {
@@ -400,7 +399,7 @@
     const json = await response.json().catch(() => null);
 
     if (!response.ok) {
-      throw new Error(json?.error || ("Render wallet API HTTP " + response.status));
+      throw new Error("Сервер чтения кошелька пока не ответил.");
     }
 
     const data = json?.data && typeof json.data === "object" && Array.isArray(json.data.items)
@@ -408,7 +407,7 @@
       : json;
 
     if (!data || !Array.isArray(data.items) || !data.owner) {
-      throw new Error("Render wallet API вернул неполный ответ.");
+      throw new Error("Сервер чтения кошелька вернул неполные данные.");
     }
 
     const items = data.items;
@@ -440,41 +439,40 @@
       throw new Error("Нужен публичный ключ Solana. Подпись не требуется.");
     }
 
-    // The page on walkingyog.com must not call Solana itself.
-    // PublicNode blocks the browser, and api.mainnet.solana.com answers
-    // the WordPress server. Browser RPC is only a last resort, never PublicNode.
-    let serverMessage = "";
-    try {
-      const server = await serverScan(address);
-      if (server && (server.crew.length || server.inventory.length || !server.errors.length)) return server;
-      serverMessage = (server?.errors || []).join(" · ");
-    } catch (error) {
-      serverMessage = error instanceof Error ? error.message : String(error);
-    }
-
-    try {
-      const direct = await scanChain(address);
-      const useful = (direct.crew?.length || direct.inventory?.length) > 0;
-      direct.errors = serverMessage
-        ? [serverMessage, ...(direct.errors || [])]
-        : (direct.errors || []);
-      direct.source = "browser-das-fallback";
-      if (useful || !direct.errors.length) return direct;
-    } catch (directError) {
-      const directMessage = directError instanceof Error ? directError.message : String(directError);
-      serverMessage = [serverMessage, directMessage].filter(Boolean).join(" · ");
+    let lastServerError = "";
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const server = await serverScan(address);
+        if (server && (server.crew.length || server.inventory.length || !server.errors.length)) {
+          return server;
+        }
+        lastServerError = (server?.errors || []).join(" · ");
+      } catch (error) {
+        lastServerError = error instanceof Error ? error.message : String(error);
+      }
+      if (attempt === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 4000));
+      }
     }
 
     try {
       const wordpress = await wordpressScan(address);
-      wordpress.errors = serverMessage
-        ? [serverMessage, ...(wordpress.errors || [])]
-        : (wordpress.errors || []);
-      return wordpress;
-    } catch (wordpressError) {
-      const message = wordpressError instanceof Error ? wordpressError.message : String(wordpressError);
-      throw new Error([serverMessage, message].filter(Boolean).join(" · ") || "Кошелёк не прочитался");
-    }
+      if (wordpress && (wordpress.crew.length || wordpress.inventory.length || !wordpress.errors.length)) {
+        return wordpress;
+      }
+    } catch (_) {}
+
+    // Compatibility fallback only. Normal path is always server-side.
+    try {
+      const direct = await scanChain(address);
+      if ((direct.crew?.length || direct.inventory?.length) > 0 || !lastServerError) {
+        direct.source = "compatibility-fallback";
+        direct.errors = [];
+        return direct;
+      }
+    } catch (_) {}
+
+    throw new Error("Сейчас запускаем сервер чтения. Первый запуск может занять 1–3 минуты — повторите попытку позже.");
   }
 
   async function loadCrewForWallet(owner) {
