@@ -589,6 +589,17 @@
       "FLIGHT ACTIVE · CREW " +
       picked.map((crew) => crew.name).join(" / ")
     );
+    setTimeout(() => {
+      ["portal1.mp4", "portal2.mp4"].forEach((name) => {
+        const url = assetUrl(name);
+        if (!url) return;
+        const video = document.createElement("video");
+        video.muted = true;
+        video.preload = "auto";
+        video.src = url;
+        video.load();
+      });
+    }, 600);
   }
 
   const byName = Object.create(null);
@@ -1757,14 +1768,27 @@
     namePlate.position.set(0, -5.4, 0);
     group.add(namePlate);
 
-    const planetAsset = assets.find((asset) => {
-      if (!asset || asset.type !== "image") return false;
-      const base = String(asset.name || "").split(/[\\/]/).pop() || "";
-      return /^planet[^/]*\\.(png|jpg|jpeg|webp)$/i.test(base);
-    });
-    // Deep Space planet is the Oni station landing landmark.
-    // Keep the existing planet sphere and placement; replace only its texture.
-    const planetMaterial = textured("OniStation.png", 0x496b8f);
+    const planetVideoUrl = assetUrl("onicss.mp4")
+      || (Array.isArray(config.spaceVideoZones) ? (config.spaceVideoZones.find((zone) => zone && zone.towerGate) || {}).url : "")
+      || "";
+    const planetVideo = document.createElement("video");
+    planetVideo.muted = true;
+    planetVideo.defaultMuted = true;
+    planetVideo.loop = true;
+    planetVideo.playsInline = true;
+    planetVideo.preload = "none";
+    planetVideo.setAttribute("muted", "");
+    planetVideo.setAttribute("playsinline", "");
+    planetVideo.volume = 0;
+    const planetTexture = planetVideoUrl ? new THREE.VideoTexture(planetVideo) : null;
+    if (planetTexture) {
+      planetTexture.minFilter = THREE.LinearFilter;
+      planetTexture.magFilter = THREE.LinearFilter;
+      planetTexture.generateMipmaps = false;
+    }
+    const planetMaterial = planetTexture
+      ? new THREE.MeshBasicMaterial({ map: planetTexture, toneMapped: false })
+      : textured("OniStation.png", 0x496b8f);
     const planet = new THREE.Mesh(
       new THREE.SphereGeometry(11, 24, 16),
       planetMaterial
@@ -1773,6 +1797,10 @@
     planet.name = "deep-space-planet";
     parent.add(planet);
     spacePlanet.mesh = planet;
+    spacePlanet.video = planetVideo;
+    spacePlanet.url = planetVideoUrl;
+    spacePlanet.playing = false;
+    spacePlanet.loaded = false;
 
     parent.add(group);
     spaceSatellite.group = group;
@@ -1899,7 +1927,7 @@
 
     const videoZones = Array.isArray(config.spaceVideoZones) ? config.spaceVideoZones : [];
     videoZones.forEach((zone, index) => {
-      if (!zone || !zone.url) return;
+      if (!zone || !zone.url || zone.towerGate) return;
       const video = document.createElement("video");
       video.crossOrigin = "anonymous";
       video.muted = true;
@@ -2553,6 +2581,54 @@
     }
   }
 
+  function planetDistance() {
+    if (!spacePlanet.mesh || !ship.position) return Infinity;
+    return spacePlanet.mesh.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position);
+  }
+
+  function updatePlanetCinema() {
+    const video = spacePlanet.video;
+    if (!video || !spacePlanet.url || towerGateTriggered || transitionBusy) return;
+    const distance = planetDistance();
+    if (distance <= 150) preloadTowerApproach();
+    if (distance > 110) {
+      if (spacePlanet.playing) {
+        video.pause();
+        spacePlanet.playing = false;
+      }
+      return;
+    }
+    if (!spacePlanet.loaded) {
+      video.preload = "auto";
+      video.src = spacePlanet.url;
+      video.load();
+      spacePlanet.loaded = true;
+    }
+    if (!spacePlanet.playing) {
+      const play = video.play();
+      if (play && play.catch) play.catch(() => { video.muted = true; });
+      spacePlanet.playing = true;
+    }
+    if (distance <= 24) beginTowerLanding();
+  }
+
+  function beginTowerLanding() {
+    if (towerGateTriggered || transitionBusy) return;
+    towerGateTriggered = true;
+    if (spacePlanet.video) {
+      spacePlanet.video.pause();
+      spacePlanet.playing = false;
+    }
+    pauseAllCinemaVideos();
+    preloadTowerApproach();
+    if (window.BCMTowerAPI && typeof window.BCMTowerAPI.beginLanding === "function") {
+      disposeMiniSimResources();
+      window.BCMTowerAPI.beginLanding();
+      return;
+    }
+    handoffToTower();
+  }
+
   function enterTowerFromGate() {
     if (towerGateTriggered || transitionBusy) return;
     if (!document.querySelector(".bcm-tower-embedded")) {
@@ -2667,9 +2743,12 @@
       return;
     }
 
-    // Start loading while the player keeps flying. Controls are locked only
-    // after the first decoded frame is ready to be shown.
+    // Stop at the portal immediately. The clip may still be decoding,
+    // but the ship must not fly through it to the planet while it loads.
+    transitionBusy = true;
     transitionLoading = true;
+    ship.velocity.set(0, 0, 0);
+    ship.angularVelocity.set(0, 0, 0);
 
     // Portal video gets the active/high-priority path; Room 2 textures and live panels warm quietly underneath it.
     startBackgroundTextureLoading();
@@ -3712,11 +3791,11 @@
     const stationSphereEntryRadius = 5.6;
 
     if (interaction) {
-      if (stationSphereDistance <= stationSphereEntryRadius) {
-        interaction.textContent = "ONI STATION · ONICSS GATE";
-      } else if (gate && gateDistance <= gateUiRadius) {
-        interaction.textContent = "ONI STATION · TOWER ENTRY " +
-          Math.max(0, Math.round(100 - (gateDistance / Math.max(1, gate.radius)) * 100)) + "%";
+      const distance = planetDistance();
+      if (Number.isFinite(distance) && distance <= 110) {
+        interaction.textContent = distance <= 24
+          ? "ONI · LANDING"
+          : "ONI · PLANET " + Math.max(0, Math.round(100 - (distance / 110) * 100)) + "%";
       } else {
         const portalUiThreshold = Number(config.towerApproach?.portalCoverageThreshold) || 0.60;
         interaction.textContent = portal.coverage >= portalUiThreshold
@@ -3725,13 +3804,7 @@
       }
     }
 
-    // Flying into onicss starts tower.mp4. The clip itself is revealed
-    // only after its first frame is decoded, inside BCMTowerAPI.enter.
-    const videoLanding = !!gate && gateDistance <= Number(gate.radius || 36);
-
-    if (!towerGateTriggered && !transitionBusy && videoLanding) {
-      enterTowerFromGate();
-    }
+    updatePlanetCinema();
 
     if (!cinema.focus) {
       const portalCoverageThreshold = Number(config.towerApproach?.portalCoverageThreshold) || 0.60;

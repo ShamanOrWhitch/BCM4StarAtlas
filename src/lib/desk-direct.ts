@@ -216,7 +216,7 @@ export async function directMarket(): Promise<MarketSnap> {
       book(ATLAS, 8, 2).catch(() => null),
       book(POLIS, 8, 2).catch(() => null),
     ]),
-    new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 7000)),
+    new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 4000)),
   ]);
   const usdcBook = books?.[0] ?? null;
   const atlasBook = books?.[1] ?? null;
@@ -278,6 +278,10 @@ export async function directMarket(): Promise<MarketSnap> {
     totalSupply: null,
     lockedSupply: null,
   });
+  const atlasNow = atlasCandles.length ? atlasCandles[atlasCandles.length - 1].c : null;
+  const polisNow = polisCandles.length ? polisCandles[polisCandles.length - 1].c : null;
+  const pair = ratio(polisCandles, atlasCandles);
+  const pairNow = pair.length ? pair[pair.length - 1].c : (atlasNow && polisNow ? polisNow / atlasNow : null);
   return {
     at: Date.now(),
     orderCount: (usdcBook?.size ?? 0) + (atlasBook?.size ?? 0) + (polisBook?.size ?? 0),
@@ -287,9 +291,17 @@ export async function directMarket(): Promise<MarketSnap> {
     ships,
     marketShips,
     candles: atlasCandles,
-    pairCandles: ratio(polisCandles, atlasCandles),
+    polisUsdcCandles: polisCandles,
+    pairCandles: pair,
+    pairQuotes: {
+      atlasUsdc: prices[ATLAS]?.usdPrice ?? atlasNow,
+      polisUsdc: prices[POLIS]?.usdPrice ?? polisNow,
+      polisAtlas: pairNow,
+    },
     tape: [],
-    note: "Каталог и график POLIS/ATLAS читаются из браузера: Galaxy, Jupiter и Kraken. Хостинг к нодам Solana не обращается. Стакан добавляется, только если RPC ответил за 7 секунд.",
+    note: books
+      ? "Каталог и стакан из браузера. Текущая цена на графике — закрытие последней дневной свечи."
+      : "Графики ATLAS/USDC, POLIS/USDC и POLIS/ATLAS есть. Стакан Galactic Marketplace с этого хостинга не читается: тариф не пускает к нодам, поэтому у пузырей нет цены.",
   };
 }
 

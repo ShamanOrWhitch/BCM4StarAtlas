@@ -1827,7 +1827,7 @@
       const markerUrl = helipadMarkerUrl();
       if (!markerUrl) return;
       transition.hidden = false;
-      transition.style.backgroundImage = 'url("' + markerUrl.replace(/"/g, "\\"") + '")';
+      transition.style.backgroundImage = 'url("' + markerUrl.replace(/"/g, '\\"') + '")';
       transition.style.backgroundPosition = "center";
       transition.style.backgroundSize = "contain";
       transition.style.backgroundRepeat = "no-repeat";
@@ -1860,7 +1860,7 @@
       transitionVideo.style.opacity = "0";
       const markerUrl = helipadMarkerUrl();
       if (markerUrl) {
-        transition.style.backgroundImage = 'url("' + markerUrl.replace(/"/g, "\\"") + '")';
+        transition.style.backgroundImage = 'url("' + markerUrl.replace(/"/g, '\\"') + '")';
         transition.style.backgroundPosition = "center";
         transition.style.backgroundSize = "contain";
         transition.style.backgroundRepeat = "no-repeat";
@@ -1885,6 +1885,7 @@
         // transition only now, exactly like the mini-sim portal cutscenes.
         try { transitionVideo.currentTime = 0; } catch (e) {}
         transitionVideo.style.opacity = "1";
+        playTowerAudio();
 
         const playPromise = transitionVideo.play();
         if (playPromise && playPromise.catch) {
@@ -1906,7 +1907,6 @@
       transitionVideo.onended = () => {
         stopTransition();
         showMenu();
-        playTowerAudio();
       };
       transitionVideo.onerror = () => {
         stopTransition();
@@ -2166,31 +2166,24 @@
     window.BCMTowerAPI.getWallet = () => window.BCMiniCrewWallet || null;
     window.BCMTowerAPI.stopAudio = () => stopTowerAudio();
     window.BCMTowerAPI.enter = () => {
-      // Prepare the Tower behind the landing cutscene. The player sees only
-      // tower.mp4 until its last frame, then receives an already-built menu.
       root.hidden = false;
       menu.hidden = true;
       status.textContent = "LANDING VIDEO · PREPARING TOWER...";
       try {
-        if (!tower) {
-          buildTower(makeSeed());
-        }
+        if (!tower) buildTower(makeSeed());
       } catch (error) {
         gameStarted = false;
         status.textContent = "TOWER ERROR: " + (error?.message || "BUILD FAILED");
         console.error("BCM Tower entry build failed", error);
         return;
       }
-
       resize();
       renderViews();
-      triggerTransition();
-
-      requestAnimationFrame(() => {
-        resize();
-        renderViews();
-      });
+      if (!triggerTransition()) {
+        status.textContent = "tower.mp4 не найден рядом с ассетами башни";
+      }
     };
+    window.BCMTowerAPI.beginLanding = () => window.BCMTowerAPI.enter();
     window.BCMTowerAPI.mount = (targetRoot) => {
       if (targetRoot && targetRoot !== root) {
         root.hidden = false;

@@ -655,7 +655,7 @@ function Detail({
             <p className="mt-1 text-sm text-fg">
               {crew.aptitudes.map((a) => `${a.name} ${a.xp === 50 ? "major" : "minor"}`).join(" · ") || "профессия не прочитана"}
             </p>
-            <p className={`mt-1 font-mono text-xs ${RARITY_CLASS[crew.official]}`}>{crew.official}</p>
+            <p className={`mt-1 font-mono text-xs ${TIER_CLASS[tensorTier(crew.tensorRank)]}`}>{TIER_LABEL[tensorTier(crew.tensorRank)]}</p>
             {packetOf(crew.id) ? (
               <p className="mt-1 font-mono text-xs text-brass">{packetOf(crew.id)}</p>
             ) : null}
