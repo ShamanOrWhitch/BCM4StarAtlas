@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.25";
+  const TOWER_VERSION = "0.2.24";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -1839,31 +1839,22 @@
       }, 2200);
     }
 
-    function transitionUrls() {
-      const urls = [CONFIG.transition]
-        .concat(Array.isArray(CONFIG.transitionFallbacks) ? CONFIG.transitionFallbacks : [])
-        .filter(Boolean);
-      return [...new Set(urls)];
+    function transitionUrl() {
+      // Tower entry must use tower.mp4 itself. Do not silently replace it with
+      // another portal clip: the landing clip is part of the handoff contract.
+      return CONFIG.transition || "";
     }
 
-    function transitionUrl(index = 0) {
-      const urls = transitionUrls();
-      return urls[index] || "";
-    }
-
-    let transitionSourceIndex = 0;
-
-    function triggerTransition(sourceIndex = 0) {
+    function triggerTransition() {
       if (transitionStarted) return false;
-      const url = transitionUrl(sourceIndex);
+      const url = transitionUrl();
       if (!url) {
-        stopTransition();
-        showMenu();
-        status.textContent = "TOWER LANDING VIDEO MISSING · tower.mp4 / fallback";
+        status.textContent = "TOWER LANDING VIDEO MISSING · tower.mp4";
+        transition.hidden = false;
+        transitionVideo.style.opacity = "0";
         return false;
       }
 
-      transitionSourceIndex = sourceIndex;
       transitionStarted = true;
       transition.hidden = false;
       transitionVideo.style.opacity = "0";
@@ -1915,17 +1906,11 @@
       transitionVideo.onended = () => {
         stopTransition();
         showMenu();
+        playTowerAudio();
       };
       transitionVideo.onerror = () => {
-        const urls = transitionUrls();
-        const nextIndex = transitionSourceIndex + 1;
         stopTransition();
-        if (nextIndex < urls.length) {
-          triggerTransition(nextIndex);
-          return;
-        }
-        showMenu();
-        status.textContent = "TOWER LANDING VIDEO ERROR · tower.mp4 / fallback";
+        status.textContent = "TOWER LANDING VIDEO ERROR · tower.mp4";
       };
 
       transitionVideo.src = url;
