@@ -2537,20 +2537,38 @@
       return;
     }
 
-    transitionLoading = false;
-    transitionBusy = true;
+    transitionLoading = true;
+    ensureTowerCssLoaded();
+    ensureTowerJsLoaded();
+    ensureTowerVideoLoaded();
 
-    // Release the entire space-labyrinth WebGL application before Tower takes over.
-    disposeMiniSimResources();
+    const deadline = Date.now() + 10000;
+    const waitForTowerApi = () => {
+      if (window.BCMTowerAPI && typeof window.BCMTowerAPI.enter === "function") {
+        transitionLoading = false;
+        transitionBusy = true;
 
-    root.hidden = false;
-    if (window.BCMTowerAPI && typeof window.BCMTowerAPI.enter === "function") {
-      window.BCMTowerAPI.enter();
-    } else {
+        // Keep the 6DOF renderer alive until Tower is actually ready to own the
+        // page. Previously a slow Tower script could make both engines disappear.
+        disposeMiniSimResources();
+
+        root.hidden = false;
+        window.BCMTowerAPI.enter();
+        return;
+      }
+
+      if (Date.now() < deadline) {
+        window.setTimeout(waitForTowerApi, 80);
+        return;
+      }
+
       towerGateTriggered = false;
+      transitionLoading = false;
       transitionBusy = false;
-      setStatus("TOWER ENGINE NOT READY");
-    }
+      setStatus("TOWER ENGINE NOT READY · PRELOAD/JS");
+    };
+
+    waitForTowerApi();
   }
 
   function enterTowerFromGate() {
