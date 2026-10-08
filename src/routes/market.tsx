@@ -442,7 +442,7 @@ function CandleChart({ title, candles, source }: { title: string; candles: Candl
         <span className="font-mono text-xs text-muted">
           мин {fmtTick(min)} · среднее {fmtTick(candles.reduce((sum, candle) => sum + candle.c, 0) / candles.length)} · макс {fmtTick(max)}
         </span>
-        <span className="font-mono text-lg text-fg">сейчас {fmtTick(last.c)}</span>
+        <span className={`font-mono text-sm ${move != null && move < 0 ? "text-danger" : "text-ok"}`}>{fmtPct(move)}</span>
       </figcaption>
       <svg viewBox={`0 0 ${w} ${h}`} className="h-64 w-full" role="img" aria-label={title} onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
         {ticks.map((tick) => (

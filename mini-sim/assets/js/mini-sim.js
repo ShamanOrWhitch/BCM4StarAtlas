@@ -1501,10 +1501,10 @@
     const endZ = room0Labyrinth.endZ;
     const barriers = 8;
     const step = (startZ - endZ) / barriers;
-    const wallHalfY = 3.05;
-    const wallThickness = 0.36;
-    const wallHalfX = 5.05;
-    const gapHalf = 1.45;
+    const wallHalfY = 3.4;
+    const wallThickness = 1.35;
+    const wallHalfX = 5.15;
+    const gapHalf = 1.15;
     const rand = seedRandom(labyrinthSeed ^ 0x524f4f30);
 
     room0Labyrinth.walls.length = 0;
@@ -1561,56 +1561,33 @@
 
   function updateRoom0Labyrinth() {
     if (!room0Labyrinth.group || !ship.position) return;
-    const active = ship.position.z >= room0Labyrinth.startZ - 0.25 &&
-      ship.position.z <= room0Labyrinth.endZ + 1.5 &&
-      Math.abs(ship.position.x) <= 8.0 &&
-      Math.abs(ship.position.y) <= 5.0;
-
-    room0Labyrinth.group.visible = active;
-    room0Labyrinth.active = active;
+    const inRoom1 = ship.position.z > -8 && ship.position.z < 36;
+    room0Labyrinth.group.visible = inRoom1;
+    room0Labyrinth.active = inRoom1;
   }
 
   function collideRoom0Labyrinth(before) {
     if (!before || !ship.position || !room0Labyrinth.walls.length) return false;
-
-    const minZ = Math.min(before.z, ship.position.z);
-    const maxZ = Math.max(before.z, ship.position.z);
-    const midX = (before.x + ship.position.x) * 0.5;
-    const midY = (before.y + ship.position.y) * 0.5;
-
-    // The collision volume follows the actual labyrinth. It does not depend
-    // on a one-frame-late visibility flag.
-    const active =
-      maxZ >= room0Labyrinth.startZ - 0.25 &&
-      minZ <= room0Labyrinth.endZ + 1.5 &&
-      Math.abs(midX) <= 8.0 &&
-      Math.abs(midY) <= 5.0;
-    if (!active) return false;
+    if (ship.position.z < -8 || ship.position.z > 36) return false;
+    if (Math.abs(ship.position.x) > 8 || Math.abs(ship.position.y) > 5.2) return false;
 
     let blocked = false;
-
     for (const wall of room0Labyrinth.walls) {
-      const crossing =
-        (before.z < wall.zMin && ship.position.z >= wall.zMin) ||
-        (before.z > wall.zMax && ship.position.z <= wall.zMax);
-
-      if (!crossing) continue;
-
+      const z0 = Math.min(before.z, ship.position.z);
+      const z1 = Math.max(before.z, ship.position.z);
+      const hitsSlab = z1 >= wall.zMin && z0 <= wall.zMax;
+      if (!hitsSlab) continue;
       const inGap =
         ship.position.x >= wall.gapMin &&
         ship.position.x <= wall.gapMax &&
         ship.position.y >= wall.yMin &&
         ship.position.y <= wall.yMax;
-
       if (inGap) continue;
-
-      ship.position.z = before.z <= wall.zMin
-        ? wall.zMin - 0.07
-        : wall.zMax + 0.07;
+      const fromPositive = before.z >= wall.zMax;
+      ship.position.z = fromPositive ? wall.zMax + 0.12 : wall.zMin - 0.12;
       ship.velocity.z = 0;
       blocked = true;
     }
-
     return blocked;
   }
 
@@ -1768,27 +1745,7 @@
     namePlate.position.set(0, -5.4, 0);
     group.add(namePlate);
 
-    const planetVideoUrl = assetUrl("onicss.mp4")
-      || (Array.isArray(config.spaceVideoZones) ? (config.spaceVideoZones.find((zone) => zone && zone.towerGate) || {}).url : "")
-      || "";
-    const planetVideo = document.createElement("video");
-    planetVideo.muted = true;
-    planetVideo.defaultMuted = true;
-    planetVideo.loop = true;
-    planetVideo.playsInline = true;
-    planetVideo.preload = "none";
-    planetVideo.setAttribute("muted", "");
-    planetVideo.setAttribute("playsinline", "");
-    planetVideo.volume = 0;
-    const planetTexture = planetVideoUrl ? new THREE.VideoTexture(planetVideo) : null;
-    if (planetTexture) {
-      planetTexture.minFilter = THREE.LinearFilter;
-      planetTexture.magFilter = THREE.LinearFilter;
-      planetTexture.generateMipmaps = false;
-    }
-    const planetMaterial = planetTexture
-      ? new THREE.MeshBasicMaterial({ map: planetTexture, toneMapped: false })
-      : textured("OniStation.png", 0x496b8f);
+    const planetMaterial = textured("OniStation.png", 0x496b8f);
     const planet = new THREE.Mesh(
       new THREE.SphereGeometry(11, 24, 16),
       planetMaterial
@@ -1797,10 +1754,6 @@
     planet.name = "deep-space-planet";
     parent.add(planet);
     spacePlanet.mesh = planet;
-    spacePlanet.video = planetVideo;
-    spacePlanet.url = planetVideoUrl;
-    spacePlanet.playing = false;
-    spacePlanet.loaded = false;
 
     parent.add(group);
     spaceSatellite.group = group;
@@ -1927,7 +1880,7 @@
 
     const videoZones = Array.isArray(config.spaceVideoZones) ? config.spaceVideoZones : [];
     videoZones.forEach((zone, index) => {
-      if (!zone || !zone.url || zone.towerGate) return;
+      if (!zone || !zone.url) return;
       const video = document.createElement("video");
       video.crossOrigin = "anonymous";
       video.muted = true;
@@ -2581,44 +2534,9 @@
     }
   }
 
-  function planetDistance() {
-    if (!spacePlanet.mesh || !ship.position) return Infinity;
-    return spacePlanet.mesh.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position);
-  }
-
-  function updatePlanetCinema() {
-    const video = spacePlanet.video;
-    if (!video || !spacePlanet.url || towerGateTriggered || transitionBusy) return;
-    const distance = planetDistance();
-    if (distance <= 150) preloadTowerApproach();
-    if (distance > 110) {
-      if (spacePlanet.playing) {
-        video.pause();
-        spacePlanet.playing = false;
-      }
-      return;
-    }
-    if (!spacePlanet.loaded) {
-      video.preload = "auto";
-      video.src = spacePlanet.url;
-      video.load();
-      spacePlanet.loaded = true;
-    }
-    if (!spacePlanet.playing) {
-      const play = video.play();
-      if (play && play.catch) play.catch(() => { video.muted = true; });
-      spacePlanet.playing = true;
-    }
-    if (distance <= 24) beginTowerLanding();
-  }
-
   function beginTowerLanding() {
     if (towerGateTriggered || transitionBusy) return;
     towerGateTriggered = true;
-    if (spacePlanet.video) {
-      spacePlanet.video.pause();
-      spacePlanet.playing = false;
-    }
     pauseAllCinemaVideos();
     preloadTowerApproach();
     if (window.BCMTowerAPI && typeof window.BCMTowerAPI.beginLanding === "function") {
@@ -3791,11 +3709,9 @@
     const stationSphereEntryRadius = 5.6;
 
     if (interaction) {
-      const distance = planetDistance();
-      if (Number.isFinite(distance) && distance <= 110) {
-        interaction.textContent = distance <= 24
-          ? "ONI · LANDING"
-          : "ONI · PLANET " + Math.max(0, Math.round(100 - (distance / 110) * 100)) + "%";
+      if (gate && gateDistance <= gateUiRadius) {
+        interaction.textContent = "ONICSS · " +
+          Math.max(0, Math.round(100 - (gateDistance / Math.max(1, gate.radius)) * 100)) + "%";
       } else {
         const portalUiThreshold = Number(config.towerApproach?.portalCoverageThreshold) || 0.60;
         interaction.textContent = portal.coverage >= portalUiThreshold
@@ -3804,7 +3720,7 @@
       }
     }
 
-    updatePlanetCinema();
+    if (gate && gateDistance <= 14) beginTowerLanding();
 
     if (!cinema.focus) {
       const portalCoverageThreshold = Number(config.towerApproach?.portalCoverageThreshold) || 0.60;

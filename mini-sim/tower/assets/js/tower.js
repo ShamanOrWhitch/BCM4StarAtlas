@@ -597,13 +597,13 @@
     }
 
     function makeSurface(cell) {
-      const p = cellWorldPosition(cell, 0.4);
+      const p = cellWorldPosition(cell, 1.2);
       let geometry;
       let texUrl = "";
       let color = 0x8eb0c9;
       let height = 0.55;
-      let depth = 1.00;
-      let width = 1.90;
+      let depth = 2.4;
+      let width = 4.15;
 
       if (cell.surface === "rock") {
         geometry = new THREE.DodecahedronGeometry(1.0, 0);
@@ -775,7 +775,7 @@
     function buildBirds() {
       birds = [];
       const rand = mulberry32(seed ^ 0xB17D5EED);
-      const count = 7 + Math.floor(rand() * 4);
+      const count = 3;
 
       for (let i = 0; i < count; i++) {
         const group = new THREE.Group();
@@ -823,7 +823,7 @@
           angle: centerAngle,
           baseY: -8 + rand() * (towerHeight() - 18),
           radius: radius + 2.5 + rand() * 4.0,
-          speed: 0.30 + rand() * 0.30,
+          speed: 0.16 + rand() * 0.12,
           phase: rand() * Math.PI * 2,
           flap: 5.0 + rand() * 2.5
         };
@@ -860,17 +860,17 @@
           const dx = p.radial * Math.sin(p.angle) - bird.group.position.x;
           const dy = (p.y + 0.9) - bird.group.position.y;
           const dz = p.radial * Math.cos(p.angle) - bird.group.position.z;
-          const birdHitRadius = 2.6;
+          const birdHitRadius = 1.35;
           if (dx * dx + dy * dy + dz * dz > birdHitRadius * birdHitRadius) continue;
 
-          p.birdHitCooldown = 0.9;
+          p.birdHitCooldown = 2.4;
           p.grounded = false;
           p.liftRide = null;
           p.currentCell = null;
           p.jumps = 1;
           p.jumpStarted = false;
           p.fallStartY = p.y;
-          p.vy = Math.min(p.vy, 0) - 8.5;
+          p.vy = Math.min(p.vy, 0) - 3.2;
           p.angle += dx >= 0 ? 0.10 : -0.10;
           status.textContent = "ПТИЦА СБИЛА ИГРОКА " + (i + 1);
         }
@@ -1105,8 +1105,8 @@
           if (!cell) continue;
 
           const mesh = platformMeshes.find(m => m.userData.cell === cell);
-          const meshX = mesh ? mesh.position.x : Math.sin(sector * sectorWidth()) * (radius + 0.4);
-          const meshZ = mesh ? mesh.position.z : Math.cos(sector * sectorWidth()) * (radius + 0.4);
+          const meshX = mesh ? mesh.position.x : Math.sin(sector * sectorWidth()) * (radius + 1.2);
+          const meshZ = mesh ? mesh.position.z : Math.cos(sector * sectorWidth()) * (radius + 1.2);
           const surfaceAngle = Math.atan2(meshX, meshZ);
           const surfaceRadius = Math.hypot(meshX, meshZ);
 
