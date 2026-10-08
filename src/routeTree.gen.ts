@@ -15,6 +15,8 @@ import { Route as MapRouteImport } from './routes/map'
 import { Route as MarketRouteImport } from './routes/market'
 import { Route as ShipsRouteImport } from './routes/ships'
 import { Route as WalletRouteImport } from './routes/wallet'
+import { Route as ApiMarketRouteImport } from './routes/api/market'
+import { Route as ApiWalletScanRouteImport } from './routes/api/wallet-scan'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +48,16 @@ const WalletRoute = WalletRouteImport.update({
   path: '/wallet',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMarketRoute = ApiMarketRouteImport.update({
+  id: '/api/market',
+  path: '/api/market',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWalletScanRoute = ApiWalletScanRouteImport.update({
+  id: '/api/wallet-scan',
+  path: '/api/wallet-scan',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +66,8 @@ export interface FileRoutesByFullPath {
   '/market': typeof MarketRoute
   '/ships': typeof ShipsRoute
   '/wallet': typeof WalletRoute
+  '/api/market': typeof ApiMarketRoute
+  '/api/wallet-scan': typeof ApiWalletScanRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +76,8 @@ export interface FileRoutesByTo {
   '/market': typeof MarketRoute
   '/ships': typeof ShipsRoute
   '/wallet': typeof WalletRoute
+  '/api/market': typeof ApiMarketRoute
+  '/api/wallet-scan': typeof ApiWalletScanRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,13 +87,15 @@ export interface FileRoutesById {
   '/market': typeof MarketRoute
   '/ships': typeof ShipsRoute
   '/wallet': typeof WalletRoute
+  '/api/market': typeof ApiMarketRoute
+  '/api/wallet-scan': typeof ApiWalletScanRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/crew' | '/map' | '/market' | '/ships' | '/wallet'
+  fullPaths: '/' | '/crew' | '/map' | '/market' | '/ships' | '/wallet' | '/api/market' | '/api/wallet-scan'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/crew' | '/map' | '/market' | '/ships' | '/wallet'
-  id: '__root__' | '/' | '/crew' | '/map' | '/market' | '/ships' | '/wallet'
+  to: '/' | '/crew' | '/map' | '/market' | '/ships' | '/wallet' | '/api/market' | '/api/wallet-scan'
+  id: '__root__' | '/' | '/crew' | '/map' | '/market' | '/ships' | '/wallet' | '/api/market' | '/api/wallet-scan'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -87,6 +105,8 @@ export interface RootRouteChildren {
   MarketRoute: typeof MarketRoute
   ShipsRoute: typeof ShipsRoute
   WalletRoute: typeof WalletRoute
+  ApiMarketRoute: typeof ApiMarketRoute
+  ApiWalletScanRoute: typeof ApiWalletScanRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -133,6 +153,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WalletRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/market': {
+      id: '/api/market'
+      path: '/api/market'
+      fullPath: '/api/market'
+      preLoaderRoute: typeof ApiMarketRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/wallet-scan': {
+      id: '/api/wallet-scan'
+      path: '/api/wallet-scan'
+      fullPath: '/api/wallet-scan'
+      preLoaderRoute: typeof ApiWalletScanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -143,6 +177,8 @@ const rootRouteChildren: RootRouteChildren = {
   MarketRoute: MarketRoute,
   ShipsRoute: ShipsRoute,
   WalletRoute: WalletRoute,
+  ApiMarketRoute: ApiMarketRoute,
+  ApiWalletScanRoute: ApiWalletScanRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

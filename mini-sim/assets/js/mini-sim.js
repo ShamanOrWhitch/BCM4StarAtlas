@@ -1501,10 +1501,10 @@
     const endZ = room0Labyrinth.endZ;
     const barriers = 8;
     const step = (startZ - endZ) / barriers;
-    const wallHalfY = 3.4;
-    const wallThickness = 1.35;
-    const wallHalfX = 5.15;
-    const gapHalf = 1.15;
+    const wallHalfY = 3.05;
+    const wallThickness = 0.36;
+    const wallHalfX = 5.05;
+    const gapHalf = 1.45;
     const rand = seedRandom(labyrinthSeed ^ 0x524f4f30);
 
     room0Labyrinth.walls.length = 0;
@@ -1561,33 +1561,54 @@
 
   function updateRoom0Labyrinth() {
     if (!room0Labyrinth.group || !ship.position) return;
-    const inRoom1 = ship.position.z > -8 && ship.position.z < 36;
-    room0Labyrinth.group.visible = inRoom1;
-    room0Labyrinth.active = inRoom1;
+    const active = ship.position.z >= room0Labyrinth.startZ - 0.25 &&
+      ship.position.z <= room0Labyrinth.endZ + 1.5 &&
+      Math.abs(ship.position.x) <= 8.0 &&
+      Math.abs(ship.position.y) <= 5.0;
+
+    room0Labyrinth.group.visible = active;
+    room0Labyrinth.active = active;
   }
 
   function collideRoom0Labyrinth(before) {
     if (!before || !ship.position || !room0Labyrinth.walls.length) return false;
-    if (ship.position.z < -8 || ship.position.z > 36) return false;
-    if (Math.abs(ship.position.x) > 8 || Math.abs(ship.position.y) > 5.2) return false;
+
+    const minZ = Math.min(before.z, ship.position.z);
+    const maxZ = Math.max(before.z, ship.position.z);
+    const midX = (before.x + ship.position.x) * 0.5;
+    const midY = (before.y + ship.position.y) * 0.5;
+
+    const active =
+      maxZ >= room0Labyrinth.startZ - 0.25 &&
+      minZ <= room0Labyrinth.endZ + 1.5 &&
+      Math.abs(midX) <= 8.0 &&
+      Math.abs(midY) <= 5.0;
+    if (!active) return false;
 
     let blocked = false;
+
     for (const wall of room0Labyrinth.walls) {
-      const z0 = Math.min(before.z, ship.position.z);
-      const z1 = Math.max(before.z, ship.position.z);
-      const hitsSlab = z1 >= wall.zMin && z0 <= wall.zMax;
-      if (!hitsSlab) continue;
+      const crossing =
+        (before.z < wall.zMin && ship.position.z >= wall.zMin) ||
+        (before.z > wall.zMax && ship.position.z <= wall.zMax);
+
+      if (!crossing) continue;
+
       const inGap =
         ship.position.x >= wall.gapMin &&
         ship.position.x <= wall.gapMax &&
         ship.position.y >= wall.yMin &&
         ship.position.y <= wall.yMax;
+
       if (inGap) continue;
-      const fromPositive = before.z >= wall.zMax;
-      ship.position.z = fromPositive ? wall.zMax + 0.12 : wall.zMin - 0.12;
+
+      ship.position.z = before.z <= wall.zMin
+        ? wall.zMin - 0.07
+        : wall.zMax + 0.07;
       ship.velocity.z = 0;
       blocked = true;
     }
+
     return blocked;
   }
 

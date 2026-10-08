@@ -47,6 +47,7 @@ function quote(raw: unknown): TokenQuote {
   };
 }
 
+const RENDER_MARKET = "https://bcm4staratlas.onrender.com/api/market";
 const RENDER_WALLET = "https://bcm4staratlas.onrender.com/api/wallet-scan";
 
 function withTimeout(work: Promise<Record<string, unknown>>, ms: number): Promise<Record<string, unknown> | null> {
@@ -87,12 +88,32 @@ function snapFromPhp(data: Record<string, unknown>): MarketSnap {
 }
 
 export async function loadMarket(): Promise<MarketSnap> {
+  const remote = renderMarket();
+  const local = directMarket().catch(() => null);
+  const [fromRender, fromBrowser] = await Promise.all([remote, local]);
+  if (fromRender && fromRender.resources.some((row) => row.ask != null || row.atlasAsk != null || row.usdcAsk != null)) {
+    return fromRender;
+  }
+  if (fromBrowser) return fromBrowser;
+  if (fromRender) return fromRender;
+  const viaSite = await withTimeout(post("galia_desk_market"), 8000);
+  if (viaSite && Array.isArray(viaSite.resources) && viaSite.resources.length) return snapFromPhp(viaSite);
+  throw new Error("Рынок не открылся");
+}
+
+async function renderMarket(): Promise<MarketSnap | null> {
   try {
-    return await directMarket();
-  } catch (error) {
-    const viaSite = await withTimeout(post("galia_desk_market"), 8000);
-    if (viaSite && Array.isArray(viaSite.resources) && viaSite.resources.length) return snapFromPhp(viaSite);
-    throw error instanceof Error ? error : new Error("Рынок не открылся");
+    const res = await fetch(RENDER_MARKET, {
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(22000),
+    });
+    const text = await res.text();
+    if (!text.trim().startsWith("{")) return null;
+    const json = JSON.parse(text) as MarketSnap;
+    if (!Array.isArray(json.resources) || !json.resources.length) return null;
+    return json;
+  } catch {
+    return null;
   }
 }
 
