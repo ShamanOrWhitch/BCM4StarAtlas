@@ -47,39 +47,7 @@ function quote(raw: unknown): TokenQuote {
   };
 }
 
-const RENDER_MARKET = "https://bcm4staratlas.onrender.com/api/market";
-
-async function renderMarket(): Promise<MarketSnap> {
-  let lastError: Error | null = null;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const res = await fetch(RENDER_MARKET, {
-        headers: { accept: "application/json" },
-        signal: AbortSignal.timeout(attempt === 0 ? 40_000 : 75_000),
-      });
-      const json = (await res.json()) as MarketSnap & { error?: string };
-      if (!res.ok) throw new Error(json.error || "Сервер чтения рынка пока не ответил.");
-      if (!json.resources || !json.atlas || !json.polis) throw new Error("Сервер чтения рынка вернул неполные данные.");
-      return json;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error("Сервер чтения рынка не ответил.");
-      if (attempt === 0) {
-        await new Promise((resolve) => setTimeout(resolve, 4000));
-      }
-    }
-  }
-  throw lastError ?? new Error("Render просыпается. Повторите через 1–3 минуты.");
-}
-
-export async function loadMarket(): Promise<MarketSnap> {
-  try {
-    return await renderMarket();
-  } catch (renderError) {
-    const viaSite = await withTimeout(post("galia_desk_market"), 15000);
-    if (viaSite) return snapFromPhp(viaSite);
-    throw new Error("Сейчас запускаем сервер чтения. Первый запуск может занять 1–3 минуты — повторите попытку позже.");
-  }
-}
+const RENDER_WALLET = "https://bcm4staratlas.onrender.com/api/wallet-scan";
 
 function withTimeout(work: Promise<Record<string, unknown>>, ms: number): Promise<Record<string, unknown> | null> {
   return new Promise((resolve) => {
@@ -118,7 +86,15 @@ function snapFromPhp(data: Record<string, unknown>): MarketSnap {
   };
 }
 
-const RENDER_WALLET = "https://bcm4staratlas.onrender.com/api/wallet-scan";
+export async function loadMarket(): Promise<MarketSnap> {
+  try {
+    return await directMarket();
+  } catch (error) {
+    const viaSite = await withTimeout(post("galia_desk_market"), 8000);
+    if (viaSite && Array.isArray(viaSite.resources) && viaSite.resources.length) return snapFromPhp(viaSite);
+    throw error instanceof Error ? error : new Error("Рынок не открылся");
+  }
+}
 
 async function renderWallet(owner: string): Promise<WalletScan> {
   const res = await fetch(RENDER_WALLET, {

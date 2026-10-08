@@ -202,17 +202,25 @@ function withTimeout<T>(work: Promise<T>, ms: number): Promise<T | null> {
 }
 
 export async function directMarket(): Promise<MarketSnap> {
-  const [rows, prices, atlasCandles, polisCandles, usdcBook, atlasBook, polisBook] = await Promise.all([
+  const [rows, prices, atlasCandles, polisCandles] = await Promise.all([
     catalog(),
     getJson<Record<string, { usdPrice?: number; priceChange24h?: number }>>(
       `https://lite-api.jup.ag/price/v3?ids=${ATLAS},${POLIS}`,
     ).catch(() => ({}) as Record<string, { usdPrice?: number; priceChange24h?: number }>),
     candles("ATLASUSD").catch(() => []),
     candles("POLISUSD").catch(() => []),
-    withTimeout(book(USDC, 6, 4), 60_000),
-    withTimeout(book(ATLAS, 8, 2), 24_000),
-    withTimeout(book(POLIS, 8, 2), 24_000),
   ]);
+  const books = await Promise.race([
+    Promise.all([
+      book(USDC, 6, 4).catch(() => null),
+      book(ATLAS, 8, 2).catch(() => null),
+      book(POLIS, 8, 2).catch(() => null),
+    ]),
+    new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 7000)),
+  ]);
+  const usdcBook = books?.[0] ?? null;
+  const atlasBook = books?.[1] ?? null;
+  const polisBook = books?.[2] ?? null;
   const resources: ResourceRow[] = [];
   const ships: ResourceRow[] = [];
   const marketShips: MarketShip[] = [];
@@ -281,7 +289,7 @@ export async function directMarket(): Promise<MarketSnap> {
     candles: atlasCandles,
     pairCandles: ratio(polisCandles, atlasCandles),
     tape: [],
-    note: "Каталог, свечи и стакан читаются прямо из браузера: Galaxy, Jupiter, Kraken и RPC Solana. PHP сайта для этого не нужен.",
+    note: "Каталог и график POLIS/ATLAS читаются из браузера: Galaxy, Jupiter и Kraken. Хостинг к нодам Solana не обращается. Стакан добавляется, только если RPC ответил за 7 секунд.",
   };
 }
 

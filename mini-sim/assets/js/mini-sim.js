@@ -3109,7 +3109,7 @@
         if (!zone.active) {
           zone.active = true;
           zone.el.loop = zone.towerGate ? false : true;
-          zone.el.muted = cinema.mute;
+          zone.el.muted = zone.towerGate ? true : cinema.mute;
           const p = zone.el.play();
           if (p && p.catch) {
             p.catch(() => {
@@ -3144,12 +3144,19 @@
     const near = 2.5;
     const d = Math.max(near, Math.min(radius, nearest.distance));
     const t = (d - near) / (radius - near);
-
-    // The active place owns the soundtrack. Never mix two place tracks.
     const filmGain = Math.pow(1 - t, 0.5);
+    const ostGain = Math.pow(t, 2.6);
 
-    if (!cinema.mute) nearest.el.volume = Math.max(0, Math.min(1, settings.volume * filmGain));
-    if (musicAudio && !cinema.mute) musicAudio.volume = 0;
+    // The planet and the onicss approach stay silent. Other space clips
+    // still take the soundtrack as the ship gets close.
+    if (nearest.towerGate) {
+      nearest.el.muted = true;
+      nearest.el.volume = 0;
+      if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume;
+    } else {
+      if (!cinema.mute) nearest.el.volume = Math.max(0, Math.min(1, settings.volume * filmGain));
+      if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume * ostGain;
+    }
 
     // Keep an explicitly selected focus target until it leaves its own active radius.
     if (interaction) {
@@ -3696,12 +3703,6 @@
     const gateUiRadius = config.towerApproach && Number(config.towerApproach.uiRadius)
       ? Number(config.towerApproach.uiRadius)
       : 200;
-    const gatePlayProgress = gate?.el && Number.isFinite(gate.el.duration) && gate.el.duration > 0
-      ? Math.max(0, Math.min(1, gate.el.currentTime / gate.el.duration))
-      : 0;
-    const gateAutoProgress = config.towerApproach && Number(config.towerApproach.gateAutoProgress)
-      ? Number(config.towerApproach.gateAutoProgress)
-      : 0.85;
 
     // The already-built Oni station sphere is also an immediate landing trigger.
     // This does not create a new object and does not change its geometry/placement.
@@ -3724,15 +3725,9 @@
       }
     }
 
-    // onicss.mp4 is the sole automatic Tower gate. The existing ONI
-    // docking sphere remains a landmark but can no longer skip the animation.
-    const videoLanding =
-      !!gate &&
-      gate.active &&
-      gate.el &&
-      gate.el.readyState >= 2 &&
-      gateDistance <= Number(gate.radius || 36) * 1.15 &&
-      gatePlayProgress >= gateAutoProgress;
+    // Flying into onicss starts tower.mp4. The clip itself is revealed
+    // only after its first frame is decoded, inside BCMTowerAPI.enter.
+    const videoLanding = !!gate && gateDistance <= Number(gate.radius || 36);
 
     if (!towerGateTriggered && !transitionBusy && videoLanding) {
       enterTowerFromGate();
