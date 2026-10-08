@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_TOWER_VERSION', '0.2.25');
+define('BCM_TOWER_VERSION', '0.2.22');
 define('BCM_TOWER_PATH', __DIR__ . '/');
 define('BCM_TOWER_URL', trailingslashit(plugin_dir_url(__FILE__)));
 
@@ -127,9 +127,7 @@ function bcm_tower_get_client_config($assets = null) {
                 : ''),
         // Do not substitute portal2/portal3/portal1 here. Tower entry has its
         // own landing video contract and must wait for tower.mp4.
-        'transitionFallbacks' => array_filter(array(
-            bcm_tower_pick_asset($assets, array('portal1.mp4', 'portal2.mp4', 'portal3.mp4'), 'video'),
-        )),
+        'transitionFallbacks' => array(),
         'towerAudio' => bcm_tower_pick_asset($assets, array('tower.mp3'), 'audio'),
         'towerWallJpgPool' => bcm_tower_asset_urls($assets, '/^(towerwall|wall)[^\\/]*\\.(jpg|jpeg)$/i'),
         'towerWallPngPool' => bcm_tower_asset_urls($assets, '/^towerwall[^\\/]*\\.png$/i'),
