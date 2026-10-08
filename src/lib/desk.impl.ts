@@ -69,44 +69,38 @@ async function marketProgramAccounts(
     dataSlice: { offset: 40, length: 153 },
     filters: [{ dataSize: 201 }, { memcmp: { offset: 40, bytes: mint } }],
   };
-
-  // USDC is the slow side of the book on some RPCs. Keep the extra attempts,
-  // but stagger them and run them together so one slow endpoint cannot delay
-  // the entire market response for 20+ seconds.
-  const timeoutMs = mint === USDC ? 4500 : 6000;
-  const attempts: Promise<Awaited<ReturnType<Connection["getProgramAccounts"]>>>[] = [];
+  const timeoutMs = mint === USDC ? 8000 : 7000;
 
   for (let pass = 0; pass < maxPasses; pass += 1) {
-    for (const client of marketConnections) {
-      attempts.push(
-        (async () => {
-          if (pass > 0) {
-            await new Promise((resolve) => setTimeout(resolve, pass * 250));
-          }
-          return Promise.race([
-            client.getProgramAccounts(new PublicKey(GM), args),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("market RPC timeout")), timeoutMs),
-            ),
-          ]);
-        })(),
-      );
+    const results = await Promise.allSettled(
+      marketConnections.map((client) =>
+        Promise.race([
+          client.getProgramAccounts(new PublicKey(GM), args),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("market RPC timeout")), timeoutMs),
+          ),
+        ]),
+      ),
+    );
+
+    const nonEmpty = results.find(
+      (result): result is PromiseFulfilledResult<Awaited<ReturnType<Connection["getProgramAccounts"]>>> =>
+        result.status === "fulfilled" && result.value.length > 0,
+    );
+    if (nonEmpty) return nonEmpty.value;
+
+    const emptyAllowed = results.find(
+      (result): result is PromiseFulfilledResult<Awaited<ReturnType<Connection["getProgramAccounts"]>>> =>
+        result.status === "fulfilled",
+    );
+    if (emptyAllowed && mint !== USDC) return emptyAllowed.value;
+
+    if (mint === USDC && pass + 1 < maxPasses) {
+      await new Promise((resolve) => setTimeout(resolve, 150 * (pass + 1)));
     }
   }
 
-  const results = await Promise.allSettled(attempts);
-
-  const nonEmpty = results.find(
-    (result): result is PromiseFulfilledResult<Awaited<ReturnType<Connection["getProgramAccounts"]>>> =>
-      result.status === "fulfilled" && result.value.length > 0,
-  );
-  if (nonEmpty) return nonEmpty.value;
-
-  const emptyAllowed = results.find(
-    (result): result is PromiseFulfilledResult<Awaited<ReturnType<Connection["getProgramAccounts"]>>> =>
-      result.status === "fulfilled",
-  );
-  return emptyAllowed ? emptyAllowed.value : [];
+  return [];
 }
 
 async function getJson<T>(url: string, timeoutMs = 10000): Promise<T> {
@@ -116,18 +110,6 @@ async function getJson<T>(url: string, timeoutMs = 10000): Promise<T> {
   });
   if (!response.ok) throw new Error(`${response.status} ${url}`);
   return (await response.json()) as T;
-}
-
-function mediaUrl(value: string): string {
-  let next = String(value || "").trim();
-  if (!next) return "";
-  if (next.startsWith("ipfs://")) {
-    return "https://ipfs.io/ipfs/" + next.slice(7).replace(/^ipfs\\//, "");
-  }
-  if (next.startsWith("ar://")) {
-    return "https://arweave.net/" + next.slice(5);
-  }
-  return next;
 }
 
 function emptyQuote(): TokenQuote {
@@ -166,12 +148,7 @@ async function loadCatalog(): Promise<Map<string, CatItem>> {
     const slots = (row.slots ?? {}) as { crewSlots?: Array<{ type?: string; quantity?: number }> };
     const crewSlots = Array.isArray(slots.crewSlots) ? slots.crewSlots : [];
     const trade = (row.tradeSettings ?? {}) as { msrp?: { value?: number } };
-    const gallery = Array.isArray(media.gallery)
-      ? media.gallery
-          .filter((item): item is string => typeof item === "string")
-          .slice(0, 8)
-          .map(mediaUrl)
-      : [];
+    const gallery = Array.isArray(media.gallery) ? media.gallery.filter((item): item is string => typeof item === "string").slice(0, 8) : [];
     byMint.set(mint, {
       mint,
       name: String(row.name ?? mint.slice(0, 4)),
@@ -180,7 +157,7 @@ async function loadCatalog(): Promise<Map<string, CatItem>> {
       className: String(attrs.class ?? "").toLowerCase(),
       rarity: String(attrs.rarity ?? ""),
       spec: String(attrs.spec ?? ""),
-      image: mediaUrl(String(row.image ?? "")),
+      image: String(row.image ?? ""),
       description: String(row.description ?? "").replace(/\s+/g, " ").slice(0, 420),
       gallery,
       make: String(attrs.make ?? ""),
