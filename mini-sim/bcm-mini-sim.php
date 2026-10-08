@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.51
+ * Version: 0.9.49
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.51');
+define('BCM_MINI_SIM_VERSION', '0.9.49');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -738,13 +738,12 @@ function bcm_mini_sim_enqueue_assets()
             'x' => 0.0,
             'y' => -2.0,
             'z' => -260.0,
-            'preloadRadius' => 260.0,
+            'preloadRadius' => 150.0,
             'coverageThreshold' => 0.69,
-            'uiRadius' => 280.0,
-            // Tower landing is tied to the animated planet approach, not the OniStation sphere.
-            'landingDistance' => 42.0,
+            'uiRadius' => 200.0,
+            'gateAutoProgress' => 0.85,
             'portalCoverageThreshold' => 0.60,
-            'backPortalDistance' => 7.5,
+            'backPortalDistance' => 8.5,
         ),
         'towerJsUrl' => BCM_MINI_SIM_URL . 'tower/assets/js/tower.js',
         'towerCssUrl' => BCM_MINI_SIM_URL . 'tower/assets/css/tower.css',
@@ -753,7 +752,7 @@ function bcm_mini_sim_enqueue_assets()
         'towerLandingUrl' => bcm_mini_sim_pick_asset($assets, array('tower.mp4'), 'video')
             ?: bcm_mini_sim_find_media_asset('tower.mp4'),
         // Never replace the Tower landing clip with a portal video.
-        'towerFallbackUrl' => bcm_mini_sim_pick_asset($assets, array('portal1.mp4', 'portal2.mp4', 'portal3.mp4'), 'video'),
+        'towerFallbackUrl' => '',
         'doorTexture' => $door,
         'menuBackgroundUrl' => bcm_mini_sim_pick_asset($assets, array('perference bg.png'), 'image'),
         'musicUrl' => bcm_mini_sim_pick_asset($assets, array('starbase ost.mp3', 'starbase-ost.mp3', 'ost.mp3'), 'audio'),
@@ -766,8 +765,8 @@ function bcm_mini_sim_enqueue_assets()
                 'y' => -2.0,
                 // Deliberately far beyond the satellite and the existing space screens.
                 'z' => -260.0,
-                'radius' => 140,
-                'preloadRadius' => 260,
+                'radius' => 36,
+                'preloadRadius' => 200,
                 'maxWidth' => 13.0,
                 'maxHeight' => 8.0,
                 'preloadWhenStarted' => true,
@@ -811,7 +810,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.51</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.49</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ВНЕШНИЕ ЭКРАНЫ</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
