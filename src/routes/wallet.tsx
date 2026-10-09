@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppChrome } from "@/components/app-chrome";
 import { scanDeskWallet, type WalletItem, type WalletScan } from "@/lib/desk";
 import { displayName, type Crew } from "@/data/crew";
 import { walletCrew } from "@/lib/wallet-crew";
+import { rememberWalletScan, rememberedWalletScan } from "@/lib/wallet-cache";
 
 export const Route = createFileRoute("/wallet")({ component: WalletPage });
 
@@ -57,6 +58,7 @@ export function WalletPage() {
     setError("");
     try {
       const scan = await scanDeskWallet({ data: { owner: next } });
+      rememberWalletScan(scan);
       setScan(scan);
       localStorage.setItem("galia-owner", scan.owner);
       localStorage.setItem("galia-owner", next);
@@ -69,6 +71,21 @@ export function WalletPage() {
   }
 
   const groups = ["crew", "ship", "structure", "resource", "nft", "other"] as const;
+
+  useEffect(() => {
+    const cached = rememberedWalletScan();
+    const saved = cached?.owner || localStorage.getItem("galia-owner") || "";
+    if (cached) {
+      setOwner(cached.owner);
+      setScan(cached);
+      return;
+    }
+    if (!saved) return;
+    setOwner(saved);
+    void run(saved);
+    // The saved crew-tab address is the default. A different key can still be typed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <AppChrome current="wallet" kicker="Player Profile · только чтение" title="Сейф кошелька">

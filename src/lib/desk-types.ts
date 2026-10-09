@@ -52,9 +52,14 @@ export type ResourceRow = {
 };
 
 export type MarketPairQuotes = {
+  /** Last daily close in USD. Not a USDC order book. */
   atlasUsdc: number | null;
   polisUsdc: number | null;
   polisAtlas: number | null;
+  /** How many SOL one POLIS costs. */
+  solPerPolis?: number | null;
+  /** How many ATLAS one SOL buys. */
+  atlasPerSol?: number | null;
 };
 
 export type MarketSnap = {

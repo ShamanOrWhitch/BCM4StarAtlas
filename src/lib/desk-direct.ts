@@ -285,11 +285,11 @@ export async function directMarket(): Promise<MarketSnap> {
     lockedSupply: null,
   });
   const closeOf = (series: Candle[]) => (series.length ? series[series.length - 1].c : null);
-  const atlasUsdc = closeOf(atlasCandles) ?? prices[ATLAS]?.usdPrice ?? null;
-  const polisUsdc = closeOf(polisCandles) ?? prices[POLIS]?.usdPrice ?? null;
+  const atlasUsd = closeOf(atlasCandles) ?? prices[ATLAS]?.usdPrice ?? null;
+  const polisUsd = closeOf(polisCandles) ?? prices[POLIS]?.usdPrice ?? null;
   const pairCandles = ratio(polisCandles, atlasCandles);
-  const solAtlasCandles = ratio(atlasCandles, solCandles);
-  const solPolisCandles = ratio(polisCandles, solCandles);
+  const solPerPolis = ratio(polisCandles, solCandles);
+  const atlasPerSol = ratio(solCandles, atlasCandles);
   return {
     at: Date.now(),
     orderCount: (usdcBook?.size ?? 0) + (atlasBook?.size ?? 0) + (polisBook?.size ?? 0),
@@ -301,17 +301,19 @@ export async function directMarket(): Promise<MarketSnap> {
     candles: atlasCandles,
     polisUsdcCandles: polisCandles,
     pairCandles,
-    solAtlasCandles,
-    solPolisCandles,
+    solAtlasCandles: atlasPerSol,
+    solPolisCandles: solPerPolis,
     pairQuotes: {
-      atlasUsdc,
-      polisUsdc,
+      atlasUsdc: atlasUsd,
+      polisUsdc: polisUsd,
       polisAtlas: closeOf(pairCandles),
+      solPerPolis: closeOf(solPerPolis),
+      atlasPerSol: closeOf(atlasPerSol),
     },
     tape: [],
     note: atlasBook || usdcBook
-      ? "Стакан Galactic Marketplace ответил из браузера. Цена «сейчас» на графике — закрытие последней дневной свечи."
-      : "Графики и цена «сейчас» — Kraken, последняя дневная свеча. Стакан ресурсов и кораблей ждёт ноду Render: браузер к getProgramAccounts не пускают.",
+      ? "Стакан Galactic Marketplace ответил из браузера. Графики — дневные свечи в USD, не стакан USDC."
+      : "Графики — дневные свечи Kraken в USD. Это не стакан USDC. Заявки ресурсов и кораблей браузер сам не читает: Solana закрывает getProgramAccounts.",
   };
 }
 

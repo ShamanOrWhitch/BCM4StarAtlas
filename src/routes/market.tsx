@@ -177,16 +177,17 @@ export function MarketPage() {
     <AppChrome current="market" kicker="Galaxy · Galactic Marketplace" title="Цены ресурсов">
       <div className="h-full overflow-y-auto">
         <div className="mx-auto flex max-w-5xl flex-col gap-4 px-3 py-4 md:px-6">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <PairCard name="ATLAS / USDC" value={snap?.pairQuotes?.atlasUsdc ?? snap?.atlas?.usd ?? null} unit="USDC" />
-            <PairCard name="POLIS / USDC" value={snap?.pairQuotes?.polisUsdc ?? snap?.polis?.usd ?? null} unit="USDC" />
-            <PairCard name="POLIS / ATLAS" value={snap?.pairQuotes?.polisAtlas ?? null} unit="ATLAS" />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <PairCard name="ATLAS / USD" value={snap?.pairQuotes?.atlasUsdc ?? snap?.atlas?.usd ?? null} unit="USD" />
+            <PairCard name="POLIS / USD" value={snap?.pairQuotes?.polisUsdc ?? snap?.polis?.usd ?? null} unit="USD" />
+            <PairCard name="SOL за 1 POLIS" value={snap?.pairQuotes?.solPerPolis ?? null} unit="SOL" />
+            <PairCard name="ATLAS за 1 SOL" value={snap?.pairQuotes?.atlasPerSol ?? null} unit="ATLAS" />
           </div>
-          <CandleChart title="ATLAS / USDC" candles={snap?.candles ?? []} source="Дневные свечи. «Сейчас» — закрытие последней свечи, это mark на момент сборки." />
-          <CandleChart title="POLIS / USDC" candles={snap?.polisUsdcCandles ?? []} source="Дневные свечи POLIS/USDC. «Сейчас» — закрытие последней свечи." />
-          <CandleChart title="POLIS / ATLAS" candles={snap?.pairCandles ?? []} source="Сколько ATLAS стоит один POLIS. Считается из двух USDC-пар." />
-          <CandleChart title="ATLAS / SOL" candles={snap?.solAtlasCandles ?? []} source="Сколько SOL стоит один ATLAS. Из дневных свечей ATLAS/USD и SOL/USD." />
-          <CandleChart title="POLIS / SOL" candles={snap?.solPolisCandles ?? []} source="Сколько SOL стоит один POLIS. Из дневных свечей POLIS/USD и SOL/USD." />
+          <CandleChart title="ATLAS / USD" candles={snap?.candles ?? []} source="Дневные свечи Kraken ATLASUSD. Подпись USD, не USDC. «Сейчас» — закрытие последней свечи." />
+          <CandleChart title="POLIS / USD" candles={snap?.polisUsdcCandles ?? []} source="Дневные свечи Kraken POLISUSD. Подпись USD, не USDC." />
+          <CandleChart title="SOL за 1 POLIS" candles={snap?.solPolisCandles ?? []} source="Цена POLIS в USD, делённая на цену SOL в USD. Сколько SOL стоит один POLIS." />
+          <CandleChart title="ATLAS за 1 SOL" candles={snap?.solAtlasCandles ?? []} source="Цена SOL в USD, делённая на цену ATLAS в USD. Сколько ATLAS покупает один SOL." />
+          <CandleChart title="ATLAS за 1 POLIS" candles={snap?.pairCandles ?? []} source="Цена POLIS в USD, делённая на цену ATLAS в USD." />
 
           <div className="grid gap-3 sm:grid-cols-4">
             {specialResources.map(({ label, row }) => (
@@ -354,6 +355,7 @@ function ResourceTape({
   const points = tape
     .map((point) => ({ t: point.t, v: point.asks[picked] }))
     .filter((point): point is { t: number; v: number } => point.v != null);
+  if (points.length < 2) return null;
   return (
     <section className="rounded-xl border border-line bg-surface p-3">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -515,7 +517,7 @@ function CandleChart({ title, candles, source }: { title: string; candles: Candl
   );
 }
 
-function PairCard({ name, value, unit }: { name: string; value: number | null; unit: "USDC" | "ATLAS" }) {
+function PairCard({ name, value, unit }: { name: string; value: number | null; unit: string }) {
   return (
     <article className="rounded-xl border border-line bg-surface p-3">
       <p className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{name}</p>

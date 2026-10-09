@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.25";
+  const TOWER_VERSION = "0.2.26";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -114,7 +114,7 @@
         try {
           const srcW = image.naturalWidth || image.width || 1;
           const srcH = image.naturalHeight || image.height || 1;
-          const maxSide = options.cutout ? 256 : Math.max(srcW, srcH);
+          const maxSide = options.cutout ? 320 : Math.max(srcW, srcH);
           const scale = Math.min(1, maxSide / Math.max(srcW, srcH));
           canvas.width = Math.max(1, Math.round(srcW * scale));
           canvas.height = Math.max(1, Math.round(srcH * scale));
@@ -129,30 +129,56 @@
           if (options.cutout) {
             const w = canvas.width;
             const h = canvas.height;
-            const corners = [0, (w - 1) * 4, (h - 1) * w * 4, ((h - 1) * w + (w - 1)) * 4];
-            let cr = 0;
-            let cg = 0;
-            let cb = 0;
-            for (const i of corners) {
-              cr += pixels[i];
-              cg += pixels[i + 1];
-              cb += pixels[i + 2];
+            const buckets = new Map();
+            const take = (x, y) => {
+              const i = (y * w + x) * 4;
+              const key = ((pixels[i] >> 4) << 8) | ((pixels[i + 1] >> 4) << 4) | (pixels[i + 2] >> 4);
+              const bag = buckets.get(key) || { n: 0, r: 0, g: 0, b: 0 };
+              bag.n += 1;
+              bag.r += pixels[i];
+              bag.g += pixels[i + 1];
+              bag.b += pixels[i + 2];
+              buckets.set(key, bag);
+            };
+            const stepX = Math.max(1, Math.floor(w / 28));
+            const stepY = Math.max(1, Math.floor(h / 28));
+            for (let x = 0; x < w; x += stepX) {
+              take(x, 0);
+              take(x, h - 1);
+              if (h > 8) {
+                take(x, Math.min(h - 1, 3));
+                take(x, Math.max(0, h - 4));
+              }
             }
-            cr /= 4;
-            cg /= 4;
-            cb /= 4;
-            const limit = 46 * 46;
+            for (let y = 0; y < h; y += stepY) {
+              take(0, y);
+              take(w - 1, y);
+            }
+            const seeds = [...buckets.values()]
+              .sort((a, b) => b.n - a.n)
+              .slice(0, 4)
+              .map((bag) => [bag.r / bag.n, bag.g / bag.n, bag.b / bag.n]);
+            const limit = 82 * 82;
             const seen = new Uint8Array(w * h);
             const stack = [];
+            const near = (i) => {
+              const r = pixels[i];
+              const g = pixels[i + 1];
+              const b = pixels[i + 2];
+              for (let s = 0; s < seeds.length; s += 1) {
+                const dr = r - seeds[s][0];
+                const dg = g - seeds[s][1];
+                const db = b - seeds[s][2];
+                if (dr * dr + dg * dg + db * db <= limit) return true;
+              }
+              return false;
+            };
             const push = (x, y) => {
               if (x < 0 || y < 0 || x >= w || y >= h) return;
               const p = y * w + x;
               if (seen[p]) return;
               const i = p * 4;
-              const dr = pixels[i] - cr;
-              const dg = pixels[i + 1] - cg;
-              const db = pixels[i + 2] - cb;
-              if (dr * dr + dg * dg + db * db > limit) return;
+              if (!near(i)) return;
               seen[p] = 1;
               pixels[i + 3] = 0;
               stack.push(x, y);
@@ -173,6 +199,28 @@
               push(x, y + 1);
               push(x, y - 1);
             }
+
+            let minX = w;
+            let minY = h;
+            let maxX = 0;
+            let maxY = 0;
+            for (let y = 0; y < h; y += 1) {
+              for (let x = 0; x < w; x += 1) {
+                if (pixels[(y * w + x) * 4 + 3] < 24) continue;
+                if (x < minX) minX = x;
+                if (y < minY) minY = y;
+                if (x > maxX) maxX = x;
+                if (y > maxY) maxY = y;
+              }
+            }
+            if (maxX > minX && maxY > minY) {
+              const crop = ctx.getImageData(minX, minY, maxX - minX + 1, maxY - minY + 1);
+              canvas.width = crop.width;
+              canvas.height = crop.height;
+              ctx.putImageData(crop, 0, 0);
+            } else {
+              ctx.putImageData(frame, 0, 0);
+            }
           } else {
             for (let i = 0; i < pixels.length; i += 4) {
               const r = pixels[i];
@@ -191,9 +239,9 @@
                 pixels[i + 3] = Math.round(a * fade);
               }
             }
+            ctx.putImageData(frame, 0, 0);
           }
 
-          ctx.putImageData(frame, 0, 0);
           tex.needsUpdate = true;
         } catch (error) {
           console.warn("Tower PNG alpha cleanup failed", url, error);
@@ -654,9 +702,9 @@
       let geometry;
       let texUrl = "";
       let color = 0x8eb0c9;
-      let height = 0.26;
-      let depth = 1.25;
-      let width = 2.05;
+      let height = 0.46;
+      let depth = 1.65;
+      let width = 2.65;
 
       if (cell.surface === "rock") {
         geometry = new THREE.DodecahedronGeometry(1.0, 0);
@@ -828,7 +876,7 @@
     function buildBirds() {
       birds = [];
       const rand = mulberry32(seed ^ 0xB17D5EED);
-      const count = 8;
+      const count = 12;
 
       for (let i = 0; i < count; i++) {
         const group = new THREE.Group();
@@ -844,7 +892,7 @@
           new THREE.SphereGeometry(0.28, 7, 5),
           bodyMat
         );
-        body.scale.set(2.2, 1.05, 1.35);
+        body.scale.set(1.35, 0.48, 0.78);
         group.add(body);
 
         const head = new THREE.Mesh(
@@ -862,7 +910,7 @@
         beak.position.set(0, 0.05, -0.42);
         group.add(beak);
 
-        const wingGeo = new THREE.BoxGeometry(0.62, 0.06, 0.34);
+        const wingGeo = new THREE.BoxGeometry(0.95, 0.05, 0.28);
         const leftWing = new THREE.Mesh(wingGeo, bodyMat);
         const rightWing = new THREE.Mesh(wingGeo, bodyMat);
         leftWing.position.set(-0.34, 0.02, 0);
@@ -870,16 +918,19 @@
         group.add(leftWing, rightWing);
 
         const centerAngle = rand() * Math.PI * 2;
+        const bottom = tower ? -((tower.levels - 1) * tower.stepY) : -160;
+        const top = 4;
+        const height01 = rand();
         const state = {
           group,
           leftWing,
           rightWing,
           angle: centerAngle,
-          baseY: -12 + rand() * Math.max(24, towerHeight() - 8),
-          radius: radius + 0.35 + rand() * 1.35,
-          speed: 0.46 + rand() * 0.38,
+          baseY: bottom + height01 * (top - bottom),
+          radius: radius + 2.55 + rand() * 2.1,
+          speed: 0.18 + height01 * 0.55,
           phase: rand() * Math.PI * 2,
-          flap: 5.0 + rand() * 2.5
+          flap: 7.5 + rand() * 3.5
         };
 
         group.userData.bird = true;
@@ -1176,7 +1227,7 @@
           }
 
           const da = Math.abs(angleDelta(player.angle, surfaceAngle));
-          if (da > sectorWidth() * 0.28) continue;
+          if (da > sectorWidth() * 0.36) continue;
 
           const targetRadial = surfaceRadius + 0.65;
           if (Math.abs(player.radial - targetRadial) > 0.72) continue;
@@ -1613,10 +1664,16 @@
           turnInput !== 0 ||
           (!p.grounded && Math.abs(p.vy) > 0.1);
         const bob = moving && !p.finished ? Math.sin(performance.now() * 0.018 + index) * 0.055 : 0;
-        const face = turnInput > 0 ? -1 : turnInput < 0 ? 1 : (p.visualFacing || 1);
-        if (turnInput !== 0) p.visualFacing = face;
-        sprite.position.set(x, p.y + 1.35 + bob, z);
-        sprite.scale.set(1.65 * (p.visualFacing || 1), 1.65, 1);
+          sprite.center.set(0.5, 0);
+          const map = sprite.material && sprite.material.map;
+          const face = p.visualFacing || 1;
+          if (map) {
+            map.wrapS = THREE.RepeatWrapping;
+            map.repeat.x = face < 0 ? -1 : 1;
+            map.offset.x = face < 0 ? 1 : 0;
+          }
+          sprite.position.set(x, p.y + 0.52 + bob, z);
+          sprite.scale.set(1.45, 2.05, 1);
       }
     }
 
@@ -2013,6 +2070,13 @@
     };
 
     window.addEventListener("keydown", (event) => {
+      if (event.code === "Escape") {
+        clearControls(0);
+        clearControls(1);
+        mouseDown = false;
+        if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+        return;
+      }
       if (!gameStarted) {
         if (event.code === "Digit1") startMode("single");
         if (event.code === "Digit2") startMode("multi");
@@ -2045,6 +2109,18 @@
       if (action !== "jump" && action !== "interact") {
         setAction(index, action, false);
       }
+    });
+
+    window.addEventListener("blur", () => {
+      clearControls(0);
+      clearControls(1);
+      mouseDown = false;
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) return;
+      clearControls(0);
+      clearControls(1);
+      mouseDown = false;
     });
 
     let mouseDown = false;

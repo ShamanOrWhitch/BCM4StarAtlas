@@ -20,6 +20,8 @@ import { CrewPortrait } from "@/components/crew/portrait";
 import { packetOf } from "@/data/packets";
 import { walletCrew, walletFleet, type FleetHold } from "@/lib/wallet-crew";
 import { scanDeskWallet } from "@/lib/desk";
+import { launchPlay, publishPlayReady } from "@/lib/galia-play";
+import { rememberWalletScan } from "@/lib/wallet-cache";
 import type { WalletItem } from "@/lib/desk-types";
 import { AppChrome } from "@/components/app-chrome";
 
@@ -89,6 +91,7 @@ function HeldCrew({ onLive }: { onLive: (crew: Crew[] | null, items: WalletItem[
     setNote("");
     try {
       const scan = await scanDeskWallet({ data: { owner: next } });
+      rememberWalletScan(scan);
       localStorage.setItem("galia-owner", next);
       const crew = walletCrew(scan.items);
       setLive(true);
@@ -168,6 +171,25 @@ export function CrewBay() {
 
   const rows = useMemo(() => filterCrew(query, source), [query, source]);
   const selected = rows.find((c) => c.id === picked) ?? rows[0] ?? null;
+
+  useEffect(() => {
+    const ships = walletItems
+      .filter((item) => item.kind === "ship" && item.spec !== "мой ордер")
+      .map((item) => ({
+        mint: item.mint,
+        name: item.name,
+        quantity: Number(item.amount || 1),
+        crew: Number(item.crew || 0),
+        slots: Array.isArray(item.slots) ? item.slots : [],
+      }));
+    publishPlayReady({
+      source: live ? "wallet" : "default",
+      owner: live ? localStorage.getItem("galia-owner") || "" : "",
+      crew: source,
+      ships,
+      selectedId: selected?.id ?? null,
+    });
+  }, [live, walletItems, source, selected]);
 
   function patch(p: Partial<CrewQuery>) {
     setQuery((q) => ({ ...q, ...p }));
@@ -367,33 +389,7 @@ export function CrewBay() {
               crew={selected}
               starred={stars.includes(selected.id)}
               onStar={() => toggleStar(selected.id)}
-              onPlay={() => {
-                const availableCrew = live ?? [
-                  selected,
-                  ...source.filter((crew) => crew.id !== selected.id).slice(0, 1),
-                ];
-                const ships = walletItems
-                  .filter((item) => item.kind === "ship" && item.spec !== "мой ордер")
-                  .map((item) => ({
-                    mint: item.mint,
-                    name: item.name,
-                    quantity: Number(item.amount || 1),
-                    crew: Number(item.crew || 0),
-                    slots: Array.isArray(item.slots) ? item.slots : [],
-                  }));
-                const capacity = ships.reduce((sum, ship) => sum + ship.quantity * ship.crew, 0) || 2;
-                const payload = {
-                  source: live ? "wallet" : "default",
-                  owner: live ? localStorage.getItem("galia-owner") || "" : "",
-                  crew: availableCrew,
-                  ships,
-                  maxPlayers: capacity,
-                  startMode: "space-labyrinth",
-                };
-                window.GALIA_PLAY_STATE = payload;
-                window.dispatchEvent(new CustomEvent("galia-play-request", { detail: payload }));
-                document.querySelector(".bcm-mini-sim")?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
+              onPlay={() => launchPlay(selected.id)}
             />
           </div>
         ) : null}
@@ -431,33 +427,7 @@ export function CrewBay() {
               crew={selected}
               starred={stars.includes(selected.id)}
               onStar={() => toggleStar(selected.id)}
-              onPlay={() => {
-                const availableCrew = live ?? [
-                  selected,
-                  ...source.filter((crew) => crew.id !== selected.id).slice(0, 1),
-                ];
-                const ships = walletItems
-                  .filter((item) => item.kind === "ship" && item.spec !== "мой ордер")
-                  .map((item) => ({
-                    mint: item.mint,
-                    name: item.name,
-                    quantity: Number(item.amount || 1),
-                    crew: Number(item.crew || 0),
-                    slots: Array.isArray(item.slots) ? item.slots : [],
-                  }));
-                const capacity = ships.reduce((sum, ship) => sum + ship.quantity * ship.crew, 0) || 2;
-                const payload = {
-                  source: live ? "wallet" : "default",
-                  owner: live ? localStorage.getItem("galia-owner") || "" : "",
-                  crew: availableCrew,
-                  ships,
-                  maxPlayers: capacity,
-                  startMode: "space-labyrinth",
-                };
-                window.GALIA_PLAY_STATE = payload;
-                window.dispatchEvent(new CustomEvent("galia-play-request", { detail: payload }));
-                document.querySelector(".bcm-mini-sim")?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
+              onPlay={() => launchPlay(selected.id)}
             />
           </div>
         </div>
