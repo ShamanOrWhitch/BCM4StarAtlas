@@ -71,6 +71,10 @@ export type MarketSnap = {
   /** POLIS/USDC candles. */
   polisUsdcCandles?: Candle[];
   pairQuotes?: MarketPairQuotes;
+  /** ATLAS priced in SOL, from the two USD candles. */
+  solAtlasCandles?: Candle[];
+  /** POLIS priced in SOL, from the two USD candles. */
+  solPolisCandles?: Candle[];
   tape: TapePoint[];
   note: string;
 };

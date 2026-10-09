@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.24";
+  const TOWER_VERSION = "0.2.25";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -91,14 +91,14 @@
     if (!url || !window.THREE) return null;
     options = options && typeof options === "object" ? options : {};
 
-    const cleanKey = options.removeWhite ? "|whitekey" : "";
+    const cleanKey = options.cutout ? "|cutout" : options.removeWhite ? "|whitekey" : "";
     const cacheKey = String(url) + cleanKey;
     const cache = assetTexture.cache || (assetTexture.cache = new Map());
     if (cache.has(cacheKey)) return cache.get(cacheKey);
 
     let tex;
 
-    if (options.removeWhite && rasterUrl(url)) {
+    if ((options.removeWhite || options.cutout) && (rasterUrl(url) || /^https?:/i.test(String(url)))) {
       // Some of the supplied PNG cards contain an opaque white matte instead
       // of real alpha. Remove only near-white pixels and preserve antialiased
       // edges so doors, NPCs and landing cards behave as cut-outs.
@@ -112,8 +112,12 @@
       image.decoding = "async";
       image.onload = () => {
         try {
-          canvas.width = image.naturalWidth || image.width;
-          canvas.height = image.naturalHeight || image.height;
+          const srcW = image.naturalWidth || image.width || 1;
+          const srcH = image.naturalHeight || image.height || 1;
+          const maxSide = options.cutout ? 256 : Math.max(srcW, srcH);
+          const scale = Math.min(1, maxSide / Math.max(srcW, srcH));
+          canvas.width = Math.max(1, Math.round(srcW * scale));
+          canvas.height = Math.max(1, Math.round(srcH * scale));
           const ctx = canvas.getContext("2d", { willReadFrequently: true });
           if (!ctx) return;
 
@@ -122,21 +126,70 @@
 
           const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const pixels = frame.data;
-          for (let i = 0; i < pixels.length; i += 4) {
-            const r = pixels[i];
-            const g = pixels[i + 1];
-            const b = pixels[i + 2];
-            const a = pixels[i + 3];
-
-            if (!a) continue;
-
-            const nearWhite = Math.min(r, g, b) >= 246 && Math.max(r, g, b) <= 255;
-            const softWhite = Math.min(r, g, b) >= 232;
-            if (nearWhite) {
+          if (options.cutout) {
+            const w = canvas.width;
+            const h = canvas.height;
+            const corners = [0, (w - 1) * 4, (h - 1) * w * 4, ((h - 1) * w + (w - 1)) * 4];
+            let cr = 0;
+            let cg = 0;
+            let cb = 0;
+            for (const i of corners) {
+              cr += pixels[i];
+              cg += pixels[i + 1];
+              cb += pixels[i + 2];
+            }
+            cr /= 4;
+            cg /= 4;
+            cb /= 4;
+            const limit = 46 * 46;
+            const seen = new Uint8Array(w * h);
+            const stack = [];
+            const push = (x, y) => {
+              if (x < 0 || y < 0 || x >= w || y >= h) return;
+              const p = y * w + x;
+              if (seen[p]) return;
+              const i = p * 4;
+              const dr = pixels[i] - cr;
+              const dg = pixels[i + 1] - cg;
+              const db = pixels[i + 2] - cb;
+              if (dr * dr + dg * dg + db * db > limit) return;
+              seen[p] = 1;
               pixels[i + 3] = 0;
-            } else if (softWhite) {
-              const fade = Math.max(0, Math.min(1, (246 - Math.min(r, g, b)) / 14));
-              pixels[i + 3] = Math.round(a * fade);
+              stack.push(x, y);
+            };
+            for (let x = 0; x < w; x += 1) {
+              push(x, 0);
+              push(x, h - 1);
+            }
+            for (let y = 0; y < h; y += 1) {
+              push(0, y);
+              push(w - 1, y);
+            }
+            while (stack.length) {
+              const y = stack.pop();
+              const x = stack.pop();
+              push(x + 1, y);
+              push(x - 1, y);
+              push(x, y + 1);
+              push(x, y - 1);
+            }
+          } else {
+            for (let i = 0; i < pixels.length; i += 4) {
+              const r = pixels[i];
+              const g = pixels[i + 1];
+              const b = pixels[i + 2];
+              const a = pixels[i + 3];
+
+              if (!a) continue;
+
+              const nearWhite = Math.min(r, g, b) >= 246 && Math.max(r, g, b) <= 255;
+              const softWhite = Math.min(r, g, b) >= 232;
+              if (nearWhite) {
+                pixels[i + 3] = 0;
+              } else if (softWhite) {
+                const fade = Math.max(0, Math.min(1, (246 - Math.min(r, g, b)) / 14));
+                pixels[i + 3] = Math.round(a * fade);
+              }
             }
           }
 
@@ -597,13 +650,13 @@
     }
 
     function makeSurface(cell) {
-      const p = cellWorldPosition(cell, 1.2);
+      const p = cellWorldPosition(cell, 0.85);
       let geometry;
       let texUrl = "";
       let color = 0x8eb0c9;
-      let height = 0.55;
-      let depth = 2.4;
-      let width = 4.15;
+      let height = 0.26;
+      let depth = 1.25;
+      let width = 2.05;
 
       if (cell.surface === "rock") {
         geometry = new THREE.DodecahedronGeometry(1.0, 0);
@@ -775,14 +828,15 @@
     function buildBirds() {
       birds = [];
       const rand = mulberry32(seed ^ 0xB17D5EED);
-      const count = 3;
+      const count = 8;
 
       for (let i = 0; i < count; i++) {
         const group = new THREE.Group();
         const bodyMat = new THREE.MeshStandardMaterial({
-          color: 0x263441,
-          roughness: 0.78,
-          metalness: 0.05
+          color: 0xe6d7a8,
+          roughness: 0.55,
+          metalness: 0.08,
+          emissive: 0x3a2e16
         });
         const beakMat = new THREE.MeshBasicMaterial({ color: 0xd7b35a });
 
@@ -790,7 +844,7 @@
           new THREE.SphereGeometry(0.28, 7, 5),
           bodyMat
         );
-        body.scale.set(1.45, 0.72, 0.9);
+        body.scale.set(2.2, 1.05, 1.35);
         group.add(body);
 
         const head = new THREE.Mesh(
@@ -821,9 +875,9 @@
           leftWing,
           rightWing,
           angle: centerAngle,
-          baseY: -8 + rand() * (towerHeight() - 18),
-          radius: radius + 2.5 + rand() * 4.0,
-          speed: 0.16 + rand() * 0.12,
+          baseY: -12 + rand() * Math.max(24, towerHeight() - 8),
+          radius: radius + 0.35 + rand() * 1.35,
+          speed: 0.46 + rand() * 0.38,
           phase: rand() * Math.PI * 2,
           flap: 5.0 + rand() * 2.5
         };
@@ -860,18 +914,18 @@
           const dx = p.radial * Math.sin(p.angle) - bird.group.position.x;
           const dy = (p.y + 0.9) - bird.group.position.y;
           const dz = p.radial * Math.cos(p.angle) - bird.group.position.z;
-          const birdHitRadius = 1.35;
+          const birdHitRadius = 2.2;
           if (dx * dx + dy * dy + dz * dz > birdHitRadius * birdHitRadius) continue;
 
-          p.birdHitCooldown = 2.4;
+          p.birdHitCooldown = 0.85;
           p.grounded = false;
           p.liftRide = null;
           p.currentCell = null;
           p.jumps = 1;
           p.jumpStarted = false;
           p.fallStartY = p.y;
-          p.vy = Math.min(p.vy, 0) - 3.2;
-          p.angle += dx >= 0 ? 0.10 : -0.10;
+          p.vy = Math.min(p.vy, 0) - 6.4;
+          p.angle += dx >= 0 ? 0.22 : -0.22;
           status.textContent = "ПТИЦА СБИЛА ИГРОКА " + (i + 1);
         }
       }
@@ -1000,7 +1054,7 @@
         const selectedCrew = crewById(crewSlots[i].crewId);
         const imageUrl = selectedCrew?.image || "";
         playerTextures[i] = imageUrl
-          ? assetTexture(imageUrl, renderer, { removeWhite: /\\.png(?:[?#].*)?$/i.test(imageUrl) })
+          ? assetTexture(imageUrl, renderer, { cutout: true })
           : fallbackPlayerTexture;
       }
 
@@ -1122,10 +1176,10 @@
           }
 
           const da = Math.abs(angleDelta(player.angle, surfaceAngle));
-          if (da > sectorWidth() * 0.62) continue;
+          if (da > sectorWidth() * 0.28) continue;
 
           const targetRadial = surfaceRadius + 0.65;
-          if (Math.abs(player.radial - targetRadial) > 1.00) continue;
+          if (Math.abs(player.radial - targetRadial) > 0.72) continue;
 
           const y = mesh ? mesh.position.y : cellWorldY(cell);
           const dy = player.y - (y + 0.72);
@@ -1559,9 +1613,10 @@
           turnInput !== 0 ||
           (!p.grounded && Math.abs(p.vy) > 0.1);
         const bob = moving && !p.finished ? Math.sin(performance.now() * 0.018 + index) * 0.055 : 0;
+        const face = turnInput > 0 ? -1 : turnInput < 0 ? 1 : (p.visualFacing || 1);
+        if (turnInput !== 0) p.visualFacing = face;
         sprite.position.set(x, p.y + 1.35 + bob, z);
-        sprite.quaternion.copy(cameras[index].quaternion);
-        sprite.scale.x = 1.65 * (p.visualFacing || 1);
+        sprite.scale.set(1.65 * (p.visualFacing || 1), 1.65, 1);
       }
     }
 
@@ -1856,6 +1911,7 @@
       }
 
       transitionStarted = true;
+      playTowerAudio();
       transition.hidden = false;
       transitionVideo.style.opacity = "0";
       const markerUrl = helipadMarkerUrl();

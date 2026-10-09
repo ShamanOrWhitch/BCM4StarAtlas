@@ -23,6 +23,7 @@ type Cat = {
   rarity: string;
   spec: string;
   image: string;
+  thumb: string;
   description: string;
   gallery: string[];
   make: string;
@@ -92,9 +93,11 @@ async function catalog(): Promise<Cat[]> {
     const attrs = (row.attributes ?? {}) as Record<string, unknown>;
     const itemType = String(attrs.itemType ?? "");
     const kind = itemType === "resource" || itemType === "ship" || itemType === "crew" || itemType === "structure" ? itemType : "other";
-    const media = (row.media ?? {}) as { gallery?: unknown };
+    const media = (row.media ?? {}) as { gallery?: unknown; thumbnailUrl?: unknown };
     const slots = ((row.slots ?? {}) as { crewSlots?: Array<{ type?: string; quantity?: number }> }).crewSlots ?? [];
     const gallery = Array.isArray(media.gallery) ? media.gallery.filter((item): item is string => typeof item === "string").slice(0, 8) : [];
+    const full = String(row.image ?? "");
+    const thumb = typeof media.thumbnailUrl === "string" && media.thumbnailUrl ? media.thumbnailUrl : full;
     const msrp = (row.tradeSettings as { msrp?: { value?: number } } | undefined)?.msrp?.value;
     return [{
       mint,
@@ -104,7 +107,8 @@ async function catalog(): Promise<Cat[]> {
       className: String(attrs.class ?? "").toLowerCase(),
       rarity: String(attrs.rarity ?? ""),
       spec: String(attrs.spec ?? ""),
-      image: String(row.image ?? ""),
+      image: full,
+      thumb,
       description: String(row.description ?? "").replace(/\s+/g, " ").slice(0, 420),
       gallery,
       make: String(attrs.make ?? ""),
@@ -202,22 +206,24 @@ function withTimeout<T>(work: Promise<T>, ms: number): Promise<T | null> {
 }
 
 export async function directMarket(): Promise<MarketSnap> {
-  const [rows, prices, atlasCandles, polisCandles] = await Promise.all([
+  const booksPromise = Promise.race([
+    Promise.all([
+      book(USDC, 6, 2).catch(() => null),
+      book(ATLAS, 8, 1).catch(() => null),
+      book(POLIS, 8, 1).catch(() => null),
+    ]),
+    new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 4000)),
+  ]);
+  const [rows, prices, atlasCandles, polisCandles, solCandles] = await Promise.all([
     catalog(),
     getJson<Record<string, { usdPrice?: number; priceChange24h?: number }>>(
       `https://lite-api.jup.ag/price/v3?ids=${ATLAS},${POLIS}`,
     ).catch(() => ({}) as Record<string, { usdPrice?: number; priceChange24h?: number }>),
     candles("ATLASUSD").catch(() => []),
     candles("POLISUSD").catch(() => []),
+    candles("SOLUSD").catch(() => []),
   ]);
-  const books = await Promise.race([
-    Promise.all([
-      book(USDC, 6, 4).catch(() => null),
-      book(ATLAS, 8, 2).catch(() => null),
-      book(POLIS, 8, 2).catch(() => null),
-    ]),
-    new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 7000)),
-  ]);
+  const books = await booksPromise;
   const usdcBook = books?.[0] ?? null;
   const atlasBook = books?.[1] ?? null;
   const polisBook = books?.[2] ?? null;
@@ -235,7 +241,7 @@ export async function directMarket(): Promise<MarketSnap> {
       name: item.name,
       symbol: item.symbol,
       className: item.className,
-      image: item.image,
+      image: item.thumb || item.image,
       usdcAsk: usdc?.ask ?? null,
       usdcBid: usdc?.bid ?? null,
       atlasAsk: atlas?.ask ?? null,
@@ -253,8 +259,8 @@ export async function directMarket(): Promise<MarketSnap> {
       marketShips.push({
         mint: item.mint,
         name: item.name,
-        image: item.image,
-        gallery: item.gallery,
+        image: item.thumb || item.image,
+        gallery: [item.image, ...item.gallery].filter((src, index, all) => Boolean(src) && all.indexOf(src) === index),
         description: item.description,
         rarity: item.rarity,
         className: item.className,
@@ -278,6 +284,12 @@ export async function directMarket(): Promise<MarketSnap> {
     totalSupply: null,
     lockedSupply: null,
   });
+  const closeOf = (series: Candle[]) => (series.length ? series[series.length - 1].c : null);
+  const atlasUsdc = closeOf(atlasCandles) ?? prices[ATLAS]?.usdPrice ?? null;
+  const polisUsdc = closeOf(polisCandles) ?? prices[POLIS]?.usdPrice ?? null;
+  const pairCandles = ratio(polisCandles, atlasCandles);
+  const solAtlasCandles = ratio(atlasCandles, solCandles);
+  const solPolisCandles = ratio(polisCandles, solCandles);
   return {
     at: Date.now(),
     orderCount: (usdcBook?.size ?? 0) + (atlasBook?.size ?? 0) + (polisBook?.size ?? 0),
@@ -287,9 +299,19 @@ export async function directMarket(): Promise<MarketSnap> {
     ships,
     marketShips,
     candles: atlasCandles,
-    pairCandles: ratio(polisCandles, atlasCandles),
+    polisUsdcCandles: polisCandles,
+    pairCandles,
+    solAtlasCandles,
+    solPolisCandles,
+    pairQuotes: {
+      atlasUsdc,
+      polisUsdc,
+      polisAtlas: closeOf(pairCandles),
+    },
     tape: [],
-    note: "Каталог и график POLIS/ATLAS читаются из браузера: Galaxy, Jupiter и Kraken. Хостинг к нодам Solana не обращается. Стакан добавляется, только если RPC ответил за 7 секунд.",
+    note: atlasBook || usdcBook
+      ? "Стакан Galactic Marketplace ответил из браузера. Цена «сейчас» на графике — закрытие последней дневной свечи."
+      : "Графики и цена «сейчас» — Kraken, последняя дневная свеча. Стакан ресурсов и кораблей ждёт ноду Render: браузер к getProgramAccounts не пускают.",
   };
 }
 

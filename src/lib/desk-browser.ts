@@ -79,6 +79,8 @@ function snapFromPhp(data: Record<string, unknown>): MarketSnap {
     pairCandles: Array.isArray(data.pairCandles) ? (data.pairCandles as MarketSnap["pairCandles"]) : [],
     polisUsdcCandles: Array.isArray(data.polisUsdcCandles) ? (data.polisUsdcCandles as MarketSnap["polisUsdcCandles"]) : [],
     pairQuotes: data.pairQuotes && typeof data.pairQuotes === "object" ? data.pairQuotes as MarketSnap["pairQuotes"] : undefined,
+    solAtlasCandles: Array.isArray(data.solAtlasCandles) ? (data.solAtlasCandles as MarketSnap["solAtlasCandles"]) : [],
+    solPolisCandles: Array.isArray(data.solPolisCandles) ? (data.solPolisCandles as MarketSnap["solPolisCandles"]) : [],
     tape: Array.isArray(data.tape) ? (data.tape as MarketSnap["tape"]) : [],
     note:
       typeof data.note === "string"
@@ -87,25 +89,61 @@ function snapFromPhp(data: Record<string, unknown>): MarketSnap {
   };
 }
 
+function hasBook(snap: MarketSnap): boolean {
+  return snap.resources.some((row) => row.ask != null || row.atlasAsk != null || row.usdcAsk != null)
+    || snap.marketShips.some((ship) => ship.usdcAsks.length > 0 || ship.atlasAsks.length > 0);
+}
+
+function withBooks(local: MarketSnap, remote: MarketSnap): MarketSnap {
+  return {
+    ...local,
+    ...remote,
+    candles: remote.candles?.length ? remote.candles : local.candles,
+    polisUsdcCandles: remote.polisUsdcCandles?.length ? remote.polisUsdcCandles : local.polisUsdcCandles,
+    pairCandles: remote.pairCandles?.length ? remote.pairCandles : local.pairCandles,
+    solAtlasCandles: remote.solAtlasCandles?.length ? remote.solAtlasCandles : local.solAtlasCandles,
+    solPolisCandles: remote.solPolisCandles?.length ? remote.solPolisCandles : local.solPolisCandles,
+    pairQuotes: remote.pairQuotes?.atlasUsdc != null ? remote.pairQuotes : local.pairQuotes,
+    resources: hasBook(remote) ? remote.resources : local.resources,
+    ships: hasBook(remote) ? remote.ships : local.ships,
+    marketShips: remote.marketShips.some((ship) => ship.usdcAsks.length > 0 || ship.atlasAsks.length > 0)
+      ? remote.marketShips
+      : local.marketShips,
+  };
+}
+
 export async function loadMarket(): Promise<MarketSnap> {
   const remote = renderMarket();
-  const local = directMarket().catch(() => null);
-  const [fromRender, fromBrowser] = await Promise.all([remote, local]);
-  if (fromRender && fromRender.resources.some((row) => row.ask != null || row.atlasAsk != null || row.usdcAsk != null)) {
-    return fromRender;
-  }
-  if (fromBrowser) return fromBrowser;
-  if (fromRender) return fromRender;
+  const local = await directMarket().catch(() => null);
+  const quick = await Promise.race([
+    remote,
+    new Promise<MarketSnap | null>((resolve) => window.setTimeout(() => resolve(null), 1500)),
+  ]);
+  if (local && quick && hasBook(quick)) return withBooks(local, quick);
+  if (local) return local;
+  const late = await remote;
+  if (late) return late;
   const viaSite = await withTimeout(post("galia_desk_market"), 8000);
   if (viaSite && Array.isArray(viaSite.resources) && viaSite.resources.length) return snapFromPhp(viaSite);
   throw new Error("Рынок не открылся");
+}
+
+export function watchLiveBooks(onSnap: (snap: MarketSnap) => void): () => void {
+  let stop = false;
+  void renderMarket().then((remote) => {
+    if (stop || !remote || !hasBook(remote)) return;
+    onSnap(remote);
+  });
+  return () => {
+    stop = true;
+  };
 }
 
 async function renderMarket(): Promise<MarketSnap | null> {
   try {
     const res = await fetch(RENDER_MARKET, {
       headers: { accept: "application/json" },
-      signal: AbortSignal.timeout(22000),
+      signal: AbortSignal.timeout(55000),
     });
     const text = await res.text();
     if (!text.trim().startsWith("{")) return null;

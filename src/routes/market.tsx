@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppChrome } from "@/components/app-chrome";
-import { loadMarket, type Candle, type MarketSnap, type ResourceRow, type TapePoint } from "@/lib/desk";
+import { loadMarket, watchLiveBooks, type Candle, type MarketSnap, type ResourceRow, type TapePoint } from "@/lib/desk";
 import { deltaPct } from "@/lib/price-tape";
 
 export const Route = createFileRoute("/market")({ component: MarketPage });
@@ -118,6 +118,19 @@ export function MarketPage() {
       }
     }
     void tick(false);
+    const stopBooks = watchLiveBooks((remote) => {
+      if (!alive) return;
+      setSnap((current) => current ? {
+        ...current,
+        resources: remote.resources,
+        ships: remote.ships,
+        marketShips: remote.marketShips,
+        orderCount: remote.orderCount,
+        note: remote.note || current.note,
+        pairQuotes: remote.pairQuotes ?? current.pairQuotes,
+      } : remote);
+      setError("");
+    });
     const timer = window.setInterval(() => void tick(true), 3 * 60 * 1000);
     const onVisible = () => {
       if (!document.hidden) void tick(true);
@@ -125,6 +138,7 @@ export function MarketPage() {
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       alive = false;
+      stopBooks();
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
@@ -168,9 +182,11 @@ export function MarketPage() {
             <PairCard name="POLIS / USDC" value={snap?.pairQuotes?.polisUsdc ?? snap?.polis?.usd ?? null} unit="USDC" />
             <PairCard name="POLIS / ATLAS" value={snap?.pairQuotes?.polisAtlas ?? null} unit="ATLAS" />
           </div>
-          <CandleChart title="ATLAS / USDC" candles={snap?.candles ?? []} source="Дневные свечи пула ATLAS/USDC. Наведи курсор — вертикаль, горизонталь и цена в точке." />
-          <CandleChart title="POLIS / USDC" candles={snap?.polisUsdcCandles ?? []} source="Дневные свечи пула POLIS/USDC. Наведи курсор — вертикаль, горизонталь и цена в точке." />
-          <CandleChart title="POLIS / ATLAS" candles={snap?.pairCandles ?? []} source="Расчётный курс одного POLIS в ATLAS из двух USDC-пар. Наведи курсор — цена в точке." />
+          <CandleChart title="ATLAS / USDC" candles={snap?.candles ?? []} source="Дневные свечи. «Сейчас» — закрытие последней свечи, это mark на момент сборки." />
+          <CandleChart title="POLIS / USDC" candles={snap?.polisUsdcCandles ?? []} source="Дневные свечи POLIS/USDC. «Сейчас» — закрытие последней свечи." />
+          <CandleChart title="POLIS / ATLAS" candles={snap?.pairCandles ?? []} source="Сколько ATLAS стоит один POLIS. Считается из двух USDC-пар." />
+          <CandleChart title="ATLAS / SOL" candles={snap?.solAtlasCandles ?? []} source="Сколько SOL стоит один ATLAS. Из дневных свечей ATLAS/USD и SOL/USD." />
+          <CandleChart title="POLIS / SOL" candles={snap?.solPolisCandles ?? []} source="Сколько SOL стоит один POLIS. Из дневных свечей POLIS/USD и SOL/USD." />
 
           <div className="grid gap-3 sm:grid-cols-4">
             {specialResources.map(({ label, row }) => (
@@ -246,13 +262,14 @@ export function MarketPage() {
             ))}
 
           </div>
-          <BubbleField title={quote === "USDC" ? "Ресурсы · USDC (ATLAS пересчитан, если прямого USDC нет)" : `Ресурсы · ${quote}`} rows={viewRows.filter((row) => row.ask != null)} previous={previous} />
+          <BubbleField title={quote === "USDC" ? "Ресурсы · USDC, если стакана нет — показан ATLAS" : `Ресурсы · ${quote}`} rows={viewRows} previous={previous} />
           <BubbleField title={`Корабли · ${quote}`} rows={viewShips} previous={previous} />
           <ResourceTape rows={rows} tape={tape} mint={resourceMint} onMint={setResourceMint} />
           <p className="text-sm text-muted">
             Экипаж на Galactic Marketplace стаканом не торгуется. Карточки — NFT, их статы в метадате, пол — на Tensor. Пузырь цены экипажа без чужого архива был бы выдумкой.
           </p>
 
+          <h2 className="font-display text-sm tracking-[0.16em] text-brass uppercase">Ресурсы</h2>
           <div className="overflow-x-auto rounded-xl border border-line">
             <table className="w-full min-w-[36rem] border-collapse text-sm">
               <thead className="bg-surface-2 text-left text-faint">
@@ -310,9 +327,9 @@ function BubbleField({ title, rows, previous }: { title: string; rows: ResourceR
               className={`flex flex-col items-center justify-center rounded-full border bg-surface px-2 text-center ${tone}`}
               style={{ width: size, height: size }}
             >
-              {row.image ? <img src={row.image} alt="" className="mb-1 size-6 rounded-full object-cover" /> : null}
+              {row.image ? <img src={row.image} alt="" width={28} height={28} loading="lazy" decoding="async" className="mb-1 size-7 rounded-full object-cover" /> : null}
               <span className="line-clamp-2 font-display text-xs leading-tight text-fg">{row.name}</span>
-              <span className="font-mono text-[10px]">{change == null ? money(row) : fmtPct(change)}</span>
+              <span className="font-mono text-[10px]">{row.ask == null ? "нет стакана" : change == null ? money(row) : fmtPct(change)}</span>
             </div>
           );
         })}
@@ -439,6 +456,7 @@ function CandleChart({ title, candles, source }: { title: string; candles: Candl
     <figure className="rounded-xl border border-line bg-surface p-3">
       <figcaption className="mb-2 flex flex-wrap items-baseline justify-between gap-3">
         <span className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{title} · 1д</span>
+        <span className="font-mono text-lg text-fg">сейчас {fmtTick(last.c)}</span>
         <span className="font-mono text-xs text-muted">
           мин {fmtTick(min)} · среднее {fmtTick(candles.reduce((sum, candle) => sum + candle.c, 0) / candles.length)} · макс {fmtTick(max)}
         </span>
@@ -467,6 +485,10 @@ function CandleChart({ title, candles, source }: { title: string; candles: Candl
             </g>
           );
         })}
+        <line x1={pad} x2={w - padR} y1={y(last.c)} y2={y(last.c)} stroke="#e8eef2" strokeWidth="1.4" />
+        <text x={pad + 4} y={Math.max(pad + 12, y(last.c) - 6)} fill="#e8eef2" fontSize="13">
+          сейчас {fmtTick(last.c)}
+        </text>
         {hover ? (
           <g pointerEvents="none">
             <line x1={hover.x} x2={hover.x} y1={pad} y2={h - padB} stroke="#8b96a3" strokeWidth="1" strokeDasharray="4 3" />

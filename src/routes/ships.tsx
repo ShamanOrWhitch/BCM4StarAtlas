@@ -102,7 +102,7 @@ export function ShipsPage() {
                 {visible.map((ship) => (
                   <li key={ship.mint}>
                     <button type="button" onClick={() => setOpen(ship.mint)} className="flex w-full items-center gap-3 border-b border-line px-3 py-2 text-left hover:bg-surface">
-                      {ship.image ? <img src={ship.image} alt="" className="size-14 rounded-md object-cover" /> : <div className="size-14 rounded-md bg-surface-2" />}
+                      {ship.image ? <img src={ship.image} alt="" width={56} height={56} loading="lazy" decoding="async" className="size-14 rounded-md object-cover" /> : <div className="size-14 rounded-md bg-surface-2" />}
                       <span className="min-w-0">
                         <span className="block truncate font-display text-base">{ship.name}</span>
                         <span className={`font-mono text-xs uppercase ${RARITY_COLOR[ship.rarity] ?? "text-muted"}`}>{ship.rarity}</span>
@@ -162,7 +162,8 @@ function ShipSheet({
   onBack: () => void;
   onFleet: (name: string, qty: number) => void;
 }) {
-  const [shot, setShot] = useState(ship.image);
+  const full = ship.gallery[0] || ship.image;
+  const [shot, setShot] = useState(full);
   const [qty, setQty] = useState(1);
   const [name, setName] = useState("");
   const shots = [ship.image, ...ship.gallery].filter(Boolean);
@@ -179,7 +180,7 @@ function ShipSheet({
         <div className="flex gap-2 overflow-x-auto">
           {shots.map((src) => (
             <button key={src} type="button" onClick={() => setShot(src)} className="shrink-0">
-              <img src={src} alt="" className="h-16 w-24 rounded-md object-cover" />
+              <img src={src} alt="" width={96} height={64} loading="lazy" decoding="async" className="h-16 w-24 rounded-md object-cover" />
             </button>
           ))}
         </div>
