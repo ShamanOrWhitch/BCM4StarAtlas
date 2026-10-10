@@ -110,7 +110,7 @@
       const name = String(candidate || "").trim();
       if (!name) return "";
       // Generic NFT labels may carry extra mint/serial text after "Crew".
-       if (/^crew(?:[\s_:#-]*(?:#|no\.?|number)?[\s_-]*\d+)(?:\b|[\s_:#-]|$)/i.test(name)) return "";
+       if (/^crew$/i.test(name) || /^crew(?:[\s_:#-]*(?:#|no\.?|number)?[\s_-]*\d+)(?:\b|[\s_:#-]|$)/i.test(name)) return "";
       return name;
     };
 
