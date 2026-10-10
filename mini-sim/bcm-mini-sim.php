@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.59
+ * Version: 0.9.60
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.59');
+define('BCM_MINI_SIM_VERSION', '0.9.60');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -769,8 +769,8 @@ function bcm_mini_sim_enqueue_assets()
             'portalCoverageThreshold' => 0.60,
             'backPortalDistance' => 8.5,
         ),
-        'towerJsUrl' => BCM_MINI_SIM_URL . 'tower/assets/js/tower.js',
-        'towerCssUrl' => BCM_MINI_SIM_URL . 'tower/assets/css/tower.css',
+        'towerJsUrl' => BCM_MINI_SIM_URL . 'tower/assets/js/tower.js?ver=' . (defined('BCM_TOWER_VERSION') ? BCM_TOWER_VERSION : BCM_MINI_SIM_VERSION),
+        'towerCssUrl' => BCM_MINI_SIM_URL . 'tower/assets/css/tower.css?ver=' . (defined('BCM_TOWER_VERSION') ? BCM_TOWER_VERSION : BCM_MINI_SIM_VERSION),
         // Prefer the real tower.mp4 from plugin assets; otherwise resolve
         // the exact filename from the WordPress Media Library.
         'towerLandingUrl' => bcm_mini_sim_pick_asset($assets, array('tower.mp4'), 'video')
@@ -834,7 +834,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.56</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.60</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ВНЕШНИЕ ЭКРАНЫ</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
