@@ -108,9 +108,7 @@
     const raw = row.raw && typeof row.raw === "object" ? row.raw : {};
     const validName = (candidate) => {
       const name = String(candidate || "").trim();
-      if (!name) return "";
-      // Generic NFT labels may carry extra mint/serial text after "Crew".
-      if (/^crew(?:[\s_-]*(?:#|no\.?)?[\s_-]*\d+)?(?:\s|$)/i.test(name)) return "";
+      if (!name || /^crew(?:[\s_:#-]*(?:(?:#|no\.?|number)?[\s_:#-]*\d+))?$/i.test(name)) return "";
       return name;
     };
 
@@ -122,27 +120,34 @@
       raw.content?.metadata?.properties?.attributes
     ];
     const traits = traitSources.filter(Array.isArray).flat().filter((item) => item && typeof item === "object");
-    const nameTrait = traits.find((item) => {
-      const key = String(item.trait || item.trait_type || item.traitType || item.key || "").trim().toLowerCase();
-      return ["name", "crew name", "display name"].includes(key);
-    });
+    const normalizeKey = (item) => String(
+      item?.trait || item?.trait_type || item?.traitType || item?.key || ""
+    ).trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+    const nameTrait = traits.find((item) =>
+      ["name", "crewname", "displayname", "personname"].includes(normalizeKey(item))
+    );
     const traitName = nameTrait?.value ?? nameTrait?.Value ?? nameTrait?.val ?? "";
-    const direct = [
-      row.displayName, row.crewName, row.personName,
-      raw.displayName, raw.crewName,
-      traitName, row.name, raw.name
-    ].map(validName).find(Boolean);
-    if (direct) return direct;
 
-    const given = String(row.given || row.givenName || raw.given || "").trim();
-    const family = String(row.family || row.familyName || raw.family || "").trim();
+    const given = String(
+      row.given || row.givenName || row.firstName ||
+      raw.given || raw.givenName || raw.firstName || ""
+    ).trim();
+    const family = String(
+      row.family || row.familyName || row.lastName ||
+      raw.family || raw.familyName || raw.lastName || ""
+    ).trim();
     const ustur = String(row.ustur || raw.ustur || "").trim();
     const person = ustur
       ? [given, ustur].filter(Boolean).join(" ")
       : [given, family].filter(Boolean).join(" ");
-    return validName(person) || "Без имени";
-  }
 
+    const direct = [
+      row.displayName, row.crewName, row.personName,
+      raw.displayName, raw.crewName, raw.personName,
+      traitName, person, row.name, raw.name
+    ].map(validName).find(Boolean);
+    return direct || "Без имени";
+  }
   function crewPortraitFallback(value) {
     const base = String(config.galiaAssetBase || "").replace(/\/+$/, "");
     if (!base) return "";
