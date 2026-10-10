@@ -140,8 +140,17 @@
 
   function crewRecord(mint, amount, assetName, image, traits, galaxyRow) {
     const named = trait(traits, "name");
-    const galaxyName = galaxyRow?.name ? String(galaxyRow.name) : "";
-    const name = galaxyName || (named && !/^crew\b/i.test(named) ? named : "") || assetName || mint;
+    const usableName = (value) => {
+      const name = String(value || "").trim();
+      if (!name || /^crew(?:[\s_-]*#?[\s_-]*\d+)?$/i.test(name)) return "";
+      return name;
+    };
+    const galaxyName = usableName(
+      galaxyRow?.displayName || galaxyRow?.crewName || galaxyRow?.name
+    );
+    const metadataName = usableName(named);
+    const nftName = usableName(assetName);
+    const name = galaxyName || metadataName || nftName || "Без имени";
     const openness = ocean(galaxyRow?.openness ?? trait(traits, "openness"));
     const conscientiousness = ocean(galaxyRow?.conscientiousness ?? trait(traits, "conscientiousness"));
     const extraversion = ocean(galaxyRow?.extraversion ?? trait(traits, "extraversion"));
