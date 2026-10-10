@@ -103,16 +103,39 @@
     return out;
   }
 
-  function crewPersonName(value, index) {
-    const direct = String(value?.name || "").trim();
+  function crewPersonName(value) {
+    const row = value && typeof value === "object" ? value : {};
+    const raw = row.raw && typeof row.raw === "object" ? row.raw : {};
+    const validName = (candidate) => {
+      const name = String(candidate || "").trim();
+      if (!name) return "";
+      // Reject generated placeholders so they cannot mask an actual Name trait.
+      if (/^crew(?:[\s_-]*#?[\s_-]*\d+)?$/i.test(name)) return "";
+      return name;
+    };
+
+    const traits = [
+      ...(Array.isArray(row.traits) ? row.traits : []),
+      ...(Array.isArray(raw.attributes) ? raw.attributes : [])
+    ];
+    const nameTrait = traits.find((item) => {
+      const key = String(item?.trait || item?.trait_type || "").trim().toLowerCase();
+      return key === "name" && item?.value != null && typeof item.value !== "object";
+    });
+    const direct = [
+      row.name, row.crewName, row.displayName, row.personName,
+      raw.name, raw.crewName,
+      nameTrait?.value
+    ].map(validName).find(Boolean);
     if (direct) return direct;
-    const given = String(value?.given || "").trim();
-    const family = String(value?.family || "").trim();
-    const ustur = String(value?.ustur || "").trim();
+
+    const given = String(row.given || row.givenName || raw.given || "").trim();
+    const family = String(row.family || row.familyName || raw.family || "").trim();
+    const ustur = String(row.ustur || raw.ustur || "").trim();
     const person = ustur
       ? [given, ustur].filter(Boolean).join(" ")
       : [given, family].filter(Boolean).join(" ");
-    return person || ("Crew " + (index + 1));
+    return person || "Без имени";
   }
 
   function crewPortraitFallback(value) {
