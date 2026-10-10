@@ -142,7 +142,7 @@
     const named = trait(traits, "name");
     const usableName = (value) => {
       const name = String(value || "").trim();
-      if (!name || /^crew(?:[\s_-]*#?[\s_-]*\d+)?$/i.test(name)) return "";
+      if (!name || /^crew(?:[\s_-]*(?:#|no\.?)?[\s_-]*\d+)?(?:\s|$)/i.test(name)) return "";
       return name;
     };
     const galaxyName =
