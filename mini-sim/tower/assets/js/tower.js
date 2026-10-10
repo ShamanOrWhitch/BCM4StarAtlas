@@ -200,6 +200,11 @@
               push(x, y - 1);
             }
 
+            // Commit the alpha mask before cropping. Without this write,
+            // getImageData() below reads the untouched opaque source canvas,
+            // so the crop silently discards the background-removal result.
+            ctx.putImageData(frame, 0, 0);
+
             let minX = w;
             let minY = h;
             let maxX = 0;
