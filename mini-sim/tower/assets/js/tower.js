@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.28";
+  const TOWER_VERSION = "0.2.29";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -142,51 +142,40 @@
               buckets.set(key, bag);
             };
 
-            // Build background seeds ONLY from the actual outer border.
-            // Sampling 15% side bands can include armor, hair or equipment and
-            // would cause those character colours to be treated as background.
-            for (let x = 0; x < w; x += 1) {
-              take(x, 0);
-              take(x, h - 1);
-            }
-            for (let y = 0; y < h; y += 1) {
-              take(0, y);
-              take(w - 1, y);
+            // Sample only the requested outer bands: 15% on each side,
+            // 4% at the top and 2% at the bottom. This samples more background
+            // than the old 1px edge, without treating the center as a protected oval.
+            const bandX = Math.max(1, Math.round(w * 0.15));
+            const bandTop = Math.max(1, Math.round(h * 0.04));
+            const bandBottom = Math.max(1, Math.round(h * 0.02));
+            const sampleStep = Math.max(1, Math.floor(Math.min(w, h) / 80));
+            for (let y = 0; y < h; y += sampleStep) {
+              for (let x = 0; x < w; x += sampleStep) {
+                if (
+                  x < bandX || x >= w - bandX ||
+                  y < bandTop || y >= h - bandBottom
+                ) {
+                  take(x, y);
+                }
+              }
             }
 
             const candidates = [...buckets.values()].sort((a, b) => b.n - a.n);
             const seeds = [];
             for (const bag of candidates) {
               const color = [bag.r / bag.n, bag.g / bag.n, bag.b / bag.n];
-              // Keep a few clearly distinct border colours, not a palette of
-              // interior colours that may also belong to the Crew silhouette.
               const distinct = seeds.every((seed) => {
                 const dr = color[0] - seed[0];
                 const dg = color[1] - seed[1];
                 const db = color[2] - seed[2];
-                return dr * dr + dg * dg + db * db >= 28 * 28;
+                return dr * dr + dg * dg + db * db >= 22 * 22;
               });
               if (distinct) seeds.push(color);
-              if (seeds.length >= 4) break;
+              if (seeds.length >= 10) break;
             }
-            // Smaller colour radius reduces spill from the backdrop into
-            // connected character edges that share similar hues.
-            const limit = 48 * 48;
+            const limit = 68 * 68;
             const seen = new Uint8Array(w * h);
             const stack = [];
-
-            // Protect the centered Crew figure's core (about 35% of the card area).
-            // Background hues can also occur on armor/skin, so RGB cutout must
-            // never clear pixels inside this region.
-            const coreCx = (w - 1) * 0.5;
-            const coreCy = (h - 1) * 0.52;
-            const coreRx = w * 0.30;
-            const coreRy = h * 0.37;
-            const insideCrewCore = (x, y) => {
-              const dx = (x - coreCx) / Math.max(1, coreRx);
-              const dy = (y - coreCy) / Math.max(1, coreRy);
-              return dx * dx + dy * dy <= 1;
-            };
             const near = (i) => {
               const r = pixels[i];
               const g = pixels[i + 1];
@@ -206,9 +195,7 @@
               const i = p * 4;
               if (!near(i)) return;
               seen[p] = 1;
-              // Flood-fill may pass across the protected core, but its pixels
-              // retain their source alpha so shared colors cannot erase the figure.
-              if (!insideCrewCore(x, y)) pixels[i + 3] = 0;
+              pixels[i + 3] = 0;
               stack.push(x, y);
             };
             for (let x = 0; x < w; x += 1) {
@@ -246,7 +233,7 @@
                 if (y > maxY) maxY = y;
               }
             }
-            if (maxX > minX && maxY > minY) {
+            if (maxX >= minX && maxY >= minY) {
               const crop = ctx.getImageData(minX, minY, maxX - minX + 1, maxY - minY + 1);
               canvas.width = crop.width;
               canvas.height = crop.height;
@@ -486,6 +473,7 @@
   function boot(root) {
     if (root.dataset.bcmTowerBooted === "1") return;
     root.dataset.bcmTowerBooted = "1";
+    root.dataset.bcmTowerVersion = TOWER_VERSION;
 
     const canvas = root.querySelector(".bcm-tower-canvas");
     const menu = root.querySelector(".bcm-tower-menu");
@@ -559,6 +547,8 @@
         mint: String(crew.mint || ""),
         name: towerCrewDisplayName(crew),
         image: String(crew.image || ""),
+        species: String(crew.species || crew.spec || ""),
+        sex: String(crew.sex || ""),
         source: crew.source || "mini-sim",
         traits: Array.isArray(crew.traits) ? crew.traits : [],
         characteristics: crew.characteristics && typeof crew.characteristics === "object" ? crew.characteristics : {},
@@ -625,6 +615,8 @@
     let playerMarkers = [];
     let playerSprites = [];
     let playerTextures = [null, null];
+    // Mierese art uses the current facing; most other races need the reverse.
+    let playerFacingFactors = [-1, -1];
     let birds = [];
 
     const radius = 8.4;
@@ -1166,6 +1158,11 @@
 
       for (let i = 0; i < 2; i++) {
         const selectedCrew = crewById(crewSlots[i].crewId);
+        const traitSpecies = Array.isArray(selectedCrew?.traits)
+          ? selectedCrew.traits.find((item) => /^(species|race)$/i.test(String(item?.trait || item?.trait_type || "")))?.value
+          : "";
+        const species = String(selectedCrew?.species || selectedCrew?.spec || traitSpecies || "");
+        playerFacingFactors[i] = /mierese/i.test(species) ? 1 : -1;
         const imageUrl = selectedCrew?.image || "";
         playerTextures[i] = imageUrl
           ? assetTexture(imageUrl, renderer, { cutout: true })
@@ -1220,7 +1217,7 @@
       }
       updateCrewMatrix();
       exposeCrewMatrix();
-      status.textContent = "TOWER READY";
+      status.textContent = "TOWER v" + TOWER_VERSION + " READY";
       restartButton.hidden = true;
     }
 
@@ -1711,14 +1708,13 @@
       if (sprite) {
         const delta = angleDelta(a, p.visualAngle ?? a);
         const turnInput = (controls[index]?.right ? 1 : 0) - (controls[index]?.left ? 1 : 0);
+        const facingFactor = playerFacingFactors[index] ?? -1;
         if (turnInput !== 0) {
-          // Right/left is the authoritative visual direction. This prevents
-          // the billboard sprite from keeping its old face while the player
-          // walks around the cylinder.
-          p.visualFacing = turnInput > 0 ? -1 : 1;
+          // Reverse direction for most races, retaining the Mierese exception.
+          p.visualFacing = (turnInput > 0 ? -1 : 1) * facingFactor;
         } else if (Math.abs(delta) > 0.001) {
           // Keep mouse/touch and carried-lift rotation working as before.
-          p.visualFacing = delta > 0 ? -1 : 1;
+          p.visualFacing = (delta > 0 ? -1 : 1) * facingFactor;
         }
         p.visualAngle = a;
 
