@@ -114,7 +114,12 @@
   }
 
   function trait(traits, name) {
-    const hit = traits.find((row) => row.trait.toLowerCase() === name.toLowerCase());
+    const normalize = (value) => String(value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+    const wanted = normalize(name);
+    const aliases = wanted === "name" || wanted === "crewname" || wanted === "displayname" || wanted === "personname"
+      ? new Set(["name", "crewname", "displayname", "personname"])
+      : new Set([wanted]);
+    const hit = traits.find((row) => aliases.has(normalize(row.trait)));
     return hit ? hit.value : "";
   }
 
@@ -142,11 +147,11 @@
     const named = trait(traits, "name");
     const usableName = (value) => {
       const name = String(value || "").trim();
-       if (!name || /^crew$/i.test(name) || /^crew(?:[\s_:#-]*(?:#|no\.?|number)?[\s_-]*\d+)(?:\b|[\s_:#-]|$)/i.test(name)) return "";
+      if (!name || /^crew(?:[\s_:#-]*(?:(?:#|no\.?|number)?[\s_:#-]*\d+))?$/i.test(name)) return "";
       return name;
     };
-    const galaxyGiven = String(galaxyRow?.given || galaxyRow?.givenName || "").trim();
-    const galaxyFamily = String(galaxyRow?.family || galaxyRow?.familyName || "").trim();
+    const galaxyGiven = String(galaxyRow?.given || galaxyRow?.givenName || galaxyRow?.firstName || "").trim();
+    const galaxyFamily = String(galaxyRow?.family || galaxyRow?.familyName || galaxyRow?.lastName || "").trim();
     const galaxyUstur = String(galaxyRow?.ustur || "").trim();
     const galaxyPerson = galaxyUstur
       ? [galaxyGiven, galaxyUstur].filter(Boolean).join(" ")
@@ -225,7 +230,7 @@
           const galaxy = crewIndex.get(mint);
           if (galaxy) {
             seen.add(mint);
-            crew.push(crewRecord(mint, amount, galaxy.name, galaxy.imageUrl, [], galaxy));
+            crew.push(crewRecord(mint, amount, galaxy.name, galaxy.imageUrl, traitsOf(meta), galaxy));
             return;
           }
           const known = nftIndex.get(mint);
