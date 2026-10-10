@@ -142,13 +142,21 @@
     const named = trait(traits, "name");
     const usableName = (value) => {
       const name = String(value || "").trim();
-      if (!name || /^crew(?:[\s_-]*(?:#|no\.?)?[\s_-]*\d+)?(?:\s|$)/i.test(name)) return "";
+       if (!name || /^crew(?:[\s_:#-]*(?:#|no\.?|number)?[\s_-]*\d+)(?:\b|[\s_:#-]|$)/i.test(name)) return "";
       return name;
     };
+    const galaxyGiven = String(galaxyRow?.given || galaxyRow?.givenName || "").trim();
+    const galaxyFamily = String(galaxyRow?.family || galaxyRow?.familyName || "").trim();
+    const galaxyUstur = String(galaxyRow?.ustur || "").trim();
+    const galaxyPerson = galaxyUstur
+      ? [galaxyGiven, galaxyUstur].filter(Boolean).join(" ")
+      : [galaxyGiven, galaxyFamily].filter(Boolean).join(" ");
     const galaxyName =
       usableName(galaxyRow?.displayName) ||
       usableName(galaxyRow?.crewName) ||
-      usableName(galaxyRow?.name);
+      usableName(galaxyRow?.personName) ||
+      usableName(galaxyRow?.name) ||
+      usableName(galaxyPerson);
     const metadataName = usableName(named);
     const nftName = usableName(assetName);
     const name = galaxyName || metadataName || nftName || "Без имени";
