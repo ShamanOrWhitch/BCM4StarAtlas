@@ -107,9 +107,12 @@
     const row = value && typeof value === "object" ? value : {};
     const raw = row.raw && typeof row.raw === "object" ? row.raw : {};
     const validName = (candidate) => {
-      const name = String(candidate || "").trim();
-      if (!name || /^crew(?:[\s_:#-]*(?:(?:#|no\.?|number)?[\s_:#-]*\d+))?$/i.test(name)) return "";
-      return name;
+      const original = String(candidate || "").trim();
+      if (!original) return "";
+      const stripped = original.replace(/^crew(?:[\s_:#-]*(?:(?:#|no\.?|number)?[\s_:#-]*\d+))\s*(?:[-:|–—·]\s*)?/i, "").trim();
+      if (stripped) return stripped;
+      if (/^crew(?:[\s_:#-]*(?:(?:#|no\.?|number)?[\s_:#-]*\d+))?$/i.test(original)) return "";
+      return original;
     };
 
     const traitSources = [
