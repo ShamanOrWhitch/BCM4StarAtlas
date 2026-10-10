@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.34";
+  const TOWER_VERSION = "0.2.35";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -89,26 +89,26 @@
 
 
 
-  // Crew background removal runs once per selected image, outside the render loop.
-  // The quantized ISNet model is Apache-2.0 and stays in the browser.
+  // Run image matting once per selected Crew image, never inside the render loop.
+  // Xenova/modnet is a Transformers.js background-removal model (Apache-2.0).
   let crewSegmentationPipelinePromise = null;
 
   function crewCutoutCacheRequest(url) {
     if (!window.caches || !window.location || !window.location.origin) return null;
     let hash = 2166136261;
-    const input = String(url || "") + "|crew-isnet-v4";
+    const input = String(url || "") + "|crew-modnet-v5";
     for (let i = 0; i < input.length; i += 1) {
       hash ^= input.charCodeAt(i);
       hash = Math.imul(hash, 16777619);
     }
-    return new Request(window.location.origin + "/?bcm-crew-cutout=v3-" + (hash >>> 0).toString(36));
+    return new Request(window.location.origin + "/?bcm-crew-cutout=v5-" + (hash >>> 0).toString(36));
   }
 
   async function readCrewCutoutCache(url) {
     try {
       const request = crewCutoutCacheRequest(url);
       if (!request) return null;
-      const cache = await window.caches.open("bcm-tower-crew-cutouts-v4");
+      const cache = await window.caches.open("bcm-tower-crew-cutouts-v5");
       const response = await cache.match(request);
       return response && response.ok ? await response.blob() : null;
     } catch (error) {
@@ -122,7 +122,7 @@
       if (!request || !canvas.toBlob) return;
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) return;
-      const cache = await window.caches.open("bcm-tower-crew-cutouts-v3");
+      const cache = await window.caches.open("bcm-tower-crew-cutouts-v5");
       await cache.put(request, new Response(blob, { headers: { "Content-Type": "image/png" } }));
     } catch (error) {}
   }
@@ -135,7 +135,7 @@
             module.env.useBrowserCache = true;
             module.env.allowRemoteModels = true;
           }
-          return module.pipeline("image-segmentation", "Ko033/isnet-general-use-onnx", { dtype: "q8" });
+          return module.pipeline("background-removal", "Xenova/modnet", { dtype: "fp32" });
         })
         .catch((error) => {
           crewSegmentationPipelinePromise = null;
@@ -177,6 +177,59 @@
     canvas.height = crop.height;
     ctx.putImageData(crop, 0, 0);
     return true;
+  }
+
+  function pruneCrewMatteSpecks(frame, width, height) {
+    const pixels = frame.data;
+    const total = width * height;
+    const seen = new Uint8Array(total);
+    const stack = [];
+    const component = [];
+    const minComponentPixels = Math.max(14, Math.floor(total * 0.00008));
+
+    const visit = (start) => {
+      stack.length = 0;
+      component.length = 0;
+      stack.push(start);
+      seen[start] = 1;
+      while (stack.length) {
+        const p = stack.pop();
+        component.push(p);
+        const x = p % width;
+        const y = Math.floor(p / width);
+        const neighbours = [];
+        if (x > 0) neighbours.push(p - 1);
+        if (x + 1 < width) neighbours.push(p + 1);
+        if (y > 0) neighbours.push(p - width);
+        if (y + 1 < height) neighbours.push(p + width);
+        for (const q of neighbours) {
+          if (seen[q]) continue;
+          seen[q] = 1;
+          if (pixels[q * 4 + 3] >= 64) stack.push(q);
+        }
+      }
+    };
+
+    let largest = 0;
+    let largestCount = 0;
+    for (let p = 0; p < total; p += 1) {
+      if (seen[p] || pixels[p * 4 + 3] < 64) continue;
+      visit(p);
+      if (component.length > largestCount) {
+        largestCount = component.length;
+        largest = p;
+      }
+    }
+
+    seen.fill(0);
+    for (let p = 0; p < total; p += 1) {
+      if (seen[p] || pixels[p * 4 + 3] < 64) continue;
+      visit(p);
+      // Keep the largest island unconditionally. Drop only tiny disconnected
+      // islands that are characteristic of residual background specks.
+      if (component.length >= minComponentPixels || component.includes(largest)) continue;
+      for (const q of component) pixels[q * 4 + 3] = 0;
+    }
   }
 
   function assetTexture(url, renderer, options = {}) {
@@ -242,41 +295,66 @@
             let segmented = false;
             try {
               const segmenter = await getCrewSegmentationPipeline();
-              const output = await segmenter(canvas, {
-                threshold: 0.001,
-                mask_threshold: 0.12,
-                target_sizes: [[canvas.height, canvas.width]]
-              });
+              const output = await segmenter(canvas);
               const results = Array.isArray(output) ? output : [output];
               const picked = results.find((item) =>
-                item && item.mask && item.mask.data &&
-                /foreground|subject|person|human/i.test(String(item.label || "")) &&
-                !/background/i.test(String(item.label || ""))
+                item && item.mask && item.mask.data && item.mask.width && item.mask.height
               ) || results.find((item) =>
-                item && item.mask && item.mask.data &&
-                !/background/i.test(String(item.label || ""))
-              ) || results.find((item) => item && item.mask && item.mask.data);
-              const mask = picked && picked.mask;
+                item && item.data && item.width && item.height
+              );
+              const mask = picked && picked.mask ? picked.mask : picked;
               if (!mask || !mask.data || !mask.width || !mask.height) {
-                throw new Error("ISNet returned no foreground mask");
+                throw new Error("MODNet returned no matte");
               }
 
-              // ISNet exports a saliency probability matte. Normalize each mask
-              // before turning it into alpha; raw scores can leave a gray veil
-              // over the card and erase low-confidence feet/fingers.
+              // Read only the first channel: an RGBA mask may include an opaque
+              // alpha channel that must not skew matte min/max statistics.
+              const maskChannels = Math.max(1, Number(mask.channels) || 1);
+              const maskPixels = mask.width * mask.height;
+              if (mask.data.length < maskPixels * maskChannels) {
+                throw new Error("MODNet returned an incomplete matte");
+              }
               let minMask = Infinity;
               let maxMask = -Infinity;
-              for (let i = 0; i < mask.data.length; i += 1) {
-                const value = Number(mask.data[i]) || 0;
-                if (value < minMask) minMask = value;
-                if (value > maxMask) maxMask = value;
+              let borderSum = 0, borderCount = 0;
+              let centerSum = 0, centerCount = 0;
+              const borderX = Math.max(1, Math.round(mask.width * 0.025));
+              const borderY = Math.max(1, Math.round(mask.height * 0.025));
+              const centerLeft = Math.round(mask.width * 0.25);
+              const centerRight = Math.round(mask.width * 0.75);
+              const centerTop = Math.round(mask.height * 0.12);
+              const centerBottom = Math.round(mask.height * 0.88);
+              for (let y = 0; y < mask.height; y += 1) {
+                for (let x = 0; x < mask.width; x += 1) {
+                  const value = Number(mask.data[(y * mask.width + x) * maskChannels]) || 0;
+                  if (value < minMask) minMask = value;
+                  if (value > maxMask) maxMask = value;
+                  if (x < borderX || x >= mask.width - borderX ||
+                      y < borderY || y >= mask.height - borderY) {
+                    borderSum += value;
+                    borderCount++;
+                  }
+                  if (x >= centerLeft && x < centerRight &&
+                      y >= centerTop && y < centerBottom) {
+                    centerSum += value;
+                    centerCount++;
+                  }
+                }
               }
               if (!Number.isFinite(minMask) || !Number.isFinite(maxMask) || maxMask - minMask < 1e-6) {
-                throw new Error("ISNet returned a flat foreground mask");
+                throw new Error("MODNet returned a flat matte");
               }
-              const maskChannels = Math.max(1, Number(mask.channels) || 1);
-              const invertMask = /background/i.test(String(picked.label || "")) &&
-                !/foreground|subject|person|human/i.test(String(picked.label || ""));
+              // Some matting APIs return foreground alpha, others the inverse.
+              // Crew is centered, so compare matte intensity near the card edge
+              // against the central person area and invert only when clearly needed.
+              const borderMean = borderSum / Math.max(1, borderCount);
+              const centerMean = centerSum / Math.max(1, centerCount);
+              const invertMask = borderMean > centerMean;
+              const smoothstep = (a, b, value) => {
+                const t = clamp((value - a) / (b - a), 0, 1);
+                return t * t * (3 - 2 * t);
+              };
+
               for (let y = 0; y < canvas.height; y += 1) {
                 const my = Math.min(mask.height - 1, Math.round(y * (mask.height - 1) / Math.max(1, canvas.height - 1)));
                 for (let x = 0; x < canvas.width; x += 1) {
@@ -284,13 +362,17 @@
                   const mi = (my * mask.width + mx) * maskChannels;
                   let normalized = clamp(((Number(mask.data[mi]) || 0) - minMask) / (maxMask - minMask), 0, 1);
                   if (invertMask) normalized = 1 - normalized;
-                  // Gentle alpha ramp preserves antialiased edges and thin cartoon limbs.
-                  const edge = clamp((normalized - 0.12) / 0.43, 0, 1);
-                  const alpha = edge * edge * (3 - 2 * edge);
+                  // Remove weak background responses but keep soft antialiased
+                  // boundaries around the head, hands, hair and lower legs.
+                  const alpha = smoothstep(0.12, 0.48, normalized);
                   const pi = (y * canvas.width + x) * 4;
                   pixels[pi + 3] = Math.round(pixels[pi + 3] * alpha);
                 }
               }
+
+              // Remove only tiny detached matte specks; preserve the principal
+              // silhouette and any substantial separated costume/equipment pieces.
+              pruneCrewMatteSpecks(frame, canvas.width, canvas.height);
               if (!cropCrewCanvas(canvas, ctx, frame)) {
                 throw new Error("ISNet returned an empty silhouette");
               }
@@ -1856,7 +1938,7 @@
       const sprite = playerSprites[index];
       const texture = playerTextures[index];
       const cutoutReady = !texture || texture.userData?.bcmCutoutPending !== true;
-      const feetOffset = 0.72;
+      const feetOffset = p.currentCell?.surface === "rock" ? -0.22 : 0.49;
 
       if (marker) {
         marker.position.set(x, p.y + 0.35, z);
@@ -1908,8 +1990,7 @@
       const imageHeight = Number(map?.image?.height || 1);
       const aspect = imageWidth / Math.max(1, imageHeight);
       const spriteWidth = clamp(spriteHeight * aspect, 0.55, 1.75);
-      // p.y is the collision center; 0.72 aligns the image bottom with the
-      // platform top used by findLanding(), instead of floating above it.
+      // Align the bottom of the full-body cutout to the visible platform top.
       sprite.position.set(x, p.y - feetOffset + bob, z);
       sprite.scale.set(spriteWidth, spriteHeight, 1);
     }
