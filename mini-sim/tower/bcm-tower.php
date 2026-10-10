@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_TOWER_VERSION', '0.2.28');
+define('BCM_TOWER_VERSION', '0.2.29');
 define('BCM_TOWER_PATH', __DIR__ . '/');
 define('BCM_TOWER_URL', trailingslashit(plugin_dir_url(__FILE__)));
 
@@ -224,7 +224,7 @@ function bcm_tower_shortcode($atts = array()) {
         </div>
 
         <div class="bcm-tower-hud">
-            <div class="bcm-tower-title">BCM TOWER — PROTOTYPE</div>
+            <div class="bcm-tower-title">BCM TOWER — v<?php echo esc_html(BCM_TOWER_VERSION); ?></div>
             <div class="bcm-tower-status">ENGINE LOADING...</div>
             <div class="bcm-tower-level"></div>
             <div class="bcm-tower-mode"></div>
