@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.32";
+  const TOWER_VERSION = "0.2.33";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -1876,7 +1876,8 @@
       const imageHeight = Number(map?.image?.height || 1);
       const aspect = imageWidth / Math.max(1, imageHeight);
       const spriteWidth = clamp(spriteHeight * aspect, 0.82, 1.75);
-      sprite.position.set(x, p.y - 0.72 + bob, z);
+      const feetOffset = p.currentCell?.surface === "rock" ? 0 : 0.49;
+      sprite.position.set(x, p.y - feetOffset + bob, z);
       sprite.scale.set(spriteWidth, spriteHeight, 1);
     }
     function updateCamera(index, viewport) {
