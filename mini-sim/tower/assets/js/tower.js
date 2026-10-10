@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.31";
+  const TOWER_VERSION = "0.2.32";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -88,6 +88,170 @@
   }
 
 
+
+  // Crew background removal runs once per selected image, outside the render loop.
+  // The quantized ISNet model is Apache-2.0 and stays in the browser.
+  let crewSegmentationPipelinePromise = null;
+
+  function crewCutoutCacheRequest(url) {
+    if (!window.caches || !window.location || !window.location.origin) return null;
+    let hash = 2166136261;
+    const input = String(url || "") + "|crew-isnet-v3";
+    for (let i = 0; i < input.length; i += 1) {
+      hash ^= input.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return new Request(window.location.origin + "/?bcm-crew-cutout=v3-" + (hash >>> 0).toString(36));
+  }
+
+  async function readCrewCutoutCache(url) {
+    try {
+      const request = crewCutoutCacheRequest(url);
+      if (!request) return null;
+      const cache = await window.caches.open("bcm-tower-crew-cutouts-v3");
+      const response = await cache.match(request);
+      return response && response.ok ? await response.blob() : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async function writeCrewCutoutCache(url, canvas) {
+    try {
+      const request = crewCutoutCacheRequest(url);
+      if (!request || !canvas.toBlob) return;
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) return;
+      const cache = await window.caches.open("bcm-tower-crew-cutouts-v3");
+      await cache.put(request, new Response(blob, { headers: { "Content-Type": "image/png" } }));
+    } catch (error) {}
+  }
+
+  function getCrewSegmentationPipeline() {
+    if (!crewSegmentationPipelinePromise) {
+      crewSegmentationPipelinePromise = import("https://esm.sh/@huggingface/transformers@3.8.1?bundle")
+        .then((module) => {
+          if (module.env) {
+            module.env.useBrowserCache = true;
+            module.env.allowRemoteModels = true;
+          }
+          return module.pipeline("image-segmentation", "Ko033/isnet-general-use-onnx", { dtype: "q8" });
+        })
+        .catch((error) => {
+          crewSegmentationPipelinePromise = null;
+          throw error;
+        });
+    }
+    return crewSegmentationPipelinePromise;
+  }
+
+  function cropCrewCanvas(canvas, ctx, frame) {
+    const w = canvas.width;
+    const h = canvas.height;
+    const pixels = frame.data;
+    let minX = w;
+    let minY = h;
+    let maxX = -1;
+    let maxY = -1;
+    for (let y = 0; y < h; y += 1) {
+      for (let x = 0; x < w; x += 1) {
+        if (pixels[(y * w + x) * 4 + 3] < 12) continue;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+    if (maxX < minX || maxY < minY) return false;
+    const padX = Math.max(2, Math.round(w * 0.025));
+    const padY = Math.max(2, Math.round(h * 0.025));
+    minX = Math.max(0, minX - padX);
+    minY = Math.max(0, minY - padY);
+    maxX = Math.min(w - 1, maxX + padX);
+    maxY = Math.min(h - 1, maxY + padY);
+    ctx.putImageData(frame, 0, 0);
+    const crop = ctx.getImageData(minX, minY, maxX - minX + 1, maxY - minY + 1);
+    canvas.width = crop.width;
+    canvas.height = crop.height;
+    ctx.putImageData(crop, 0, 0);
+    return true;
+  }
+
+  // Conservative offline fallback only. There is no protected ellipse or assumed body shape.
+  function removeCrewBackgroundByBorder(canvas, ctx, frame) {
+    const w = canvas.width;
+    const h = canvas.height;
+    const pixels = frame.data;
+    const buckets = new Map();
+    const take = (x, y) => {
+      const i = (y * w + x) * 4;
+      if (pixels[i + 3] === 0) return;
+      const key = ((pixels[i] >> 4) << 8) | ((pixels[i + 1] >> 4) << 4) | (pixels[i + 2] >> 4);
+      const bag = buckets.get(key) || { n: 0, r: 0, g: 0, b: 0 };
+      bag.n += 1;
+      bag.r += pixels[i];
+      bag.g += pixels[i + 1];
+      bag.b += pixels[i + 2];
+      buckets.set(key, bag);
+    };
+    for (let x = 0; x < w; x += 1) {
+      take(x, 0);
+      take(x, h - 1);
+    }
+    for (let y = 0; y < h; y += 1) {
+      take(0, y);
+      take(w - 1, y);
+    }
+    const seeds = [];
+    const candidates = [...buckets.values()].sort((a, b) => b.n - a.n);
+    for (const bag of candidates) {
+      const color = [bag.r / bag.n, bag.g / bag.n, bag.b / bag.n];
+      if (seeds.every((seed) => {
+        const dr = color[0] - seed[0];
+        const dg = color[1] - seed[1];
+        const db = color[2] - seed[2];
+        return dr * dr + dg * dg + db * db >= 28 * 28;
+      })) seeds.push(color);
+      if (seeds.length >= 4) break;
+    }
+    if (!seeds.length) return false;
+    const near = (i) => seeds.some((seed) => {
+      const dr = pixels[i] - seed[0];
+      const dg = pixels[i + 1] - seed[1];
+      const db = pixels[i + 2] - seed[2];
+      return dr * dr + dg * dg + db * db <= 48 * 48;
+    });
+    const seen = new Uint8Array(w * h);
+    const stack = [];
+    const push = (x, y) => {
+      if (x < 0 || y < 0 || x >= w || y >= h) return;
+      const p = y * w + x;
+      if (seen[p]) return;
+      seen[p] = 1;
+      const i = p * 4;
+      if (!near(i)) return;
+      pixels[i + 3] = 0;
+      stack.push(x, y);
+    };
+    for (let x = 0; x < w; x += 1) {
+      push(x, 0);
+      push(x, h - 1);
+    }
+    for (let y = 0; y < h; y += 1) {
+      push(0, y);
+      push(w - 1, y);
+    }
+    while (stack.length) {
+      const y = stack.pop();
+      const x = stack.pop();
+      push(x + 1, y);
+      push(x - 1, y);
+      push(x, y + 1);
+      push(x, y - 1);
+    }
+    return cropCrewCanvas(canvas, ctx, frame);
+  }
+
   function assetTexture(url, renderer, options = {}) {
     if (!url || !window.THREE) return null;
     options = options && typeof options === "object" ? options : {};
@@ -107,15 +271,20 @@
       canvas.width = 2;
       canvas.height = 2;
       tex = new THREE.CanvasTexture(canvas);
+      tex.userData = tex.userData || {};
+      if (options.cutout) {
+        tex.userData.bcmCutoutPending = true;
+        tex.userData.bcmCutoutReady = false;
+      }
 
       const image = new Image();
       image.crossOrigin = "anonymous";
       image.decoding = "async";
-      image.onload = () => {
+      image.onload = async () => {
         try {
           const srcW = image.naturalWidth || image.width || 1;
           const srcH = image.naturalHeight || image.height || 1;
-          const maxSide = options.cutout ? 320 : Math.max(srcW, srcH);
+          const maxSide = options.cutout ? 512 : Math.max(srcW, srcH);
           const scale = Math.min(1, maxSide / Math.max(srcW, srcH));
           canvas.width = Math.max(1, Math.round(srcW * scale));
           canvas.height = Math.max(1, Math.round(srcH * scale));
@@ -127,143 +296,86 @@
 
           const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const pixels = frame.data;
+
           if (options.cutout) {
-            const w = canvas.width;
-            const h = canvas.height;
-            const buckets = new Map();
-            const take = (x, y) => {
-              const i = (y * w + x) * 4;
-              if (pixels[i + 3] === 0) return;
-              const key = ((pixels[i] >> 4) << 8) | ((pixels[i + 1] >> 4) << 4) | (pixels[i + 2] >> 4);
-              const bag = buckets.get(key) || { n: 0, r: 0, g: 0, b: 0 };
-              bag.n += 1;
-              bag.r += pixels[i];
-              bag.g += pixels[i + 1];
-              bag.b += pixels[i + 2];
-              buckets.set(key, bag);
-            };
-
-            // Build background seeds ONLY from the actual outer border.
-            // Sampling 15% side bands can include armor, hair or equipment and
-            // would cause those character colours to be treated as background.
-            for (let x = 0; x < w; x += 1) {
-              take(x, 0);
-              take(x, h - 1);
-            }
-            for (let y = 0; y < h; y += 1) {
-              take(0, y);
-              take(w - 1, y);
+            const cachedBlob = await readCrewCutoutCache(url);
+            if (cachedBlob && typeof createImageBitmap === "function") {
+              const bitmap = await createImageBitmap(cachedBlob);
+              canvas.width = bitmap.width;
+              canvas.height = bitmap.height;
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(bitmap, 0, 0);
+              if (typeof bitmap.close === "function") bitmap.close();
+              tex.userData.bcmCutoutPending = false;
+              tex.userData.bcmCutoutReady = true;
+              tex.needsUpdate = true;
+              return;
             }
 
-            const candidates = [...buckets.values()].sort((a, b) => b.n - a.n);
-            const seeds = [];
-            for (const bag of candidates) {
-              const color = [bag.r / bag.n, bag.g / bag.n, bag.b / bag.n];
-              // Keep a few clearly distinct border colours, not a palette of
-              // interior colours that may also belong to the Crew silhouette.
-              const distinct = seeds.every((seed) => {
-                const dr = color[0] - seed[0];
-                const dg = color[1] - seed[1];
-                const db = color[2] - seed[2];
-                return dr * dr + dg * dg + db * db >= 28 * 28;
+            let segmented = false;
+            try {
+              const segmenter = await getCrewSegmentationPipeline();
+              const output = await segmenter(canvas, {
+                threshold: 0.001,
+                mask_threshold: 0.22,
+                target_sizes: [[canvas.height, canvas.width]]
               });
-              if (distinct) seeds.push(color);
-              if (seeds.length >= 4) break;
-            }
-            // Smaller colour radius reduces spill from the backdrop into
-            // connected character edges that share similar hues.
-            const limit = 48 * 48;
-            const seen = new Uint8Array(w * h);
-            const stack = [];
-
-            // Protect the centered Crew figure's core (about 35% of the card area).
-            // Background hues can also occur on armor/skin, so RGB cutout must
-            // never clear pixels inside this region.
-            const coreCx = (w - 1) * 0.5;
-            const coreCy = (h - 1) * 0.52;
-            const coreRx = w * 0.30;
-            const coreRy = h * 0.37;
-            const insideCrewCore = (x, y) => {
-              const dx = (x - coreCx) / Math.max(1, coreRx);
-              const dy = (y - coreCy) / Math.max(1, coreRy);
-              return dx * dx + dy * dy <= 1;
-            };
-            const near = (i) => {
-              const r = pixels[i];
-              const g = pixels[i + 1];
-              const b = pixels[i + 2];
-              for (let s = 0; s < seeds.length; s += 1) {
-                const dr = r - seeds[s][0];
-                const dg = g - seeds[s][1];
-                const db = b - seeds[s][2];
-                if (dr * dr + dg * dg + db * db <= limit) return true;
+              const results = Array.isArray(output) ? output : [output];
+              const picked = results.find((item) =>
+                item && item.mask && item.mask.data &&
+                /foreground|subject|person|object/i.test(String(item.label || ""))
+              ) || results.find((item) => item && item.mask && item.mask.data);
+              const mask = picked && picked.mask;
+              if (!mask || !mask.data || !mask.width || !mask.height) {
+                throw new Error("ISNet returned no foreground mask");
               }
-              return false;
-            };
-            const push = (x, y) => {
-              if (x < 0 || y < 0 || x >= w || y >= h) return;
-              const p = y * w + x;
-              if (seen[p]) return;
-              const i = p * 4;
-              if (!near(i)) return;
-              seen[p] = 1;
-              // Flood-fill may pass across the protected core, but its pixels
-              // retain their source alpha so shared colors cannot erase the figure.
-              if (!insideCrewCore(x, y)) pixels[i + 3] = 0;
-              stack.push(x, y);
-            };
-            for (let x = 0; x < w; x += 1) {
-              push(x, 0);
-              push(x, h - 1);
-            }
-            for (let y = 0; y < h; y += 1) {
-              push(0, y);
-              push(w - 1, y);
-            }
-            while (stack.length) {
-              const y = stack.pop();
-              const x = stack.pop();
-              push(x + 1, y);
-              push(x - 1, y);
-              push(x, y + 1);
-              push(x, y - 1);
-            }
-
-            // Commit the alpha mask before cropping. Without this write,
-            // getImageData() below reads the untouched opaque source canvas,
-            // so the crop silently discards the background-removal result.
-            ctx.putImageData(frame, 0, 0);
-
-            let minX = w;
-            let minY = h;
-            let maxX = 0;
-            let maxY = 0;
-            for (let y = 0; y < h; y += 1) {
-              for (let x = 0; x < w; x += 1) {
-                if (pixels[(y * w + x) * 4 + 3] < 24) continue;
-                if (x < minX) minX = x;
-                if (y < minY) minY = y;
-                if (x > maxX) maxX = x;
-                if (y > maxY) maxY = y;
+              let maxMask = 0;
+              for (let i = 0; i < mask.data.length; i += 1) {
+                const value = Number(mask.data[i]) || 0;
+                if (value > maxMask) maxMask = value;
               }
+              const maskScale = maxMask <= 1.01 ? 255 : 1;
+              const maskChannels = Math.max(1, Number(mask.channels) || 1);
+              for (let y = 0; y < canvas.height; y += 1) {
+                const my = Math.min(mask.height - 1, Math.round(y * (mask.height - 1) / Math.max(1, canvas.height - 1)));
+                for (let x = 0; x < canvas.width; x += 1) {
+                  const mx = Math.min(mask.width - 1, Math.round(x * (mask.width - 1) / Math.max(1, canvas.width - 1)));
+                  const mi = (my * mask.width + mx) * maskChannels;
+                  const value = clamp((Number(mask.data[mi]) || 0) * maskScale, 0, 255);
+                  const alpha = clamp((value - 16) / 224, 0, 1);
+                  const pi = (y * canvas.width + x) * 4;
+                  pixels[pi + 3] = Math.round(pixels[pi + 3] * alpha);
+                }
+              }
+              if (!cropCrewCanvas(canvas, ctx, frame)) {
+                throw new Error("ISNet returned an empty silhouette");
+              }
+              await writeCrewCutoutCache(url, canvas);
+              segmented = true;
+            } catch (segmentationError) {
+              console.warn("Tower Crew AI segmentation unavailable; using border fallback", url, segmentationError);
+              canvas.width = Math.max(1, Math.round(srcW * scale));
+              canvas.height = Math.max(1, Math.round(srcH * scale));
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+              const fallbackFrame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              segmented = removeCrewBackgroundByBorder(canvas, ctx, fallbackFrame);
             }
-            if (maxX > minX && maxY > minY) {
-              const crop = ctx.getImageData(minX, minY, maxX - minX + 1, maxY - minY + 1);
-              canvas.width = crop.width;
-              canvas.height = crop.height;
-              ctx.putImageData(crop, 0, 0);
-            } else {
-              ctx.putImageData(frame, 0, 0);
+            if (!segmented) {
+              canvas.width = Math.max(1, Math.round(srcW * scale));
+              canvas.height = Math.max(1, Math.round(srcH * scale));
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
             }
+            tex.userData.bcmCutoutPending = false;
+            tex.userData.bcmCutoutReady = true;
           } else {
             for (let i = 0; i < pixels.length; i += 4) {
               const r = pixels[i];
               const g = pixels[i + 1];
               const b = pixels[i + 2];
               const a = pixels[i + 3];
-
               if (!a) continue;
-
               const nearWhite = Math.min(r, g, b) >= 246 && Math.max(r, g, b) <= 255;
               const softWhite = Math.min(r, g, b) >= 232;
               if (nearWhite) {
@@ -279,6 +391,11 @@
           tex.needsUpdate = true;
         } catch (error) {
           console.warn("Tower PNG alpha cleanup failed", url, error);
+          if (options.cutout && tex.userData) {
+            tex.userData.bcmCutoutPending = false;
+            tex.userData.bcmCutoutReady = true;
+          }
+          tex.needsUpdate = true;
         }
       };
       image.src = url;
@@ -1206,7 +1323,7 @@
             metalness: 0.18
           })
         );
-        marker.visible = !playerTextures[i];
+        marker.visible = !playerTextures[i] || !!playerTextures[i].userData?.bcmCutoutPending;
         scene.add(marker);
         playerMarkers.push(marker);
         if (playerTextures[i]) {
@@ -1216,7 +1333,8 @@
             depthWrite: false,
             sizeAttenuation: true
           }));
-          sprite.scale.set(1.65, 1.65, 1);
+          sprite.visible = !playerTextures[i].userData?.bcmCutoutPending;
+          sprite.scale.set(1.45, 2.05, 1);
           scene.add(sprite);
           playerSprites.push(sprite);
         } else {
@@ -1714,42 +1832,53 @@
       const z = Math.cos(a) * r;
 
       const marker = playerMarkers[index];
+      const sprite = playerSprites[index];
+      const texture = playerTextures[index];
+      const cutoutReady = !texture || texture.userData?.bcmCutoutPending !== true;
+
       if (marker) {
         marker.position.set(x, p.y + 0.35, z);
+        marker.visible = !sprite || !cutoutReady;
+      }
+      if (!sprite) return;
+      sprite.visible = cutoutReady;
+      if (!cutoutReady) return;
+
+      const delta = angleDelta(a, p.visualAngle ?? a);
+      const turnInput = (controls[index]?.right ? 1 : 0) - (controls[index]?.left ? 1 : 0);
+      const facingFactor = playerFacingFactors[index] ?? -1;
+      if (turnInput !== 0) {
+        p.visualFacing = (turnInput > 0 ? -1 : 1) * facingFactor;
+      } else if (Math.abs(delta) > 0.001) {
+        p.visualFacing = (delta > 0 ? -1 : 1) * facingFactor;
+      }
+      p.visualAngle = a;
+
+      const moving = Math.abs(p.vy) > 0.4 ||
+        Math.abs(delta) > 0.01 ||
+        turnInput !== 0 ||
+        (!p.grounded && Math.abs(p.vy) > 0.1);
+      const bob = moving && !p.finished ? Math.sin(performance.now() * 0.018 + index) * 0.035 : 0;
+
+      sprite.center.set(0.5, 0);
+      const map = sprite.material && sprite.material.map;
+      const face = p.visualFacing || 1;
+      if (map) {
+        map.wrapS = THREE.RepeatWrapping;
+        map.repeat.x = face < 0 ? -1 : 1;
+        map.offset.x = face < 0 ? 1 : 0;
       }
 
-      const sprite = playerSprites[index];
-      if (sprite) {
-        const delta = angleDelta(a, p.visualAngle ?? a);
-        const turnInput = (controls[index]?.right ? 1 : 0) - (controls[index]?.left ? 1 : 0);
-        const facingFactor = playerFacingFactors[index] ?? -1;
-        if (turnInput !== 0) {
-          // Reverse direction for most races, retaining the Mierese exception.
-          p.visualFacing = (turnInput > 0 ? -1 : 1) * facingFactor;
-        } else if (Math.abs(delta) > 0.001) {
-          // Keep mouse/touch and carried-lift rotation working as before.
-          p.visualFacing = (delta > 0 ? -1 : 1) * facingFactor;
-        }
-        p.visualAngle = a;
-
-        const moving = Math.abs(p.vy) > 0.4 ||
-          Math.abs(delta) > 0.01 ||
-          turnInput !== 0 ||
-          (!p.grounded && Math.abs(p.vy) > 0.1);
-        const bob = moving && !p.finished ? Math.sin(performance.now() * 0.018 + index) * 0.055 : 0;
-          sprite.center.set(0.5, 0);
-          const map = sprite.material && sprite.material.map;
-          const face = p.visualFacing || 1;
-          if (map) {
-            map.wrapS = THREE.RepeatWrapping;
-            map.repeat.x = face < 0 ? -1 : 1;
-            map.offset.x = face < 0 ? 1 : 0;
-          }
-          sprite.position.set(x, p.y + 0.52 + bob, z);
-          sprite.scale.set(1.45, 2.05, 1);
-      }
+      // p.y is maintained above the floor by the physics solver. Anchor the
+      // image at the platform rather than adding another positive vertical offset.
+      const spriteHeight = 2.05;
+      const imageWidth = Number(map?.image?.width || 1);
+      const imageHeight = Number(map?.image?.height || 1);
+      const aspect = imageWidth / Math.max(1, imageHeight);
+      const spriteWidth = clamp(spriteHeight * aspect, 0.82, 1.75);
+      sprite.position.set(x, p.y - 0.72 + bob, z);
+      sprite.scale.set(spriteWidth, spriteHeight, 1);
     }
-
     function updateCamera(index, viewport) {
       const p = players[index];
       const a = p.angle;
