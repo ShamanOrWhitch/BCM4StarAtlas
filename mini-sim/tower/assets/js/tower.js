@@ -142,21 +142,20 @@
               buckets.set(key, bag);
             };
 
-            // Crew art is centered. Estimate the background from the outer
-            // 15% border bands, keeping the central character out of the
-            // background-color samples as much as possible.
+            // Crew art is centered. Sample 15% side strips, only 4% at
+            // the top and 2% at the bottom, as requested for Crew card geometry.
             const bandX = Math.max(1, Math.round(w * 0.15));
-            const bandY = Math.max(1, Math.round(h * 0.15));
+            const bandTop = Math.max(1, Math.round(h * 0.04));
+            const bandBottom = Math.max(1, Math.round(h * 0.02));
             const sampleStep = Math.max(1, Math.floor(Math.min(w, h) / 80));
 
-            // Sample the whole outer band on a grid, not just a few points
-            // along the extreme edge. This captures mild gradients and
-            // repeated background tones while keeping work bounded at 320px.
+            // Sample the left/right strips and the narrow top/bottom bands.
+            // Keep the central character out of background-color sampling.
             for (let y = 0; y < h; y += sampleStep) {
               for (let x = 0; x < w; x += sampleStep) {
                 if (
                   x < bandX || x >= w - bandX ||
-                  y < bandY || y >= h - bandY
+                  y < bandTop || y >= h - bandBottom
                 ) {
                   take(x, y);
                 }
