@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.35";
+  const TOWER_VERSION = "0.2.36";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -96,19 +96,19 @@
   function crewCutoutCacheRequest(url) {
     if (!window.caches || !window.location || !window.location.origin) return null;
     let hash = 2166136261;
-    const input = String(url || "") + "|crew-modnet-v5";
+    const input = String(url || "") + "|crew-modnet-v6";
     for (let i = 0; i < input.length; i += 1) {
       hash ^= input.charCodeAt(i);
       hash = Math.imul(hash, 16777619);
     }
-    return new Request(window.location.origin + "/?bcm-crew-cutout=v5-" + (hash >>> 0).toString(36));
+    return new Request(window.location.origin + "/?bcm-crew-cutout=v6-" + (hash >>> 0).toString(36));
   }
 
   async function readCrewCutoutCache(url) {
     try {
       const request = crewCutoutCacheRequest(url);
       if (!request) return null;
-      const cache = await window.caches.open("bcm-tower-crew-cutouts-v5");
+      const cache = await window.caches.open("bcm-tower-crew-cutouts-v6");
       const response = await cache.match(request);
       return response && response.ok ? await response.blob() : null;
     } catch (error) {
@@ -122,7 +122,7 @@
       if (!request || !canvas.toBlob) return;
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) return;
-      const cache = await window.caches.open("bcm-tower-crew-cutouts-v5");
+      const cache = await window.caches.open("bcm-tower-crew-cutouts-v6");
       await cache.put(request, new Response(blob, { headers: { "Content-Type": "image/png" } }));
     } catch (error) {}
   }
@@ -166,7 +166,7 @@
     // Keep thin limbs and the full foot silhouette, especially near the lower edge.
     const padX = Math.max(4, Math.round(w * 0.035));
     const padTop = Math.max(4, Math.round(h * 0.035));
-    const padBottom = Math.max(8, Math.round(h * 0.075));
+    const padBottom = Math.max(3, Math.round(h * 0.015));
     minX = Math.max(0, minX - padX);
     minY = Math.max(0, minY - padTop);
     maxX = Math.min(w - 1, maxX + padX);
@@ -186,6 +186,10 @@
     const stack = [];
     const component = [];
     const minComponentPixels = Math.max(14, Math.floor(total * 0.00008));
+    // Clear near-transparent model noise while retaining the smooth semitransparent edge band.
+    for (let p = 0; p < total; p += 1) {
+      if (pixels[p * 4 + 3] < 24) pixels[p * 4 + 3] = 0;
+    }
 
     const visit = (start) => {
       stack.length = 0;
@@ -227,7 +231,7 @@
       visit(p);
       // Keep the largest island unconditionally. Drop only tiny disconnected
       // islands that are characteristic of residual background specks.
-      if (component.length >= minComponentPixels || component.includes(largest)) continue;
+      if (component.length >= minComponentPixels || component[0] === largest) continue;
       for (const q of component) pixels[q * 4 + 3] = 0;
     }
   }
@@ -477,13 +481,13 @@
     const b = colorHex & 255;
     const rgb = "rgba(" + r + "," + g + "," + b + ",";
     const fill = ctx.createRadialGradient(64, 96, 8, 64, 96, 88);
-    fill.addColorStop(0, "rgba(10,24,35,0.62)");
-    fill.addColorStop(0.52, "rgba(10,32,45,0.32)");
-    fill.addColorStop(0.84, "rgba(8,20,31,0.12)");
+    fill.addColorStop(0, "rgba(10,24,35,0.82)");
+    fill.addColorStop(0.52, "rgba(10,32,45,0.58)");
+    fill.addColorStop(0.84, "rgba(8,20,31,0.22)");
     fill.addColorStop(1, "rgba(4,12,20,0)");
     ctx.fillStyle = fill;
     ctx.beginPath();
-    ctx.ellipse(64, 96, 49, 86, 0, 0, Math.PI * 2);
+    ctx.ellipse(64, 96, 58, 92, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.save();
@@ -492,13 +496,13 @@
     ctx.strokeStyle = rgb + "0.88)";
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.ellipse(64, 96, 45, 82, 0, 0, Math.PI * 2);
+    ctx.ellipse(64, 96, 55, 88, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.shadowBlur = 0;
     ctx.strokeStyle = rgb + "0.32)";
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.ellipse(64, 96, 39, 75, 0, 0, Math.PI * 2);
+    ctx.ellipse(64, 96, 48, 81, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
 
@@ -1409,7 +1413,7 @@
           sizeAttenuation: true
         }));
         halo.center.set(0.5, 0);
-        halo.scale.set(1.9, 2.55, 1);
+        halo.scale.set(2.3, 2.75, 1);
         halo.renderOrder = 2;
         halo.visible = !!playerTextures[i];
         scene.add(halo);
@@ -1938,7 +1942,7 @@
       const sprite = playerSprites[index];
       const texture = playerTextures[index];
       const cutoutReady = !texture || texture.userData?.bcmCutoutPending !== true;
-      const feetOffset = p.currentCell?.surface === "rock" ? -0.22 : 0.49;
+      const feetOffset = p.currentCell?.surface === "rock" ? 0 : 0.49;
 
       if (marker) {
         marker.position.set(x, p.y + 0.35, z);
@@ -1946,8 +1950,8 @@
       }
       if (halo) {
         const haloRadius = Math.max(0.1, r - 0.045);
-        halo.position.set(Math.sin(a) * haloRadius, p.y - feetOffset, Math.cos(a) * haloRadius);
-        halo.scale.set(1.9, 2.55, 1);
+        halo.position.set(Math.sin(a) * haloRadius, p.y - feetOffset - 0.11, Math.cos(a) * haloRadius);
+        halo.scale.set(2.3, 2.75, 1);
         halo.visible = !!sprite;
       }
       if (!sprite) return;
@@ -1971,7 +1975,7 @@
       const bob = moving && !p.finished ? Math.sin(performance.now() * 0.018 + index) * 0.035 : 0;
       if (halo) {
         const haloRadius = Math.max(0.1, r - 0.045);
-        halo.position.set(Math.sin(a) * haloRadius, p.y - feetOffset + bob, Math.cos(a) * haloRadius);
+        halo.position.set(Math.sin(a) * haloRadius, p.y - feetOffset - 0.11 + bob, Math.cos(a) * haloRadius);
       }
 
       sprite.center.set(0.5, 0);
