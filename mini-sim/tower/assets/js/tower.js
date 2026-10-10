@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.27";
+  const TOWER_VERSION = "0.2.28";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -174,6 +174,19 @@
             const limit = 48 * 48;
             const seen = new Uint8Array(w * h);
             const stack = [];
+
+            // Protect the centered Crew figure's core (about 35% of the card area).
+            // Background hues can also occur on armor/skin, so RGB cutout must
+            // never clear pixels inside this region.
+            const coreCx = (w - 1) * 0.5;
+            const coreCy = (h - 1) * 0.52;
+            const coreRx = w * 0.30;
+            const coreRy = h * 0.37;
+            const insideCrewCore = (x, y) => {
+              const dx = (x - coreCx) / Math.max(1, coreRx);
+              const dy = (y - coreCy) / Math.max(1, coreRy);
+              return dx * dx + dy * dy <= 1;
+            };
             const near = (i) => {
               const r = pixels[i];
               const g = pixels[i + 1];
@@ -193,7 +206,9 @@
               const i = p * 4;
               if (!near(i)) return;
               seen[p] = 1;
-              pixels[i + 3] = 0;
+              // Flood-fill may pass across the protected core, but its pixels
+              // retain their source alpha so shared colors cannot erase the figure.
+              if (!insideCrewCore(x, y)) pixels[i + 3] = 0;
               stack.push(x, y);
             };
             for (let x = 0; x < w; x += 1) {
@@ -505,6 +520,36 @@
       inlineConfig = JSON.parse(inline?.textContent || "{}");
     } catch (e) {}
 
+    function towerCrewDisplayName(crew) {
+      const row = crew && typeof crew === "object" ? crew : {};
+      const raw = row.raw && typeof row.raw === "object" ? row.raw : {};
+      const validName = (candidate) => {
+        const name = String(candidate || "").trim();
+        if (!name || /^crew(?:[\s_-]*(?:#|no\.?)?[\s_-]*\d+)?(?:\s|$)/i.test(name)) return "";
+        return name;
+      };
+      const attributes = [
+        row.traits, row.attributes, raw.traits, raw.attributes,
+        row.metadata?.attributes, row.content?.metadata?.attributes,
+        raw.metadata?.attributes, raw.content?.metadata?.attributes
+      ].filter(Array.isArray).flat();
+      const nameTrait = attributes.find((item) => {
+        const key = String(item?.trait || item?.trait_type || item?.traitType || item?.key || "").trim().toLowerCase();
+        return ["name", "crew name", "display name"].includes(key);
+      });
+      const namedValue = nameTrait?.value ?? nameTrait?.Value ?? nameTrait?.val ?? "";
+      const direct = [
+        row.displayName, row.crewName, row.personName, row.name,
+        raw.displayName, raw.crewName, raw.name, namedValue
+      ].map(validName).find(Boolean);
+      if (direct) return direct;
+      const given = String(row.given || row.givenName || raw.given || "").trim();
+      const family = String(row.family || row.familyName || raw.family || "").trim();
+      const ustur = String(row.ustur || raw.ustur || "").trim();
+      return validName(ustur ? [given, ustur].filter(Boolean).join(" ") : [given, family].filter(Boolean).join(" "))
+        || "Без имени";
+    }
+
     function syncCrewSelectionFromMiniSim() {
       const selected = window.BCMMiniCrewSelection?.players;
       if (!Array.isArray(selected) || selected.length < 2) return false;
@@ -512,7 +557,7 @@
       crewRoster = selected.slice(0, 2).map((crew, index) => ({
         id: String(crew.id || crew.mint || ("crew-" + index)),
         mint: String(crew.mint || ""),
-        name: String(crew.name || ("Crew " + (index + 1))),
+        name: towerCrewDisplayName(crew),
         image: String(crew.image || ""),
         source: crew.source || "mini-sim",
         traits: Array.isArray(crew.traits) ? crew.traits : [],
