@@ -110,7 +110,7 @@
       const name = String(candidate || "").trim();
       if (!name) return "";
       // Generic NFT labels may carry extra mint/serial text after "Crew".
-       if (/^crew$/i.test(name) || /^crew(?:[\s_:#-]*(?:#|no\.?|number)?[\s_-]*\d+)(?:\b|[\s_:#-]|$)/i.test(name)) return "";
+      if (/^crew(?:[\s_-]*(?:#|no\.?)?[\s_-]*\d+)?(?:\s|$)/i.test(name)) return "";
       return name;
     };
 
@@ -129,10 +129,7 @@
     const traitName = nameTrait?.value ?? nameTrait?.Value ?? nameTrait?.val ?? "";
     const direct = [
       row.displayName, row.crewName, row.personName,
-      row.metadata?.displayName, row.metadata?.name, row.content?.metadata?.name,
-      raw.displayName, raw.crewName, raw.personName,
-      raw.metadata?.displayName, raw.metadata?.name, raw.content?.metadata?.name,
-      raw.content?.metadata?.properties?.name,
+      raw.displayName, raw.crewName,
       traitName, row.name, raw.name
     ].map(validName).find(Boolean);
     if (direct) return direct;
