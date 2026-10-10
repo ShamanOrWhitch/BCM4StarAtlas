@@ -132,6 +132,7 @@
             const buckets = new Map();
             const take = (x, y) => {
               const i = (y * w + x) * 4;
+              if (pixels[i + 3] === 0) return;
               const key = ((pixels[i] >> 4) << 8) | ((pixels[i + 1] >> 4) << 4) | (pixels[i + 2] >> 4);
               const bag = buckets.get(key) || { n: 0, r: 0, g: 0, b: 0 };
               bag.n += 1;
@@ -140,25 +141,54 @@
               bag.b += pixels[i + 2];
               buckets.set(key, bag);
             };
-            const stepX = Math.max(1, Math.floor(w / 28));
-            const stepY = Math.max(1, Math.floor(h / 28));
-            for (let x = 0; x < w; x += stepX) {
-              take(x, 0);
-              take(x, h - 1);
-              if (h > 8) {
-                take(x, Math.min(h - 1, 3));
-                take(x, Math.max(0, h - 4));
+
+            // Crew art is centered. Sample 15% side strips, only 4% at
+            // the top and 2% at the bottom, as requested for Crew card geometry.
+            const bandX = Math.max(1, Math.round(w * 0.15));
+            const bandTop = Math.max(1, Math.round(h * 0.04));
+            const bandBottom = Math.max(1, Math.round(h * 0.02));
+            const sampleStep = Math.max(1, Math.floor(Math.min(w, h) / 80));
+
+            // Sample the left/right strips and the narrow top/bottom bands.
+            // Keep the central character out of background-color sampling.
+            for (let y = 0; y < h; y += sampleStep) {
+              for (let x = 0; x < w; x += sampleStep) {
+                if (
+                  x < bandX || x >= w - bandX ||
+                  y < bandTop || y >= h - bandBottom
+                ) {
+                  take(x, y);
+                }
               }
             }
-            for (let y = 0; y < h; y += stepY) {
+
+            // Always include the exact outer edge as flood-fill starting
+            // points, including pixels omitted by the sampling grid.
+            for (let x = 0; x < w; x += 1) {
+              take(x, 0);
+              take(x, h - 1);
+            }
+            for (let y = 0; y < h; y += 1) {
               take(0, y);
               take(w - 1, y);
             }
-            const seeds = [...buckets.values()]
-              .sort((a, b) => b.n - a.n)
-              .slice(0, 4)
-              .map((bag) => [bag.r / bag.n, bag.g / bag.n, bag.b / bag.n]);
-            const limit = 82 * 82;
+
+            const candidates = [...buckets.values()].sort((a, b) => b.n - a.n);
+            const seeds = [];
+            for (const bag of candidates) {
+              const color = [bag.r / bag.n, bag.g / bag.n, bag.b / bag.n];
+              // Avoid spending every seed on almost-identical neighboring
+              // histogram bins; keep a compact set of distinct background tones.
+              const distinct = seeds.every((seed) => {
+                const dr = color[0] - seed[0];
+                const dg = color[1] - seed[1];
+                const db = color[2] - seed[2];
+                return dr * dr + dg * dg + db * db >= 22 * 22;
+              });
+              if (distinct) seeds.push(color);
+              if (seeds.length >= 8) break;
+            }
+            const limit = 68 * 68;
             const seen = new Uint8Array(w * h);
             const stack = [];
             const near = (i) => {
@@ -199,6 +229,11 @@
               push(x, y + 1);
               push(x, y - 1);
             }
+
+            // Commit the alpha mask before cropping. Without this write,
+            // getImageData() below reads the untouched opaque source canvas,
+            // so the crop silently discards the background-removal result.
+            ctx.putImageData(frame, 0, 0);
 
             let minX = w;
             let minY = h;
