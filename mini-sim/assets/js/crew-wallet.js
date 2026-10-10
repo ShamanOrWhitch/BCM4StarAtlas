@@ -145,9 +145,10 @@
       if (!name || /^crew(?:[\s_-]*#?[\s_-]*\d+)?$/i.test(name)) return "";
       return name;
     };
-    const galaxyName = usableName(
-      galaxyRow?.displayName || galaxyRow?.crewName || galaxyRow?.name
-    );
+    const galaxyName =
+      usableName(galaxyRow?.displayName) ||
+      usableName(galaxyRow?.crewName) ||
+      usableName(galaxyRow?.name);
     const metadataName = usableName(named);
     const nftName = usableName(assetName);
     const name = galaxyName || metadataName || nftName || "Без имени";
