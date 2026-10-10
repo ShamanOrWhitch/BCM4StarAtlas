@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.30";
+  const TOWER_VERSION = "0.2.31";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -88,228 +88,6 @@
   }
 
 
-  // Lazy AI foreground segmentation for Crew NFT portraits. It is initialized
-  // only when a Crew image is processed, then reused for the second player.
-  // If the model/CDN is unavailable or fails on stylized art, use a conservative
-  // edge flood-fill with the original protected central oval.
-  const CREW_SEGMENTATION_CDN = "https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747";
-  let crewSegmenterPromise = null;
-  let crewSegmentationQueue = Promise.resolve();
-
-  function ensureCrewSegmenter() {
-    if (crewSegmenterPromise) return crewSegmenterPromise;
-    crewSegmenterPromise = new Promise((resolve, reject) => {
-      const initialize = async () => {
-        try {
-          if (typeof window.SelfieSegmentation !== "function") {
-            throw new Error("MediaPipe SelfieSegmentation did not load");
-          }
-          const instance = new window.SelfieSegmentation({
-            locateFile: (file) => CREW_SEGMENTATION_CDN + "/" + file
-          });
-          await instance.setOptions({ modelSelection: 0 });
-          resolve(instance);
-        } catch (error) {
-          reject(error);
-        }
-      };
-
-      if (typeof window.SelfieSegmentation === "function") {
-        initialize();
-        return;
-      }
-      const script = document.createElement("script");
-      script.src = CREW_SEGMENTATION_CDN + "/selfie_segmentation.js";
-      script.crossOrigin = "anonymous";
-      script.onload = initialize;
-      script.onerror = () => reject(new Error("Crew segmentation model failed to load"));
-      document.head.appendChild(script);
-    });
-    return crewSegmenterPromise;
-  }
-
-  function segmentCrewCanvas(sourceCanvas) {
-    const run = async () => {
-      let segmenter;
-      try {
-        segmenter = await ensureCrewSegmenter();
-      } catch (_) {
-        return null;
-      }
-
-      return new Promise((resolve) => {
-        let settled = false;
-        let timer = null;
-        const finish = (value) => {
-          if (settled) return;
-          settled = true;
-          if (timer) clearTimeout(timer);
-          resolve(value);
-        };
-        timer = setTimeout(() => finish(null), 5000);
-
-        segmenter.onResults((results) => {
-          try {
-            if (!results || !results.segmentationMask) {
-              finish(null);
-              return;
-            }
-            const w = sourceCanvas.width;
-            const h = sourceCanvas.height;
-            const maskCanvas = document.createElement("canvas");
-            maskCanvas.width = w;
-            maskCanvas.height = h;
-            const maskContext = maskCanvas.getContext("2d", { willReadFrequently: true });
-            if (!maskContext) {
-              finish(null);
-              return;
-            }
-            maskContext.drawImage(results.segmentationMask, 0, 0, w, h);
-            const source = maskContext.getImageData(0, 0, w, h).data;
-            const mask = new Uint8ClampedArray(w * h);
-            let foreground = 0;
-            let coreForeground = 0;
-            let corePixels = 0;
-            const cx = (w - 1) * 0.5;
-            const cy = (h - 1) * 0.52;
-            const rx = Math.max(1, w * 0.30);
-            const ry = Math.max(1, h * 0.37);
-            for (let y = 0; y < h; y += 1) {
-              for (let x = 0; x < w; x += 1) {
-                const p = y * w + x;
-                mask[p] = source[p * 4];
-                if (mask[p] > 96) foreground += 1;
-                const dx = (x - cx) / rx;
-                const dy = (y - cy) / ry;
-                if (dx * dx + dy * dy <= 1) {
-                  corePixels += 1;
-                  if (mask[p] > 96) coreForeground += 1;
-                }
-              }
-            }
-            const ratio = foreground / Math.max(1, mask.length);
-            const coreRatio = coreForeground / Math.max(1, corePixels);
-            // Reject empty/full-card masks and models that fail to find the centered Crew.
-            if (ratio < 0.05 || ratio > 0.92 || coreRatio < 0.18) {
-              finish(null);
-              return;
-            }
-            finish({ data: mask, width: w, height: h });
-          } catch (_) {
-            finish(null);
-          }
-        });
-
-        try {
-          Promise.resolve(segmenter.send({ image: sourceCanvas })).catch(() => finish(null));
-        } catch (_) {
-          finish(null);
-        }
-      });
-    };
-
-    const task = crewSegmentationQueue.then(run, run);
-    crewSegmentationQueue = task.then(() => undefined, () => undefined);
-    return task;
-  }
-
-  function applyConservativeCrewCutout(frame, w, h) {
-    const pixels = frame.data;
-    const buckets = new Map();
-    const take = (x, y) => {
-      const i = (y * w + x) * 4;
-      if (pixels[i + 3] === 0) return;
-      const key = ((pixels[i] >> 4) << 8) | ((pixels[i + 1] >> 4) << 4) | (pixels[i + 2] >> 4);
-      const bag = buckets.get(key) || { n: 0, r: 0, g: 0, b: 0 };
-      bag.n += 1;
-      bag.r += pixels[i];
-      bag.g += pixels[i + 1];
-      bag.b += pixels[i + 2];
-      buckets.set(key, bag);
-    };
-
-    // Sample only the outer 1px edge; never use wide bands as a color palette.
-    for (let x = 0; x < w; x += 1) {
-      take(x, 0);
-      take(x, h - 1);
-    }
-    for (let y = 0; y < h; y += 1) {
-      take(0, y);
-      take(w - 1, y);
-    }
-
-    const seeds = [];
-    const candidates = [...buckets.values()].sort((a, b) => b.n - a.n);
-    for (const bag of candidates) {
-      const color = [bag.r / bag.n, bag.g / bag.n, bag.b / bag.n];
-      const distinct = seeds.every((seed) => {
-        const dr = color[0] - seed[0];
-        const dg = color[1] - seed[1];
-        const db = color[2] - seed[2];
-        return dr * dr + dg * dg + db * db >= 28 * 28;
-      });
-      if (distinct) seeds.push(color);
-      if (seeds.length >= 4) break;
-    }
-
-    const seen = new Uint8Array(w * h);
-    const stack = [];
-    const coreCx = (w - 1) * 0.5;
-    const coreCy = (h - 1) * 0.52;
-    const coreRx = w * 0.30;
-    const coreRy = h * 0.37;
-    const insideCrewCore = (x, y) => {
-      const dx = (x - coreCx) / Math.max(1, coreRx);
-      const dy = (y - coreCy) / Math.max(1, coreRy);
-      return dx * dx + dy * dy <= 1;
-    };
-    const near = (i) => {
-      for (let s = 0; s < seeds.length; s += 1) {
-        const dr = pixels[i] - seeds[s][0];
-        const dg = pixels[i + 1] - seeds[s][1];
-        const db = pixels[i + 2] - seeds[s][2];
-        if (dr * dr + dg * dg + db * db <= 48 * 48) return true;
-      }
-      return false;
-    };
-    const push = (x, y) => {
-      if (x < 0 || y < 0 || x >= w || y >= h) return;
-      const p = y * w + x;
-      if (seen[p]) return;
-      const i = p * 4;
-      if (!near(i)) return;
-      seen[p] = 1;
-      if (!insideCrewCore(x, y)) pixels[i + 3] = 0;
-      stack.push(x, y);
-    };
-    for (let x = 0; x < w; x += 1) {
-      push(x, 0);
-      push(x, h - 1);
-    }
-    for (let y = 0; y < h; y += 1) {
-      push(0, y);
-      push(w - 1, y);
-    }
-    while (stack.length) {
-      const y = stack.pop();
-      const x = stack.pop();
-      push(x + 1, y);
-      push(x - 1, y);
-      push(x, y + 1);
-      push(x, y - 1);
-    }
-  }
-
-  function applyCrewSegmentation(frame, mask) {
-    const pixels = frame.data;
-    for (let p = 0; p < mask.data.length; p += 1) {
-      const value = mask.data[p] / 255;
-      const t = Math.max(0, Math.min(1, (value - 0.12) / 0.64));
-      const alpha = t * t * (3 - 2 * t);
-      pixels[p * 4 + 3] = Math.round(pixels[p * 4 + 3] * alpha);
-    }
-  }
-
   function assetTexture(url, renderer, options = {}) {
     if (!url || !window.THREE) return null;
     options = options && typeof options === "object" ? options : {};
@@ -333,7 +111,7 @@
       const image = new Image();
       image.crossOrigin = "anonymous";
       image.decoding = "async";
-      image.onload = async () => {
+      image.onload = () => {
         try {
           const srcW = image.naturalWidth || image.width || 1;
           const srcH = image.naturalHeight || image.height || 1;
@@ -352,49 +130,124 @@
           if (options.cutout) {
             const w = canvas.width;
             const h = canvas.height;
-            let hasExistingAlpha = false;
-            let translucent = 0;
-            for (let p = 0; p < w * h; p += 1) {
-              if (pixels[p * 4 + 3] < 245) translucent += 1;
-            }
-            hasExistingAlpha = translucent > w * h * 0.01;
+            const buckets = new Map();
+            const take = (x, y) => {
+              const i = (y * w + x) * 4;
+              if (pixels[i + 3] === 0) return;
+              const key = ((pixels[i] >> 4) << 8) | ((pixels[i + 1] >> 4) << 4) | (pixels[i + 2] >> 4);
+              const bag = buckets.get(key) || { n: 0, r: 0, g: 0, b: 0 };
+              bag.n += 1;
+              bag.r += pixels[i];
+              bag.g += pixels[i + 1];
+              bag.b += pixels[i + 2];
+              buckets.set(key, bag);
+            };
 
-            let aiMask = null;
-            if (!hasExistingAlpha) {
-              try {
-                aiMask = await segmentCrewCanvas(canvas);
-              } catch (_) {
-                aiMask = null;
+            // Build background seeds ONLY from the actual outer border.
+            // Sampling 15% side bands can include armor, hair or equipment and
+            // would cause those character colours to be treated as background.
+            for (let x = 0; x < w; x += 1) {
+              take(x, 0);
+              take(x, h - 1);
+            }
+            for (let y = 0; y < h; y += 1) {
+              take(0, y);
+              take(w - 1, y);
+            }
+
+            const candidates = [...buckets.values()].sort((a, b) => b.n - a.n);
+            const seeds = [];
+            for (const bag of candidates) {
+              const color = [bag.r / bag.n, bag.g / bag.n, bag.b / bag.n];
+              // Keep a few clearly distinct border colours, not a palette of
+              // interior colours that may also belong to the Crew silhouette.
+              const distinct = seeds.every((seed) => {
+                const dr = color[0] - seed[0];
+                const dg = color[1] - seed[1];
+                const db = color[2] - seed[2];
+                return dr * dr + dg * dg + db * db >= 28 * 28;
+              });
+              if (distinct) seeds.push(color);
+              if (seeds.length >= 4) break;
+            }
+            // Smaller colour radius reduces spill from the backdrop into
+            // connected character edges that share similar hues.
+            const limit = 48 * 48;
+            const seen = new Uint8Array(w * h);
+            const stack = [];
+
+            // Protect the centered Crew figure's core (about 35% of the card area).
+            // Background hues can also occur on armor/skin, so RGB cutout must
+            // never clear pixels inside this region.
+            const coreCx = (w - 1) * 0.5;
+            const coreCy = (h - 1) * 0.52;
+            const coreRx = w * 0.30;
+            const coreRy = h * 0.37;
+            const insideCrewCore = (x, y) => {
+              const dx = (x - coreCx) / Math.max(1, coreRx);
+              const dy = (y - coreCy) / Math.max(1, coreRy);
+              return dx * dx + dy * dy <= 1;
+            };
+            const near = (i) => {
+              const r = pixels[i];
+              const g = pixels[i + 1];
+              const b = pixels[i + 2];
+              for (let s = 0; s < seeds.length; s += 1) {
+                const dr = r - seeds[s][0];
+                const dg = g - seeds[s][1];
+                const db = b - seeds[s][2];
+                if (dr * dr + dg * dg + db * db <= limit) return true;
               }
+              return false;
+            };
+            const push = (x, y) => {
+              if (x < 0 || y < 0 || x >= w || y >= h) return;
+              const p = y * w + x;
+              if (seen[p]) return;
+              const i = p * 4;
+              if (!near(i)) return;
+              seen[p] = 1;
+              // Flood-fill may pass across the protected core, but its pixels
+              // retain their source alpha so shared colors cannot erase the figure.
+              if (!insideCrewCore(x, y)) pixels[i + 3] = 0;
+              stack.push(x, y);
+            };
+            for (let x = 0; x < w; x += 1) {
+              push(x, 0);
+              push(x, h - 1);
+            }
+            for (let y = 0; y < h; y += 1) {
+              push(0, y);
+              push(w - 1, y);
+            }
+            while (stack.length) {
+              const y = stack.pop();
+              const x = stack.pop();
+              push(x + 1, y);
+              push(x - 1, y);
+              push(x, y + 1);
+              push(x, y - 1);
             }
 
-            if (!hasExistingAlpha && aiMask && aiMask.data && aiMask.data.length === w * h) {
-              applyCrewSegmentation(frame, aiMask);
-            } else if (!hasExistingAlpha) {
-              applyConservativeCrewCutout(frame, w, h);
-            }
-
-            // Commit the alpha mask before cropping transparent edges.
+            // Commit the alpha mask before cropping. Without this write,
+            // getImageData() below reads the untouched opaque source canvas,
+            // so the crop silently discards the background-removal result.
             ctx.putImageData(frame, 0, 0);
+
             let minX = w;
             let minY = h;
-            let maxX = -1;
-            let maxY = -1;
+            let maxX = 0;
+            let maxY = 0;
             for (let y = 0; y < h; y += 1) {
               for (let x = 0; x < w; x += 1) {
-                if (frame.data[(y * w + x) * 4 + 3] < 24) continue;
+                if (pixels[(y * w + x) * 4 + 3] < 24) continue;
                 if (x < minX) minX = x;
                 if (y < minY) minY = y;
                 if (x > maxX) maxX = x;
                 if (y > maxY) maxY = y;
               }
             }
-            if (maxX >= minX && maxY >= minY) {
-              const pad = 2;
-              minX = Math.max(0, minX - pad);
-              minY = Math.max(0, minY - pad);
-              maxX = Math.min(w - 1, maxX + pad);
-              maxY = Math.min(h - 1, maxY + pad);
+            if (maxX > minX && maxY > minY) {
               const crop = ctx.getImageData(minX, minY, maxX - minX + 1, maxY - minY + 1);
               canvas.width = crop.width;
               canvas.height = crop.height;
@@ -674,7 +527,7 @@
       const raw = row.raw && typeof row.raw === "object" ? row.raw : {};
       const validName = (candidate) => {
         const name = String(candidate || "").trim();
-        if (!name || /^crew$/i.test(name) || /^crew(?:[\s_:#-]*(?:#|no\.?|number)?[\s_-]*\d+)(?:\b|[\s_:#-]|$)/i.test(name)) return "";
+        if (!name || /^crew(?:[\s_-]*(?:#|no\.?)?[\s_-]*\d+)?(?:\s|$)/i.test(name)) return "";
         return name;
       };
       const attributes = [
