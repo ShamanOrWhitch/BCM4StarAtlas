@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.26";
+  const TOWER_VERSION = "0.2.27";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -142,28 +142,9 @@
               buckets.set(key, bag);
             };
 
-            // Crew art is centered. Sample 15% side strips, only 4% at
-            // the top and 2% at the bottom, as requested for Crew card geometry.
-            const bandX = Math.max(1, Math.round(w * 0.15));
-            const bandTop = Math.max(1, Math.round(h * 0.04));
-            const bandBottom = Math.max(1, Math.round(h * 0.02));
-            const sampleStep = Math.max(1, Math.floor(Math.min(w, h) / 80));
-
-            // Sample the left/right strips and the narrow top/bottom bands.
-            // Keep the central character out of background-color sampling.
-            for (let y = 0; y < h; y += sampleStep) {
-              for (let x = 0; x < w; x += sampleStep) {
-                if (
-                  x < bandX || x >= w - bandX ||
-                  y < bandTop || y >= h - bandBottom
-                ) {
-                  take(x, y);
-                }
-              }
-            }
-
-            // Always include the exact outer edge as flood-fill starting
-            // points, including pixels omitted by the sampling grid.
+            // Build background seeds ONLY from the actual outer border.
+            // Sampling 15% side bands can include armor, hair or equipment and
+            // would cause those character colours to be treated as background.
             for (let x = 0; x < w; x += 1) {
               take(x, 0);
               take(x, h - 1);
@@ -177,18 +158,20 @@
             const seeds = [];
             for (const bag of candidates) {
               const color = [bag.r / bag.n, bag.g / bag.n, bag.b / bag.n];
-              // Avoid spending every seed on almost-identical neighboring
-              // histogram bins; keep a compact set of distinct background tones.
+              // Keep a few clearly distinct border colours, not a palette of
+              // interior colours that may also belong to the Crew silhouette.
               const distinct = seeds.every((seed) => {
                 const dr = color[0] - seed[0];
                 const dg = color[1] - seed[1];
                 const db = color[2] - seed[2];
-                return dr * dr + dg * dg + db * db >= 22 * 22;
+                return dr * dr + dg * dg + db * db >= 28 * 28;
               });
               if (distinct) seeds.push(color);
-              if (seeds.length >= 8) break;
+              if (seeds.length >= 4) break;
             }
-            const limit = 68 * 68;
+            // Smaller colour radius reduces spill from the backdrop into
+            // connected character edges that share similar hues.
+            const limit = 48 * 48;
             const seen = new Uint8Array(w * h);
             const stack = [];
             const near = (i) => {
