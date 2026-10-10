@@ -109,23 +109,28 @@
     const validName = (candidate) => {
       const name = String(candidate || "").trim();
       if (!name) return "";
-      // Reject generated placeholders so they cannot mask an actual Name trait.
-      if (/^crew(?:[\s_-]*#?[\s_-]*\d+)?$/i.test(name)) return "";
+      // Generic NFT labels may carry extra mint/serial text after "Crew".
+      if (/^crew(?:[\s_-]*(?:#|no\.?)?[\s_-]*\d+)?(?:\s|$)/i.test(name)) return "";
       return name;
     };
 
-    const traits = [
-      ...(Array.isArray(row.traits) ? row.traits : []),
-      ...(Array.isArray(raw.attributes) ? raw.attributes : [])
+    const traitSources = [
+      row.traits, row.attributes, raw.traits, raw.attributes,
+      row.metadata?.attributes, row.content?.metadata?.attributes,
+      raw.metadata?.attributes, raw.content?.metadata?.attributes,
+      row.metadata?.properties?.attributes, raw.metadata?.properties?.attributes,
+      raw.content?.metadata?.properties?.attributes
     ];
+    const traits = traitSources.filter(Array.isArray).flat().filter((item) => item && typeof item === "object");
     const nameTrait = traits.find((item) => {
-      const key = String(item?.trait || item?.trait_type || "").trim().toLowerCase();
-      return key === "name" && item?.value != null && typeof item.value !== "object";
+      const key = String(item.trait || item.trait_type || item.traitType || item.key || "").trim().toLowerCase();
+      return ["name", "crew name", "display name"].includes(key);
     });
+    const traitName = nameTrait?.value ?? nameTrait?.Value ?? nameTrait?.val ?? "";
     const direct = [
-      row.name, row.crewName, row.displayName, row.personName,
-      raw.name, raw.crewName,
-      nameTrait?.value
+      row.displayName, row.crewName, row.personName,
+      raw.displayName, raw.crewName,
+      traitName, row.name, raw.name
     ].map(validName).find(Boolean);
     if (direct) return direct;
 
@@ -135,7 +140,7 @@
     const person = ustur
       ? [given, ustur].filter(Boolean).join(" ")
       : [given, family].filter(Boolean).join(" ");
-    return person || "Без имени";
+    return validName(person) || "Без имени";
   }
 
   function crewPortraitFallback(value) {
@@ -2060,7 +2065,7 @@
     scene.add(world);
     updateRoom0Labyrinth();
     if (status) {
-      status.textContent = "SPACE LABYRINTH · SEED " + labyrinthSeed + " · ROOM 0";
+      status.textContent = "LABYRINTH · SCREENS → LAND ON ONICSS · " + labyrinthSeed;
     }
   }
 
@@ -3222,16 +3227,16 @@
 
   function focusVideoTarget(target) {
     if (!target || !target.mesh || !target.active) {
-      setStatus("CINEMA · APPROACH A SCREEN");
+      setStatus("MISSION · CHECK SCREENS → LAND ON ONICSS");
       return;
     }
     if (cinema.focus === target) {
       cinema.focus = null;
-      setStatus("CINEMA FOCUS OFF");
+      setStatus("MISSION · SCREENS → LAND ON ONICSS");
       return;
     }
     cinema.focus = target;
-    setStatus("MISSION · SCREEN CHECK · F / X TO RELEASE");
+    setStatus("MISSION · SCREENS → LAND ON ONICSS · F / X RELEASE");
   }
 
   function toggleCinemaFocus() {
