@@ -146,9 +146,12 @@
   function crewRecord(mint, amount, assetName, image, traits, galaxyRow) {
     const named = trait(traits, "name");
     const usableName = (value) => {
-      const name = String(value || "").trim();
-      if (!name || /^crew(?:[\s_:#-]*(?:(?:#|no\.?|number)?[\s_:#-]*\d+))?$/i.test(name)) return "";
-      return name;
+      const original = String(value || "").trim();
+      if (!original) return "";
+      const stripped = original.replace(/^crew(?:[\s_:#-]*(?:(?:#|no\.?|number)?[\s_:#-]*\d+))\s*(?:[-:|–—·]\s*)?/i, "").trim();
+      if (stripped) return stripped;
+      if (/^crew(?:[\s_:#-]*(?:(?:#|no\.?|number)?[\s_:#-]*\d+))?$/i.test(original)) return "";
+      return original;
     };
     const galaxyGiven = String(galaxyRow?.given || galaxyRow?.givenName || galaxyRow?.firstName || "").trim();
     const galaxyFamily = String(galaxyRow?.family || galaxyRow?.familyName || galaxyRow?.lastName || "").trim();
