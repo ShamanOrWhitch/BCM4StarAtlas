@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.56
+ * Version: 0.9.57
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.56');
+define('BCM_MINI_SIM_VERSION', '0.9.57');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -386,6 +386,14 @@ function bcm_mini_sim_ocean($value) {
     return $n <= 1 ? (int) round($n * 100) : (int) round($n);
 }
 
+function bcm_mini_sim_usable_crew_name($value) {
+    $name = trim((string) $value);
+    if ($name === '' || preg_match('/^crew(?:[\s_-]*(?:#|no\.?)?[\s_-]*\d+)?(?:\s|$)/i', $name)) {
+        return '';
+    }
+    return $name;
+}
+
 function bcm_mini_sim_galaxy_crew_by_das() {
     $rows = bcm_mini_sim_remote_json('https://galaxy.staratlas.com/crew', 'GET', null, 20);
     $index = array();
@@ -447,9 +455,14 @@ function bcm_mini_sim_das_wallet_scan($owner) {
             $is_crew = $card || preg_match('/crew|openness|species/', $blob);
 
             if ($is_crew) {
-                $given = $card && !empty($card['name']) ? (string) $card['name'] : (string) (bcm_mini_sim_case_trait($map, 'name') ?? '');
-                if ($given !== '' && stripos($given, 'crew') === 0) {
-                    $given = '';
+                $card_name = $card && !empty($card['name']) ? (string) $card['name'] : '';
+                $trait_name = (string) (bcm_mini_sim_case_trait($map, 'name') ?? '');
+                $given = bcm_mini_sim_usable_crew_name($card_name);
+                if ($given === '') {
+                    $given = bcm_mini_sim_usable_crew_name($trait_name);
+                }
+                if ($given === '') {
+                    $given = bcm_mini_sim_usable_crew_name($chain_name);
                 }
                 $aptitudes = array();
                 if ($card && !empty($card['aptitudes']) && is_array($card['aptitudes'])) {
@@ -466,7 +479,7 @@ function bcm_mini_sim_das_wallet_scan($owner) {
                 $crew[] = array(
                     'id' => $mint,
                     'mint' => $mint,
-                    'name' => $given !== '' ? $given : $chain_name,
+                    'name' => $given !== '' ? $given : 'Без имени',
                     'image' => $card && !empty($card['imageUrl']) ? (string) $card['imageUrl'] : $image,
                     'species' => $card && !empty($card['species']) ? (string) $card['species'] : (string) (bcm_mini_sim_case_trait($map, 'species') ?? ''),
                     'rarity' => $card && !empty($card['rarity']) ? (string) $card['rarity'] : (string) (bcm_mini_sim_case_trait($map, 'rarity') ?? ''),
@@ -607,9 +620,10 @@ function bcm_mini_sim_server_crew_scan($owner) {
         $map = bcm_mini_sim_attr_map(isset($row['attributes']) ? $row['attributes'] : array());
         $galaxy = isset($crew_catalog[$mint]) ? $crew_catalog[$mint] : null;
 
-        $name = $galaxy && !empty($galaxy['name'])
-            ? (string) $galaxy['name']
-            : ((isset($row['name']) && $row['name'] !== '') ? $row['name'] : $mint);
+        $catalog_name = $galaxy && !empty($galaxy['name']) ? (string) $galaxy['name'] : '';
+        $metadata_name = (string) (bcm_mini_sim_case_trait($map, 'name') ?? '');
+        $metadata_row_name = isset($row['name']) && $row['name'] !== '' ? (string) $row['name'] : '';
+        $name = $catalog_name !== '' ? $catalog_name : ($metadata_row_name !== '' ? $metadata_row_name : $mint);
         $symbol = isset($row['symbol']) ? (string) $row['symbol'] : '';
         $blob = strtolower($name . ' ' . $symbol . ' ' . implode(' ', array_keys($map)));
 
@@ -625,6 +639,16 @@ function bcm_mini_sim_server_crew_scan($owner) {
         }
 
         if ($looks_crew) {
+            $crew_name = bcm_mini_sim_usable_crew_name($catalog_name);
+            if ($crew_name === '') {
+                $crew_name = bcm_mini_sim_usable_crew_name($metadata_name);
+            }
+            if ($crew_name === '') {
+                $crew_name = bcm_mini_sim_usable_crew_name($metadata_row_name);
+            }
+            if ($crew_name === '') {
+                $crew_name = 'Без имени';
+            }
             $aptitudes = array();
             foreach (array('Command', 'Flight', 'Operator', 'Engineering', 'Medical', 'Science', 'Fitness', 'Hospitality') as $apt) {
                 $value = bcm_mini_sim_case_trait($map, $apt);
@@ -640,7 +664,7 @@ function bcm_mini_sim_server_crew_scan($owner) {
             $crew[] = array(
                 'id' => $mint,
                 'mint' => $mint,
-                'name' => $name,
+                'name' => $crew_name,
                 'image' => $galaxy && !empty($galaxy['image']) ? (string) $galaxy['image'] : (string) ($row['image'] ?? ''),
                 'species' => $species,
                 'rarity' => $rarity,
