@@ -565,6 +565,9 @@
       maxPlayers: playerCapacity,
       fleet: fleetCapacityData
     };
+    window.dispatchEvent(new CustomEvent("bcm:minicrew-selection-changed", {
+      detail: window.BCMMiniCrewSelection
+    }));
 
     return picked;
   }
