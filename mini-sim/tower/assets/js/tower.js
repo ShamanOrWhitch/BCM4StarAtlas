@@ -90,7 +90,7 @@
 
 
   // Run image matting once per selected Crew image, never inside the render loop.
-  // Xenova/modnet is a Transformers.js background-removal model (Apache-2.0).
+  // ISNet returns a per-image foreground probability map; normalize the matte before thresholding.
   let crewSegmentationPipelinePromise = null;
 
   function crewCutoutCacheRequest(url) {
@@ -454,11 +454,12 @@
                 mask.data instanceof Uint8Array ||
                 mask.data instanceof Uint8ClampedArray ||
                 maxMask > 1.5;
-              const maskScale = byteMask ? 255 : 1;
+              const maskRange = maxMask - minMask;
               if (
                 !Number.isFinite(minMask) ||
                 !Number.isFinite(maxMask) ||
-                maxMask - minMask < (byteMask ? 2 : 0.01)
+                !Number.isFinite(maskRange) ||
+                maskRange < (byteMask ? 2 : 0.01)
               ) {
                 throw new Error("ISNet returned a flat matte");
               }
@@ -472,7 +473,11 @@
                 for (let x = 0; x < canvas.width; x += 1) {
                   const mx = Math.min(mask.width - 1, Math.round(x * (mask.width - 1) / Math.max(1, canvas.width - 1)));
                   const mi = (my * mask.width + mx) * maskChannels + maskChannel;
-                  const normalized = clamp((Number(mask.data[mi]) || 0) / maskScale, 0, 1);
+                  // The ISNet model card specifies per-image min-max normalization.
+                  // This also removes a residual semi-opaque haze if the pipeline
+                  // returns a matte whose background minimum is above zero.
+                  const rawMaskValue = Number(mask.data[mi]) || 0;
+                  const normalized = clamp((rawMaskValue - minMask) / Math.max(1e-6, maskRange), 0, 1);
                   // For a returned RGBA cut-out, retain the model's soft alpha
                   // and clear only very low-opacity edge noise. If a model returns
                   // a single-channel probability matte instead, threshold it.
@@ -2091,7 +2096,7 @@
       const cutoutFailed = texture?.userData?.bcmCutoutFailed === true;
       const cutoutReady = !texture || texture.userData?.bcmCutoutPending !== true;
       const spriteReady = !!sprite && cutoutReady && !cutoutFailed;
-      const feetOffset = 0.72;
+      const feetOffset = 0.49;
 
       if (marker) {
         // The sphere bottom now touches the same platform as the Crew's feet.
