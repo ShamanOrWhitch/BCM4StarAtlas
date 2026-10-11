@@ -185,12 +185,16 @@
     bottom: 10px;
 }
 
+.bcm-tower-help-touch {
+    display: none;
+}
+
 .bcm-tower-mobile {
     position: absolute;
-    z-index: 12;
+    z-index: 90;
     left: 10px;
     right: 10px;
-    bottom: 10px;
+    bottom: max(12px, env(safe-area-inset-bottom));
     display: none;
     justify-content: space-between;
     gap: 8px;
@@ -285,18 +289,26 @@
     .bcm-tower:has(.bcm-tower-help-multi) {}
 }
 
-@media (max-width: 900px) {
+@media (max-width: 900px), (pointer: coarse) {
     .bcm-tower-mobile {
         display: flex;
     }
 
-    .bcm-tower-help-single {
-        max-width: 70vw;
+    .bcm-tower-help-single,
+    .bcm-tower-help-multi {
+        display: none !important;
     }
 
-    .bcm-tower-help-multi {
-        max-width: 82vw;
+    .bcm-tower-help-touch {
+        display: block;
     }
+
+    .bcm-tower-mobile-player button {
+        width: 76px;
+        height: 64px;
+        font-size: 22px;
+    }
+}
 }
 
 @media (max-width: 900px) and (orientation: landscape) {

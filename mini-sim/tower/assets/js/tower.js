@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.47";
+  const TOWER_VERSION = "0.2.48";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -1373,7 +1373,7 @@
           angle: centerAngle,
           baseY: levelY + 1.15,
           radius: playerWallRadius,
-          speed: (i % 3 === 0 ? -1 : 1) * (0.42 + rand() * 0.48),
+          speed: (i % 3 === 0 ? -1 : 1) * (0.78 + rand() * 0.9),
           phase: rand() * Math.PI * 2,
           flap: 7.5 + rand() * 3.5,
           dir: i % 3 === 0 ? -1 : 1,
@@ -1401,29 +1401,34 @@
       }
 
       const alive = players.filter((candidate) => !candidate.finished);
-      const quarry = alive[0] || null;
-      if (!nextBirdPassAt) nextBirdPassAt = now + 10000;
+      if (!nextBirdPassAt) nextBirdPassAt = now + 8000;
       const passer = birds.find((bird) => bird.passing);
-      if (!passer && quarry && now >= nextBirdPassAt) {
+      if (!passer && alive.length && now >= nextBirdPassAt) {
         const choice = birds.find((bird) => !bird.aimed && !bird.passing) || null;
         if (choice) {
           choice.passing = true;
-          choice.passUntil = now + 4200;
+          choice.passUntil = now + 3600;
+          choice.passTarget = alive[Math.floor(now / 8000) % alive.length];
         }
       }
 
       for (const bird of birds) {
         let a = bird.angle + t * bird.speed;
-        if (bird.aimed && quarry) {
-          const steer = angleDelta(quarry.angle, bird.angle);
-          bird.angle += clamp(steer, -1.1, 1.1) * 0.07;
-          bird.baseY += ((quarry.y + 0.9) - bird.baseY) * 0.16;
+        if (bird.aimed && alive.length) {
+          if (!bird.aimSwitchAt || now >= bird.aimSwitchAt) {
+            bird.aimIndex = ((bird.aimIndex || 0) + 1) % alive.length;
+            bird.aimSwitchAt = now + 6500;
+          }
+          const target = alive[(bird.aimIndex || 0) % alive.length];
+          const steer = angleDelta(target.angle, bird.angle);
+          bird.angle += clamp(steer, -1.4, 1.4) * 0.11;
+          bird.baseY += ((target.y + 0.9) - bird.baseY) * 0.2;
           a = bird.angle;
-        } else if (bird.passing && quarry) {
-          bird.baseY += ((quarry.y + 0.85) - bird.baseY) * 0.14;
+        } else if (bird.passing && bird.passTarget && !bird.passTarget.finished) {
+          bird.baseY += ((bird.passTarget.y + 0.85) - bird.baseY) * 0.18;
           if (now >= bird.passUntil) {
             bird.passing = false;
-            nextBirdPassAt = now + 10000;
+            nextBirdPassAt = now + 8000;
           }
         } else {
           bird.baseY += ((bird.homeY || bird.baseY) - bird.baseY) * 0.06;
@@ -2744,10 +2749,12 @@
 
     let mouseDown = false;
     let mousePlayer = 0;
+    let dragPointer = null;
 
     root.addEventListener("pointerdown", (event) => {
-      if (!gameStarted || event.target.closest("button")) return;
+      if (!gameStarted || event.target.closest("button, .bcm-tower-mobile")) return;
       mouseDown = true;
+      dragPointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
 
       if (mode === "multi") {
         const rect = root.getBoundingClientRect();
@@ -2759,48 +2766,52 @@
         mousePlayer = 0;
       }
 
-      canvas.setPointerCapture?.(event.pointerId);
+      if (event.pointerType === "mouse") canvas.setPointerCapture?.(event.pointerId);
     });
 
     root.addEventListener("pointerup", () => {
       mouseDown = false;
+      dragPointer = null;
     });
 
     root.addEventListener("pointercancel", () => {
       mouseDown = false;
+      dragPointer = null;
     });
 
     root.addEventListener("pointermove", (event) => {
-      if (!mouseDown || !gameStarted) return;
+      if (!mouseDown || !gameStarted || !dragPointer || event.pointerId !== dragPointer.id) return;
+      const dx = event.clientX - dragPointer.x;
+      const dy = event.clientY - dragPointer.y;
+      dragPointer.x = event.clientX;
+      dragPointer.y = event.clientY;
+      if (!dx && !dy) return;
       const p = players[mousePlayer];
-      p.angle += event.movementX * 0.0125;
-      p.vy += clamp(-event.movementY * 0.035, -3, 3);
+      p.angle += dx * 0.008;
+      p.vy += clamp(-dy * 0.018, -2.4, 2.4);
     });
 
-    mobile?.addEventListener("pointerdown", (event) => {
-      const button = event.target.closest("[data-tower-control]");
-      if (!button) return;
-      event.stopPropagation();
-
+    mobile?.querySelectorAll("[data-tower-control]").forEach((button) => {
       const index = Number(button.dataset.towerPlayer || 0);
       const action = button.dataset.towerControl;
-      if (action === "jump") doJump(index);
-      else setAction(index, action, true);
-    });
-
-    mobile?.addEventListener("pointerup", (event) => {
-      const button = event.target.closest("[data-tower-control]");
-      if (!button) return;
-      event.stopPropagation();
-
-      const index = Number(button.dataset.towerPlayer || 0);
-      const action = button.dataset.towerControl;
-      if (action !== "jump") setAction(index, action, false);
-    });
-
-    mobile?.addEventListener("pointercancel", () => {
-      clearControls(0);
-      clearControls(1);
+      const down = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (action === "jump") doJump(index);
+        else setAction(index, action, true);
+      };
+      const up = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (action !== "jump") setAction(index, action, false);
+      };
+      button.addEventListener("pointerdown", down);
+      button.addEventListener("pointerup", up);
+      button.addEventListener("pointercancel", up);
+      button.addEventListener("pointerleave", up);
+      button.addEventListener("touchstart", down, { passive: false });
+      button.addEventListener("touchend", up, { passive: false });
+      button.addEventListener("touchcancel", up, { passive: false });
     });
 
     // Mini Sim commits its Crew selection only when the player starts.
