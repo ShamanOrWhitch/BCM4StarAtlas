@@ -167,7 +167,11 @@
     const name = crewPersonName(value, index);
     const species = String(value.species || value.spec || "").trim();
     const traits = Array.isArray(value.traits) ? value.traits : [];
-    const image = String(value.image || "").trim() || crewPortraitFallback(value);
+    const suppliedImage = String(value.image || "").trim();
+    const image = suppliedImage || crewPortraitFallback(value);
+    const imageIsFallback = typeof value.imageIsFallback === "boolean"
+      ? value.imageIsFallback
+      : !suppliedImage;
     return {
       id: String(value.id || value.mint || name || ("crew-" + index)),
       mint: String(value.mint || ""),
@@ -176,6 +180,7 @@
       sex: String(value.sex || ""),
       profession: professionList(value),
       image,
+      imageIsFallback,
       seats: String(value.seats || ""),
       ocean: String(value.ocean || ""),
       mission: String(value.mission || ""),
@@ -343,19 +348,31 @@
         catalogPromise.then((catalog) => {
           if (!(catalog instanceof Map) || !catalog.size || !crewRoster.length) return;
 
+          const nameKey = (value) => String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
           const byName = new Map();
           catalog.forEach((card) => {
-            const key = String(card?.name || "").trim().toLowerCase();
-            if (key && !byName.has(key)) byName.set(key, card);
+            const given = String(card?.given || card?.givenName || card?.firstName || "").trim();
+            const family = String(card?.ustur || card?.family || card?.familyName || card?.lastName || "").trim();
+            const candidates = [
+              card?.displayName, card?.crewName, card?.personName,
+              [given, family].filter(Boolean).join(" "),
+              card?.name
+            ];
+            candidates.map(nameKey).filter(Boolean).forEach((key) => {
+              if (!byName.has(key)) byName.set(key, card);
+            });
           });
 
           let enriched = 0;
           crewRoster = crewRoster.map((crew) => {
-            const card = byName.get(String(crew.name || "").trim().toLowerCase());
+            const card = byName.get(nameKey(crew.name));
             if (!card) return crew;
             enriched++;
+            const catalogImage = String(card.imageUrl || card.image || "").trim();
+            const replacePortraitFallback = crew.imageIsFallback && Boolean(catalogImage);
             return Object.assign({}, crew, {
-              image: crew.image || String(card.image || ""),
+              image: replacePortraitFallback ? catalogImage : (crew.image || catalogImage),
+              imageIsFallback: replacePortraitFallback ? false : crew.imageIsFallback,
               rarity: crew.rarity || String(card.rarity || ""),
               species: crew.species || String(card.species || ""),
               traits: crew.traits.length ? crew.traits : (Array.isArray(card.traits) ? card.traits : []),
