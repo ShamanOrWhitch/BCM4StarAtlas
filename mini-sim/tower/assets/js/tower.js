@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.41";
+  const TOWER_VERSION = "0.2.39";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -148,8 +148,7 @@
     return crewSegmentationPipelinePromise;
   }
 
-  function cropCrewCanvas(canvas, ctx, frame, texture, minAlpha) {
-    const alphaCut = Number.isFinite(minAlpha) ? minAlpha : 4;
+  function cropCrewCanvas(canvas, ctx, frame, texture) {
     const w = canvas.width;
     const h = canvas.height;
     const pixels = frame.data;
@@ -160,7 +159,7 @@
     for (let y = 0; y < h; y += 1) {
       for (let x = 0; x < w; x += 1) {
         // Keep faint anti-aliased pixels at hair, fingers and shoe edges.
-        if (pixels[(y * w + x) * 4 + 3] < alphaCut) continue;
+        if (pixels[(y * w + x) * 4 + 3] < 4) continue;
         if (x < minX) minX = x;
         if (y < minY) minY = y;
         if (x > maxX) maxX = x;
@@ -246,40 +245,18 @@
     }
   }
 
-  // Galaxy imageUrl is "{mintOffset}_full.jpeg" (character + painted card background).
-  // The same CDN id as a bare PNG is the official transparent character, including
-  // suit, head and volumetric light. appearance.Background is only an internal
-  // layer id; those ids are not separate downloadable pictures.
-  function officialCrewCutoutUrl(url) {
-    const text = String(url || "");
-    const full = text.match(/^(https?:\/\/cdn\.staratlas\.com\/crew\/v1\/)(\d+)_full\.(?:jpe?g|png|webp)(?:\?.*)?$/i);
-    if (full) return full[1] + full[2] + ".png";
-    const bare = text.match(/^https?:\/\/cdn\.staratlas\.com\/crew\/v1\/\d+\.png(?:\?.*)?$/i);
-    return bare ? text : "";
-  }
-
-  function crewImageHasCutoutAlpha(pixels) {
-    let samples = 0;
-    let clear = 0;
-    for (let i = 3; i < pixels.length; i += 16) {
-      samples += 1;
-      if (pixels[i] < 16) clear += 1;
-    }
-    return samples > 0 && clear / samples > 0.18;
-  }
-
   function assetTexture(url, renderer, options = {}) {
     if (!url || !window.THREE) return null;
     options = options && typeof options === "object" ? options : {};
 
-    const cleanKey = options.officialAlpha ? "|official" : options.cutout ? "|cutout" : options.removeWhite ? "|whitekey" : "";
+    const cleanKey = options.cutout ? "|cutout" : options.removeWhite ? "|whitekey" : "";
     const cacheKey = String(url) + cleanKey;
     const cache = assetTexture.cache || (assetTexture.cache = new Map());
     if (cache.has(cacheKey)) return cache.get(cacheKey);
 
     let tex;
 
-    if ((options.removeWhite || options.cutout || options.officialAlpha) && (rasterUrl(url) || /^https?:/i.test(String(url)))) {
+    if ((options.removeWhite || options.cutout) && (rasterUrl(url) || /^https?:/i.test(String(url)))) {
       // Some of the supplied PNG cards contain an opaque white matte instead
       // of real alpha. Remove only near-white pixels and preserve antialiased
       // edges so doors, NPCs and landing cards behave as cut-outs.
@@ -288,7 +265,7 @@
       canvas.height = 2;
       tex = new THREE.CanvasTexture(canvas);
       tex.userData = tex.userData || {};
-      if (options.cutout || options.officialAlpha) {
+      if (options.cutout) {
         tex.userData.bcmCutoutPending = true;
         tex.userData.bcmCutoutReady = false;
       }
@@ -296,19 +273,6 @@
       const image = new Image();
       image.crossOrigin = "anonymous";
       image.decoding = "async";
-      image.onerror = () => {
-        if (options.officialAlpha && options.fallbackUrl && image.src !== options.fallbackUrl) {
-          options.officialAlpha = false;
-          options.cutout = true;
-          image.src = options.fallbackUrl;
-          return;
-        }
-        if (tex.userData) {
-          tex.userData.bcmCutoutPending = false;
-          tex.userData.bcmCutoutReady = true;
-        }
-        tex.needsUpdate = true;
-      };
       image.onload = async () => {
         try {
           const srcW = image.naturalWidth || image.width || 1;
@@ -325,23 +289,6 @@
 
           const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const pixels = frame.data;
-
-          if (options.officialAlpha && crewImageHasCutoutAlpha(pixels)) {
-            if (!cropCrewCanvas(canvas, ctx, frame, tex, 40)) {
-              throw new Error("official crew png had no silhouette");
-            }
-            tex.userData.bcmCutoutPending = false;
-            tex.userData.bcmCutoutReady = true;
-            tex.userData.bcmOfficialCutout = true;
-            tex.needsUpdate = true;
-            return;
-          }
-          if (options.officialAlpha && options.fallbackUrl && image.src !== options.fallbackUrl) {
-            options.officialAlpha = false;
-            options.cutout = true;
-            image.src = options.fallbackUrl;
-            return;
-          }
 
           if (options.cutout) {
             const cachedBlob = await readCrewCutoutCache(url);
@@ -1459,15 +1406,8 @@
         const species = String(selectedCrew?.species || selectedCrew?.spec || traitSpecies || "");
         playerFacingFactors[i] = /mierese/i.test(species) ? 1 : -1;
         const imageUrl = selectedCrew?.image || "";
-        const officialUrl = officialCrewCutoutUrl(imageUrl);
         playerTextures[i] = imageUrl
-          ? assetTexture(officialUrl || imageUrl, renderer, officialUrl
-            ? {
-              officialAlpha: true,
-              fallbackUrl: officialUrl === imageUrl ? "" : imageUrl,
-              cutout: true
-            }
-            : { cutout: true })
+          ? assetTexture(imageUrl, renderer, { cutout: true })
           : fallbackPlayerTexture;
       }
 
