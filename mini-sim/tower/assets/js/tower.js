@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.46";
+  const TOWER_VERSION = "0.2.47";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -261,6 +261,70 @@
     return { bob: 0.036, speed: 0.018, sway: 0.018, squash: 0.04 };
   }
 
+  function splitCrewLegs(sourceCanvas, texture) {
+    const width = sourceCanvas.width;
+    const height = sourceCanvas.height;
+    if (!width || !height || height < 12 || texture?.userData?.bcmLegTexture) return;
+    const ctx = sourceCanvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return;
+    const frame = ctx.getImageData(0, 0, width, height);
+    const pixels = frame.data;
+    const spans = new Int16Array(height);
+    const counts = new Int16Array(height);
+    for (let y = 0; y < height; y += 1) {
+      let open = false;
+      let spanCount = 0;
+      let count = 0;
+      for (let x = 0; x < width; x += 1) {
+        const on = pixels[(y * width + x) * 4 + 3] > 48;
+        if (on) {
+          count += 1;
+          if (!open) {
+            spanCount += 1;
+            open = true;
+          }
+        } else {
+          open = false;
+        }
+      }
+      spans[y] = spanCount;
+      counts[y] = count;
+    }
+    let foot = height - 1;
+    while (foot > 0 && counts[foot] < 3) foot -= 1;
+    let hip = -1;
+    let seenSplit = false;
+    for (let y = foot; y > Math.floor(height * 0.28); y -= 1) {
+      if (spans[y] >= 2 && counts[y] > 6) {
+        seenSplit = true;
+        hip = y;
+      } else if (seenSplit) {
+        break;
+      }
+    }
+    if (hip < 0) hip = Math.round(height * 0.62);
+    const legFraction = clamp((foot - hip) / Math.max(1, height), 0.2, 0.56);
+    const legHeight = Math.max(4, foot - hip + 1);
+    const legCanvas = document.createElement("canvas");
+    legCanvas.width = width;
+    legCanvas.height = legHeight;
+    const legCtx = legCanvas.getContext("2d");
+    if (!legCtx) return;
+    legCtx.drawImage(sourceCanvas, 0, hip, width, legHeight, 0, 0, width, legHeight);
+    for (let y = hip + 2; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) pixels[(y * width + x) * 4 + 3] = 0;
+    }
+    ctx.putImageData(frame, 0, 0);
+    const legTexture = new THREE.CanvasTexture(legCanvas);
+    if ("colorSpace" in legTexture && THREE.SRGBColorSpace !== undefined) {
+      legTexture.colorSpace = THREE.SRGBColorSpace;
+    }
+    legTexture.needsUpdate = true;
+    texture.userData.bcmLegTexture = legTexture;
+    texture.userData.bcmLegFraction = legFraction;
+    texture.needsUpdate = true;
+  }
+
   function officialCrewCutoutUrl(url) {
     const text = String(url || "");
     const full = text.match(/^(https?:\/\/cdn\.staratlas\.com\/crew\/v1\/)(\d+)_full\.(?:jpe?g|png|webp)(?:\?.*)?$/i);
@@ -341,6 +405,7 @@
             if (!cropCrewCanvas(canvas, ctx, frame, tex, 40)) {
               throw new Error("official crew png had no silhouette");
             }
+            splitCrewLegs(canvas, tex);
             tex.userData.bcmCutoutPending = false;
             tex.userData.bcmCutoutReady = true;
             tex.userData.bcmCutoutFailed = false;
@@ -378,6 +443,7 @@
               const blankBottomRows = lastVisibleY < 0 ? 0 : Math.max(0, canvas.height - 1 - lastVisibleY);
               tex.userData.bcmCutoutFeetPadRatio = blankBottomRows / Math.max(1, canvas.height);
               if (typeof bitmap.close === "function") bitmap.close();
+              splitCrewLegs(canvas, tex);
               tex.userData.bcmCutoutPending = false;
               tex.userData.bcmCutoutReady = true;
               tex.needsUpdate = true;
@@ -471,6 +537,7 @@
               tex.needsUpdate = true;
               return;
             }
+            splitCrewLegs(canvas, tex);
             tex.userData.bcmCutoutPending = false;
             tex.userData.bcmCutoutReady = true;
           } else {
@@ -920,6 +987,7 @@
     let playerMarkers = [];
     let playerHalos = [];
     let playerSprites = [];
+    let playerLegSprites = [];
     let playerTextures = [null, null];
     // Mierese art uses the current facing; most other races need the reverse.
     let playerFacingFactors = [-1, -1];
@@ -1309,10 +1377,12 @@
           phase: rand() * Math.PI * 2,
           flap: 7.5 + rand() * 3.5,
           dir: i % 3 === 0 ? -1 : 1,
-          homeY: levelY + 1.15
+          homeY: levelY + 1.15,
+          aimed: i === 0
         };
 
         group.userData.bird = true;
+        if (i === 0) group.scale.setScalar(1.18);
         towerRoot.add(group);
         birds.push(state);
       }
@@ -1335,14 +1405,21 @@
       if (!nextBirdPassAt) nextBirdPassAt = now + 10000;
       const passer = birds.find((bird) => bird.passing);
       if (!passer && quarry && now >= nextBirdPassAt) {
-        const choice = birds[Math.floor(Math.random() * birds.length)];
-        choice.passing = true;
-        choice.passUntil = now + 4200;
+        const choice = birds.find((bird) => !bird.aimed && !bird.passing) || null;
+        if (choice) {
+          choice.passing = true;
+          choice.passUntil = now + 4200;
+        }
       }
 
       for (const bird of birds) {
-        const a = bird.angle + t * bird.speed;
-        if (bird.passing && quarry) {
+        let a = bird.angle + t * bird.speed;
+        if (bird.aimed && quarry) {
+          const steer = angleDelta(quarry.angle, bird.angle);
+          bird.angle += clamp(steer, -1.1, 1.1) * 0.07;
+          bird.baseY += ((quarry.y + 0.9) - bird.baseY) * 0.16;
+          a = bird.angle;
+        } else if (bird.passing && quarry) {
           bird.baseY += ((quarry.y + 0.85) - bird.baseY) * 0.14;
           if (now >= bird.passUntil) {
             bird.passing = false;
@@ -1542,6 +1619,13 @@
         scene.remove(oldHalo);
         safeDispose(oldHalo);
       }
+      while (playerLegSprites.length) {
+        const oldLeg = playerLegSprites.pop();
+        if (oldLeg) {
+          scene.remove(oldLeg);
+          safeDispose(oldLeg);
+        }
+      }
       while (playerSprites.length) {
         const old = playerSprites.pop();
         if (old) {
@@ -1591,8 +1675,19 @@
           sprite.renderOrder = 3;
           scene.add(sprite);
           playerSprites.push(sprite);
+          const legs = new THREE.Sprite(new THREE.SpriteMaterial({
+            transparent: true,
+            depthWrite: false,
+            sizeAttenuation: true
+          }));
+          legs.visible = false;
+          legs.center.set(0.5, 1);
+          legs.renderOrder = 4;
+          scene.add(legs);
+          playerLegSprites.push(legs);
         } else {
           playerSprites.push(null);
+          playerLegSprites.push(null);
         }
       }
 
@@ -2173,9 +2268,32 @@
       // Align the bottom of the full-body cutout to the visible platform top.
       const transparentFootPad = Number(texture?.userData?.bcmCutoutFeetPadRatio || 0);
       const stretch = 1 + wave * motion.squash * movingAmp;
-      sprite.position.set(x, p.y - feetOffset + footLift - transparentFootPad * spriteHeight + bob, z);
+      const feetY = p.y - feetOffset + footLift - transparentFootPad * spriteHeight + bob;
+      sprite.position.set(x, feetY, z);
       sprite.scale.set(spriteWidth / stretch, spriteHeight * stretch, 1);
-      if (sprite.material) sprite.material.rotation = wave * motion.sway * face * movingAmp;
+      if (sprite.material) sprite.material.rotation = wave * motion.sway * face * movingAmp * 0.35;
+      const legs = playerLegSprites[index];
+      const legMap = texture?.userData?.bcmLegTexture;
+      const legFraction = Number(texture?.userData?.bcmLegFraction || 0);
+      if (legs && legMap && legFraction > 0) {
+        if (legs.material.map !== legMap) {
+          legs.material.map = legMap;
+          legs.material.needsUpdate = true;
+        }
+        const legH = spriteHeight * stretch * legFraction;
+        const step = Math.sin(performance.now() * motion.speed * 2.1 + index);
+        const stepAmp = moving ? 0.28 : 0.06;
+        legs.center.set(0.5, 1);
+        legs.visible = true;
+        legs.position.set(x, feetY + legH, z + 0.03);
+        legs.scale.set(spriteWidth / stretch, legH, 1);
+        legMap.wrapS = THREE.RepeatWrapping;
+        legMap.repeat.x = face < 0 ? -1 : 1;
+        legMap.offset.x = face < 0 ? 1 : 0;
+        legs.material.rotation = step * stepAmp * face;
+      } else if (legs) {
+        legs.visible = false;
+      }
     }
     function updateCamera(index, viewport) {
       const p = players[index];
@@ -2400,6 +2518,7 @@
 
     function showMenu() {
       gameStarted = false;
+      if (transition) transition.hidden = true;
       menu.hidden = false;
       restartButton.hidden = true;
       status.textContent = "ВЫБЕРИТЕ РЕЖИМ";
@@ -2701,25 +2820,39 @@
       }
     });
 
-    modeButtons.forEach(button => {
-      let pressed = false;
-      button.addEventListener("pointerdown", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        pressed = true;
-      });
-      button.addEventListener("pointerup", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!pressed) return;
-        pressed = false;
-        syncCrewSelectionFromMiniSim();
-        startMode(button.dataset.towerMode);
-      });
-      button.addEventListener("pointercancel", () => {
-        pressed = false;
-      });
-    });
+    let modeStartLock = 0;
+    function pressTowerMode(nextMode) {
+      const now = performance.now();
+      if (now - modeStartLock < 700) return;
+      modeStartLock = now;
+      syncCrewSelectionFromMiniSim();
+      startMode(nextMode);
+    }
+    function towerModeAt(x, y) {
+      if (!menu || menu.hidden) return null;
+      for (const button of modeButtons) {
+        const rect = button.getBoundingClientRect();
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return button;
+      }
+      return null;
+    }
+    document.addEventListener("touchend", (event) => {
+      const touch = event.changedTouches && event.changedTouches[0];
+      if (!touch || gameStarted) return;
+      const button = towerModeAt(touch.clientX, touch.clientY);
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      pressTowerMode(button.dataset.towerMode);
+    }, true);
+    document.addEventListener("click", (event) => {
+      if (gameStarted) return;
+      const button = towerModeAt(event.clientX, event.clientY);
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      pressTowerMode(button.dataset.towerMode);
+    }, true);
 
     restartButton.addEventListener("click", startNewTower);
 
