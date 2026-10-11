@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.39";
+  const TOWER_VERSION = "0.2.40";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -108,7 +108,7 @@
     try {
       const request = crewCutoutCacheRequest(url);
       if (!request) return null;
-      const cache = await window.caches.open("bcm-tower-crew-cutouts-v8");
+      const cache = await window.caches.open("bcm-tower-crew-cutouts-v9");
       const response = await cache.match(request);
       return response && response.ok ? await response.blob() : null;
     } catch (error) {
@@ -122,7 +122,7 @@
       if (!request || !canvas.toBlob) return;
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) return;
-      const cache = await window.caches.open("bcm-tower-crew-cutouts-v8");
+      const cache = await window.caches.open("bcm-tower-crew-cutouts-v9");
       await cache.put(request, new Response(blob, { headers: { "Content-Type": "image/png" } }));
     } catch (error) {}
   }
@@ -138,7 +138,7 @@
           // General-use ISNet is better suited to illustrated/game characters than
           // portrait-only matting. Quantized weights run once per selected image
           // and the transparent PNG is cached in this browser.
-          return module.pipeline("background-removal", "Ko033/isnet-general-use-onnx", { dtype: "q8" });
+          return module.pipeline("image-segmentation", "Ko033/isnet-general-use-onnx", { dtype: "q8" });
         })
         .catch((error) => {
           crewSegmentationPipelinePromise = null;
@@ -375,7 +375,10 @@
                 for (let x = 0; x < canvas.width; x += 1) {
                   const mx = Math.min(mask.width - 1, Math.round(x * (mask.width - 1) / Math.max(1, canvas.width - 1)));
                   const mi = (my * mask.width + mx) * maskChannels + maskChannel;
-                  const normalized = clamp((Number(mask.data[mi]) || 0) / maskScale, 0, 1);
+                  const rawMask = Number(mask.data[mi]) || 0;
+                  const normalized = embeddedAlpha
+                    ? clamp(rawMask / maskScale, 0, 1)
+                    : clamp((rawMask - minMask) / Math.max(0.000001, maxMask - minMask), 0, 1);
                   // For a returned RGBA cut-out, retain the model's soft alpha
                   // and clear only very low-opacity edge noise. If a model returns
                   // a single-channel probability matte instead, threshold it.
@@ -394,25 +397,23 @@
                 throw new Error("ISNet returned an empty silhouette");
               }
               await writeCrewCutoutCache(url, canvas);
+              tex.userData.bcmCutoutFailed = false;
               segmented = true;
             } catch (segmentationError) {
-              // Do not remove pixels by color: a suit can share its colors with the
-              // Crew card background. Avoid damaging the character on model failure.
-              console.error("Tower Crew AI segmentation failed; source kept intact", url, segmentationError);
-              canvas.width = Math.max(1, Math.round(srcW * scale));
-              canvas.height = Math.max(1, Math.round(srcH * scale));
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+              console.error("Tower Crew AI segmentation failed; transparent fallback enabled", url, segmentationError);
               segmented = false;
             }
             if (!segmented) {
-              canvas.width = Math.max(1, Math.round(srcW * scale));
-              canvas.height = Math.max(1, Math.round(srcH * scale));
+              canvas.width = 2;
+              canvas.height = 2;
               ctx.clearRect(0, 0, canvas.width, canvas.height);
-              ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+              tex.userData.bcmCutoutFailed = true;
+              tex.userData.bcmCutoutReady = false;
+            } else {
+              tex.userData.bcmCutoutFailed = false;
+              tex.userData.bcmCutoutReady = true;
             }
             tex.userData.bcmCutoutPending = false;
-            tex.userData.bcmCutoutReady = true;
           } else {
             for (let i = 0; i < pixels.length; i += 4) {
               const r = pixels[i];
@@ -436,8 +437,13 @@
         } catch (error) {
           console.warn("Tower PNG alpha cleanup failed", url, error);
           if (options.cutout && tex.userData) {
+            canvas.width = 2;
+            canvas.height = 2;
+            const fallbackContext = canvas.getContext("2d");
+            fallbackContext?.clearRect(0, 0, canvas.width, canvas.height);
             tex.userData.bcmCutoutPending = false;
-            tex.userData.bcmCutoutReady = true;
+            tex.userData.bcmCutoutReady = false;
+            tex.userData.bcmCutoutFailed = true;
           }
           tex.needsUpdate = true;
         }
@@ -756,20 +762,25 @@
         return original;
       };
       const attributes = [
-        row.traits, row.attributes, raw.traits, raw.attributes,
+        row.traits, row.attributes, row.data?.attributes, row.content?.attributes,
+        raw.traits, raw.attributes, raw.data?.attributes, raw.content?.attributes,
         row.metadata?.attributes, row.content?.metadata?.attributes,
         row.metadata?.properties?.attributes, row.content?.metadata?.properties?.attributes,
         raw.metadata?.attributes, raw.content?.metadata?.attributes,
         raw.metadata?.properties?.attributes, raw.content?.metadata?.properties?.attributes
       ].filter(Array.isArray).flat();
       const nameTrait = attributes.find((item) => {
-        const key = String(item?.trait || item?.trait_type || item?.traitType || item?.key || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+        const key = String(item?.trait || item?.trait_type || item?.traitType || item?.key || item?.name || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
         return ["name", "crewname", "displayname", "personname"].includes(key);
       });
-      const namedValue = nameTrait?.value ?? nameTrait?.Value ?? nameTrait?.val ?? "";
+      const namedValue = nameTrait?.value ?? nameTrait?.Value ?? nameTrait?.val ?? nameTrait?.displayValue ?? "";
       const direct = [
-        row.displayName, row.crewName, row.personName, row.name,
-        raw.displayName, raw.crewName, raw.name, namedValue
+        row.displayName, row.display_name, row.crewName, row.crew_name, row.personName, row.person_name,
+        row.metadata?.name, row.content?.metadata?.name, row.metadata?.properties?.name, row.content?.metadata?.properties?.name,
+        row.characterName, row.nftName, row.name,
+        raw.displayName, raw.display_name, raw.crewName, raw.crew_name, raw.personName, raw.person_name,
+        raw.metadata?.name, raw.content?.metadata?.name, raw.metadata?.properties?.name, raw.content?.metadata?.properties?.name,
+        raw.characterName, raw.nftName, raw.name, namedValue
       ].map(validName).find(Boolean);
       if (direct) return direct;
       const given = String(row.given || row.givenName || raw.given || "").trim();
@@ -1968,12 +1979,16 @@
       const halo = playerHalos[index];
       const sprite = playerSprites[index];
       const texture = playerTextures[index];
-      const cutoutReady = !texture || texture.userData?.bcmCutoutPending !== true;
-      const feetOffset = 0.72;
+      const cutoutReady = !texture || (
+        texture.userData?.bcmCutoutPending !== true &&
+        texture.userData?.bcmCutoutFailed !== true
+      );
+      // Grounded players are anchored at platformY + 0.9 by the physics solver.
+      const feetOffset = 0.9;
 
       if (marker) {
         marker.position.set(x, p.y + 0.35, z);
-        marker.visible = !sprite;
+        marker.visible = !sprite || !cutoutReady;
       }
       if (halo) {
         const haloRadius = Math.max(0.1, r - 0.045);
