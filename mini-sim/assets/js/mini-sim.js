@@ -1557,20 +1557,36 @@
     randomizeBackside(performance.now());
   }
 
+  function trackSurfaceName(kind, index) {
+    const keys = Object.keys(byName);
+    const match = keys.filter((key) => {
+      const base = key.split("/").pop();
+      return kind === "floor" ? /^floor.*\.png$/.test(base) : /^roof.*\.png$/.test(base);
+    });
+    if (!match.length) return "";
+    return match[index % match.length];
+  }
+
   function buildRoom0Labyrinth(parent) {
     const group = new THREE.Group();
     group.name = "room3-slipstream";
     group.visible = false;
+    const rand = seedRandom(labyrinthSeed ^ 0x51ab17);
+    const spanZ = 24 + Math.floor(rand() * 16);
+    const spanX = 16 + Math.floor(rand() * 14);
+    const z0 = 18 + Math.floor(rand() * 8);
+    const x0 = -4 + Math.floor(rand() * 10);
     const corners = [
-      new THREE.Vector3(0, 0, 20),
-      new THREE.Vector3(0, 0, 48),
-      new THREE.Vector3(24, 0, 48),
-      new THREE.Vector3(24, 0, 20)
+      new THREE.Vector3(x0, 0, z0),
+      new THREE.Vector3(x0, 0, z0 + spanZ),
+      new THREE.Vector3(x0 + spanX, 0, z0 + spanZ),
+      new THREE.Vector3(x0 + spanX, 0, z0)
     ];
-    const halfW = 3.4;
-    const halfH = 2.6;
+    const halfW = 3.6 + rand() * 1.2;
+    const halfH = 2.5;
     race.segments = [];
     race.gates = [];
+    race.spawn = { x: x0, z: z0 + 2 };
     for (let i = 0; i < corners.length; i += 1) {
       const a = corners[i];
       const b = corners[(i + 1) % corners.length];
@@ -1580,9 +1596,10 @@
       const side = new THREE.Vector3(-dir.z, 0, dir.x);
       const mid = a.clone().add(b).multiplyScalar(0.5);
       const yaw = Math.atan2(dir.x, dir.z);
+      const floorName = trackSurfaceName("floor", i) || trackSurfaceName("roof", i) || "roof.png";
       const floor = new THREE.Mesh(
         new THREE.BoxGeometry(halfW * 2, 0.18, len),
-        textured(i % 2 ? "wall2.png" : "wall1.png", 0x46505b)
+        textured(floorName, 0x6d655c)
       );
       floor.position.copy(mid);
       floor.position.y = -halfH;
@@ -1590,7 +1607,7 @@
       group.add(floor);
       const ceiling = new THREE.Mesh(
         new THREE.BoxGeometry(halfW * 2, 0.18, len),
-        textured("roof.png", 0x8b9198)
+        textured(trackSurfaceName("roof", i + 1) || "roof.png", 0x8b9198)
       );
       ceiling.position.copy(mid);
       ceiling.position.y = halfH;
@@ -1638,6 +1655,14 @@
       }
     });
     if (!best) return;
+    if (bestDist > 9) {
+      ship.position.set(race.spawn.x, 0, race.spawn.z);
+      ship.velocity.set(0, 0, 0);
+      race.nextGate = 1;
+      race.prev = null;
+      setStatus("ВЫЛЕТ В КОСМОС · КРУГ СНОВА · 2 КРУГА БЕЗ ВЫЛЕТА");
+      return;
+    }
     const offset = ship.position.clone().sub(best.point);
     const sideAmt = offset.dot(best.seg.side);
     const y = ship.position.y;
@@ -1660,10 +1685,10 @@
         race.nextGate = (race.nextGate + 1) % race.gates.length;
         if (hit === 0) {
           race.laps += 1;
-          setStatus("SLIPSTREAM · КРУГ " + race.laps + "/" + race.needed);
+          setStatus("SLIPSTREAM · КРУГ " + race.laps + "/2 · БЕЗ ВЫЛЕТА В КОСМОС");
           if (race.laps >= race.needed) finishRace();
         } else {
-          setStatus("SLIPSTREAM · ОТСЕЧКА " + hit + " · КРУГ " + (race.laps + 1) + "/" + race.needed);
+          setStatus("ОТСЕЧКА " + hit + " · КРУГ " + (race.laps + 1) + "/2 · НЕ ВЫЛЕТАТЬ В КОСМОС");
         }
       }
     }
@@ -1677,7 +1702,7 @@
     race.nextGate = 1;
     race.prev = null;
     exteriorFlight = true;
-    ship.position.set(0, 0, 22);
+    ship.position.set(race.spawn.x, 0, race.spawn.z);
     ship.velocity.set(0, 0, 0);
     ship.angularVelocity.set(0, 0, 0);
     ship.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
@@ -1688,7 +1713,7 @@
     camera.position.copy(ship.position);
     camera.quaternion.copy(ship.quaternion);
     if (race.group) race.group.visible = true;
-    setStatus("SLIPSTREAM · КРУГ 1/2");
+    setStatus("МИССИЯ: 2 КРУГА ПО ТРАССЕ, НИ РАЗУ НЕ ВЫЛЕТАЯ В КОСМОС");
   }
 
   function returnFromSlipstream() {

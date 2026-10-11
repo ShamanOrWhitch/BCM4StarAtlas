@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.49";
+  const TOWER_VERSION = "0.2.50";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -707,20 +707,31 @@
       object: "landing"
     });
 
+    const temperament = rand();
+    let turnBias = rand() < 0.5 ? -1 : 1;
+    let biasLeft = 2 + Math.floor(rand() * 6);
     for (let level = levels - 2; level >= 0; level--) {
-      const maxDelta = level % 5 === 0 ? 2 : 1;
+      const wide = temperament > 0.62;
+      const maxDelta = wide ? 2 + Math.floor(rand() * 3) : (level % 4 === 0 ? 3 : 2);
       let delta = 0;
-      if (rand() < 0.78) {
-        const signs = rand() < 0.5 ? -1 : 1;
-        delta = signs * (1 + Math.floor(rand() * maxDelta));
+      if (rand() < (temperament < 0.28 ? 0.94 : 0.86)) {
+        if (biasLeft <= 0) {
+          turnBias *= -1;
+          biasLeft = 2 + Math.floor(rand() * 5);
+        }
+        biasLeft -= 1;
+        delta = turnBias * (1 + Math.floor(rand() * maxDelta));
       }
       sector = wrapSector(sector + delta, sectors);
       path.push(sector);
 
-      // Guaranteed route never gets a lethal surface.
-      const routeSurface = rand() < 0.13 ? "ice" : "platform";
+      let routeSurface = "platform";
+      const surfaceRoll = rand();
+      if (level < 2) routeSurface = "upper";
+      else if (surfaceRoll < (temperament > 0.45 ? 0.2 : 0.1)) routeSurface = "ice";
+      else if (surfaceRoll < 0.16) routeSurface = "lift";
       setCell(level, sector, {
-        surface: level < 2 ? "upper" : routeSurface,
+        surface: routeSurface,
         object: level === 0 ? "landing" : null
       });
     }
@@ -1373,7 +1384,7 @@
           angle: centerAngle,
           baseY: levelY + 1.15,
           radius: playerWallRadius,
-          speed: (i % 3 === 0 ? -1 : 1) * (0.78 + rand() * 0.9),
+          speed: (i === 0 ? 0.33 : 1) * (i % 3 === 0 ? -1 : 1) * (0.78 + rand() * 0.9),
           phase: rand() * Math.PI * 2,
           flap: 7.5 + rand() * 3.5,
           dir: i % 3 === 0 ? -1 : 1,
@@ -1420,10 +1431,8 @@
             bird.aimSwitchAt = now + 6500;
           }
           const target = alive[(bird.aimIndex || 0) % alive.length];
-          const steer = angleDelta(target.angle, bird.angle);
-          bird.angle += clamp(steer, -1.4, 1.4) * 0.11;
-          bird.baseY += ((target.y + 0.9) - bird.baseY) * 0.2;
-          a = bird.angle;
+          bird.baseY += ((target.y + 0.9) - bird.baseY) * 0.035;
+          a = bird.angle + t * bird.speed;
         } else if (bird.passing && bird.passTarget && !bird.passTarget.finished) {
           bird.baseY += ((bird.passTarget.y + 0.85) - bird.baseY) * 0.18;
           if (now >= bird.passUntil) {
@@ -1469,9 +1478,9 @@
           p.jumps = 1;
           p.jumpStarted = false;
           p.fallStartY = p.y;
-          p.y -= 1.55;
-          p.vy = -8.5;
-          p.angle += bird.dir * sectorWidth() * 0.72;
+          p.y -= 0.9;
+          p.vy = -5.2;
+          p.angle += bird.dir * sectorWidth() * 0.28;
           status.textContent = "ПТИЦА СБРОСИЛА ИГРОКА " + (i + 1);
         }
       }
@@ -2343,19 +2352,18 @@
           "СПУСК: " + currentLevelText(players[0]) +
           " · SECTOR " + wrapSector(Math.round(players[0].angle / sectorWidth()), tower.sectors) +
           " · SEED " + tower.seed;
-        if (modeEl) modeEl.textContent = "SINGLE";
+        if (modeEl) {
+          modeEl.textContent = mode === "multi"
+            ? "МИССИЯ: КТО ПЕРВЫЙ АККУРАТНО СПУСТИТСЯ ВНИЗ"
+            : "МИССИЯ: АККУРАТНО СПУСТИТЬСЯ ВНИЗ";
+        }
       } else {
         levelEl.textContent =
           "P1: " + currentLevelText(players[0]) +
           " · P2: " + currentLevelText(players[1]) +
           " · SEED " + tower.seed;
         if (modeEl) {
-          const padsNow = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean).length : 0;
-          modeEl.textContent = padsNow === 0
-            ? "MULTI / SHARED SEED · P1: WASD + SPACE · P2: ARROWS + X"
-            : padsNow === 1
-              ? "MULTI / SHARED SEED · P1: KEYBOARD · P2: GAMEPAD"
-              : "MULTI / SHARED SEED · GAMEPAD 1: P1 · GAMEPAD 2: P2";
+          modeEl.textContent = "МИССИЯ: КТО ПЕРВЫЙ АККУРАТНО СПУСТИТСЯ ВНИЗ";
         }
       }
 
@@ -2517,10 +2525,10 @@
 
       if (mode === "multi") {
         mobile?.classList.add("is-multi");
-        status.textContent = "MULTI READY — ОБЩАЯ БАШНЯ";
+        status.textContent = "МИССИЯ: КТО ПЕРВЫЙ АККУРАТНО СПУСТИТСЯ ВНИЗ";
       } else {
         mobile?.classList.remove("is-multi");
-        status.textContent = "SINGLE READY";
+        status.textContent = "МИССИЯ: АККУРАТНО СПУСТИТЬСЯ ВНИЗ";
       }
     }
 
@@ -2782,16 +2790,16 @@
         if (angle === 90) horizontal = -beta;
         else if (angle === 270) horizontal = beta;
         else if (angle === 180) horizontal = -gamma;
-        towerTilt.filtered += (horizontal - towerTilt.filtered) * 0.18;
+        towerTilt.filtered += (horizontal - towerTilt.filtered) * 0.34;
         if (!towerTilt.ready || towerTilt.calibrate) {
           towerTilt.neutral = towerTilt.filtered;
           towerTilt.ready = true;
           towerTilt.calibrate = false;
         }
         const delta = towerTilt.filtered - towerTilt.neutral;
-        const dead = 6;
-        if (Math.abs(delta) <= dead) towerTilt.horizontal = 0;
-        else towerTilt.horizontal = clamp((delta - Math.sign(delta) * dead) / 22, -1, 1);
+        const dead = 1.6;
+        const shaped = Math.abs(delta) <= dead ? 0 : clamp((delta - Math.sign(delta) * dead) / 8, -1, 1);
+        towerTilt.horizontal = -shaped;
       }, true);
       towerTilt.bound = true;
     }
@@ -2807,8 +2815,37 @@
       bindTowerTilt();
     }
 
-    root.addEventListener("pointerdown", (event) => {
+    const screenTouches = new Map();
+
+    function touchPlayerIndex(clientX) {
+      if (mode !== "multi") return 0;
+      const rect = root.getBoundingClientRect();
+      return clientX - rect.left > rect.width * 0.5 ? 1 : 0;
+    }
+
+    root.addEventListener("touchstart", (event) => {
       if (!gameStarted || event.target.closest("button, .bcm-tower-mobile")) return;
+      let accepted = false;
+      for (const touch of event.changedTouches) {
+        if (screenTouches.size >= 3) break;
+        const player = touchPlayerIndex(touch.clientX);
+        screenTouches.set(touch.identifier, player);
+        doJump(player);
+        accepted = true;
+      }
+      if (accepted) event.preventDefault();
+    }, { passive: false });
+
+    root.addEventListener("touchend", (event) => {
+      for (const touch of event.changedTouches) screenTouches.delete(touch.identifier);
+    });
+
+    root.addEventListener("touchcancel", (event) => {
+      for (const touch of event.changedTouches) screenTouches.delete(touch.identifier);
+    });
+
+    root.addEventListener("pointerdown", (event) => {
+      if (!gameStarted || event.pointerType !== "mouse" || event.target.closest("button, .bcm-tower-mobile")) return;
       mouseDown = true;
       dragPointer = { id: event.pointerId, x: event.clientX, y: event.clientY, x0: event.clientX, y0: event.clientY };
 
@@ -2826,6 +2863,11 @@
     });
 
     root.addEventListener("pointerup", (event) => {
+      if (event.pointerType !== "mouse") {
+        mouseDown = false;
+        dragPointer = null;
+        return;
+      }
       if (mouseDown && gameStarted && dragPointer && event.pointerId === dragPointer.id) {
         const dist = Math.hypot(event.clientX - dragPointer.x0, event.clientY - dragPointer.y0);
         if (dist < 16 && !event.target.closest("button, .bcm-tower-mobile")) doJump(mousePlayer);

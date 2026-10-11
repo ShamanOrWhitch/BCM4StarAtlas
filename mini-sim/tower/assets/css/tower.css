@@ -294,6 +294,10 @@
         display: flex;
     }
 
+    .bcm-tower-mobile-p1 {
+        display: none !important;
+    }
+
     .bcm-tower-help-single,
     .bcm-tower-help-multi {
         display: none !important;
@@ -308,7 +312,6 @@
         height: 64px;
         font-size: 22px;
     }
-}
 }
 
 @media (max-width: 900px) and (orientation: landscape) {

@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_TOWER_VERSION', '0.2.49');
+define('BCM_TOWER_VERSION', '0.2.50');
 define('BCM_TOWER_PATH', __DIR__ . '/');
 define('BCM_TOWER_URL', trailingslashit(plugin_dir_url(__FILE__)));
 
@@ -233,7 +233,7 @@ function bcm_tower_shortcode($atts = array()) {
                 <span>W/S</span> ручная коррекция высоты · <span>Mouse</span> обзор · <span>R</span> новый спуск
             </div>
             <div class="bcm-tower-help bcm-tower-help-touch">
-                <span>наклон</span> влево/вправо — поворот · <span>касание</span> экрана — прыжок
+                <span>наклон</span> влево/вправо — поворот · левая половина экрана — прыжок · правая — прыжок второго · кнопки снизу только у второго игрока
             </div>
             <div class="bcm-tower-help bcm-tower-help-multi">
                 <b>P1</b> A/D + W/S + Space + E · <b>P2</b> ←/→ + ↑/↓ + X + Shift ·
