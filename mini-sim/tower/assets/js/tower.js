@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.48";
+  const TOWER_VERSION = "0.2.49";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -2032,6 +2032,8 @@
       p.vy -= gravity * dt;
 
       let turn = (c.right ? 1 : 0) - (c.left ? 1 : 0);
+      const tiltTurn = towerTiltTurn();
+      if (Math.abs(tiltTurn) > Math.abs(turn)) turn = tiltTurn;
       let trim = (c.up ? 1 : 0) - (c.down ? 1 : 0);
 
       const onIce = p.currentCell?.surface === "ice" || p.currentCell?.liftHazard === "ice";
@@ -2491,6 +2493,7 @@
 
     function startMode(nextMode) {
       mode = nextMode === "multi" ? "multi" : "single";
+      enableTowerTilt();
       playTowerAudio();
       menu.hidden = true;
       mobile?.setAttribute("aria-hidden", "false");
@@ -2750,11 +2753,64 @@
     let mouseDown = false;
     let mousePlayer = 0;
     let dragPointer = null;
+    const towerTilt = {
+      enabled: false,
+      bound: false,
+      ready: false,
+      calibrate: false,
+      filtered: 0,
+      neutral: 0,
+      horizontal: 0
+    };
+
+    function towerTiltTurn() {
+      return towerTilt.enabled ? towerTilt.horizontal : 0;
+    }
+
+    function bindTowerTilt() {
+      towerTilt.calibrate = true;
+      towerTilt.enabled = true;
+      if (towerTilt.bound) return;
+      window.addEventListener("deviceorientation", (event) => {
+        const angleRaw = screen.orientation && typeof screen.orientation.angle === "number"
+          ? screen.orientation.angle
+          : (typeof window.orientation === "number" ? window.orientation : 0);
+        const angle = ((angleRaw % 360) + 360) % 360;
+        const beta = event.beta || 0;
+        const gamma = event.gamma || 0;
+        let horizontal = gamma;
+        if (angle === 90) horizontal = -beta;
+        else if (angle === 270) horizontal = beta;
+        else if (angle === 180) horizontal = -gamma;
+        towerTilt.filtered += (horizontal - towerTilt.filtered) * 0.18;
+        if (!towerTilt.ready || towerTilt.calibrate) {
+          towerTilt.neutral = towerTilt.filtered;
+          towerTilt.ready = true;
+          towerTilt.calibrate = false;
+        }
+        const delta = towerTilt.filtered - towerTilt.neutral;
+        const dead = 6;
+        if (Math.abs(delta) <= dead) towerTilt.horizontal = 0;
+        else towerTilt.horizontal = clamp((delta - Math.sign(delta) * dead) / 22, -1, 1);
+      }, true);
+      towerTilt.bound = true;
+    }
+
+    function enableTowerTilt() {
+      const orientation = window.DeviceOrientationEvent;
+      if (orientation && typeof orientation.requestPermission === "function") {
+        orientation.requestPermission().then((state) => {
+          if (state === "granted") bindTowerTilt();
+        }).catch(() => {});
+        return;
+      }
+      bindTowerTilt();
+    }
 
     root.addEventListener("pointerdown", (event) => {
       if (!gameStarted || event.target.closest("button, .bcm-tower-mobile")) return;
       mouseDown = true;
-      dragPointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+      dragPointer = { id: event.pointerId, x: event.clientX, y: event.clientY, x0: event.clientX, y0: event.clientY };
 
       if (mode === "multi") {
         const rect = root.getBoundingClientRect();
@@ -2769,7 +2825,11 @@
       if (event.pointerType === "mouse") canvas.setPointerCapture?.(event.pointerId);
     });
 
-    root.addEventListener("pointerup", () => {
+    root.addEventListener("pointerup", (event) => {
+      if (mouseDown && gameStarted && dragPointer && event.pointerId === dragPointer.id) {
+        const dist = Math.hypot(event.clientX - dragPointer.x0, event.clientY - dragPointer.y0);
+        if (dist < 16 && !event.target.closest("button, .bcm-tower-mobile")) doJump(mousePlayer);
+      }
       mouseDown = false;
       dragPointer = null;
     });

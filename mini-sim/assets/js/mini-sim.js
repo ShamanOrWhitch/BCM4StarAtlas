@@ -929,6 +929,17 @@
     mesh: null,
     visible: false
   };
+  const race = {
+    active: false,
+    busy: false,
+    laps: 0,
+    needed: 2,
+    nextGate: 1,
+    segments: [],
+    gates: [],
+    group: null,
+    prev: null
+  };
   const room0Labyrinth = {
     group: null,
     walls: [],
@@ -1548,122 +1559,222 @@
 
   function buildRoom0Labyrinth(parent) {
     const group = new THREE.Group();
-    group.name = "room0-seeded-labyrinth";
+    group.name = "room3-slipstream";
     group.visible = false;
-
-    const startZ = room0Labyrinth.startZ;
-    const endZ = room0Labyrinth.endZ;
-    const barriers = 8;
-    const step = (startZ - endZ) / barriers;
-    const wallHalfY = 3.05;
-    const wallThickness = 0.36;
-    const wallHalfX = 5.05;
-    const gapHalf = 1.45;
-    const rand = seedRandom(labyrinthSeed ^ 0x524f4f30);
-
-    room0Labyrinth.walls.length = 0;
-
-    for (let i = 0; i < barriers; i++) {
-      const z = startZ - step * (i + 0.5);
-
-      // The seed chooses the opening. Adjacent barriers deliberately avoid
-      // repeating the same opening so the route becomes a real zig-zag.
-      let gap = Math.floor(rand() * 3);
-      if (i > 0 && gap === room0Labyrinth.walls[room0Labyrinth.walls.length - 1].gap) {
-        gap = (gap + 1 + Math.floor(rand() * 2)) % 3;
-      }
-
-      const gapCenter = [-3.15, 0, 3.15][gap];
-
-      const makeWall = (xMin, xMax) => {
-        const width = xMax - xMin;
-        if (width < 0.5) return;
-
-        const materialName = seededVariant(
-          ["wall1.png", "wall2.png", "wall3.png", "wall4.png", "wall5.png"],
-          labyrinthSeed ^ (i * 977 + Math.round(xMin * 31)),
-          "wall1.png"
-        );
-        const material = textured(materialName, 0x46505b);
-        const mesh = new THREE.Mesh(
-          new THREE.BoxGeometry(width, wallHalfY * 2, wallThickness),
-          material
-        );
-        mesh.position.set((xMin + xMax) * 0.5, 0, z);
-        mesh.name = "room0-labyrinth-wall";
-        mesh.userData.room0Labyrinth = true;
-        group.add(mesh);
-      };
-
-      makeWall(-wallHalfX, gapCenter - gapHalf);
-      makeWall(gapCenter + gapHalf, wallHalfX);
-
-      room0Labyrinth.walls.push({
-        zMin: z - wallThickness * 0.5,
-        zMax: z + wallThickness * 0.5,
-        yMin: -wallHalfY,
-        yMax: wallHalfY,
-        gapMin: gapCenter - gapHalf,
-        gapMax: gapCenter + gapHalf,
-        gap
-      });
+    const corners = [
+      new THREE.Vector3(0, 0, 20),
+      new THREE.Vector3(0, 0, 48),
+      new THREE.Vector3(24, 0, 48),
+      new THREE.Vector3(24, 0, 20)
+    ];
+    const halfW = 3.4;
+    const halfH = 2.6;
+    race.segments = [];
+    race.gates = [];
+    for (let i = 0; i < corners.length; i += 1) {
+      const a = corners[i];
+      const b = corners[(i + 1) % corners.length];
+      const dir = b.clone().sub(a);
+      const len = dir.length();
+      dir.normalize();
+      const side = new THREE.Vector3(-dir.z, 0, dir.x);
+      const mid = a.clone().add(b).multiplyScalar(0.5);
+      const yaw = Math.atan2(dir.x, dir.z);
+      const floor = new THREE.Mesh(
+        new THREE.BoxGeometry(halfW * 2, 0.18, len),
+        textured(i % 2 ? "wall2.png" : "wall1.png", 0x46505b)
+      );
+      floor.position.copy(mid);
+      floor.position.y = -halfH;
+      floor.rotation.y = yaw;
+      group.add(floor);
+      const ceiling = new THREE.Mesh(
+        new THREE.BoxGeometry(halfW * 2, 0.18, len),
+        textured("roof.png", 0x8b9198)
+      );
+      ceiling.position.copy(mid);
+      ceiling.position.y = halfH;
+      ceiling.rotation.y = yaw;
+      group.add(ceiling);
+      const left = new THREE.Mesh(
+        new THREE.BoxGeometry(0.28, halfH * 2, len),
+        textured("wall3.png", 0x3b444f)
+      );
+      left.position.copy(mid).add(side.clone().multiplyScalar(halfW));
+      left.rotation.y = yaw;
+      group.add(left);
+      const right = new THREE.Mesh(
+        new THREE.BoxGeometry(0.28, halfH * 2, len),
+        textured("wall5.png", 0x343d47)
+      );
+      right.position.copy(mid).add(side.clone().multiplyScalar(-halfW));
+      right.rotation.y = yaw;
+      group.add(right);
+      race.segments.push({ a, b, dir, side, len, halfW, halfH });
+      race.gates.push({ point: mid.clone(), dir: dir.clone(), side: side.clone(), halfW: halfW - 0.3 });
     }
-
     parent.add(group);
+    race.group = group;
     room0Labyrinth.group = group;
   }
 
   function updateRoom0Labyrinth() {
-    if (!room0Labyrinth.group || !ship.position) return;
-    const active = ship.position.z >= room0Labyrinth.startZ - 0.25 &&
-      ship.position.z <= room0Labyrinth.endZ + 1.5 &&
-      Math.abs(ship.position.x) <= 8.0 &&
-      Math.abs(ship.position.y) <= 5.0;
-
-    room0Labyrinth.group.visible = active;
-    room0Labyrinth.active = active;
+    if (race.group) race.group.visible = race.active;
+    room0Labyrinth.active = race.active;
   }
 
-  function collideRoom0Labyrinth(before) {
-    if (!before || !ship.position || !room0Labyrinth.walls.length) return false;
-
-    const minZ = Math.min(before.z, ship.position.z);
-    const maxZ = Math.max(before.z, ship.position.z);
-    const midX = (before.x + ship.position.x) * 0.5;
-    const midY = (before.y + ship.position.y) * 0.5;
-
-    const active =
-      maxZ >= room0Labyrinth.startZ - 0.25 &&
-      minZ <= room0Labyrinth.endZ + 1.5 &&
-      Math.abs(midX) <= 8.0 &&
-      Math.abs(midY) <= 5.0;
-    if (!active) return false;
-
-    let blocked = false;
-
-    for (const wall of room0Labyrinth.walls) {
-      const crossing =
-        (before.z < wall.zMin && ship.position.z >= wall.zMin) ||
-        (before.z > wall.zMax && ship.position.z <= wall.zMax);
-
-      if (!crossing) continue;
-
-      const inGap =
-        ship.position.x >= wall.gapMin &&
-        ship.position.x <= wall.gapMax &&
-        ship.position.y >= wall.yMin &&
-        ship.position.y <= wall.yMax;
-
-      if (inGap) continue;
-
-      ship.position.z = before.z <= wall.zMin
-        ? wall.zMin - 0.07
-        : wall.zMax + 0.07;
-      ship.velocity.z = 0;
-      blocked = true;
+  function constrainRace() {
+    if (!race.active || !ship.position || !race.segments.length) return;
+    let best = null;
+    let bestDist = Infinity;
+    race.segments.forEach((seg) => {
+      const rel = ship.position.clone().sub(seg.a);
+      const t = Math.max(0, Math.min(seg.len, rel.dot(seg.dir)));
+      const point = seg.a.clone().add(seg.dir.clone().multiplyScalar(t));
+      const dist = point.distanceTo(ship.position);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = { seg, point, t };
+      }
+    });
+    if (!best) return;
+    const offset = ship.position.clone().sub(best.point);
+    const sideAmt = offset.dot(best.seg.side);
+    const y = ship.position.y;
+    const limit = best.seg.halfW - 0.55;
+    if (Math.abs(sideAmt) > limit) {
+      ship.position.copy(best.point).add(best.seg.side.clone().multiplyScalar(Math.sign(sideAmt) * limit));
+      ship.position.y = y;
+      ship.velocity.multiplyScalar(0.4);
     }
+    if (ship.position.y > best.seg.halfH - 0.45) ship.position.y = best.seg.halfH - 0.45;
+    if (ship.position.y < -best.seg.halfH + 0.45) ship.position.y = -best.seg.halfH + 0.45;
 
-    return blocked;
+    const gate = race.gates[race.nextGate];
+    if (gate && race.prev) {
+      const along = ship.position.clone().sub(gate.point).dot(gate.dir);
+      const prevAlong = race.prev.clone().sub(gate.point).dot(gate.dir);
+      const lateral = Math.abs(ship.position.clone().sub(gate.point).dot(gate.side));
+      if (prevAlong < 0.35 && along >= 0.35 && lateral < gate.halfW) {
+        const hit = race.nextGate;
+        race.nextGate = (race.nextGate + 1) % race.gates.length;
+        if (hit === 0) {
+          race.laps += 1;
+          setStatus("SLIPSTREAM · КРУГ " + race.laps + "/" + race.needed);
+          if (race.laps >= race.needed) finishRace();
+        } else {
+          setStatus("SLIPSTREAM · ОТСЕЧКА " + hit + " · КРУГ " + (race.laps + 1) + "/" + race.needed);
+        }
+      }
+    }
+    race.prev = ship.position.clone();
+  }
+
+  function placeOnSlipstream() {
+    race.active = true;
+    race.busy = false;
+    race.laps = 0;
+    race.nextGate = 1;
+    race.prev = null;
+    exteriorFlight = true;
+    ship.position.set(0, 0, 22);
+    ship.velocity.set(0, 0, 0);
+    ship.angularVelocity.set(0, 0, 0);
+    ship.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+    if (ship.visual) {
+      ship.visual.position.copy(ship.position);
+      ship.visual.quaternion.copy(ship.quaternion);
+    }
+    camera.position.copy(ship.position);
+    camera.quaternion.copy(ship.quaternion);
+    if (race.group) race.group.visible = true;
+    setStatus("SLIPSTREAM · КРУГ 1/2");
+  }
+
+  function returnFromSlipstream() {
+    race.active = false;
+    race.busy = false;
+    race.laps = 0;
+    race.nextGate = 1;
+    if (race.group) race.group.visible = false;
+    exteriorFlight = false;
+    ship.position.set(0, 0, 2);
+    ship.velocity.set(0, 0, 0);
+    ship.angularVelocity.set(0, 0, 0);
+    ship.quaternion.set(0, 0, 0, 1);
+    if (ship.visual) {
+      ship.visual.position.copy(ship.position);
+      ship.visual.quaternion.copy(ship.quaternion);
+    }
+    camera.position.copy(ship.position);
+    camera.quaternion.copy(ship.quaternion);
+    setStatus("ROOM 1 · ДВА КРУГА ЗАКРЫТЫ");
+  }
+
+  function playRaceCutscene(mode) {
+    const url = mode === "enter"
+      ? (config.capdoorVideo || assetUrl("capdoor.mp4") || assetUrl("portal2.mp4"))
+      : (assetUrl("portal1.mp4") || assetUrl("portal2.mp4") || config.capdoorVideo);
+    const finish = () => {
+      transitionBusy = false;
+      transitionLoading = false;
+      if (transitionRoot) {
+        transitionRoot.classList.remove("ready");
+        transitionRoot.hidden = true;
+      }
+      if (transitionVideo) {
+        transitionVideo.onended = null;
+        transitionVideo.onerror = null;
+        transitionVideo.pause();
+        transitionVideo.removeAttribute("src");
+        transitionVideo.load();
+      }
+      if (mode === "enter") placeOnSlipstream();
+      else returnFromSlipstream();
+    };
+    if (!url || !transitionVideo || !transitionRoot) {
+      finish();
+      return;
+    }
+    transitionBusy = true;
+    transitionLoading = true;
+    race.busy = true;
+    ship.velocity.set(0, 0, 0);
+    ship.angularVelocity.set(0, 0, 0);
+    transitionRoot.hidden = true;
+    transitionVideo.style.opacity = "0";
+    transitionVideo.muted = true;
+    transitionVideo.playsInline = true;
+    transitionVideo.onended = finish;
+    transitionVideo.onerror = finish;
+    transitionVideo.onloadeddata = () => {
+      transitionLoading = false;
+      transitionRoot.hidden = false;
+      transitionRoot.classList.add("ready");
+      transitionVideo.style.opacity = "1";
+      const play = transitionVideo.play();
+      if (play && play.catch) play.catch(() => finish());
+    };
+    if (transitionLabel) {
+      transitionLabel.textContent = mode === "enter" ? "CAPDOOR · SLIPSTREAM" : "SLIPSTREAM · ROOM 1";
+    }
+    transitionVideo.src = url;
+    transitionVideo.load();
+  }
+
+  function beginRaceCutscene() {
+    if (race.active || race.busy || transitionBusy) return;
+    playRaceCutscene("enter");
+  }
+
+  function finishRace() {
+    if (!race.active || race.busy) return;
+    playRaceCutscene("return");
+  }
+
+  function collideRoom0Labyrinth() {
+    if (race.active) constrainRace();
+    return false;
   }
 
   function isInsideCorridor(position) {
@@ -3633,6 +3744,10 @@
   }
 
   function collide() {
+    if (race.active) {
+      constrainRace();
+      return;
+    }
     const before = ship.position.clone();
 
     // A room exists in 3D, not just on the Z axis.
@@ -3655,8 +3770,12 @@
       ship.position.x = Math.max(-5.3, Math.min(5.3, ship.position.x));
       ship.position.y = Math.max(-3.2, Math.min(3.2, ship.position.y));
 
-      // Rear cap stays closed.
-      if (ship.position.z > 5.45) {
+      // Rear cap stays closed except the capdoor opening, which starts the track.
+      if (ship.position.z > 5.2 && Math.abs(ship.position.x) < 2.15 && Math.abs(ship.position.y) < 1.7) {
+        ship.position.z = 5.2;
+        ship.velocity.z = 0;
+        beginRaceCutscene();
+      } else if (ship.position.z > 5.45) {
         ship.position.z = 5.45;
       }
 
