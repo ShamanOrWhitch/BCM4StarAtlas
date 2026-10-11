@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.38";
+  const TOWER_VERSION = "0.2.39";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -96,19 +96,19 @@
   function crewCutoutCacheRequest(url) {
     if (!window.caches || !window.location || !window.location.origin) return null;
     let hash = 2166136261;
-    const input = String(url || "") + "|crew-isnet-v7";
+    const input = String(url || "") + "|crew-isnet-v8";
     for (let i = 0; i < input.length; i += 1) {
       hash ^= input.charCodeAt(i);
       hash = Math.imul(hash, 16777619);
     }
-    return new Request(window.location.origin + "/?bcm-crew-cutout=v7-" + (hash >>> 0).toString(36));
+    return new Request(window.location.origin + "/?bcm-crew-cutout=v8-" + (hash >>> 0).toString(36));
   }
 
   async function readCrewCutoutCache(url) {
     try {
       const request = crewCutoutCacheRequest(url);
       if (!request) return null;
-      const cache = await window.caches.open("bcm-tower-crew-cutouts-v7");
+      const cache = await window.caches.open("bcm-tower-crew-cutouts-v8");
       const response = await cache.match(request);
       return response && response.ok ? await response.blob() : null;
     } catch (error) {
@@ -122,7 +122,7 @@
       if (!request || !canvas.toBlob) return;
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) return;
-      const cache = await window.caches.open("bcm-tower-crew-cutouts-v7");
+      const cache = await window.caches.open("bcm-tower-crew-cutouts-v8");
       await cache.put(request, new Response(blob, { headers: { "Content-Type": "image/png" } }));
     } catch (error) {}
   }
@@ -320,23 +320,25 @@
                 throw new Error("MODNet returned no matte");
               }
 
-              // Read only the first channel: an RGBA mask may include an opaque
-              // alpha channel that must not skew matte min/max statistics.
+              // Transformers.js background-removal normally returns a complete
+              // RGBA cut-out, not a grayscale matte. In that case the prediction
+              // is already in channel 4; using channel 1 (red) as the matte makes
+              // costume colors determine transparency and clips body parts.
               const maskChannels = Math.max(1, Number(mask.channels) || 1);
+              const embeddedAlpha = !picked.mask && maskChannels === 4;
+              const maskChannel = embeddedAlpha ? 3 : 0;
               const maskPixels = mask.width * mask.height;
               if (mask.data.length < maskPixels * maskChannels) {
-                throw new Error("MODNet returned an incomplete matte");
+                throw new Error("ISNet returned an incomplete matte");
               }
+
               let minMask = Infinity;
               let maxMask = -Infinity;
               for (let p = 0; p < maskPixels; p += 1) {
-                const value = Number(mask.data[p * maskChannels]) || 0;
+                const value = Number(mask.data[p * maskChannels + maskChannel]) || 0;
                 if (value < minMask) minMask = value;
                 if (value > maxMask) maxMask = value;
               }
-              // The model outputs a foreground probability matte. Do not min-max
-              // stretch the entire frame: that boosts weak background predictions
-              // into visible alpha and leaves the Crew card haze around the figure.
               const byteMask =
                 mask.data instanceof Uint8Array ||
                 mask.data instanceof Uint8ClampedArray ||
@@ -358,11 +360,14 @@
                 const my = Math.min(mask.height - 1, Math.round(y * (mask.height - 1) / Math.max(1, canvas.height - 1)));
                 for (let x = 0; x < canvas.width; x += 1) {
                   const mx = Math.min(mask.width - 1, Math.round(x * (mask.width - 1) / Math.max(1, canvas.width - 1)));
-                  const mi = (my * mask.width + mx) * maskChannels;
+                  const mi = (my * mask.width + mx) * maskChannels + maskChannel;
                   const normalized = clamp((Number(mask.data[mi]) || 0) / maskScale, 0, 1);
-                  // A confidence threshold removes low-level card haze while
-                  // retaining a soft edge around hair, fingers and equipment.
-                  const alpha = smoothstep(0.18, 0.52, normalized);
+                  // For a returned RGBA cut-out, retain the model's soft alpha
+                  // and clear only very low-opacity edge noise. If a model returns
+                  // a single-channel probability matte instead, threshold it.
+                  const alpha = embeddedAlpha
+                    ? smoothstep(0.025, 0.26, normalized)
+                    : smoothstep(0.18, 0.52, normalized);
                   const pi = (y * canvas.width + x) * 4;
                   pixels[pi + 3] = Math.round(pixels[pi + 3] * alpha);
                 }
