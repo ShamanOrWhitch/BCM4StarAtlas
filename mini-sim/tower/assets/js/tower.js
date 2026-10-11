@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.36";
+  const TOWER_VERSION = "0.2.37";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -96,19 +96,19 @@
   function crewCutoutCacheRequest(url) {
     if (!window.caches || !window.location || !window.location.origin) return null;
     let hash = 2166136261;
-    const input = String(url || "") + "|crew-modnet-v6";
+    const input = String(url || "") + "|crew-isnet-v7";
     for (let i = 0; i < input.length; i += 1) {
       hash ^= input.charCodeAt(i);
       hash = Math.imul(hash, 16777619);
     }
-    return new Request(window.location.origin + "/?bcm-crew-cutout=v6-" + (hash >>> 0).toString(36));
+    return new Request(window.location.origin + "/?bcm-crew-cutout=v7-" + (hash >>> 0).toString(36));
   }
 
   async function readCrewCutoutCache(url) {
     try {
       const request = crewCutoutCacheRequest(url);
       if (!request) return null;
-      const cache = await window.caches.open("bcm-tower-crew-cutouts-v6");
+      const cache = await window.caches.open("bcm-tower-crew-cutouts-v7");
       const response = await cache.match(request);
       return response && response.ok ? await response.blob() : null;
     } catch (error) {
@@ -122,7 +122,7 @@
       if (!request || !canvas.toBlob) return;
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) return;
-      const cache = await window.caches.open("bcm-tower-crew-cutouts-v6");
+      const cache = await window.caches.open("bcm-tower-crew-cutouts-v7");
       await cache.put(request, new Response(blob, { headers: { "Content-Type": "image/png" } }));
     } catch (error) {}
   }
@@ -135,7 +135,10 @@
             module.env.useBrowserCache = true;
             module.env.allowRemoteModels = true;
           }
-          return module.pipeline("background-removal", "Xenova/modnet", { dtype: "fp32" });
+          // General-use ISNet is better suited to illustrated/game characters than
+          // portrait-only matting. Quantized weights run once per selected image
+          // and the transparent PNG is cached in this browser.
+          return module.pipeline("background-removal", "Ko033/isnet-general-use-onnx", { dtype: "q8" });
         })
         .catch((error) => {
           crewSegmentationPipelinePromise = null;
@@ -145,7 +148,7 @@
     return crewSegmentationPipelinePromise;
   }
 
-  function cropCrewCanvas(canvas, ctx, frame) {
+  function cropCrewCanvas(canvas, ctx, frame, texture) {
     const w = canvas.width;
     const h = canvas.height;
     const pixels = frame.data;
@@ -155,7 +158,8 @@
     let maxY = -1;
     for (let y = 0; y < h; y += 1) {
       for (let x = 0; x < w; x += 1) {
-        if (pixels[(y * w + x) * 4 + 3] < 12) continue;
+        // Keep faint anti-aliased pixels at hair, fingers and shoe edges.
+        if (pixels[(y * w + x) * 4 + 3] < 4) continue;
         if (x < minX) minX = x;
         if (y < minY) minY = y;
         if (x > maxX) maxX = x;
@@ -163,19 +167,24 @@
       }
     }
     if (maxX < minX || maxY < minY) return false;
-    // Keep thin limbs and the full foot silhouette, especially near the lower edge.
-    const padX = Math.max(4, Math.round(w * 0.035));
-    const padTop = Math.max(4, Math.round(h * 0.035));
-    const padBottom = Math.max(3, Math.round(h * 0.015));
+    const sourceMaxY = maxY;
+    const padX = Math.max(4, Math.round(w * 0.025));
+    const padTop = Math.max(4, Math.round(h * 0.025));
+    const padBottom = Math.max(2, Math.round(h * 0.01));
     minX = Math.max(0, minX - padX);
     minY = Math.max(0, minY - padTop);
     maxX = Math.min(w - 1, maxX + padX);
     maxY = Math.min(h - 1, maxY + padBottom);
+    const cropHeight = maxY - minY + 1;
+    const transparentBottom = Math.max(0, maxY - sourceMaxY);
     ctx.putImageData(frame, 0, 0);
-    const crop = ctx.getImageData(minX, minY, maxX - minX + 1, maxY - minY + 1);
+    const crop = ctx.getImageData(minX, minY, maxX - minX + 1, cropHeight);
     canvas.width = crop.width;
     canvas.height = crop.height;
     ctx.putImageData(crop, 0, 0);
+    if (texture?.userData) {
+      texture.userData.bcmCutoutFeetPadRatio = transparentBottom / Math.max(1, crop.height);
+    }
     return true;
   }
 
@@ -185,7 +194,7 @@
     const seen = new Uint8Array(total);
     const stack = [];
     const component = [];
-    const minComponentPixels = Math.max(14, Math.floor(total * 0.00008));
+    const minComponentPixels = Math.max(4, Math.floor(total * 0.00002));
     // Clear near-transparent model noise while retaining the smooth semitransparent edge band.
     for (let p = 0; p < total; p += 1) {
       if (pixels[p * 4 + 3] < 24) pixels[p * 4 + 3] = 0;
@@ -320,40 +329,26 @@
               }
               let minMask = Infinity;
               let maxMask = -Infinity;
-              let borderSum = 0, borderCount = 0;
-              let centerSum = 0, centerCount = 0;
-              const borderX = Math.max(1, Math.round(mask.width * 0.025));
-              const borderY = Math.max(1, Math.round(mask.height * 0.025));
-              const centerLeft = Math.round(mask.width * 0.25);
-              const centerRight = Math.round(mask.width * 0.75);
-              const centerTop = Math.round(mask.height * 0.12);
-              const centerBottom = Math.round(mask.height * 0.88);
-              for (let y = 0; y < mask.height; y += 1) {
-                for (let x = 0; x < mask.width; x += 1) {
-                  const value = Number(mask.data[(y * mask.width + x) * maskChannels]) || 0;
-                  if (value < minMask) minMask = value;
-                  if (value > maxMask) maxMask = value;
-                  if (x < borderX || x >= mask.width - borderX ||
-                      y < borderY || y >= mask.height - borderY) {
-                    borderSum += value;
-                    borderCount++;
-                  }
-                  if (x >= centerLeft && x < centerRight &&
-                      y >= centerTop && y < centerBottom) {
-                    centerSum += value;
-                    centerCount++;
-                  }
-                }
+              for (let p = 0; p < maskPixels; p += 1) {
+                const value = Number(mask.data[p * maskChannels]) || 0;
+                if (value < minMask) minMask = value;
+                if (value > maxMask) maxMask = value;
               }
-              if (!Number.isFinite(minMask) || !Number.isFinite(maxMask) || maxMask - minMask < 1e-6) {
-                throw new Error("MODNet returned a flat matte");
+              // The model outputs a foreground probability matte. Do not min-max
+              // stretch the entire frame: that boosts weak background predictions
+              // into visible alpha and leaves the Crew card haze around the figure.
+              const byteMask =
+                mask.data instanceof Uint8Array ||
+                mask.data instanceof Uint8ClampedArray ||
+                maxMask > 1.5;
+              const maskScale = byteMask ? 255 : 1;
+              if (
+                !Number.isFinite(minMask) ||
+                !Number.isFinite(maxMask) ||
+                maxMask - minMask < (byteMask ? 2 : 0.01)
+              ) {
+                throw new Error("ISNet returned a flat matte");
               }
-              // Some matting APIs return foreground alpha, others the inverse.
-              // Crew is centered, so compare matte intensity near the card edge
-              // against the central person area and invert only when clearly needed.
-              const borderMean = borderSum / Math.max(1, borderCount);
-              const centerMean = centerSum / Math.max(1, centerCount);
-              const invertMask = borderMean > centerMean;
               const smoothstep = (a, b, value) => {
                 const t = clamp((value - a) / (b - a), 0, 1);
                 return t * t * (3 - 2 * t);
@@ -364,11 +359,10 @@
                 for (let x = 0; x < canvas.width; x += 1) {
                   const mx = Math.min(mask.width - 1, Math.round(x * (mask.width - 1) / Math.max(1, canvas.width - 1)));
                   const mi = (my * mask.width + mx) * maskChannels;
-                  let normalized = clamp(((Number(mask.data[mi]) || 0) - minMask) / (maxMask - minMask), 0, 1);
-                  if (invertMask) normalized = 1 - normalized;
-                  // Remove weak background responses but keep soft antialiased
-                  // boundaries around the head, hands, hair and lower legs.
-                  const alpha = smoothstep(0.12, 0.48, normalized);
+                  const normalized = clamp((Number(mask.data[mi]) || 0) / maskScale, 0, 1);
+                  // A confidence threshold removes low-level card haze while
+                  // retaining a soft edge around hair, fingers and equipment.
+                  const alpha = smoothstep(0.18, 0.52, normalized);
                   const pi = (y * canvas.width + x) * 4;
                   pixels[pi + 3] = Math.round(pixels[pi + 3] * alpha);
                 }
@@ -377,7 +371,7 @@
               // Remove only tiny detached matte specks; preserve the principal
               // silhouette and any substantial separated costume/equipment pieces.
               pruneCrewMatteSpecks(frame, canvas.width, canvas.height);
-              if (!cropCrewCanvas(canvas, ctx, frame)) {
+              if (!cropCrewCanvas(canvas, ctx, frame, tex)) {
                 throw new Error("ISNet returned an empty silhouette");
               }
               await writeCrewCutoutCache(url, canvas);
@@ -1942,7 +1936,7 @@
       const sprite = playerSprites[index];
       const texture = playerTextures[index];
       const cutoutReady = !texture || texture.userData?.bcmCutoutPending !== true;
-      const feetOffset = p.currentCell?.surface === "rock" ? 0 : 0.49;
+      const feetOffset = 0.72;
 
       if (marker) {
         marker.position.set(x, p.y + 0.35, z);
@@ -1989,13 +1983,14 @@
 
       // p.y is maintained above the floor by the physics solver. Anchor the
       // image at the platform rather than adding another positive vertical offset.
-      const spriteHeight = 2.05;
+      const spriteHeight = 2.15;
       const imageWidth = Number(map?.image?.width || 1);
       const imageHeight = Number(map?.image?.height || 1);
       const aspect = imageWidth / Math.max(1, imageHeight);
       const spriteWidth = clamp(spriteHeight * aspect, 0.55, 1.75);
       // Align the bottom of the full-body cutout to the visible platform top.
-      sprite.position.set(x, p.y - feetOffset + bob, z);
+      const transparentFootPad = Number(texture?.userData?.bcmCutoutFeetPadRatio || 0);
+      sprite.position.set(x, p.y - feetOffset - transparentFootPad * spriteHeight + bob, z);
       sprite.scale.set(spriteWidth, spriteHeight, 1);
     }
     function updateCamera(index, viewport) {
