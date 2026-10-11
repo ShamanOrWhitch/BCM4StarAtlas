@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_TOWER_VERSION', '0.2.50');
+define('BCM_TOWER_VERSION', '0.2.51');
 define('BCM_TOWER_PATH', __DIR__ . '/');
 define('BCM_TOWER_URL', trailingslashit(plugin_dir_url(__FILE__)));
 
@@ -233,7 +233,7 @@ function bcm_tower_shortcode($atts = array()) {
                 <span>W/S</span> ручная коррекция высоты · <span>Mouse</span> обзор · <span>R</span> новый спуск
             </div>
             <div class="bcm-tower-help bcm-tower-help-touch">
-                <span>наклон</span> влево/вправо — поворот · левая половина экрана — прыжок · правая — прыжок второго · кнопки снизу только у второго игрока
+                <span>наклон</span> крутит только первого · снизу слева <span>ПРЫЖОК</span> · справа кнопки второго игрока
             </div>
             <div class="bcm-tower-help bcm-tower-help-multi">
                 <b>P1</b> A/D + W/S + Space + E · <b>P2</b> ←/→ + ↑/↓ + X + Shift ·
@@ -248,9 +248,7 @@ function bcm_tower_shortcode($atts = array()) {
 
         <div class="bcm-tower-mobile" aria-hidden="true">
             <div class="bcm-tower-mobile-player bcm-tower-mobile-p1">
-                <button data-tower-player="0" data-tower-control="left" type="button">◀</button>
-                <button data-tower-player="0" data-tower-control="jump" type="button">JET</button>
-                <button data-tower-player="0" data-tower-control="right" type="button">▶</button>
+                <button data-tower-player="0" data-tower-control="jump" type="button">ПРЫЖОК</button>
             </div>
             <div class="bcm-tower-mobile-player bcm-tower-mobile-p2" hidden>
                 <button data-tower-player="1" data-tower-control="left" type="button">◀</button>

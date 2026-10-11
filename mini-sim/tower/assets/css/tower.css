@@ -204,7 +204,7 @@
 .bcm-tower-mobile-player {
     display: flex;
     gap: 9px;
-    pointer-events: none;
+    pointer-events: auto;
 }
 
 .bcm-tower-mobile-player button {
@@ -294,10 +294,6 @@
         display: flex;
     }
 
-    .bcm-tower-mobile-p1 {
-        display: none !important;
-    }
-
     .bcm-tower-help-single,
     .bcm-tower-help-multi {
         display: none !important;
@@ -311,6 +307,12 @@
         width: 76px;
         height: 64px;
         font-size: 22px;
+    }
+
+    .bcm-tower-mobile-p1 button[data-tower-control="jump"] {
+        width: min(46vw, 220px);
+        height: 74px;
+        font-size: 16px;
     }
 }
 

@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.50";
+  const TOWER_VERSION = "0.2.51";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -2041,8 +2041,10 @@
       p.vy -= gravity * dt;
 
       let turn = (c.right ? 1 : 0) - (c.left ? 1 : 0);
-      const tiltTurn = towerTiltTurn();
-      if (Math.abs(tiltTurn) > Math.abs(turn)) turn = tiltTurn;
+      if (index === 0) {
+        const tiltTurn = towerTiltTurn();
+        if (Math.abs(tiltTurn) > Math.abs(turn)) turn = tiltTurn;
+      }
       let trim = (c.up ? 1 : 0) - (c.down ? 1 : 0);
 
       const onIce = p.currentCell?.surface === "ice" || p.currentCell?.liftHazard === "ice";
@@ -2814,35 +2816,6 @@
       }
       bindTowerTilt();
     }
-
-    const screenTouches = new Map();
-
-    function touchPlayerIndex(clientX) {
-      if (mode !== "multi") return 0;
-      const rect = root.getBoundingClientRect();
-      return clientX - rect.left > rect.width * 0.5 ? 1 : 0;
-    }
-
-    root.addEventListener("touchstart", (event) => {
-      if (!gameStarted || event.target.closest("button, .bcm-tower-mobile")) return;
-      let accepted = false;
-      for (const touch of event.changedTouches) {
-        if (screenTouches.size >= 3) break;
-        const player = touchPlayerIndex(touch.clientX);
-        screenTouches.set(touch.identifier, player);
-        doJump(player);
-        accepted = true;
-      }
-      if (accepted) event.preventDefault();
-    }, { passive: false });
-
-    root.addEventListener("touchend", (event) => {
-      for (const touch of event.changedTouches) screenTouches.delete(touch.identifier);
-    });
-
-    root.addEventListener("touchcancel", (event) => {
-      for (const touch of event.changedTouches) screenTouches.delete(touch.identifier);
-    });
 
     root.addEventListener("pointerdown", (event) => {
       if (!gameStarted || event.pointerType !== "mouse" || event.target.closest("button, .bcm-tower-mobile")) return;

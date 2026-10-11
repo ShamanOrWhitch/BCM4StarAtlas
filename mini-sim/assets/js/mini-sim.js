@@ -333,51 +333,6 @@
           crewRoster.length +
           " · можно играть без кошелька."
         );
-
-        // Keep the 68-row local menu instant, then quietly attach official
-        // Star Atlas images/metadata where the names match.
-        const catalogPromise = window.BCMCrewWallet?.loadCatalog
-          ? window.BCMCrewWallet.loadCatalog()
-          : Promise.reject(new Error("Crew catalog loader unavailable"));
-
-        catalogPromise.then((catalog) => {
-          if (!(catalog instanceof Map) || !catalog.size || !crewRoster.length) return;
-
-          const byName = new Map();
-          catalog.forEach((card) => {
-            const key = String(card?.name || "").trim().toLowerCase();
-            if (key && !byName.has(key)) byName.set(key, card);
-          });
-
-          let enriched = 0;
-          crewRoster = crewRoster.map((crew) => {
-            const card = byName.get(String(crew.name || "").trim().toLowerCase());
-            if (!card) return crew;
-            enriched++;
-            return Object.assign({}, crew, {
-              image: crew.image || String(card.image || ""),
-              rarity: crew.rarity || String(card.rarity || ""),
-              species: crew.species || String(card.species || ""),
-              traits: crew.traits.length ? crew.traits : (Array.isArray(card.traits) ? card.traits : []),
-              profession: crew.profession?.length ? crew.profession : professionList(card),
-              characteristics: Object.keys(crew.characteristics || {}).length
-                ? crew.characteristics
-                : (card.characteristics || {}),
-              raw: crew.raw || card.raw || null,
-              source: crew.source === "default" ? "star-atlas-catalog" : crew.source
-            });
-          });
-
-          renderCrewPreflight();
-          crewSetStatus(
-            "Локальная база Crew: " +
-            crewRoster.length +
-            " · образы Star Atlas: " +
-            enriched +
-            " · можно играть без кошелька."
-          );
-        }).catch(() => {});
-
         return crewRoster;
       })
       .catch((error) => {
@@ -607,34 +562,39 @@
       setTimeout(centerSim, 0);
     }
 
-    const capdoor = liveInterior.find((item) => item.mesh && item.mesh.name === "room1-rear-capdoor");
-    const room2Corridor = liveInterior.find((item) => item.mesh && item.mesh.name === "room2-right-wall-live-bottom-right");
-    const primeVideo = (name, priority) => {
-      const url = assetUrl(name);
-      if (!url) return;
-      const video = document.createElement("video");
-      video.muted = true;
-      video.preload = "auto";
-      video.playsInline = true;
-      try { video.fetchPriority = priority; } catch (e) {}
-      video.src = url;
-      video.load();
+    let levelMediaArmed = false;
+    const armLevelMedia = () => {
+      if (levelMediaArmed) return;
+      levelMediaArmed = true;
+      const capdoor = liveInterior.find((item) => item.mesh && item.mesh.name === "room1-rear-capdoor");
+      const room2Corridor = liveInterior.find((item) => item.mesh && item.mesh.name === "room2-right-wall-live-bottom-right");
+      const primeVideo = (name, priority) => {
+        const url = assetUrl(name);
+        if (!url) return;
+        const video = document.createElement("video");
+        video.muted = true;
+        video.preload = "auto";
+        video.playsInline = true;
+        try { video.fetchPriority = priority; } catch (e) {}
+        video.src = url;
+        video.load();
+      };
+      primeVideo("portal2.mp4", "high");
+      if (room2Corridor) {
+        try { room2Corridor.el.fetchPriority = "high"; } catch (e) {}
+        warmInteriorVideo(room2Corridor);
+      }
+      setTimeout(() => {
+        primeVideo("portal1.mp4", "low");
+        if (capdoor) warmInteriorVideo(capdoor);
+      }, 900);
+      if (liveWall.el && liveWall.ready) {
+        const wallPlay = liveWall.el.play();
+        if (wallPlay && wallPlay.catch) wallPlay.catch(() => {});
+      }
     };
-    // The clip that carries the ship into Room 2 goes first. Room 1 videos wait.
-    primeVideo("portal2.mp4", "high");
-    if (room2Corridor) {
-      try { room2Corridor.el.fetchPriority = "high"; } catch (e) {}
-      warmInteriorVideo(room2Corridor);
-    }
-    setTimeout(() => {
-      primeVideo("portal1.mp4", "low");
-      if (capdoor) warmInteriorVideo(capdoor);
-    }, 900);
-
-    if (liveWall.el && liveWall.ready) {
-      const wallPlay = liveWall.el.play();
-      if (wallPlay && wallPlay.catch) wallPlay.catch(() => {});
-    }
+    if (musicAudio) musicAudio.addEventListener("playing", armLevelMedia, { once: true });
+    setTimeout(armLevelMedia, 900);
 
     updateLiveWall();
     root.classList.add("game-active");
@@ -995,6 +955,11 @@
     ship.thrust = speedMatrix[next].thrust;
     ship.maxSpeed = speedMatrix[next].maxSpeed;
     return speedMode;
+  }
+
+  const missionEl = root.querySelector(".bcm-mini-sim-mission");
+  function showMission(text) {
+    if (missionEl) missionEl.textContent = text;
   }
 
   function setStatus(text) {
@@ -1567,26 +1532,58 @@
     return match[index % match.length];
   }
 
-  function buildRoom0Labyrinth(parent) {
+  function buildRoom0Labyrinth(parent, seed) {
+    race.parent = parent || race.parent;
+    if (race.group) {
+      if (race.group.parent) race.group.parent.remove(race.group);
+      race.group.traverse((obj) => {
+        if (obj.geometry) obj.geometry.dispose();
+      });
+      race.group = null;
+    }
+    const parentNode = race.parent;
+    if (!parentNode) return;
     const group = new THREE.Group();
     group.name = "room3-slipstream";
-    group.visible = false;
-    const rand = seedRandom(labyrinthSeed ^ 0x51ab17);
-    const spanZ = 24 + Math.floor(rand() * 16);
-    const spanX = 16 + Math.floor(rand() * 14);
-    const z0 = 18 + Math.floor(rand() * 8);
-    const x0 = -4 + Math.floor(rand() * 10);
-    const corners = [
-      new THREE.Vector3(x0, 0, z0),
-      new THREE.Vector3(x0, 0, z0 + spanZ),
-      new THREE.Vector3(x0 + spanX, 0, z0 + spanZ),
-      new THREE.Vector3(x0 + spanX, 0, z0)
-    ];
-    const halfW = 3.6 + rand() * 1.2;
+    group.visible = !!race.active;
+    const useSeed = (seed == null ? (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) : seed) >>> 0;
+    const rand = seedRandom(useSeed);
+    const kind = Math.floor(rand() * 4);
+    const z0 = 20;
+    const point = (x, z) => new THREE.Vector3(x, 0, z);
+    let corners;
+    if (kind === 0) {
+      const w = 22 + rand() * 20;
+      const d = 30 + rand() * 22;
+      const x = -8 + rand() * 10;
+      corners = [point(x, z0), point(x, z0 + d), point(x + w, z0 + d), point(x + w, z0)];
+    } else if (kind === 1) {
+      const w = 14 + rand() * 12;
+      const d = 24 + rand() * 18;
+      const jog = 8 + rand() * 12;
+      corners = [point(0, z0), point(0, z0 + d), point(w, z0 + d), point(w + jog, z0 + d * 0.42), point(w * 0.35, z0)];
+    } else if (kind === 2) {
+      const w = 10 + rand() * 8;
+      const d = 38 + rand() * 18;
+      const x = 2 + rand() * 12;
+      corners = [point(x, z0), point(x, z0 + d), point(x + w, z0 + d), point(x + w * 2.4, z0 + d * 0.55), point(x + w, z0)];
+    } else {
+      const w = 18 + rand() * 12;
+      const d = 20 + rand() * 14;
+      corners = [point(-6, z0), point(-6, z0 + d * 0.5), point(6, z0 + d), point(6 + w, z0 + d), point(6 + w, z0 + d * 0.28), point(4, z0)];
+    }
+    race.kindLabel = ["широкий овал", "собачья нога", "длинная петля", "зигзаг"][kind];
+    const halfW = 3.5 + rand() * 0.8;
     const halfH = 2.5;
     race.segments = [];
     race.gates = [];
-    race.spawn = { x: x0, z: z0 + 2 };
+    const launch = corners[1].clone().sub(corners[0]);
+    launch.normalize();
+    race.spawn = {
+      x: corners[0].x + launch.x * 3,
+      z: corners[0].z + launch.z * 3,
+      yaw: Math.atan2(launch.x, -launch.z)
+    };
     for (let i = 0; i < corners.length; i += 1) {
       const a = corners[i];
       const b = corners[(i + 1) % corners.length];
@@ -1705,7 +1702,7 @@
     ship.position.set(race.spawn.x, 0, race.spawn.z);
     ship.velocity.set(0, 0, 0);
     ship.angularVelocity.set(0, 0, 0);
-    ship.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+    ship.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), race.spawn.yaw || Math.PI);
     if (ship.visual) {
       ship.visual.position.copy(ship.position);
       ship.visual.quaternion.copy(ship.quaternion);
@@ -1713,7 +1710,8 @@
     camera.position.copy(ship.position);
     camera.quaternion.copy(ship.quaternion);
     if (race.group) race.group.visible = true;
-    setStatus("МИССИЯ: 2 КРУГА ПО ТРАССЕ, НИ РАЗУ НЕ ВЫЛЕТАЯ В КОСМОС");
+    showMission("МИССИЯ: 2 КРУГА ПО ТРАССЕ, НИ РАЗУ НЕ ВЫЛЕТАЯ В КОСМОС");
+    setStatus("ТРАССА · " + (race.kindLabel || "") + " · КРУГ 1/2");
   }
 
   function returnFromSlipstream() {
@@ -1733,6 +1731,7 @@
     }
     camera.position.copy(ship.position);
     camera.quaternion.copy(ship.quaternion);
+    showMission("МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS");
     setStatus("ROOM 1 · ДВА КРУГА ЗАКРЫТЫ");
   }
 
@@ -1789,6 +1788,7 @@
 
   function beginRaceCutscene() {
     if (race.active || race.busy || transitionBusy) return;
+    if (race.parent) buildRoom0Labyrinth(race.parent);
     playRaceCutscene("enter");
   }
 
@@ -3970,7 +3970,13 @@
     } else {
       room = "ROOM 1";
     }
-    setStatus(room + " · SPD " + ship.velocity.length().toFixed(1));
+    if (race.active) {
+      showMission("МИССИЯ: 2 КРУГА ПО ТРАССЕ, НИ РАЗУ НЕ ВЫЛЕТАЯ В КОСМОС");
+      setStatus("ТРАССА · КРУГ " + Math.min(race.needed, race.laps + 1) + "/2 · НЕ ВЫЛЕТАТЬ В КОСМОС · SPD " + ship.velocity.length().toFixed(1));
+    } else {
+      showMission("МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS");
+      setStatus(room + " · SPD " + ship.velocity.length().toFixed(1));
+    }
   }
 
   function render(now) {
@@ -4020,7 +4026,11 @@
     try {
       window.BCMTowerAPI?.stopAudio?.();
     } catch (e) {}
-    if (!musicAudio.src) musicAudio.src = config.musicUrl;
+    if (!musicAudio.src) {
+      musicAudio.preload = "auto";
+      try { musicAudio.fetchPriority = "high"; } catch (e) {}
+      musicAudio.src = config.musicUrl;
+    }
     musicAudio.muted = false;
     musicAudio.loop = true;
     musicAudio.volume = settings.volume;

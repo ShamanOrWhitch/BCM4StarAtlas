@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.75
+ * Version: 0.9.76
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.75');
+define('BCM_MINI_SIM_VERSION', '0.9.76');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -910,7 +910,7 @@ function bcm_mini_sim_shortcode($atts = array())
         </div>
         <button class="bcm-mini-sim-music" type="button" hidden>♫</button>
         <button class="bcm-mini-sim-crystal bcm-mini-sim-crystal-main" type="button">◆</button>
-        <audio class="bcm-mini-sim-music-audio" preload="none" loop></audio>
+        <audio class="bcm-mini-sim-music-audio" preload="auto" loop></audio>
         <div class="bcm-mini-sim-transition" hidden>
             <video class="bcm-mini-sim-transition-video" playsinline></video>
             <div class="bcm-mini-sim-transition-label">PORTAL</div>
