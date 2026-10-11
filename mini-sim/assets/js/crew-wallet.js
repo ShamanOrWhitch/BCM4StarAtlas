@@ -101,14 +101,25 @@
   }
 
   function traitsOf(meta) {
-    const raw = meta?.attributes;
+    const sources = [
+      meta?.attributes,
+      meta?.traits,
+      meta?.properties?.attributes,
+      meta?.properties?.traits,
+      meta?.metadata?.attributes,
+      meta?.metadata?.properties?.attributes
+    ];
     const out = [];
-    if (!Array.isArray(raw)) return out;
-    raw.forEach((row) => {
+    const seen = new Set();
+    sources.filter(Array.isArray).flat().forEach((row) => {
       if (!row || typeof row !== "object") return;
-      const trait = row.trait_type || row.trait;
-      if (!trait || row.value == null || typeof row.value === "object") return;
-      out.push({ trait: String(trait), value: String(row.value) });
+      const trait = row.trait_type || row.traitType || row.trait || row.key;
+      const value = row.value ?? row.Value ?? row.val;
+      if (!trait || value == null || typeof value === "object") return;
+      const key = String(trait).trim().toLowerCase() + "|" + String(value).trim();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push({ trait: String(trait), value: String(value) });
     });
     return out;
   }
@@ -233,7 +244,7 @@
           const galaxy = crewIndex.get(mint);
           if (galaxy) {
             seen.add(mint);
-            crew.push(crewRecord(mint, amount, galaxy.name, galaxy.imageUrl, traitsOf(meta), galaxy));
+            crew.push(crewRecord(mint, amount, galaxy.name, galaxy.imageUrl, traitsOf(galaxy), galaxy));
             return;
           }
           const known = nftIndex.get(mint);
