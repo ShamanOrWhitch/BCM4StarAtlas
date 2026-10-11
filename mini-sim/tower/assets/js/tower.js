@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.45";
+  const TOWER_VERSION = "0.2.46";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -1309,7 +1309,7 @@
           phase: rand() * Math.PI * 2,
           flap: 7.5 + rand() * 3.5,
           dir: i % 3 === 0 ? -1 : 1,
-          hunter: rand() < 0.15
+          homeY: levelY + 1.15
         };
 
         group.userData.bird = true;
@@ -1317,6 +1317,8 @@
         birds.push(state);
       }
     }
+
+    let nextBirdPassAt = 0;
 
     function updateBirds(time) {
       if (!birds.length) return;
@@ -1328,25 +1330,28 @@
         p.birdHitCooldown = Math.max(0, (p.birdHitCooldown || 0) - 0.016);
       }
 
+      const alive = players.filter((candidate) => !candidate.finished);
+      const quarry = alive[0] || null;
+      if (!nextBirdPassAt) nextBirdPassAt = now + 10000;
+      const passer = birds.find((bird) => bird.passing);
+      if (!passer && quarry && now >= nextBirdPassAt) {
+        const choice = birds[Math.floor(Math.random() * birds.length)];
+        choice.passing = true;
+        choice.passUntil = now + 4200;
+      }
+
       for (const bird of birds) {
-        let a = bird.angle + t * bird.speed;
-        let y = bird.baseY + Math.sin(t * 1.4 + bird.phase) * 0.22;
-        if (bird.hunter) {
-          let target = null;
-          players.forEach((candidate) => {
-            if (candidate.finished) return;
-            if (!target || Math.abs(candidate.y - bird.baseY) < Math.abs(target.y - bird.baseY)) target = candidate;
-          });
-          if (target) {
-            const steer = angleDelta(target.angle, bird.angle);
-            bird.angle += clamp(steer, -1.2, 1.2) * 0.045;
-            bird.baseY += ((target.y + 0.85) - bird.baseY) * 0.08;
-            const floor = tower ? -((tower.levels - 1) * tower.stepY) : -180;
-            bird.baseY = clamp(bird.baseY, floor, 6);
-            a = bird.angle;
-            y = bird.baseY;
+        const a = bird.angle + t * bird.speed;
+        if (bird.passing && quarry) {
+          bird.baseY += ((quarry.y + 0.85) - bird.baseY) * 0.14;
+          if (now >= bird.passUntil) {
+            bird.passing = false;
+            nextBirdPassAt = now + 10000;
           }
+        } else {
+          bird.baseY += ((bird.homeY || bird.baseY) - bird.baseY) * 0.06;
         }
+        const y = bird.baseY + Math.sin(t * 1.4 + bird.phase) * 0.22;
         const r = bird.radius;
 
         bird.group.position.set(
@@ -2697,9 +2702,22 @@
     });
 
     modeButtons.forEach(button => {
-      button.addEventListener("click", () => {
+      let pressed = false;
+      button.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        pressed = true;
+      });
+      button.addEventListener("pointerup", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!pressed) return;
+        pressed = false;
         syncCrewSelectionFromMiniSim();
         startMode(button.dataset.towerMode);
+      });
+      button.addEventListener("pointercancel", () => {
+        pressed = false;
       });
     });
 

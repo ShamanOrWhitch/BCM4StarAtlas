@@ -38,7 +38,7 @@
 
 .bcm-tower-menu {
     position: absolute;
-    z-index: 30;
+    z-index: 80;
     inset: 0;
     display: flex;
     flex-direction: column;
@@ -50,10 +50,12 @@
         radial-gradient(circle at 50% 45%, rgba(28,65,92,.16), rgba(0,0,0,.48) 68%),
         rgba(0,0,0,.16);
     backdrop-filter: blur(2px);
+    touch-action: manipulation;
+    pointer-events: auto;
 }
 
 .bcm-tower-menu[hidden] {
-    display: none;
+    display: none !important;
 }
 
 .bcm-tower-menu-title {
@@ -87,6 +89,10 @@
     font-weight: 800;
     letter-spacing: .12em;
     box-shadow: 0 10px 35px rgba(0,0,0,.35);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+    z-index: 2;
 }
 
 .bcm-tower-mode-buttons button:hover,
@@ -236,6 +242,11 @@
     z-index: 50;
     inset: 0;
     background: #000;
+    pointer-events: none;
+}
+
+.bcm-tower-transition[hidden] {
+    display: none !important;
 }
 
 .bcm-tower-transition video {
@@ -266,6 +277,8 @@
     background: rgba(0,0,0,.45);
     color: #fff;
     cursor: pointer;
+    pointer-events: auto;
+    touch-action: manipulation;
 }
 
 @media (min-width: 901px) {
