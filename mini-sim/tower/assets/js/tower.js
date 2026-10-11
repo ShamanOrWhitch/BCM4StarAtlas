@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.41";
+  const TOWER_VERSION = "0.2.42";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -90,25 +90,25 @@
 
 
   // Run image matting once per selected Crew image, never inside the render loop.
-  // Xenova/modnet is a Transformers.js background-removal model (Apache-2.0).
+  // ISNet returns a per-image foreground probability map; normalize the matte before thresholding.
   let crewSegmentationPipelinePromise = null;
 
   function crewCutoutCacheRequest(url) {
     if (!window.caches || !window.location || !window.location.origin) return null;
     let hash = 2166136261;
-    const input = String(url || "") + "|crew-isnet-v8";
+    const input = String(url || "") + "|crew-isnet-v9";
     for (let i = 0; i < input.length; i += 1) {
       hash ^= input.charCodeAt(i);
       hash = Math.imul(hash, 16777619);
     }
-    return new Request(window.location.origin + "/?bcm-crew-cutout=v8-" + (hash >>> 0).toString(36));
+    return new Request(window.location.origin + "/?bcm-crew-cutout=v9-" + (hash >>> 0).toString(36));
   }
 
   async function readCrewCutoutCache(url) {
     try {
       const request = crewCutoutCacheRequest(url);
       if (!request) return null;
-      const cache = await window.caches.open("bcm-tower-crew-cutouts-v8");
+      const cache = await window.caches.open("bcm-tower-crew-cutouts-v9");
       const response = await cache.match(request);
       return response && response.ok ? await response.blob() : null;
     } catch (error) {
@@ -122,7 +122,7 @@
       if (!request || !canvas.toBlob) return;
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) return;
-      const cache = await window.caches.open("bcm-tower-crew-cutouts-v8");
+      const cache = await window.caches.open("bcm-tower-crew-cutouts-v9");
       await cache.put(request, new Response(blob, { headers: { "Content-Type": "image/png" } }));
     } catch (error) {}
   }
@@ -303,9 +303,17 @@
           image.src = options.fallbackUrl;
           return;
         }
+        const needsCutout = !!(options.cutout || options.officialAlpha);
+        if (needsCutout) {
+          canvas.width = 2;
+          canvas.height = 2;
+          const safeCtx = canvas.getContext("2d");
+          if (safeCtx) safeCtx.clearRect(0, 0, 2, 2);
+        }
         if (tex.userData) {
           tex.userData.bcmCutoutPending = false;
-          tex.userData.bcmCutoutReady = true;
+          tex.userData.bcmCutoutReady = !needsCutout;
+          if (needsCutout) tex.userData.bcmCutoutFailed = true;
         }
         tex.needsUpdate = true;
       };
@@ -327,11 +335,12 @@
           const pixels = frame.data;
 
           if (options.officialAlpha && crewImageHasCutoutAlpha(pixels)) {
-            if (!cropCrewCanvas(canvas, ctx, frame, tex, 40)) {
+            if (!cropCrewCanvas(canvas, ctx, frame, tex)) {
               throw new Error("official crew png had no silhouette");
             }
             tex.userData.bcmCutoutPending = false;
             tex.userData.bcmCutoutReady = true;
+            tex.userData.bcmCutoutFailed = false;
             tex.userData.bcmOfficialCutout = true;
             tex.needsUpdate = true;
             return;
@@ -410,11 +419,12 @@
                 mask.data instanceof Uint8Array ||
                 mask.data instanceof Uint8ClampedArray ||
                 maxMask > 1.5;
-              const maskScale = byteMask ? 255 : 1;
+              const maskRange = maxMask - minMask;
               if (
                 !Number.isFinite(minMask) ||
                 !Number.isFinite(maxMask) ||
-                maxMask - minMask < (byteMask ? 2 : 0.01)
+                !Number.isFinite(maskRange) ||
+                maskRange < (byteMask ? 2 : 0.01)
               ) {
                 throw new Error("ISNet returned a flat matte");
               }
@@ -428,7 +438,10 @@
                 for (let x = 0; x < canvas.width; x += 1) {
                   const mx = Math.min(mask.width - 1, Math.round(x * (mask.width - 1) / Math.max(1, canvas.width - 1)));
                   const mi = (my * mask.width + mx) * maskChannels + maskChannel;
-                  const normalized = clamp((Number(mask.data[mi]) || 0) / maskScale, 0, 1);
+                  // ISNet's output is a probability map; normalize its measured
+                  // range to prevent a semi-opaque residual haze around the Crew.
+                  const rawMaskValue = Number(mask.data[mi]) || 0;
+                  const normalized = clamp((rawMaskValue - minMask) / Math.max(1e-6, maskRange), 0, 1);
                   // For a returned RGBA cut-out, retain the model's soft alpha
                   // and clear only very low-opacity edge noise. If a model returns
                   // a single-channel probability matte instead, threshold it.
@@ -449,23 +462,25 @@
               await writeCrewCutoutCache(url, canvas);
               segmented = true;
             } catch (segmentationError) {
-              // Do not remove pixels by color: a suit can share its colors with the
-              // Crew card background. Avoid damaging the character on model failure.
-              console.error("Tower Crew AI segmentation failed; source kept intact", url, segmentationError);
-              canvas.width = Math.max(1, Math.round(srcW * scale));
-              canvas.height = Math.max(1, Math.round(srcH * scale));
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+              // Fail closed: never render an opaque Crew card when matting fails.
+              // Keep the grounded marker visible until a transparent texture succeeds.
+              console.error("Tower Crew AI segmentation failed; hiding card background", url, segmentationError);
               segmented = false;
             }
             if (!segmented) {
-              canvas.width = Math.max(1, Math.round(srcW * scale));
-              canvas.height = Math.max(1, Math.round(srcH * scale));
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+              canvas.width = 2;
+              canvas.height = 2;
+              const safeCtx = canvas.getContext("2d");
+              if (safeCtx) safeCtx.clearRect(0, 0, 2, 2);
+              tex.userData.bcmCutoutPending = false;
+              tex.userData.bcmCutoutReady = false;
+              tex.userData.bcmCutoutFailed = true;
+              tex.needsUpdate = true;
+              return;
             }
             tex.userData.bcmCutoutPending = false;
             tex.userData.bcmCutoutReady = true;
+            tex.userData.bcmCutoutFailed = false;
           } else {
             for (let i = 0; i < pixels.length; i += 4) {
               const r = pixels[i];
@@ -488,7 +503,18 @@
           tex.needsUpdate = true;
         } catch (error) {
           console.warn("Tower PNG alpha cleanup failed", url, error);
-          if (options.cutout && tex.userData) {
+          const needsCutout = !!(options.cutout || options.officialAlpha);
+          if (needsCutout) {
+            canvas.width = 2;
+            canvas.height = 2;
+            const safeCtx = canvas.getContext("2d");
+            if (safeCtx) safeCtx.clearRect(0, 0, 2, 2);
+          }
+          if (tex.userData && needsCutout) {
+            tex.userData.bcmCutoutPending = false;
+            tex.userData.bcmCutoutReady = false;
+            tex.userData.bcmCutoutFailed = true;
+          } else if (tex.userData) {
             tex.userData.bcmCutoutPending = false;
             tex.userData.bcmCutoutReady = true;
           }
@@ -2028,12 +2054,15 @@
       const halo = playerHalos[index];
       const sprite = playerSprites[index];
       const texture = playerTextures[index];
+      const cutoutFailed = texture?.userData?.bcmCutoutFailed === true;
       const cutoutReady = !texture || texture.userData?.bcmCutoutPending !== true;
-      const feetOffset = 0.72;
+      const spriteReady = !!sprite && cutoutReady && !cutoutFailed;
+      const feetOffset = 0.49;
 
       if (marker) {
-        marker.position.set(x, p.y + 0.35, z);
-        marker.visible = !sprite;
+        // The sphere's lower edge rests on the same platform as the Crew's feet.
+        marker.position.set(x, p.y - feetOffset + 0.48, z);
+        marker.visible = !spriteReady;
       }
       if (halo) {
         const haloRadius = Math.max(0.1, r - 0.045);
@@ -2042,8 +2071,8 @@
         halo.visible = !!sprite;
       }
       if (!sprite) return;
-      sprite.visible = cutoutReady;
-      if (!cutoutReady) return;
+      sprite.visible = spriteReady;
+      if (!spriteReady) return;
 
       const delta = angleDelta(a, p.visualAngle ?? a);
       const turnInput = (controls[index]?.right ? 1 : 0) - (controls[index]?.left ? 1 : 0);
