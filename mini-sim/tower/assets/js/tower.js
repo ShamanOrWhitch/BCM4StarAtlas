@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.44";
+  const TOWER_VERSION = "0.2.45";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -245,6 +245,22 @@
     }
   }
 
+  function speciesMotion(species, sex) {
+    const key = String(species || "").toLowerCase();
+    const female = /female/i.test(String(sex || ""));
+    if (key.includes("profound") || key.includes("high punaab") || key.includes("punaab")) {
+      return { bob: 0.055, speed: 0.011, sway: 0.035, squash: 0.045 };
+    }
+    if (key.includes("sogmian")) return { bob: 0.085, speed: 0.028, sway: 0.02, squash: 0.09 };
+    if (key.includes("ustur")) return { bob: 0.012, speed: 0.009, sway: 0.055, squash: 0.015 };
+    if (key.includes("mierese")) {
+      return female
+        ? { bob: 0.048, speed: 0.021, sway: 0.07, squash: 0.05 }
+        : { bob: 0.034, speed: 0.015, sway: 0.025, squash: 0.035 };
+    }
+    return { bob: 0.036, speed: 0.018, sway: 0.018, squash: 0.04 };
+  }
+
   function officialCrewCutoutUrl(url) {
     const text = String(url || "");
     const full = text.match(/^(https?:\/\/cdn\.staratlas\.com\/crew\/v1\/)(\d+)_full\.(?:jpe?g|png|webp)(?:\?.*)?$/i);
@@ -267,14 +283,14 @@
     if (!url || !window.THREE) return null;
     options = options && typeof options === "object" ? options : {};
 
-    const cleanKey = options.officialAlpha ? "|official" : options.cutout ? "|cutout" : options.removeWhite ? "|whitekey" : "";
+    const cleanKey = (options.officialAlpha ? "|official" : options.cutout ? "|cutout" : options.removeWhite ? "|whitekey" : "") + (options.removeBlack ? "|black" : "");
     const cacheKey = String(url) + cleanKey;
     const cache = assetTexture.cache || (assetTexture.cache = new Map());
     if (cache.has(cacheKey)) return cache.get(cacheKey);
 
     let tex;
 
-    if ((options.removeWhite || options.cutout || options.officialAlpha) && (rasterUrl(url) || /^https?:/i.test(String(url)))) {
+    if ((options.removeWhite || options.removeBlack || options.cutout || options.officialAlpha) && (rasterUrl(url) || /^https?:/i.test(String(url)))) {
       // Some of the supplied PNG cards contain an opaque white matte instead
       // of real alpha. Remove only near-white pixels and preserve antialiased
       // edges so doors, NPCs and landing cards behave as cut-outs.
@@ -464,12 +480,17 @@
               const b = pixels[i + 2];
               const a = pixels[i + 3];
               if (!a) continue;
-              const nearWhite = Math.min(r, g, b) >= 246 && Math.max(r, g, b) <= 255;
-              const softWhite = Math.min(r, g, b) >= 232;
-              if (nearWhite) {
+              const nearWhite = options.removeWhite && Math.min(r, g, b) >= 246 && Math.max(r, g, b) <= 255;
+              const softWhite = options.removeWhite && Math.min(r, g, b) >= 232;
+              const nearBlack = options.removeBlack && Math.max(r, g, b) <= 18;
+              const softBlack = options.removeBlack && Math.max(r, g, b) <= 40;
+              if (nearWhite || nearBlack) {
                 pixels[i + 3] = 0;
               } else if (softWhite) {
                 const fade = Math.max(0, Math.min(1, (246 - Math.min(r, g, b)) / 14));
+                pixels[i + 3] = Math.round(a * fade);
+              } else if (softBlack) {
+                const fade = Math.max(0, Math.min(1, (Math.max(r, g, b) - 18) / 22));
                 pixels[i + 3] = Math.round(a * fade);
               }
             }
@@ -546,17 +567,16 @@
     // Rounded capsule instead of a pointed ellipse. The sides stay wide near
     // the ankles, so the full-body Crew sprite remains inside its shield.
     const traceCapsule = (inset) => {
-      const left = 7 + inset;
-      const right = 121 - inset;
-      const top = 5 + inset;
-      const bottom = 187 - inset;
-      const radius = Math.min((right - left) / 2, (bottom - top) / 2);
+      const left = 22 + inset;
+      const right = 106 - inset;
+      const top = 10 + inset;
+      const bottom = 182 - inset;
+      const rx = (right - left) / 2;
+      const ry = (bottom - top) / 2;
+      const cx = (left + right) / 2;
+      const cy = (top + bottom) / 2;
       ctx.beginPath();
-      ctx.moveTo(left + radius, top);
-      ctx.arcTo(right, top, right, bottom, radius);
-      ctx.arcTo(right, bottom, left, bottom, radius);
-      ctx.arcTo(left, bottom, left, top, radius);
-      ctx.arcTo(left, top, right, top, radius);
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
       ctx.closePath();
     };
 
@@ -903,6 +923,7 @@
     let playerTextures = [null, null];
     // Mierese art uses the current facing; most other races need the reverse.
     let playerFacingFactors = [-1, -1];
+    let playerMotion = [speciesMotion("Human", "Male"), speciesMotion("Human", "Male")];
     let birds = [];
 
     const radius = 8.4;
@@ -1151,7 +1172,8 @@
       }
 
       if (!url) return null;
-      const tex = assetTexture(url, renderer, { removeWhite: true });
+      const keyedDark = cell.object === "door" || cell.object === "walldoor";
+      const tex = assetTexture(url, renderer, { removeWhite: true, removeBlack: keyedDark });
       if (!tex) return null;
 
       const sectorAngle = (cell.sector / tower.sectors) * Math.PI * 2;
@@ -1286,7 +1308,8 @@
           speed: (i % 3 === 0 ? -1 : 1) * (0.42 + rand() * 0.48),
           phase: rand() * Math.PI * 2,
           flap: 7.5 + rand() * 3.5,
-          dir: i % 3 === 0 ? -1 : 1
+          dir: i % 3 === 0 ? -1 : 1,
+          hunter: rand() < 0.15
         };
 
         group.userData.bird = true;
@@ -1306,8 +1329,24 @@
       }
 
       for (const bird of birds) {
-        const a = bird.angle + t * bird.speed;
-        const y = bird.baseY + Math.sin(t * 1.4 + bird.phase) * 0.22;
+        let a = bird.angle + t * bird.speed;
+        let y = bird.baseY + Math.sin(t * 1.4 + bird.phase) * 0.22;
+        if (bird.hunter) {
+          let target = null;
+          players.forEach((candidate) => {
+            if (candidate.finished) return;
+            if (!target || Math.abs(candidate.y - bird.baseY) < Math.abs(target.y - bird.baseY)) target = candidate;
+          });
+          if (target) {
+            const steer = angleDelta(target.angle, bird.angle);
+            bird.angle += clamp(steer, -1.2, 1.2) * 0.045;
+            bird.baseY += ((target.y + 0.85) - bird.baseY) * 0.08;
+            const floor = tower ? -((tower.levels - 1) * tower.stepY) : -180;
+            bird.baseY = clamp(bird.baseY, floor, 6);
+            a = bird.angle;
+            y = bird.baseY;
+          }
+        }
         const r = bird.radius;
 
         bird.group.position.set(
@@ -1476,7 +1515,9 @@
           ? selectedCrew.traits.find((item) => /^(species|race)$/i.test(String(item?.trait || item?.trait_type || "")))?.value
           : "";
         const species = String(selectedCrew?.species || selectedCrew?.spec || traitSpecies || "");
+        const sex = String(selectedCrew?.sex || "");
         playerFacingFactors[i] = /mierese/i.test(species) ? 1 : -1;
+        playerMotion[i] = speciesMotion(species, sex);
         const imageUrl = selectedCrew?.image || "";
         const officialUrl = officialCrewCutoutUrl(imageUrl);
         playerTextures[i] = imageUrl
@@ -1514,8 +1555,8 @@
           depthTest: true,
           sizeAttenuation: true
         }));
-        halo.center.set(0.5, 0);
-        halo.scale.set(2.65, 2.95, 1);
+        halo.center.set(0.5, 0.5);
+        halo.scale.set(1.72, 2.42, 1);
         halo.renderOrder = 2;
         halo.visible = !!playerTextures[i];
         scene.add(halo);
@@ -2060,7 +2101,8 @@
       const texture = playerTextures[index];
       const cutoutFailed = texture?.userData?.bcmCutoutFailed === true;
       const cutoutReady = !cutoutFailed && (!texture || texture.userData?.bcmCutoutPending !== true);
-      const feetOffset = 0.72;
+      const feetOffset = 0.42;
+      const footLift = 0.30;
 
       if (marker) {
         marker.position.set(x, p.y + 0.35, z);
@@ -2070,8 +2112,8 @@
       const shieldBlink = p.shieldBlinkUntil && performance.now() < p.shieldBlinkUntil;
       if (halo) {
         const haloRadius = Math.max(0.1, r - 0.045);
-        halo.position.set(Math.sin(a) * haloRadius, p.y - feetOffset - 0.11, Math.cos(a) * haloRadius);
-        halo.scale.set(2.65, 2.95, 1);
+        halo.position.set(Math.sin(a) * haloRadius, p.y - feetOffset + footLift + 1.07, Math.cos(a) * haloRadius);
+        halo.scale.set(1.72, 2.42, 1);
         halo.visible = !!sprite && (shieldOn || shieldBlink);
         if (halo.material) {
           halo.material.opacity = shieldBlink && (Math.floor(performance.now() / 80) % 2) ? 0.2 : 0.98;
@@ -2091,14 +2133,19 @@
       }
       p.visualAngle = a;
 
-      const moving = Math.abs(p.vy) > 0.4 ||
+      const motion = playerMotion[index] || speciesMotion("", "");
+      const moving = !p.finished && (
+        Math.abs(p.vy) > 0.4 ||
         Math.abs(delta) > 0.01 ||
         turnInput !== 0 ||
-        (!p.grounded && Math.abs(p.vy) > 0.1);
-      const bob = moving && !p.finished ? Math.sin(performance.now() * 0.018 + index) * 0.035 : 0;
+        !p.grounded
+      );
+      const wave = Math.sin(performance.now() * motion.speed + index);
+      const movingAmp = moving ? 1 : 0.35;
+      const bob = wave * motion.bob * movingAmp;
       if (halo) {
         const haloRadius = Math.max(0.1, r - 0.045);
-        halo.position.set(Math.sin(a) * haloRadius, p.y - feetOffset - 0.11 + bob, Math.cos(a) * haloRadius);
+        halo.position.set(Math.sin(a) * haloRadius, p.y - feetOffset + footLift + 1.07 + bob, Math.cos(a) * haloRadius);
         halo.visible = !!sprite && (shieldOn || shieldBlink);
       }
 
@@ -2120,8 +2167,10 @@
       const spriteWidth = clamp(spriteHeight * aspect, 0.55, 1.75);
       // Align the bottom of the full-body cutout to the visible platform top.
       const transparentFootPad = Number(texture?.userData?.bcmCutoutFeetPadRatio || 0);
-      sprite.position.set(x, p.y - feetOffset - transparentFootPad * spriteHeight + bob, z);
-      sprite.scale.set(spriteWidth, spriteHeight, 1);
+      const stretch = 1 + wave * motion.squash * movingAmp;
+      sprite.position.set(x, p.y - feetOffset + footLift - transparentFootPad * spriteHeight + bob, z);
+      sprite.scale.set(spriteWidth / stretch, spriteHeight * stretch, 1);
+      if (sprite.material) sprite.material.rotation = wave * motion.sway * face * movingAmp;
     }
     function updateCamera(index, viewport) {
       const p = players[index];
