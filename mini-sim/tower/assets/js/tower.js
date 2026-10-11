@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.39";
+  const TOWER_VERSION = "0.2.40";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -148,7 +148,8 @@
     return crewSegmentationPipelinePromise;
   }
 
-  function cropCrewCanvas(canvas, ctx, frame, texture) {
+  function cropCrewCanvas(canvas, ctx, frame, texture, minAlpha) {
+    const alphaCut = Number.isFinite(minAlpha) ? minAlpha : 4;
     const w = canvas.width;
     const h = canvas.height;
     const pixels = frame.data;
@@ -159,7 +160,7 @@
     for (let y = 0; y < h; y += 1) {
       for (let x = 0; x < w; x += 1) {
         // Keep faint anti-aliased pixels at hair, fingers and shoe edges.
-        if (pixels[(y * w + x) * 4 + 3] < 4) continue;
+        if (pixels[(y * w + x) * 4 + 3] < alphaCut) continue;
         if (x < minX) minX = x;
         if (y < minY) minY = y;
         if (x > maxX) maxX = x;
@@ -245,18 +246,75 @@
     }
   }
 
+  // Galaxy imageUrl is "{mintOffset}_full.jpeg" (character + painted card background).
+  // The same CDN id as a bare PNG is the official transparent character, including
+  // suit, head and volumetric light. appearance.Background is only an internal
+  // layer id; those ids are not separate downloadable pictures.
+  function officialCrewCutoutUrl(url) {
+    const text = String(url || "");
+    const full = text.match(/^(https?:\/\/cdn\.staratlas\.com\/crew\/v1\/)(\d+)_full\.(?:jpe?g|png|webp)(?:\?.*)?$/i);
+    if (full) return full[1] + full[2] + ".png";
+    const bare = text.match(/^https?:\/\/cdn\.staratlas\.com\/crew\/v1\/\d+\.png(?:\?.*)?$/i);
+    return bare ? text : "";
+  }
+
+  function crewImageHasCutoutAlpha(pixels) {
+    let samples = 0;
+    let clear = 0;
+    for (let i = 3; i < pixels.length; i += 16) {
+      samples += 1;
+      if (pixels[i] < 16) clear += 1;
+    }
+    return samples > 0 && clear / samples > 0.18;
+  }
+
+  function ensureMirroredCrewTexture(texture) {
+    const image = texture && texture.image;
+    const width = Number(image && (image.width || image.naturalWidth) || 0);
+    const height = Number(image && (image.height || image.naturalHeight) || 0);
+    if (!width || !height || !window.THREE) return null;
+    const stamp = width + "x" + height + "@" + String(texture.version || 0);
+    texture.userData = texture.userData || {};
+    if (texture.userData.bcmMirrorStamp === stamp && texture.userData.bcmMirror) {
+      return texture.userData.bcmMirror;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.translate(width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(image, 0, 0, width, height);
+    const mirrored = new THREE.CanvasTexture(canvas);
+    mirrored.generateMipmaps = false;
+    mirrored.minFilter = THREE.LinearFilter;
+    mirrored.magFilter = THREE.LinearFilter;
+    mirrored.wrapS = THREE.ClampToEdgeWrapping;
+    mirrored.wrapT = THREE.ClampToEdgeWrapping;
+    if ("colorSpace" in mirrored && THREE.SRGBColorSpace !== undefined) {
+      mirrored.colorSpace = THREE.SRGBColorSpace;
+    } else if (THREE.sRGBEncoding !== undefined) {
+      mirrored.encoding = THREE.sRGBEncoding;
+    }
+    mirrored.needsUpdate = true;
+    texture.userData.bcmMirror = mirrored;
+    texture.userData.bcmMirrorStamp = stamp;
+    return mirrored;
+  }
+
   function assetTexture(url, renderer, options = {}) {
     if (!url || !window.THREE) return null;
     options = options && typeof options === "object" ? options : {};
 
-    const cleanKey = options.cutout ? "|cutout" : options.removeWhite ? "|whitekey" : "";
+    const cleanKey = options.officialAlpha ? "|official" : options.cutout ? "|cutout" : options.removeWhite ? "|whitekey" : "";
     const cacheKey = String(url) + cleanKey;
     const cache = assetTexture.cache || (assetTexture.cache = new Map());
     if (cache.has(cacheKey)) return cache.get(cacheKey);
 
     let tex;
 
-    if ((options.removeWhite || options.cutout) && (rasterUrl(url) || /^https?:/i.test(String(url)))) {
+    if ((options.removeWhite || options.cutout || options.officialAlpha) && (rasterUrl(url) || /^https?:/i.test(String(url)))) {
       // Some of the supplied PNG cards contain an opaque white matte instead
       // of real alpha. Remove only near-white pixels and preserve antialiased
       // edges so doors, NPCs and landing cards behave as cut-outs.
@@ -265,7 +323,7 @@
       canvas.height = 2;
       tex = new THREE.CanvasTexture(canvas);
       tex.userData = tex.userData || {};
-      if (options.cutout) {
+      if (options.cutout || options.officialAlpha) {
         tex.userData.bcmCutoutPending = true;
         tex.userData.bcmCutoutReady = false;
       }
@@ -273,6 +331,19 @@
       const image = new Image();
       image.crossOrigin = "anonymous";
       image.decoding = "async";
+      image.onerror = () => {
+        if (options.officialAlpha && options.fallbackUrl && image.src !== options.fallbackUrl) {
+          options.officialAlpha = false;
+          options.cutout = true;
+          image.src = options.fallbackUrl;
+          return;
+        }
+        if (tex.userData) {
+          tex.userData.bcmCutoutPending = false;
+          tex.userData.bcmCutoutReady = true;
+        }
+        tex.needsUpdate = true;
+      };
       image.onload = async () => {
         try {
           const srcW = image.naturalWidth || image.width || 1;
@@ -289,6 +360,23 @@
 
           const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const pixels = frame.data;
+
+          if (options.officialAlpha && crewImageHasCutoutAlpha(pixels)) {
+            if (!cropCrewCanvas(canvas, ctx, frame, tex, 40)) {
+              throw new Error("official crew png had no silhouette");
+            }
+            tex.userData.bcmCutoutPending = false;
+            tex.userData.bcmCutoutReady = true;
+            tex.userData.bcmOfficialCutout = true;
+            tex.needsUpdate = true;
+            return;
+          }
+          if (options.officialAlpha && options.fallbackUrl && image.src !== options.fallbackUrl) {
+            options.officialAlpha = false;
+            options.cutout = true;
+            image.src = options.fallbackUrl;
+            return;
+          }
 
           if (options.cutout) {
             const cachedBlob = await readCrewCutoutCache(url);
@@ -1406,8 +1494,15 @@
         const species = String(selectedCrew?.species || selectedCrew?.spec || traitSpecies || "");
         playerFacingFactors[i] = /mierese/i.test(species) ? 1 : -1;
         const imageUrl = selectedCrew?.image || "";
+        const officialUrl = officialCrewCutoutUrl(imageUrl);
         playerTextures[i] = imageUrl
-          ? assetTexture(imageUrl, renderer, { cutout: true })
+          ? assetTexture(officialUrl || imageUrl, renderer, officialUrl
+            ? {
+              officialAlpha: true,
+              fallbackUrl: officialUrl === imageUrl ? "" : imageUrl,
+              cutout: true
+            }
+            : { cutout: true })
           : fallbackPlayerTexture;
       }
 
@@ -1512,6 +1607,9 @@
       p.maxFallSpeed = 0;
       p.birdHitCooldown = 0;
       p.visualFacing = 1;
+      p.shownFacing = 1;
+      p.turnStart = 0;
+      p.turnFrom = 1;
       p.visualAngle = p.angle;
     }
 
@@ -2006,25 +2104,39 @@
       }
 
       sprite.center.set(0.5, 0);
-      const map = sprite.material && sprite.material.map;
+      const sourceMap = texture && texture.image ? texture : (sprite.material && sprite.material.map);
       const face = p.visualFacing || 1;
-      if (map) {
-        map.wrapS = THREE.RepeatWrapping;
-        map.repeat.x = face < 0 ? -1 : 1;
-        map.offset.x = face < 0 ? 1 : 0;
+      // THREE.Sprite is a camera-facing point. Negative UV repeat is ignored
+      // by this r128 build, so the opposite direction is a real mirrored canvas.
+      if ((p.shownFacing ?? face) !== face) {
+        p.turnFrom = p.shownFacing || 1;
+        p.turnStart = performance.now();
+        p.shownFacing = face;
+      }
+      const turnMs = 180;
+      const elapsed = p.turnStart ? performance.now() - p.turnStart : turnMs;
+      const turning = elapsed < turnMs;
+      const squeeze = turning ? Math.abs(Math.cos((elapsed / turnMs) * Math.PI)) : 1;
+      const showFace = turning && elapsed < turnMs * 0.5 ? (p.turnFrom || face) : face;
+      const mirror = showFace < 0 && sourceMap ? ensureMirroredCrewTexture(sourceMap) : null;
+      const nextMap = mirror || sourceMap;
+      if (nextMap && sprite.material && sprite.material.map !== nextMap) {
+        sprite.material.map = nextMap;
+        sprite.material.needsUpdate = true;
       }
 
       // p.y is maintained above the floor by the physics solver. Anchor the
       // image at the platform rather than adding another positive vertical offset.
       const spriteHeight = 2.15;
-      const imageWidth = Number(map?.image?.width || 1);
-      const imageHeight = Number(map?.image?.height || 1);
+      const measure = sourceMap && sourceMap.image ? sourceMap.image : null;
+      const imageWidth = Number(measure && (measure.width || measure.naturalWidth) || 1);
+      const imageHeight = Number(measure && (measure.height || measure.naturalHeight) || 1);
       const aspect = imageWidth / Math.max(1, imageHeight);
       const spriteWidth = clamp(spriteHeight * aspect, 0.55, 1.75);
       // Align the bottom of the full-body cutout to the visible platform top.
       const transparentFootPad = Number(texture?.userData?.bcmCutoutFeetPadRatio || 0);
       sprite.position.set(x, p.y - feetOffset - transparentFootPad * spriteHeight + bob, z);
-      sprite.scale.set(spriteWidth, spriteHeight, 1);
+      sprite.scale.set(Math.max(0.05, spriteWidth * Math.max(0.12, squeeze)), spriteHeight, 1);
     }
     function updateCamera(index, viewport) {
       const p = players[index];
