@@ -474,14 +474,31 @@
     const g = (colorHex >> 8) & 255;
     const b = colorHex & 255;
     const rgb = "rgba(" + r + "," + g + "," + b + ",";
-    const fill = ctx.createRadialGradient(64, 96, 8, 64, 96, 88);
+    const fill = ctx.createRadialGradient(64, 96, 8, 64, 96, 96);
     fill.addColorStop(0, "rgba(10,24,35,0.82)");
     fill.addColorStop(0.52, "rgba(10,32,45,0.58)");
     fill.addColorStop(0.84, "rgba(8,20,31,0.22)");
     fill.addColorStop(1, "rgba(4,12,20,0)");
+
+    // Rounded capsule instead of a pointed ellipse. The sides stay wide near
+    // the ankles, so the full-body Crew sprite remains inside its shield.
+    const traceCapsule = (inset) => {
+      const left = 7 + inset;
+      const right = 121 - inset;
+      const top = 5 + inset;
+      const bottom = 187 - inset;
+      const radius = Math.min((right - left) / 2, (bottom - top) / 2);
+      ctx.beginPath();
+      ctx.moveTo(left + radius, top);
+      ctx.arcTo(right, top, right, bottom, radius);
+      ctx.arcTo(right, bottom, left, bottom, radius);
+      ctx.arcTo(left, bottom, left, top, radius);
+      ctx.arcTo(left, top, right, top, radius);
+      ctx.closePath();
+    };
+
     ctx.fillStyle = fill;
-    ctx.beginPath();
-    ctx.ellipse(64, 96, 58, 92, 0, 0, Math.PI * 2);
+    traceCapsule(0);
     ctx.fill();
 
     ctx.save();
@@ -489,14 +506,12 @@
     ctx.shadowBlur = 11;
     ctx.strokeStyle = rgb + "0.88)";
     ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.ellipse(64, 96, 55, 88, 0, 0, Math.PI * 2);
+    traceCapsule(1.5);
     ctx.stroke();
     ctx.shadowBlur = 0;
     ctx.strokeStyle = rgb + "0.32)";
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.ellipse(64, 96, 48, 81, 0, 0, Math.PI * 2);
+    traceCapsule(7);
     ctx.stroke();
     ctx.restore();
 
@@ -507,7 +522,6 @@
     texture.needsUpdate = true;
     return texture;
   }
-
   function generateTower(seed, options = {}) {
     const rand = mulberry32(seed);
     const sectors = options.sectors || 18;
@@ -1407,7 +1421,7 @@
           sizeAttenuation: true
         }));
         halo.center.set(0.5, 0);
-        halo.scale.set(2.3, 2.75, 1);
+        halo.scale.set(2.65, 2.95, 1);
         halo.renderOrder = 2;
         halo.visible = !!playerTextures[i];
         scene.add(halo);
@@ -1945,7 +1959,7 @@
       if (halo) {
         const haloRadius = Math.max(0.1, r - 0.045);
         halo.position.set(Math.sin(a) * haloRadius, p.y - feetOffset - 0.11, Math.cos(a) * haloRadius);
-        halo.scale.set(2.3, 2.75, 1);
+        halo.scale.set(2.65, 2.95, 1);
         halo.visible = !!sprite;
       }
       if (!sprite) return;
