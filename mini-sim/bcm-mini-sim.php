@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.62
+ * Version: 0.9.63
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.62');
+define('BCM_MINI_SIM_VERSION', '0.9.63');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -836,7 +836,7 @@ function bcm_mini_sim_enqueue_assets()
         'room1WallVideo' => bcm_mini_sim_pick_asset($assets, array('Wall.mp4', 'wall.mp4'), 'video'),
         'room2RightVideo' => bcm_mini_sim_pick_asset($assets, array('doorwallbotright.mp4', 'door-wallbotright.mp4'), 'video'),
         'backsideTextures' => $backside_urls,
-        'crewRosterUrl' => BCM_MINI_SIM_URL . 'assets/crew-roster.json',
+        'crewRosterUrl' => BCM_MINI_SIM_URL . 'assets/crew-roster.json?ver=' . BCM_MINI_SIM_VERSION,
         'crewRosterDefaultCount' => 68,
         'galiaAssetBase' => function_exists('galia_desk_asset_base')
             ? galia_desk_asset_base()
