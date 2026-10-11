@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.37";
+  const TOWER_VERSION = "0.2.38";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -2512,6 +2512,23 @@
     mobile?.addEventListener("pointercancel", () => {
       clearControls(0);
       clearControls(1);
+    });
+
+    // Mini Sim commits its Crew selection only when the player starts.
+    // Refresh the Tower preview then, because boot() may already have built it
+    // with fallback Crew before the selection existed.
+    window.addEventListener("bcm:minicrew-selection-changed", () => {
+      const synced = syncCrewSelectionFromMiniSim();
+      if (!synced || !tower || gameStarted) return;
+      try {
+        buildTower(seed == null ? makeSeed() : seed);
+        requestAnimationFrame(() => {
+          resize();
+          renderViews();
+        });
+      } catch (error) {
+        console.warn("Tower Crew preview refresh failed", error);
+      }
     });
 
     modeButtons.forEach(button => {
