@@ -17,7 +17,7 @@
 .bcm-tower-embedded {
     position: fixed;
     inset: 0;
-    z-index: 99999;
+    z-index: 1000001;
     width: 100vw;
     height: 100vh;
 }

@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.51";
+  const TOWER_VERSION = "0.2.52";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -251,7 +251,7 @@
     if (key.includes("profound") || key.includes("high punaab") || key.includes("punaab")) {
       return { bob: 0.055, speed: 0.011, sway: 0.035, squash: 0.045 };
     }
-    if (key.includes("sogmian")) return { bob: 0.085, speed: 0.028, sway: 0.02, squash: 0.09 };
+    if (key.includes("sogmian")) return { bob: 0.04, speed: 0.01, sway: 0.02, squash: 0.03 };
     if (key.includes("ustur")) return { bob: 0.012, speed: 0.009, sway: 0.055, squash: 0.015 };
     if (key.includes("mierese")) {
       return female
@@ -261,68 +261,8 @@
     return { bob: 0.036, speed: 0.018, sway: 0.018, squash: 0.04 };
   }
 
-  function splitCrewLegs(sourceCanvas, texture) {
-    const width = sourceCanvas.width;
-    const height = sourceCanvas.height;
-    if (!width || !height || height < 12 || texture?.userData?.bcmLegTexture) return;
-    const ctx = sourceCanvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) return;
-    const frame = ctx.getImageData(0, 0, width, height);
-    const pixels = frame.data;
-    const spans = new Int16Array(height);
-    const counts = new Int16Array(height);
-    for (let y = 0; y < height; y += 1) {
-      let open = false;
-      let spanCount = 0;
-      let count = 0;
-      for (let x = 0; x < width; x += 1) {
-        const on = pixels[(y * width + x) * 4 + 3] > 48;
-        if (on) {
-          count += 1;
-          if (!open) {
-            spanCount += 1;
-            open = true;
-          }
-        } else {
-          open = false;
-        }
-      }
-      spans[y] = spanCount;
-      counts[y] = count;
-    }
-    let foot = height - 1;
-    while (foot > 0 && counts[foot] < 3) foot -= 1;
-    let hip = -1;
-    let seenSplit = false;
-    for (let y = foot; y > Math.floor(height * 0.28); y -= 1) {
-      if (spans[y] >= 2 && counts[y] > 6) {
-        seenSplit = true;
-        hip = y;
-      } else if (seenSplit) {
-        break;
-      }
-    }
-    if (hip < 0) hip = Math.round(height * 0.62);
-    const legFraction = clamp((foot - hip) / Math.max(1, height), 0.2, 0.56);
-    const legHeight = Math.max(4, foot - hip + 1);
-    const legCanvas = document.createElement("canvas");
-    legCanvas.width = width;
-    legCanvas.height = legHeight;
-    const legCtx = legCanvas.getContext("2d");
-    if (!legCtx) return;
-    legCtx.drawImage(sourceCanvas, 0, hip, width, legHeight, 0, 0, width, legHeight);
-    for (let y = hip + 2; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) pixels[(y * width + x) * 4 + 3] = 0;
-    }
-    ctx.putImageData(frame, 0, 0);
-    const legTexture = new THREE.CanvasTexture(legCanvas);
-    if ("colorSpace" in legTexture && THREE.SRGBColorSpace !== undefined) {
-      legTexture.colorSpace = THREE.SRGBColorSpace;
-    }
-    legTexture.needsUpdate = true;
-    texture.userData.bcmLegTexture = legTexture;
-    texture.userData.bcmLegFraction = legFraction;
-    texture.needsUpdate = true;
+  function splitCrewLegs() {
+    return;
   }
 
   function officialCrewCutoutUrl(url) {
@@ -1612,7 +1552,7 @@
           : "";
         const species = String(selectedCrew?.species || selectedCrew?.spec || traitSpecies || "");
         const sex = String(selectedCrew?.sex || "");
-        playerFacingFactors[i] = /mierese/i.test(species) ? 1 : -1;
+        playerFacingFactors[i] = -1;
         playerMotion[i] = speciesMotion(species, sex);
         const imageUrl = selectedCrew?.image || "";
         const officialUrl = officialCrewCutoutUrl(imageUrl);
@@ -2291,27 +2231,7 @@
       sprite.scale.set(spriteWidth / stretch, spriteHeight * stretch, 1);
       if (sprite.material) sprite.material.rotation = wave * motion.sway * face * movingAmp * 0.35;
       const legs = playerLegSprites[index];
-      const legMap = texture?.userData?.bcmLegTexture;
-      const legFraction = Number(texture?.userData?.bcmLegFraction || 0);
-      if (legs && legMap && legFraction > 0) {
-        if (legs.material.map !== legMap) {
-          legs.material.map = legMap;
-          legs.material.needsUpdate = true;
-        }
-        const legH = spriteHeight * stretch * legFraction;
-        const step = Math.sin(performance.now() * motion.speed * 2.1 + index);
-        const stepAmp = moving ? 0.28 : 0.06;
-        legs.center.set(0.5, 1);
-        legs.visible = true;
-        legs.position.set(x, feetY + legH, z + 0.03);
-        legs.scale.set(spriteWidth / stretch, legH, 1);
-        legMap.wrapS = THREE.RepeatWrapping;
-        legMap.repeat.x = face < 0 ? -1 : 1;
-        legMap.offset.x = face < 0 ? 1 : 0;
-        legs.material.rotation = step * stepAmp * face;
-      } else if (legs) {
-        legs.visible = false;
-      }
+      if (legs) legs.visible = false;
     }
     function updateCamera(index, viewport) {
       const p = players[index];
@@ -2889,6 +2809,44 @@
       button.addEventListener("touchcancel", up, { passive: false });
     });
 
+    function towerButtonAt(x, y) {
+      const buttons = root.querySelectorAll("[data-tower-control]");
+      for (const button of buttons) {
+        if (button.closest("[hidden]")) continue;
+        const rect = button.getBoundingClientRect();
+        if (rect.width < 8 || rect.height < 8) continue;
+        if (x >= rect.left - 16 && x <= rect.right + 16 && y >= rect.top - 16 && y <= rect.bottom + 16) return button;
+      }
+      return null;
+    }
+
+    const heldTowerTouches = new Map();
+    root.addEventListener("touchstart", (event) => {
+      if (!gameStarted) return;
+      let used = false;
+      for (const touch of event.changedTouches) {
+        if (heldTowerTouches.size >= 3) break;
+        const button = towerButtonAt(touch.clientX, touch.clientY);
+        if (!button) continue;
+        const index = Number(button.dataset.towerPlayer || 0);
+        const action = button.dataset.towerControl;
+        heldTowerTouches.set(touch.identifier, { index, action });
+        if (action === "jump") doJump(index);
+        else setAction(index, action, true);
+        used = true;
+      }
+      if (used) event.preventDefault();
+    }, { capture: true, passive: false });
+    const releaseTowerTouch = (event) => {
+      for (const touch of event.changedTouches) {
+        const held = heldTowerTouches.get(touch.identifier);
+        heldTowerTouches.delete(touch.identifier);
+        if (held && held.action !== "jump") setAction(held.index, held.action, false);
+      }
+    };
+    root.addEventListener("touchend", releaseTowerTouch, { capture: true });
+    root.addEventListener("touchcancel", releaseTowerTouch, { capture: true });
+
     // Mini Sim commits its Crew selection only when the player starts.
     // Refresh the Tower preview then, because boot() may already have built it
     // with fallback Crew before the selection existed.
@@ -3048,6 +3006,10 @@
     window.BCMTowerAPI.stopAudio = () => stopTowerAudio();
     window.BCMTowerAPI.enter = () => {
       root.hidden = false;
+      root.style.zIndex = "1000001";
+      document.querySelectorAll(".bcm-mini-sim").forEach((el) => {
+        el.style.pointerEvents = "none";
+      });
       menu.hidden = true;
       status.textContent = "LANDING VIDEO · PREPARING TOWER...";
       try {

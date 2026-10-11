@@ -1549,39 +1549,41 @@
     const useSeed = (seed == null ? (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) : seed) >>> 0;
     const rand = seedRandom(useSeed);
     const kind = Math.floor(rand() * 4);
-    const z0 = 20;
-    const point = (x, z) => new THREE.Vector3(x, 0, z);
+    const z0 = 24;
+    const point = (x, y, z) => new THREE.Vector3(x, y, z);
+    const lift = () => 10 + rand() * 14;
     let corners;
     if (kind === 0) {
-      const w = 22 + rand() * 20;
-      const d = 30 + rand() * 22;
-      const x = -8 + rand() * 10;
-      corners = [point(x, z0), point(x, z0 + d), point(x + w, z0 + d), point(x + w, z0)];
+      const w = 48 + rand() * 24;
+      const d = 56 + rand() * 28;
+      const x = -18 + rand() * 12;
+      corners = [point(x, 0, z0), point(x, lift(), z0 + d * 0.5), point(x, lift() + 8, z0 + d), point(x + w, lift(), z0 + d), point(x + w, 0, z0)];
     } else if (kind === 1) {
-      const w = 14 + rand() * 12;
-      const d = 24 + rand() * 18;
-      const jog = 8 + rand() * 12;
-      corners = [point(0, z0), point(0, z0 + d), point(w, z0 + d), point(w + jog, z0 + d * 0.42), point(w * 0.35, z0)];
+      const w = 36 + rand() * 20;
+      const d = 44 + rand() * 24;
+      const jog = 18 + rand() * 16;
+      corners = [point(0, 0, z0), point(0, lift(), z0 + d), point(w, lift() + 10, z0 + d), point(w + jog, lift(), z0 + d * 0.45), point(w * 0.4, 0, z0)];
     } else if (kind === 2) {
-      const w = 10 + rand() * 8;
-      const d = 38 + rand() * 18;
-      const x = 2 + rand() * 12;
-      corners = [point(x, z0), point(x, z0 + d), point(x + w, z0 + d), point(x + w * 2.4, z0 + d * 0.55), point(x + w, z0)];
+      const w = 28 + rand() * 16;
+      const d = 64 + rand() * 24;
+      const x = 8 + rand() * 14;
+      corners = [point(x, 0, z0), point(x, lift(), z0 + d * 0.35), point(x, lift() + 12, z0 + d), point(x + w * 2.2, lift(), z0 + d * 0.6), point(x + w, 4, z0)];
     } else {
-      const w = 18 + rand() * 12;
-      const d = 20 + rand() * 14;
-      corners = [point(-6, z0), point(-6, z0 + d * 0.5), point(6, z0 + d), point(6 + w, z0 + d), point(6 + w, z0 + d * 0.28), point(4, z0)];
+      const w = 40 + rand() * 18;
+      const d = 36 + rand() * 18;
+      corners = [point(-16, 0, z0), point(-16, lift(), z0 + d * 0.4), point(10, lift() + 12, z0 + d), point(10 + w, lift(), z0 + d), point(10 + w, 6, z0 + d * 0.25), point(8, 0, z0)];
     }
     race.kindLabel = ["широкий овал", "собачья нога", "длинная петля", "зигзаг"][kind];
-    const halfW = 3.5 + rand() * 0.8;
+    const halfW = 11 + rand() * 3;
     const halfH = 2.5;
     race.segments = [];
     race.gates = [];
     const launch = corners[1].clone().sub(corners[0]);
     launch.normalize();
     race.spawn = {
-      x: corners[0].x + launch.x * 3,
-      z: corners[0].z + launch.z * 3,
+      x: corners[0].x + launch.x * 4,
+      y: corners[0].y,
+      z: corners[0].z + launch.z * 4,
       yaw: Math.atan2(launch.x, -launch.z)
     };
     for (let i = 0; i < corners.length; i += 1) {
@@ -1593,37 +1595,36 @@
       const side = new THREE.Vector3(-dir.z, 0, dir.x);
       const mid = a.clone().add(b).multiplyScalar(0.5);
       const yaw = Math.atan2(dir.x, dir.z);
+      const pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
       const floorName = trackSurfaceName("floor", i) || trackSurfaceName("roof", i) || "roof.png";
+      const segment = new THREE.Group();
+      segment.position.copy(mid);
+      segment.lookAt(b);
       const floor = new THREE.Mesh(
-        new THREE.BoxGeometry(halfW * 2, 0.18, len),
+        new THREE.BoxGeometry(halfW * 2, 0.22, len),
         textured(floorName, 0x6d655c)
       );
-      floor.position.copy(mid);
-      floor.position.y = -halfH;
-      floor.rotation.y = yaw;
-      group.add(floor);
+      floor.position.y = -2.2;
+      segment.add(floor);
       const ceiling = new THREE.Mesh(
         new THREE.BoxGeometry(halfW * 2, 0.18, len),
         textured(trackSurfaceName("roof", i + 1) || "roof.png", 0x8b9198)
       );
-      ceiling.position.copy(mid);
-      ceiling.position.y = halfH;
-      ceiling.rotation.y = yaw;
-      group.add(ceiling);
+      ceiling.position.y = 6.2;
+      segment.add(ceiling);
       const left = new THREE.Mesh(
-        new THREE.BoxGeometry(0.28, halfH * 2, len),
+        new THREE.BoxGeometry(0.35, 8.4, len),
         textured("wall3.png", 0x3b444f)
       );
-      left.position.copy(mid).add(side.clone().multiplyScalar(halfW));
-      left.rotation.y = yaw;
-      group.add(left);
+      left.position.x = -halfW;
+      segment.add(left);
       const right = new THREE.Mesh(
-        new THREE.BoxGeometry(0.28, halfH * 2, len),
+        new THREE.BoxGeometry(0.35, 8.4, len),
         textured("wall5.png", 0x343d47)
       );
-      right.position.copy(mid).add(side.clone().multiplyScalar(-halfW));
-      right.rotation.y = yaw;
-      group.add(right);
+      right.position.x = halfW;
+      segment.add(right);
+      group.add(segment);
       race.segments.push({ a, b, dir, side, len, halfW, halfH });
       race.gates.push({ point: mid.clone(), dir: dir.clone(), side: side.clone(), halfW: halfW - 0.3 });
     }
@@ -1652,8 +1653,8 @@
       }
     });
     if (!best) return;
-    if (bestDist > 9) {
-      ship.position.set(race.spawn.x, 0, race.spawn.z);
+    if (bestDist > best.seg.halfW + 8) {
+      ship.position.set(race.spawn.x, race.spawn.y || 0, race.spawn.z);
       ship.velocity.set(0, 0, 0);
       race.nextGate = 1;
       race.prev = null;
@@ -1669,8 +1670,9 @@
       ship.position.y = y;
       ship.velocity.multiplyScalar(0.4);
     }
-    if (ship.position.y > best.seg.halfH - 0.45) ship.position.y = best.seg.halfH - 0.45;
-    if (ship.position.y < -best.seg.halfH + 0.45) ship.position.y = -best.seg.halfH + 0.45;
+    const roadY = best.point.y;
+    if (ship.position.y > roadY + 4.2) ship.position.y = roadY + 4.2;
+    if (ship.position.y < roadY - 1.4) ship.position.y = roadY - 1.4;
 
     const gate = race.gates[race.nextGate];
     if (gate && race.prev) {
@@ -1699,7 +1701,7 @@
     race.nextGate = 1;
     race.prev = null;
     exteriorFlight = true;
-    ship.position.set(race.spawn.x, 0, race.spawn.z);
+    ship.position.set(race.spawn.x, race.spawn.y || 0, race.spawn.z);
     ship.velocity.set(0, 0, 0);
     ship.angularVelocity.set(0, 0, 0);
     ship.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), race.spawn.yaw || Math.PI);
