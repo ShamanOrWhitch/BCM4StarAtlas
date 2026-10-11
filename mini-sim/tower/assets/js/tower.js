@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.40";
+  const TOWER_VERSION = "0.2.41";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -266,41 +266,6 @@
       if (pixels[i] < 16) clear += 1;
     }
     return samples > 0 && clear / samples > 0.18;
-  }
-
-  function ensureMirroredCrewTexture(texture) {
-    const image = texture && texture.image;
-    const width = Number(image && (image.width || image.naturalWidth) || 0);
-    const height = Number(image && (image.height || image.naturalHeight) || 0);
-    if (!width || !height || !window.THREE) return null;
-    const stamp = width + "x" + height + "@" + String(texture.version || 0);
-    texture.userData = texture.userData || {};
-    if (texture.userData.bcmMirrorStamp === stamp && texture.userData.bcmMirror) {
-      return texture.userData.bcmMirror;
-    }
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    ctx.translate(width, 0);
-    ctx.scale(-1, 1);
-    ctx.drawImage(image, 0, 0, width, height);
-    const mirrored = new THREE.CanvasTexture(canvas);
-    mirrored.generateMipmaps = false;
-    mirrored.minFilter = THREE.LinearFilter;
-    mirrored.magFilter = THREE.LinearFilter;
-    mirrored.wrapS = THREE.ClampToEdgeWrapping;
-    mirrored.wrapT = THREE.ClampToEdgeWrapping;
-    if ("colorSpace" in mirrored && THREE.SRGBColorSpace !== undefined) {
-      mirrored.colorSpace = THREE.SRGBColorSpace;
-    } else if (THREE.sRGBEncoding !== undefined) {
-      mirrored.encoding = THREE.sRGBEncoding;
-    }
-    mirrored.needsUpdate = true;
-    texture.userData.bcmMirror = mirrored;
-    texture.userData.bcmMirrorStamp = stamp;
-    return mirrored;
   }
 
   function assetTexture(url, renderer, options = {}) {
@@ -1607,9 +1572,6 @@
       p.maxFallSpeed = 0;
       p.birdHitCooldown = 0;
       p.visualFacing = 1;
-      p.shownFacing = 1;
-      p.turnStart = 0;
-      p.turnFrom = 1;
       p.visualAngle = p.angle;
     }
 
@@ -2104,39 +2066,25 @@
       }
 
       sprite.center.set(0.5, 0);
-      const sourceMap = texture && texture.image ? texture : (sprite.material && sprite.material.map);
+      const map = sprite.material && sprite.material.map;
       const face = p.visualFacing || 1;
-      // THREE.Sprite is a camera-facing point. Negative UV repeat is ignored
-      // by this r128 build, so the opposite direction is a real mirrored canvas.
-      if ((p.shownFacing ?? face) !== face) {
-        p.turnFrom = p.shownFacing || 1;
-        p.turnStart = performance.now();
-        p.shownFacing = face;
-      }
-      const turnMs = 180;
-      const elapsed = p.turnStart ? performance.now() - p.turnStart : turnMs;
-      const turning = elapsed < turnMs;
-      const squeeze = turning ? Math.abs(Math.cos((elapsed / turnMs) * Math.PI)) : 1;
-      const showFace = turning && elapsed < turnMs * 0.5 ? (p.turnFrom || face) : face;
-      const mirror = showFace < 0 && sourceMap ? ensureMirroredCrewTexture(sourceMap) : null;
-      const nextMap = mirror || sourceMap;
-      if (nextMap && sprite.material && sprite.material.map !== nextMap) {
-        sprite.material.map = nextMap;
-        sprite.material.needsUpdate = true;
+      if (map) {
+        map.wrapS = THREE.RepeatWrapping;
+        map.repeat.x = face < 0 ? -1 : 1;
+        map.offset.x = face < 0 ? 1 : 0;
       }
 
       // p.y is maintained above the floor by the physics solver. Anchor the
       // image at the platform rather than adding another positive vertical offset.
       const spriteHeight = 2.15;
-      const measure = sourceMap && sourceMap.image ? sourceMap.image : null;
-      const imageWidth = Number(measure && (measure.width || measure.naturalWidth) || 1);
-      const imageHeight = Number(measure && (measure.height || measure.naturalHeight) || 1);
+      const imageWidth = Number(map?.image?.width || 1);
+      const imageHeight = Number(map?.image?.height || 1);
       const aspect = imageWidth / Math.max(1, imageHeight);
       const spriteWidth = clamp(spriteHeight * aspect, 0.55, 1.75);
       // Align the bottom of the full-body cutout to the visible platform top.
       const transparentFootPad = Number(texture?.userData?.bcmCutoutFeetPadRatio || 0);
       sprite.position.set(x, p.y - feetOffset - transparentFootPad * spriteHeight + bob, z);
-      sprite.scale.set(Math.max(0.05, spriteWidth * Math.max(0.12, squeeze)), spriteHeight, 1);
+      sprite.scale.set(spriteWidth, spriteHeight, 1);
     }
     function updateCamera(index, viewport) {
       const p = players[index];
