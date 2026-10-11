@@ -298,6 +298,20 @@
               canvas.height = bitmap.height;
               ctx.clearRect(0, 0, canvas.width, canvas.height);
               ctx.drawImage(bitmap, 0, 0);
+              // Cached PNGs must preserve the same floor anchoring as freshly
+              // segmented images. Re-measure transparent bottom padding from alpha.
+              const cachedPixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+              let lastVisibleY = -1;
+              for (let y = canvas.height - 1; y >= 0 && lastVisibleY < 0; y -= 1) {
+                for (let x = 0; x < canvas.width; x += 1) {
+                  if (cachedPixels[(y * canvas.width + x) * 4 + 3] >= 4) {
+                    lastVisibleY = y;
+                    break;
+                  }
+                }
+              }
+              const blankBottomRows = lastVisibleY < 0 ? 0 : Math.max(0, canvas.height - 1 - lastVisibleY);
+              tex.userData.bcmCutoutFeetPadRatio = blankBottomRows / Math.max(1, canvas.height);
               if (typeof bitmap.close === "function") bitmap.close();
               tex.userData.bcmCutoutPending = false;
               tex.userData.bcmCutoutReady = true;
