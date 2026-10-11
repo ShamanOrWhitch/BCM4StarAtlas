@@ -116,20 +116,21 @@
     };
 
     const traitSources = [
-      row.traits, row.attributes, raw.traits, raw.attributes,
+      row.traits, row.attributes, row.data?.attributes, row.content?.attributes,
+      raw.traits, raw.attributes, raw.data?.attributes, raw.content?.attributes,
       row.metadata?.attributes, row.content?.metadata?.attributes,
       raw.metadata?.attributes, raw.content?.metadata?.attributes,
-      row.metadata?.properties?.attributes, raw.metadata?.properties?.attributes,
-      raw.content?.metadata?.properties?.attributes
+      row.metadata?.properties?.attributes, row.content?.metadata?.properties?.attributes,
+      raw.metadata?.properties?.attributes, raw.content?.metadata?.properties?.attributes
     ];
     const traits = traitSources.filter(Array.isArray).flat().filter((item) => item && typeof item === "object");
     const normalizeKey = (item) => String(
-      item?.trait || item?.trait_type || item?.traitType || item?.key || ""
+      item?.trait || item?.trait_type || item?.traitType || item?.key || item?.name || ""
     ).trim().toLowerCase().replace(/[^a-z0-9]/g, "");
     const nameTrait = traits.find((item) =>
       ["name", "crewname", "displayname", "personname"].includes(normalizeKey(item))
     );
-    const traitName = nameTrait?.value ?? nameTrait?.Value ?? nameTrait?.val ?? "";
+    const traitName = nameTrait?.value ?? nameTrait?.Value ?? nameTrait?.val ?? nameTrait?.displayValue ?? "";
 
     const given = String(
       row.given || row.givenName || row.firstName ||
@@ -145,9 +146,13 @@
       : [given, family].filter(Boolean).join(" ");
 
     const direct = [
-      row.displayName, row.crewName, row.personName,
-      raw.displayName, raw.crewName, raw.personName,
-      traitName, person, row.name, raw.name
+      row.displayName, row.display_name, row.crewName, row.crew_name, row.personName, row.person_name,
+      row.metadata?.name, row.content?.metadata?.name,
+      row.metadata?.properties?.name, row.content?.metadata?.properties?.name,
+      raw.displayName, raw.display_name, raw.crewName, raw.crew_name, raw.personName, raw.person_name,
+      raw.metadata?.name, raw.content?.metadata?.name,
+      raw.metadata?.properties?.name, raw.content?.metadata?.properties?.name,
+      traitName, person, row.characterName, raw.characterName, row.nftName, raw.nftName, row.name, raw.name
     ].map(validName).find(Boolean);
     return direct || "Без имени";
   }
