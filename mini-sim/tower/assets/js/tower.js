@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.39";
+  const TOWER_VERSION = "0.2.43";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -893,13 +893,15 @@
         y: 0, vy: 0, angle: 0, radial: 0, jumps: 0, grounded: false,
         currentCell: null, liftRide: null, hazard: 0, slide: 0, finished: false,
         doorCooldown: 0, collected: 0, jumpStarted: false, fallStartY: null,
-        maxFallSpeed: 0, birdHitCooldown: 0, visualFacing: 1, visualAngle: 0
+        maxFallSpeed: 0, birdHitCooldown: 0, visualFacing: 1, visualAngle: 0,
+        shieldDownUntil: 0, shieldBlinkUntil: 0, knockUntil: 0, lavaGrace: 0
       },
       {
         y: 0, vy: 0, angle: 0, radial: 0, jumps: 0, grounded: false,
         currentCell: null, liftRide: null, hazard: 0, slide: 0, finished: false,
         doorCooldown: 0, collected: 0, jumpStarted: false, fallStartY: null,
-        maxFallSpeed: 0, birdHitCooldown: 0, visualFacing: 1, visualAngle: 0
+        maxFallSpeed: 0, birdHitCooldown: 0, visualFacing: 1, visualAngle: 0,
+        shieldDownUntil: 0, shieldBlinkUntil: 0, knockUntil: 0, lavaGrace: 0
       }
     ];
 
@@ -1170,18 +1172,30 @@
       return mesh;
     }
 
+    function shieldActive(player) {
+      return !player.shieldDownUntil || performance.now() >= player.shieldDownUntil;
+    }
+
+    function breakShield(player) {
+      const now = performance.now();
+      player.shieldDownUntil = now + 30000;
+      player.shieldBlinkUntil = now + 480;
+    }
+
     function buildBirds() {
       birds = [];
       const rand = mulberry32(seed ^ 0xB17D5EED);
-      const count = 12;
+      const count = 36;
+      const colors = [0xe6d7a8, 0xf2f2f2, 0x8fd0ff, 0xffb0c8, 0xb7f0a8, 0xffd27a];
 
       for (let i = 0; i < count; i++) {
         const group = new THREE.Group();
+        const tint = colors[i % colors.length];
         const bodyMat = new THREE.MeshStandardMaterial({
-          color: 0xe6d7a8,
+          color: tint,
           roughness: 0.55,
           metalness: 0.08,
-          emissive: 0x3a2e16
+          emissive: 0x221c10
         });
         const beakMat = new THREE.MeshBasicMaterial({ color: 0xd7b35a });
 
@@ -1215,19 +1229,20 @@
         group.add(leftWing, rightWing);
 
         const centerAngle = rand() * Math.PI * 2;
-        const bottom = tower ? -((tower.levels - 1) * tower.stepY) : -160;
-        const top = 4;
-        const height01 = rand();
+        const playableLevels = Math.max(2, (tower && tower.levels) || 40);
+        const level = 1 + Math.floor(rand() * (playableLevels - 1));
+        const levelY = level * (tower ? tower.stepY : 4) - ((playableLevels - 1) * (tower ? tower.stepY : 4));
         const state = {
           group,
           leftWing,
           rightWing,
           angle: centerAngle,
-          baseY: bottom + height01 * (top - bottom),
-          radius: radius + 2.55 + rand() * 2.1,
-          speed: 0.18 + height01 * 0.55,
+          baseY: levelY + 1.15,
+          radius: playerWallRadius,
+          speed: (i % 3 === 0 ? -1 : 1) * (0.42 + rand() * 0.48),
           phase: rand() * Math.PI * 2,
-          flap: 7.5 + rand() * 3.5
+          flap: 7.5 + rand() * 3.5,
+          dir: i % 3 === 0 ? -1 : 1
         };
 
         group.userData.bird = true;
@@ -1239,42 +1254,55 @@
     function updateBirds(time) {
       if (!birds.length) return;
       const t = time * 0.001;
+      const now = performance.now();
+
+      for (let i = 0; i < players.length; i++) {
+        const p = players[i];
+        p.birdHitCooldown = Math.max(0, (p.birdHitCooldown || 0) - 0.016);
+      }
 
       for (const bird of birds) {
         const a = bird.angle + t * bird.speed;
-        const y = bird.baseY + Math.sin(t * 0.8 + bird.phase) * 1.1;
-        const r = bird.radius + Math.sin(t * 0.47 + bird.phase) * 0.8;
+        const y = bird.baseY + Math.sin(t * 1.4 + bird.phase) * 0.22;
+        const r = bird.radius;
 
         bird.group.position.set(
           Math.sin(a) * r,
           y,
           Math.cos(a) * r
         );
-        bird.group.rotation.y = a + Math.PI;
-        const flap = Math.sin(t * bird.flap + bird.phase) * 0.52;
+        bird.group.rotation.y = a + (bird.dir < 0 ? 0 : Math.PI);
+        const flap = Math.sin(t * bird.flap + bird.phase) * 0.72;
         bird.leftWing.rotation.z = flap;
         bird.rightWing.rotation.z = -flap;
 
         for (let i = 0; i < players.length; i++) {
           const p = players[i];
-          p.birdHitCooldown = Math.max(0, (p.birdHitCooldown || 0) - 0.016);
           if (p.finished || p.birdHitCooldown > 0) continue;
-          const dx = p.radial * Math.sin(p.angle) - bird.group.position.x;
-          const dy = (p.y + 0.9) - bird.group.position.y;
-          const dz = p.radial * Math.cos(p.angle) - bird.group.position.z;
-          const birdHitRadius = 2.2;
-          if (dx * dx + dy * dy + dz * dz > birdHitRadius * birdHitRadius) continue;
+          if (Math.abs(angleDelta(p.angle, a)) > 0.38) continue;
+          if (Math.abs((p.y + 0.45) - y) > 1.25) continue;
 
-          p.birdHitCooldown = 0.85;
+          p.birdHitCooldown = 0.7;
+          if (shieldActive(p)) {
+            breakShield(p);
+            status.textContent = "ЩИТ ПРИНЯЛ ПТИЦУ · ВОССТАНОВЛЕНИЕ 30 С";
+            continue;
+          }
+
+          // Drop far enough that the same platform cannot catch the player
+          // on the next physics step. Tower Toppler knocks downward, it does
+          // not send the player back to the roof.
+          p.knockUntil = now + 520;
           p.grounded = false;
           p.liftRide = null;
           p.currentCell = null;
           p.jumps = 1;
           p.jumpStarted = false;
           p.fallStartY = p.y;
-          p.vy = Math.min(p.vy, 0) - 6.4;
-          p.angle += dx >= 0 ? 0.22 : -0.22;
-          status.textContent = "ПТИЦА СБИЛА ИГРОКА " + (i + 1);
+          p.y -= 1.55;
+          p.vy = -8.5;
+          p.angle += bird.dir * sectorWidth() * 0.72;
+          status.textContent = "ПТИЦА СБРОСИЛА ИГРОКА " + (i + 1);
         }
       }
     }
@@ -1511,6 +1539,8 @@
       p.fallStartY = null;
       p.maxFallSpeed = 0;
       p.birdHitCooldown = 0;
+      p.knockUntil = 0;
+      p.lavaGrace = 0;
       p.visualFacing = 1;
       p.visualAngle = p.angle;
     }
@@ -1575,6 +1605,7 @@
     }
 
     function findLanding(player) {
+      if (player.knockUntil && performance.now() < player.knockUntil) return null;
       const candidates = surfaceCandidates(player);
       for (const candidate of candidates) {
         if (player.vy > 0) continue;
@@ -1926,9 +1957,21 @@
 
       const surface = p.currentCell?.surface;
       if (onLava) {
-        resetAfterHazard(index, "ЛАВА: ОПАСНАЯ ЗОНА");
+        if (shieldActive(p)) {
+          breakShield(p);
+          p.lavaGrace = 1;
+          status.textContent = "ЩИТ СГОРЕЛ НА ЛАВЕ · 1 СЕК УЙТИ";
+          return;
+        }
+        p.lavaGrace = (p.lavaGrace || 0) - dt;
+        if (p.lavaGrace <= 0) {
+          resetAfterHazard(index, "ЛАВА: ОПАСНАЯ ЗОНА");
+          return;
+        }
         return;
-      } else if (onHot) {
+      }
+      p.lavaGrace = 0;
+      if (onHot) {
         p.hazard += dt;
         if (p.hazard > 1.15) {
           resetAfterHazard(index, "ГОРЯЧАЯ ПЛАТФОРМА: НЕЛЬЗЯ ЗАДЕРЖИВАТЬСЯ");
@@ -1975,11 +2018,16 @@
         marker.position.set(x, p.y + 0.35, z);
         marker.visible = !sprite;
       }
+      const shieldOn = shieldActive(p);
+      const shieldBlink = p.shieldBlinkUntil && performance.now() < p.shieldBlinkUntil;
       if (halo) {
         const haloRadius = Math.max(0.1, r - 0.045);
         halo.position.set(Math.sin(a) * haloRadius, p.y - feetOffset - 0.11, Math.cos(a) * haloRadius);
         halo.scale.set(2.65, 2.95, 1);
-        halo.visible = !!sprite;
+        halo.visible = !!sprite && (shieldOn || shieldBlink);
+        if (halo.material) {
+          halo.material.opacity = shieldBlink && (Math.floor(performance.now() / 80) % 2) ? 0.2 : 0.98;
+        }
       }
       if (!sprite) return;
       sprite.visible = cutoutReady;
@@ -2003,6 +2051,7 @@
       if (halo) {
         const haloRadius = Math.max(0.1, r - 0.045);
         halo.position.set(Math.sin(a) * haloRadius, p.y - feetOffset - 0.11 + bob, Math.cos(a) * haloRadius);
+        halo.visible = !!sprite && (shieldOn || shieldBlink);
       }
 
       sprite.center.set(0.5, 0);
