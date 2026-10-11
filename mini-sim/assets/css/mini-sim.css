@@ -120,6 +120,24 @@
     text-shadow:0 2px 5px #000;
     font-variant-numeric:tabular-nums;
 }
+.bcm-mini-sim-asset-bar{
+    position:absolute;
+    right:18px;
+    top:34px;
+    z-index:5;
+    width:92px;
+    height:4px;
+    border-radius:99px;
+    background:rgba(255,255,255,.16);
+    overflow:hidden;
+    pointer-events:none;
+}
+.bcm-mini-sim-asset-bar > span{
+    display:block;
+    width:0;
+    height:100%;
+    background:#d7b36a;
+}
 .bcm-mini-sim-start{
     position:absolute;
     left:50%;
@@ -784,4 +802,31 @@
   .bcm-mini-sim-crew-preflight-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.bcm-mini-sim-help-touch{display:none}
+@media (pointer:coarse), (max-width:760px){
+  .bcm-mini-sim-help-keyboard,
+  .bcm-mini-sim-help-gamepad{display:none !important}
+  .bcm-mini-sim-help-touch{display:block}
+}
+@media (pointer:coarse) and (orientation:portrait){
+  .bcm-mini-sim-landscape-warning{display:none}
+  .bcm-mini-sim.game-active .bcm-mini-sim-landscape-warning{display:flex}
+  .bcm-mini-sim-start{display:block; z-index:45}
+}
+.bcm-mini-sim-crew-preflight{overflow:auto; align-items:flex-start}
+.bcm-mini-sim-crew-preflight-card{max-height:calc(100dvh - 16px); overflow:auto}
+.bcm-mini-sim-crew-preflight-actions{position:sticky; bottom:0; z-index:2; padding-top:8px; background:rgba(5,11,18,.96)}
+@media (max-width:760px){
+  .bcm-mini-sim-crew-preflight{padding:8px}
+  .bcm-mini-sim-crew-preflight-card{padding:12px}
+  .bcm-mini-sim-crew-preflight-card h2{font-size:18px; margin-bottom:4px}
+  .bcm-mini-sim-crew-preflight-note{display:none}
+  .bcm-mini-sim-crew-slot-card{grid-template-columns:36px minmax(0,1fr); gap:6px; padding:6px}
+  .bcm-mini-sim-crew-slot-image{width:36px; height:36px}
+  .bcm-mini-sim-crew-slot-main strong{font-size:13px}
+  .bcm-mini-sim-crew-diag{max-height:72px}
+  .bcm-mini-sim-crew-preflight-actions button[data-crew-start]{flex:1 1 100%; min-height:48px}
+  .bcm-mini-sim-asset-bar{top:28px; width:72px}
 }

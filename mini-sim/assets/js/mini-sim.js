@@ -608,7 +608,28 @@
     }
 
     const capdoor = liveInterior.find((item) => item.mesh && item.mesh.name === "room1-rear-capdoor");
-    if (capdoor) setTimeout(() => warmInteriorVideo(capdoor), 350);
+    const room2Corridor = liveInterior.find((item) => item.mesh && item.mesh.name === "room2-right-wall-live-bottom-right");
+    const primeVideo = (name, priority) => {
+      const url = assetUrl(name);
+      if (!url) return;
+      const video = document.createElement("video");
+      video.muted = true;
+      video.preload = "auto";
+      video.playsInline = true;
+      try { video.fetchPriority = priority; } catch (e) {}
+      video.src = url;
+      video.load();
+    };
+    // The clip that carries the ship into Room 2 goes first. Room 1 videos wait.
+    primeVideo("portal2.mp4", "high");
+    if (room2Corridor) {
+      try { room2Corridor.el.fetchPriority = "high"; } catch (e) {}
+      warmInteriorVideo(room2Corridor);
+    }
+    setTimeout(() => {
+      primeVideo("portal1.mp4", "low");
+      if (capdoor) warmInteriorVideo(capdoor);
+    }, 900);
 
     if (liveWall.el && liveWall.ready) {
       const wallPlay = liveWall.el.play();
@@ -628,17 +649,6 @@
       "FLIGHT ACTIVE · CREW " +
       picked.map((crew) => crew.name).join(" / ")
     );
-    setTimeout(() => {
-      ["portal1.mp4", "portal2.mp4"].forEach((name) => {
-        const url = assetUrl(name);
-        if (!url) return;
-        const video = document.createElement("video");
-        video.muted = true;
-        video.preload = "auto";
-        video.src = url;
-        video.load();
-      });
-    }, 600);
   }
 
   const byName = Object.create(null);
@@ -1032,6 +1042,11 @@
       "TEX " + stats.loaded + "/" + stats.total +
       (stats.failed ? " FAIL " + stats.failed + " " + stats.last : "") +
       (config.musicUrl ? " · OST" : " · NO OST");
+    const bar = root.querySelector(".bcm-mini-sim-asset-bar > span");
+    if (bar) {
+      const pct = stats.total ? Math.round((stats.loaded / stats.total) * 100) : 0;
+      bar.style.width = pct + "%";
+    }
   }
 
   function applyTex(tex) {
@@ -2069,7 +2084,8 @@
       height: 2.94325,
       ry: -Math.PI / 2,
       radius: 24,
-      preloadRadius: 30,
+      preloadRadius: 420,
+      preloadWhenStarted: true,
       name: "room2-right-wall-live-bottom-right"
     });
 

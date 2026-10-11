@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.43";
+  const TOWER_VERSION = "0.2.44";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -245,18 +245,36 @@
     }
   }
 
+  function officialCrewCutoutUrl(url) {
+    const text = String(url || "");
+    const full = text.match(/^(https?:\/\/cdn\.staratlas\.com\/crew\/v1\/)(\d+)_full\.(?:jpe?g|png|webp)(?:\?.*)?$/i);
+    if (full) return full[1] + full[2] + ".png";
+    const bare = text.match(/^https?:\/\/cdn\.staratlas\.com\/crew\/v1\/\d+\.png(?:\?.*)?$/i);
+    return bare ? text : "";
+  }
+
+  function crewImageHasCutoutAlpha(pixels) {
+    let samples = 0;
+    let clear = 0;
+    for (let i = 3; i < pixels.length; i += 16) {
+      samples += 1;
+      if (pixels[i] < 16) clear += 1;
+    }
+    return samples > 0 && clear / samples > 0.18;
+  }
+
   function assetTexture(url, renderer, options = {}) {
     if (!url || !window.THREE) return null;
     options = options && typeof options === "object" ? options : {};
 
-    const cleanKey = options.cutout ? "|cutout" : options.removeWhite ? "|whitekey" : "";
+    const cleanKey = options.officialAlpha ? "|official" : options.cutout ? "|cutout" : options.removeWhite ? "|whitekey" : "";
     const cacheKey = String(url) + cleanKey;
     const cache = assetTexture.cache || (assetTexture.cache = new Map());
     if (cache.has(cacheKey)) return cache.get(cacheKey);
 
     let tex;
 
-    if ((options.removeWhite || options.cutout) && (rasterUrl(url) || /^https?:/i.test(String(url)))) {
+    if ((options.removeWhite || options.cutout || options.officialAlpha) && (rasterUrl(url) || /^https?:/i.test(String(url)))) {
       // Some of the supplied PNG cards contain an opaque white matte instead
       // of real alpha. Remove only near-white pixels and preserve antialiased
       // edges so doors, NPCs and landing cards behave as cut-outs.
@@ -265,7 +283,7 @@
       canvas.height = 2;
       tex = new THREE.CanvasTexture(canvas);
       tex.userData = tex.userData || {};
-      if (options.cutout) {
+      if (options.cutout || options.officialAlpha) {
         tex.userData.bcmCutoutPending = true;
         tex.userData.bcmCutoutReady = false;
       }
@@ -273,6 +291,19 @@
       const image = new Image();
       image.crossOrigin = "anonymous";
       image.decoding = "async";
+      image.onerror = () => {
+        if (options.officialAlpha && options.fallbackUrl && image.src !== options.fallbackUrl) {
+          options.officialAlpha = false;
+          options.cutout = true;
+          image.src = options.fallbackUrl;
+          return;
+        }
+        if (tex.userData) {
+          tex.userData.bcmCutoutPending = false;
+          tex.userData.bcmCutoutFailed = true;
+        }
+        tex.needsUpdate = true;
+      };
       image.onload = async () => {
         try {
           const srcW = image.naturalWidth || image.width || 1;
@@ -289,6 +320,24 @@
 
           const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const pixels = frame.data;
+
+          if (options.officialAlpha && crewImageHasCutoutAlpha(pixels)) {
+            if (!cropCrewCanvas(canvas, ctx, frame, tex, 40)) {
+              throw new Error("official crew png had no silhouette");
+            }
+            tex.userData.bcmCutoutPending = false;
+            tex.userData.bcmCutoutReady = true;
+            tex.userData.bcmCutoutFailed = false;
+            tex.userData.bcmOfficialCutout = true;
+            tex.needsUpdate = true;
+            return;
+          }
+          if (options.officialAlpha && options.fallbackUrl && image.src !== options.fallbackUrl) {
+            options.officialAlpha = false;
+            options.cutout = true;
+            image.src = options.fallbackUrl;
+            return;
+          }
 
           if (options.cutout) {
             const cachedBlob = await readCrewCutoutCache(url);
@@ -396,20 +445,15 @@
               await writeCrewCutoutCache(url, canvas);
               segmented = true;
             } catch (segmentationError) {
-              // Do not remove pixels by color: a suit can share its colors with the
-              // Crew card background. Avoid damaging the character on model failure.
-              console.error("Tower Crew AI segmentation failed; source kept intact", url, segmentationError);
-              canvas.width = Math.max(1, Math.round(srcW * scale));
-              canvas.height = Math.max(1, Math.round(srcH * scale));
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-              segmented = false;
-            }
-            if (!segmented) {
-              canvas.width = Math.max(1, Math.round(srcW * scale));
-              canvas.height = Math.max(1, Math.round(srcH * scale));
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+              console.error("Tower Crew cutout failed; card background hidden", url, segmentationError);
+              canvas.width = 2;
+              canvas.height = 2;
+              ctx.clearRect(0, 0, 2, 2);
+              tex.userData.bcmCutoutPending = false;
+              tex.userData.bcmCutoutReady = false;
+              tex.userData.bcmCutoutFailed = true;
+              tex.needsUpdate = true;
+              return;
             }
             tex.userData.bcmCutoutPending = false;
             tex.userData.bcmCutoutReady = true;
@@ -1434,8 +1478,11 @@
         const species = String(selectedCrew?.species || selectedCrew?.spec || traitSpecies || "");
         playerFacingFactors[i] = /mierese/i.test(species) ? 1 : -1;
         const imageUrl = selectedCrew?.image || "";
+        const officialUrl = officialCrewCutoutUrl(imageUrl);
         playerTextures[i] = imageUrl
-          ? assetTexture(imageUrl, renderer, { cutout: true })
+          ? assetTexture(officialUrl || imageUrl, renderer, officialUrl
+            ? { officialAlpha: true, fallbackUrl: officialUrl === imageUrl ? "" : imageUrl, cutout: true }
+            : { cutout: true })
           : fallbackPlayerTexture;
       }
 
@@ -2011,12 +2058,13 @@
       const halo = playerHalos[index];
       const sprite = playerSprites[index];
       const texture = playerTextures[index];
-      const cutoutReady = !texture || texture.userData?.bcmCutoutPending !== true;
+      const cutoutFailed = texture?.userData?.bcmCutoutFailed === true;
+      const cutoutReady = !cutoutFailed && (!texture || texture.userData?.bcmCutoutPending !== true);
       const feetOffset = 0.72;
 
       if (marker) {
         marker.position.set(x, p.y + 0.35, z);
-        marker.visible = !sprite;
+        marker.visible = !sprite || !cutoutReady;
       }
       const shieldOn = shieldActive(p);
       const shieldBlink = p.shieldBlinkUntil && performance.now() < p.shieldBlinkUntil;

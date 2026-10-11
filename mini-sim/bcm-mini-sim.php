@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.68
+ * Version: 0.9.69
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.68');
+define('BCM_MINI_SIM_VERSION', '0.9.69');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -837,7 +837,7 @@ function bcm_mini_sim_enqueue_assets()
         'room2RightVideo' => bcm_mini_sim_pick_asset($assets, array('doorwallbotright.mp4', 'door-wallbotright.mp4'), 'video'),
         'backsideTextures' => $backside_urls,
         'crewRosterUrl' => BCM_MINI_SIM_URL . 'assets/crew-roster.json?ver=' . BCM_MINI_SIM_VERSION,
-        'crewRosterDefaultCount' => 68,
+        'crewRosterDefaultCount' => 96,
         'galiaAssetBase' => function_exists('galia_desk_asset_base')
             ? galia_desk_asset_base()
             : '',
@@ -862,8 +862,8 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.60</div>
-            <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ВНЕШНИЕ ЭКРАНЫ</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.69</div>
+            <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
             <div class="bcm-mini-sim-help bcm-mini-sim-help-keyboard">
@@ -877,8 +877,14 @@ function bcm_mini_sim_shortcode($atts = array())
                 <span>Y</span> портал · <span>LB/RB</span> крен · <span>LT/RT</span> вверх/вниз ·
                 <span>Start/Select</span> меню
             </div>
+            <div class="bcm-mini-sim-help bcm-mini-sim-help-touch">
+                <span>▲▼</span> тяга · <span>↟↡</span> вверх/вниз · <span>◀▶</span> поворот ·
+                <span>↶↷</span> крен · <span>свайп</span> взгляд · <span>TILT</span> наклон ·
+                <span>G</span> портал · цель: экраны, затем ONICSS
+            </div>
         </div>
         <div class="bcm-mini-sim-asset-status">LOCAL ASSETS: SCANNING...</div>
+        <div class="bcm-mini-sim-asset-bar" aria-hidden="true"><span></span></div>
         <button class="bcm-mini-sim-start" type="button">ИГРАТЬ</button>
         <div class="bcm-mini-sim-crew-preflight" hidden>
             <div class="bcm-mini-sim-crew-preflight-card">
@@ -897,7 +903,7 @@ function bcm_mini_sim_shortcode($atts = array())
                     <button type="button" data-crew-start>НАЧАТЬ ЛАБИРИНТ</button>
                 </div>
                 <div class="bcm-mini-sim-crew-preflight-status" aria-live="polite">
-                    Команда по умолчанию — demo, пока адрес не прочитан.
+                    Можно начать двумя первыми из кошелька. Скан адреса не обязателен.
                 </div>
                 <pre class="bcm-mini-sim-crew-diag" data-crew-diag></pre>
             </div>
