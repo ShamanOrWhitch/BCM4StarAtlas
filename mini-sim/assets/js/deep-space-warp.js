@@ -23,7 +23,11 @@
           warpAudio.load();
           warpAudioSrcLoaded = true;
         }
-        warpAudio.currentTime = 0;
+        // On mobile the MP3 metadata may not be ready on the first tap.
+        // A fresh source is already at time zero; seek only when it is safe.
+        if (warpAudio.readyState > 0) {
+          try { warpAudio.currentTime = 0; } catch (e) {}
+        }
         const playing = warpAudio.play();
         if (playing && typeof playing.catch === "function") playing.catch(() => {});
       } catch (e) {}
