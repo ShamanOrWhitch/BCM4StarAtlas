@@ -106,6 +106,19 @@
 .bcm-mini-sim-music[hidden]{
     display:none;
 }
+.bcm-mini-sim-music.is-muted::after{
+    content:"";
+    position:absolute;
+    left:50%;
+    top:18%;
+    height:64%;
+    width:2px;
+    border-radius:2px;
+    background:#ff7474;
+    box-shadow:0 0 4px rgba(255,116,116,.65);
+    transform:translateX(-50%) rotate(-42deg);
+    pointer-events:none;
+}
 .bcm-mini-sim-asset-status{
     position:absolute;
     right:18px;
