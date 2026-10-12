@@ -940,6 +940,8 @@
     neutralB: 0, neutralG: 0
   };
   const pad = { index: -1, lx: 0, ly: 0, rx: 0, ry: 0, roll: 0, vert: 0, prev: [] };
+  const gamepadMenuNav = { container: null, index: 0, previous: Object.create(null), lastMove: 0 };
+  let keepLoadedMedia = false;
 
   let renderer, scene, camera, light;
   let running = false;
@@ -969,6 +971,56 @@
   function setStatus(text) {
     if (externalHud) return;
     status.textContent = text;
+  }
+
+  function pollGamepadMenu() {
+    if (!navigator.getGamepads) return false;
+    let list; try { list = navigator.getGamepads(); } catch (e) { return false; }
+    const gp = list && [...list].find((item) => item && item.connected);
+    if (!gp) { gamepadMenuNav.container = null; return false; }
+    const selectors = [
+      ".bcm-warp-overlay:not([hidden]) .bcm-warp-map-view:not([hidden])",
+      ".bcm-warp-overlay:not([hidden]) [data-tube-result]:not([hidden])",
+      ".bcm-mini-sim-crew-preflight:not([hidden])",
+      ".bcm-mini-sim-settings:not([hidden])",
+      ".bcm-mini-sim-transition:not([hidden])"
+    ];
+    let menu = null;
+    for (const selector of selectors) {
+      const candidate = root.querySelector(selector);
+      if (candidate && candidate.getBoundingClientRect().width > 0 && candidate.getBoundingClientRect().height > 0) { menu = candidate; break; }
+    }
+    if (!menu) {
+      if (gamepadMenuNav.container) gamepadMenuNav.container.querySelectorAll(".bcm-gamepad-focused").forEach(n => n.classList.remove("bcm-gamepad-focused"));
+      gamepadMenuNav.container = null; gamepadMenuNav.previous = Object.create(null); return false;
+    }
+    const choices = [...menu.querySelectorAll("button:not([disabled]), input:not([disabled]), select:not([disabled]), [role='button']:not([aria-disabled='true'])")].filter(n => {
+      if (n.closest("[hidden]")) return false;
+      const r = n.getBoundingClientRect(), style = window.getComputedStyle(n);
+      return r.width > 0 && r.height > 0 && style.visibility !== "hidden" && style.display !== "none";
+    });
+    if (!choices.length) return false;
+    if (gamepadMenuNav.container !== menu) {
+      if (gamepadMenuNav.container) gamepadMenuNav.container.querySelectorAll(".bcm-gamepad-focused").forEach(n => n.classList.remove("bcm-gamepad-focused"));
+      gamepadMenuNav.container = menu; const active = choices.indexOf(document.activeElement);
+      gamepadMenuNav.index = active >= 0 ? active : 0; gamepadMenuNav.previous = Object.create(null); focusGamepadMenuChoice(choices);
+    }
+    const button = n => !!(gp.buttons && gp.buttons[n] && gp.buttons[n].pressed), axes = gp.axes || [];
+    const up = button(12) || (axes[1] || 0) < -.55, down = button(13) || (axes[1] || 0) > .55;
+    const left = button(14) || (axes[0] || 0) < -.55, right = button(15) || (axes[0] || 0) > .55;
+    const confirm = button(0), back = button(1) || button(8), now = performance.now();
+    const move = d => { if (now - gamepadMenuNav.lastMove < 180) return; gamepadMenuNav.lastMove = now; gamepadMenuNav.index = (gamepadMenuNav.index + d + choices.length) % choices.length; focusGamepadMenuChoice(choices); };
+    if (up && !gamepadMenuNav.previous.up) move(-1);
+    else if (down && !gamepadMenuNav.previous.down) move(1);
+    else if (left && !gamepadMenuNav.previous.left) move(-1);
+    else if (right && !gamepadMenuNav.previous.right) move(1);
+    if (confirm && !gamepadMenuNav.previous.confirm) { const c=choices[gamepadMenuNav.index]; if (c && typeof c.click==="function") c.click(); else if(c)c.focus(); }
+    if (back && !gamepadMenuNav.previous.back) { const b=menu.querySelector("[data-warp-cancel], [data-warp-close], [data-setting='close'], .bcm-mini-sim-transition-close"); if(b&&!b.disabled)b.click(); }
+    gamepadMenuNav.previous = { up, down, left, right, confirm, back }; return true;
+  }
+  function focusGamepadMenuChoice(choices) {
+    choices.forEach((n,i)=>n.classList.toggle("bcm-gamepad-focused",i===gamepadMenuNav.index));
+    const c=choices[gamepadMenuNav.index]; if(c&&typeof c.focus==="function"){try{c.focus({preventScroll:true});}catch(e){c.focus();}}
   }
 
   function hasConnectedGamepad() {
@@ -1329,8 +1381,9 @@
   }
 
   function buildStarbaseExterior(parent) {
-    const allUrls = Array.isArray(backside.urls) ? backside.urls.filter(Boolean) : [];
-    const urls = isMobileTextureMode() ? allUrls.slice(0, 8) : allUrls;
+    const allUrls = Array.isArray(backside.urls) ? backside.urls.filter(Boolean).slice().sort() : [];
+    // A deterministic small set replaces the large family of oversized wall textures.
+    const urls = allUrls.slice(0, 4);
     if (!urls.length) return;
 
     const group = new THREE.Group();
@@ -1523,8 +1576,7 @@
     parent.add(group);
     backside.group = group;
     backside.panels = panels;
-    backside.nextAt = performance.now() + 1000;
-    randomizeBackside(performance.now());
+    backside.nextAt = 0;
   }
 
   function trackSurfaceName(kind, index) {
@@ -1832,32 +1884,7 @@
     if (backside.group) backside.group.visible = exterior;
   }
 
-  function randomizeBackside(now) {
-    const materials = backside.materials || [];
-    if (!backside.panels.length || !materials.length) return;
-
-    backside.panels.forEach((item) => {
-      const material = materials[Math.floor(Math.random() * materials.length)];
-      item.mesh.material = material;
-      item.material = material;
-      item.nextAt = now + 800 + Math.random() * 2200;
-    });
-
-    backside.nextAt = now + 250;
-  }
-
-  function updateBacksideCamouflage(now) {
-    const materials = backside.materials || [];
-    if (!backside.panels.length || !materials.length) return;
-
-    backside.panels.forEach((item) => {
-      if (!item.nextAt || now < item.nextAt) return;
-      const material = materials[Math.floor(Math.random() * materials.length)];
-      item.mesh.material = material;
-      item.material = material;
-      item.nextAt = now + 800 + Math.random() * 2200;
-    });
-  }
+  // Starbase wall materials remain stable during play; no random material cycling.
 
   function buildSpaceSatellite(parent) {
     const group = new THREE.Group();
@@ -2347,7 +2374,7 @@
         if (!item.el.paused) item.el.pause();
         item.active = false;
 
-        if (item.loaded && item.distance > Math.max(item.radius * 1.35, item.preloadRadius)) {
+        if (!keepLoadedMedia && item.loaded && item.distance > Math.max(item.radius * 1.35, item.preloadRadius)) {
           item.el.pause();
           item.el.removeAttribute("src");
           item.el.load();
@@ -2832,6 +2859,37 @@
     setStatus("ROOM 1 · HOME");
   }
 
+  // Back/Backspace restarts only the current area; loaded media and OST are preserved.
+  function resetCurrentRoom() {
+    if (!running || transitionBusy || !ship.position) return;
+    keepLoadedMedia = true;
+    const zone = getSpaceZone(ship.position.z);
+    if (race.active && race.spawn) {
+      race.laps = 0; race.nextGate = 1; race.prev = null;
+      ship.position.set(race.spawn.x, race.spawn.y || 0, race.spawn.z);
+      ship.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), race.spawn.yaw || Math.PI);
+      if (race.group) race.group.visible = true;
+      updateRoom0Labyrinth();
+      showMission("ROOM 0 · ПЕРЕЗАПУСК ТЕКУЩЕЙ ТРАССЫ");
+      setStatus("ROOM 0 · RESTARTED · LOADED ASSETS RETAINED");
+    } else {
+      const anchorZ = zone === "ROOM1" ? 2.0 : zone === "BLACK_HOLE" ? -26.0 : zone === "ROOM2" ? -50.0 : -88.0;
+      ship.position.set(0, 0, anchorZ);
+      ship.quaternion.set(0, 0, 0, 1);
+      showMission("МИССИЯ: ТЕКУЩАЯ ЗОНА ПЕРЕЗАПУЩЕНА · РЕСУРСЫ СОХРАНЕНЫ");
+      setStatus(zone + " · RESTARTED · LOADED ASSETS RETAINED");
+    }
+    ship.velocity.set(0, 0, 0);
+    ship.angularVelocity.set(0, 0, 0);
+    if (ship.visual) { ship.visual.position.copy(ship.position); ship.visual.quaternion.copy(ship.quaternion); }
+    camera.position.copy(ship.position);
+    camera.quaternion.copy(ship.quaternion);
+    updateCinemaZones();
+    updateLiveWall();
+    updateLiveInterior();
+    updateBacksideVisibility();
+  }
+
   function finishTeleport() {
     const direction = portal.direction;
     transitionBusy = false;
@@ -3034,13 +3092,14 @@
       if (on && !pad.prev[n] && running) fn();
       pad.prev[n] = on;
     };
+    // B remains full-home; the separate Back/Select button restarts the current area.
     edge(0, () => openDoor("REMOTE"));
     edge(1, returnToStart);
     edge(2, toggleCinemaFocus);
     edge(3, () => { if (typeof window.BCMDeepSpaceWarpToggle === "function") window.BCMDeepSpaceWarpToggle(); else tryPortal(); });
     edge(10, tryPortal);
     edge(9, toggleSettings);
-    edge(8, () => { if (race.active) returnFromSlipstream(); else toggleSettings(); });
+    edge(8, resetCurrentRoom);
   }
 
   function tiltLook() {
@@ -3991,7 +4050,7 @@
     if (miniSimReleased) return;
 
     updateBacksideVisibility();
-    updateBacksideCamouflage(now);
+    pollGamepadMenu();
     const dt = Math.min((now - last) / 1000, 0.033);
     last = now;
     if (running && !settings.open) {
@@ -4146,8 +4205,7 @@
       if (e.code === "Backspace") {
         e.preventDefault();
         if (settings.open) toggleSettings();
-        else if (race.active) returnFromSlipstream();
-        else returnToStart();
+        else resetCurrentRoom();
         return;
       }
       if (e.code === "KeyV") {

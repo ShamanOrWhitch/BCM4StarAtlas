@@ -446,3 +446,14 @@
     }
 }
 
+
+
+/* Visible controller focus for SINGLE/MULTI. */
+.bcm-tower-mode-buttons button.bcm-gamepad-focused,
+.bcm-tower-mode-buttons button:focus-visible {
+  border-color: rgba(86,240,208,.98);
+  outline: 2px solid rgba(86,240,208,.92);
+  outline-offset: 3px;
+  background: rgba(24,93,91,.94);
+  box-shadow: 0 0 0 5px rgba(86,240,208,.11), 0 10px 35px rgba(0,0,0,.35);
+}

@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.52";
+  const TOWER_VERSION = "0.2.53";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -967,9 +967,11 @@
     ];
 
     const edgeState = [
-      { jump: false, interact: false, restart: false },
-      { jump: false, interact: false, restart: false }
+      { jump: false, interact: false, restart: false, menuUp: false, menuDown: false, menuLeft: false, menuRight: false },
+      { jump: false, interact: false, restart: false, menuUp: false, menuDown: false, menuLeft: false, menuRight: false }
     ];
+    let towerMenuCursor = 0;
+    let towerMenuNavAt = 0;
     const gamepadPresent = [false, false];
 
     const players = [
@@ -2456,6 +2458,7 @@
 
     function showMenu() {
       gameStarted = false;
+      focusTowerMode(0);
       if (transition) transition.hidden = true;
       menu.hidden = false;
       restartButton.hidden = true;
@@ -2865,6 +2868,13 @@
     });
 
     let modeStartLock = 0;
+    function focusTowerMode(index) {
+      if (!modeButtons.length) return;
+      towerMenuCursor=(index+modeButtons.length)%modeButtons.length;
+      modeButtons.forEach((b,i)=>{const active=i===towerMenuCursor;b.classList.toggle("bcm-gamepad-focused",active);b.setAttribute("aria-current",active?"true":"false");});
+      const c=modeButtons[towerMenuCursor];if(c&&typeof c.focus==="function"){try{c.focus({preventScroll:true});}catch(e){c.focus();}}
+    }
+
     function pressTowerMode(nextMode) {
       const now = performance.now();
       if (now - modeStartLock < 700) return;
@@ -2925,12 +2935,21 @@
       }
 
       if (!gameStarted) {
-        const pad = connectedPads[0] || null;
-        if (!pad) return;
-        if (pad.buttons?.[0]?.pressed && !edgeState[0].jump) startMode("single");
-        if (pad.buttons?.[1]?.pressed && !edgeState[0].interact) startMode("multi");
-        edgeState[0].jump = !!pad.buttons?.[0]?.pressed;
-        edgeState[0].interact = !!pad.buttons?.[1]?.pressed;
+        const pad=connectedPads[0]||null;if(!pad)return;
+        const axes=pad.axes||[],button=n=>!!(pad.buttons&&pad.buttons[n]&&pad.buttons[n].pressed);
+        const up=button(12)||(axes[1]||0)<-.55,down=button(13)||(axes[1]||0)>.55,left=button(14)||(axes[0]||0)<-.55,right=button(15)||(axes[0]||0)>.55;
+        const now=performance.now();
+        if(now-towerMenuNavAt>180){
+          if(up&&!edgeState[0].menuUp){focusTowerMode(towerMenuCursor-1);towerMenuNavAt=now;}
+          else if(down&&!edgeState[0].menuDown){focusTowerMode(towerMenuCursor+1);towerMenuNavAt=now;}
+          else if(left&&!edgeState[0].menuLeft){focusTowerMode(towerMenuCursor-1);towerMenuNavAt=now;}
+          else if(right&&!edgeState[0].menuRight){focusTowerMode(towerMenuCursor+1);towerMenuNavAt=now;}
+        }
+        const confirm=button(0),multiShortcut=button(1);
+        if(confirm&&!edgeState[0].jump){const c=modeButtons[towerMenuCursor];if(c)pressTowerMode(c.dataset.towerMode);}
+        if(multiShortcut&&!edgeState[0].interact)pressTowerMode("multi");
+        edgeState[0].jump=confirm;edgeState[0].interact=multiShortcut;
+        edgeState[0].menuUp=up;edgeState[0].menuDown=down;edgeState[0].menuLeft=left;edgeState[0].menuRight=right;
         return;
       }
 

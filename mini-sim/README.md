@@ -1,4 +1,11 @@
-# BCM Mini-Sim 0.9.81
+# BCM Mini-Sim 0.9.82
+
+### 0.9.82 Runtime stability
+
+- Warp OST starts with the map, plays once without resetting at Tube, continues through the asteroid maze and yields back to the regular OST only when exiting Warp.
+- Tube is now a forward track with a visible floor, lane marks, fixed rails, overhead arches, approaching barrier gates and a foreground craft. Keyboard, touch, gamepad stick and D-pad steering are supported.
+- Back/Backspace restarts only the current area without stopping music or clearing already loaded sources; H remains the full-home command.
+- Starbase wall materials no longer randomise; four sorted texture variants are requested to reduce transfers and decoding.
 
 ### 0.9.81 Tube and input fixes
 

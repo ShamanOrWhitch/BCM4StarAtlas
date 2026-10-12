@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.9.81
+ * Version: 0.9.82
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.9.81');
+define('BCM_MINI_SIM_VERSION', '0.9.82');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -866,20 +866,20 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.81</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.9.82</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
             <div class="bcm-mini-sim-help bcm-mini-sim-help-keyboard">
                 <span>W/S</span> тяга · <span>A/D</span> влево/вправо · <span>Space</span> вверх · <span>C</span> вниз ·
                 <span>Mouse</span> взгляд · <span>G</span> портал · <span>F</span> фиксация экрана ·
-                <span>H</span> домой · <span>Backspace</span> назад · <span>V</span> WARP · <span>R</span> дверь · <span>Enter</span> меню · <span>Esc</span> отпустить мышь
+                <span>H</span> домой · <span>Backspace</span> перезапуск зоны · <span>V</span> WARP · <span>R</span> дверь · <span>Enter</span> меню · <span>Esc</span> отпустить мышь
             </div>
             <div class="bcm-mini-sim-help bcm-mini-sim-help-gamepad">
                 <span>Левый стик</span> движение · <span>Правый стик</span> взгляд ·
-                <span>A</span> дверь · <span>B</span> домой · <span>Back/Select</span> назад · <span>X</span> фиксация экрана ·
+                <span>A</span> дверь · <span>B</span> домой · <span>Back/Select</span> перезапуск зоны · <span>X</span> фиксация экрана ·
                 <span>Y</span> WARP · <span>L3</span> портал · <span>LB/RB</span> крен · <span>LT/RT</span> вверх/вниз ·
-                <span>Start/Select</span> меню
+                <span>Start</span> меню
             </div>
             <div class="bcm-mini-sim-help bcm-mini-sim-help-touch">
                 <span>▲▼</span> тяга · <span>↟↡</span> вверх/вниз · <span>◀▶</span> поворот ·

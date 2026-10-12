@@ -1313,3 +1313,13 @@
   .bcm-mini-sim .bcm-warp-grid-cell strong { font-size: 9px; }
   .bcm-mini-sim .bcm-warp-grid-cell small { font-size: 8px; }
 }
+
+
+/* Visible focus feedback for Mini-Sim and WARP controller menus. */
+.bcm-mini-sim .bcm-gamepad-focused,
+.bcm-warp-overlay .bcm-gamepad-focused {
+  outline: 2px solid rgba(86,240,208,.95) !important;
+  outline-offset: 2px;
+  border-color: rgba(86,240,208,.95) !important;
+  box-shadow: 0 0 0 4px rgba(86,240,208,.12);
+}
