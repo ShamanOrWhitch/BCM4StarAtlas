@@ -564,7 +564,8 @@
 
       // The main physics resumes in this scene. The seeded maze uses one instanced wall mesh
       // and a single 64x64 generated tile texture, so geometry is cheap on older devices.
-      engine.teleport({ x: maze.start.x, y: maze.start.y, z: maze.start.z, yaw: Math.PI }, null);
+      // Default Mini-Sim forward is -Z; face inward from the asteroid entrance.
+      engine.teleport({ x: maze.start.x, y: maze.start.y, z: maze.start.z, yaw: 0 }, null);
       engine.pauseForWarp(false);
       engine.setExternalHUD("ASTEROID COMPLEX · " + sectorText(state.target), "EXPEDITION · CORE SHARDS 0/3 · FIND THE RETURN BEACON");
       maze.lastPosition = runtime.ship.position.clone();
@@ -576,11 +577,9 @@
     function updateMazeFrame(frame) {
       const maze = state.maze;
       if (!maze || !maze.active || !frame || !frame.ship) return;
-      const THREE = frame.THREE;
       const ship = frame.ship;
       const pos = ship.position;
       const radius = 0.7;
-      const previous = maze.lastPosition || pos.clone();
 
       // Only test wall panels close to the craft; distant cells cost almost nothing per frame.
       for (let pass = 0; pass < 2; pass += 1) {
