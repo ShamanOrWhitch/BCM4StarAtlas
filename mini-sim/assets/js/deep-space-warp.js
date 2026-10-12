@@ -154,21 +154,22 @@
         const currentRaw = nav.currentSector || nav.current || nav.sector || nav.current_sector || null;
         const current = normalizeSector(currentRaw, 0);
         if (current) {
-          const list = nav.connectedSectors || nav.neighbors || nav.sectors || nav.connections || currentRaw.connections || currentRaw.neighbors || [];
-          const targets = [];
-          if (Array.isArray(list)) {
-            list.forEach((item, index) => {
-              const sector = normalizeSector(item, index + 1);
-              if (sector && sector.id !== current.id && !targets.some((row) => row.id === sector.id)) targets.push(sector);
-            });
-          }
+          let list = nav.connectedSectors || nav.neighbors || (currentRaw && (currentRaw.connections || currentRaw.neighbors)) || null;
           if (Array.isArray(nav.sectors) && Array.isArray(nav.connections) && nav.connections.length) {
-            const ids = new Set(nav.connections.map((item) => String(typeof item === "object" ? (item.id || item.pubkey || item.connectionSector || item.sector || "") : item)));
-            nav.sectors.forEach((item, index) => {
-              const sector = normalizeSector(item, index + 1);
-              if (sector && sector.id !== current.id && ids.has(sector.id) && !targets.some((row) => row.id === sector.id)) targets.push(sector);
+            const ids = new Set(nav.connections.map((item) => String(typeof item === "object" ? (item.id || item.pubkey || item.publicKey || item.connectionSector || item.sector || item.key || "") : item)));
+            const matched = nav.sectors.filter((item) => {
+              const sector = normalizeSector(item, 0);
+              return sector && ids.has(sector.id);
             });
+            if (matched.length) list = matched;
+            else if (!Array.isArray(list)) list = nav.connections;
           }
+          if (!Array.isArray(list)) list = Array.isArray(nav.sectors) ? nav.sectors : (Array.isArray(nav.connections) ? nav.connections : []);
+          const targets = [];
+          list.forEach((item, index) => {
+            const sector = normalizeSector(item, index + 1);
+            if (sector && sector.id !== current.id && !targets.some((row) => row.id === sector.id)) targets.push(sector);
+          });
           const hasCoords = current.x != null && current.y != null;
           return {
             current,
