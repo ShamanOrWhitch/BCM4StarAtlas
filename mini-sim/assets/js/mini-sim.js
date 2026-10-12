@@ -948,6 +948,9 @@
   let transitionBusy = false;
   let transitionLoading = false;
   let musicAllowed = false;
+  // External Warp/tunnel overlay may pause 6DOF physics without destroying this renderer.
+  let externalPause = false;
+  let externalHud = null;
 
   function setSpeedMode(mode) {
     const next = speedMatrix[Number(mode)] ? Number(mode) : 1;
@@ -959,10 +962,12 @@
 
   const missionEl = root.querySelector(".bcm-mini-sim-mission");
   function showMission(text) {
+    if (externalHud) return;
     if (missionEl) missionEl.textContent = text;
   }
 
   function setStatus(text) {
+    if (externalHud) return;
     status.textContent = text;
   }
 
@@ -3864,7 +3869,7 @@
   }
 
   function updatePhysics(dt) {
-    if (transitionBusy) return;
+    if (transitionBusy || externalPause) return;
     updateDoor(dt);
     const inn = input();
     const localAcc = new THREE.Vector3(
@@ -3991,6 +3996,16 @@
     if (running && !settings.open) {
       try { updatePhysics(dt); } catch (err) {
         setStatus("LOOP ERR " + (err && err.message ? err.message : "pad"));
+      }
+    }
+    // A separate lightweight module can add a Warp tunnel or asteroid maze to this same scene.
+    // It receives the existing r128 runtime; no second WebGL context is created.
+    if (typeof window.BCMDeepSpaceWarpFrame === "function") {
+      try {
+        window.BCMDeepSpaceWarpFrame({ dt, running, paused: externalPause, scene, camera, ship, THREE: window.THREE, root });
+      } catch (err) {
+        window.BCMDeepSpaceWarpFrame = null;
+        if (!externalHud) setStatus("WARP MODULE ERROR · " + (err && err.message ? err.message : "frame"));
       }
     }
     if (renderer && scene && camera) renderer.render(scene, camera);
@@ -4239,6 +4254,37 @@
     }
     window.BCMiniSimAPI = window.BCMiniSimAPI || {};
     window.BCMiniSimAPI.stopAudio = stopMiniSimAudio;
+    window.BCMiniSimAPI.pauseForWarp = (value) => {
+      externalPause = !!value;
+      if (externalPause && ship.velocity && ship.angularVelocity) {
+        ship.velocity.set(0, 0, 0);
+        ship.angularVelocity.set(0, 0, 0);
+      }
+    };
+    window.BCMiniSimAPI.getRuntime = () => ({ renderer, scene, camera, ship, THREE: window.THREE, root, running });
+    window.BCMiniSimAPI.teleport = (position, quaternion) => {
+      if (!position || !ship.position || !ship.quaternion) return false;
+      ship.position.set(Number(position.x) || 0, Number(position.y) || 0, Number(position.z) || 0);
+      ship.velocity.set(0, 0, 0);
+      ship.angularVelocity.set(0, 0, 0);
+      if (quaternion && quaternion.isQuaternion) ship.quaternion.copy(quaternion);
+      else ship.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Number(position.yaw) || 0);
+      if (camera) {
+        camera.position.copy(ship.position);
+        camera.quaternion.copy(ship.quaternion);
+      }
+      if (ship.visual) {
+        ship.visual.position.copy(ship.position);
+        ship.visual.quaternion.copy(ship.quaternion);
+      }
+      return true;
+    };
+    window.BCMiniSimAPI.setExternalHUD = (mission, message) => {
+      externalHud = { mission: String(mission || "DEEP SPACE"), status: String(message || "WARP SYSTEM") };
+      if (missionEl) missionEl.textContent = externalHud.mission;
+      if (status) status.textContent = externalHud.status;
+    };
+    window.BCMiniSimAPI.clearExternalHUD = () => { externalHud = null; };
 
     window.addEventListener("galia-play-request", handleGaliaPlayRequest);
 
