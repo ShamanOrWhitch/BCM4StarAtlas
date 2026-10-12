@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.53";
+  const TOWER_VERSION = "0.2.54";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -2387,32 +2387,27 @@
     }
 
     function stopOtherGameAudio() {
-      try {
-        window.BCMMiniSimAPI?.stopAudio?.();
-      } catch (e) {}
-
+      try { window.BCMMiniSimAPI?.stopAudio?.(); } catch (e) {}
       document.querySelectorAll(".bcm-mini-sim-music-audio").forEach((audio) => {
         if (audio === towerAudio) return;
-        try {
-          audio.pause();
-          audio.volume = 0;
-        } catch (e) {}
+        try { audio.pause(); } catch (e) {}
       });
     }
 
     function playTowerAudio() {
-      stopOtherGameAudio();
       const audio = ensureTowerAudio();
       if (!audio) return;
-      audio.muted = false;
+      audio.loop = true;
       audio.volume = 0.48;
-      const promise = audio.play();
-      if (promise && promise.catch) {
-        promise.catch(() => {
-          // Browser autoplay may require a fresh user gesture. The mode buttons
-          // call this again directly from the click handler.
-        });
+      if (window.BCMGameAudio?.playExclusive) {
+        const promise = window.BCMGameAudio.playExclusive(audio, "tower");
+        if (promise && promise.catch) promise.catch(() => {});
+        return;
       }
+      stopOtherGameAudio();
+      audio.muted = !!window.BCMGameAudio?.isMuted?.();
+      const promise = audio.play();
+      if (promise && promise.catch) promise.catch(() => {});
     }
 
     function stopTowerAudio() {
@@ -2528,7 +2523,8 @@
       }
 
       transitionStarted = true;
-      playTowerAudio();
+      // tower.mp3 starts only when SINGLE/MULTI gameplay begins, not while
+      // the landing video is still playing.
       transition.hidden = false;
       transitionVideo.style.opacity = "0";
       const markerUrl = helipadMarkerUrl();
