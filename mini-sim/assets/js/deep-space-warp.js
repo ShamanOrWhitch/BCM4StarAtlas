@@ -9,11 +9,11 @@
     const api = () => window.BCMiniSimAPI || null;
     const config = window.BCMMiniSimConfig || {};
     const levelAudio = root.querySelector(".bcm-mini-sim-music-audio");
-    const WARP_DURATION = 24;
+    const WARP_DURATION = 48;
     let levelAudioWasPlaying = false;
     const warpAudio = document.createElement("audio");
     warpAudio.preload = "none";
-    warpAudio.loop = false;
+    warpAudio.loop = true;
     warpAudio.volume = 0.72;
     warpAudio.setAttribute("playsinline", "");
     let warpAudioSrcLoaded = false;
@@ -31,7 +31,11 @@
           try { warpAudio.currentTime = 0; } catch (e) {}
         }
         if (!warpAudio.paused && !warpAudio.ended) return;
-        const playing = warpAudio.play();
+        if (window.BCMGameAudio?.register) window.BCMGameAudio.register(warpAudio, "warp");
+        warpAudio.muted = !!window.BCMGameAudio?.isMuted?.();
+        const playing = window.BCMGameAudio?.playExclusive
+          ? window.BCMGameAudio.playExclusive(warpAudio, "warp")
+          : warpAudio.play();
         if (playing && typeof playing.catch === "function") playing.catch(() => {});
       } catch (e) {}
     }
@@ -56,10 +60,16 @@
       if (!levelAudioWasPlaying || !levelAudio) return;
       levelAudioWasPlaying = false;
       try {
-        const resumed = levelAudio.play();
+        const resumed = window.BCMGameAudio?.playExclusive
+          ? window.BCMGameAudio.playExclusive(levelAudio, "starbase")
+          : levelAudio.play();
         if (resumed && typeof resumed.catch === "function") resumed.catch(() => {});
       } catch (e) {}
     }
+
+    window.addEventListener("bcm:game-music-mute", (event) => {
+      warpAudio.muted = !!event.detail?.muted;
+    });
 
     const state = {
       mode: "closed",
@@ -69,6 +79,7 @@
       savedPosition: null,
       savedQuaternion: null,
       elapsed: 0,
+      tubeTravel: 0,
       startedAt: 0,
       shields: 100,
       playerX: 0,
@@ -414,6 +425,7 @@
       if (!engine || !engine.getRuntime || !engine.getRuntime().scene) return;
       state.mode = "tube";
       state.elapsed = 0;
+      state.tubeTravel = 0;
       state.startedAt = performance.now();
       state.shields = 100;
       state.playerX = 0;
@@ -422,14 +434,20 @@
       state.touch.left = state.touch.right = state.touch.up = state.touch.down = false;
       const rng = randomFrom(hashSeed(state.nav.current.id + ">" + state.target.id + ":" + state.target.x + ":" + state.target.y));
       state.layers = [];
-      // Stagger a small number of obstacle gates over the full Warp run.
-      for (let i = 0; i < 8; i += 1) {
+      // One-pass, spaced gates: each obstacle appears once along this route,
+      // and multiple lanes remain open rather than forming a solid plate.
+      const gateCount = 14;
+      for (let i = 0; i < gateCount; i += 1) {
         const safe = Math.floor(rng() * 9);
+        const extraSafe = rng() < 0.42 ? Math.floor(rng() * 9) : -1;
         const blockers = [];
         for (let lane = 0; lane < 9; lane += 1) {
-          if (lane !== safe && rng() < 0.62) blockers.push({ x: (lane % 3) - 1, y: Math.floor(lane / 3) - 1 });
+          if (lane !== safe && lane !== extraSafe && rng() < 0.38) {
+            blockers.push({ x: (lane % 3) - 1, y: Math.floor(lane / 3) - 1 });
+          }
         }
-        state.layers.push({ phase: (i / 11 + rng() * 0.035) % 1, blockers, hitCycle: -1 });
+        const progress = 0.18 + (i / Math.max(1, gateCount - 1)) * 0.79 + (rng() - 0.5) * 0.012;
+        state.layers.push({ progress, blockers, resolved: false });
       }
       tubeTitle.textContent = "WARP IN PROGRESS";
       tubeResult.hidden = true;
@@ -838,14 +856,31 @@
     }
 
     function drawTubeTunnel(g, w, h, now) {
-      const t=state.elapsed,horizon=h*.23,near=h*.93,mid=w*.5,steps=48,arches=12;
-      const center=d=>mid+(Math.sin(t*.31+d*3.2)*.28+Math.sin(t*.19+d*6)*.10)*w*d*.38;
-      const roadY=d=>horizon+Math.pow(d,1.17)*(near-horizon);
-      const half=d=>w*(.015+Math.pow(d,1.18)*.47);
+      const t = state.tubeTravel;
+      const section = Math.floor(state.elapsed / 8) % 6;
+      const widths = [1.0, 0.72, 1.22, 0.88, 1.08, 0.78];
+      const curves = [0.35, 1.05, -0.55, 1.35, 0.62, -0.9];
+      const roll = t * 0.67 + Math.sin(t * 0.23) * 0.46;
+      const horizon=h*.23,near=h*.93,mid=w*.5,steps=48,arches=12;
+      const center=d=>mid+(
+        Math.sin(t*.31+d*3.2)*.28+
+        Math.sin(t*.19+d*6)*.10+
+        Math.sin(d*Math.PI*1.55+section*1.3)*curves[section]*.22
+      )*w*d*.38;
+      const roadY=d=>horizon+Math.pow(d,1.17)*(near-horizon)+
+        Math.sin(d*Math.PI)*(section===2?-h*.09:section===4?h*.11:0);
+      const half=d=>w*(.015+Math.pow(d,1.18)*.47)*widths[section]*
+        (1+Math.sin(d*12+section)*.075);
       const edge=(d,side,extra)=>({x:center(d)+side*half(d)*(1+(extra||0)),y:roadY(d)});
       const bg=g.createLinearGradient(0,horizon-h*.18,0,near);
       bg.addColorStop(0,"#050b12");bg.addColorStop(.42,"#142b38");bg.addColorStop(1,"#08131b");
       g.fillStyle=bg;g.fillRect(0,0,w,h);
+      // Roll the tunnel environment around its forward axis. Keep the ship
+      // sprite outside this transform so steering remains easy to read.
+      g.save();
+      g.translate(mid, h * 0.62);
+      g.rotate(roll);
+      g.translate(-mid, -h * 0.62);
       // Curved side walls frame a clear forward road, not a rotating scanner.
       [-1,1].forEach(side=>{
         g.beginPath();for(let i=0;i<=steps;i++){const p=edge(i/steps,side,.5);if(!i)g.moveTo(p.x,p.y);else g.lineTo(p.x,p.y);}
@@ -870,8 +905,11 @@
         g.beginPath();g.ellipse(center(d),roadY(d),half(d)*1.12,h*(.018+Math.pow(d,1.13)*.26)*1.5,0,Math.PI,Math.PI*2);
         g.strokeStyle="rgba(97,167,188,"+(.22+d*.56)+")";g.lineWidth=1+d*2;g.stroke();}
       // Barrier gates leave visible passages that match the obstacle lanes.
-      state.layers.forEach(layer=>{const phase=(t*.29+layer.phase)%1;if(phase<.10||phase>.92)return;
-        const d=.12+Math.pow(phase,1.12)*.81,cx=center(d),cy=roadY(d)-h*(.018+Math.pow(d,1.13)*.26)*.4;
+      const routeProgress = Math.min(1, state.elapsed / WARP_DURATION);
+      state.layers.forEach(layer=>{
+        const distance = layer.progress - routeProgress;
+        if (layer.resolved || distance < 0 || distance > 0.23) return;
+        const d=1-distance/0.23,cx=center(d),cy=roadY(d)-h*(.018+Math.pow(d,1.13)*.26)*.4;
         const cw=half(d)*.58,ch=Math.max(4,h*(.018+Math.pow(d,1.13)*.26)*.45);
         layer.blockers.forEach(b=>{const bx=cx+b.x*half(d)*.6,by=cy-b.y*h*(.018+Math.pow(d,1.13)*.26)*.6,bw=cw*(.72+d*.13),bh=ch*(.74+d*.13),skew=Math.max(1,d*7);
           g.fillStyle="rgba(0,0,0,.42)";g.fillRect(bx-bw/2+skew,by-bh/2+skew,bw,bh);
@@ -880,6 +918,7 @@
           g.strokeStyle="rgba(255,220,173,.52)";g.lineWidth=Math.max(1,bw*.08);for(let s=-1;s<=1;s++){g.beginPath();g.moveTo(bx+s*bw*.28,by-bh*.42);g.lineTo(bx+s*bw*.28-skew,by+bh*.42);g.stroke();}
         });
       });
+      g.restore();
       // Foreground craft stays over the road so the player can read steering.
       const d=.94,px=center(d)+state.playerX*half(d)*.78,py=roadY(d)-h*.075+state.playerY*h*.095,scale=Math.min(1,w/900);
       g.save();g.translate(px,py);g.rotate(Math.max(-.32,Math.min(.32,state.playerX*.20)));g.scale(scale,scale);
@@ -974,17 +1013,31 @@
     }
 
     function updateTube(dt,now){
-      state.elapsed=Math.max(0,(now-state.startedAt)/1000);let px=0,py=0;
+      state.elapsed=Math.max(0,(now-state.startedAt)/1000);
+      const speedBySection = [0.76, 1.24, 0.84, 1.34, 0.68, 1.14];
+      state.tubeTravel += dt * speedBySection[Math.floor(state.elapsed / 8) % 6];
+      const routeProgress = Math.min(1, state.elapsed / WARP_DURATION);
+      let px=0,py=0;
       try{const pads=navigator.getGamepads?navigator.getGamepads():[],gp=pads&&[...pads].find(p=>p&&p.connected);
         if(gp){const a=gp.axes||[],b=n=>!!(gp.buttons&&gp.buttons[n]&&gp.buttons[n].pressed);
           px=Math.abs(a[0]||0)>.18?a[0]:0;py=Math.abs(a[1]||0)>.18?a[1]:0;px+=(b(15)?1:0)-(b(14)?1:0);py+=(b(13)?1:0)-(b(12)?1:0);}}catch(e){}
       const steer=Math.max(-1,Math.min(1,((state.keys.ArrowRight||state.keys.KeyD||state.touch.right?1:0)-(state.keys.ArrowLeft||state.keys.KeyA||state.touch.left?1:0))+px));
       const lift=Math.max(-1,Math.min(1,((state.keys.ArrowDown||state.keys.KeyS||state.touch.down?1:0)-(state.keys.ArrowUp||state.keys.KeyW||state.touch.up?1:0))+py));
-      state.playerX=Math.max(-.90,Math.min(.90,state.playerX+steer*dt*1.45));state.playerY=Math.max(-.72,Math.min(.72,state.playerY+lift*dt*1.15));
-      state.layers.forEach(layer=>{const total=state.elapsed*.29+layer.phase,progress=total%1,cycle=Math.floor(total);
-        if(progress>.87&&progress<.91&&layer.hitCycle!==cycle){layer.hitCycle=cycle;
+      state.playerX=Math.max(-.90,Math.min(.90,state.playerX+steer*dt*2.15));
+      state.playerY=Math.max(-.72,Math.min(.72,state.playerY+lift*dt*1.55));
+      state.layers.forEach(layer=>{
+        const distance = layer.progress - routeProgress;
+        if (!layer.resolved && distance <= 0.035) {
+          layer.resolved = true;
           const hit=layer.blockers.some(b=>Math.abs(state.playerX-b.x*.65)<.22&&Math.abs(state.playerY-b.y*.48)<.22);
-          if(hit){state.shields=Math.max(0,state.shields-25);tubeShield.style.width=state.shields+"%";tubeMeta.textContent="SHIELDS "+state.shields+"% · SEEK THE OPEN GATE";if(state.shields<=0){finishTube(false);return;}}}});
+          if(hit){
+            state.shields=Math.max(0,state.shields-25);
+            tubeShield.style.width=state.shields+"%";
+            tubeMeta.textContent="SHIELDS "+state.shields+"% · SEEK THE OPEN GATE";
+            if(state.shields<=0){finishTube(false);return;}
+          }
+        }
+      });
       if(state.elapsed>=WARP_DURATION)finishTube(state.shields>0);
       tubeMeta.textContent="SECTOR "+sectorText(state.target)+" · "+Math.max(0,WARP_DURATION-state.elapsed).toFixed(1)+" s";tubeShield.style.width=state.shields+"%";
     }
