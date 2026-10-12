@@ -4009,7 +4009,10 @@
         if (!externalHud) setStatus("WARP MODULE ERROR · " + (err && err.message ? err.message : "frame"));
       }
     }
-    if (renderer && scene && camera) renderer.render(scene, camera);
+    // The 2D Warp overlay replaces the visible scene during map/Tube, so stop drawing
+    // the hidden WebGL frame there; keep the same renderer alive and resume it in the maze.
+    const showUnderlyingScene = !externalPause || root.classList.contains("bcm-warp-maze-active");
+    if (renderer && scene && camera && showUnderlyingScene) renderer.render(scene, camera);
     requestAnimationFrame(render);
   }
 
