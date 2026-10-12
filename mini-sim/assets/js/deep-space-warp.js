@@ -23,6 +23,7 @@
       pointerY: 0,
       lastFrame: 0,
       stars: [],
+      animationRunning: false,
       layers: [],
       maze: null,
       statusText: "",
@@ -270,7 +271,7 @@
       root.classList.add("bcm-warp-open");
       launchButton.classList.add("is-active");
       resizeBackdrop();
-      requestAnimationFrame(drawBackdrop);
+      startBackdropLoop();
     }
 
     function closeOverlay(restoreMain) {
@@ -319,7 +320,7 @@
       mapView.hidden = true;
       overlay.classList.add("is-tubing");
       resizeBackdrop();
-      requestAnimationFrame(drawBackdrop);
+      startBackdropLoop();
     }
 
     function finishTube(success) {
@@ -706,8 +707,17 @@
       }
     }
 
+    function startBackdropLoop() {
+      if (state.animationRunning || overlay.hidden || !ctx) return;
+      state.animationRunning = true;
+      requestAnimationFrame(drawBackdrop);
+    }
+
     function drawBackdrop(now) {
-      if (overlay.hidden || !ctx) return;
+      if (overlay.hidden || !ctx) {
+        state.animationRunning = false;
+        return;
+      }
       const w = backdrop.clientWidth || root.clientWidth || 800;
       const h = backdrop.clientHeight || root.clientHeight || 500;
       const dt = state.lastFrame ? Math.min((now - state.lastFrame) / 1000, 0.04) : 0.016;
@@ -745,11 +755,12 @@
           const nodes = [nav.current].concat(nav.targets || []);
           const maxDelta = Math.max(1, ...nodes.map((n) => Math.max(Math.abs((n.x == null ? 0 : n.x) - (nav.current.x || 0)), Math.abs((n.y == null ? 0 : n.y) - (nav.current.y || 0)))));
           const scale = Math.min(w, h) * 0.27 / maxDelta;
-          const positions = nodes.map((node) => ({
-            node,
-            x: cx + (((node.x == null ? 0 : node.x) - (nav.current.x || 0)) * scale),
-            y: cy - (((node.y == null ? 0 : node.y) - (nav.current.y || 0)) * scale)
-          }));
+          const positions = nodes.map((node, index) => {
+            const angle = ((index - 1) / Math.max(1, nodes.length - 1)) * Math.PI * 2;
+            const dx = node.x == null ? (index === 0 ? 0 : Math.cos(angle) * 1.5) : node.x - (nav.current.x || 0);
+            const dy = node.y == null ? (index === 0 ? 0 : Math.sin(angle) * 1.5) : node.y - (nav.current.y || 0);
+            return { node, x: cx + dx * scale, y: cy - dy * scale };
+          });
           ctx.strokeStyle = "rgba(100,169,201,.30)";
           ctx.lineWidth = 1;
           positions.slice(1).forEach((p) => {
@@ -791,6 +802,20 @@
         }
         if (state.mode === "tube") {
           updateTube(dt, now);
+          state.layers.forEach((layer) => {
+            const progress = (state.elapsed * 0.29 + layer.phase) % 1;
+            if (progress < 0.20) return;
+            const size = 5 + progress * 13;
+            layer.blockers.forEach((blocker) => {
+              const bx = cx + blocker.x * 0.65 * w * 0.32;
+              const by = cy + blocker.y * 0.48 * h * 0.24;
+              ctx.fillStyle = "rgba(255,137,91," + (0.25 + progress * 0.65) + ")";
+              ctx.strokeStyle = "rgba(255,224,193,.9)";
+              ctx.lineWidth = 1 + progress;
+              ctx.fillRect(bx - size / 2, by - size / 2, size, size);
+              ctx.strokeRect(bx - size / 2, by - size / 2, size, size);
+            });
+          });
           const px = cx + state.playerX * w * 0.32;
           const py = cy + state.playerY * h * 0.24;
           ctx.fillStyle = "#d7f6ff";
@@ -806,6 +831,7 @@
       }
 
       if (!overlay.hidden) requestAnimationFrame(drawBackdrop);
+      else state.animationRunning = false;
     }
 
     function updateTube(dt, now) {
