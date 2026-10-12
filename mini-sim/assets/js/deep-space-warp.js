@@ -133,7 +133,7 @@
       if (typeof value === "string" || typeof value === "number") {
         return { id: String(value), name: "Сектор " + value, x: null, y: null, raw: value };
       }
-      const coords = parseCoords(value.coordinates || value.coords || value.sectorCoordinates || value.subCoordinates);
+      const coords = parseCoords(value.coordinates || value.coords || value.sectorCoordinates || value.subCoordinates || value);
       const xVal = value.x != null ? Number(value.x) : coords ? coords.x : NaN;
       const yVal = value.y != null ? Number(value.y) : coords ? coords.y : NaN;
       const id = String(value.id || value.pubkey || value.publicKey || value.address || value.key || (Number.isFinite(xVal) && Number.isFinite(yVal) ? xVal + "," + yVal : "sector-" + index));
@@ -464,10 +464,9 @@
           addWall(x, y, z + CELL / 2, CELL, CELL, WALL);
         }
         if (cell.z === NZ - 1) {
-          // Far exit is opened only at the last cell.
+          // Far exit is opened only at the last cell. Internal Z-planes are emitted once
+          // from the adjacent cell's positive face, avoiding overlapping double walls.
           if (!(cell.x === NX - 1 && cell.y === 1)) addWall(x, y, z - CELL / 2, CELL, CELL, WALL);
-        } else if (!cell.open.zp) {
-          addWall(x, y, z - CELL / 2, CELL, CELL, WALL);
         }
       });
 
@@ -497,6 +496,7 @@
         new THREE.MeshBasicMaterial({ color: 0x254050, transparent: true, opacity: 0.11, side: THREE.BackSide, depthWrite: false })
       );
       shell.name = "asteroid-inner-shell";
+      shell.position.copy(center);
       group.add(shell);
 
       const crystalMaterial = new THREE.MeshBasicMaterial({ color: 0x52f0dc });
