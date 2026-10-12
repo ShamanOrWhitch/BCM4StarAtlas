@@ -13,12 +13,12 @@
     let levelAudioWasPlaying = false;
     const warpAudio = document.createElement("audio");
     warpAudio.preload = "none";
-    warpAudio.loop = true;
+    warpAudio.loop = false;
     warpAudio.volume = 0.72;
     warpAudio.setAttribute("playsinline", "");
     let warpAudioSrcLoaded = false;
 
-    function startWarpAudio() {
+    function startWarpAudio(restartSession) {
       if (!config.warpMusicUrl) return;
       try {
         if (!warpAudioSrcLoaded) {
@@ -26,11 +26,11 @@
           warpAudio.load();
           warpAudioSrcLoaded = true;
         }
-        // On mobile the MP3 metadata may not be ready on the first tap.
-        // A fresh source is already at time zero; seek only when it is safe.
-        if (warpAudio.readyState > 0) {
+        // Map -> Tube -> asteroid maze is one Warp level; never reset between screens.
+        if (restartSession && warpAudio.readyState > 0) {
           try { warpAudio.currentTime = 0; } catch (e) {}
         }
+        if (!warpAudio.paused && !warpAudio.ended) return;
         const playing = warpAudio.play();
         if (playing && typeof playing.catch === "function") playing.catch(() => {});
       } catch (e) {}
@@ -355,6 +355,7 @@
         return;
       }
       pauseLevelOst();
+      startWarpAudio(true);
       state.nav = readNavigation();
       state.target = null;
       state.mode = "map";
@@ -388,12 +389,15 @@
     function closeOverlay(restoreMain) {
       stopWarpAudio();
       overlay.hidden = true;
-      root.classList.remove("bcm-warp-open");
+      root.classList.remove("bcm-warp-open", "is-tubing");
       launchButton.classList.remove("is-active");
       state.mode = "closed";
       state.pointerDown = false;
       if (state.maze && state.maze.active) return;
       resumeLevelOst();
+      state.layers = [];
+      state.target = null;
+      window.BCMDeepSpaceWarpFrame = null;
       const engine = api();
       if (engine) {
         engine.pauseForWarp(false);
@@ -406,7 +410,6 @@
 
     function showTube() {
       if (!state.target) return;
-      startWarpAudio();
       const engine = api();
       if (!engine || !engine.getRuntime || !engine.getRuntime().scene) return;
       state.mode = "tube";
@@ -440,9 +443,7 @@
 
     function finishTube(success) {
       if (state.mode !== "tube") return;
-      // Keep the Warp OST running through the successful arrival transition.
-      // On a failed run it stops immediately; regular OST resumes only when Warp closes.
-      if (!success) stopWarpAudio();
+      // Keep the same Warp OST running through retries, arrival and the asteroid maze.
       state.mode = "result";
       touchControls.hidden = true;
       tubeResult.hidden = false;
@@ -491,8 +492,7 @@
     }
 
     function enterAsteroidMaze() {
-      stopWarpAudio();
-      resumeLevelOst();
+      // Warp OST owns the whole Warp stage, including the asteroid maze.
       const engine = api();
       if (!engine || !engine.getRuntime) return;
       const runtime = engine.getRuntime();
@@ -785,7 +785,6 @@
     }
 
     function returnToDeepSpace(force) {
-      stopWarpAudio();
       const maze = state.maze;
       if (!maze) return;
       if (!force && maze.count < 3) {
@@ -804,6 +803,8 @@
         engine.clearExternalHUD();
         if (state.savedPosition && state.savedQuaternion) engine.teleport(state.savedPosition, state.savedQuaternion);
       }
+      overlay.hidden = true;
+      root.classList.remove("bcm-warp-open", "is-tubing");
       state.mode = "closed";
       state.savedPosition = null;
       state.savedQuaternion = null;
@@ -837,139 +838,57 @@
     }
 
     function drawTubeTunnel(g, w, h, now) {
-      const cx0 = w * 0.5;
-      const cy0 = h * 0.43;
-      const motion = state.elapsed;
-      const ringCount = 18;
-      const slices = 16;
-      const maxX = Math.min(w * 0.66, h * 1.02);
-      const maxY = Math.min(h * 0.72, w * 0.58);
-
-      function point(depth, angle) {
-        const bendX = Math.sin(motion * 0.31 + depth * 4.1) * w * 0.055 * depth;
-        const bendY = Math.cos(motion * 0.23 + depth * 3.4) * h * 0.028 * depth;
-        const twist = motion * 0.25 + depth * 0.53 + Math.sin(depth * 5.7 + motion * 0.19) * 0.075;
-        const perspective = 0.018 + depth * 0.94;
-        return {
-          x: cx0 + bendX + Math.cos(angle + twist) * maxX * perspective,
-          y: cy0 + bendY + Math.sin(angle + twist) * maxY * perspective
-        };
+      const t=state.elapsed,horizon=h*.23,near=h*.93,mid=w*.5,steps=48,arches=12;
+      const center=d=>mid+(Math.sin(t*.31+d*3.2)*.28+Math.sin(t*.19+d*6)*.10)*w*d*.38;
+      const roadY=d=>horizon+Math.pow(d,1.17)*(near-horizon);
+      const half=d=>w*(.015+Math.pow(d,1.18)*.47);
+      const edge=(d,side,extra)=>({x:center(d)+side*half(d)*(1+(extra||0)),y:roadY(d)});
+      const bg=g.createLinearGradient(0,horizon-h*.18,0,near);
+      bg.addColorStop(0,"#050b12");bg.addColorStop(.42,"#142b38");bg.addColorStop(1,"#08131b");
+      g.fillStyle=bg;g.fillRect(0,0,w,h);
+      // Curved side walls frame a clear forward road, not a rotating scanner.
+      [-1,1].forEach(side=>{
+        g.beginPath();for(let i=0;i<=steps;i++){const p=edge(i/steps,side,.5);if(!i)g.moveTo(p.x,p.y);else g.lineTo(p.x,p.y);}
+        for(let i=steps;i>=0;i--){const p=edge(i/steps,side,0);g.lineTo(p.x,p.y);}
+        g.closePath();g.fillStyle=side<0?"rgba(21,62,76,.82)":"rgba(20,48,62,.88)";g.fill();
+      });
+      // Continuous floor panels and centre dashes scroll toward the player.
+      for(let i=0;i<steps;i++){
+        const a=i/steps,b=(i+1)/steps,l0=edge(a,-1,0),r0=edge(a,1,0),l1=edge(b,-1,0),r1=edge(b,1,0);
+        g.beginPath();g.moveTo(l0.x,l0.y);g.lineTo(r0.x,r0.y);g.lineTo(r1.x,r1.y);g.lineTo(l1.x,l1.y);g.closePath();
+        g.fillStyle=(i+Math.floor(t*42))%2?"rgba(18,32,42,.98)":"rgba(25,42,52,.98)";g.fill();
+        if((i+Math.floor(t*34))%7<3){const c0=center(a),c1=center(b),q0=half(a)*.018,q1=half(b)*.018;
+          g.beginPath();g.moveTo(c0-q0,roadY(a));g.lineTo(c0+q0,roadY(a));g.lineTo(c1+q1,roadY(b));g.lineTo(c1-q1,roadY(b));g.closePath();
+          g.fillStyle="rgba(110,226,232,.88)";g.fill();}
       }
-
-      // Tube lining: repeated steel panels with 16 visible seams and a curved vanishing point.
-      for (let ring = 0; ring < ringCount; ring += 1) {
-        const d0 = Math.pow(ring / ringCount, 1.35);
-        const d1 = Math.pow((ring + 1) / ringCount, 1.35);
-        for (let seg = 0; seg < slices; seg += 1) {
-          const a0 = seg / slices * Math.PI * 2;
-          const a1 = (seg + 1) / slices * Math.PI * 2;
-          const p0 = point(d0, a0), p1 = point(d0, a1);
-          const p2 = point(d1, a1), p3 = point(d1, a0);
-          g.beginPath();
-          g.moveTo(p0.x, p0.y); g.lineTo(p1.x, p1.y);
-          g.lineTo(p2.x, p2.y); g.lineTo(p3.x, p3.y); g.closePath();
-          const lit = (seg + Math.floor(ring / 2)) % 4;
-          g.fillStyle = lit === 0
-            ? "rgba(62,95,112," + (0.15 + d1 * 0.22) + ")"
-            : lit === 1
-              ? "rgba(22,39,51," + (0.26 + d1 * 0.24) + ")"
-              : "rgba(12,23,33," + (0.24 + d1 * 0.25) + ")";
-          g.fill();
-          g.strokeStyle = "rgba(143,194,214," + (0.08 + d1 * 0.28) + ")";
-          g.lineWidth = 0.45 + d1 * 1.1;
-          g.stroke();
-        }
-      }
-
-      // Longitudinal ribs and alternating luminous floor rails make motion readable.
-      for (let rail = 0; rail < slices; rail += 1) {
-        const angle = rail / slices * Math.PI * 2;
-        g.beginPath();
-        for (let step = 0; step <= 28; step += 1) {
-          const p = point(step / 28, angle);
-          if (step === 0) g.moveTo(p.x, p.y); else g.lineTo(p.x, p.y);
-        }
-        g.strokeStyle = rail % 4 === 0 ? "rgba(94,224,222,.70)" : "rgba(139,183,205,.25)";
-        g.lineWidth = rail % 4 === 0 ? 1.6 : 0.8;
-        g.stroke();
-      }
-
-      // Bright near-field ring, HUD horizon, and tunnel speed streaks.
-      const near = [];
-      for (let seg = 0; seg <= slices; seg += 1) near.push(point(1, seg / slices * Math.PI * 2));
-      g.beginPath();
-      near.forEach((p, index) => index ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y));
-      g.closePath();
-      g.strokeStyle = "rgba(107,238,232,.75)";
-      g.lineWidth = 2.2;
-      g.stroke();
-      g.beginPath();
-      g.ellipse(cx0, cy0, Math.max(6, w * 0.034), Math.max(4, h * 0.03), Math.sin(motion * 0.4) * 0.06, 0, Math.PI * 2);
-      g.fillStyle = "rgba(1,4,10,.82)";
-      g.fill();
-      g.strokeStyle = "rgba(147,217,236,.55)";
-      g.lineWidth = 1;
-      g.stroke();
-
-      // Obstacles rush out of the vanishing point and grow toward the player.
-      const obstacleCenterY = h * 0.715;
-      state.layers.forEach((layer) => {
-        const phase = (motion * 0.29 + layer.phase) % 1;
-        if (phase < 0.12) return;
-        const depth = 0.20 + phase * 0.79;
-        const size = 5 + Math.pow(depth, 1.6) * Math.min(w, h) * 0.15;
-        layer.blockers.forEach((blocker) => {
-          const bx = cx0 + blocker.x * w * (0.075 + depth * 0.225);
-          const by = obstacleCenterY + blocker.y * h * 0.105;
-          g.save();
-          g.translate(bx, by);
-          g.scale(0.66 + depth * 0.56, 0.72 + depth * 0.42);
-          g.fillStyle = "rgba(0,0,0," + (0.25 + depth * 0.35) + ")";
-          g.fillRect(-size * 0.54 + 3, -size * 0.54 + 5, size * 1.08, size * 1.08);
-          g.fillStyle = "rgba(181,79,57," + (0.50 + depth * 0.32) + ")";
-          g.fillRect(-size / 2, -size / 2, size, size);
-          g.fillStyle = "rgba(255,181,127," + (0.25 + depth * 0.45) + ")";
-          g.fillRect(-size / 2, -size / 2, size, Math.max(2, size * 0.12));
-          g.strokeStyle = "rgba(255,228,198,.92)";
-          g.lineWidth = 0.8 + depth * 1.1;
-          g.strokeRect(-size / 2, -size / 2, size, size);
-          g.restore();
+      [-1,1].forEach(side=>{g.beginPath();for(let i=0;i<=steps;i++){const p=edge(i/steps,side,0);if(!i)g.moveTo(p.x,p.y);else g.lineTo(p.x,p.y);}
+        g.strokeStyle=side<0?"rgba(91,219,232,.95)":"rgba(255,177,112,.9)";g.lineWidth=1.3;g.stroke();});
+      [-1,1].forEach(lane=>{g.beginPath();for(let i=0;i<=steps;i++){const d=i/steps,x=center(d)+lane*half(d)*.34;if(!i)g.moveTo(x,roadY(d));else g.lineTo(x,roadY(d));}
+        g.strokeStyle="rgba(143,186,197,.34)";g.lineWidth=.8;g.stroke();});
+      // Fixed overhead arches define the curved tube without spinning louvres.
+      for(let i=0;i<arches;i++){const d=(i/arches+t*.20)%1;if(d<.025)continue;
+        g.beginPath();g.ellipse(center(d),roadY(d),half(d)*1.12,h*(.018+Math.pow(d,1.13)*.26)*1.5,0,Math.PI,Math.PI*2);
+        g.strokeStyle="rgba(97,167,188,"+(.22+d*.56)+")";g.lineWidth=1+d*2;g.stroke();}
+      // Barrier gates leave visible passages that match the obstacle lanes.
+      state.layers.forEach(layer=>{const phase=(t*.29+layer.phase)%1;if(phase<.10||phase>.92)return;
+        const d=.12+Math.pow(phase,1.12)*.81,cx=center(d),cy=roadY(d)-h*(.018+Math.pow(d,1.13)*.26)*.4;
+        const cw=half(d)*.58,ch=Math.max(4,h*(.018+Math.pow(d,1.13)*.26)*.45);
+        layer.blockers.forEach(b=>{const bx=cx+b.x*half(d)*.6,by=cy-b.y*h*(.018+Math.pow(d,1.13)*.26)*.6,bw=cw*(.72+d*.13),bh=ch*(.74+d*.13),skew=Math.max(1,d*7);
+          g.fillStyle="rgba(0,0,0,.42)";g.fillRect(bx-bw/2+skew,by-bh/2+skew,bw,bh);
+          g.beginPath();g.moveTo(bx-bw/2,by-bh/2);g.lineTo(bx+bw/2,by-bh/2);g.lineTo(bx+bw/2-skew,by+bh/2);g.lineTo(bx-bw/2-skew,by+bh/2);g.closePath();
+          g.fillStyle="rgba(111,51,43,.96)";g.fill();g.strokeStyle="rgba(255,197,151,.95)";g.lineWidth=.8+d;g.stroke();
+          g.strokeStyle="rgba(255,220,173,.52)";g.lineWidth=Math.max(1,bw*.08);for(let s=-1;s<=1;s++){g.beginPath();g.moveTo(bx+s*bw*.28,by-bh*.42);g.lineTo(bx+s*bw*.28-skew,by+bh*.42);g.stroke();}
         });
       });
-
-      // Pilot craft in the foreground with side wings, cockpit and thruster flare.
-      const px = cx0 + state.playerX * w * 0.30;
-      const py = h * 0.77 + state.playerY * h * 0.105;
-      const bank = Math.max(-0.4, Math.min(0.4, state.playerX * 0.18));
-      g.save();
-      g.translate(px, py);
-      g.rotate(bank);
-      const flare = 0.65 + (Math.sin(now * 0.032) + 1) * 0.22;
-      g.fillStyle = "rgba(68,211,255," + flare * 0.25 + ")";
-      g.beginPath(); g.moveTo(-6, 8); g.lineTo(0, 25 + flare * 9); g.lineTo(6, 8); g.closePath(); g.fill();
-      g.fillStyle = "#173d59";
-      g.strokeStyle = "#a9e6f6";
-      g.lineWidth = 1.6;
-      g.beginPath();
-      g.moveTo(0, -16); g.lineTo(10, -2); g.lineTo(21, 9); g.lineTo(7, 7);
-      g.lineTo(0, 13); g.lineTo(-7, 7); g.lineTo(-21, 9); g.lineTo(-10, -2); g.closePath();
-      g.fill(); g.stroke();
-      g.fillStyle = "#8de9f2";
-      g.beginPath(); g.moveTo(0, -11); g.lineTo(4.5, 2); g.lineTo(0, 5); g.lineTo(-4.5, 2); g.closePath(); g.fill();
-      g.fillStyle = "#ffd29a";
-      g.fillRect(-14, 6, 4, 2); g.fillRect(10, 6, 4, 2);
-      g.restore();
-
-      // Tube progress and damage flash.
-      const progress = Math.min(1, motion / WARP_DURATION);
-      g.fillStyle = "rgba(255,255,255,.12)";
-      g.fillRect(w * 0.20, h - 17, w * 0.60, 3);
-      g.fillStyle = "#56f0d0";
-      g.fillRect(w * 0.20, h - 17, w * 0.60 * progress, 3);
-      if (state.shields < 100) {
-        g.fillStyle = "rgba(255,77,66," + ((100 - state.shields) / 100 * 0.11) + ")";
-        g.fillRect(0, 0, w, h);
-      }
+      // Foreground craft stays over the road so the player can read steering.
+      const d=.94,px=center(d)+state.playerX*half(d)*.78,py=roadY(d)-h*.075+state.playerY*h*.095,scale=Math.min(1,w/900);
+      g.save();g.translate(px,py);g.rotate(Math.max(-.32,Math.min(.32,state.playerX*.20)));g.scale(scale,scale);
+      const flare=.6+(Math.sin(now*.032)+1)*.2;
+      g.fillStyle="rgba(63,213,255,"+flare*.38+")";g.beginPath();g.moveTo(-5,14);g.lineTo(0,35+flare*10);g.lineTo(5,14);g.closePath();g.fill();
+      g.fillStyle="#1b3e56";g.strokeStyle="#c2f0fb";g.lineWidth=2;g.beginPath();g.moveTo(0,-23);g.lineTo(13,-7);g.lineTo(25,12);g.lineTo(8,8);g.lineTo(0,16);g.lineTo(-8,8);g.lineTo(-25,12);g.lineTo(-13,-7);g.closePath();g.fill();g.stroke();
+      g.fillStyle="#8eeaf4";g.beginPath();g.moveTo(0,-16);g.lineTo(5,2);g.lineTo(0,7);g.lineTo(-5,2);g.closePath();g.fill();g.fillStyle="#ffce91";g.fillRect(-17,8,5,3);g.fillRect(12,8,5,3);g.restore();
+      const progress=Math.min(1,t/WARP_DURATION);g.fillStyle="rgba(255,255,255,.15)";g.fillRect(w*.18,h-17,w*.64,3);g.fillStyle="#56f0d0";g.fillRect(w*.18,h-17,w*.64*progress,3);
+      if(state.shields<100){g.fillStyle="rgba(255,77,66,"+((100-state.shields)/100*.10)+")";g.fillRect(0,0,w,h);}
     }
 
     function drawBackdrop(now) {
@@ -1054,38 +973,20 @@
       else state.animationRunning = false;
     }
 
-    function updateTube(dt, now) {
-      state.elapsed = Math.max(0, (now - state.startedAt) / 1000);
-      const steer = (state.keys.ArrowRight || state.keys.KeyD || state.touch.right ? 1 : 0) -
-        (state.keys.ArrowLeft || state.keys.KeyA || state.touch.left ? 1 : 0);
-      const lift = (state.keys.ArrowDown || state.keys.KeyS || state.touch.down ? 1 : 0) -
-        (state.keys.ArrowUp || state.keys.KeyW || state.touch.up ? 1 : 0);
-      state.playerX = Math.max(-0.90, Math.min(0.90, state.playerX + steer * dt * 1.45));
-      state.playerY = Math.max(-0.72, Math.min(0.72, state.playerY + lift * dt * 1.15));
-
-      state.layers.forEach((layer) => {
-        const total = state.elapsed * 0.29 + layer.phase;
-        const progress = total % 1;
-        const cycle = Math.floor(total);
-        if (progress > 0.87 && progress < 0.91 && layer.hitCycle !== cycle) {
-          layer.hitCycle = cycle;
-          const hit = layer.blockers.some((blocker) => Math.abs(state.playerX - blocker.x * 0.65) < 0.22 && Math.abs(state.playerY - blocker.y * 0.48) < 0.22);
-          if (hit) {
-            state.shields = Math.max(0, state.shields - 25);
-            tubeShield.style.width = state.shields + "%";
-            tubeMeta.textContent = "SHIELDS " + state.shields + "% · KEEP CLEAR OF THE RINGS";
-            if (state.shields <= 0) {
-              finishTube(false);
-              return;
-            }
-          }
-        }
-      });
-
-      // A longer arcade run gives the pilot time to steer through a real obstacle sequence.
-      if (state.elapsed >= WARP_DURATION) finishTube(state.shields > 0);
-      tubeMeta.textContent = "SECTOR " + sectorText(state.target) + " · " + Math.max(0, WARP_DURATION - state.elapsed).toFixed(1) + " s";
-      tubeShield.style.width = state.shields + "%";
+    function updateTube(dt,now){
+      state.elapsed=Math.max(0,(now-state.startedAt)/1000);let px=0,py=0;
+      try{const pads=navigator.getGamepads?navigator.getGamepads():[],gp=pads&&[...pads].find(p=>p&&p.connected);
+        if(gp){const a=gp.axes||[],b=n=>!!(gp.buttons&&gp.buttons[n]&&gp.buttons[n].pressed);
+          px=Math.abs(a[0]||0)>.18?a[0]:0;py=Math.abs(a[1]||0)>.18?a[1]:0;px+=(b(15)?1:0)-(b(14)?1:0);py+=(b(13)?1:0)-(b(12)?1:0);}}catch(e){}
+      const steer=Math.max(-1,Math.min(1,((state.keys.ArrowRight||state.keys.KeyD||state.touch.right?1:0)-(state.keys.ArrowLeft||state.keys.KeyA||state.touch.left?1:0))+px));
+      const lift=Math.max(-1,Math.min(1,((state.keys.ArrowDown||state.keys.KeyS||state.touch.down?1:0)-(state.keys.ArrowUp||state.keys.KeyW||state.touch.up?1:0))+py));
+      state.playerX=Math.max(-.90,Math.min(.90,state.playerX+steer*dt*1.45));state.playerY=Math.max(-.72,Math.min(.72,state.playerY+lift*dt*1.15));
+      state.layers.forEach(layer=>{const total=state.elapsed*.29+layer.phase,progress=total%1,cycle=Math.floor(total);
+        if(progress>.87&&progress<.91&&layer.hitCycle!==cycle){layer.hitCycle=cycle;
+          const hit=layer.blockers.some(b=>Math.abs(state.playerX-b.x*.65)<.22&&Math.abs(state.playerY-b.y*.48)<.22);
+          if(hit){state.shields=Math.max(0,state.shields-25);tubeShield.style.width=state.shields+"%";tubeMeta.textContent="SHIELDS "+state.shields+"% · SEEK THE OPEN GATE";if(state.shields<=0){finishTube(false);return;}}}});
+      if(state.elapsed>=WARP_DURATION)finishTube(state.shields>0);
+      tubeMeta.textContent="SECTOR "+sectorText(state.target)+" · "+Math.max(0,WARP_DURATION-state.elapsed).toFixed(1)+" s";tubeShield.style.width=state.shields+"%";
     }
 
     window.BCMDeepSpaceWarpToggle = function () {
@@ -1118,7 +1019,7 @@
 
       document.addEventListener("keydown", (event) => {
         if (overlay.hidden) return;
-        if (event.code === "Escape") {
+        if (event.code === "Escape" || event.code === "Backspace") {
           event.preventDefault(); event.stopImmediatePropagation();
           closeOverlay(true);
           return;
