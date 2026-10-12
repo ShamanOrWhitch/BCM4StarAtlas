@@ -8,6 +8,9 @@
 
     const api = () => window.BCMiniSimAPI || null;
     const config = window.BCMMiniSimConfig || {};
+    const levelAudio = root.querySelector(".bcm-mini-sim-music-audio");
+    const WARP_DURATION = 24;
+    let levelAudioWasPlaying = false;
     const warpAudio = document.createElement("audio");
     warpAudio.preload = "none";
     warpAudio.loop = true;
@@ -37,6 +40,24 @@
       try {
         warpAudio.pause();
         warpAudio.currentTime = 0;
+      } catch (e) {}
+    }
+
+    // Mutually exclusive soundtrack rule: one OST at a time.
+    // Preserve the regular level OST's playback position while the map/Tube is active.
+    function pauseLevelOst() {
+      levelAudioWasPlaying = !!(levelAudio && !levelAudio.paused && !levelAudio.ended);
+      if (levelAudioWasPlaying) {
+        try { levelAudio.pause(); } catch (e) {}
+      }
+    }
+
+    function resumeLevelOst() {
+      if (!levelAudioWasPlaying || !levelAudio) return;
+      levelAudioWasPlaying = false;
+      try {
+        const resumed = levelAudio.play();
+        if (resumed && typeof resumed.catch === "function") resumed.catch(() => {});
       } catch (e) {}
     }
 
@@ -100,7 +121,7 @@
         '</div>' +
       '</section>' +
       '<section class="bcm-warp-view bcm-warp-tube-view" data-warp-view="tube" hidden>' +
-        '<div class="bcm-warp-tube-hud"><div class="bcm-warp-kicker">SUBSPACE TUNNEL</div><h2 data-tube-title>WARP IN PROGRESS</h2><div class="bcm-warp-tube-meta" data-tube-meta></div><div class="bcm-warp-shield"><span data-tube-shield></span></div><div class="bcm-warp-tube-help" data-tube-help>Управление: WASD / стрелки / свайп. Быстрый переход, около 6 секунд.</div></div>' +
+        '<div class="bcm-warp-tube-hud"><div class="bcm-warp-kicker">SUBSPACE TUNNEL</div><h2 data-tube-title>WARP IN PROGRESS</h2><div class="bcm-warp-tube-meta" data-tube-meta></div><div class="bcm-warp-shield"><span data-tube-shield></span></div><div class="bcm-warp-tube-help" data-tube-help>Управление: WASD / стрелки / свайп. Избегайте преград в тоннеле. Длина этапа около 24 секунд.</div></div>' +
         '<div class="bcm-warp-touch-controls"><button type="button" data-warp-control="left">◀</button><div><button type="button" data-warp-control="up">▲</button><button type="button" data-warp-control="down">▼</button></div><button type="button" data-warp-control="right">▶</button></div>' +
         '<div class="bcm-warp-result" data-tube-result hidden><h2 data-tube-result-title></h2><p data-tube-result-text></p><div class="bcm-warp-actions"><button type="button" data-tube-retry>ПОВТОРИТЬ WARP</button><button type="button" data-tube-abort class="bcm-warp-secondary">ВЕРНУТЬСЯ</button></div></div>' +
       '</section>';
@@ -333,6 +354,7 @@
         if (s) s.textContent = "WARP · Сначала запустите симуляцию.";
         return;
       }
+      pauseLevelOst();
       state.nav = readNavigation();
       state.target = null;
       state.mode = "map";
@@ -371,6 +393,7 @@
       state.mode = "closed";
       state.pointerDown = false;
       if (state.maze && state.maze.active) return;
+      resumeLevelOst();
       const engine = api();
       if (engine) {
         engine.pauseForWarp(false);
@@ -396,7 +419,8 @@
       state.touch.left = state.touch.right = state.touch.up = state.touch.down = false;
       const rng = randomFrom(hashSeed(state.nav.current.id + ">" + state.target.id + ":" + state.target.x + ":" + state.target.y));
       state.layers = [];
-      for (let i = 0; i < 11; i += 1) {
+      // Stagger a small number of obstacle gates over the full Warp run.
+      for (let i = 0; i < 8; i += 1) {
         const safe = Math.floor(rng() * 9);
         const blockers = [];
         for (let lane = 0; lane < 9; lane += 1) {
@@ -416,7 +440,9 @@
 
     function finishTube(success) {
       if (state.mode !== "tube") return;
-      stopWarpAudio();
+      // Keep the Warp OST running through the successful arrival transition.
+      // On a failed run it stops immediately; regular OST resumes only when Warp closes.
+      if (!success) stopWarpAudio();
       state.mode = "result";
       touchControls.hidden = true;
       tubeResult.hidden = false;
@@ -465,6 +491,8 @@
     }
 
     function enterAsteroidMaze() {
+      stopWarpAudio();
+      resumeLevelOst();
       const engine = api();
       if (!engine || !engine.getRuntime) return;
       const runtime = engine.getRuntime();
@@ -765,6 +793,8 @@
         return;
       }
       disposeMaze();
+      stopWarpAudio();
+      resumeLevelOst();
       window.BCMDeepSpaceWarpFrame = null;
       root.classList.remove("bcm-warp-maze-active");
       exitButton.hidden = true;
@@ -804,6 +834,142 @@
       if (state.animationRunning || overlay.hidden || !ctx) return;
       state.animationRunning = true;
       requestAnimationFrame(drawBackdrop);
+    }
+
+    function drawTubeTunnel(g, w, h, now) {
+      const cx0 = w * 0.5;
+      const cy0 = h * 0.43;
+      const motion = state.elapsed;
+      const ringCount = 18;
+      const slices = 16;
+      const maxX = Math.min(w * 0.66, h * 1.02);
+      const maxY = Math.min(h * 0.72, w * 0.58);
+
+      function point(depth, angle) {
+        const bendX = Math.sin(motion * 0.31 + depth * 4.1) * w * 0.055 * depth;
+        const bendY = Math.cos(motion * 0.23 + depth * 3.4) * h * 0.028 * depth;
+        const twist = motion * 0.25 + depth * 0.53 + Math.sin(depth * 5.7 + motion * 0.19) * 0.075;
+        const perspective = 0.018 + depth * 0.94;
+        return {
+          x: cx0 + bendX + Math.cos(angle + twist) * maxX * perspective,
+          y: cy0 + bendY + Math.sin(angle + twist) * maxY * perspective
+        };
+      }
+
+      // Tube lining: repeated steel panels with 16 visible seams and a curved vanishing point.
+      for (let ring = 0; ring < ringCount; ring += 1) {
+        const d0 = Math.pow(ring / ringCount, 1.35);
+        const d1 = Math.pow((ring + 1) / ringCount, 1.35);
+        for (let seg = 0; seg < slices; seg += 1) {
+          const a0 = seg / slices * Math.PI * 2;
+          const a1 = (seg + 1) / slices * Math.PI * 2;
+          const p0 = point(d0, a0), p1 = point(d0, a1);
+          const p2 = point(d1, a1), p3 = point(d1, a0);
+          g.beginPath();
+          g.moveTo(p0.x, p0.y); g.lineTo(p1.x, p1.y);
+          g.lineTo(p2.x, p2.y); g.lineTo(p3.x, p3.y); g.closePath();
+          const lit = (seg + Math.floor(ring / 2)) % 4;
+          g.fillStyle = lit === 0
+            ? "rgba(62,95,112," + (0.15 + d1 * 0.22) + ")"
+            : lit === 1
+              ? "rgba(22,39,51," + (0.26 + d1 * 0.24) + ")"
+              : "rgba(12,23,33," + (0.24 + d1 * 0.25) + ")";
+          g.fill();
+          g.strokeStyle = "rgba(143,194,214," + (0.08 + d1 * 0.28) + ")";
+          g.lineWidth = 0.45 + d1 * 1.1;
+          g.stroke();
+        }
+      }
+
+      // Longitudinal ribs and alternating luminous floor rails make motion readable.
+      for (let rail = 0; rail < slices; rail += 1) {
+        const angle = rail / slices * Math.PI * 2;
+        g.beginPath();
+        for (let step = 0; step <= 28; step += 1) {
+          const p = point(step / 28, angle);
+          if (step === 0) g.moveTo(p.x, p.y); else g.lineTo(p.x, p.y);
+        }
+        g.strokeStyle = rail % 4 === 0 ? "rgba(94,224,222,.70)" : "rgba(139,183,205,.25)";
+        g.lineWidth = rail % 4 === 0 ? 1.6 : 0.8;
+        g.stroke();
+      }
+
+      // Bright near-field ring, HUD horizon, and tunnel speed streaks.
+      const near = [];
+      for (let seg = 0; seg <= slices; seg += 1) near.push(point(1, seg / slices * Math.PI * 2));
+      g.beginPath();
+      near.forEach((p, index) => index ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y));
+      g.closePath();
+      g.strokeStyle = "rgba(107,238,232,.75)";
+      g.lineWidth = 2.2;
+      g.stroke();
+      g.beginPath();
+      g.ellipse(cx0, cy0, Math.max(6, w * 0.034), Math.max(4, h * 0.03), Math.sin(motion * 0.4) * 0.06, 0, Math.PI * 2);
+      g.fillStyle = "rgba(1,4,10,.82)";
+      g.fill();
+      g.strokeStyle = "rgba(147,217,236,.55)";
+      g.lineWidth = 1;
+      g.stroke();
+
+      // Obstacles rush out of the vanishing point and grow toward the player.
+      const obstacleCenterY = h * 0.715;
+      state.layers.forEach((layer) => {
+        const phase = (motion * 0.29 + layer.phase) % 1;
+        if (phase < 0.12) return;
+        const depth = 0.20 + phase * 0.79;
+        const size = 5 + Math.pow(depth, 1.6) * Math.min(w, h) * 0.15;
+        layer.blockers.forEach((blocker) => {
+          const bx = cx0 + blocker.x * w * (0.075 + depth * 0.225);
+          const by = obstacleCenterY + blocker.y * h * 0.105;
+          g.save();
+          g.translate(bx, by);
+          g.scale(0.66 + depth * 0.56, 0.72 + depth * 0.42);
+          g.fillStyle = "rgba(0,0,0," + (0.25 + depth * 0.35) + ")";
+          g.fillRect(-size * 0.54 + 3, -size * 0.54 + 5, size * 1.08, size * 1.08);
+          g.fillStyle = "rgba(181,79,57," + (0.50 + depth * 0.32) + ")";
+          g.fillRect(-size / 2, -size / 2, size, size);
+          g.fillStyle = "rgba(255,181,127," + (0.25 + depth * 0.45) + ")";
+          g.fillRect(-size / 2, -size / 2, size, Math.max(2, size * 0.12));
+          g.strokeStyle = "rgba(255,228,198,.92)";
+          g.lineWidth = 0.8 + depth * 1.1;
+          g.strokeRect(-size / 2, -size / 2, size, size);
+          g.restore();
+        });
+      });
+
+      // Pilot craft in the foreground with side wings, cockpit and thruster flare.
+      const px = cx0 + state.playerX * w * 0.30;
+      const py = h * 0.77 + state.playerY * h * 0.105;
+      const bank = Math.max(-0.4, Math.min(0.4, state.playerX * 0.18));
+      g.save();
+      g.translate(px, py);
+      g.rotate(bank);
+      const flare = 0.65 + (Math.sin(now * 0.032) + 1) * 0.22;
+      g.fillStyle = "rgba(68,211,255," + flare * 0.25 + ")";
+      g.beginPath(); g.moveTo(-6, 8); g.lineTo(0, 25 + flare * 9); g.lineTo(6, 8); g.closePath(); g.fill();
+      g.fillStyle = "#173d59";
+      g.strokeStyle = "#a9e6f6";
+      g.lineWidth = 1.6;
+      g.beginPath();
+      g.moveTo(0, -16); g.lineTo(10, -2); g.lineTo(21, 9); g.lineTo(7, 7);
+      g.lineTo(0, 13); g.lineTo(-7, 7); g.lineTo(-21, 9); g.lineTo(-10, -2); g.closePath();
+      g.fill(); g.stroke();
+      g.fillStyle = "#8de9f2";
+      g.beginPath(); g.moveTo(0, -11); g.lineTo(4.5, 2); g.lineTo(0, 5); g.lineTo(-4.5, 2); g.closePath(); g.fill();
+      g.fillStyle = "#ffd29a";
+      g.fillRect(-14, 6, 4, 2); g.fillRect(10, 6, 4, 2);
+      g.restore();
+
+      // Tube progress and damage flash.
+      const progress = Math.min(1, motion / WARP_DURATION);
+      g.fillStyle = "rgba(255,255,255,.12)";
+      g.fillRect(w * 0.20, h - 17, w * 0.60, 3);
+      g.fillStyle = "#56f0d0";
+      g.fillRect(w * 0.20, h - 17, w * 0.60 * progress, 3);
+      if (state.shields < 100) {
+        g.fillStyle = "rgba(255,77,66," + ((100 - state.shields) / 100 * 0.11) + ")";
+        g.fillRect(0, 0, w, h);
+      }
     }
 
     function drawBackdrop(now) {
@@ -880,49 +1046,8 @@
           ctx.beginPath(); ctx.arc(cx, cy, Math.min(w, h) * 0.40 * pulse, 0, Math.PI * 2); ctx.stroke();
         }
       } else if (state.mode === "tube" || state.mode === "result") {
-        const maxR = Math.max(w, h) * 0.8;
-        for (let i = 0; i < 13; i += 1) {
-          const progress = (i / 13 + state.elapsed * 0.34) % 1;
-          const r = 8 + progress * maxR;
-          ctx.strokeStyle = "rgba(119,210,246," + (0.15 + progress * 0.63) + ")";
-          ctx.lineWidth = 1 + progress * 1.5;
-          ctx.beginPath();
-          ctx.ellipse(cx, cy, r * 0.86, r * 0.60, Math.sin(now * 0.00015 + i) * 0.035, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-        for (let i = 0; i < 12; i += 1) {
-          const angle = i * Math.PI / 6;
-          ctx.strokeStyle = "rgba(106,166,197,.23)";
-          ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(angle) * maxR, cy + Math.sin(angle) * maxR * 0.7); ctx.stroke();
-        }
-        if (state.mode === "tube") {
-          updateTube(dt, now);
-          state.layers.forEach((layer) => {
-            const progress = (state.elapsed * 0.29 + layer.phase) % 1;
-            if (progress < 0.20) return;
-            const size = 5 + progress * 13;
-            layer.blockers.forEach((blocker) => {
-              const bx = cx + blocker.x * 0.65 * w * 0.32;
-              const by = cy + blocker.y * 0.48 * h * 0.24;
-              ctx.fillStyle = "rgba(255,137,91," + (0.25 + progress * 0.65) + ")";
-              ctx.strokeStyle = "rgba(255,224,193,.9)";
-              ctx.lineWidth = 1 + progress;
-              ctx.fillRect(bx - size / 2, by - size / 2, size, size);
-              ctx.strokeRect(bx - size / 2, by - size / 2, size, size);
-            });
-          });
-          const px = cx + state.playerX * w * 0.32;
-          const py = cy + state.playerY * h * 0.24;
-          ctx.fillStyle = "#d7f6ff";
-          ctx.strokeStyle = "#61dfff";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(px, py - 10);
-          ctx.lineTo(px - 9, py + 8);
-          ctx.lineTo(px, py + 4);
-          ctx.lineTo(px + 9, py + 8);
-          ctx.closePath(); ctx.fill(); ctx.stroke();
-        }
+        if (state.mode === "tube") updateTube(dt, now);
+        drawTubeTunnel(ctx, w, h, now);
       }
 
       if (!overlay.hidden) requestAnimationFrame(drawBackdrop);
@@ -957,11 +1082,15 @@
         }
       });
 
-      // The original Tube inspired the speed and perspective, not copied game code or assets.
-      if (state.elapsed >= 6.2) finishTube(state.shields > 0);
-      tubeMeta.textContent = "SECTOR " + sectorText(state.target) + " · " + Math.max(0, 6.2 - state.elapsed).toFixed(1) + " s";
+      // A longer arcade run gives the pilot time to steer through a real obstacle sequence.
+      if (state.elapsed >= WARP_DURATION) finishTube(state.shields > 0);
+      tubeMeta.textContent = "SECTOR " + sectorText(state.target) + " · " + Math.max(0, WARP_DURATION - state.elapsed).toFixed(1) + " s";
       tubeShield.style.width = state.shields + "%";
     }
+
+    window.BCMDeepSpaceWarpToggle = function () {
+      if (state.mode === "closed") openMap();
+    };
 
     function bindWarpInput() {
       overlay.addEventListener("pointerdown", (event) => {

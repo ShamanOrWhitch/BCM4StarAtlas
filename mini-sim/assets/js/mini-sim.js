@@ -3037,9 +3037,10 @@
     edge(0, () => openDoor("REMOTE"));
     edge(1, returnToStart);
     edge(2, toggleCinemaFocus);
-    edge(3, tryPortal);
+    edge(3, () => { if (typeof window.BCMDeepSpaceWarpToggle === "function") window.BCMDeepSpaceWarpToggle(); else tryPortal(); });
+    edge(10, tryPortal);
     edge(9, toggleSettings);
-    edge(8, toggleSettings);
+    edge(8, () => { if (race.active) returnFromSlipstream(); else toggleSettings(); });
   }
 
   function tiltLook() {
@@ -4137,6 +4138,18 @@
     window.addEventListener("keydown", (e) => {
       if (e.code === "Escape") {
         if (document.exitPointerLock) document.exitPointerLock();
+        return;
+      }
+      if (e.code === "Backspace") {
+        e.preventDefault();
+        if (settings.open) toggleSettings();
+        else if (race.active) returnFromSlipstream();
+        else returnToStart();
+        return;
+      }
+      if (e.code === "KeyV") {
+        e.preventDefault();
+        if (typeof window.BCMDeepSpaceWarpToggle === "function") window.BCMDeepSpaceWarpToggle();
         return;
       }
       if (e.code === "Enter") {

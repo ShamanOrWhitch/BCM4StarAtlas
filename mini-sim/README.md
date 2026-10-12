@@ -1,6 +1,13 @@
-# BCM Mini-Sim 0.9.80
+# BCM Mini-Sim 0.9.81
 
-### 0.9.80 ONI CSS Warp test point
+### 0.9.81 Tube and input fixes
+
+- Replaced sparse ellipse animation with a curved, paneled Tube tunnel, perspective ribs, moving obstacles and a foreground craft.
+- Expanded Tube run from 6.2 to 24 seconds; Warp OST now runs exclusively while the Tube stage is active and is switched off before regular level OST resumes in the asteroid maze.
+- Added V (keyboard) and Y (gamepad) to open WARP. L3 remains manual portal; Backspace/Back-Select returns from active Room 0 race/maze, otherwise it opens/closes settings.
+- Existing SAGE state is not changed by this local test prototype.
+
+### 0.9.81 ONI CSS Warp test point
 
 - Sets the offline Warp test origin to ONI CSS in NEUNO at X -40, Y 30.
 - Shows a lightweight 3x3 grid with only four selectable adjacent test cells; no galaxy-wide coordinates or fleet payloads are loaded.
