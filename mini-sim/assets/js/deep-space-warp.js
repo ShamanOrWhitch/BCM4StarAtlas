@@ -9,6 +9,7 @@
     const api = () => window.BCMiniSimAPI || null;
     const state = {
       mode: "closed",
+      openedAt: 0,
       nav: null,
       target: null,
       savedPosition: null,
@@ -156,7 +157,7 @@
         if (current) {
           let list = nav.connectedSectors || nav.neighbors || (currentRaw && (currentRaw.connections || currentRaw.neighbors)) || null;
           if (Array.isArray(nav.sectors) && Array.isArray(nav.connections) && nav.connections.length) {
-            const ids = new Set(nav.connections.map((item) => String(typeof item === "object" ? (item.id || item.pubkey || item.publicKey || item.connectionSector || item.sector || item.key || "") : item)));
+            const ids = new Set(nav.connections.map((item) => String(typeof item === "object" ? (item.id || item.pubkey || item.publicKey || item.connectionSector || item.connection_sector || item.sector || item.key || "") : item)));
             const matched = nav.sectors.filter((item) => {
               const sector = normalizeSector(item, 0);
               return sector && ids.has(sector.id);
@@ -250,6 +251,7 @@
       state.nav = readNavigation();
       state.target = null;
       state.mode = "map";
+      state.openedAt = performance.now();
       state.elapsed = 0;
       state.savedPosition = engine.getRuntime().ship.position.clone();
       state.savedQuaternion = engine.getRuntime().ship.quaternion.clone();
@@ -382,7 +384,8 @@
       if (!THREE || !scene || !runtime.ship) return;
 
       const NX = 7, NY = 3, NZ = 7, CELL = 5.4, WALL = 0.46;
-      const center = new THREE.Vector3(230, 0, -180);
+      // Keep the test maze off-axis and away from the old negative-Z texture-preload trigger.
+      const center = new THREE.Vector3(230, 0, 150);
       const seed = hashSeed(state.nav.current.id + "->" + state.target.id + ":" + state.target.x + ":" + state.target.y);
       const rng = randomFrom(seed);
       const cells = [];
@@ -755,7 +758,9 @@
         if (nav) {
           const nodes = [nav.current].concat(nav.targets || []);
           const maxDelta = Math.max(1, ...nodes.map((n) => Math.max(Math.abs((n.x == null ? 0 : n.x) - (nav.current.x || 0)), Math.abs((n.y == null ? 0 : n.y) - (nav.current.y || 0)))));
-          const scale = Math.min(w, h) * 0.27 / maxDelta;
+          const reveal = Math.min(1, Math.max(0, (now - state.openedAt) / 650));
+          const easedReveal = reveal * reveal * (3 - 2 * reveal);
+          const scale = (Math.min(w, h) * 0.27 / maxDelta) * (0.20 + 0.80 * easedReveal);
           const positions = nodes.map((node, index) => {
             const angle = ((index - 1) / Math.max(1, nodes.length - 1)) * Math.PI * 2;
             const dx = node.x == null ? (index === 0 ? 0 : Math.cos(angle) * 1.5) : node.x - (nav.current.x || 0);
