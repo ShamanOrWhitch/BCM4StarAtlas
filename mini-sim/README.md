@@ -1,4 +1,14 @@
-# BCM Mini-Sim 0.9.17
+# BCM Mini-Sim 0.9.78
+
+### 0.9.78 Warp / asteroid maze prototype
+
+- Adds a **WARP** control after the existing 6DOF flight has started. Select a destination, complete a short original high-speed tunnel mini-game, then enter a generated multi-level asteroid maze.
+- The maze is a seeded 7 × 3 × 7 3D cell graph with a guaranteed connected route, a few extra loops, three local core shards and a return beacon. The wall panel uses one generated 64 × 64 tile texture and an InstancedMesh; the feature reuses the existing bundled Three.js r128 renderer and does not create a second WebGL context.
+- All Warp and asteroid interactions are **local arcade simulation only**. They do not initiate a real SAGE fleet movement, send a transaction, or change a wallet or in-game inventory.
+- Current Galia/SAGE code reads profile records and fleet names, but does not yet expose the current sector and connected sector accounts to Mini-Sim. Until a live navigation adapter supplies them, the Warp screen explicitly displays a local coordinate preview rather than pretending the preview is live SAGE data.
+- Optional integration contract: set `window.BCM_SAGE_NAVIGATION` before opening Warp, with `source`, `currentSector` (object with `id`, optional `name`, `coordinates: [x, y]`), and `connectedSectors` (array of similarly shaped connected sector objects). The module accepts `window.GALIA_SAGE_NAVIGATION` and `GALIA_PLAY_STATE.sageNavigation` as alternate providers.
+- Controls in the tunnel: WASD / arrow keys, touch buttons, or pointer/touch drag. In the maze, use the existing 6DOF flight controls, collect three shards, then reach the gold return beacon. **RETURN TO DEEP SPACE** is an emergency local exit.
+- This prototype lives on branch `feat/deep-space-warp-asteroid-maze`; it has not been merged to `main` or deployed to WordPress.
 
 ### 0.9.17 corridor vs exterior physics
 - Room confinement is now 3D-footprint based, not Z-only.
@@ -100,9 +110,11 @@ Old root `mini-sim/door.png` is leftover. Prefer `assets/door1.png`.
 8. Keep r128 APIs: MeshBasicMaterial + Texture from Image is safest. ClampToEdge, no mipmaps on NPOT art.
 
 ### What to replace on WordPress
-Only these three files (do not re-upload 3–6MB png/mp4 unless missing):
+
+For build 0.9.78, include the new lightweight Warp script as well as the existing runtime files. Do not re-upload 3–6 MB PNG/MP4 assets unless they are missing:
 - `mini-sim/bcm-mini-sim.php`
 - `mini-sim/assets/js/mini-sim.js`
+- `mini-sim/assets/js/deep-space-warp.js` (new)
 - `mini-sim/assets/css/mini-sim.css`
 
 Shortcode: `[bcm_mini_sim]`
