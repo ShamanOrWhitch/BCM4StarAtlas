@@ -1,4 +1,10 @@
-# BCM Mini-Sim 0.9.79
+# BCM Mini-Sim 0.9.80
+
+### 0.9.80 ONI CSS Warp test point
+
+- Sets the offline Warp test origin to ONI CSS in NEUNO at X -40, Y 30.
+- Shows a lightweight 3x3 grid with only four selectable adjacent test cells; no galaxy-wide coordinates or fleet payloads are loaded.
+- This tests the local WARP/Tube/asteroid-maze sequence only; it does not move a Star Atlas fleet or mutate SAGE state.
 
 ### 0.9.79 Warp soundtrack
 

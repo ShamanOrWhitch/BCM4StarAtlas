@@ -91,8 +91,9 @@
           '<div class="bcm-warp-kicker">SECTOR NAVIGATION</div><h2>Выберите сектор назначения</h2>' +
           '<p class="bcm-warp-explainer" data-warp-current></p>' +
           '<div class="bcm-warp-source" data-warp-source></div>' +
+          '<div class="bcm-warp-grid" data-warp-grid hidden aria-label="Соседние клетки вокруг ONI CSS"></div>' +
           '<div class="bcm-warp-sector-list" data-warp-sectors></div>' +
-          '<form class="bcm-warp-manual" data-warp-manual><label>Координаты тестового сектора <span>X</span><input name="x" type="number" step="1" value="1" inputmode="numeric"></label><label><span>Y</span><input name="y" type="number" step="1" value="0" inputmode="numeric"></label><button type="submit">ВЫБРАТЬ</button></form>' +
+          '<form class="bcm-warp-manual" data-warp-manual><label>Доп. тестовая клетка <span>X</span><input name="x" type="number" step="1" value="-39" inputmode="numeric"></label><label><span>Y</span><input name="y" type="number" step="1" value="30" inputmode="numeric"></label><button type="submit">ВЫБРАТЬ</button></form>' +
           '<div class="bcm-warp-selected" data-warp-selected>Назначение не выбрано</div>' +
           '<div class="bcm-warp-actions"><button type="button" data-warp-start disabled>START WARP</button><button type="button" data-warp-cancel class="bcm-warp-secondary">ОТМЕНА</button></div>' +
           '<p class="bcm-warp-footnote" data-warp-footnote></p>' +
@@ -113,6 +114,7 @@
     const cancelButton = overlay.querySelector("[data-warp-cancel]");
     const startButton = overlay.querySelector("[data-warp-start]");
     const listElement = overlay.querySelector("[data-warp-sectors]");
+    const gridElement = overlay.querySelector("[data-warp-grid]");
     const currentElement = overlay.querySelector("[data-warp-current]");
     const sourceElement = overlay.querySelector("[data-warp-source]");
     const selectedElement = overlay.querySelector("[data-warp-selected]");
@@ -215,23 +217,24 @@
         }
       }
 
-      // Honest offline preview: these nodes are for testing the Warp UI only.
-      const current = { id: "local-test-0-0", name: "TEST SECTOR [0, 0]", x: 0, y: 0, raw: null };
-      const offsets = [
-        [-1, 0], [1, 0], [0, -1], [0, 1],
-        [-1, -1], [1, -1], [-1, 1], [1, 1]
-      ];
+      // The prototype starts at the known ONI CSS position on the NEUNO sector grid.
+      // Only the four adjacent cells are generated locally; no galaxy-wide coordinates are loaded.
+      const current = { id: "oni-css-neuno--40-30", name: "ONI CSS · NEUNO", x: -40, y: 30, raw: null };
+      const offsets = [[-1, 0], [1, 0], [0, -1], [0, 1]];
       return {
         current,
-        targets: offsets.map((pair) => ({
-          id: "local-test-" + pair[0] + "-" + pair[1],
-          name: "TEST SECTOR [" + pair[0] + ", " + pair[1] + "]",
-          x: pair[0],
-          y: pair[1],
-          raw: null
-        })),
+        targets: offsets.map((pair) => {
+          const x = current.x + pair[0];
+          const y = current.y + pair[1];
+          return {
+            id: "local-test-" + x + "-" + y,
+            name: "TEST NEIGHBOR [" + x + ", " + y + "]",
+            x, y, raw: null
+          };
+        }),
         live: false,
-        label: "LOCAL PREVIEW · LIVE SAGE SECTOR FEED NOT CONNECTED",
+        localPreview: true,
+        label: "LOCAL TEST · ONI CSS / NEUNO · START X -40, Y 30 · NEIGHBOR CELLS ARE TEST ONLY",
         coordsKnown: true
       };
     }
@@ -264,9 +267,58 @@
       }
     }
 
+    function renderSectorGrid() {
+      gridElement.replaceChildren();
+      if (!state.nav || !state.nav.current || state.nav.current.x == null || state.nav.current.y == null) {
+        gridElement.hidden = true;
+        return;
+      }
+      const current = state.nav.current;
+      const targets = state.nav.targets || [];
+      const localTargets = targets.filter((sector) =>
+        sector.x != null && sector.y != null &&
+        Math.abs(sector.x - current.x) <= 1 && Math.abs(sector.y - current.y) <= 1 &&
+        !(sector.x === current.x && sector.y === current.y)
+      );
+      if (!state.nav.localPreview && !localTargets.length) {
+        gridElement.hidden = true;
+        return;
+      }
+      gridElement.hidden = false;
+      for (let row = 0; row < 3; row += 1) {
+        for (let col = 0; col < 3; col += 1) {
+          const dx = col - 1;
+          const dy = 1 - row;
+          const x = current.x + dx;
+          const y = current.y + dy;
+          const isCurrent = dx === 0 && dy === 0;
+          const target = isCurrent ? null : targets.find((sector) => sector.x === x && sector.y === y);
+          const cell = document.createElement(target ? "button" : "div");
+          if (target) {
+            cell.type = "button";
+            cell.dataset.sectorId = target.id;
+            cell.addEventListener("click", () => selectTarget(target));
+          }
+          cell.className = "bcm-warp-grid-cell" +
+            (isCurrent ? " is-current" : target ? " is-connected" : " is-unavailable") +
+            (target && state.target && target.id === state.target.id ? " is-selected" : "");
+          const title = document.createElement("strong");
+          title.textContent = isCurrent ? "ONI CSS" : target ? "WARP →" : "—";
+          const sub = document.createElement("small");
+          sub.textContent = isCurrent ? "NEUNO · CURRENT" : "[" + x + ", " + y + "]";
+          cell.appendChild(title);
+          cell.appendChild(sub);
+          gridElement.appendChild(cell);
+        }
+      }
+    }
+
     function selectTarget(sector) {
       state.target = sector;
       listElement.querySelectorAll(".bcm-warp-sector").forEach((button) => {
+        button.classList.toggle("is-selected", button.dataset.sectorId === sector.id);
+      });
+      gridElement.querySelectorAll(".bcm-warp-grid-cell[data-sector-id]").forEach((button) => {
         button.classList.toggle("is-selected", button.dataset.sectorId === sector.id);
       });
       selectedElement.textContent = "DESTINATION · " + sectorText(sector);
@@ -295,8 +347,9 @@
       sourceElement.classList.toggle("is-preview", !state.nav.live);
       footnoteElement.textContent = state.nav.live
         ? "Маршрут показывает данные, переданные внешним SAGE-адаптером. Сам Warp — локальная мини-игра и не запускает перемещение в SAGE."
-        : "Пока нет данных текущего флота из SAGE. Это демонстрационная сетка для проверки интерфейса Warp; реальные координаты не подменяются.";
+        : "Стартовая точка ONI CSS · NEUNO: X -40, Y 30. Соседние клетки сгенерированы только для теста. Warp/Tube/лабиринт не меняют состояние Star Atlas.";
       listSectorTargets();
+      renderSectorGrid();
       selectedElement.textContent = "DESTINATION NOT SELECTED";
       startButton.disabled = true;
       mapView.hidden = false;
@@ -991,6 +1044,7 @@
       if (!state.nav.targets.some((sector) => sector.id === target.id)) {
         state.nav.targets.push(target);
         listSectorTargets();
+        renderSectorGrid();
       }
       selectTarget(target);
     });
