@@ -1,4 +1,10 @@
-# BCM Mini-Sim 0.9.78
+# BCM Mini-Sim 0.9.79
+
+### 0.9.79 Warp soundtrack
+
+- The Warp screen reads the optional soundtrack from `mini-sim/assets/warp.mp3`. WordPress exposes it through `warpMusicUrl`.
+- Playback starts only when the user presses **START WARP**, loops for the tunnel run, and stops when the tunnel ends, is cancelled, or the pilot exits the asteroid expedition.
+- No extra image assets are required; the starfield, tube rings, asteroid interior shell, wall tile, crystals, and return beacon are generated locally.
 
 ### 0.9.78 Warp / asteroid maze prototype
 
