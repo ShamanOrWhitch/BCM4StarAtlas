@@ -857,6 +857,13 @@
     mute: false,
     portalSafeRadius: 16
   };
+  // One shared soundtrack registry prevents Starbase, Warp and Tower OSTs
+  // from playing on top of one another and gives the note button one mute state.
+  const gameOstTracks = new Map();
+  if (musicAudio) {
+    gameOstTracks.set("starbase", musicAudio);
+    musicAudio.dataset.bcmGameOst = "starbase";
+  }
   const liveWall = {
     el: null,
     texture: null,
@@ -2842,6 +2849,18 @@
     pauseAllCinemaVideos();
     stopMiniSimAudio();
     try { window.BCMTowerAPI?.stopAudio?.(); } catch (e) {}
+
+    // Home is Room 1 at ONI CSS, never the active Room 0 race spawn.
+    // Disable Room 0 constraints before moving the ship so the next physics
+    // frame cannot pull it back into the labyrinth.
+    race.active = false;
+    race.busy = false;
+    race.laps = 0;
+    race.nextGate = 1;
+    race.prev = null;
+    if (race.group) race.group.visible = false;
+    updateRoom0Labyrinth();
+
     exteriorFlight = false;
     ship.position.set(0, 0, 2);
     ship.velocity.set(0, 0, 0);
@@ -2849,14 +2868,20 @@
     ship.quaternion.set(0, 0, 0, 1);
     door.state = "CLOSED"; door.progress = 0; door.away = 0; applyDoorUnit(door, 0);
     returnDoor.state = "CLOSED"; returnDoor.progress = 0; returnDoor.away = 0; applyDoorUnit(returnDoor, 0);
+    updateBacksideVisibility();
     updateCinemaZones();
+    updateLiveWall();
     if (ship.visual) {
       ship.visual.position.copy(ship.position);
       ship.visual.quaternion.copy(ship.quaternion);
     }
     camera.position.copy(ship.position);
     camera.quaternion.copy(ship.quaternion);
-    setStatus("ROOM 1 · HOME");
+
+    // Restart the correct Starbase soundtrack from the Home state. The shared
+    // mute setting remains authoritative and other OSTs are stopped by the mixer.
+    startMusic();
+    setStatus("ROOM 1 · HOME · ONI CSS");
   }
 
   // Back/Backspace restarts only the current area; loaded media and OST are preserved.
@@ -3313,13 +3338,68 @@
     root.classList.remove("game-active");
   }
 
+  function registerGameOst(audio, channel) {
+    if (!audio) return null;
+    const key = String(channel || "other");
+    gameOstTracks.set(key, audio);
+    audio.dataset.bcmGameOst = key;
+    audio.muted = cinema.mute;
+    return audio;
+  }
+
+  function playExclusiveGameOst(audio, channel) {
+    registerGameOst(audio, channel);
+    if (!audio) return null;
+    gameOstTracks.forEach((other) => {
+      if (other && other !== audio) {
+        try { other.pause(); } catch (e) {}
+      }
+    });
+    if (String(channel) === "starbase") audio.volume = settings.volume;
+    audio.muted = cinema.mute;
+    try {
+      return audio.play();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function syncMusicButton() {
+    if (!musicButton) return;
+    musicButton.classList.toggle("is-muted", cinema.mute);
+    musicButton.setAttribute("aria-pressed", cinema.mute ? "true" : "false");
+    musicButton.setAttribute("aria-label", cinema.mute ? "Включить музыку" : "Выключить музыку");
+    musicButton.title = cinema.mute ? "Музыка выключена · нажмите, чтобы включить" : "Музыка включена · нажмите, чтобы выключить";
+  }
+
   function setAudioMute(value) {
     cinema.mute = !!value;
-    if (musicAudio) musicAudio.muted = cinema.mute;
+    gameOstTracks.forEach((audio) => {
+      if (audio) audio.muted = cinema.mute;
+    });
     cinema.zones.forEach((zone) => {
       if (zone.el) zone.el.muted = cinema.mute;
     });
+    syncMusicButton();
+    window.dispatchEvent(new CustomEvent("bcm:game-music-mute", {
+      detail: { muted: cinema.mute }
+    }));
   }
+
+  window.BCMGameAudio = Object.assign(window.BCMGameAudio || {}, {
+    register: registerGameOst,
+    playExclusive: playExclusiveGameOst,
+    setMuted: setAudioMute,
+    isMuted: () => cinema.mute,
+    stop: (audio, reset) => {
+      if (!audio) return;
+      try {
+        audio.pause();
+        if (reset) audio.currentTime = 0;
+      } catch (e) {}
+    }
+  });
+  setAudioMute(cinema.mute);
 
   function zoneIsOnScreen(zone) {
     if (!camera || !zone.mesh) return false;
@@ -3934,10 +4014,9 @@
     const inn = input();
     const localAcc = new THREE.Vector3(
       inn.strafe * ship.strafeThrust,
-      0,
+      inn.vertical * ship.verticalThrust,
       -inn.thrust * ship.thrust
     ).applyQuaternion(ship.quaternion);
-    localAcc.y += inn.vertical * ship.verticalThrust;
     ship.velocity.addScaledVector(localAcc, dt);
     ship.velocity.multiplyScalar(Math.max(0, 1 - ship.linearDrag * dt));
     if (ship.velocity.length() > ship.maxSpeed) ship.velocity.setLength(ship.maxSpeed);
@@ -3956,8 +4035,9 @@
       ship.angularVelocity.z = inn.roll * 2.6;
     } else {
       const psign = settings.invertPitch ? 1 : -1;
-      ship.angularVelocity.x += pad.ry * psign * 2.1 * dt + inn.pitch * 2.4 * dt;
-      ship.angularVelocity.y += inn.yaw * 2.2 * dt;
+      ship.angularVelocity.x += pad.ry * psign * 4.2 * dt + inn.pitch * 2.4 * dt;
+      ship.angularVelocity.y += pad.rx * (settings.invertYaw ? 1 : -1) * 4.4 * dt +
+        ((mobileLandscape() && cinema.focus) ? 0 : ((touch.yawLeft ? 1 : 0) - (touch.yawRight ? 1 : 0) + look.yaw)) * 2.2 * dt;
       ship.angularVelocity.z += inn.roll * 2.6 * dt;
       ship.angularVelocity.multiplyScalar(Math.max(0, 1 - ship.angularDrag * dt));
     }
@@ -4097,25 +4177,29 @@
     try {
       musicAudio.pause();
       musicAudio.currentTime = 0;
-      musicAudio.volume = 0;
+      // Do not set volume to zero: a later return to Starbase must be audible
+      // unless the user explicitly muted all OSTs with the note button.
     } catch (e) {}
   }
 
   function startMusic() {
     if (!musicAllowed || !musicAudio || !config.musicUrl) return;
-    try {
-      window.BCMTowerAPI?.stopAudio?.();
-    } catch (e) {}
     if (!musicAudio.src) {
       musicAudio.preload = "auto";
       try { musicAudio.fetchPriority = "high"; } catch (e) {}
       musicAudio.src = config.musicUrl;
     }
-    musicAudio.muted = false;
     musicAudio.loop = true;
     musicAudio.volume = settings.volume;
-    musicAudio.play().catch(() => {});
+    musicAudio.muted = cinema.mute;
+    if (window.BCMGameAudio?.playExclusive) {
+      const playing = window.BCMGameAudio.playExclusive(musicAudio, "starbase");
+      if (playing && typeof playing.catch === "function") playing.catch(() => {});
+    } else {
+      musicAudio.play().catch(() => {});
+    }
     if (musicButton) musicButton.hidden = false;
+    syncMusicButton();
   }
 
   function enableTilt() {
