@@ -62,16 +62,21 @@ try{
  await page.keyboard.press("V");await page.locator(".bcm-warp-overlay:not([hidden])").first().waitFor({state:"visible",timeout:10000});await page.waitForTimeout(250);await shot(page,"03-warp-map.png");
  const current=await page.locator("[data-warp-current]").first().textContent();
  check(/ONI CSS|NEUNO|-40|TEST/i.test(current||""),"WARP map shows its current start point");
+ const activeAudio=async()=>page.evaluate(()=>{const all=new Set([...(window.__BCM_QA_MEDIA||[]),...document.querySelectorAll("audio")]);return [...all].filter(a=>a&&a.tagName==="AUDIO"&&!a.paused&&!a.ended&&!a.muted&&a.volume>0).map(a=>({src:a.currentSrc||a.src||"",time:a.currentTime}));});
+ const mapAudio=await activeAudio();report.audioOnMap=mapAudio;
+ check(mapAudio.length===1&&/warp\.mp3/i.test(mapAudio[0].src),"Warp OST is audible already on the map");
+ const mapTrackTime=mapAudio[0]?.time||0;
  const neighbor=page.locator('[data-warp-grid] .bcm-warp-grid-cell.is-connected').first();await neighbor.waitFor({state:"visible",timeout:8000});await neighbor.click();
  await page.locator("[data-warp-start]").click();await page.locator('[data-warp-view="tube"]:not([hidden])').waitFor({state:"visible",timeout:8000});await page.waitForTimeout(700);await shot(page,"04-tube.png");
  check(true,"choosing a neighbour opens Tube");
- const activeAudio=async()=>page.evaluate(()=>{const all=new Set([...(window.__BCM_QA_MEDIA||[]),...document.querySelectorAll("audio")]);return [...all].filter(a=>a&&a.tagName==="AUDIO"&&!a.paused&&!a.ended&&!a.muted&&a.volume>0).map(a=>({src:a.currentSrc||a.src||"",time:a.currentTime}));});
- const during=await activeAudio();report.audioDuringTube=during;check(during.length<=1,"at most one soundtrack is audible during Tube");
+ const during=await activeAudio();report.audioDuringTube=during;
+ check(during.length===1&&/warp\.mp3/i.test(during[0].src),"Warp OST remains the only audible track in Tube");
+ check(during[0].time>mapTrackTime,"Warp OST continues forward instead of resetting when Tube begins");
  await page.keyboard.press("Escape");await page.waitForFunction(()=>!!document.querySelector(".bcm-warp-overlay[hidden]"),null,{timeout:8000});await page.waitForTimeout(350);
  const after=await page.evaluate(()=>{const p=window.BCMiniSimAPI?.getRuntime?.()?.ship?.position,all=new Set([...(window.__BCM_QA_MEDIA||[]),...document.querySelectorAll("audio")]);return{position:p?[p.x,p.y,p.z]:null,audio:[...all].filter(a=>a&&a.tagName==="AUDIO"&&!a.paused&&!a.ended&&!a.muted&&a.volume>0).map(a=>a.currentSrc||a.src||"")};});
  report.afterCancel=after;await shot(page,"05-after-cancel.png");
  check(!!before&&!!after.position&&after.position.every((v,i)=>Math.abs(v-before[i])<1),"cancel restores the ship position");
- check(after.audio.length<=1,"at most one OST remains audible after cancel");
+ check(after.audio.length===1&&!/warp\\.mp3/i.test(after.audio[0]),"cancel stops Warp OST and restores the normal flight OST");
  report.status=report.checks.every(c=>c.ok)&&report.pageErrors.length===0&&report.consoleErrors.length===0?"PASS":"FAIL";
 }catch(e){report.status="FAIL";report.error=String(e&&e.stack?e.stack:e);if(page){try{await shot(page,"failure.png");}catch(_){}}}
 finally{
