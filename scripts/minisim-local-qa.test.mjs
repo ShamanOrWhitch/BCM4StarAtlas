@@ -13,7 +13,7 @@ test("Warp OST belongs to the whole Warp stage",async()=>{
 });
 test("Tube has forward road, floor panels, gates and controller steering",async()=>{
   const s=await read("mini-sim/assets/js/deep-space-warp.js");
-  assert.match(s,/function roadY\(d\)/);
+  assert.match(s,/const roadY=d=>/);
   assert.match(s,/Continuous floor panels and centre dashes/);
   assert.match(s,/Barrier gates leave visible passages/);
   assert.match(s,/navigator\.getGamepads\?navigator\.getGamepads\(\):\[\]/);
@@ -40,7 +40,7 @@ test("Mini-Sim and Tower expose controller navigation",async()=>{
   assert.match(tcss,/button\.bcm-gamepad-focused/);
 });
 test("Playwright runner overrides plugin files from local checkout",async()=>{
-  const s=await read("scripts/minisim-local-qa.mjs");
+  const s=await read("minisim-local-qa.mjs");
   assert.match(s,/import \{ mkdir, readFile, stat, writeFile \}/);
   assert.match(s,/wp-content\/plugins\/mini-sim/);
   assert.match(s,/05-after-cancel\.png/);
