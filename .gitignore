@@ -15,3 +15,5 @@ attachments/
 .env.*
 public/ships/
 .qa-artifacts/
+/tools/minisim-qa/node_modules/
+/tools/minisim-qa/package-lock.json

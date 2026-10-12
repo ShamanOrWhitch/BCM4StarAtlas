@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
-import { chromium } from "playwright";
+import { createRequire } from "node:module";
 
 const root=process.cwd(),argv=process.argv.slice(2);
+const requireQa=createRequire(resolve(root,"tools/minisim-qa/package.json"));
+let chromium;
+try { ({chromium}=requireQa("playwright")); }
+catch(e) { console.error("Playwright is not installed in tools/minisim-qa. Run: cd tools/minisim-qa && npm install && npx playwright install chromium"); process.exit(2); }
 const arg=k=>{const i=argv.indexOf(k);return i>=0?argv[i+1]:"";};
 const url=arg("--url")||process.env.MINISIM_URL||"",full=argv.includes("--full-media"),headed=argv.includes("--headed");
 const out=resolve(root,".qa-artifacts");

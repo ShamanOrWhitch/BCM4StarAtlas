@@ -401,8 +401,8 @@ Crew/mission UI is a **separate** plugin `bcm4staratlas`. Do not merge them into
 
 The Playwright smoke test overrides requests for `/wp-content/plugins/mini-sim/` with matching files from this checkout. The PHP page/config still comes from the selected WordPress URL, while plugin JS/CSS and local assets are served directly from disk. The runner itself never uploads files to WordPress.
 
-1. Install Chromium once with `npx playwright install chromium` if it is not installed.
-2. Run source regression checks using `npm run test:minisim`.
+1. Install only the small QA dependency set once: `cd tools/minisim-qa`, then `npm install` and `npx playwright install chromium`. You do not need to install the root React-app dependencies just to run this tester.
+2. From the repository root, run source regression checks using `npm run test:minisim`.
 3. Run the browser smoke test against a WordPress page rendering `[bcm_mini_sim]`: `npm run qa:minisim -- --url "https://your-wordpress-page/"`. A localhost WordPress URL works too. Add `--headed` to watch the run or `--full-media` to allow video assets; the default blocks video streams to save bandwidth.
 
 Screenshots and browser diagnostics are saved under `.qa-artifacts/`.

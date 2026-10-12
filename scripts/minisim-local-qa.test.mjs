@@ -43,6 +43,9 @@ test("Mini-Sim and Tower expose controller navigation",async()=>{
 test("Playwright runner overrides plugin files from local checkout",async()=>{
   const s=await read("scripts/minisim-local-qa.mjs");
   assert.match(s,/import \{ mkdir, readFile, stat, writeFile \}/);
+  assert.match(s,/createRequire/);
   assert.match(s,/wp-content\/plugins\/mini-sim/);
   assert.match(s,/05-after-cancel\.png/);
+  const qaPackage=JSON.parse(await read("tools/minisim-qa/package.json"));
+  assert.ok(qaPackage.devDependencies.playwright);
 });
