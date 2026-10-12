@@ -14,3 +14,4 @@ attachments/
 .env
 .env.*
 public/ships/
+.qa-artifacts/

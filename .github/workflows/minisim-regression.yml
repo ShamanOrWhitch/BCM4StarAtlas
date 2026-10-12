@@ -1,0 +1,27 @@
+name: Mini-Sim regression checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mini-sim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check JavaScript syntax
+        run: |
+          node --check mini-sim/assets/js/mini-sim.js
+          node --check mini-sim/assets/js/deep-space-warp.js
+          node --check mini-sim/tower/assets/js/tower.js
+      - name: Run Mini-Sim regression checks
+        run: node --test scripts/minisim-local-qa.test.mjs
