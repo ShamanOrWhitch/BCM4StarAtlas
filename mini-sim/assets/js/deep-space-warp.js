@@ -7,6 +7,35 @@
     root.dataset.warpModuleReady = "1";
 
     const api = () => window.BCMiniSimAPI || null;
+    const config = window.BCMMiniSimConfig || {};
+    const warpAudio = document.createElement("audio");
+    warpAudio.preload = "none";
+    warpAudio.loop = true;
+    warpAudio.volume = 0.72;
+    warpAudio.setAttribute("playsinline", "");
+    let warpAudioSrcLoaded = false;
+
+    function startWarpAudio() {
+      if (!config.warpMusicUrl) return;
+      try {
+        if (!warpAudioSrcLoaded) {
+          warpAudio.src = config.warpMusicUrl;
+          warpAudio.load();
+          warpAudioSrcLoaded = true;
+        }
+        warpAudio.currentTime = 0;
+        const playing = warpAudio.play();
+        if (playing && typeof playing.catch === "function") playing.catch(() => {});
+      } catch (e) {}
+    }
+
+    function stopWarpAudio() {
+      try {
+        warpAudio.pause();
+        warpAudio.currentTime = 0;
+      } catch (e) {}
+    }
+
     const state = {
       mode: "closed",
       openedAt: 0,
@@ -278,6 +307,7 @@
     }
 
     function closeOverlay(restoreMain) {
+      stopWarpAudio();
       overlay.hidden = true;
       root.classList.remove("bcm-warp-open");
       launchButton.classList.remove("is-active");
@@ -296,6 +326,7 @@
 
     function showTube() {
       if (!state.target) return;
+      startWarpAudio();
       const engine = api();
       if (!engine || !engine.getRuntime || !engine.getRuntime().scene) return;
       state.mode = "tube";
@@ -328,6 +359,7 @@
 
     function finishTube(success) {
       if (state.mode !== "tube") return;
+      stopWarpAudio();
       state.mode = "result";
       touchControls.hidden = true;
       tubeResult.hidden = false;
@@ -668,6 +700,7 @@
     }
 
     function returnToDeepSpace(force) {
+      stopWarpAudio();
       const maze = state.maze;
       if (!maze) return;
       if (!force && maze.count < 3) {
