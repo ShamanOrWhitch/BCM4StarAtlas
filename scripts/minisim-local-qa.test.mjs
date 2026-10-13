@@ -71,7 +71,7 @@ test("startup prioritizes Starbase OST, initial room textures, right-wall video 
   assert.match(boot,/musicAudio\.fetchPriority = "high"/);
   assert.match(boot,/musicAudio\.src = config\.musicUrl/);
   const textured=mini.slice(mini.indexOf("function textured(name, fallback, side)"),mini.indexOf("function deferredTextured"));
-  assert.match(textured,/img\.fetchPriority = textureRequestPriority\(name\) <= 1 \? "high" : "auto"/);
+  assert.match(textured,/img\.fetchPriority = textureRequestPriority\(name\) <= 1 \? "auto" : "low"/);
   const arm=mini.slice(mini.indexOf("let levelMediaArmed = false"),mini.indexOf("updateLiveWall();"));
   assert.ok(arm.indexOf("room1-right-wall-live") < arm.indexOf("primePortalVideo(\"FORWARD\", \"high\")"));
   assert.ok(arm.indexOf("primePortalVideo(\"FORWARD\", \"high\")") < arm.indexOf("startBackgroundTextureLoading()"));
