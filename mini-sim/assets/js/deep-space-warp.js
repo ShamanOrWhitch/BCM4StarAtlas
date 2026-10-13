@@ -1054,8 +1054,12 @@
       });
       g.restore();
       // Foreground craft stays over the road so the player can read steering.
-      const d=.94,px=center(d)+state.playerX*half(d)*.78,py=roadY(d)-h*.075+state.playerY*h*.095,scale=Math.min(1,w/900);
-      g.save();g.translate(px,py);g.rotate(Math.max(-.32,Math.min(.32,state.playerX*.20)));g.scale(scale,scale);
+      const d=.94,rawX=center(d)+state.playerX*half(d)*.78,rawY=roadY(d)-h*.075+state.playerY*h*.095;
+      const pivotY=h*.62,cosRoll=Math.cos(roll),sinRoll=Math.sin(roll);
+      const px=mid+(rawX-mid)*cosRoll-(rawY-pivotY)*sinRoll;
+      const py=pivotY+(rawX-mid)*sinRoll+(rawY-pivotY)*cosRoll;
+      const scale=Math.min(1,w/900);
+      g.save();g.translate(px,py);g.rotate(roll+Math.max(-.32,Math.min(.32,state.playerX*.20)));g.scale(scale,scale);
       const flare=.6+(Math.sin(now*.032)+1)*.2;
       g.fillStyle="rgba(63,213,255,"+flare*.38+")";g.beginPath();g.moveTo(-5,14);g.lineTo(0,35+flare*10);g.lineTo(5,14);g.closePath();g.fill();
       g.fillStyle="#1b3e56";g.strokeStyle="#c2f0fb";g.lineWidth=2;g.beginPath();g.moveTo(0,-23);g.lineTo(13,-7);g.lineTo(25,12);g.lineTo(8,8);g.lineTo(0,16);g.lineTo(-8,8);g.lineTo(-25,12);g.lineTo(-13,-7);g.closePath();g.fill();g.stroke();
