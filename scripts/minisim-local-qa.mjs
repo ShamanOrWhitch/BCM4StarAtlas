@@ -96,9 +96,16 @@ try{
      const onClick=()=>{clickEvents++;};
      window.addEventListener("bcm:game-music-mute",onMute);
      el.addEventListener("click",onClick,{once:true});
+     const rect=el.getBoundingClientRect();
+     const top=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);
+     const ancestors=[];
+     for(let node=el;node&&ancestors.length<7;node=node.parentElement){
+       ancestors.push({tag:node.tagName,id:node.id||"",className:typeof node.className==="string"?node.className:"",inert:!!node.inert,disabled:!!node.disabled});
+     }
+     const beforeNative={isConnected:el.isConnected,tagName:el.tagName,disabled:!!el.disabled,disabledPseudo:el.matches(":disabled"),selfInert:!!el.inert,closestInert:!!el.closest("[inert]"),pointerEvents:getComputedStyle(el).pointerEvents,topTag:top?.tagName||"",topClass:typeof top?.className==="string"?top.className:"",ancestors};
      el.click();
      window.removeEventListener("bcm:game-music-mute",onMute);
-     return{clickEvents,muteEvents};
+     return{clickEvents,muteEvents,beforeNative};
    });
    const after=await note.evaluate(el=>({
      globalMuted:window.BCMGameAudio?.isMuted?.()??null,
