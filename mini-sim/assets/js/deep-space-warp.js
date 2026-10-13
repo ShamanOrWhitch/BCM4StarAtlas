@@ -134,7 +134,7 @@
         '</div>' +
       '</section>' +
       '<section class="bcm-warp-view bcm-warp-tube-view" data-warp-view="tube" hidden>' +
-        '<div class="bcm-warp-tube-hud"><div class="bcm-warp-kicker">SUBSPACE TUNNEL</div><h2 data-tube-title>WARP IN PROGRESS</h2><div class="bcm-warp-tube-meta" data-tube-meta></div><div class="bcm-warp-shield"><span data-tube-shield></span></div><div class="bcm-warp-tube-help" data-tube-help>Управление: WASD / стрелки / свайп. Избегайте преград в тоннеле. Длина этапа около 24 секунд.</div></div>' +
+        '<div class="bcm-warp-tube-hud"><div class="bcm-warp-kicker">SUBSPACE TUNNEL</div><h2 data-tube-title>WARP IN PROGRESS</h2><div class="bcm-warp-tube-meta" data-tube-meta></div><div class="bcm-warp-shield"><span data-tube-shield></span></div><div class="bcm-warp-tube-help" data-tube-help>Управление: WASD / стрелки / свайп. Избегайте преград в тоннеле. Длина маршрута — 48 секунд.</div></div>' +
         '<div class="bcm-warp-touch-controls"><button type="button" data-warp-control="left">◀</button><div><button type="button" data-warp-control="up">▲</button><button type="button" data-warp-control="down">▼</button></div><button type="button" data-warp-control="right">▶</button></div>' +
         '<div class="bcm-warp-result" data-tube-result hidden><h2 data-tube-result-title></h2><p data-tube-result-text></p><div class="bcm-warp-actions"><button type="button" data-tube-retry>ПОВТОРИТЬ WARP</button><button type="button" data-tube-abort class="bcm-warp-secondary">ВЕРНУТЬСЯ</button></div></div>' +
       '</section>';
@@ -536,27 +536,41 @@
       state.tubeTravel = 0;
       state.startedAt = performance.now();
       state.shields = 100;
+      // X/Y are the pilot's position on the tube cross-section, held at a
+      // stable radius so input moves around the wall, sides and ceiling.
       state.playerX = 0;
-      state.playerY = 0;
+      state.playerY = 0.78;
+      state.tubeRoll = 0;
+      state.tubeBoostUntil = 0;
       state.statusText = "";
       state.touch.left = state.touch.right = state.touch.up = state.touch.down = false;
       const rng = randomFrom(hashSeed(state.nav.current.id + ">" + state.target.id + ":" + state.target.x + ":" + state.target.y));
       state.layers = [];
-      // One-pass, spaced gates: each obstacle appears once along this route,
-      // and multiple lanes remain open rather than forming a solid plate.
-      const gateCount = 14;
+      const gateCount = 15;
       for (let i = 0; i < gateCount; i += 1) {
-        const safe = Math.floor(rng() * 9);
-        const extraSafe = rng() < 0.42 ? Math.floor(rng() * 9) : -1;
-        const blockers = [];
-        for (let lane = 0; lane < 9; lane += 1) {
-          if (lane !== safe && lane !== extraSafe && rng() < 0.38) {
-            blockers.push({ x: (lane % 3) - 1, y: Math.floor(lane / 3) - 1 });
+        const type = i % 6 === 2 ? "spikes" : (i % 6 === 4 ? "sweeper" : (i % 6 === 5 ? "boost" : "gate"));
+        const safeAngle = rng() * Math.PI * 2 - Math.PI;
+        const blockedAngles = [];
+        const spikeCount = type === "spikes" ? 3 : 0;
+        for (let n = 0; n < spikeCount; n += 1) {
+          let angle = rng() * Math.PI * 2 - Math.PI;
+          if (Math.abs(Math.atan2(Math.sin(angle - safeAngle), Math.cos(angle - safeAngle))) < 0.92) {
+            angle = safeAngle + (n % 2 ? 1 : -1) * (1.15 + rng() * 0.65);
           }
+          blockedAngles.push(Math.atan2(Math.sin(angle), Math.cos(angle)));
         }
-        // Finish the final gate well before the route ends so it can pass the pilot.
-        const progress = 0.18 + (i / Math.max(1, gateCount - 1)) * 0.70 + (rng() - 0.5) * 0.012;
-        state.layers.push({ progress, blockers, resolved: false });
+        const progress = 0.15 + (i / Math.max(1, gateCount - 1)) * 0.72 + (rng() - 0.5) * 0.006;
+        state.layers.push({
+          progress,
+          type,
+          safeAngle,
+          gapHalf: type === "gate" ? 0.76 : 0.86,
+          blockedAngles,
+          sweepAngle: rng() * Math.PI * 2 - Math.PI,
+          sweepSpeed: (rng() < 0.5 ? -1 : 1) * (0.55 + rng() * 0.38),
+          obstacleWidth: type === "sweeper" ? 0.20 : 0.15,
+          resolved: false
+        });
       }
       tubeTitle.textContent = "WARP IN PROGRESS";
       tubeResult.hidden = true;
@@ -1070,80 +1084,236 @@
       };
     }
 
+    function angleDifference(a, b) {
+      return Math.atan2(Math.sin(a - b), Math.cos(a - b));
+    }
+
     function drawTubeTunnel(g, w, h, now) {
       const t = state.tubeTravel;
-      const widths = [1.0, 0.72, 1.22, 0.88, 1.08, 0.78];
-      const curves = [0.35, 1.05, -0.55, 1.35, 0.62, -0.9];
-      const lifts = [0, -0.09, 0, 0.11, 0, -0.04];
-      const sectionWidth = tubeSectionBlend(widths, state.elapsed).value;
-      const sectionCurve = tubeSectionBlend(curves, state.elapsed).value;
-      const sectionLift = tubeSectionBlend(lifts, state.elapsed).value;
-      const sectionPhase = tubeSectionBlend(widths, state.elapsed).phase;
-      const horizon=h*.23,near=h*.93,mid=w*.5,steps=48,arches=12;
-      const center=d=>mid+(
-        Math.sin(t*.31+d*3.2)*.28+
-        Math.sin(t*.19+d*6)*.10+
-        Math.sin(d*Math.PI*1.55+sectionPhase)*sectionCurve*.22
-      )*w*d*.38;
-      const roadY=d=>horizon+Math.pow(d,1.17)*(near-horizon)+
-        Math.sin(d*Math.PI)*h*sectionLift;
-      const half=d=>w*(.015+Math.pow(d,1.18)*.47)*sectionWidth*
-        (1+Math.sin(d*12+sectionPhase)*.075);
-      const edge=(d,side,extra)=>({x:center(d)+side*half(d)*(1+(extra||0)),y:roadY(d)});
-      const bg=g.createLinearGradient(0,horizon-h*.18,0,near);
-      bg.addColorStop(0,"#050b12");bg.addColorStop(.42,"#142b38");bg.addColorStop(1,"#08131b");
-      g.fillStyle=bg;g.fillRect(0,0,w,h);
-      // The road stays in a stable screen frame. The course itself bends and
-      // changes width smoothly; only the craft banks in response to steering.
-      [-1,1].forEach(side=>{
-        g.beginPath();for(let i=0;i<=steps;i++){const p=edge(i/steps,side,.5);if(!i)g.moveTo(p.x,p.y);else g.lineTo(p.x,p.y);}
-        for(let i=steps;i>=0;i--){const p=edge(i/steps,side,0);g.lineTo(p.x,p.y);}
-        g.closePath();g.fillStyle=side<0?"rgba(21,62,76,.82)":"rgba(20,48,62,.88)";g.fill();
-      });
-      // Continuous floor panels and centre dashes scroll toward the player.
-      for(let i=0;i<steps;i++){
-        const a=i/steps,b=(i+1)/steps,l0=edge(a,-1,0),r0=edge(a,1,0),l1=edge(b,-1,0),r1=edge(b,1,0);
-        g.beginPath();g.moveTo(l0.x,l0.y);g.lineTo(r0.x,r0.y);g.lineTo(r1.x,r1.y);g.lineTo(l1.x,l1.y);g.closePath();
-        g.fillStyle=(i+Math.floor(t*42))%2?"rgba(18,32,42,.98)":"rgba(25,42,52,.98)";g.fill();
-        if((i+Math.floor(t*34))%7<3){const c0=center(a),c1=center(b),q0=half(a)*.018,q1=half(b)*.018;
-          g.beginPath();g.moveTo(c0-q0,roadY(a));g.lineTo(c0+q0,roadY(a));g.lineTo(c1+q1,roadY(b));g.lineTo(c1-q1,roadY(b));g.closePath();
-          g.fillStyle="rgba(110,226,232,.88)";g.fill();}
+      const mid = w * 0.5;
+      const minDim = Math.min(w, h);
+      const maxRadius = minDim * 0.435;
+      const widths = [0.92, 0.78, 1.02, 0.87, 1.08, 0.95];
+      const curves = [0.10, 0.85, -0.72, 1.18, -0.45, 0.62];
+      const liftShape = [0, -0.55, 0.25, -0.1, 0.9, 0.05];
+      const widthScale = tubeSectionBlend(widths, state.elapsed).value;
+      const curveScale = tubeSectionBlend(curves, state.elapsed).value;
+      const liftScale = tubeSectionBlend(liftShape, state.elapsed).value;
+      const phase = tubeSectionBlend(curves, state.elapsed).phase;
+      const roll = Number(state.tubeRoll || 0) + Math.sin(t * 0.13) * 0.28;
+      const loopMix = Math.max(0, Math.min(1,
+        Math.min((state.elapsed - 20) / 2.5, (34 - state.elapsed) / 2.5)));
+      const loopPhase = ((state.elapsed + 5) / 10.5) * Math.PI * 2;
+
+      // d=0 is the distant end and d=1 is the player's near wall. The centre
+      // line bends sideways, dives vertically and winds through a corkscrew.
+      const centerX = (d) => mid +
+        (Math.sin(t * 0.19 + d * 4.3) * 0.095 +
+         Math.sin(t * 0.11 + d * 7.1) * 0.038 +
+         Math.sin(d * Math.PI * 1.55 + phase) * curveScale * 0.11) * w * d;
+      const centerY = (d) => h * 0.49 +
+        (Math.sin(t * 0.15 + d * 3.6) * 0.065 +
+         Math.sin(t * 0.09 + d * 7.7) * 0.032 +
+         Math.sin(d * Math.PI * 1.25 + phase) * liftScale * 0.08 +
+         Math.sin(loopPhase + d * Math.PI * 2.4) * loopMix * 0.15) * h * d;
+      const radiusX = (d) => 4 + maxRadius * Math.pow(Math.max(0, d), 1.20) * widthScale;
+      const radiusY = (d) => radiusX(d) * 0.91;
+      const twistAt = (d) => roll + d * (0.9 + Math.sin(t * 0.07) * 0.38) +
+        Math.sin(d * Math.PI * 2 + phase) * curveScale * 0.20;
+      const point = (d, theta, extra) => {
+        const angle = theta + twistAt(d);
+        const rx = radiusX(d) + (extra || 0);
+        const ry = radiusY(d) + (extra || 0) * 0.91;
+        return {
+          x: centerX(d) + Math.cos(angle) * rx,
+          y: centerY(d) + Math.sin(angle) * ry
+        };
+      };
+      const drawArc = (depth, from, to, stroke, width) => {
+        const samples = Math.max(3, Math.ceil(Math.abs(to - from) * 13));
+        g.beginPath();
+        for (let i = 0; i <= samples; i += 1) {
+          const a = from + (to - from) * (i / samples);
+          const p = point(depth, a, 0);
+          if (!i) g.moveTo(p.x, p.y);
+          else g.lineTo(p.x, p.y);
+        }
+        g.strokeStyle = stroke;
+        g.lineWidth = width;
+        g.lineCap = "round";
+        g.stroke();
+      };
+
+      const bg = g.createLinearGradient(0, 0, 0, h);
+      bg.addColorStop(0, "#02060d");
+      bg.addColorStop(0.46, "#071b2a");
+      bg.addColorStop(1, "#02040a");
+      g.fillStyle = bg;
+      g.fillRect(0, 0, w, h);
+
+      // Build the inside wall from circumferential panels. Seams, panel
+      // highlights, rings, and obstacles all rotate around the tunnel axis.
+      const depthSteps = 23;
+      const panelCount = 18;
+      for (let step = 0; step < depthSteps; step += 1) {
+        const d0 = 0.025 + (step / depthSteps) * 1.08;
+        const d1 = 0.025 + ((step + 1) / depthSteps) * 1.08;
+        for (let panel = 0; panel < panelCount; panel += 1) {
+          const a0 = panel * Math.PI * 2 / panelCount;
+          const a1 = (panel + 1) * Math.PI * 2 / panelCount;
+          const p00 = point(d0, a0, 0);
+          const p01 = point(d0, a1, 0);
+          const p11 = point(d1, a1, 0);
+          const p10 = point(d1, a0, 0);
+          g.beginPath();
+          g.moveTo(p00.x, p00.y);
+          g.lineTo(p01.x, p01.y);
+          g.lineTo(p11.x, p11.y);
+          g.lineTo(p10.x, p10.y);
+          g.closePath();
+          const shimmer = Math.sin(t * 1.35 + panel * 1.72 + step * 0.77 + roll) * 0.5 + 0.5;
+          const light = ((step + Math.floor(t * 8) + panel * 3) % 5 === 0) ? 1 : 0;
+          const red = Math.round(8 + shimmer * 8 + light * 2);
+          const green = Math.round(20 + shimmer * 18 + light * 12);
+          const blue = Math.round(31 + shimmer * 22 + light * 18);
+          g.fillStyle = "rgba(" + red + "," + green + "," + blue + ",0.98)";
+          g.fill();
+          g.strokeStyle = "rgba(81,181,207," + (0.12 + shimmer * 0.18) + ")";
+          g.lineWidth = 0.6 + d1 * 0.7;
+          g.stroke();
+        }
       }
-      [-1,1].forEach(side=>{g.beginPath();for(let i=0;i<=steps;i++){const p=edge(i/steps,side,0);if(!i)g.moveTo(p.x,p.y);else g.lineTo(p.x,p.y);}
-        g.strokeStyle=side<0?"rgba(91,219,232,.95)":"rgba(255,177,112,.9)";g.lineWidth=1.3;g.stroke();});
-      [-1,1].forEach(lane=>{g.beginPath();for(let i=0;i<=steps;i++){const d=i/steps,x=center(d)+lane*half(d)*.34;if(!i)g.moveTo(x,roadY(d));else g.lineTo(x,roadY(d));}
-        g.strokeStyle="rgba(143,186,197,.34)";g.lineWidth=.8;g.stroke();});
-      // Overhead arches move down the course without rotating the road.
-      for(let i=0;i<arches;i++){const d=(i/arches+t*.20)%1;if(d<.025)continue;
-        g.beginPath();g.ellipse(center(d),roadY(d),half(d)*1.12,h*(.018+Math.pow(d,1.13)*.26)*1.5,0,Math.PI,Math.PI*2);
-        g.strokeStyle="rgba(97,167,188,"+(.22+d*.56)+")";g.lineWidth=1+d*2;g.stroke();}
-      // Gates remain visible through the collision plane and pass below the
-      // player before being removed. Resolving a hit no longer hides the gate early.
+
+      // Circumferential rings and seams make the enclosing cylinder legible.
+      for (let ring = 0; ring < 17; ring += 1) {
+        const d = 0.06 + (ring / 17) * 1.02;
+        for (let part = 0; part < 48; part += 1) {
+          const a0 = part * Math.PI * 2 / 48;
+          const a1 = (part + 1) * Math.PI * 2 / 48;
+          const p0 = point(d, a0, 0.6);
+          const p1 = point(d, a1, 0.6);
+          g.beginPath();
+          g.moveTo(p0.x, p0.y);
+          g.lineTo(p1.x, p1.y);
+          g.strokeStyle = ring % 3 === 0 ? "rgba(118,222,237,0.55)" : "rgba(88,154,178,0.20)";
+          g.lineWidth = ring % 3 === 0 ? 1 + d * 1.4 : 0.7;
+          g.stroke();
+        }
+      }
+      for (let seam = 0; seam < 12; seam += 1) {
+        const theta = seam * Math.PI * 2 / 12;
+        g.beginPath();
+        for (let step = 0; step <= 35; step += 1) {
+          const d = 0.025 + (step / 35) * 1.08;
+          const p = point(d, theta, -1.5);
+          if (!step) g.moveTo(p.x, p.y);
+          else g.lineTo(p.x, p.y);
+        }
+        g.strokeStyle = seam % 3 === 0 ? "rgba(110,239,246,0.78)" : "rgba(110,191,210,0.32)";
+        g.lineWidth = seam % 3 === 0 ? 1.5 : 0.8;
+        g.stroke();
+      }
+
       const routeProgress = Math.min(1, state.elapsed / WARP_DURATION);
-      state.layers.forEach(layer=>{
+      state.layers.forEach((layer) => {
         const distance = layer.progress - routeProgress;
-        if (distance < -0.16 || distance > 0.23) return;
-        const d=Math.max(0.02,Math.min(1.55,1-distance/0.23));
-        const cx=center(d),cy=roadY(d)-h*(.018+Math.pow(d,1.13)*.26)*.4;
-        const cw=half(d)*.58,ch=Math.max(4,h*(.018+Math.pow(d,1.13)*.26)*.45);
-        layer.blockers.forEach(b=>{const bx=cx+b.x*half(d)*.6,by=cy-b.y*h*(.018+Math.pow(d,1.13)*.26)*.6,bw=cw*(.72+d*.13),bh=ch*(.74+d*.13),skew=Math.max(1,d*7);
-          g.fillStyle="rgba(0,0,0,.42)";g.fillRect(bx-bw/2+skew,by-bh/2+skew,bw,bh);
-          g.beginPath();g.moveTo(bx-bw/2,by-bh/2);g.lineTo(bx+bw/2,by-bh/2);g.lineTo(bx+bw/2-skew,by+bh/2);g.lineTo(bx-bw/2-skew,by+bh/2);g.closePath();
-          g.fillStyle="rgba(111,51,43,.96)";g.fill();g.strokeStyle="rgba(255,197,151,.95)";g.lineWidth=.8+d;g.stroke();
-          g.strokeStyle="rgba(255,220,173,.52)";g.lineWidth=Math.max(1,bw*.08);for(let s=-1;s<=1;s++){g.beginPath();g.moveTo(bx+s*bw*.28,by-bh*.42);g.lineTo(bx+s*bw*.28-skew,by+bh*.42);g.stroke();}
-        });
+        if (distance < -0.14 || distance > 0.34) return;
+        const d = Math.max(0.04, Math.min(1.04, 1 - distance / 0.34));
+        const rx = radiusX(d);
+        const strokeWidth = Math.max(3, rx * 0.052);
+        if (layer.type === "gate") {
+          // All angles are blocked except the clearly marked opening used by
+          // the exact same angular collision rule in updateTube().
+          const pieces = 32;
+          for (let i = 0; i < pieces; i += 1) {
+            const from = i * Math.PI * 2 / pieces;
+            const to = (i + 1) * Math.PI * 2 / pieces;
+            if (Math.abs(angleDifference((from + to) * 0.5, layer.safeAngle)) <= layer.gapHalf) continue;
+            drawArc(d, from, to, i % 4 === 0 ? "rgba(255,191,119,0.98)" : "rgba(117,204,222,0.92)", strokeWidth);
+          }
+          drawArc(d, layer.safeAngle - layer.gapHalf, layer.safeAngle + layer.gapHalf, "rgba(86,240,208,0.94)", Math.max(1.5, strokeWidth * 0.28));
+        } else if (layer.type === "sweeper") {
+          const angle = layer.sweepAngle + state.elapsed * layer.sweepSpeed;
+          const p0 = point(d, angle, -rx * 0.02);
+          const p1 = point(d, angle + Math.PI, -rx * 0.02);
+          g.beginPath();
+          g.moveTo(p0.x, p0.y);
+          g.lineTo(centerX(d), centerY(d));
+          g.lineTo(p1.x, p1.y);
+          g.strokeStyle = "rgba(255,132,104,0.96)";
+          g.lineWidth = Math.max(4, rx * 0.10);
+          g.lineCap = "round";
+          g.stroke();
+          g.strokeStyle = "rgba(255,227,190,0.95)";
+          g.lineWidth = Math.max(1.5, rx * 0.025);
+          g.stroke();
+        } else if (layer.type === "spikes") {
+          layer.blockedAngles.forEach((angle, index) => {
+            drawArc(d, angle - 0.12, angle + 0.12, "rgba(255,126,93,0.98)", Math.max(5, rx * 0.09));
+            const tip = point(d, angle, -rx * 0.22);
+            const sideA = point(d, angle - 0.10, -rx * 0.08);
+            const sideB = point(d, angle + 0.10, -rx * 0.08);
+            g.beginPath();
+            g.moveTo(sideA.x, sideA.y);
+            g.lineTo(tip.x, tip.y);
+            g.lineTo(sideB.x, sideB.y);
+            g.closePath();
+            g.fillStyle = index % 2 ? "#ff8d73" : "#e9d3ae";
+            g.fill();
+            g.strokeStyle = "rgba(255,224,190,0.9)";
+            g.lineWidth = Math.max(1, rx * 0.012);
+            g.stroke();
+          });
+        } else if (layer.type === "boost") {
+          drawArc(d, layer.safeAngle - 0.55, layer.safeAngle + 0.55, "rgba(56,245,193,0.96)", Math.max(5, rx * 0.075));
+          for (let stripe = -2; stripe <= 2; stripe += 1) {
+            const a = layer.safeAngle + stripe * 0.13;
+            const p0 = point(d, a, -rx * 0.03);
+            const p1 = point(Math.min(1.07, d + 0.025), a, -rx * 0.18);
+            g.beginPath();
+            g.moveTo(p0.x, p0.y);
+            g.lineTo(p1.x, p1.y);
+            g.strokeStyle = "rgba(115,255,214,0.88)";
+            g.lineWidth = Math.max(1, rx * 0.022);
+            g.stroke();
+          }
+        }
       });
-      // Keep the craft upright on-screen apart from a small steering bank.
-      const d=.94,px=center(d)+state.playerX*half(d)*.78,py=roadY(d)-h*.075+state.playerY*h*.095;
-      const bank=Math.max(-.24,Math.min(.24,-state.playerX*.20));
-      const scale=Math.min(1,w/900);
-      g.save();g.translate(px,py);g.rotate(bank);g.scale(scale,scale);
-      const flare=.6+(Math.sin(now*.032)+1)*.2;
-      g.fillStyle="rgba(63,213,255,"+flare*.38+")";g.beginPath();g.moveTo(-5,14);g.lineTo(0,35+flare*10);g.lineTo(5,14);g.closePath();g.fill();
-      g.fillStyle="#1b3e56";g.strokeStyle="#c2f0fb";g.lineWidth=2;g.beginPath();g.moveTo(0,-23);g.lineTo(13,-7);g.lineTo(25,12);g.lineTo(8,8);g.lineTo(0,16);g.lineTo(-8,8);g.lineTo(-25,12);g.lineTo(-13,-7);g.closePath();g.fill();g.stroke();
-      g.fillStyle="#8eeaf4";g.beginPath();g.moveTo(0,-16);g.lineTo(5,2);g.lineTo(0,7);g.lineTo(-5,2);g.closePath();g.fill();g.fillStyle="#ffce91";g.fillRect(-17,8,5,3);g.fillRect(12,8,5,3);g.restore();
-      const progress=Math.min(1,t/WARP_DURATION);g.fillStyle="rgba(255,255,255,.15)";g.fillRect(w*.18,h-17,w*.64,3);g.fillStyle="#56f0d0";g.fillRect(w*.18,h-17,w*.64*progress,3);
-      if(state.shields<100){g.fillStyle="rgba(255,77,66,"+((100-state.shields)/100*.10)+")";g.fillRect(0,0,w,h);}
+
+      // The craft occupies a point on the cylinder's inner circumference and
+      // rolls with the local surface as it climbs from floor to wall/ceiling.
+      const playerAngle = Math.atan2(state.playerY, state.playerX);
+      const nearDepth = 0.92;
+      const craftAngle = playerAngle + roll;
+      const craftPoint = {
+        x: centerX(nearDepth) + Math.cos(craftAngle) * radiusX(nearDepth) * 0.77,
+        y: centerY(nearDepth) + Math.sin(craftAngle) * radiusY(nearDepth) * 0.77
+      };
+      g.save();
+      g.translate(craftPoint.x, craftPoint.y);
+      g.rotate(playerAngle + roll - Math.PI / 2);
+      g.scale(Math.min(1, w / 900), Math.min(1, w / 900));
+      const flare = 0.65 + (Math.sin(now * 0.032) + 1) * 0.18;
+      g.fillStyle = "rgba(63,213,255," + flare * 0.42 + ")";
+      g.beginPath();
+      g.moveTo(-5, 14); g.lineTo(0, 35 + flare * 10); g.lineTo(5, 14); g.closePath(); g.fill();
+      g.fillStyle = "#1b3e56"; g.strokeStyle = "#c2f0fb"; g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(0, -23); g.lineTo(13, -7); g.lineTo(25, 12); g.lineTo(8, 8);
+      g.lineTo(0, 16); g.lineTo(-8, 8); g.lineTo(-25, 12); g.lineTo(-13, -7);
+      g.closePath(); g.fill(); g.stroke();
+      g.fillStyle = "#8eeaf4";
+      g.beginPath(); g.moveTo(0, -16); g.lineTo(5, 2); g.lineTo(0, 7); g.lineTo(-5, 2); g.closePath(); g.fill();
+      g.fillStyle = "#ffce91"; g.fillRect(-17, 8, 5, 3); g.fillRect(12, 8, 5, 3);
+      g.restore();
+
+      const progress = Math.min(1, t / WARP_DURATION);
+      g.fillStyle = "rgba(255,255,255,.15)"; g.fillRect(w * 0.18, h - 17, w * 0.64, 3);
+      g.fillStyle = "#56f0d0"; g.fillRect(w * 0.18, h - 17, w * 0.64 * progress, 3);
+      if (state.shields < 100) {
+        g.fillStyle = "rgba(255,77,66," + ((100 - state.shields) / 100 * 0.10) + ")";
+        g.fillRect(0, 0, w, h);
+      }
     }
 
     function drawBackdrop(now) {
@@ -1228,34 +1398,90 @@
       else state.animationRunning = false;
     }
 
-    function updateTube(dt,now){
-      state.elapsed=Math.max(0,(now-state.startedAt)/1000);
+    function updateTube(dt, now) {
+      state.elapsed = Math.max(0, (now - state.startedAt) / 1000);
       const speedBySection = [0.76, 1.24, 0.84, 1.34, 0.68, 1.14];
-      state.tubeTravel += dt * tubeSectionBlend(speedBySection, state.elapsed).value;
+      const rollRates = [0.42, 0.82, 0.55, 1.12, 0.31, 0.72];
+      const boosted = state.elapsed < Number(state.tubeBoostUntil || 0);
+      const speed = tubeSectionBlend(speedBySection, state.elapsed).value * (boosted ? 1.34 : 1);
+      state.tubeTravel += dt * speed;
+      state.tubeRoll = Number(state.tubeRoll || 0) + dt * tubeSectionBlend(rollRates, state.elapsed).value;
       const routeProgress = Math.min(1, state.elapsed / WARP_DURATION);
-      let px=0,py=0;
-      try{const pads=navigator.getGamepads?navigator.getGamepads():[],gp=pads&&[...pads].find(p=>p&&p.connected);
-        if(gp){const a=gp.axes||[],b=n=>!!(gp.buttons&&gp.buttons[n]&&gp.buttons[n].pressed);
-          px=Math.abs(a[0]||0)>.18?a[0]:0;py=Math.abs(a[1]||0)>.18?a[1]:0;px+=(b(15)?1:0)-(b(14)?1:0);py+=(b(13)?1:0)-(b(12)?1:0);}}catch(e){}
-      const steer=Math.max(-1,Math.min(1,((state.keys.ArrowRight||state.keys.KeyD||state.touch.right?1:0)-(state.keys.ArrowLeft||state.keys.KeyA||state.touch.left?1:0))+px));
-      const lift=Math.max(-1,Math.min(1,((state.keys.ArrowDown||state.keys.KeyS||state.touch.down?1:0)-(state.keys.ArrowUp||state.keys.KeyW||state.touch.up?1:0))+py));
-      state.playerX=Math.max(-.90,Math.min(.90,state.playerX+steer*dt*2.15));
-      state.playerY=Math.max(-.72,Math.min(.72,state.playerY+lift*dt*1.55));
-      state.layers.forEach(layer=>{
+
+      let padX = 0, padY = 0;
+      try {
+        const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+        const gp = pads && [...pads].find((p) => p && p.connected);
+        if (gp) {
+          const axes = gp.axes || [];
+          const button = (n) => !!(gp.buttons && gp.buttons[n] && gp.buttons[n].pressed);
+          padX = Math.abs(axes[0] || 0) > 0.18 ? axes[0] : 0;
+          padY = Math.abs(axes[1] || 0) > 0.18 ? axes[1] : 0;
+          padX += (button(15) ? 1 : 0) - (button(14) ? 1 : 0);
+          padY += (button(13) ? 1 : 0) - (button(12) ? 1 : 0);
+        }
+      } catch (e) {}
+
+      const steer = Math.max(-1, Math.min(1,
+        ((state.keys.ArrowRight || state.keys.KeyD || state.touch.right ? 1 : 0) -
+         (state.keys.ArrowLeft || state.keys.KeyA || state.touch.left ? 1 : 0)) + padX));
+      const lift = Math.max(-1, Math.min(1,
+        ((state.keys.ArrowDown || state.keys.KeyS || state.touch.down ? 1 : 0) -
+         (state.keys.ArrowUp || state.keys.KeyW || state.touch.up ? 1 : 0)) + padY));
+
+      // Move on the cross-section then constrain to the circular wall.
+      let nextX = state.playerX + steer * dt * 1.52;
+      let nextY = state.playerY + lift * dt * 1.52;
+      let radial = Math.hypot(nextX, nextY);
+      if (radial < 0.08) {
+        nextX = state.playerX;
+        nextY = state.playerY;
+        radial = Math.max(0.08, Math.hypot(nextX, nextY));
+      }
+      state.playerX = nextX / radial * 0.78;
+      state.playerY = nextY / radial * 0.78;
+      const playerAngle = Math.atan2(state.playerY, state.playerX);
+
+      state.layers.forEach((layer) => {
         const distance = layer.progress - routeProgress;
-        if (!layer.resolved && distance <= 0) {
-          layer.resolved = true;
-          const hit=layer.blockers.some(b=>Math.abs(state.playerX-b.x*.65)<.22&&Math.abs(state.playerY-b.y*.48)<.22);
-          if(hit){
-            state.shields=Math.max(0,state.shields-25);
-            tubeShield.style.width=state.shields+"%";
-            tubeMeta.textContent="SHIELDS "+state.shields+"% · SEEK THE OPEN GATE";
-            if(state.shields<=0){finishTube(false);return;}
+        if (layer.resolved || distance > 0 || distance < -0.03) return;
+        layer.resolved = true;
+        let hit = false;
+
+        if (layer.type === "gate") {
+          hit = Math.abs(angleDifference(playerAngle, layer.safeAngle)) > layer.gapHalf;
+        } else if (layer.type === "sweeper") {
+          const sweep = layer.sweepAngle + state.elapsed * layer.sweepSpeed;
+          const first = Math.abs(angleDifference(playerAngle, sweep));
+          const opposite = Math.abs(angleDifference(playerAngle, sweep + Math.PI));
+          hit = Math.min(first, opposite) < layer.obstacleWidth;
+        } else if (layer.type === "spikes") {
+          hit = layer.blockedAngles.some((angle) =>
+            Math.abs(angleDifference(playerAngle, angle)) < layer.obstacleWidth
+          );
+        } else if (layer.type === "boost") {
+          if (Math.abs(angleDifference(playerAngle, layer.safeAngle)) < 0.72) {
+            state.tubeBoostUntil = state.elapsed + 3.5;
+            state.shields = Math.min(100, state.shields + 8);
+          }
+        }
+
+        if (hit) {
+          state.shields = Math.max(0, state.shields - 25);
+          tubeShield.style.width = state.shields + "%";
+          tubeMeta.textContent = "SHIELDS " + state.shields + "% · FOLLOW THE OPEN ARC";
+          if (state.shields <= 0) {
+            finishTube(false);
+            return;
           }
         }
       });
-      if(state.elapsed>=WARP_DURATION)finishTube(state.shields>0);
-      tubeMeta.textContent="SECTOR "+sectorText(state.target)+" · "+Math.max(0,WARP_DURATION-state.elapsed).toFixed(1)+" s";tubeShield.style.width=state.shields+"%";
+
+      if (state.elapsed >= WARP_DURATION) finishTube(state.shields > 0);
+      tubeMeta.textContent = "SECTOR " + sectorText(state.target) + " · " +
+        Math.max(0, WARP_DURATION - state.elapsed).toFixed(1) + " s · " +
+        Math.round(playerAngle * 180 / Math.PI) + "° WALL ALIGN";
+      tubeShield.style.width = state.shields + "%";
     }
 
     window.BCMDeepSpaceWarpToggle = function () {
@@ -1278,8 +1504,11 @@
         const rect = backdrop.getBoundingClientRect();
         const dx = event.clientX - state.pointerX;
         const dy = event.clientY - state.pointerY;
-        state.playerX = Math.max(-0.9, Math.min(0.9, state.playerX + dx / Math.max(1, rect.width) * 2));
-        state.playerY = Math.max(-0.72, Math.min(0.72, state.playerY + dy / Math.max(1, rect.height) * 1.5));
+        let nextX = state.playerX + dx / Math.max(1, rect.width) * 1.7;
+        let nextY = state.playerY + dy / Math.max(1, rect.height) * 1.7;
+        const radial = Math.max(0.08, Math.hypot(nextX, nextY));
+        state.playerX = nextX / radial * 0.78;
+        state.playerY = nextY / radial * 0.78;
         state.pointerX = event.clientX;
         state.pointerY = event.clientY;
       });
