@@ -109,8 +109,10 @@ test("ONICSS keeps the scene until Tower API is ready and tower.mp4 is playing",
   assert.match(tower,/transitionVideo\.onplaying = \(\) => \{[\s\S]*?playTowerAudio\(\)[\s\S]*?resolveLandingFirstFrame\(true\)/);
   assert.match(tower,/canvas\.style\.visibility = "hidden"/);
   assert.match(tower,/landingFirstFrameCallback = typeof onFirstFrame === "function"/);
-  const tail=tower.slice(tower.lastIndexOf("resize();"));
-  assert.doesNotMatch(tail,/primeTransitionVideo\(\);/);
+  const boot=tower.slice(tower.indexOf("// The landing clip is deliberately not fetched on page boot"));
+  assert.match(boot,/if \(!root\.classList\.contains\("bcm-tower-embedded"\)\) showMenu\(\)/);
+  assert.doesNotMatch(boot,/primeTransitionVideo\(\);/);
+  assert.doesNotMatch(boot,/status\.textContent = "TOWER STANDBY";\s*showMenu\(\)/);
 });
 test("Vertical movement uses the ship's current local up axis and gamepad turning is faster",async()=>{
   const s=await read("mini-sim/assets/js/mini-sim.js");
