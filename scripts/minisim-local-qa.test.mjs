@@ -13,17 +13,29 @@ test("Warp OST belongs to the whole Warp stage and loops",async()=>{
   assert.doesNotMatch(tube,/startWarpAudio/);
   assert.match(s,/function enterAsteroidMaze\(\) \{\s*\/\/ Warp OST owns the whole Warp stage/);
 });
-test("Tube has a stable forward road, varied sections, open gates and controller steering",async()=>{
+test("Warp uses a rolling circular wall and angular obstacle course",async()=>{
   const s=await read("mini-sim/assets/js/deep-space-warp.js");
-  assert.match(s,/const roadY=d=>/);
-  assert.match(s,/Continuous floor panels and centre dashes/);
-  assert.doesNotMatch(s,/g\.rotate\(roll\)|const roll\s*=/);
-  assert.match(s,/tubeSectionBlend\(speedBySection, state\.elapsed\)\.value/);
-  assert.match(s,/const bank=Math\.max\(-\.24,Math\.min\(\.24,-state\.playerX\*\.20\)\)/);
-  assert.match(s,/const speedBySection = \[0\.76, 1\.24, 0\.84, 1\.34, 0\.68, 1\.14\]/);
-  assert.match(s,/const gateCount = 14/);
-  assert.match(s,/rng\(\) < 0\.38/);
-  assert.match(s,/navigator\.getGamepads\?navigator\.getGamepads\(\):\[\]/);
+  const body=s.slice(s.indexOf("function drawTubeTunnel"),s.indexOf("function drawBackdrop"));
+  const update=s.slice(s.indexOf("function updateTube(dt, now)"),s.indexOf("window.BCMDeepSpaceWarpToggle"));
+  assert.match(s,/const WARP_DURATION = 48/);
+  assert.match(body,/const roll = Number\(state\.tubeRoll \|\| 0\)/);
+  assert.match(body,/const radiusX = \(d\) =>/);
+  assert.match(body,/const radiusY = \(d\) => radiusX\(d\) \* 0\.91/);
+  assert.match(body,/const twistAt = \(d\) =>/);
+  assert.match(body,/for \(let panel = 0; panel < panelCount; panel \+= 1\)/);
+  assert.match(body,/Longitudinal seams spiral around the whole wall/);
+  assert.match(body,/layer\.type === "gate"/);
+  assert.match(body,/layer\.type === "sweeper"/);
+  assert.match(body,/layer\.type === "spikes"/);
+  assert.match(body,/layer\.type === "boost"/);
+  assert.match(body,/layer\.type === "launcher"/);
+  assert.match(body,/g\.rotate\(playerAngle \+ craftRoll - Math\.PI \/ 2\)/);
+  assert.match(update,/state\.tubeRoll = Number\(state\.tubeRoll \|\| 0\) \+ dt \* tubeSectionBlend\(rollRates/);
+  assert.match(update,/angleDifference\(playerAngle, layer\.safeAngle\)/);
+  assert.match(update,/layer\.blockedAngles\.some/);
+  assert.match(update,/layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
+  assert.match(update,/state\.playerX = nextX \/ radial \* 0\.78/);
+  assert.doesNotMatch(body,/const roadY=d=>|const half=d=>|Continuous floor panels and centre dashes/);
 });
 test("Room 1 Home clears Room 0 constraints and restores Starbase OST",async()=>{
   const s=await read("mini-sim/assets/js/mini-sim.js");
