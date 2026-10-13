@@ -585,9 +585,70 @@
       if (success) {
         tubeResult.hidden = true;
         window.setTimeout(() => {
-          if (state.mode === "result") enterAsteroidMaze();
+          if (state.mode !== "result") return;
+          if (isOniCssDestination(state.target)) {
+            returnToOniCss();
+          } else {
+            enterAsteroidMaze();
+          }
         }, 420);
       }
+    }
+
+    function isOniCssDestination(sector) {
+      return !!sector && Number(sector.x) === -40 && Number(sector.y) === 30;
+    }
+
+    function returnToOniCss() {
+      const engine = api();
+      const previous = state.nav || readNavigation();
+      const adapter = previous && previous.adapter;
+      let homeRecord = null;
+
+      if (adapter && Array.isArray(adapter.sectors)) {
+        homeRecord = adapter.sectors.find((item) => {
+          const candidate = normalizeSector(item, 0);
+          return candidate && candidate.x === -40 && candidate.y === 30;
+        }) || null;
+      }
+      if (!homeRecord && state.target && state.target.raw && typeof state.target.raw === "object") {
+        const candidate = normalizeSector(state.target.raw, 0);
+        if (candidate && candidate.x === -40 && candidate.y === 30) homeRecord = state.target.raw;
+      }
+
+      if (homeRecord) {
+        state.nav = navigationAfterArrival(homeRecord);
+        if (state.nav && state.nav.current) {
+          state.nav.current.name = "ONI CSS · NEUNO";
+          state.nav.current.x = -40;
+          state.nav.current.y = 30;
+        }
+      } else {
+        const home = { id: "oni-css-neuno--40-30", name: "ONI CSS · NEUNO", x: -40, y: 30, raw: null };
+        state.nav = {
+          current: home,
+          targets: [[-1, 0], [1, 0], [0, -1], [0, 1]].map(([dx, dy]) => {
+            const x = home.x + dx;
+            const y = home.y + dy;
+            return { id: "local-test-" + x + "-" + y, name: "TEST NEIGHBOR [" + x + ", " + y + "]", x, y, raw: null };
+          }),
+          live: false,
+          localPreview: true,
+          adapter: null,
+          label: "LOCAL TEST · RETURNED TO ONI CSS / NEUNO · X -40, Y 30",
+          coordsKnown: true
+        };
+      }
+      state.sectorProgressed = true;
+
+      // A destination of ONI CSS is the end of this local Warp trip. Do not
+      // launch another asteroid maze; restore the Mini-Sim home pose instead.
+      closeOverlay(false);
+      if (engine && typeof engine.teleport === "function") {
+        engine.teleport({ x: 0, y: 0, z: 2, yaw: 0 }, null);
+      }
+      const status = root.querySelector(".bcm-mini-sim-status");
+      if (status) status.textContent = "ARRIVED · ONI CSS / NEUNO · LOCAL SIMULATION";
     }
 
     function makeMazeTexture(THREE) {
