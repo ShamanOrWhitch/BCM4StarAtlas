@@ -790,7 +790,10 @@
   function textureRequestPriority(name) {
     const base = String(name || "").split(/[\\/]/).pop().toLowerCase();
     if (/^back.*\.png$/.test(base)) return 9;
-    if (/^(wall[1-5]|roof[0-9]*|roofa[0-9]*|door[0-9]*|portal[0-9]*)\.png$/.test(base)) return 1;
+    // Main Room 1 walls/roof and portal/door faces are critical; corner
+    // ornaments are deferred until their queue starts after the portal request.
+    if (/^(wall[1-5]|roof[0-9]*|door[0-9]*|portal[0-9]*)\.png$/.test(base)) return 1;
+    if (/^roofa[0-9]*\.png$/.test(base)) return 4;
     return 3;
   }
 
@@ -1299,19 +1302,22 @@
   }
 
   function addRoofCorners(parent, z, width, height, variants) {
-    const corner = textured(
+    // Corner trims are decorative rather than route-critical surfaces, so let
+    // the priority queue fetch them after the OST, nearby walls, right video,
+    // and the real portal transition request have already been issued.
+    const corner = deferredTextured(
       seededVariant(variants || ["roofa.png", "roofa1.png", "roofa2.png"], z * 17 + width, "roofa.png"),
       0x8a9098
     );
-    const corner2 = textured(
+    const corner2 = deferredTextured(
       seededVariant(["roofa.png", "roofa1.png", "roofa2.png"], z * 31 + height, "roofa1.png"),
       0x8a9098
     );
     const s = 1.6;
     plane(parent, -width / 2 + 0.8, height / 2 - 0.05, z, s, s, Math.PI / 2, 0, 0, corner);
     plane(parent, width / 2 - 0.8, height / 2 - 0.05, z, s, s, Math.PI / 2, 0, Math.PI / 2, corner2);
-    plane(parent, -width / 2 + 0.8, height / 2 - 0.05, z - 8, s, s, Math.PI / 2, 0, -Math.PI / 2, textured("roofa2.png", 0x8a9098));
-    plane(parent, width / 2 - 0.8, height / 2 - 0.05, z + 8, s, s, Math.PI / 2, 0, Math.PI, textured("roofa.png", 0x8a9098));
+    plane(parent, -width / 2 + 0.8, height / 2 - 0.05, z - 8, s, s, Math.PI / 2, 0, -Math.PI / 2, deferredTextured("roofa2.png", 0x8a9098));
+    plane(parent, width / 2 - 0.8, height / 2 - 0.05, z + 8, s, s, Math.PI / 2, 0, Math.PI, deferredTextured("roofa.png", 0x8a9098));
   }
 
   function buildShipVisual() {
