@@ -2,9 +2,11 @@
 
 > **Назначение:** короткая передача контекста между ChatGPT, Codex, Copilot, Grok и другими агентами. Сначала читай этот документ, потом только необходимые части исходников.
 >
-> **Текущий активный этап: P1 — сверка OST/Home.** Код микшера не переписывался. Удалённый браузерный прогон до этого исправления падал раньше игровых проверок.
+> **Текущий активный этап: P1 — расширить удалённый Browser QA тестом Room0 → B → начало Room1 и глобального mute.** Общий микшер не переписывать, пока именно этот сценарий не даёт воспроизводимый сбой.
 
-Last reconciled code SHA: d42818adec98adc77d8a4e471f8e57984fcbe494
+Last reconciled repository HEAD: b9d031295f7baeac387b71cbaa9e74984c66a410  
+Last code/runner SHA covered by successful Actions: d42818adec98adc77d8a4e471f8e57984fcbe494  
+Последний коммит b9d0312 обновлял документацию, код после d42818a в main не менялся.
 
 Обновляй этот файл в конце каждой рабочей сессии. Он описывает актуальные требования и состояние, а не историю всех старых решений.
 
@@ -13,7 +15,7 @@ Last reconciled code SHA: d42818adec98adc77d8a4e471f8e57984fcbe494
 - WordPress-плагин использует шорткод `[bcm_mini_sim]`; симулятор работает на уже встроенном Three.js r128. Не добавлять второй WebGL-контекст и не загружать Three.js с CDN.
 - Текущие версии в main: Mini-Sim 0.9.83 и Tower 0.2.54. На https://walkingyog.com/bcm4sa/ страница всё ещё запрашивает Mini-Sim `?ver=0.9.82` и Tower `?ver=0.2.53`. Autoptimize отдаёт `deep-space-warp.js`, `crew-wallet.js`, `mini-sim.css` и `tower.css` из `/wp-content/cache/autoptimize/`, а не из каталога плагина. `mini-sim.js` и `tower.js` остаются прямыми URL плагина.
 - Source-contract tests: `node --test scripts/minisim-local-qa.test.mjs`. На 7489982 GitHub Actions «Mini-Sim regression checks» (run 38368355012) был красным: 8 pass, 1 fail. Падал контракт Home из-за слишком широкого `doesNotMatch(/stopMiniSimAudio\(\);[\s\S]*?setStatus/)`, хотя `returnToStart()` после `stopMiniSimAudio()` вызывает `startMusic()`. Этот контракт приведён к фактической последовательности; код аудио не менялся. Зелёный прогон 3196d8d был до появления этого утверждения в f1b1064.
-- Удалённый browser QA `.github/workflows/minisim-browser-qa.yml` запускался трижды, все failure. Последний: run [38366114002](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38366114002) на SHA `7ae46c4`, job `browser-smoke`, артефакт `minisim-browser-qa-7ae46c4…` (id 11796367897, не просрочен на момент сверки 2026-10-13). Прогон 2 (`e8cbd54`) тоже сохранил артефакт; прогон 1 (`ec70ed5`) — без артефакта. Причина падения: проверка «Warp JavaScript is served from this GitHub commit» до любых проверок OST. Runner смотрел только путь `/wp-content/plugins/mini-sim/`. Это не доказательство поломки микшера.
+- Исторически browser QA падал на трёх старых запусках из-за того, что Autoptimize выдаёт некоторые скрипты/стили через cache URL. Исправление runner по тегам HTML вошло в `d42818a`. Последний проверенный результат: на `dc8a08e` regression workflow [38369594418](https://github.com/ShamanOrWitch/BCM4StarAtlas/actions/runs/38369594418) и browser QA [38369594467](https://github.com/ShamanOrWitch/BCM4StarAtlas/actions/runs/38369594467) — оба success. Browser QA использовал подмену ассетов выбранного коммита в открытой WordPress-странице и покрыл текущий сценарий Warp map → Tube → cancel; это не доказывает поведение без подмены и не покрывает Room0 → B или кнопку mute.
 - Удалённый повтор после подмены handle: browser QA run [38369594467](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38369594467) на `dc8a08e` — success, видео выключены, артефакт `minisim-browser-qa-dc8a08e…` (id 11798337294). Regression run [38369594418](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38369594418) на том же SHA — success. Это снова подмена файлов коммита внутри открытой страницы, не деплой 0.9.83 и не сценарий Room0 → B.
 - Игровой Warp/Tube/астероидный лабиринт пока локальный аркадный прототип. Он не выполняет реальное перемещение флота в SAGE и не меняет блокчейн-состояние.
 
@@ -62,9 +64,9 @@ Last reconciled code SHA: d42818adec98adc77d8a4e471f8e57984fcbe494
 - mini-sim/DECISIONS.md хранит реализованные решения, доказательства, статусы и правила переоткрытия.
 - После любой существенной работы обновлять состояние и журнал, независимо от того, просил ли пользователь отдельную документацию.
 
-### P1 — Сверка OST и Home из Room0 на WordPress
+### P1 — Расширить удалённый Browser QA: Room0 → B → старт Room1 и mute
 
-**Статус: CODE-IMPLEMENTED; browser QA с подменой ассетов прошёл для Warp OST, не для Room0 → B. Непереписанный live-сайт без подмены остаётся на 0.9.82 / 0.2.53. Не переписывать микшер без нового воспроизведения.**
+**Статус: открытая проверка. Микшер/Home реализованы в коде, а базовые регрессионные и текущие browser smoke проверки на соответствующем SHA проходят. Но Room0 → B и mute ещё не входят в browser-сценарий; не переписывать микшер до добавления этих проверок и воспроизводимого отказа. Live WordPress без подмены всё ещё отдаёт старые cache versions 0.9.82 / 0.2.53.**
 
 Уже имеющиеся коммиты:
 - 3196d8d — единый OST-микшер и сброс Home в Room1. Regression workflow на этом SHA был success.
@@ -74,11 +76,11 @@ Last reconciled code SHA: d42818adec98adc77d8a4e471f8e57984fcbe494
 - e0a9e21 — cache version Tower 0.2.54.
 - f1b1064 — source-contract tests; с этого SHA regression workflow красный из-за контракта Home, не из-за нового игрового патча.
 
-Что проверено в этой сессии, без изменения `returnToStart` / микшера:
-1. Сайт walkingyog.com/bcm4sa/ отдаёт Mini-Sim 0.9.82 и Tower 0.2.53. Warp JS и CSS Mini-Sim идут через Autoptimize.
-2. Три запуска minisim-browser-qa завершились failure до игровых шагов; артефакт последнего прогона доступен.
-3. Runner теперь сопоставляет id `bcm-deep-space-warp-js`, `bcm-mini-sim-css` и соседние handle с файлами checkout, даже если src — кэш Autoptimize.
-4. Повтор сценария runner (карта Warp → Tube → отмена) с этой подменой: PASS. Theme 404 `core.css` и 502 `admin-ajax.php` записаны и не валят Mini-Sim. Ошибка прелоадера темы `wy-preloader` тоже не относится к игре.
+Что уже проверено, без изменения `returnToStart` / микшера:
+1. Сайт walkingyog.com/bcm4sa/ отдавал Mini-Sim 0.9.82 и Tower 0.2.53 на момент проверки; Warp JS и некоторые CSS/JS идут через Autoptimize.
+2. Runner сопоставляет id `bcm-deep-space-warp-js`, `bcm-mini-sim-css` и соседние handle с файлами checkout даже при cache URL.
+3. GitHub Actions на `dc8a08e`: regression PASS и browser smoke PASS. Browser-сценарий с подменой: карта Warp → Tube → отмена; Warp OST непрерывен, после отмены возвращается обычный OST.
+4. Артефакт browser run: `minisim-browser-qa-dc8a08e35b5e457c4a18cf437cbe9661e58e56d6`, ID 11798337294, срок до 2026-10-20. Theme 404 `core.css`, 502 `admin-ajax.php` и ошибка прелоадера темы отделены от ошибок самого Mini-Sim.
 
 Ещё не проверено:
 - Room0 → gamepad B → старт Room1 и Starbase.
@@ -133,7 +135,7 @@ Last reconciled code SHA: d42818adec98adc77d8a4e471f8e57984fcbe494
 
 ### P5 — Низкотрафиковый цикл тестирования и производительность
 
-**Статус: workflow есть и уже запускался; до подмены Autoptimize-URL он не доходил до игровых проверок. Интерактивный ручной preview по-прежнему OPEN.**
+**Статус: удалённый GitHub Actions browser smoke работает для существующего сценария; интерактивный ручной preview и дополнительные игровые сценарии остаются OPEN. Пользователю не требуется скачивать репозиторий для этой автоматической проверки.**
 
 Цель пользователя — проверять небольшие новые JS/CSS из GitHub без скачивания и повторной загрузки всего крупного проекта при медленном соединении.
 
@@ -150,13 +152,13 @@ Last reconciled code SHA: d42818adec98adc77d8a4e471f8e57984fcbe494
 - Gamepad yaw / ship-local vertical: частично реализовано; ориентация относительно текущего коридора/прилипание всё ещё требует теста. Следующий этап после закрытия дыры Room0 → B в browser QA.
 - Tube 48s / roll / скорости по секциям: реализовано частично; визуальная вариативность, читаемость препятствий и безопасный выход не подтверждены.
 - Полная Galaxy/SAGE-карта: не реализована; текущая сетка — test preview.
-- Удалённый browser QA из GitHub Actions: на `dc8a08e` и regression, и browser smoke — success. Прогон подменяет ассеты, включая URL Autoptimize. Room0 → B и mute по-прежнему не в сценарии. Публичный сайт без подмены остаётся на 0.9.82 / 0.2.53.
+- Удалённый browser QA из GitHub Actions: на `dc8a08e` regression и browser smoke — success. Runner подменяет ассеты, включая URL Autoptimize. Следующая задача — добавить Room0 → B → начало Room1 и global mute, не меняя микшер до результата проверки. Публичный сайт без подмены на момент последней проверки оставался на 0.9.82 / 0.2.53.
 
 ## Известные ограничения и проверочный статус
 
 - Контрактные тесты Node на рабочей копии после выравнивания контракта Home: 9 pass.
 - Browser smoke с подменой: PASS для существующего сценария Warp map/Tube/cancel на https://walkingyog.com/bcm4sa/ . Не включает Room0 → B и mute.
-- Regression workflow на 7489982: failure. На `dc8a08e`: success (run 38369594418). Browser workflow: три старых failure; новый run 38369594467 success с артефактом.
+- Regression workflow на 7489982 исторически падал из-за завышенного source-contract теста. После корректировки runner/assertion на `dc8a08e`: regression success (run 38369594418), browser workflow success (run 38369594467), артефакт сохранён.
 - Не помечать Room0 → B или mute как VERIFIED-LIVE. Не считать PASS подмены доказательством, что посетитель без подмены получил 0.9.83.
 
 ## Шаблон передачи следующему агенту
