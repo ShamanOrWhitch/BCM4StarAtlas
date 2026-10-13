@@ -62,13 +62,41 @@ test("Warp gamepad horizontal directions use the corrected left/right mapping", 
   assert.match(body, /if \(right && !gamepadMenuNav\.previous\.right\) move\(isWarpMapMenu \? -1 : 1\)/);
 });
 
-test("Warp road stays fixed while the ship banks only in response to steering", () => {
+test("Warp Tube is a rolling circular cylinder with a curved / corkscrew route", () => {
   const body = section(warp, "function drawTubeTunnel", "function drawBackdrop");
-  assert.doesNotMatch(body, /g\.rotate\(roll\)|const roll\s*=/);
-  assert.match(body, /const bank=Math\.max\(-\.24,Math\.min\(\.24,-state\.playerX\*\.20\)\)/);
-  assert.match(body, /const sectionCurve = tubeSectionBlend\(curves, state\.elapsed\)\.value/);
-  assert.match(body, /Math\.sin\(d\*Math\.PI\*1\.55\+sectionPhase\)/);
-  assert.doesNotMatch(body, /g\.translate\(mid, h \* 0\.62\)/);
+  const update = section(warp, "function updateTube(dt, now)", "window.BCMDeepSpaceWarpToggle");
+  assert.match(warp, /const WARP_DURATION = 48/);
+  assert.match(body, /const roll = Number\(state\.tubeRoll \|\| 0\)/);
+  assert.match(body, /const twistAt = \(d\) => roll \+ d/);
+  assert.match(body, /const radiusX = \(d\) =>/);
+  assert.match(body, /const radiusY = \(d\) => radiusX\(d\) \* 0\.91/);
+  assert.match(body, /const point = \(d, theta, extra\)/);
+  assert.match(body, /for \(let panel = 0; panel < panelCount; panel \+= 1\)/);
+  assert.match(body, /Longitudinal seams spiral around the whole wall/);
+  assert.match(body, /layer\.type === "gate"/);
+  assert.match(body, /layer\.type === "sweeper"/);
+  assert.match(body, /layer\.type === "spikes"/);
+  assert.match(body, /layer\.type === "boost"/);
+  assert.match(body, /g\.rotate\(playerAngle \+ craftRoll - Math\.PI \/ 2\)/);
+  assert.match(update, /state\.tubeRoll = Number\(state\.tubeRoll \|\| 0\) \+ dt \* tubeSectionBlend\(rollRates/);
+  assert.match(update, /angleDifference\(playerAngle, layer\.safeAngle\)/);
+  assert.match(update, /layer\.blockedAngles\.some/);
+  assert.match(update, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
+  assert.match(update, /state\.playerX = nextX \/ radial \* 0\.78/);
+  assert.doesNotMatch(body, /const roadY=d=>|const half=d=>|Continuous floor panels and centre dashes/);
+});
+
+test("Every generated obstacle layer has a distinct type and a passable opening", () => {
+  const start = warp.indexOf("const gateCount = 15");
+  const end = warp.indexOf("tubeTitle.textContent", start);
+  assert.ok(start > 0 && end > start);
+  const body = warp.slice(start, end);
+  assert.match(body, /safeAngle/);
+  assert.match(body, /gapHalf: type === "gate" \? 0\.76 : 0\.86/);
+  assert.match(body, /type === "sweeper"/);
+  assert.match(body, /type === "spikes"/);
+  assert.match(body, /type === "boost"/);
+  assert.match(body, /progress = 0\.15 \+ \(i \/ Math\.max\(1, gateCount - 1\)\) \* 0\.72/);
 });
 
 test("reopening Warp retains the arrived local sector instead of resetting to the adapter launch sector", () => {
