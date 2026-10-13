@@ -30,7 +30,12 @@ test("Room 1 Home clears Room 0 constraints and restores Starbase OST",async()=>
   assert.match(home,/updateRoom0Labyrinth\(\)/);
   assert.match(home,/ship\.position\.set\(0, 0, 2\)/);
   assert.match(home,/startMusic\(\)/);
-  assert.doesNotMatch(home,/stopMiniSimAudio\(\);[\s\S]*?setStatus/);
+  assert.match(home,/setStatus\("ROOM 1 · HOME · ONI CSS"\)/);
+  const stopAt=home.indexOf("stopMiniSimAudio()");
+  const startAt=home.indexOf("startMusic()");
+  const statusAt=home.indexOf('setStatus("ROOM 1 · HOME · ONI CSS")');
+  assert.ok(startAt>=0&&statusAt>startAt,"Home restarts Starbase before the Room 1 status");
+  if(stopAt>=0)assert.ok(startAt>stopAt,"stopMiniSimAudio in Home must be followed by startMusic");
 });
 test("Note button shares one mute state across Starbase, Warp and Tower OSTs",async()=>{
   const mini=await read("mini-sim/assets/js/mini-sim.js");
@@ -75,6 +80,11 @@ test("Playwright runner overrides plugin files from local checkout",async()=>{
   assert.match(s,/import \{ mkdir, readFile, stat, writeFile \}/);
   assert.match(s,/createRequire/);
   assert.match(s,/wp-content\/plugins\/mini-sim/);
+  assert.match(s,/bcm-deep-space-warp-js/);
+  assert.match(s,/bcm-mini-sim-css/);
+  assert.match(s,/wordpressHandleMap/);
+  assert.match(s,/pluginHttpErrors/);
+  assert.match(s,/wy-preloader/);
   assert.match(s,/05-after-cancel\.png/);
   const qaPackage=JSON.parse(await read("tools/minisim-qa/package.json"));
   assert.ok(qaPackage.devDependencies.playwright);

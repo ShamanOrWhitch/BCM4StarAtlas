@@ -43,7 +43,7 @@
 
 ## D-002 — Единый микшер OST, mute и кнопка-нотка
 
-**Статус: IMPLEMENTED в коде; соответствующие source-contract tests присутствуют, но их запуск на текущем SHA не подтверждён; live/user confirmation после последних коммитов не записаны.**
+**Статус: IMPLEMENTED в коде. Source-contract на 7489982 был красным из-за слишком широкого утверждения и выровнен без изменения микшера. Browser QA с подменой ассетов подтвердил непрерывность Warp OST и возврат обычного OST после отмены Warp; mute-кнопка и Room0 → B этим прогоном не нажимались. Немодифицированный сайт всё ещё на 0.9.82 / 0.2.53.**
 
 Основной коммит:
 - [3196d8d — Fix shared OST control and Room 1 home reset](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/3196d8d9a07dc08fcf930973cecd7dc395c94ce2)
@@ -71,11 +71,13 @@ Regression tests in scripts/minisim-local-qa.test.mjs:
 - “Room 1 Home clears Room 0 constraints and restores Starbase OST”.
 - Warp tests assert Warp OST remains continuous across the Warp stage.
 
-**Do not blindly rewrite the mixer.** If the same overlap is reported again, first check whether WordPress is serving Mini-Sim 0.9.83 / Tower 0.2.54 and whether those files correspond to the current main commit. Then reproduce the exact sequence and inspect active audio elements.
+**Do not blindly rewrite the mixer.** `returnToStart()` still calls `stopMiniSimAudio()` and then `startMusic()`. The f1b1064 assertion forbade any `stopMiniSimAudio()` before `setStatus` and failed CI from that commit through `7489982` (run 38368355012: 8 pass / 1 fail). The assertion now requires `startMusic()` after that stop and before the Room 1 status. Audio handlers were not edited.
+
+On 2026-10-13 a local run of `scripts/minisim-local-qa.mjs` against https://walkingyog.com/bcm4sa/ with commit assets substituted for both plugin URLs and Autoptimize handles passed the existing Warp map → Tube → cancel checks, including a single Warp OST that continues into Tube and a non-Warp OST after cancel. That is not a Room0 B test and not proof that an unmodified visitor receives these files.
 
 ## D-003 — B / Home returns from Room0 to the start of Room1
 
-**Статус: IMPLEMENTED в коде; test assertion exists; live behavior on the current deployment not confirmed.**
+**Статус: IMPLEMENTED в коде; live Room0 → B на текущем деплое не подтверждён. Browser runner этот сценарий пока не выполняет.**
 
 Commit: [3196d8d — Fix shared OST control and Room 1 home reset](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/3196d8d9a07dc08fcf930973cecd7dc395c94ce2).
 
@@ -138,15 +140,16 @@ Task when this phase becomes active:
 
 ## D-008 — Browser testing without downloading/uploading the whole project repeatedly
 
-**Статус: IMPLEMENTED for remote automated browser QA; interactive manual preview remains OPEN. The first workflow run is not yet confirmed.**
+**Статус: workflow запускался и падал до игровых проверок; подмена Autoptimize-handle добавлена в runner. Локальный повтор существующего сценария с подменой — PASS. Интерактивное ручное управление по-прежнему OPEN. Немодифицированный production не обновлён.**
 
-The workflow .github/workflows/minisim-browser-qa.yml runs the existing runner inside GitHub Actions on relevant pushes/PRs or manually. It checks out the selected commit, opens the WordPress page and overrides plugin asset requests with files from that checkout. The user does not need a local repo or upload JS/CSS to WordPress for this automated smoke test. Screenshots and JSON diagnostics are uploaded as a seven-day artifact. The runner now asserts that the main JS, Warp JS and CSS really were overridden; if not, it must fail rather than test cached production code.
+Проверено 2026-10-13 по `main` `748998250d39ac9ed163b84caa1f7178da920d9a` и трём runs workflow `minisim-browser-qa.yml`:
+- run 38365777216, SHA `ec70ed5`, failure, артефактов нет;
+- run 38366096126, SHA `e8cbd54`, failure, артефакт есть;
+- run 38366114002, SHA `7ae46c4`, failure, артефакт `11796367897` доступен до 2026-10-20.
 
+Страница https://walkingyog.com/bcm4sa/ содержит `id="bcm-deep-space-warp-js"` со `src` вида `/wp-content/cache/autoptimize/autoptimize_single_….php?ver=0.9.82`. Тот же кэш у `bcm-mini-sim-css`, `bcm-tower-css`, `bcm-crew-wallet-js`. Поэтому старый runner не считал Warp JS файлом коммита и выходил до кликов. Runner теперь читает HTML и подменяет URL этих id файлами checkout. Видео по-прежнему блокируются в лёгком режиме; 404 темы `core.css` и 502 `admin-ajax.php` остаются в отчёте, но не валят Mini-Sim, если игровые checks прошли и файлы плагина не отдали HTTP-ошибку. Ошибка прелоадера темы `wy-preloader` (inline base64) тоже не относится к игре.
 
-
-Limitations: this is automated browser interaction, not an interactive window that the user can steer with a gamepad. The first GitHub Actions run is not yet verified, so the status remains IMPLEMENTED rather than TESTED-CODE or VERIFIED-LIVE. Videos are blocked by default to save time/bandwidth; manual dispatch can enable full-media mode.
-
-Do not recommend repeated ZIP uploads as the default cycle. Explore an isolated GitHub Actions browser run with artifacts or a protected per-commit preview before proposing any production site to fetch arbitrary JavaScript from raw GitHub.
+Это не разрешение подключать произвольный JS с raw GitHub на публичный сайт.
 
 ---
 
@@ -167,3 +170,7 @@ The most recent relevant game commits already present on main before these docum
 The latest scripts/minisim-local-qa.test.mjs contains source-contract checks for shared music, Home reset, 48-second rotating Tube, vertical input, Back reset, stable wall textures, controller navigation and the local browser runner. The presence of assertions is not proof that they passed on the current SHA, and neither is proof of live WordPress behavior. A CI status lookup for the recent commits returned no individual commit statuses; do not claim a green CI run for those SHAs unless a current Actions run can be verified.
 
 After this reconciliation, agents should append new commit SHAs and update each decision's status rather than relying on this baseline forever.
+
+### 2026-10-13 — P1 reconcile against Actions and the live page
+
+HEAD at the start of the session was `748998250d39ac9ed163b84caa1f7178da920d9a` (docs only after `7ae46c4`). No later commit changed OST, Home, or the runner. Regression workflow on that HEAD failed one Home source assertion; browser workflow had already failed three times before gameplay. The game mixer was left as implemented. The runner and the Home assertion were the only code/test edits. A local overridden browser pass is recorded in PROJECT_STATE; it is not unmodified-live verification and it does not cover Room0 → B.
