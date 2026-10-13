@@ -1,0 +1,30 @@
+name: Warp course and portal first-frame regression
+
+on:
+  push:
+    branches:
+      - fix/warp-course-and-portal-first-frame
+  pull_request:
+    branches:
+      - main
+    paths:
+      - mini-sim/assets/js/deep-space-warp.js
+      - mini-sim/tower/assets/js/tower.js
+      - scripts/warp-maze-return.test.mjs
+      - scripts/warp-portal-first-frame.test.mjs
+      - .github/workflows/warp-portal-first-frame.yml
+
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check Warp module syntax
+        run: node --check mini-sim/assets/js/deep-space-warp.js
+      - name: Check Tower module syntax
+        run: node --check mini-sim/tower/assets/js/tower.js
+      - name: Run Warp regression tests
+        run: node --test scripts/warp-maze-return.test.mjs scripts/warp-portal-first-frame.test.mjs

@@ -2508,9 +2508,32 @@
     }
 
     function transitionUrl() {
-      // Tower entry must use tower.mp4 itself. Do not silently replace it with
-      // another portal clip: the landing clip is part of the handoff contract.
+      // Tower entry uses tower.mp4 itself; this is deliberately not a fallback
+      // to one of the Mini-Sim portal clips.
       return CONFIG.transition || "";
+    }
+
+    function primeTransitionVideo() {
+      const url = transitionUrl();
+      if (!url || !transitionVideo) return false;
+      const absolute = (value) => {
+        try { return new URL(value, document.baseURI).href; } catch (e) { return String(value || ""); }
+      };
+      if (transitionVideo.getAttribute("src") && absolute(transitionVideo.getAttribute("src")) === absolute(url)) {
+        return transitionVideo.readyState >= 2;
+      }
+
+      transitionVideo.muted = true;
+      transitionVideo.defaultMuted = true;
+      transitionVideo.setAttribute("muted", "");
+      transitionVideo.setAttribute("playsinline", "");
+      transitionVideo.setAttribute("webkit-playsinline", "");
+      transitionVideo.playsInline = true;
+      transitionVideo.preload = "auto";
+      try { transitionVideo.fetchPriority = "high"; } catch (e) {}
+      transitionVideo.src = url;
+      transitionVideo.load();
+      return transitionVideo.readyState >= 2;
     }
 
     function triggerTransition() {
@@ -2518,25 +2541,23 @@
       const url = transitionUrl();
       if (!url) {
         status.textContent = "TOWER LANDING VIDEO MISSING · tower.mp4";
-        transition.hidden = false;
+        transition.hidden = true;
+        transition.style.backgroundImage = "";
         transitionVideo.style.opacity = "0";
         return false;
       }
 
       transitionStarted = true;
-      // tower.mp3 starts only when SINGLE/MULTI gameplay begins, not while
-      // the landing video is still playing.
-      transition.hidden = false;
+      // Never reveal the H1 pad or an opened transition while the media is
+      // buffering. The frame/transition begins only once a real decoded frame
+      // is ready; primeTransitionVideo normally makes this immediate.
+      window.clearTimeout(showEndLevelMarker.timer);
+      transition.hidden = true;
+      transition.style.backgroundImage = "";
+      transition.style.backgroundPosition = "";
+      transition.style.backgroundSize = "";
+      transition.style.backgroundRepeat = "no-repeat";
       transitionVideo.style.opacity = "0";
-      const markerUrl = helipadMarkerUrl();
-      if (markerUrl) {
-        transition.style.backgroundImage = 'url("' + markerUrl.replace(/"/g, '\\"') + '")';
-        transition.style.backgroundPosition = "center";
-        transition.style.backgroundSize = "contain";
-        transition.style.backgroundRepeat = "no-repeat";
-      } else {
-        transition.style.backgroundImage = "";
-      }
       transitionVideo.muted = true;
       transitionVideo.defaultMuted = true;
       transitionVideo.setAttribute("muted", "");
@@ -2548,15 +2569,18 @@
 
       let revealed = false;
       const revealFirstFrame = () => {
-        if (revealed || !transitionStarted) return;
+        if (revealed || !transitionStarted || transitionVideo.readyState < 2) return;
         revealed = true;
 
-        // loadeddata means the first decoded frame is available. Reveal the
-        // transition only now, exactly like the mini-sim portal cutscenes.
+        // The video was loaded off-screen. Reveal it only now, so the player
+        // never watches a blank/H1 placeholder while waiting for its first frame.
         try { transitionVideo.currentTime = 0; } catch (e) {}
+        transition.style.backgroundImage = "";
+        transition.hidden = false;
         transitionVideo.style.opacity = "1";
-        playTowerAudio();
 
+        // Tower OST starts with SINGLE/MULTI gameplay in startMode(), not under
+        // the landing clip.
         const playPromise = transitionVideo.play();
         if (playPromise && playPromise.catch) {
           playPromise.catch(() => {
@@ -2571,6 +2595,7 @@
       transitionVideo.onloadeddata = revealFirstFrame;
       transitionVideo.oncanplay = revealFirstFrame;
       transitionVideo.onplaying = () => {
+        if (!revealed) return;
         transition.hidden = false;
         transitionVideo.style.opacity = "1";
       };
@@ -2583,14 +2608,24 @@
         status.textContent = "TOWER LANDING VIDEO ERROR · tower.mp4";
       };
 
-      transitionVideo.src = url;
-      transitionVideo.load();
+      const absolute = (value) => {
+        try { return new URL(value, document.baseURI).href; } catch (e) { return String(value || ""); }
+      };
+      const currentSrc = transitionVideo.getAttribute("src");
+      if (!currentSrc || absolute(currentSrc) !== absolute(url)) {
+        transitionVideo.src = url;
+        transitionVideo.load();
+      }
 
-      // Muted autoplay should be allowed, but decoding/reveal is still gated
-      // by loadeddata so Tower never jumps ahead of the first frame.
-      const playPromise = transitionVideo.play();
-      if (playPromise && playPromise.catch) playPromise.catch(() => {});
-
+      // If the background preloader already decoded a frame, reveal immediately.
+      if (transitionVideo.readyState >= 2) {
+        revealFirstFrame();
+      } else {
+        // Start decoding while hidden; loadeddata opens the transition as soon as
+        // its first frame exists rather than showing H1 during the wait.
+        const preloadPromise = transitionVideo.play();
+        if (preloadPromise && preloadPromise.catch) preloadPromise.catch(() => {});
+      }
       return true;
     }
 
@@ -3057,6 +3092,10 @@
     resize();
     window.addEventListener("resize", resize);
     window.addEventListener("orientationchange", resize);
+
+    // Warm the landing clip while the Tower menu/scene initializes. The transition
+    // can then reveal its first frame immediately when the player enters Tower.
+    primeTransitionVideo();
 
     const autostart = root.dataset.bcmTowerAutostart !== "0";
     if (autostart) {

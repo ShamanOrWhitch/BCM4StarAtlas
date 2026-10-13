@@ -554,7 +554,8 @@
             blockers.push({ x: (lane % 3) - 1, y: Math.floor(lane / 3) - 1 });
           }
         }
-        const progress = 0.18 + (i / Math.max(1, gateCount - 1)) * 0.79 + (rng() - 0.5) * 0.012;
+        // Finish the final gate well before the route ends so it can pass the pilot.
+        const progress = 0.18 + (i / Math.max(1, gateCount - 1)) * 0.70 + (rng() - 0.5) * 0.012;
         state.layers.push({ progress, blockers, resolved: false });
       }
       tubeTitle.textContent = "WARP IN PROGRESS";
@@ -584,9 +585,70 @@
       if (success) {
         tubeResult.hidden = true;
         window.setTimeout(() => {
-          if (state.mode === "result") enterAsteroidMaze();
+          if (state.mode !== "result") return;
+          if (isOniCssDestination(state.target)) {
+            returnToOniCss();
+          } else {
+            enterAsteroidMaze();
+          }
         }, 420);
       }
+    }
+
+    function isOniCssDestination(sector) {
+      return !!sector && Number(sector.x) === -40 && Number(sector.y) === 30;
+    }
+
+    function returnToOniCss() {
+      const engine = api();
+      const previous = state.nav || readNavigation();
+      const adapter = previous && previous.adapter;
+      let homeRecord = null;
+
+      if (adapter && Array.isArray(adapter.sectors)) {
+        homeRecord = adapter.sectors.find((item) => {
+          const candidate = normalizeSector(item, 0);
+          return candidate && candidate.x === -40 && candidate.y === 30;
+        }) || null;
+      }
+      if (!homeRecord && state.target && state.target.raw && typeof state.target.raw === "object") {
+        const candidate = normalizeSector(state.target.raw, 0);
+        if (candidate && candidate.x === -40 && candidate.y === 30) homeRecord = state.target.raw;
+      }
+
+      if (homeRecord) {
+        state.nav = navigationAfterArrival(homeRecord);
+        if (state.nav && state.nav.current) {
+          state.nav.current.name = "ONI CSS · NEUNO";
+          state.nav.current.x = -40;
+          state.nav.current.y = 30;
+        }
+      } else {
+        const home = { id: "oni-css-neuno--40-30", name: "ONI CSS · NEUNO", x: -40, y: 30, raw: null };
+        state.nav = {
+          current: home,
+          targets: [[-1, 0], [1, 0], [0, -1], [0, 1]].map(([dx, dy]) => {
+            const x = home.x + dx;
+            const y = home.y + dy;
+            return { id: "local-test-" + x + "-" + y, name: "TEST NEIGHBOR [" + x + ", " + y + "]", x, y, raw: null };
+          }),
+          live: false,
+          localPreview: true,
+          adapter: null,
+          label: "LOCAL TEST · RETURNED TO ONI CSS / NEUNO · X -40, Y 30",
+          coordsKnown: true
+        };
+      }
+      state.sectorProgressed = true;
+
+      // A destination of ONI CSS is the end of this local Warp trip. Do not
+      // launch another asteroid maze; restore the Mini-Sim home pose instead.
+      closeOverlay(false);
+      if (engine && typeof engine.teleport === "function") {
+        engine.teleport({ x: 0, y: 0, z: 2, yaw: 0 }, null);
+      }
+      const status = root.querySelector(".bcm-mini-sim-status");
+      if (status) status.textContent = "ARRIVED · ONI CSS / NEUNO · LOCAL SIMULATION";
     }
 
     function makeMazeTexture(THREE) {
@@ -993,33 +1055,46 @@
       requestAnimationFrame(drawBackdrop);
     }
 
+    function tubeSectionBlend(values, elapsed) {
+      const count = values.length;
+      const sectionDuration = WARP_DURATION / count;
+      const position = Math.max(0, elapsed) / sectionDuration;
+      const integer = Math.floor(position);
+      const current = integer % count;
+      const next = (current + 1) % count;
+      const t = position - integer;
+      const eased = t * t * (3 - 2 * t);
+      return {
+        value: values[current] + (values[next] - values[current]) * eased,
+        phase: position * Math.PI * 2 / count
+      };
+    }
+
     function drawTubeTunnel(g, w, h, now) {
       const t = state.tubeTravel;
-      const section = Math.floor(state.elapsed / 8) % 6;
       const widths = [1.0, 0.72, 1.22, 0.88, 1.08, 0.78];
       const curves = [0.35, 1.05, -0.55, 1.35, 0.62, -0.9];
-      const roll = t * 0.67 + Math.sin(t * 0.23) * 0.46;
+      const lifts = [0, -0.09, 0, 0.11, 0, -0.04];
+      const sectionWidth = tubeSectionBlend(widths, state.elapsed).value;
+      const sectionCurve = tubeSectionBlend(curves, state.elapsed).value;
+      const sectionLift = tubeSectionBlend(lifts, state.elapsed).value;
+      const sectionPhase = tubeSectionBlend(widths, state.elapsed).phase;
       const horizon=h*.23,near=h*.93,mid=w*.5,steps=48,arches=12;
       const center=d=>mid+(
         Math.sin(t*.31+d*3.2)*.28+
         Math.sin(t*.19+d*6)*.10+
-        Math.sin(d*Math.PI*1.55+section*1.3)*curves[section]*.22
+        Math.sin(d*Math.PI*1.55+sectionPhase)*sectionCurve*.22
       )*w*d*.38;
       const roadY=d=>horizon+Math.pow(d,1.17)*(near-horizon)+
-        Math.sin(d*Math.PI)*(section===2?-h*.09:section===4?h*.11:0);
-      const half=d=>w*(.015+Math.pow(d,1.18)*.47)*widths[section]*
-        (1+Math.sin(d*12+section)*.075);
+        Math.sin(d*Math.PI)*h*sectionLift;
+      const half=d=>w*(.015+Math.pow(d,1.18)*.47)*sectionWidth*
+        (1+Math.sin(d*12+sectionPhase)*.075);
       const edge=(d,side,extra)=>({x:center(d)+side*half(d)*(1+(extra||0)),y:roadY(d)});
       const bg=g.createLinearGradient(0,horizon-h*.18,0,near);
       bg.addColorStop(0,"#050b12");bg.addColorStop(.42,"#142b38");bg.addColorStop(1,"#08131b");
       g.fillStyle=bg;g.fillRect(0,0,w,h);
-      // Roll the tunnel environment around its forward axis. Keep the ship
-      // sprite outside this transform so steering remains easy to read.
-      g.save();
-      g.translate(mid, h * 0.62);
-      g.rotate(roll);
-      g.translate(-mid, -h * 0.62);
-      // Curved side walls frame a clear forward road, not a rotating scanner.
+      // The road stays in a stable screen frame. The course itself bends and
+      // changes width smoothly; only the craft banks in response to steering.
       [-1,1].forEach(side=>{
         g.beginPath();for(let i=0;i<=steps;i++){const p=edge(i/steps,side,.5);if(!i)g.moveTo(p.x,p.y);else g.lineTo(p.x,p.y);}
         for(let i=steps;i>=0;i--){const p=edge(i/steps,side,0);g.lineTo(p.x,p.y);}
@@ -1038,16 +1113,18 @@
         g.strokeStyle=side<0?"rgba(91,219,232,.95)":"rgba(255,177,112,.9)";g.lineWidth=1.3;g.stroke();});
       [-1,1].forEach(lane=>{g.beginPath();for(let i=0;i<=steps;i++){const d=i/steps,x=center(d)+lane*half(d)*.34;if(!i)g.moveTo(x,roadY(d));else g.lineTo(x,roadY(d));}
         g.strokeStyle="rgba(143,186,197,.34)";g.lineWidth=.8;g.stroke();});
-      // Fixed overhead arches define the curved tube without spinning louvres.
+      // Overhead arches move down the course without rotating the road.
       for(let i=0;i<arches;i++){const d=(i/arches+t*.20)%1;if(d<.025)continue;
         g.beginPath();g.ellipse(center(d),roadY(d),half(d)*1.12,h*(.018+Math.pow(d,1.13)*.26)*1.5,0,Math.PI,Math.PI*2);
         g.strokeStyle="rgba(97,167,188,"+(.22+d*.56)+")";g.lineWidth=1+d*2;g.stroke();}
-      // Barrier gates leave visible passages that match the obstacle lanes.
+      // Gates remain visible through the collision plane and pass below the
+      // player before being removed. Resolving a hit no longer hides the gate early.
       const routeProgress = Math.min(1, state.elapsed / WARP_DURATION);
       state.layers.forEach(layer=>{
         const distance = layer.progress - routeProgress;
-        if (layer.resolved || distance < 0 || distance > 0.23) return;
-        const d=1-distance/0.23,cx=center(d),cy=roadY(d)-h*(.018+Math.pow(d,1.13)*.26)*.4;
+        if (distance < -0.16 || distance > 0.23) return;
+        const d=Math.max(0.02,Math.min(1.55,1-distance/0.23));
+        const cx=center(d),cy=roadY(d)-h*(.018+Math.pow(d,1.13)*.26)*.4;
         const cw=half(d)*.58,ch=Math.max(4,h*(.018+Math.pow(d,1.13)*.26)*.45);
         layer.blockers.forEach(b=>{const bx=cx+b.x*half(d)*.6,by=cy-b.y*h*(.018+Math.pow(d,1.13)*.26)*.6,bw=cw*(.72+d*.13),bh=ch*(.74+d*.13),skew=Math.max(1,d*7);
           g.fillStyle="rgba(0,0,0,.42)";g.fillRect(bx-bw/2+skew,by-bh/2+skew,bw,bh);
@@ -1056,14 +1133,11 @@
           g.strokeStyle="rgba(255,220,173,.52)";g.lineWidth=Math.max(1,bw*.08);for(let s=-1;s<=1;s++){g.beginPath();g.moveTo(bx+s*bw*.28,by-bh*.42);g.lineTo(bx+s*bw*.28-skew,by+bh*.42);g.stroke();}
         });
       });
-      g.restore();
-      // Foreground craft stays over the road so the player can read steering.
-      const d=.94,rawX=center(d)+state.playerX*half(d)*.78,rawY=roadY(d)-h*.075+state.playerY*h*.095;
-      const pivotY=h*.62,cosRoll=Math.cos(roll),sinRoll=Math.sin(roll);
-      const px=mid+(rawX-mid)*cosRoll-(rawY-pivotY)*sinRoll;
-      const py=pivotY+(rawX-mid)*sinRoll+(rawY-pivotY)*cosRoll;
+      // Keep the craft upright on-screen apart from a small steering bank.
+      const d=.94,px=center(d)+state.playerX*half(d)*.78,py=roadY(d)-h*.075+state.playerY*h*.095;
+      const bank=Math.max(-.24,Math.min(.24,-state.playerX*.20));
       const scale=Math.min(1,w/900);
-      g.save();g.translate(px,py);g.rotate(roll+Math.max(-.32,Math.min(.32,state.playerX*.20)));g.scale(scale,scale);
+      g.save();g.translate(px,py);g.rotate(bank);g.scale(scale,scale);
       const flare=.6+(Math.sin(now*.032)+1)*.2;
       g.fillStyle="rgba(63,213,255,"+flare*.38+")";g.beginPath();g.moveTo(-5,14);g.lineTo(0,35+flare*10);g.lineTo(5,14);g.closePath();g.fill();
       g.fillStyle="#1b3e56";g.strokeStyle="#c2f0fb";g.lineWidth=2;g.beginPath();g.moveTo(0,-23);g.lineTo(13,-7);g.lineTo(25,12);g.lineTo(8,8);g.lineTo(0,16);g.lineTo(-8,8);g.lineTo(-25,12);g.lineTo(-13,-7);g.closePath();g.fill();g.stroke();
@@ -1157,7 +1231,7 @@
     function updateTube(dt,now){
       state.elapsed=Math.max(0,(now-state.startedAt)/1000);
       const speedBySection = [0.76, 1.24, 0.84, 1.34, 0.68, 1.14];
-      state.tubeTravel += dt * speedBySection[Math.floor(state.elapsed / 8) % 6];
+      state.tubeTravel += dt * tubeSectionBlend(speedBySection, state.elapsed).value;
       const routeProgress = Math.min(1, state.elapsed / WARP_DURATION);
       let px=0,py=0;
       try{const pads=navigator.getGamepads?navigator.getGamepads():[],gp=pads&&[...pads].find(p=>p&&p.connected);
@@ -1169,7 +1243,7 @@
       state.playerY=Math.max(-.72,Math.min(.72,state.playerY+lift*dt*1.55));
       state.layers.forEach(layer=>{
         const distance = layer.progress - routeProgress;
-        if (!layer.resolved && distance <= 0.035) {
+        if (!layer.resolved && distance <= 0) {
           layer.resolved = true;
           const hit=layer.blockers.some(b=>Math.abs(state.playerX-b.x*.65)<.22&&Math.abs(state.playerY-b.y*.48)<.22);
           if(hit){
