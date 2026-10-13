@@ -11,7 +11,7 @@ catch(e) { console.error("Playwright is not installed in tools/minisim-qa. Run: 
 const arg=k=>{const i=argv.indexOf(k);return i>=0?argv[i+1]:"";};
 const url=arg("--url")||process.env.MINISIM_URL||"",full=argv.includes("--full-media"),headed=argv.includes("--headed");
 const out=resolve(root,".qa-artifacts");
-const report={targetUrl:url,mode:full?"full-media":"light-media",startedAt:new Date().toISOString(),overrides:[],blockedVideos:[],consoleErrors:[],pageErrors:[],failedRequests:[],checks:[],screenshots:[]};
+const report={targetUrl:url,mode:full?"full-media":"light-media",startedAt:new Date().toISOString(),overrides:[],pluginAssetRequests:[],blockedVideos:[],consoleErrors:[],pageErrors:[],failedRequests:[],checks:[],screenshots:[]};
 const check=(ok,message)=>{report.checks.push({ok:!!ok,message});if(!ok)throw Error(message);};
 const shot=async(page,name)=>{await page.screenshot({path:resolve(out,name),fullPage:false});report.screenshots.push(".qa-artifacts/"+name);};
 const mime=p=>({".js":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".json":"application/json; charset=utf-8",".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".webp":"image/webp",".gif":"image/gif",".mp4":"video/mp4",".webm":"video/webm",".mp3":"audio/mpeg",".wav":"audio/wav",".m4a":"audio/mp4",".ogg":"audio/ogg"}[extname(p).toLowerCase()]||"application/octet-stream");
@@ -32,8 +32,9 @@ try{
    HTMLMediaElement.prototype.pause=function(){window.__BCM_QA_MEDIA.add(this);window.__BCM_QA_MEDIA_EVENTS.push({action:"pause",tag:this.tagName,src:this.currentSrc||this.src||"",at:performance.now()});return pause.apply(this,arguments);};
  });
  page=await context.newPage();
+ page.on("request",r=>{if(r.url().includes("/wp-content/plugins/mini-sim/"))report.pluginAssetRequests.push(r.url());});
  page.on("console",m=>{if(m.type()==="error")report.consoleErrors.push(m.text());});
- page.on("pageerror",e=>report.pageErrors.push(String(e)));
+ page.on("pageerror",e=>report.pageErrors.push(String(e&&e.stack?e.stack:e)));
  page.on("requestfailed",r=>{const e=r.failure()?.errorText||"";if(e.includes("ERR_ABORTED")||(!full&&isVideo(r.url())))return;report.failedRequests.push({url:r.url(),error:e});});
  await page.route("**/*",async route=>{
    const req=route.request().url();let path;
@@ -91,5 +92,5 @@ finally{
  try{await writeFile(resolve(out,"minisim-qa-report.json"),JSON.stringify(report,null,2)+"\n","utf8");}catch(e){}
  if(browser)await browser.close().catch(()=>{});
 }
-console.log(JSON.stringify({status:report.status,url:report.targetUrl,checks:report.checks,localOverrides:report.overrides.length,blockedVideoRequests:report.blockedVideos.length,consoleErrors:report.consoleErrors,pageErrors:report.pageErrors,failedRequests:report.failedRequests,screenshots:report.screenshots,report:".qa-artifacts/minisim-qa-report.json",error:report.error},null,2));
+console.log(JSON.stringify({status:report.status,url:report.targetUrl,checks:report.checks,localOverrides:report.overrides.length,overriddenFiles:[...new Set(report.overrides.map(item=>item.file))],pluginAssetRequests:report.pluginAssetRequests,blockedVideoRequests:report.blockedVideos.length,consoleErrors:report.consoleErrors,pageErrors:report.pageErrors,failedRequests:report.failedRequests,screenshots:report.screenshots,report:".qa-artifacts/minisim-qa-report.json",error:report.error},null,2));
 if(report.status!=="PASS")process.exitCode=1;
