@@ -140,7 +140,7 @@ Task when this phase becomes active:
 
 ## D-008 — Browser testing without downloading/uploading the whole project repeatedly
 
-**Статус: workflow запускался и падал до игровых проверок; подмена Autoptimize-handle добавлена в runner. Локальный повтор существующего сценария с подменой — PASS. Интерактивное ручное управление по-прежнему OPEN. Немодифицированный production не обновлён.**
+**Статус: browser workflow PASS на `dc8a08e` после исправления Autoptimize mapping. Покрыт только текущий Warp map → Tube → cancel сценарий. Room0 → B, mute и интерактивная ручная проверка остаются OPEN; непереписанный production не обновлён этим тестом.**
 
 Проверено 2026-10-13 по `main` `748998250d39ac9ed163b84caa1f7178da920d9a` и трём runs workflow `minisim-browser-qa.yml`:
 - run 38365777216, SHA `ec70ed5`, failure, артефактов нет;
@@ -174,3 +174,20 @@ After this reconciliation, agents should append new commit SHAs and update each 
 ### 2026-10-13 — P1 reconcile against Actions and the live page
 
 HEAD at the start of the session was `748998250d39ac9ed163b84caa1f7178da920d9a` (docs only after `7ae46c4`). No later commit changed OST, Home, or the runner. Regression workflow on that HEAD failed one Home source assertion; browser workflow had already failed three times before gameplay. The game mixer was left as implemented. The runner and the Home assertion landed in [d42818a](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/d42818adec98adc77d8a4e471f8e57984fcbe494). GitHub Actions on the following journal commit [dc8a08e](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/dc8a08e35b5e457c4a18cf437cbe9661e58e56d6), which contains that runner, both succeeded: regression run [38369594418](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38369594418) and browser QA run [38369594467](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38369594467). The browser job uploaded artifact `minisim-browser-qa-dc8a08e35b5e457c4a18cf437cbe9661e58e56d6` (id 11798337294, expires 2026-10-20). That remote pass uses asset substitution on the live page. It is not unmodified-live verification and it does not cover Room0 → B or the mute button.
+
+
+## D-009 — Постоянная координация нескольких агентов и лабораторий
+
+**Статус: описан в ветке `docs/shared-agent-coordination`; ожидает ревью/интеграции.**  
+Резервирующая задача: [Issue #15](https://github.com/ShamanOrWitch/BCM4StarAtlas/issues/15).
+
+Контекст: агенты могут работать параллельно в раздельных песочницах и не видеть чужие незакоммиченные изменения. Ссылка на чат или Markdown не является блокировкой. В `WORK_COORDINATION.md` описан общий протокол: сначала сверить HEAD, коммиты, Issues и PR; затем зарегистрировать `WORK LOCK` Issue с baseline SHA, branch, scope files, критериями и проверками; работать в отдельной ветке; публиковать контрольные коммиты; после существенной работы обновлять PROJECT_STATE и DECISIONS.
+
+Ограничение: GitHub Issues не являются атомарным mutex. Поэтому повторно проверяй пересечения перед первой записью и интеграцией. При конфликте не перезаписывай чужие файлы и не используй force-push; согласуй владельца/границы через Issue. Открытый PR — свидетельство незавершённой ветки, но его области надо определить по diff, а не по одному заголовку.
+
+Статусы должны различать IMPLEMENTED, TESTED-CODE, VERIFIED-LIVE и USER-CONFIRMED. Молчание пользователя не подтверждает исправность и не доказывает регрессию. Если факт live-поведения влияет на текущую задачу и его нельзя вывести из кода/тестов, задавай один узкий вопрос, иначе сохраняй статус и продолжай доступную проверку.
+
+Источники:
+- [WORK_COORDINATION.md](WORK_COORDINATION.md)
+- [AGENTS.md](AGENTS.md)
+- [PROJECT_STATE.md](PROJECT_STATE.md)
