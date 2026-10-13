@@ -43,7 +43,7 @@ test("new live sectors do not inherit the previous sector's connection list", ()
   assert.match(body, /raw\[key\]/);
   assert.match(body, /adapter\.getNeighbors/);
   assert.match(body, /const references = Array\.isArray\(list\) \? list : \[\]/);
-  assert.match(body, /do not reuse the previous sector's links/);
+  assert.match(body, /do not reuse the previous[\s\S]*?sector's links/);
   assert.match(body, /localPreview: true/);
   assert.match(body, /live: false/);
 });
@@ -53,4 +53,18 @@ test("Warp map identifies the current sector by data, not the fixed ONI CSS labe
   assert.match(body, /current\.name \|\| "CURRENT SECTOR"/);
   assert.match(body, /"CURRENT SECTOR"/);
   assert.doesNotMatch(body, /title\.textContent = isCurrent \? "ONI CSS"/);
+});
+
+test("Warp gamepad horizontal directions use the corrected left/right mapping", () => {
+  const body = section(sim, "function pollGamepadMenu()", "function focusGamepadMenuChoice");
+  assert.match(body, /const isWarpMapMenu = menu\\.classList\\.contains\\("bcm-warp-map-view"\\)/);
+  assert.match(body, /if \\(left && !gamepadMenuNav\\.previous\\.left\\) move\\(isWarpMapMenu \\? 1 : -1\\)/);
+  assert.match(body, /if \\(right && !gamepadMenuNav\\.previous\\.right\\) move\\(isWarpMapMenu \\? -1 : 1\\)/);
+});
+
+test("visual spacecraft rolls with the Warp tunnel instead of remaining upright", () => {
+  const body = section(warp, "function drawTubeTunnel", "function drawBackdrop");
+  assert.match(body, /const px=mid\\+\\(rawX-mid\\)\\*cosRoll/);
+  assert.match(body, /const py=pivotY\\+\\(rawX-mid\\)\\*sinRoll/);
+  assert.match(body, /g\\.rotate\\(roll\\+Math\\.max/);
 });
