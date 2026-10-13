@@ -51,6 +51,14 @@ try{
  const context=await browser.newContext({viewport:{width:1440,height:900},ignoreHTTPSErrors:true});
  await context.addInitScript(()=>{
    window.__BCM_QA_MEDIA=new Set();window.__BCM_QA_MEDIA_EVENTS=[];
+   window.__BCM_QA_CLICK_FLOW=[];
+   const traceQaClick=(phase,event)=>{
+     if(event.target?.closest?.(".bcm-mini-sim-music"))window.__BCM_QA_CLICK_FLOW.push({phase,tag:event.target.tagName,className:typeof event.target.className==="string"?event.target.className:"",trusted:event.isTrusted});
+   };
+   window.addEventListener("click",event=>traceQaClick("window-capture",event),true);
+   document.addEventListener("click",event=>traceQaClick("document-capture",event),true);
+   document.addEventListener("click",event=>traceQaClick("document-bubble",event),false);
+   window.addEventListener("click",event=>traceQaClick("window-bubble",event),false);
    // Deterministic synthetic standard gamepad: button index 1 is B/Home.
    // This exercises the real readPad edge handler without requiring a physical controller.
    window.__BCM_QA_GAMEPAD={id:"BCM QA synthetic gamepad",index:0,connected:true,timestamp:0,mapping:"standard",axes:[0,0,0,0],buttons:Array.from({length:17},()=>({pressed:false,touched:false,value:0}))};
@@ -102,10 +110,12 @@ try{
      for(let node=el;node&&ancestors.length<7;node=node.parentElement){
        ancestors.push({tag:node.tagName,id:node.id||"",className:typeof node.className==="string"?node.className:"",inert:!!node.inert,disabled:!!node.disabled});
      }
-     const beforeNative={isConnected:el.isConnected,tagName:el.tagName,disabled:!!el.disabled,disabledPseudo:el.matches(":disabled"),selfInert:!!el.inert,closestInert:!!el.closest("[inert]"),pointerEvents:getComputedStyle(el).pointerEvents,topTag:top?.tagName||"",topClass:typeof top?.className==="string"?top.className:"",ancestors};
+     const beforeNative={isConnected:el.isConnected,tagName:el.tagName,disabled:!!el.disabled,disabledPseudo:el.matches(":disabled"),selfInert:!!el.inert,closestInert:!!el.closest("[inert]"),pointerEvents:getComputedStyle(el).pointerEvents,clickMethod:String(el.click).slice(0,100),ownClick:Object.prototype.hasOwnProperty.call(el,"click"),topTag:top?.tagName||"",topClass:typeof top?.className==="string"?top.className:"",ancestors};
+     window.__BCM_QA_CLICK_FLOW=[];
      el.click();
+     const clickFlow=[...window.__BCM_QA_CLICK_FLOW];
      window.removeEventListener("bcm:game-music-mute",onMute);
-     return{clickEvents,muteEvents,beforeNative};
+     return{clickEvents,muteEvents,clickFlow,beforeNative};
    });
    const after=await note.evaluate(el=>({
      globalMuted:window.BCMGameAudio?.isMuted?.()??null,
