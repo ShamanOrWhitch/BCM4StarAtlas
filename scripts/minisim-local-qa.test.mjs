@@ -88,7 +88,9 @@ test("Playwright runner overrides plugin files from local checkout",async()=>{
   assert.match(s,/08-after-cancel\.png/);
   assert.match(s,/__BCM_QA_GAMEPAD/);
   assert.match(s,/Mini-Sim render loop does not report LOOP ERR/);
-  assert.match(s,/activation:"dom-click"/);
+  assert.match(s,/activation:"dom-click-traced"/);
+  assert.match(s,/muteEvents/);
+  assert.match(s,/clickEvents/);
   assert.match(s,/note\.evaluate\(el=>el\.click\(\)\)/);
   assert.match(s,/DOM click toggles global mute ON/);
   assert.match(s,/DOM click toggles global mute OFF/);
