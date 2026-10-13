@@ -43,7 +43,7 @@
 
 ## D-002 — Единый микшер OST, mute и кнопка-нотка
 
-**Статус: IMPLEMENTED в коде; TESTED-CODE по контрактным проверкам на source level; live/user confirmation после последних коммитов не записаны.**
+**Статус: IMPLEMENTED в коде; соответствующие source-contract tests присутствуют, но их запуск на текущем SHA не подтверждён; live/user confirmation после последних коммитов не записаны.**
 
 Основной коммит:
 - [3196d8d — Fix shared OST control and Room 1 home reset](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/3196d8d9a07dc08fcf930973cecd7dc395c94ce2)
@@ -160,6 +160,6 @@ The most recent relevant game commits already present on main before these docum
 - f6afd5728f25f0b49a8f28eba3a0061573c08300 — visual muted state for note button.
 - f1b1064a2f7fbec7551ddafe3e940f81a1addd75 — regression tests for music, Home and Tube.
 
-The latest scripts/minisim-local-qa.test.mjs contains source-contract checks for shared music, Home reset, 48-second rotating Tube, vertical input, Back reset, stable wall textures, controller navigation and the local browser runner. These are source checks, not proof of live WordPress behavior. A CI status lookup for the recent commits returned no individual commit statuses; do not claim a green CI run for those SHAs unless a current Actions run can be verified.
+The latest scripts/minisim-local-qa.test.mjs contains source-contract checks for shared music, Home reset, 48-second rotating Tube, vertical input, Back reset, stable wall textures, controller navigation and the local browser runner. The presence of assertions is not proof that they passed on the current SHA, and neither is proof of live WordPress behavior. A CI status lookup for the recent commits returned no individual commit statuses; do not claim a green CI run for those SHAs unless a current Actions run can be verified.
 
 After this reconciliation, agents should append new commit SHAs and update each decision's status rather than relying on this baseline forever.
