@@ -2776,31 +2776,34 @@
     return towerPreload.jsPromise;
   }
 
-  function ensureTowerVideoLoaded() {
-    const url = config.towerLandingUrl || config.towerFallbackUrl || "";
-    if (!url) return;
-
-    if (!towerPreload.landingVideo || towerPreload.landingVideo.src !== url) {
-      const video = document.createElement("video");
-      video.muted = true;
-      video.defaultMuted = true;
-      video.playsInline = true;
-      video.setAttribute("muted", "");
-      video.setAttribute("playsinline", "");
-      video.setAttribute("webkit-playsinline", "");
-      video.preload = "auto";
-      video.src = url;
-      video.load();
-      towerPreload.landingVideo = video;
-    }
-  }
-
   function preloadTowerApproach() {
     if (towerPreload.started) return;
     towerPreload.started = true;
     ensureTowerCssLoaded();
-    ensureTowerJsLoaded();
-    ensureTowerVideoLoaded();
+
+    // ONICSS is intentionally loaded only as the player approaches it, not
+    // while building Room 1. Reuse the actual video zone element.
+    const gate = getTowerGateZone();
+    if (gate && gate.el && !gate.loaded && gate.url) {
+      try {
+        gate.el.preload = "auto";
+        gate.el.fetchPriority = "auto";
+      } catch (e) {}
+      gate.el.src = gate.url;
+      gate.el.load();
+      gate.loaded = true;
+    }
+
+    const scriptReady = ensureTowerJsLoaded();
+    if (window.BCMTowerAPI && typeof window.BCMTowerAPI.preloadLanding === "function") {
+      window.BCMTowerAPI.preloadLanding();
+    } else {
+      Promise.resolve(scriptReady).then((ready) => {
+        if (ready && window.BCMTowerAPI && typeof window.BCMTowerAPI.preloadLanding === "function") {
+          window.BCMTowerAPI.preloadLanding();
+        }
+      });
+    }
     if (status) setStatus("DEEP SPACE · TOWER PRELOAD");
   }
 
