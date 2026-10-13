@@ -13,11 +13,11 @@ test("Warp OST belongs to the whole Warp stage and loops",async()=>{
   assert.doesNotMatch(tube,/startWarpAudio/);
   assert.match(s,/function enterAsteroidMaze\(\) \{\s*\/\/ Warp OST owns the whole Warp stage/);
 });
-test("Tube has forward road, rotation, varied sections, open gates and controller steering",async()=>{
+test("Tube has a stable forward road, varied sections, open gates and controller steering",async()=>{
   const s=await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(s,/const roadY=d=>/);
   assert.match(s,/Continuous floor panels and centre dashes/);
-  assert.match(s,/g\.rotate\(roll\)/);
+  assert.doesNotMatch(s,/g\.rotate\(roll\)|const roll\s*=/);\n  assert.match(s,/tubeSectionBlend\(speedBySection, state\.elapsed\)\.value/);\n  assert.match(s,/const bank=Math\.max\(-\.24,Math\.min\(\.24,-state\.playerX\*\.20\)\)/);
   assert.match(s,/const speedBySection = \[0\.76, 1\.24, 0\.84, 1\.34, 0\.68, 1\.14\]/);
   assert.match(s,/const gateCount = 14/);
   assert.match(s,/rng\(\) < 0\.38/);
