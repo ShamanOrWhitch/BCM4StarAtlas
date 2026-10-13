@@ -88,13 +88,11 @@ test("Playwright runner overrides plugin files from local checkout",async()=>{
   assert.match(s,/08-after-cancel\.png/);
   assert.match(s,/__BCM_QA_GAMEPAD/);
   assert.match(s,/Mini-Sim render loop does not report LOOP ERR/);
-  assert.match(s,/activation:"keyboard-Enter"/);
-  assert.match(s,/note\.focus\(\)/);
-  assert.match(s,/keyboard Enter toggles global mute ON/);
-  assert.match(s,/keyboard Enter toggles global mute OFF/);
-  assert.match(s,/music note toggles global mute ON/);
-  assert.match(s,/music note toggles global mute OFF/);
-  assert.match(s,/const clickMusicNote=async\(\)=>page\.locator/);
+  assert.match(s,/activation:"dom-click"/);
+  assert.match(s,/note\.evaluate\(el=>el\.click\(\)\)/);
+  assert.match(s,/DOM click toggles global mute ON/);
+  assert.match(s,/DOM click toggles global mute OFF/);
+  assert.match(s,/const clickMusicNote=async\(\)=>\{/);
   assert.match(s,/clickMusicNote\(\)/);
   assert.match(s,/setQaGamepadButton\(1,true\)/);
   assert.match(s,/Gamepad B returns from Room 0 to the start of Room 1/);
