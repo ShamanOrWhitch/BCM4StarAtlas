@@ -3079,6 +3079,9 @@
     window.BCMTowerAPI.getCrewMatrix = () => window.BCMTowerCrewMatrix || null;
     window.BCMTowerAPI.getWallet = () => window.BCMiniCrewWallet || null;
     window.BCMTowerAPI.stopAudio = () => stopTowerAudio();
+    // Called by Mini-Sim only when the ship approaches ONICSS. Do not fetch
+    // tower.mp4 during the initial Starbase load.
+    window.BCMTowerAPI.preloadLanding = () => primeTransitionVideo();
     window.BCMTowerAPI.enter = (options) => {
       const deferHandoff = !!(options && options.deferHandoff);
       root.hidden = false;
@@ -3143,10 +3146,8 @@
     window.addEventListener("resize", resize);
     window.addEventListener("orientationchange", resize);
 
-    // Warm the landing clip while the Tower menu/scene initializes. The transition
-    // can then reveal its first frame immediately when the player enters Tower.
-    primeTransitionVideo();
-
+    // The landing clip is deliberately not fetched on page boot. Mini-Sim calls
+    // preloadLanding() when the ship enters the ONICSS approach radius.
     const autostart = root.dataset.bcmTowerAutostart !== "0";
     if (autostart) {
       status.textContent = "LANDING VIDEO...";
