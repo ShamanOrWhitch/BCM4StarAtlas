@@ -218,6 +218,10 @@
     }
 
     function readNavigation() {
+      // After a local sector arrival, keep that session's current sector when
+      // the player closes and reopens the Warp menu. The global adapter often
+      // still points to the original ONI CSS launch point.
+      if (state.sectorProgressed && state.nav) return state.nav;
       const galia = window.GALIA_PLAY_STATE || {};
       const nav = window.BCM_SAGE_NAVIGATION || window.GALIA_SAGE_NAVIGATION || galia.sageNavigation || galia.navigation || null;
       if (nav && typeof nav === "object") {
@@ -471,7 +475,7 @@
       }
       pauseLevelOst();
       startWarpAudio(true);
-      if (!state.nav || !state.sectorProgressed) state.nav = readNavigation();
+      state.nav = readNavigation();
       state.target = null;
       state.mode = "map";
       state.openedAt = performance.now();
