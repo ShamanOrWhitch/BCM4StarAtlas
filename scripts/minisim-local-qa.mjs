@@ -88,15 +88,25 @@ try{
      classMuted:el.classList.contains("is-muted"),
      disabled:!!el.disabled
    }));
-   // DOM click bypasses canvas hit-testing and avoids the global key handler taking focus.
-   await note.evaluate(el=>el.click());
+   // Trace the actual DOM click and the runtime's global mute event; this distinguishes
+   // a lost handler from a handler that toggles more than once.
+   const interaction=await note.evaluate(el=>{
+     const muteEvents=[];let clickEvents=0;
+     const onMute=event=>muteEvents.push(event.detail?.muted);
+     const onClick=()=>{clickEvents++;};
+     window.addEventListener("bcm:game-music-mute",onMute);
+     el.addEventListener("click",onClick,{once:true});
+     el.click();
+     window.removeEventListener("bcm:game-music-mute",onMute);
+     return{clickEvents,muteEvents};
+   });
    const after=await note.evaluate(el=>({
      globalMuted:window.BCMGameAudio?.isMuted?.()??null,
      ariaPressed:el.getAttribute("aria-pressed"),
      classMuted:el.classList.contains("is-muted"),
      disabled:!!el.disabled
    }));
-   return{before,after,activation:"dom-click",buttonCount:await page.locator(".bcm-mini-sim-music").count()};
+   return{before,after,...interaction,activation:"dom-click-traced",buttonCount:await page.locator(".bcm-mini-sim-music").count()};
  };
  page.on("request",r=>{if(r.url().includes("/wp-content/plugins/mini-sim/"))report.pluginAssetRequests.push(r.url());});
  page.on("console",m=>{if(m.type()==="error")report.consoleErrors.push(m.text());});
