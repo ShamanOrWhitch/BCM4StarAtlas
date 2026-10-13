@@ -428,20 +428,22 @@
     opacity: .86;
 }
 
+/* Split door transitions only when the selected mode is MULTI.
+   SINGLE still creates both transition layers, but each must cover the full screen. */
 @media (orientation: landscape) and (min-width: 901px) {
-    .bcm-tower-door-p1 {
+    .bcm-tower.is-multi .bcm-tower-door-p1 {
         right: 50%;
     }
-    .bcm-tower-door-p2 {
+    .bcm-tower.is-multi .bcm-tower-door-p2 {
         left: 50%;
     }
 }
 
 @media (orientation: portrait) {
-    .bcm-tower-door-p1 {
+    .bcm-tower.is-multi .bcm-tower-door-p1 {
         bottom: 50%;
     }
-    .bcm-tower-door-p2 {
+    .bcm-tower.is-multi .bcm-tower-door-p2 {
         top: 50%;
     }
 }
