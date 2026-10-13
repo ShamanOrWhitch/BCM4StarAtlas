@@ -51,7 +51,7 @@
 Продолжения:
 - [962a5d0 — Route Tower OST through shared mixer](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/962a5d05f0879db26d0f372310ce9ba36a13abba)
 - [f6afd57 — Show muted state on music note](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/f6afd5728f25f0b49a8f28eba3a0061573c08300)
-- [f1b1064 — Test shared audio, Home reset and rotating Warp course](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/f1b1064a2f7fbec755f33c?utm_source=none)
+- [f1b1064 — Test shared audio, Home reset and rotating Warp course](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/f1b1064a2f7fbec7551ddafe3e940f81a1addd75)
 
 Current intended behavior:
 - starbase for the first ONI CSS location, including Room0 and Room1.
@@ -104,7 +104,7 @@ Next work after current deployment is confirmed: test corridor, maze, and open-s
 
 Commits:
 - [14f9c8b — Extend Warp Tube with rolling varied one-pass course](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/14f9c8b0537d952e29f821f7e725baeef2948e33)
-- [f1b1064 — Test shared audio, Home reset and rotating Warp course](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/f1b1064a2f7fbec755f33c?utm_source=none)
+- [f1b1064 — Test shared audio, Home reset and rotating Warp course](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/f1b1064a2f7fbec7551ddafe3e940f81a1addd75)
 
 Current source has:
 - WARP_DURATION = 48 (48 seconds, twice the previous 24-second course).
@@ -158,7 +158,7 @@ The most recent relevant game commits already present on main before these docum
 - 4030d30f59cfd7e5525beb899c5775e5219e5ae3 — Mini-Sim cache version bumped to 0.9.83.
 - e0a9e21e99e045744113663000db66eb640b337d — Tower cache version bumped to 0.2.54.
 - f6afd5728f25f0b49a8f28eba3a0061573c08300 — visual muted state for note button.
-- f1b1064a2f7fbec755f33c?utm_source=none — regression tests for music, Home and Tube.
+- f1b1064a2f7fbec7551ddafe3e940f81a1addd75 — regression tests for music, Home and Tube.
 
 The latest scripts/minisim-local-qa.test.mjs contains source-contract checks for shared music, Home reset, 48-second rotating Tube, vertical input, Back reset, stable wall textures, controller navigation and the local browser runner. These are source checks, not proof of live WordPress behavior. A CI status lookup for the recent commits returned no individual commit statuses; do not claim a green CI run for those SHAs unless a current Actions run can be verified.
 
