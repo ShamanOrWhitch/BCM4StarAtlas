@@ -17,7 +17,9 @@ test("Tube has a stable forward road, varied sections, open gates and controller
   const s=await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(s,/const roadY=d=>/);
   assert.match(s,/Continuous floor panels and centre dashes/);
-  assert.doesNotMatch(s,/g\.rotate\(roll\)|const roll\s*=/);\n  assert.match(s,/tubeSectionBlend\(speedBySection, state\.elapsed\)\.value/);\n  assert.match(s,/const bank=Math\.max\(-\.24,Math\.min\(\.24,-state\.playerX\*\.20\)\)/);
+  assert.doesNotMatch(s,/g\.rotate\(roll\)|const roll\s*=/);
+  assert.match(s,/tubeSectionBlend\(speedBySection, state\.elapsed\)\.value/);
+  assert.match(s,/const bank=Math\.max\(-\.24,Math\.min\(\.24,-state\.playerX\*\.20\)\)/);
   assert.match(s,/const speedBySection = \[0\.76, 1\.24, 0\.84, 1\.34, 0\.68, 1\.14\]/);
   assert.match(s,/const gateCount = 14/);
   assert.match(s,/rng\(\) < 0\.38/);
