@@ -108,37 +108,45 @@ try{
      classMuted:el.classList.contains("is-muted"),
      disabled:!!el.disabled
    }));
-   // Trace the actual DOM click and the runtime's global mute event; this distinguishes
-   // a lost handler from a handler that toggles more than once.
-   const interaction=await note.evaluate(el=>{
-     const muteEvents=[];let clickEvents=0;const lateDocumentCapture=[];
-     const onMute=event=>muteEvents.push(event.detail?.muted);
-     const onClick=()=>{clickEvents++;};
-     const onLateDoc=event=>lateDocumentCapture.push({cancelBubble:event.cancelBubble,eventPhase:event.eventPhase});
-     window.addEventListener("bcm:game-music-mute",onMute);
-     document.addEventListener("click",onLateDoc,true);
-     el.addEventListener("click",onClick,{once:true});
+   // Use trusted mouse input at the current hit-tested center, without locator auto-scroll.
+   const beforeNative=await note.evaluate(el=>{
      const rect=el.getBoundingClientRect();
      const top=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);
      const ancestors=[];
      for(let node=el;node&&ancestors.length<7;node=node.parentElement){
        ancestors.push({tag:node.tagName,id:node.id||"",className:typeof node.className==="string"?node.className:"",inert:!!node.inert,disabled:!!node.disabled});
      }
-     const beforeNative={isConnected:el.isConnected,tagName:el.tagName,disabled:!!el.disabled,disabledPseudo:el.matches(":disabled"),selfInert:!!el.inert,closestInert:!!el.closest("[inert]"),pointerEvents:getComputedStyle(el).pointerEvents,clickMethod:String(el.click).slice(0,100),ownClick:Object.prototype.hasOwnProperty.call(el,"click"),topTag:top?.tagName||"",topClass:typeof top?.className==="string"?top.className:"",ancestors};
      window.__BCM_QA_CLICK_FLOW=[];
-     el.click();
-     const clickFlow=[...window.__BCM_QA_CLICK_FLOW];
-     document.removeEventListener("click",onLateDoc,true);
-     window.removeEventListener("bcm:game-music-mute",onMute);
-     return{clickEvents,muteEvents,clickFlow,lateDocumentCapture,documentCaptureHandlers:window.__BCM_QA_DOC_CLICK_HANDLERS,beforeNative};
+     window.__BCM_QA_MUTE_EVENTS=[];
+     window.__BCM_QA_BUTTON_CLICK_COUNT=0;
+     window.__BCM_QA_LATE_DOCUMENT_CAPTURE=[];
+     window.__BCM_QA_MUTE_RECORDER=event=>window.__BCM_QA_MUTE_EVENTS.push(event.detail?.muted);
+     window.__BCM_QA_BUTTON_CLICK_HANDLER=()=>window.__BCM_QA_BUTTON_CLICK_COUNT++;
+     window.__BCM_QA_LATE_DOC_HANDLER=event=>window.__BCM_QA_LATE_DOCUMENT_CAPTURE.push({cancelBubble:event.cancelBubble,eventPhase:event.eventPhase});
+     window.addEventListener("bcm:game-music-mute",window.__BCM_QA_MUTE_RECORDER);
+     document.addEventListener("click",window.__BCM_QA_LATE_DOC_HANDLER,true);
+     el.addEventListener("click",window.__BCM_QA_BUTTON_CLICK_HANDLER);
+     return{isConnected:el.isConnected,tagName:el.tagName,disabled:!!el.disabled,disabledPseudo:el.matches(":disabled"),selfInert:!!el.inert,closestInert:!!el.closest("[inert]"),pointerEvents:getComputedStyle(el).pointerEvents,clickMethod:String(el.click).slice(0,100),ownClick:Object.prototype.hasOwnProperty.call(el,"click"),topTag:top?.tagName||"",topClass:typeof top?.className==="string"?top.className:"",ancestors};
    });
+   const box=await note.boundingBox();
+   if(!box)throw new Error("Mute button has no visible bounding box");
+   await page.mouse.click(box.x+box.width/2,box.y+box.height/2);
+   const interaction=await note.evaluate(el=>{
+     const out={clickEvents:window.__BCM_QA_BUTTON_CLICK_COUNT||0,muteEvents:window.__BCM_QA_MUTE_EVENTS||[],clickFlow:window.__BCM_QA_CLICK_FLOW||[],lateDocumentCapture:window.__BCM_QA_LATE_DOCUMENT_CAPTURE||[],documentCaptureHandlers:window.__BCM_QA_DOC_CLICK_HANDLERS||[],beforeNative:window.__BCM_QA_BEFORE_NATIVE||null};
+     out.beforeNative=out.beforeNative||{isConnected:el.isConnected,tagName:el.tagName};
+     el.removeEventListener("click",window.__BCM_QA_BUTTON_CLICK_HANDLER);
+     document.removeEventListener("click",window.__BCM_QA_LATE_DOC_HANDLER,true);
+     window.removeEventListener("bcm:game-music-mute",window.__BCM_QA_MUTE_RECORDER);
+     return out;
+   });
+   interaction.beforeNative=beforeNative;
    const after=await note.evaluate(el=>({
      globalMuted:window.BCMGameAudio?.isMuted?.()??null,
      ariaPressed:el.getAttribute("aria-pressed"),
      classMuted:el.classList.contains("is-muted"),
      disabled:!!el.disabled
    }));
-   return{before,after,...interaction,activation:"dom-click-traced",buttonCount:await page.locator(".bcm-mini-sim-music").count()};
+   return{before,after,...interaction,activation:"playwright-mouse-click-trusted",buttonCount:await page.locator(".bcm-mini-sim-music").count()};
  };
  page.on("request",r=>{if(r.url().includes("/wp-content/plugins/mini-sim/"))report.pluginAssetRequests.push(r.url());});
  page.on("console",m=>{if(m.type()==="error")report.consoleErrors.push(m.text());});
