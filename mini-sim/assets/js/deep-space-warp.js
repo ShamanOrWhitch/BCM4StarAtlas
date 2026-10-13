@@ -1284,14 +1284,15 @@
       // rolls with the local surface as it climbs from floor to wall/ceiling.
       const playerAngle = Math.atan2(state.playerY, state.playerX);
       const nearDepth = 0.92;
-      const craftAngle = playerAngle + roll;
+      const craftRoll = twistAt(nearDepth);
+      const craftAngle = playerAngle + craftRoll;
       const craftPoint = {
         x: centerX(nearDepth) + Math.cos(craftAngle) * radiusX(nearDepth) * 0.77,
         y: centerY(nearDepth) + Math.sin(craftAngle) * radiusY(nearDepth) * 0.77
       };
       g.save();
       g.translate(craftPoint.x, craftPoint.y);
-      g.rotate(playerAngle + roll - Math.PI / 2);
+      g.rotate(playerAngle + craftRoll - Math.PI / 2);
       g.scale(Math.min(1, w / 900), Math.min(1, w / 900));
       const flare = 0.65 + (Math.sin(now * 0.032) + 1) * 0.18;
       g.fillStyle = "rgba(63,213,255," + flare * 0.42 + ")";
