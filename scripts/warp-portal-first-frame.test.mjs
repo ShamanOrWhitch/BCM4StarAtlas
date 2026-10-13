@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const warp = await readFile(new URL("../mini-sim/assets/js/deep-space-warp.js", import.meta.url), "utf8");
+const mini = await readFile(new URL("../mini-sim/assets/js/mini-sim.js", import.meta.url), "utf8");
 const tower = await readFile(new URL("../mini-sim/tower/assets/js/tower.js", import.meta.url), "utf8");
 
 function section(source, startMarker, endMarker) {
@@ -13,32 +14,48 @@ function section(source, startMarker, endMarker) {
   return source.slice(start, end);
 }
 
-test("Warp section geometry and speed interpolate cyclically without a loop seam jump", () => {
-  const helper = section(warp, "function tubeSectionBlend(values, elapsed)", "function drawTubeTunnel");
+test("Tube section geometry and speed interpolate cyclically without a loop seam jump", () => {
+  const helper = section(warp, "function tubeSectionBlend(values, elapsed)", "function angleDifference");
   assert.match(helper, /const eased = t \* t \* \(3 - 2 \* t\)/);
   assert.match(helper, /const next = \(current \+ 1\) % count/);
   assert.match(helper, /phase: position \* Math\.PI \* 2 \/ count/);
   assert.match(warp, /tubeSectionBlend\(speedBySection, state\.elapsed\)\.value/);
+  assert.match(warp, /const WARP_DURATION = 48/);
 });
 
-test("the road does not roll globally and the ship banks only from steering", () => {
+test("Tube rendering is a rotating cylinder, not a fixed trapezoid", () => {
   const draw = section(warp, "function drawTubeTunnel", "function drawBackdrop");
-  assert.doesNotMatch(draw, /g\.rotate\(roll\)|cosRoll|sinRoll|const roll\s*=/);
-  assert.doesNotMatch(draw, /g\.translate\(mid, h \* 0\.62\)/);
-  assert.match(draw, /const bank=Math\.max\(-\.24,Math\.min\(\.24,-state\.playerX\*\.20\)\)/);
-  assert.match(draw, /const sectionCurve = tubeSectionBlend\(curves, state\.elapsed\)\.value/);
+  assert.match(draw, /const roll = Number\(state\.tubeRoll \|\| 0\)/);
+  assert.match(draw, /const radiusX = \(d\) =>/);
+  assert.match(draw, /const radiusY = \(d\) => radiusX\(d\) \* 0\.91/);
+  assert.match(draw, /const twistAt = \(d\) =>/);
+  assert.match(draw, /Circumferential rings and seams/);
+  assert.match(draw, /Longitudinal seams spiral around the whole wall/);
+  assert.match(draw, /g\.rotate\(playerAngle \+ craftRoll - Math\.PI \/ 2\)/);
+  assert.match(draw, /Math\.sin\(loopPhase \+ d \* Math\.PI \* 2\.4\) \* loopMix/);
+  assert.doesNotMatch(draw, /const roadY=d=>|const half=d=>|Continuous floor panels and centre dashes/);
 });
 
-test("barrier gates stay visible until they pass the player and collide at the crossing plane", () => {
+test("Tube displays multiple obstacle types and tests collisions against their visible open angles", () => {
+  const create = section(warp, "const gateCount = 15", "tubeTitle.textContent");
+  const update = section(warp, "function updateTube(dt, now)", "window.BCMDeepSpaceWarpToggle");
   const draw = section(warp, "function drawTubeTunnel", "function drawBackdrop");
-  const update = section(warp, "function updateTube(dt,now)", "window.BCMDeepSpaceWarpToggle");
-  assert.match(draw, /if \(distance < -0\.16 \|\| distance > 0\.23\) return/);
-  assert.doesNotMatch(draw, /layer\.resolved \|\| distance/);
-  assert.match(update, /if \(!layer\.resolved && distance <= 0\)/);
-  assert.match(warp, /\* 0\.70 \+ \(rng\(\) - 0\.5\) \* 0\.012/);
+  assert.match(create, /\? "boost"/);
+  assert.match(create, /\? "launcher"/);
+  assert.match(create, /type === "spikes"/);
+  assert.match(create, /type === "sweeper"/);
+  assert.match(draw, /layer\.type === "gate"/);
+  assert.match(draw, /layer\.type === "sweeper"/);
+  assert.match(draw, /layer\.type === "spikes"/);
+  assert.match(draw, /layer\.type === "boost"/);
+  assert.match(draw, /layer\.type === "launcher"/);
+  assert.match(update, /angleDifference\(playerAngle, layer\.safeAngle\)/);
+  assert.match(update, /layer\.blockedAngles\.some/);
+  assert.match(update, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
+  assert.match(update, /state\.tubeRoll = Number\(state\.tubeRoll \|\| 0\) \+ dt \* tubeSectionBlend\(rollRates/);
 });
 
-test("Warp to ONI CSS coordinates returns to the Mini-Sim home instead of launching another maze", () => {
+test("a successful Warp to (-40,30) returns to the ONI CSS home", () => {
   const finish = section(warp, "function finishTube(success)", "function isOniCssDestination");
   assert.match(finish, /isOniCssDestination\(state\.target\)/);
   assert.match(finish, /returnToOniCss\(\)/);
@@ -47,26 +64,38 @@ test("Warp to ONI CSS coordinates returns to the Mini-Sim home instead of launch
   assert.match(home, /name = "ONI CSS · NEUNO"/);
   assert.match(home, /closeOverlay\(false\)/);
   assert.match(home, /engine\.teleport\(\{ x: 0, y: 0, z: 2, yaw: 0 \}, null\)/);
-  assert.match(home, /state\.sectorProgressed = true/);
 });
 
-test("Tower transition keeps H1 hidden until the first decoded video frame", () => {
-  const transition = section(tower, "function triggerTransition()", "function startNewTower()");
-  const beforeReveal = transition.slice(0, transition.indexOf("const revealFirstFrame"));
-  const reveal = section(transition, "const revealFirstFrame", "transitionVideo.onloadedmetadata");
-  assert.match(beforeReveal, /transition\.hidden = true/);
-  assert.match(beforeReveal, /transition\.style\.backgroundImage = ""/);
-  assert.doesNotMatch(beforeReveal, /transition\.hidden = false|helipadMarkerUrl\(\)/);
-  assert.match(reveal, /transitionVideo\.readyState < 2/);
-  assert.match(reveal, /transition\.hidden = false/);
-  assert.doesNotMatch(reveal, /playTowerAudio\(\)/);
-  assert.match(transition, /if \(transitionVideo\.readyState >= 2\)\s*\{\s*revealFirstFrame\(\)/);
-  assert.match(tower, /primeTransitionVideo\(\);\s*const autostart/);
+test("portal buffering leaves the live flight controls and velocity untouched", () => {
+  const portal = section(mini, "function playPortalVideo(direction)", "function tryPortal()");
+  const activation = portal.indexOf("const activateTransition = () =>");
+  assert.ok(activation > 0);
+  assert.doesNotMatch(portal.slice(0, activation), /transitionBusy = true|ship\.velocity\.set\(0, 0, 0\)|ship\.angularVelocity\.set\(0, 0, 0\)/);
+  assert.match(portal, /transitionVideo\.onloadeddata = requestPlayback/);
+  assert.match(portal, /transitionVideo\.oncanplay = requestPlayback/);
+  assert.match(portal, /transitionVideo\.onplaying = activateTransition/);
+  assert.match(portal, /transitionBusy = true/);
+  assert.match(portal, /transitionVideo\.onerror = \(\) => \{\s*transitionLoading = false;\s*transitionBusy = false/);
 });
 
-test("Tower soundtrack starts with gameplay, not while the landing clip is loading", () => {
-  const startMode = section(tower, "function startMode(nextMode)", "function showMenu()");
-  assert.match(startMode, /playTowerAudio\(\)/);
+test("Tower keeps H1 and its overlay hidden until tower.mp4 actually starts playback", () => {
   const transition = section(tower, "function triggerTransition()", "function startNewTower()");
-  assert.doesNotMatch(transition, /playTowerAudio\(\)/);
+  assert.match(transition, /transition\.hidden = true/);
+  assert.match(transition, /transitionVideo\.onloadeddata = requestPlayback/);
+  assert.match(transition, /transitionVideo\.oncanplay = requestPlayback/);
+  assert.match(transition, /transitionVideo\.onplaying = \(\) => \{/);
+  assert.match(transition, /transition\.hidden = false/);
+  assert.match(transition, /if \(landingHandoffPending && !landingFrameNotified\)/);
+  assert.match(transition, /resolveLandingFirstFrame\(true\)/);
+  assert.doesNotMatch(transition, /const revealFirstFrame/);
+});
+
+test("Tower OST starts with the first playing frame and is retained across the mode menu", () => {
+  const transition = section(tower, "function triggerTransition()", "function startNewTower()");
+  const mode = section(tower, "function startMode(nextMode)", "function showMenu()");
+  assert.match(transition, /transitionVideo\.onplaying = \(\) => \{[\s\S]*?playTowerAudio\(\)/);
+  assert.match(mode, /if \(!towerAudio \|\| towerAudio\.paused \|\| towerAudio\.ended\) playTowerAudio\(\)/);
+  assert.match(tower, /window\.BCMTowerAPI\.preloadLanding = \(\) => primeTransitionVideo\(\)/);
+  const bootTail = tower.slice(tower.lastIndexOf("resize();"));
+  assert.doesNotMatch(bootTail, /primeTransitionVideo\(\);/);
 });
