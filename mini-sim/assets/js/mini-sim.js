@@ -1017,10 +1017,11 @@
     const left = button(14) || (axes[0] || 0) < -.55, right = button(15) || (axes[0] || 0) > .55;
     const confirm = button(0), back = button(1) || button(8), now = performance.now();
     const move = d => { if (now - gamepadMenuNav.lastMove < 180) return; gamepadMenuNav.lastMove = now; gamepadMenuNav.index = (gamepadMenuNav.index + d + choices.length) % choices.length; focusGamepadMenuChoice(choices); };
+    const isWarpMapMenu = menu.classList.contains("bcm-warp-map-view");
     if (up && !gamepadMenuNav.previous.up) move(-1);
     else if (down && !gamepadMenuNav.previous.down) move(1);
-    else if (left && !gamepadMenuNav.previous.left) move(-1);
-    else if (right && !gamepadMenuNav.previous.right) move(1);
+    else if (left && !gamepadMenuNav.previous.left) move(isWarpMapMenu ? 1 : -1);
+    else if (right && !gamepadMenuNav.previous.right) move(isWarpMapMenu ? -1 : 1);
     if (confirm && !gamepadMenuNav.previous.confirm) { const c=choices[gamepadMenuNav.index]; if (c && typeof c.click==="function") c.click(); else if(c)c.focus(); }
     if (back && !gamepadMenuNav.previous.back) { const b=menu.querySelector("[data-warp-cancel], [data-warp-close], [data-setting='close'], .bcm-mini-sim-transition-close"); if(b&&!b.disabled)b.click(); }
     gamepadMenuNav.previous = { up, down, left, right, confirm, back }; return true;
