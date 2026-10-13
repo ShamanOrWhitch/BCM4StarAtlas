@@ -1,8 +1,14 @@
 # BCM Mini-Sim 0.9.83
 
-> **Текущий план работы для агентов:** [AGENTS.md](AGENTS.md) · [PROJECT_STATE.md](PROJECT_STATE.md).  
- > Сначала прочитай AGENTS.md, затем сверяй git-коммиты, PROJECT_STATE.md и DECISIONS.md. Коммиты — память выполненной работы; старые bug reports не должны автоматически превращаться в новые задачи.
+> **Рабочий порядок:** [AGENTS.md](AGENTS.md) · [PROJECT_STATE.md](PROJECT_STATE.md) · [DECISIONS.md](DECISIONS.md).  
+> Первым делом сверить коммиты и журнал решений. Старые bug reports не должны автоматически превращаться в новые задачи, если исправление уже есть в коде.
 
+
+### 0.9.83 current code baseline
+
+- PHP cache/plugin version: Mini-Sim 0.9.83; Tower 0.2.54. The bump commits are 4030d30 and e0a9e21.
+- Relevant current implementations are tracked in [DECISIONS.md](DECISIONS.md): shared OST/Home reset, global mute indicator, and 48-second rolling Tube.
+- Those commits and source tests do not establish that the same files are deployed or verified on the live WordPress page.
 
 ### 0.9.82 Runtime stability
 
