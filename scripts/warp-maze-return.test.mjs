@@ -67,7 +67,7 @@ test("Warp Tube is a rolling circular cylinder with a curved / corkscrew route",
   const update = section(warp, "function updateTube(dt, now)", "window.BCMDeepSpaceWarpToggle");
   assert.match(warp, /const WARP_DURATION = 48/);
   assert.match(body, /const roll = Number\(state\.tubeRoll \|\| 0\)/);
-  assert.match(body, /const twistAt = \(d\) => roll \+ d/);
+  assert.match(body, /const twistAt = \(d\) => roll \+ \(d - 0\.92\)/);
   assert.match(body, /const radiusX = \(d\) =>/);
   assert.match(body, /const radiusY = \(d\) => radiusX\(d\) \* 0\.91/);
   assert.match(body, /const point = \(d, theta, extra\)/);
@@ -96,7 +96,8 @@ test("Every generated obstacle layer has a distinct type and a passable opening"
   assert.match(body, /gapHalf: type === "gate" \? 0\.76 : 0\.86/);
   assert.match(body, /type === "sweeper"/);
   assert.match(body, /type === "spikes"/);
-  assert.match(body, /type === "boost"/);
+  assert.match(body, /\? "boost"/);
+  assert.match(body, /\? "launcher"/);
   assert.match(body, /progress = 0\.15 \+ \(i \/ Math\.max\(1, gateCount - 1\)\) \* 0\.72/);
 });
 
