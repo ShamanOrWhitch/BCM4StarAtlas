@@ -1210,7 +1210,9 @@
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.decoding = "async";
-    try { img.fetchPriority = textureRequestPriority(name) <= 1 ? "high" : "auto"; } catch (e) {}
+    // Audio keeps the sole high-priority slot. Initial room-surface images
+    // start at normal priority; decorative/exterior assets use the later queue.
+    try { img.fetchPriority = textureRequestPriority(name) <= 1 ? "auto" : "low"; } catch (e) {}
     img.onload = () => {
       if (miniSimReleased) return;
       try {
