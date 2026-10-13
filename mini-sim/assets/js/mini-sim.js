@@ -822,7 +822,9 @@
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.decoding = "async";
-      try { img.fetchPriority = job.priority <= 1 ? "high" : (job.priority <= 3 ? "auto" : "low"); } catch (e) {}
+      // The priority queue starts only after OST, near-wall textures, right
+      // video and portal requests have been issued; its own images stay auto/low.
+      try { img.fetchPriority = job.priority <= 1 ? "auto" : "low"; } catch (e) {}
       img.onload = () => {
         backgroundTextureQueue.active--;
         if (miniSimReleased) return;
