@@ -91,7 +91,8 @@ test("Playwright runner overrides plugin files from local checkout",async()=>{
   assert.match(s,/activation:"dom-click-traced"/);
   assert.match(s,/muteEvents/);
   assert.match(s,/clickEvents/);
-  assert.match(s,/note\.evaluate\(el=>el\.click\(\)\)/);
+  assert.match(s,/el\.click\(\);/);
+  assert.match(s,/window\.addEventListener\("bcm:game-music-mute",onMute\)/);
   assert.match(s,/DOM click toggles global mute ON/);
   assert.match(s,/DOM click toggles global mute OFF/);
   assert.match(s,/const clickMusicNote=async\(\)=>\{/);
