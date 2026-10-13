@@ -6,7 +6,7 @@
 
 Last reconciled main HEAD: `1cfc864e9e6ba821998bc5eaad02725ff6faebb1`  
 P1 QA runner/test SHA exercised: `f8e9b4689819ad2c4cd4f36a0a0a57f6c06423bb` ([PR #18](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/18))  
-Latest runner/test code baseline: `f8e9b4689819ad2c4cd4f36a0a0a57f6c06423bb`; the same code/test files were re-run on documentation-only branch head `824bf5269c20dcf96d5594a5a4cd7c50f988d49e`. Regression [run 38377460756](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377460756) — PASS. Browser QA [run 38377460797](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377460797) — FAIL at the mute-button click; [artifact 11801987268](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377460797/artifacts/11801987268), expires 2026-10-20. Runtime follow-up: [Issue #21](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/21).
+Latest runner/test code baseline: `f8e9b4689819ad2c4cd4f36a0a0a57f6c06423bb`; the same code/test files were re-run on documentation-only branch head `f6fb61f80a5236e8fde00b9145e1bb3dd84c5435`. Regression [run 38377755696](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377755696) — PASS. Browser QA [run 38377755709](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377755709) — FAIL at the mute-button click; [artifact 11801508761](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377755709/artifacts/11801508761), expires 2026-10-20. Runtime follow-up: [Issue #21](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/21).
 
 Обновляй этот файл в конце каждой рабочей сессии. Он описывает актуальные требования и состояние, а не историю всех старых решений.
 
@@ -71,8 +71,8 @@ Latest runner/test code baseline: `f8e9b4689819ad2c4cd4f36a0a0a57f6c06423bb`; th
 Baseline, проверенный в этой сессии:
 - Main HEAD: `1cfc864e9e6ba821998bc5eaad02725ff6faebb1`; исправление `look.yaw` уже интегрировано.
 - QA runner/test baseline: `f8e9b4689819ad2c4cd4f36a0a0a57f6c06423bb` в существующем [PR #18](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/18); ветка основана на актуальном main и не отстаёт от него.
-- Regression workflow: [run 38377460756](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377460756) — PASS на branch head `824bf5269c20dcf96d5594a5a4cd7c50f988d49e`.
-- Browser QA: [run 38377460797](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377460797) — FAIL на global mute; артефакт [11801987268](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377460797/artifacts/11801987268), срок до 2026-10-20.
+- Regression workflow: [run 38377755696](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377755696) — PASS на branch head `f6fb61f80a5236e8fde00b9145e1bb3dd84c5435`.
+- Browser QA: [run 38377755709](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377755709) — FAIL на global mute; артефакт [11801508761](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377755709/artifacts/11801508761), срок до 2026-10-20.
 
 Что фактически прошло в браузере с подменой ассетов выбранного checkout:
 1. WordPress-страница и Mini-Sim shortcode доступны; Mini-Sim JS, Warp JS и CSS подтверждены как заменённые файлами тестового commit.
@@ -161,8 +161,8 @@ Baseline, проверенный в этой сессии:
 
 ## Известные ограничения и проверочный статус
 
-- Node regression workflow: PASS на P1 QA code/test baseline `f8e9b4689819ad2c4cd4f36a0a0a57f6c06423bb`; повторный regression на documentation-only branch head `824bf5269c20dcf96d5594a5a4cd7c50f988d49e` также PASS, run [38377460756](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377460756).
-- Browser QA с подменой ассетов на branch head `824bf5269c20dcf96d5594a5a4cd7c50f988d49e`: FAIL на клике global mute, run [38377460797](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377460797), artifact [11801987268](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377460797/artifacts/11801987268). Renderer no-`LOOP ERR` и единственный Starbase OST подтверждены до клика.
+- Node regression workflow: PASS на P1 QA code/test baseline `f8e9b4689819ad2c4cd4f36a0a0a57f6c06423bb`; повторный regression на documentation-only branch head `f6fb61f80a5236e8fde00b9145e1bb3dd84c5435` также PASS, run [38377755696](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377755696).
+- Browser QA с подменой ассетов на branch head `f6fb61f80a5236e8fde00b9145e1bb3dd84c5435`: FAIL на клике global mute, run [38377755709](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377755709), artifact [11801508761](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377755709/artifacts/11801508761). Renderer no-`LOOP ERR` и единственный Starbase OST подтверждены до клика.
 - Причина передана в отдельный runtime Issue #21: document-capture listener Tower останавливает click до обработчика Mini-Sim. P1 issue #17 и PR #18 остаются открыты.
 - Room0 → B, global mute через переходы и завершающие проверки Warp не прошли этот запуск, так как mute click остановил сценарий до них.
 - Не подтверждены физический Gamepad и непереписанная live-страница без подмены. Ранее успешный run на `dc8a08e` покрывал лишь Warp map → Tube → cancel, и не должен цитироваться как PASS для текущего P1.
