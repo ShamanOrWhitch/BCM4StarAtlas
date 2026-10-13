@@ -57,14 +57,14 @@ test("Warp map identifies the current sector by data, not the fixed ONI CSS labe
 
 test("Warp gamepad horizontal directions use the corrected left/right mapping", () => {
   const body = section(sim, "function pollGamepadMenu()", "function focusGamepadMenuChoice");
-  assert.match(body, /const isWarpMapMenu = menu\\.classList\\.contains\\("bcm-warp-map-view"\\)/);
-  assert.match(body, /if \\(left && !gamepadMenuNav\\.previous\\.left\\) move\\(isWarpMapMenu \\? 1 : -1\\)/);
-  assert.match(body, /if \\(right && !gamepadMenuNav\\.previous\\.right\\) move\\(isWarpMapMenu \\? -1 : 1\\)/);
+  assert.match(body, /const isWarpMapMenu = menu\.classList\.contains\("bcm-warp-map-view"\)/);
+  assert.match(body, /if \(left && !gamepadMenuNav\.previous\.left\) move\(isWarpMapMenu \? 1 : -1\)/);
+  assert.match(body, /if \(right && !gamepadMenuNav\.previous\.right\) move\(isWarpMapMenu \? -1 : 1\)/);
 });
 
 test("visual spacecraft rolls with the Warp tunnel instead of remaining upright", () => {
   const body = section(warp, "function drawTubeTunnel", "function drawBackdrop");
-  assert.match(body, /const px=mid\\+\\(rawX-mid\\)\\*cosRoll/);
-  assert.match(body, /const py=pivotY\\+\\(rawX-mid\\)\\*sinRoll/);
-  assert.match(body, /g\\.rotate\\(roll\\+Math\\.max/);
+  assert.match(body, /const px=mid\+\(rawX-mid\)\*cosRoll/);
+  assert.match(body, /const py=pivotY\+\(rawX-mid\)\*sinRoll/);
+  assert.match(body, /g\.rotate\(roll\+Math\.max/);
 });
