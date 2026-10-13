@@ -3627,6 +3627,7 @@
       vertical: (keys.Space || touch.up ? 1 : 0) - (keys.KeyC || touch.down ? 1 : 0) + pad.vert,
       roll: (keys.KeyE || touch.rollRight ? 1 : 0) - (keys.KeyQ || touch.rollLeft ? 1 : 0) + pad.roll,
       yaw: (mobileLandscape() && cinema.focus ? 0 : ((touch.yawLeft ? 1 : 0) - (touch.yawRight ? 1 : 0) + look.yaw + pad.rx * (settings.invertYaw ? 1 : -1))),
+      lookYaw: look.yaw,
       pitch: look.pitch
     };
   }
@@ -4037,7 +4038,7 @@
       const psign = settings.invertPitch ? 1 : -1;
       ship.angularVelocity.x += pad.ry * psign * 4.2 * dt + inn.pitch * 2.4 * dt;
       ship.angularVelocity.y += pad.rx * (settings.invertYaw ? 1 : -1) * 4.4 * dt +
-        ((mobileLandscape() && cinema.focus) ? 0 : ((touch.yawLeft ? 1 : 0) - (touch.yawRight ? 1 : 0) + look.yaw)) * 2.2 * dt;
+        ((mobileLandscape() && cinema.focus) ? 0 : ((touch.yawLeft ? 1 : 0) - (touch.yawRight ? 1 : 0) + inn.lookYaw)) * 2.2 * dt;
       ship.angularVelocity.z += inn.roll * 2.6 * dt;
       ship.angularVelocity.multiplyScalar(Math.max(0, 1 - ship.angularDrag * dt));
     }
