@@ -18,7 +18,7 @@ test("Mini-Sim physics reads look yaw through the input object, not an out-of-sc
   const input = source.slice(inputStart, inputEnd);
   const physics = source.slice(physicsStart, physicsEnd);
 
-  assert.match(input, /lookYaw:\\s*look\\.yaw/, "input() exposes the sensor/look yaw as a field");
-  assert.match(physics, /inn\\.lookYaw/, "updatePhysics() reads look yaw from its input result");
-  assert.doesNotMatch(physics, /\\blook\\.yaw\\b/, "updatePhysics() has no dangling reference to input()'s local variable");
+  assert.match(input, /lookYaw:\s*look\.yaw/, "input() exposes the sensor/look yaw as a field");
+  assert.match(physics, /inn\.lookYaw/, "updatePhysics() reads look yaw from its input result");
+  assert.doesNotMatch(physics, /\blook\.yaw\b/, "updatePhysics() has no dangling reference to input()'s local variable");
 });
