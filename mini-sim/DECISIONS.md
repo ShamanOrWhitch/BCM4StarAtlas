@@ -191,3 +191,16 @@ HEAD at the start of the session was `748998250d39ac9ed163b84caa1f7178da920d9a` 
 - [WORK_COORDINATION.md](WORK_COORDINATION.md)
 - [AGENTS.md](AGENTS.md)
 - [PROJECT_STATE.md](PROJECT_STATE.md)
+
+
+## D-010 — Восстановить периодическое изменение текстур внешней оболочки
+
+**Статус: IMPLEMENTED на ветке; TESTED-CODE ожидает CI; визуальная проверка сайта не выполнена.**  
+Репорт пользователя: 2026-10-14 — внешняя оболочка потеряла периодически меняющиеся текстуры, несмотря на то что оптимизация не должна была удалять эффект жидкого металла, ассоциированный с Photoli / Rainbow Chi.
+
+- Baseline main: `c01cec1e6776b53192c15b3027e0240f3ed27a45`; issue [#32](https://github.com/ShamanOrWitch/BCM4StarAtlas/issues/32); branch `fix/exterior-shell-texture-cycle`.
+- Root cause: desktop-набор был насильно ограничен первыми четырьмя `back*.png`; функции `randomizeBackside()` и `updateBacksideCamouflage()`, рендер-вызов и stagger по таймерам убрали, а source-contract test прямо требовал отсутствия цикла. Историческая рабочая версия: [`0fc809c`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/0fc809c2597debee629fecb0c25dd4ab370d65f9).
+- Восстановлено: полный доступный пул текстур для desktop; до четырёх текстур в touch-landscape; существующий mobile downscaling в `makeTextureSource()` сохранён. Внешние shell-панели получают индивидуальные периоды смены около 0.8–3.0 s; при повторном появлении оболочки таймеры сдвигаются друг относительно друга. Смена обновляет только `backside.panels` и не запускается для интерьерных стен.
+- Изменены: `mini-sim/assets/js/mini-sim.js`, `scripts/minisim-local-qa.test.mjs`, cache version в `mini-sim/bcm-mini-sim.php` → 0.9.86.
+- Ограничение: source-contract и CI подтверждают кодовые инварианты, но не визуальный вид материала в настоящем браузере; branch assets не выкладывались на WordPress. Не отмечать как VERIFIED-LIVE до установки/проверки на сайте.
+- Повторное открытие допустимо, если после установки панели не меняются, desktop всё ещё использует только часть текстур или shell цикл влияет на интерьерные стены.
