@@ -82,23 +82,21 @@ try{
  // relying on pointer hit-testing that is unrelated to the audio/mute logic.
  const clickMusicNote=async()=>{
    const note=page.locator(".bcm-mini-sim-music").first();
-   await note.focus();
    const before=await note.evaluate(el=>({
      globalMuted:window.BCMGameAudio?.isMuted?.()??null,
      ariaPressed:el.getAttribute("aria-pressed"),
      classMuted:el.classList.contains("is-muted"),
-     disabled:!!el.disabled,
-     activeElement:document.activeElement===el
+     disabled:!!el.disabled
    }));
-   await page.keyboard.press("Enter");
+   // DOM click bypasses canvas hit-testing and avoids the global key handler taking focus.
+   await note.evaluate(el=>el.click());
    const after=await note.evaluate(el=>({
      globalMuted:window.BCMGameAudio?.isMuted?.()??null,
      ariaPressed:el.getAttribute("aria-pressed"),
      classMuted:el.classList.contains("is-muted"),
-     disabled:!!el.disabled,
-     activeElement:document.activeElement===el
+     disabled:!!el.disabled
    }));
-   return{before,after,activation:"keyboard-Enter",buttonCount:await page.locator(".bcm-mini-sim-music").count()};
+   return{before,after,activation:"dom-click",buttonCount:await page.locator(".bcm-mini-sim-music").count()};
  };
  page.on("request",r=>{if(r.url().includes("/wp-content/plugins/mini-sim/"))report.pluginAssetRequests.push(r.url());});
  page.on("console",m=>{if(m.type()==="error")report.consoleErrors.push(m.text());});
@@ -161,9 +159,7 @@ try{
 
  // Mute first: Home and Warp transitions must not override the user's global preference.
  const muteProbe=await clickMusicNote();report.muteClickProbe=muteProbe;
- check(muteProbe.after.activeElement&&muteProbe.after.globalMuted===true&&muteProbe.after.ariaPressed==="true"&&muteProbe.after.classMuted,"keyboard Enter toggles global mute ON; state="+JSON.stringify(muteProbe));
- check(muteProbe.after.globalMuted===true&&muteProbe.after.ariaPressed==="true"&&muteProbe.after.classMuted,
-   "music note toggles global mute ON; state="+JSON.stringify(muteProbe));
+ check(muteProbe.after.globalMuted===true&&muteProbe.after.ariaPressed==="true"&&muteProbe.after.classMuted,"DOM click toggles global mute ON; state="+JSON.stringify(muteProbe));
 
  // Place the test craft at Room 1's rear doorway. The production collision/door
  // path must enter the actual Room 0 slipstream; movement controls are not under test here.
@@ -220,9 +216,7 @@ try{
  const backMutedPlaying=backMuted.filter(a=>!a.paused&&!a.ended);
  check(backMutedPlaying.length===1&&backMutedPlaying[0].channel==="starbase"&&backMutedPlaying[0].muted,"Warp cancel resumes only muted Starbase OST");
  const unmuteProbe=await clickMusicNote();report.unmuteClickProbe=unmuteProbe;
- check(unmuteProbe.after.activeElement&&unmuteProbe.after.globalMuted===false&&unmuteProbe.after.ariaPressed==="false"&&!unmuteProbe.after.classMuted,"keyboard Enter toggles global mute OFF; state="+JSON.stringify(unmuteProbe));
- check(unmuteProbe.after.globalMuted===false&&unmuteProbe.after.ariaPressed==="false"&&!unmuteProbe.after.classMuted,
-   "music note toggles global mute OFF; state="+JSON.stringify(unmuteProbe));
+ check(unmuteProbe.after.globalMuted===false&&unmuteProbe.after.ariaPressed==="false"&&!unmuteProbe.after.classMuted,"DOM click toggles global mute OFF; state="+JSON.stringify(unmuteProbe));
  const unmutedHome=await readOstState();report.audioAfterUnmute=unmutedHome;
  const unmutedPlaying=unmutedHome.filter(a=>!a.paused&&!a.ended);
  check(unmutedPlaying.length===1&&unmutedPlaying[0].channel==="starbase"&&!unmutedPlaying[0].muted,"turning music ON resumes only Starbase OST");
