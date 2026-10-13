@@ -1389,9 +1389,9 @@
   }
 
   function buildStarbaseExterior(parent) {
-    const allUrls = Array.isArray(backside.urls) ? backside.urls.filter(Boolean).slice().sort() : [];
-    // A deterministic small set replaces the large family of oversized wall textures.
-    const urls = allUrls.slice(0, 4);
+    const allUrls = Array.isArray(backside.urls) ? backside.urls.filter(Boolean) : [];
+    // Preserve the full texture cycle on desktop; keep a smaller pool on touch-landscape phones.
+    const urls = isMobileTextureMode() ? allUrls.slice(0, 4) : allUrls;
     if (!urls.length) return;
 
     const group = new THREE.Group();
@@ -1584,7 +1584,8 @@
     parent.add(group);
     backside.group = group;
     backside.panels = panels;
-    backside.nextAt = 0;
+    backside.nextAt = performance.now() + 1000;
+    randomizeBackside(performance.now());
   }
 
   function trackSurfaceName(kind, index) {
@@ -1882,17 +1883,63 @@
   }
 
   function updateBacksideVisibility() {
-    // In BLACK HOLE the exterior skin stays hidden.
-    // Outside the base it is visible even when our Z happens to line up
-    // with Room 1/2; visual presence is no longer tied to the room's Z band.
+    // Keep the morphing exterior shell out of the interior and the BLACK HOLE gap.
     const zone = ship.position ? getSpaceZone(ship.position.z) : "ROOM1";
     const exterior = exteriorFlight &&
       zone !== "BLACK_HOLE" &&
       !isInsideCorridor(ship.position);
-    if (backside.group) backside.group.visible = exterior;
+
+    if (backside.group) {
+      const wasVisible = backside.group.visible;
+      backside.group.visible = exterior;
+
+      // The shell may stay hidden for minutes while the player is inside.
+      // Re-stagger the timers on entry so every overdue panel does not change at once.
+      if (exterior && !wasVisible) {
+        const now = performance.now();
+        backside.panels.forEach((item, index) => {
+          item.nextAt = now + 800 + (index % 16) * 35 + Math.random() * 1600;
+        });
+      }
+    }
   }
 
-  // Starbase wall materials remain stable during play; no random material cycling.
+  function randomizeBackside(now) {
+    const materials = backside.materials || [];
+    if (!backside.panels.length || !materials.length) return;
+
+    backside.panels.forEach((item) => {
+      const material = materials[Math.floor(Math.random() * materials.length)];
+      item.mesh.material = material;
+      item.material = material;
+      item.nextAt = now + 800 + Math.random() * 2200;
+    });
+
+    backside.nextAt = now + 250;
+  }
+
+  function updateBacksideCamouflage(now) {
+    const materials = backside.materials || [];
+    if (!backside.group || !backside.group.visible ||
+        !backside.panels.length || !materials.length) return;
+
+    backside.panels.forEach((item) => {
+      if (!item.nextAt || now < item.nextAt) return;
+
+      // Choose a different loaded-pool entry whenever possible so a timer tick
+      // actually changes the panel instead of occasionally reselecting its texture.
+      let material = materials[Math.floor(Math.random() * materials.length)];
+      if (materials.length > 1 && material === item.material) {
+        const current = materials.indexOf(item.material);
+        let offset = 1 + Math.floor(Math.random() * (materials.length - 1));
+        if (current < 0) offset = 1;
+        material = materials[(Math.max(0, current) + offset) % materials.length];
+      }
+      if (item.mesh.material !== material) item.mesh.material = material;
+      item.material = material;
+      item.nextAt = now + 800 + Math.random() * 2200;
+    });
+  }
 
   function buildSpaceSatellite(parent) {
     const group = new THREE.Group();
@@ -4132,6 +4179,7 @@
     if (miniSimReleased) return;
 
     updateBacksideVisibility();
+    updateBacksideCamouflage(now);
     pollGamepadMenu();
     const dt = Math.min((now - last) / 1000, 0.033);
     last = now;

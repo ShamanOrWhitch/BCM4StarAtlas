@@ -64,12 +64,19 @@ test("Back reset neither stops OST nor unloads loaded sources",async()=>{
   assert.match(s,/edge\(8, resetCurrentRoom\)/);
   assert.match(s,/if \(e\.code === "Backspace"\)[\s\S]*?resetCurrentRoom\(\)/);
 });
-test("wall textures are stable and limited to four",async()=>{
+test("exterior shell keeps periodic texture morphing while mobile texture use stays limited",async()=>{
   const s=await read("mini-sim/assets/js/mini-sim.js");
-  assert.match(s,/const urls = allUrls\.slice\(0, 4\)/);
-  assert.doesNotMatch(s,/updateBacksideCamouflage\(now\)/);
-  assert.doesNotMatch(s,/function randomizeBackside\(now\)/);
+  assert.ok(s.includes("const urls = isMobileTextureMode() ? allUrls.slice(0, 4) : allUrls"));
+  assert.ok(s.includes("function randomizeBackside(now)"));
+  assert.ok(s.includes("function updateBacksideCamouflage(now)"));
+  assert.ok(s.includes("item.nextAt = now + 800 + Math.random() * 2200"));
+  assert.ok(s.includes("if (!backside.group || !backside.group.visible"));
+  assert.ok(s.includes("if (exterior && !wasVisible)"));
+  assert.ok(s.includes("updateBacksideCamouflage(now)"));
+  const room=s.slice(s.indexOf("function buildRoom(parent"),s.indexOf("function buildStarbaseExterior(parent)"));
+  assert.doesNotMatch(room,/randomizeBackside|updateBacksideCamouflage/);
 });
+
 test("Mini-Sim and Tower expose controller navigation",async()=>{
   const mini=await read("mini-sim/assets/js/mini-sim.js"),tower=await read("mini-sim/tower/assets/js/tower.js");
   const css=await read("mini-sim/assets/css/mini-sim.css"),tcss=await read("mini-sim/tower/assets/css/tower.css");
