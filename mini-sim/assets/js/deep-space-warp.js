@@ -548,7 +548,7 @@
       state.layers = [];
       const gateCount = 15;
       for (let i = 0; i < gateCount; i += 1) {
-        const type = i % 6 === 2 ? "spikes" : (i % 6 === 4 ? "sweeper" : (i % 6 === 5 ? "boost" : "gate"));
+        const type = i % 7 === 2 ? "spikes" : (i % 7 === 4 ? "sweeper" : (i % 7 === 5 ? "boost" : (i % 7 === 6 ? "launcher" : "gate")));
         const safeAngle = rng() * Math.PI * 2 - Math.PI;
         const blockedAngles = [];
         const spikeCount = type === "spikes" ? 3 : 0;
@@ -1110,7 +1110,8 @@
       const centerX = (d) => mid +
         (Math.sin(t * 0.19 + d * 4.3) * 0.095 +
          Math.sin(t * 0.11 + d * 7.1) * 0.038 +
-         Math.sin(d * Math.PI * 1.55 + phase) * curveScale * 0.11) * w * d;
+         Math.sin(d * Math.PI * 1.55 + phase) * curveScale * 0.11 +
+         Math.cos(loopPhase + d * Math.PI * 2.4) * loopMix * 0.14) * w * d;
       const centerY = (d) => h * 0.49 +
         (Math.sin(t * 0.15 + d * 3.6) * 0.065 +
          Math.sin(t * 0.09 + d * 7.7) * 0.032 +
@@ -1275,6 +1276,21 @@
             g.lineTo(p1.x, p1.y);
             g.strokeStyle = "rgba(115,255,214,0.88)";
             g.lineWidth = Math.max(1, rx * 0.022);
+            g.stroke();
+          }
+        } else if (layer.type === "launcher") {
+          // A passable pair of angled launch rails, not an opaque slab.
+          drawArc(d, layer.safeAngle - 0.48, layer.safeAngle + 0.48, "rgba(255,190,95,0.96)", Math.max(4, rx * 0.06));
+          for (let stripe = -2; stripe <= 2; stripe += 1) {
+            const a0 = layer.safeAngle + stripe * 0.14 - 0.10;
+            const a1 = layer.safeAngle + stripe * 0.14 + 0.06;
+            const p0 = point(d, a0, -rx * 0.03);
+            const p1 = point(Math.min(1.07, d + 0.035), a1, -rx * 0.22);
+            g.beginPath();
+            g.moveTo(p0.x, p0.y);
+            g.lineTo(p1.x, p1.y);
+            g.strokeStyle = "rgba(255,222,155,0.96)";
+            g.lineWidth = Math.max(1, rx * 0.026);
             g.stroke();
           }
         }
@@ -1460,10 +1476,10 @@
           hit = layer.blockedAngles.some((angle) =>
             Math.abs(angleDifference(playerAngle, angle)) < layer.obstacleWidth
           );
-        } else if (layer.type === "boost") {
-          if (Math.abs(angleDifference(playerAngle, layer.safeAngle)) < 0.72) {
-            state.tubeBoostUntil = state.elapsed + 3.5;
-            state.shields = Math.min(100, state.shields + 8);
+        } else if (layer.type === "boost" || layer.type === "launcher") {
+          if (Math.abs(angleDifference(playerAngle, layer.safeAngle)) < (layer.type === "launcher" ? 0.68 : 0.72)) {
+            state.tubeBoostUntil = state.elapsed + (layer.type === "launcher" ? 4.2 : 3.5);
+            state.shields = Math.min(100, state.shields + (layer.type === "launcher" ? 4 : 8));
           }
         }
 
