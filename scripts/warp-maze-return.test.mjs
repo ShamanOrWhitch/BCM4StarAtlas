@@ -62,11 +62,13 @@ test("Warp gamepad horizontal directions use the corrected left/right mapping", 
   assert.match(body, /if \(right && !gamepadMenuNav\.previous\.right\) move\(isWarpMapMenu \? -1 : 1\)/);
 });
 
-test("visual spacecraft rolls with the Warp tunnel instead of remaining upright", () => {
+test("Warp road stays fixed while the ship banks only in response to steering", () => {
   const body = section(warp, "function drawTubeTunnel", "function drawBackdrop");
-  assert.match(body, /const px=mid\+\(rawX-mid\)\*cosRoll/);
-  assert.match(body, /const py=pivotY\+\(rawX-mid\)\*sinRoll/);
-  assert.match(body, /g\.rotate\(roll\+Math\.max/);
+  assert.doesNotMatch(body, /g\.rotate\(roll\)|const roll\s*=/);
+  assert.match(body, /const bank=Math\.max\(-\.24,Math\.min\(\.24,-state\.playerX\*\.20\)\)/);
+  assert.match(body, /const sectionCurve = tubeSectionBlend\(curves, state\.elapsed\)\.value/);
+  assert.match(body, /Math\.sin\(d\*Math\.PI\*1\.55\+sectionPhase\)/);
+  assert.doesNotMatch(body, /g\.translate\(mid, h \* 0\.62\)/);
 });
 
 test("reopening Warp retains the arrived local sector instead of resetting to the adapter launch sector", () => {
