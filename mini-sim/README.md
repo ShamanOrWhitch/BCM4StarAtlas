@@ -1,5 +1,9 @@
 # BCM Mini-Sim 0.9.82
 
+> **Текущий план работы для агентов:** [AGENTS.md](AGENTS.md) · [PROJECT_STATE.md](PROJECT_STATE.md).  
+> Сначала прочитай эти файлы: там зафиксирован активный этап, обязательные требования и критерии приёмки. Ниже — история версий и технические заметки; старые записи не заменяют актуальное состояние проекта.
+
+
 ### 0.9.82 Runtime stability
 
 - Warp OST starts with the map, plays once without resetting at Tube, continues through the asteroid maze and yields back to the regular OST only when exiting Warp.
