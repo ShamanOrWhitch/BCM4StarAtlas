@@ -87,6 +87,8 @@ test("Playwright runner overrides plugin files from local checkout",async()=>{
   assert.match(s,/wy-preloader/);
   assert.match(s,/08-after-cancel\.png/);
   assert.match(s,/__BCM_QA_GAMEPAD/);
+  assert.match(s,/const clickMusicNote=async\(\)=>page\.locator/);
+  assert.match(s,/clickMusicNote\(\)/);
   assert.match(s,/setQaGamepadButton\(1,true\)/);
   assert.match(s,/Gamepad B returns from Room 0 to the start of Room 1/);
   assert.match(s,/global mute stays enabled after Gamepad B Home/);

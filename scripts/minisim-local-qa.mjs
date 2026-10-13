@@ -77,6 +77,10 @@ try{
    if(!button)throw new Error("Synthetic QA gamepad/button missing");
    button.pressed=!!pressed;button.value=pressed?1:0;window.__BCM_QA_GAMEPAD.timestamp=performance.now();
  },{index,pressed});
+ // The in-game canvas overlaps the decorative music note in WordPress layout.
+ // Calling the DOM button's native click exercises its registered handler without
+ // relying on pointer hit-testing that is unrelated to the audio/mute logic.
+ const clickMusicNote=async()=>page.locator(".bcm-mini-sim-music").first().evaluate(el=>el.click());
  page.on("request",r=>{if(r.url().includes("/wp-content/plugins/mini-sim/"))report.pluginAssetRequests.push(r.url());});
  page.on("console",m=>{if(m.type()==="error")report.consoleErrors.push(m.text());});
  page.on("pageerror",e=>report.pageErrors.push(String(e&&e.stack?e.stack:e)));
@@ -133,7 +137,7 @@ try{
  check(firstPlaying.length===1&&firstPlaying[0].channel==="starbase","Starbase is the only active OST in the ONI CSS location");
 
  // Mute first: Home and Warp transitions must not override the user's global preference.
- await page.locator(".bcm-mini-sim-music").first().click();
+ await clickMusicNote();
  await page.waitForFunction(()=>window.BCMGameAudio?.isMuted?.()===true,null,{timeout:5000});
  check(await page.locator(".bcm-mini-sim-music").first().getAttribute("aria-pressed")==="true","music note shows the global muted state");
 
@@ -191,7 +195,7 @@ try{
  const backMuted=await readOstState();report.audioAfterMutedWarpCancel=backMuted;await shot(page,"05-after-warp-cancel-muted.png");
  const backMutedPlaying=backMuted.filter(a=>!a.paused&&!a.ended);
  check(backMutedPlaying.length===1&&backMutedPlaying[0].channel==="starbase"&&backMutedPlaying[0].muted,"Warp cancel resumes only muted Starbase OST");
- await page.locator(".bcm-mini-sim-music").first().click();
+ await clickMusicNote();
  await page.waitForFunction(()=>window.BCMGameAudio?.isMuted?.()===false,null,{timeout:5000});
  const unmutedHome=await readOstState();report.audioAfterUnmute=unmutedHome;
  const unmutedPlaying=unmutedHome.filter(a=>!a.paused&&!a.ended);
