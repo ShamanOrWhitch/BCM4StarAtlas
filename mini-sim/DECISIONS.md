@@ -198,11 +198,11 @@ HEAD at the start of the session was `748998250d39ac9ed163b84caa1f7178da920d9a` 
 
 **Статус: OPEN / runtime defect reproduced in remote browser QA; tracked separately in [Issue #21](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/21). Do not rewrite the shared audio mixer to work around this.**
 
-On 2026-10-13, the existing P1 QA branch `test/minisim-room0-home-qa` was exercised against `https://walkingyog.com/bcm4sa/` with the QA runner substituting assets from the chosen GitHub commit. Tested source/test baseline: `f8e9b4689819ad2c4cd4f36a0a0a57f6c06423bb`.
+On 2026-10-13, the existing P1 QA branch `test/minisim-room0-home-qa` was exercised against `https://walkingyog.com/bcm4sa/` with the QA runner substituting assets from the chosen GitHub commit. Tested runner/test content baseline: `f8e9b4689819ad2c4cd4f36a0a0a57f6c06423bb`; the latest Actions re-run is on its documentation-only descendant branch head `824bf5269c20dcf96d5594a5a4cd7c50f988d49e`.
 
 Evidence:
-- Regression workflow [38376740774](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740774): PASS.
-- Browser QA [38376740771](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740771): FAIL at the first global-mute click; artifact [11801033559](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740771/artifacts/11801033559), retained through 2026-10-20.
+- Regression workflow on branch head `824bf5269c20dcf96d5594a5a4cd7c50f988d49e` [38377460756](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377460756): PASS.
+- Browser QA on the same branch head [38377460797](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377460797): FAIL at the first global-mute click; artifact [11801987268](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377460797/artifacts/11801987268), retained through 2026-10-20.
 - The actual Mini-Sim render loop reached `ROOM 1 · SPD 0.0` without `LOOP ERR`. The Starbase OST was the only active game OST before the failed click.
 - The button `.bcm-mini-sim-music` was connected, enabled, not disabled/inert, and was the top element at the pointer coordinates. A trusted Playwright mouse click reached document capture; `event.cancelBubble` was already true by a later document capture listener. The music button handler never ran, no `bcm:game-music-mute` event fired, and mute state/aria/class remained unchanged.
 
