@@ -68,3 +68,10 @@ test("visual spacecraft rolls with the Warp tunnel instead of remaining upright"
   assert.match(body, /const py=pivotY\+\(rawX-mid\)\*sinRoll/);
   assert.match(body, /g\.rotate\(roll\+Math\.max/);
 });
+
+test("reopening Warp retains the arrived local sector instead of resetting to the adapter launch sector", () => {
+  const body = section(warp, "function readNavigation()", "function sectorText(sector)");
+  assert.match(body, /if \(state\.sectorProgressed && state\.nav\) return state\.nav/);
+  const openBody = section(warp, "function openMap()", "function closeOverlay");
+  assert.match(openBody, /state\.nav = readNavigation\(\)/);
+});
