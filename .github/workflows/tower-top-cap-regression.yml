@@ -1,0 +1,24 @@
+name: Tower top cap regression
+on:
+  push:
+    branches:
+      - fix/tower-top-cap-y-offset
+  pull_request:
+    branches:
+      - main
+    paths:
+      - mini-sim/tower/assets/js/tower.js
+      - scripts/tower-top-cap.test.mjs
+      - .github/workflows/tower-top-cap-regression.yml
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check Tower syntax
+        run: node --check mini-sim/tower/assets/js/tower.js
+      - name: Run top cap source-contract
+        run: node --test scripts/tower-top-cap.test.mjs
