@@ -48,7 +48,55 @@ test("Note button shares one mute state across Starbase, Warp and Tower OSTs",as
   assert.match(mini,/musicButton\.classList\.toggle\("is-muted", cinema\.mute\)/);
   assert.match(warp,/playExclusive\(warpAudio, "warp"\)/);
   assert.match(tower,/playExclusive\(audio, "tower"\)/);
+  assert.match(tower,/transitionVideo\.onplaying = \(\) => \{[\s\S]*?playTowerAudio\(\)/);
   assert.doesNotMatch(tower,/transitionStarted = true;\s*playTowerAudio\(\)/);
+});
+
+test("startup prioritizes Starbase OST, initial room textures, right-wall video and the actual portal element",async()=>{
+  const mini=await read("mini-sim/assets/js/mini-sim.js");
+  const boot=mini.slice(mini.indexOf("const config = window.BCMMiniSimConfig"),mini.indexOf("let miniSimReleased"));
+  assert.match(boot,/musicAudio\.preload = "auto"/);
+  assert.match(boot,/musicAudio\.fetchPriority = "high"/);
+  assert.match(boot,/musicAudio\.src = config\.musicUrl/);
+  const textured=mini.slice(mini.indexOf("function textured(name, fallback, side)"),mini.indexOf("function deferredTextured"));
+  assert.match(textured,/img\.fetchPriority = textureRequestPriority\(name\) <= 1 \? "high" : "auto"/);
+  const arm=mini.slice(mini.indexOf("let levelMediaArmed = false"),mini.indexOf("updateLiveWall();"));
+  assert.ok(arm.indexOf("room1-right-wall-live") < arm.indexOf("primePortalVideo(\"FORWARD\", \"high\")"));
+  assert.ok(arm.indexOf("primePortalVideo(\"FORWARD\", \"high\")") < arm.indexOf("startBackgroundTextureLoading()"));
+  assert.match(arm,/room1RightWall\.el\.fetchPriority = "high"/);
+  assert.match(mini,/queueLowPriorityImage\(url, finish, \(\) => \{[\s\S]*?\}, 9\)/);
+  const zones=mini.slice(mini.indexOf("const videoZones = Array.isArray(config.spaceVideoZones)"),mini.indexOf("// Room 1 rear wall"));
+  assert.doesNotMatch(zones,/video\.src = zone\.url;\s*video\.load\(\)/);
+});
+
+test("portal buffering leaves flight live until the transition video actually plays",async()=>{
+  const mini=await read("mini-sim/assets/js/mini-sim.js");
+  const portal=mini.slice(mini.indexOf("function playPortalVideo(direction)"),mini.indexOf("function tryPortal()"));
+  const activation=portal.indexOf("const activateTransition = () =>");
+  assert.ok(activation>0);
+  assert.doesNotMatch(portal.slice(0,activation),/transitionBusy = true|ship\.velocity\.set\(0, 0, 0\)|ship\.angularVelocity\.set\(0, 0, 0\)/);
+  assert.match(portal,/transitionVideo\.onloadeddata = requestPlayback/);
+  assert.match(portal,/transitionVideo\.onplaying = activateTransition/);
+  assert.match(portal,/const result = transitionVideo\.play\(\)/);
+  assert.match(portal,/transitionVideo\.onerror = \(\) => \{\s*transitionLoading = false;\s*transitionBusy = false/);
+});
+
+test("ONICSS keeps the scene until Tower API is ready and tower.mp4 is playing",async()=>{
+  const mini=await read("mini-sim/assets/js/mini-sim.js");
+  const tower=await read("mini-sim/tower/assets/js/tower.js");
+  const handoff=mini.slice(mini.indexOf("function handoffToTower()"),mini.indexOf("function enterTowerFromGate()"));
+  const callback=handoff.indexOf("api.beginLanding((success) =>");
+  const dispose=handoff.indexOf("disposeMiniSimResources()");
+  assert.ok(callback>0 && dispose>callback);
+  assert.match(handoff,/Promise\.resolve\(ensureTowerJsLoaded\(\)\)/);
+  assert.match(handoff,/pauseAllCinemaVideos\(\)/);
+  assert.match(tower,/window\.BCMTowerAPI\.preloadLanding = \(\) => primeTransitionVideo\(\)/);
+  assert.match(tower,/window\.BCMTowerAPI\.beginLanding = \(onFirstFrame\)/);
+  assert.match(tower,/transitionVideo\.onplaying = \(\) => \{[\s\S]*?playTowerAudio\(\)[\s\S]*?resolveLandingFirstFrame\(true\)/);
+  assert.match(tower,/canvas\.style\.visibility = "hidden"/);
+  assert.match(tower,/landingFirstFrameCallback = typeof onFirstFrame === "function"/);
+  const tail=tower.slice(tower.lastIndexOf("resize();"));
+  assert.doesNotMatch(tail,/primeTransitionVideo\(\);/);
 });
 test("Vertical movement uses the ship's current local up axis and gamepad turning is faster",async()=>{
   const s=await read("mini-sim/assets/js/mini-sim.js");
