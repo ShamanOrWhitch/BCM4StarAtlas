@@ -1480,7 +1480,8 @@
             capMaterial
           );
           topCap.rotation.x = -Math.PI / 2;
-          topCap.position.y = towerTopY;
+          // Lift the H1 cap just above the open cylinder rim so it is not z-fighting/recessed.
+          topCap.position.y = towerTopY + 0.2;
           topCap.userData.towerCap = "top";
           towerRoot.add(topCap);
           wallCapMeshes.push(topCap);
