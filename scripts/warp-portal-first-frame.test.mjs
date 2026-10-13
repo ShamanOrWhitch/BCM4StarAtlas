@@ -30,7 +30,7 @@ test("Tube rendering is a rotating cylinder, not a fixed trapezoid", () => {
   assert.match(draw, /const radiusY = \(d\) => radiusX\(d\) \* 0\.91/);
   assert.match(draw, /const twistAt = \(d\) =>/);
   assert.match(draw, /Circumferential rings and seams/);
-  assert.match(draw, /Longitudinal seams spiral around the whole wall/);
+  assert.match(draw, /for \(let seam = 0; seam < 12; seam \+= 1\)/);
   assert.match(draw, /g\.rotate\(playerAngle \+ craftRoll - Math\.PI \/ 2\)/);
   assert.match(draw, /Math\.sin\(loopPhase \+ d \* Math\.PI \* 2\.4\) \* loopMix/);
   assert.doesNotMatch(draw, /const roadY=d=>|const half=d=>|Continuous floor panels and centre dashes/);
