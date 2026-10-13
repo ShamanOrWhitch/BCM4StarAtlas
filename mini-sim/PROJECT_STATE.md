@@ -2,27 +2,27 @@
 
 > **Назначение:** короткая передача контекста между ChatGPT, Codex, Copilot, Grok и другими агентами. Сначала читай этот документ, потом только необходимые части исходников.
 >
-> **Текущий активный этап: Issue #32 — восстановить циклирование текстур внешней оболочки.** Предыдущая P1-задача Issue #17 (Room0 → B / Room1 / global mute) остаётся открытой отдельно; общий аудиомикшер не переписывать, пока отдельная проверка не даст воспроизводимый сбой.
+> **Текущий активный этап: P1 — Issue #17, удалённый Browser QA для Room0 → B → Room1 и global mute.** Исправление внешней оболочки из Issue #32 уже интегрировано в main; не смешивать эти задачи и не переписывать аудиомикшер без отдельного воспроизводимого сбоя.
 
-Last reconciled main HEAD: c01cec1e6776b53192c15b3027e0240f3ed27a45 (Mini-Sim 0.9.85 / Tower 0.2.56).  
-Текущая рабочая ветка `fix/exterior-shell-texture-cycle` основана на этом main SHA; новый WORK LOCK — [Issue #32](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/32). В ней восстановлена периодическая смена текстур внешней оболочки и поднят Mini-Sim до 0.9.86 для cache-busting. На SHA `be2adbd3e1462409d40f2b3471d99507e666e379` регрессионные тесты Mini-Sim и Warp прошли; browser-smoke оставался в работе при последней сверке. Это код ветки, не деплой WordPress.  
-Предыдущая задача browser QA Room0 → B / global mute остаётся отдельно открытой в [Issue #17](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/17); текущая правка не меняет её runtime-логику.
+Last reconciled main HEAD: `ad4d8cf8cdf261cecb30b95ddbf85ceaf7514f02` (Mini-Sim 0.9.86 / Tower 0.2.56).  
+Issue [#32](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/32) closed after [PR #33](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/33) merged. Post-merge Mini-Sim regression checks passed: [run 38471956269](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471956269). The code-identical pre-merge browser smoke passed on [run 38471671934](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471671934); the post-merge browser QA run [38471956003](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471956003) was still in progress when this note was written. Browser QA does not visually inspect the liquid-metal shell. The plugin files have not been uploaded to WordPress.  
+Current separate task: [Issue #17](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/17), Room0 → B / Room1 / global mute.
 
 Обновляй этот файл в конце каждой рабочей сессии. Он описывает актуальные требования и состояние, а не историю всех старых решений.
 
 
-## Текущий узкий дефект: внешний shell / liquid-metal texture cycle
+## Закрытый дефект: внешний shell / liquid-metal texture cycle (Issue #32)
 
 - Репорт пользователя 2026-10-14: периодически меняющаяся внешняя оболочка снова перестала менять текстуры; оптимизация не должна убирать задуманное визуальное поведение жидкого металла.
 - Baseline main: `c01cec1e6776b53192c15b3027e0240f3ed27a45`; WORK LOCK: [Issue #32](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/32); branch: `fix/exterior-shell-texture-cycle`.
 - Root cause в main: shell использовал `allUrls.slice(0, 4)` и удалённые вызовы `randomizeBackside()` / `updateBacksideCamouflage()`; source-contract тест требовал отсутствия циклирования. Историческая рабочая реализация имеется в commit `0fc809c2597debee629fecb0c25dd4ab370d65f9`.
 - В текущей ветке desktop снова использует весь набор внешних `back*.png`; touch-landscape сохраняет limit 4 и существующее уменьшение изображений. Материалы внешних панелей меняются индивидуально по таймерам около 0.8–3.0 s, с повторным stagger при появлении оболочки. Цикл исполняется только при видимой внешней оболочке. Интерьер Room 1/2, геометрия и физика не меняются.
-- Mini-Sim cache version в ветке: 0.9.86. Статус: IMPLEMENTED; автоматические проверки ожидаются. VERIFIED-LIVE / USER-CONFIRMED не утверждать до визуального теста после установки файлов на WordPress.
+- Mini-Sim cache version в main: 0.9.86. Статус: MERGED / TESTED-CODE. Post-merge regression run 38471956269 прошёл. Предыдущий browser smoke с тем же runtime-кодом прошёл в run 38471671934; run 38471956003 был ещё в процессе при последней сверке. Ни один из этих smoke tests не доказывает визуальную правильность текстурного цикла. VERIFIED-LIVE / USER-CONFIRMED не утверждать до установки файлов на WordPress и визуального теста.
 
 ## Что известно сейчас
 
 - WordPress-плагин использует шорткод `[bcm_mini_sim]`; симулятор работает на уже встроенном Three.js r128. Не добавлять второй WebGL-контекст и не загружать Three.js с CDN.
-- На базовом main SHA `c01cec1e6776b53192c15b3027e0240f3ed27a45` версия Mini-Sim была 0.9.85, Tower — 0.2.56. Рабочая ветка Issue #32 поднимает Mini-Sim до 0.9.86 для cache-busting. Факт получения этой версии немодифицированным посетителем не проверен: изменения в ветке не являются деплоем на WordPress.
+- Текущий main SHA `ad4d8cf8cdf261cecb30b95ddbf85ceaf7514f02` использует Mini-Sim 0.9.86 и Tower 0.2.56. Версия сайта фактически не подтверждена; merge в GitHub не обновляет автоматически каталог плагина на WordPress.
 - Source-contract tests: `node --test scripts/minisim-local-qa.test.mjs`. На 7489982 GitHub Actions «Mini-Sim regression checks» (run 38368355012) был красным: 8 pass, 1 fail. Падал контракт Home из-за слишком широкого `doesNotMatch(/stopMiniSimAudio\(\);[\s\S]*?setStatus/)`, хотя `returnToStart()` после `stopMiniSimAudio()` вызывает `startMusic()`. Этот контракт приведён к фактической последовательности; код аудио не менялся. Зелёный прогон 3196d8d был до появления этого утверждения в f1b1064.
 - Исторически browser QA падал на трёх старых запусках из-за того, что Autoptimize выдаёт некоторые скрипты/стили через cache URL. Исправление runner по тегам HTML вошло в `d42818a`. Последний проверенный результат: на `dc8a08e` regression workflow [38369594418](https://github.com/ShamanOrWitch/BCM4StarAtlas/actions/runs/38369594418) и browser QA [38369594467](https://github.com/ShamanOrWitch/BCM4StarAtlas/actions/runs/38369594467) — оба success. Browser QA использовал подмену ассетов выбранного коммита в открытой WordPress-странице и покрыл текущий сценарий Warp map → Tube → cancel; это не доказывает поведение без подмены и не покрывает Room0 → B или кнопку mute.
 - Удалённый повтор после подмены handle: browser QA run [38369594467](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38369594467) на `dc8a08e` — success, видео выключены, артефакт `minisim-browser-qa-dc8a08e…` (id 11798337294). Regression run [38369594418](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38369594418) на том же SHA — success. Это снова подмена файлов коммита внутри открытой страницы, не деплой 0.9.83 и не сценарий Room0 → B.

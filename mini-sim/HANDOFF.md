@@ -37,16 +37,16 @@
 - SAGE: нужна видимая целиком карта для планирования маршрута, индикация текущего сектора (старт — ONI CSS / NEUNO), выбор следующего связанного сектора по реальным данным. Сам прыжок происходит на одну соседнюю клетку, но маршрут нужно планировать на всей карте. В астероидном секторе не должно быть принудительного возврата на базу. Проверить полноту/источник карты, не выводить полный объём галактики из названия файла `69regions-v9.json`.
 - Тестирование не должно требовать постоянного скачивания/загрузки тяжёлого репозитория. Сначала проверь GitHub Actions remote browser QA. Не отправляй пользователя в многошаговую локальную установку без необходимости.
 
-## Текущая задача от 2026-10-14: внешняя оболочка / liquid-metal cycle
+## Завершённая задача от 2026-10-14: внешняя оболочка / liquid-metal cycle
 
-- Базовый main SHA: `c01cec1e6776b53192c15b3027e0240f3ed27a45`, версии Mini-Sim 0.9.85 / Tower 0.2.56.
-- WORK LOCK [Issue #32](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/32), рабочая ветка `fix/exterior-shell-texture-cycle`.
+- Baseline SHA: `c01cec1e6776b53192c15b3027e0240f3ed27a45`; merge commit main: `ad4d8cf8cdf261cecb30b95ddbf85ceaf7514f02`, versions Mini-Sim 0.9.86 / Tower 0.2.56.
+- WORK LOCK [Issue #32](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/32) закрыт после merge [PR #33](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/33).
 - Причина регрессии: код принудительно использовал только четыре внешние текстуры и удалил вызов периодической смены. Старый source-contract тест закреплял неверное поведение.
 - В ветке восстановлены полный пул на desktop, мобильный limit в четыре текстуры, индивидуальные stagger-таймеры внешних shell-панелей (~0.8–3.0 s) и обновление только когда shell видим. Интерьер Room 1/2 и геометрия не затрагиваются. Mini-Sim cache version поднят до 0.9.86.
-- Кодовые тесты/CI нужно проверить на финальном SHA ветки. Это не равно ручной проверке вида материала и не означает загрузку файлов на WordPress.
+- Post-merge Mini-Sim regression PASS: [run 38471956269](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471956269). Warp source-contract PASS: [run 38471847602](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471847602). Browser smoke passed on code-identical runtime SHA: [run 38471671934](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471671934); post-merge browser run was still in progress. The shell effect itself has not been visually checked on the live WordPress page and the plugin files have not been uploaded there.
 - Отдельная WORK LOCK задача [Issue #17](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/17) про Room0 → B / Room1 / global mute остаётся на тестовом наборе и не объединялась с этим runtime-изменением.
 
 ## Следующий шаг
 
-Активная задача P1: добавить в удалённый browser smoke тест последовательности Room0 → gamepad B → начало Room1, подтвердить Starbase OST и отдельно проверить глобальный mute при переходе между зонами. Сначала проверь активные WORK LOCK Issues и latest HEAD. Не меняй микшер, пока тест не даст конкретный воспроизводимый сбой. Live версия страницы на момент предыдущей проверки ещё отдавала Mini-Sim 0.9.82 / Tower 0.2.53; QA подменяет ассеты и не обновляет сайт.
+Активная задача P1: добавить в удалённый browser smoke тест последовательности Room0 → gamepad B → начало Room1, подтвердить Starbase OST и отдельно проверить глобальный mute при переходе между зонами. Сначала проверь активные WORK LOCK Issues и latest HEAD. Не меняй микшер, пока тест не даст конкретный воспроизводимый сбой. Merge does not deploy the plugin to WordPress; check the live plugin version before claiming the site uses 0.9.86. Browser QA with asset overrides is not a production deployment.
 
