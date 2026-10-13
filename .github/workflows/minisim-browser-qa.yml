@@ -1,0 +1,75 @@
+name: Mini-Sim browser QA from GitHub
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: Public WordPress page rendering the bcm_mini_sim shortcode
+        required: true
+        type: string
+        default: https://walkingyog.com/bcm4sa/
+      full_media:
+        description: Allow video requests during QA (normally keep disabled)
+        required: false
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths:
+      - 'mini-sim/assets/js/**'
+      - 'mini-sim/assets/css/**'
+      - 'mini-sim/tower/assets/js/**'
+      - 'mini-sim/tower/assets/css/**'
+      - 'mini-sim/bcm-mini-sim.php'
+      - 'mini-sim/tower/bcm-tower.php'
+      - 'scripts/minisim-local-qa.mjs'
+      - 'tools/minisim-qa/package.json'
+      - '.github/workflows/minisim-browser-qa.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'mini-sim/assets/js/**'
+      - 'mini-sim/assets/css/**'
+      - 'mini-sim/tower/assets/js/**'
+      - 'mini-sim/tower/assets/css/**'
+      - 'mini-sim/bcm-mini-sim.php'
+      - 'mini-sim/tower/bcm-tower.php'
+      - 'scripts/minisim-local-qa.mjs'
+      - 'tools/minisim-qa/package.json'
+      - '.github/workflows/minisim-browser-qa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      MINISIM_URL: ${{ inputs.target_url || 'https://walkingyog.com/bcm4sa/' }}
+    steps:
+      - name: Checkout this exact Git commit
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install isolated Playwright dependency
+        working-directory: tools/minisim-qa
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+      - name: Run browser smoke test without downloading videos
+        if: ${{ !inputs.full_media }}
+        run: npm run qa:minisim
+      - name: Run browser smoke test with video media
+        if: ${{ inputs.full_media }}
+        run: npm run qa:minisim -- --full-media
+      - name: Upload screenshots and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minisim-browser-qa-${{ github.sha }}
+          path: .qa-artifacts/
+          if-no-files-found: warn
+          retention-days: 7
