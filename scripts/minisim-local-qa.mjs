@@ -59,6 +59,18 @@ try{
    document.addEventListener("click",event=>traceQaClick("document-capture",event),true);
    document.addEventListener("click",event=>traceQaClick("document-bubble",event),false);
    window.addEventListener("click",event=>traceQaClick("window-bubble",event),false);
+   window.__BCM_QA_DOC_CLICK_HANDLERS=[];
+   const nativeAddEventListener=EventTarget.prototype.addEventListener;
+   EventTarget.prototype.addEventListener=function(type,listener,options){
+     const capture=typeof options==="boolean"?options:!!(options&&options.capture);
+     if(this===document&&type==="click"&&capture){
+       window.__BCM_QA_DOC_CLICK_HANDLERS.push({
+         source:typeof listener==="function"?String(listener).slice(0,260):String(listener&&listener.handleEvent).slice(0,260),
+         stack:String(new Error().stack||"").split("\\n").slice(1,5)
+       });
+     }
+     return nativeAddEventListener.call(this,type,listener,options);
+   };
    // Deterministic synthetic standard gamepad: button index 1 is B/Home.
    // This exercises the real readPad edge handler without requiring a physical controller.
    window.__BCM_QA_GAMEPAD={id:"BCM QA synthetic gamepad",index:0,connected:true,timestamp:0,mapping:"standard",axes:[0,0,0,0],buttons:Array.from({length:17},()=>({pressed:false,touched:false,value:0}))};
@@ -99,10 +111,12 @@ try{
    // Trace the actual DOM click and the runtime's global mute event; this distinguishes
    // a lost handler from a handler that toggles more than once.
    const interaction=await note.evaluate(el=>{
-     const muteEvents=[];let clickEvents=0;
+     const muteEvents=[];let clickEvents=0;const lateDocumentCapture=[];
      const onMute=event=>muteEvents.push(event.detail?.muted);
      const onClick=()=>{clickEvents++;};
+     const onLateDoc=event=>lateDocumentCapture.push({cancelBubble:event.cancelBubble,eventPhase:event.eventPhase});
      window.addEventListener("bcm:game-music-mute",onMute);
+     document.addEventListener("click",onLateDoc,true);
      el.addEventListener("click",onClick,{once:true});
      const rect=el.getBoundingClientRect();
      const top=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);
@@ -114,8 +128,9 @@ try{
      window.__BCM_QA_CLICK_FLOW=[];
      el.click();
      const clickFlow=[...window.__BCM_QA_CLICK_FLOW];
+     document.removeEventListener("click",onLateDoc,true);
      window.removeEventListener("bcm:game-music-mute",onMute);
-     return{clickEvents,muteEvents,clickFlow,beforeNative};
+     return{clickEvents,muteEvents,clickFlow,lateDocumentCapture,documentCaptureHandlers:window.__BCM_QA_DOC_CLICK_HANDLERS,beforeNative};
    });
    const after=await note.evaluate(el=>({
      globalMuted:window.BCMGameAudio?.isMuted?.()??null,
