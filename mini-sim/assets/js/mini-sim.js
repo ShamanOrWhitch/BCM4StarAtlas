@@ -4413,6 +4413,8 @@
     }
     window.BCMiniSimAPI = window.BCMiniSimAPI || {};
     window.BCMiniSimAPI.stopAudio = stopMiniSimAudio;
+    window.BCMiniSimAPI.getSpeedMode = () => speedMode;
+    window.BCMiniSimAPI.setSpeedMode = (mode) => setSpeedMode(mode);
     window.BCMiniSimAPI.pauseForWarp = (value) => {
       externalPause = !!value;
       if (externalPause && ship.velocity && ship.angularVelocity) {
