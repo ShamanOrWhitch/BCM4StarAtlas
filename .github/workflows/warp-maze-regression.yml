@@ -1,0 +1,29 @@
+name: Warp maze return regression
+
+on:
+  push:
+    branches:
+      - fix/warp-maze-return-to-map
+  pull_request:
+    branches:
+      - main
+    paths:
+      - mini-sim/assets/js/deep-space-warp.js
+      - mini-sim/assets/js/mini-sim.js
+      - scripts/warp-maze-return.test.mjs
+      - .github/workflows/warp-maze-regression.yml
+
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check Warp module syntax
+        run: node --check mini-sim/assets/js/deep-space-warp.js
+      - name: Check Mini-Sim syntax
+        run: node --check mini-sim/assets/js/mini-sim.js
+      - name: Run Warp route source-contract tests
+        run: node --test scripts/warp-maze-return.test.mjs

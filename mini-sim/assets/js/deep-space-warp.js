@@ -78,6 +78,8 @@
       target: null,
       savedPosition: null,
       savedQuaternion: null,
+      savedSpeedMode: null,
+      sectorProgressed: false,
       elapsed: 0,
       tubeTravel: 0,
       startedAt: 0,
@@ -108,7 +110,7 @@
     const exitButton = document.createElement("button");
     exitButton.className = "bcm-warp-exit";
     exitButton.type = "button";
-    exitButton.textContent = "RETURN TO DEEP SPACE";
+    exitButton.textContent = "RETURN TO WARP MAP";
     exitButton.hidden = true;
     root.appendChild(exitButton);
 
@@ -216,6 +218,10 @@
     }
 
     function readNavigation() {
+      // After a local sector arrival, keep that session's current sector when
+      // the player closes and reopens the Warp menu. The global adapter often
+      // still points to the original ONI CSS launch point.
+      if (state.sectorProgressed && state.nav) return state.nav;
       const galia = window.GALIA_PLAY_STATE || {};
       const nav = window.BCM_SAGE_NAVIGATION || window.GALIA_SAGE_NAVIGATION || galia.sageNavigation || galia.navigation || null;
       if (nav && typeof nav === "object") {
@@ -244,6 +250,7 @@
             targets,
             live: true,
             label: String(nav.source || nav.provider || "SAGE NAVIGATION ADAPTER"),
+            adapter: nav,
             coordsKnown: hasCoords
           };
         }
@@ -266,8 +273,107 @@
         }),
         live: false,
         localPreview: true,
+        adapter: null,
         label: "LOCAL TEST · ONI CSS / NEUNO · START X -40, Y 30 · NEIGHBOR CELLS ARE TEST ONLY",
         coordsKnown: true
+      };
+    }
+
+    function navigationAfterArrival(sector) {
+      const previous = state.nav || readNavigation();
+      const current = normalizeSector(sector, 0) || sector;
+      const raw = current && current.raw && typeof current.raw === "object" ? current.raw : {};
+      const adapter = previous.adapter || null;
+      const isManualTest = !!current && /^manual-test-/.test(String(current.id || ""));
+      const isLocalTest = !!current && (/^local-test-/.test(String(current.id || "")) || isManualTest || !current.raw);
+
+      const makeLocalTargets = (origin) => {
+        if (!origin || origin.x == null || origin.y == null) return [];
+        return [[-1, 0], [1, 0], [0, -1], [0, 1]].map((offset) => {
+          const x = Number(origin.x) + offset[0];
+          const y = Number(origin.y) + offset[1];
+          return {
+            id: "local-test-" + x + "-" + y,
+            name: "TEST NEIGHBOR [" + x + ", " + y + "]",
+            x, y, raw: null
+          };
+        });
+      };
+
+      // A generated preview can continue for interaction testing, but it remains
+      // explicitly test-only and never becomes live SAGE navigation.
+      if (previous.localPreview || isLocalTest) {
+        return {
+          current,
+          targets: makeLocalTargets(current),
+          live: false,
+          localPreview: true,
+          adapter: null,
+          label: isManualTest
+            ? "LOCAL TEST COORDINATE · NOT A LIVE SAGE SECTOR"
+            : (previous.label || "LOCAL TEST · SAGE DATA UNAVAILABLE"),
+          coordsKnown: current.x != null && current.y != null
+        };
+      }
+
+      let list = null;
+      const neighborKeys = ["connectedSectors", "connected_sectors", "neighbors", "connections", "connected"];
+      for (const key of neighborKeys) {
+        if (Array.isArray(raw[key])) {
+          list = raw[key];
+          break;
+        }
+      }
+      if (!Array.isArray(list) && adapter) {
+        const lookup = adapter.getNeighbors || adapter.getNeighborsForSector || adapter.neighborsForSector;
+        if (typeof lookup === "function") {
+          try {
+            const candidate = lookup.call(adapter, current.raw || current);
+            if (Array.isArray(candidate)) list = candidate;
+          } catch (e) {}
+        }
+      }
+
+      // Resolve references against a full adapter sector list when available.
+      // If no neighbors were supplied for this sector, do not reuse the previous
+      // sector's links and do not invent live connections.
+      const references = Array.isArray(list) ? list : [];
+      const refId = (item) => {
+        if (item == null) return "";
+        if (typeof item !== "object") return String(item);
+        return String(item.id || item.pubkey || item.publicKey || item.address ||
+          item.key || item.connectionSector || item.connection_sector ||
+          item.connectedSector || item.connected_sector || item.sector || "");
+      };
+      const ids = new Set(references.map(refId).filter(Boolean));
+      const candidates = adapter && Array.isArray(adapter.sectors) && adapter.sectors.length
+        ? adapter.sectors
+        : references;
+      const targets = candidates.map((item, index) => {
+        const id = refId(item);
+        const known = id && adapter && Array.isArray(adapter.sectors)
+          ? adapter.sectors.find((row) => {
+              const normalized = normalizeSector(row, 0);
+              return normalized && normalized.id === id;
+            })
+          : null;
+        return normalizeSector(known || item, index + 1);
+      }).filter((candidate) =>
+        candidate &&
+        candidate.id !== current.id &&
+        (ids.has(candidate.id) || references.some((item) => item === candidate.raw))
+      );
+
+      return {
+        current,
+        targets: targets.filter((candidate, index, rows) =>
+          rows.findIndex((row) => row.id === candidate.id) === index
+        ),
+        live: !!previous.live,
+        localPreview: false,
+        adapter,
+        label: previous.label || "SAGE NAVIGATION ADAPTER",
+        coordsKnown: current.x != null && current.y != null
       };
     }
 
@@ -335,9 +441,11 @@
             (isCurrent ? " is-current" : target ? " is-connected" : " is-unavailable") +
             (target && state.target && target.id === state.target.id ? " is-selected" : "");
           const title = document.createElement("strong");
-          title.textContent = isCurrent ? "ONI CSS" : target ? "WARP →" : "—";
+          title.textContent = isCurrent ? (current.name || "CURRENT SECTOR") : target ? "WARP →" : "—";
           const sub = document.createElement("small");
-          sub.textContent = isCurrent ? "NEUNO · CURRENT" : "[" + x + ", " + y + "]";
+          sub.textContent = isCurrent
+            ? (current.x != null && current.y != null ? "X " + current.x + " · Y " + current.y + " · CURRENT" : "CURRENT SECTOR")
+            : "[" + x + ", " + y + "]";
           cell.appendChild(title);
           cell.appendChild(sub);
           gridElement.appendChild(cell);
@@ -690,6 +798,8 @@
         beaconMaterial,
         lastPosition: null
       };
+      state.savedSpeedMode = engine.getSpeedMode ? engine.getSpeedMode() : 1;
+      if (engine.setSpeedMode) engine.setSpeedMode(2);
       state.maze = maze;
       root.classList.add("bcm-warp-maze-active");
       exitButton.hidden = false;
@@ -759,7 +869,7 @@
       });
       maze.beacon.rotation.z += Math.min(frame.dt || 0.016, 0.04) * 0.4;
       if (maze.count === 3 && pos.distanceTo(maze.exit) < 3.8) {
-        returnToDeepSpace(false);
+        returnToWarpMap();
         return;
       }
 
@@ -802,34 +912,62 @@
       state.maze = null;
     }
 
-    function returnToDeepSpace(force) {
+    function returnToWarpMap() {
       const maze = state.maze;
       if (!maze) return;
-      if (!force && maze.count < 3) {
-        setMazeStatus("RETURN LOCKED · COLLECT ALL 3 CORE SHARDS");
-        return;
-      }
+
+      const arrivedSector = state.target || (state.nav && state.nav.current);
       disposeMaze();
-      stopWarpAudio();
-      resumeLevelOst();
       window.BCMDeepSpaceWarpFrame = null;
-      root.classList.remove("bcm-warp-maze-active");
+      root.classList.remove("bcm-warp-maze-active", "is-tubing");
       exitButton.hidden = true;
+
       const engine = api();
-      if (engine) {
-        engine.pauseForWarp(false);
-        engine.clearExternalHUD();
-        if (state.savedPosition && state.savedQuaternion) engine.teleport(state.savedPosition, state.savedQuaternion);
+      if (arrivedSector) {
+        state.nav = navigationAfterArrival(arrivedSector);
+        state.sectorProgressed = true;
       }
-      overlay.hidden = true;
-      root.classList.remove("bcm-warp-open", "is-tubing");
-      state.mode = "closed";
-      state.savedPosition = null;
-      state.savedQuaternion = null;
+      state.target = null;
+
+      if (engine) {
+        if (state.savedSpeedMode != null && engine.setSpeedMode) {
+          engine.setSpeedMode(state.savedSpeedMode);
+        }
+        state.savedSpeedMode = null;
+        engine.clearExternalHUD();
+        if (state.savedPosition && state.savedQuaternion) {
+          engine.teleport(state.savedPosition, state.savedQuaternion);
+        }
+        // The map is a paused navigation overlay. Keep Warp OST running without
+        // overlapping it with Starbase; closing the map resumes the normal zone.
+        engine.pauseForWarp(true);
+      }
+
+      overlay.hidden = false;
+      root.classList.add("bcm-warp-open");
+      launchButton.classList.add("is-active");
+      state.mode = "map";
+      state.openedAt = performance.now();
+      state.elapsed = 0;
+      mapView.hidden = false;
+      tubeView.hidden = true;
+      tubeResult.hidden = true;
+      touchControls.hidden = true;
+      currentElement.textContent = "CURRENT · " + sectorText(state.nav && state.nav.current);
+      sourceElement.textContent = state.nav ? state.nav.label : "SAGE NAVIGATION";
+      sourceElement.classList.toggle("is-preview", !state.nav || !state.nav.live);
+      footnoteElement.textContent = state.nav && state.nav.live
+        ? "Соседние сектора показаны только если их передал SAGE-адаптер. Warp остаётся локальной симуляцией и не перемещает флот в блокчейне."
+        : "LOCAL TEST GRID · координаты и соседние клетки тестовые, не данные SAGE. Полная карта и реальные связи секторов ещё не подключены.";
+      listSectorTargets();
+      renderSectorGrid();
+      selectedElement.textContent = "CURRENT SECTOR · " + sectorText(state.nav && state.nav.current) + " · SELECT NEXT DESTINATION";
+      startButton.disabled = true;
+      resizeBackdrop();
+      startBackdropLoop();
+
       const status = root.querySelector(".bcm-mini-sim-status");
-      if (status) status.textContent = force
-        ? "DEEP SPACE · EXPEDITION ABORTED · NO SAGE STATE CHANGED"
-        : "DEEP SPACE · ASTEROID EXPEDITION COMPLETE · LOCAL SIMULATION";
+      if (status) status.textContent = "WARP MAP · CURRENT " + sectorText(state.nav && state.nav.current) + " · LOCAL SIMULATION";
     }
 
     function resizeBackdrop() {
@@ -920,8 +1058,12 @@
       });
       g.restore();
       // Foreground craft stays over the road so the player can read steering.
-      const d=.94,px=center(d)+state.playerX*half(d)*.78,py=roadY(d)-h*.075+state.playerY*h*.095,scale=Math.min(1,w/900);
-      g.save();g.translate(px,py);g.rotate(Math.max(-.32,Math.min(.32,state.playerX*.20)));g.scale(scale,scale);
+      const d=.94,rawX=center(d)+state.playerX*half(d)*.78,rawY=roadY(d)-h*.075+state.playerY*h*.095;
+      const pivotY=h*.62,cosRoll=Math.cos(roll),sinRoll=Math.sin(roll);
+      const px=mid+(rawX-mid)*cosRoll-(rawY-pivotY)*sinRoll;
+      const py=pivotY+(rawX-mid)*sinRoll+(rawY-pivotY)*cosRoll;
+      const scale=Math.min(1,w/900);
+      g.save();g.translate(px,py);g.rotate(roll+Math.max(-.32,Math.min(.32,state.playerX*.20)));g.scale(scale,scale);
       const flare=.6+(Math.sin(now*.032)+1)*.2;
       g.fillStyle="rgba(63,213,255,"+flare*.38+")";g.beginPath();g.moveTo(-5,14);g.lineTo(0,35+flare*10);g.lineTo(5,14);g.closePath();g.fill();
       g.fillStyle="#1b3e56";g.strokeStyle="#c2f0fb";g.lineWidth=2;g.beginPath();g.moveTo(0,-23);g.lineTo(13,-7);g.lineTo(25,12);g.lineTo(8,8);g.lineTo(0,16);g.lineTo(-8,8);g.lineTo(-25,12);g.lineTo(-13,-7);g.closePath();g.fill();g.stroke();
@@ -1113,7 +1255,7 @@
     startButton.addEventListener("click", showTube);
     tubeRetry.addEventListener("click", showTube);
     tubeAbort.addEventListener("click", () => closeOverlay(true));
-    exitButton.addEventListener("click", () => returnToDeepSpace(true));
+    exitButton.addEventListener("click", returnToWarpMap);
     manualForm.addEventListener("submit", (event) => {
       event.preventDefault();
       const x = Number(manualForm.elements.x.value);
