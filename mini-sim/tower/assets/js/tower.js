@@ -3155,7 +3155,10 @@
       triggerTransition();
     } else {
       status.textContent = "TOWER STANDBY";
-      showMenu();
+      // The embedded Tower sits hidden behind Starbase. Building its preview
+      // here would start many texture requests and compete with startup media.
+      // Mini-Sim opens it only when the ship approaches ONICSS.
+      if (!root.classList.contains("bcm-tower-embedded")) showMenu();
     }
     setInterval(pollGamepads, 60);
     requestAnimationFrame(frame);
