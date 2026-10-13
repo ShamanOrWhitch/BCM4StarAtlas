@@ -138,9 +138,13 @@ Task when this phase becomes active:
 
 ## D-008 — Browser testing without downloading/uploading the whole project repeatedly
 
-**Статус: OPEN as a user-facing workflow problem; local Playwright solution is only partial.**
+**Статус: IMPLEMENTED for remote automated browser QA; interactive manual preview remains OPEN. The first workflow run is not yet confirmed.**
 
-The current runner scripts/minisim-local-qa.mjs intercepts asset requests from a local checkout and injects the local files into an existing WordPress page. It avoids uploading every code change to WordPress, but still needs local files on the computer. It does not run the latest GitHub tree directly in the user's browser.
+The workflow .github/workflows/minisim-browser-qa.yml runs the existing runner inside GitHub Actions on relevant pushes/PRs or manually. It checks out the selected commit, opens the WordPress page and overrides plugin asset requests with files from that checkout. The user does not need a local repo or upload JS/CSS to WordPress for this automated smoke test. Screenshots and JSON diagnostics are uploaded as a seven-day artifact. The runner now asserts that the main JS, Warp JS and CSS really were overridden; if not, it must fail rather than test cached production code.
+
+
+
+Limitations: this is automated browser interaction, not an interactive window that the user can steer with a gamepad. The first GitHub Actions run is not yet verified, so the status remains IMPLEMENTED rather than TESTED-CODE or VERIFIED-LIVE. Videos are blocked by default to save time/bandwidth; manual dispatch can enable full-media mode.
 
 Do not recommend repeated ZIP uploads as the default cycle. Explore an isolated GitHub Actions browser run with artifacts or a protected per-commit preview before proposing any production site to fetch arbitrary JavaScript from raw GitHub.
 
