@@ -914,7 +914,6 @@
 
       const arrivedSector = state.target || (state.nav && state.nav.current);
       disposeMaze();
-      resumeLevelOst();
       window.BCMDeepSpaceWarpFrame = null;
       root.classList.remove("bcm-warp-maze-active", "is-tubing");
       exitButton.hidden = true;
