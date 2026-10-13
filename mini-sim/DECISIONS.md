@@ -195,7 +195,7 @@ HEAD at the start of the session was `748998250d39ac9ed163b84caa1f7178da920d9a` 
 
 ## D-010 — Восстановить периодическое изменение текстур внешней оболочки
 
-**Статус: IMPLEMENTED на ветке; TESTED-CODE ожидает CI; визуальная проверка сайта не выполнена.**  
+**Статус: MERGED в main; TESTED-CODE PASS; визуальная проверка сайта не выполнена.**  
 Репорт пользователя: 2026-10-14 — внешняя оболочка потеряла периодически меняющиеся текстуры, несмотря на то что оптимизация не должна была удалять эффект жидкого металла, ассоциированный с Photoli / Rainbow Chi.
 
 - Baseline main: `c01cec1e6776b53192c15b3027e0240f3ed27a45`; issue [#32](https://github.com/ShamanOrWitch/BCM4StarAtlas/issues/32); branch `fix/exterior-shell-texture-cycle`.
@@ -204,3 +204,6 @@ HEAD at the start of the session was `748998250d39ac9ed163b84caa1f7178da920d9a` 
 - Изменены: `mini-sim/assets/js/mini-sim.js`, `scripts/minisim-local-qa.test.mjs`, cache version в `mini-sim/bcm-mini-sim.php` → 0.9.86.
 - Ограничение: source-contract и CI подтверждают кодовые инварианты, но не визуальный вид материала в настоящем браузере; branch assets не выкладывались на WordPress. Не отмечать как VERIFIED-LIVE до установки/проверки на сайте.
 - Повторное открытие допустимо, если после установки панели не меняются, desktop всё ещё использует только часть текстур или shell цикл влияет на интерьерные стены.
+
+- Merge commit: [ad4d8cf](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/ad4d8cf8cdf261cecb30b95ddbf85ceaf7514f02); pull request [#33](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/33).
+- Post-merge Mini-Sim regression: PASS — [run 38471956269](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471956269). Warp source-contract: PASS on PR SHA `c92c16d` — [run 38471847602](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471847602). Browser smoke passed on code-identical runtime SHA `be2adbd` — [run 38471671934](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471671934); post-merge browser QA run `38471956003` remained in progress when the record was updated. None of these tests visually verifies liquid-metal appearance.
