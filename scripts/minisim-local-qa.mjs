@@ -55,6 +55,9 @@ try{
  await page.waitForTimeout(900);await shot(page,"01-menu.png");
  check(!!response&&response.status()<400,"WordPress page responds successfully");
  check(await page.locator(".bcm-mini-sim").count()>0,"Mini-Sim shortcode is present");
+ check(report.overrides.some(item=>item.file==="mini-sim/assets/js/mini-sim.js"),"Main Mini-Sim JavaScript is served from this GitHub commit");
+ check(report.overrides.some(item=>item.file==="mini-sim/assets/js/deep-space-warp.js"),"Warp JavaScript is served from this GitHub commit");
+ check(report.overrides.some(item=>item.file==="mini-sim/assets/css/mini-sim.css"),"Mini-Sim CSS is served from this GitHub commit");
  await page.locator(".bcm-mini-sim-start").first().click({timeout:12000});
  await page.locator(".bcm-mini-sim-crew-preflight:not([hidden])").first().waitFor({state:"visible",timeout:12000});
  await shot(page,"02-crew-preflight.png");
