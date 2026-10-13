@@ -1493,7 +1493,7 @@
       queueLowPriorityImage(url, finish, () => {
         material.color.set(0x303943);
         material.needsUpdate = true;
-      });
+      }, 9);
       return material;
     }
 
@@ -2264,12 +2264,8 @@
       mesh.renderOrder = 22;
       scene.add(mesh);
 
-      if (zone.preloadWhenStarted && zone.url) {
-        video.preload = "auto";
-        video.src = zone.url;
-        video.load();
-      }
-
+      // Space-screen videos stay lazy until the pilot is near them. In
+      // particular, onicss.mp4 must not compete with the start-room textures.
       const item = {
         el: video,
         texture,
@@ -2279,7 +2275,7 @@
         maxVolume: 1,
         active: false,
         visible: false,
-        loaded: !!zone.preloadWhenStarted,
+        loaded: false,
         keepLoaded: !!zone.preloadWhenStarted,
         towerGate: !!zone.towerGate,
         distance: 99
