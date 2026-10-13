@@ -2,11 +2,11 @@
 
 > **Назначение:** короткая передача контекста между ChatGPT, Codex, Copilot, Grok и другими агентами. Сначала читай этот документ, потом только необходимые части исходников.
 >
-> **Текущий активный этап: P1 — расширить удалённый Browser QA тестом Room0 → B → начало Room1 и глобального mute.** Общий микшер не переписывать, пока именно этот сценарий не даёт воспроизводимый сбой.
+> **Текущий активный этап: P1 — завершить удалённый Browser QA Room0 → B → начало Room1 и глобального mute.** Проверка уже выявила отдельный runtime-дефект: Tower перехватывает клик по нотке в capture-фазе ([Issue #21](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/21)). Не менять микшер и Home в PR #18.
 
-Last reconciled repository HEAD: b9d031295f7baeac387b71cbaa9e74984c66a410  
-Last code/runner SHA covered by successful Actions: d42818adec98adc77d8a4e471f8e57984fcbe494  
-Последний коммит b9d0312 обновлял документацию, код после d42818a в main не менялся.
+Last reconciled main HEAD: `1cfc864e9e6ba821998bc5eaad02725ff6faebb1`  
+P1 QA runner/test SHA exercised: `f8e9b4689819ad2c4cd4f36a0a0a57f6c06423bb` ([PR #18](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/18))  
+Latest regression: [run 38376740774](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740774) — success on that SHA. Latest browser QA: [run 38376740771](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740771) — failed at the mute-button click; [artifact 11801033559](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740771/artifacts/11801033559), expires 2026-10-20. Runtime follow-up: [Issue #21](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/21).
 
 Обновляй этот файл в конце каждой рабочей сессии. Он описывает актуальные требования и состояние, а не историю всех старых решений.
 
@@ -15,7 +15,7 @@ Last code/runner SHA covered by successful Actions: d42818adec98adc77d8a4e471f8e
 - WordPress-плагин использует шорткод `[bcm_mini_sim]`; симулятор работает на уже встроенном Three.js r128. Не добавлять второй WebGL-контекст и не загружать Three.js с CDN.
 - Текущие версии в main: Mini-Sim 0.9.83 и Tower 0.2.54. На https://walkingyog.com/bcm4sa/ страница всё ещё запрашивает Mini-Sim `?ver=0.9.82` и Tower `?ver=0.2.53`. Autoptimize отдаёт `deep-space-warp.js`, `crew-wallet.js`, `mini-sim.css` и `tower.css` из `/wp-content/cache/autoptimize/`, а не из каталога плагина. `mini-sim.js` и `tower.js` остаются прямыми URL плагина.
 - Source-contract tests: `node --test scripts/minisim-local-qa.test.mjs`. На 7489982 GitHub Actions «Mini-Sim regression checks» (run 38368355012) был красным: 8 pass, 1 fail. Падал контракт Home из-за слишком широкого `doesNotMatch(/stopMiniSimAudio\(\);[\s\S]*?setStatus/)`, хотя `returnToStart()` после `stopMiniSimAudio()` вызывает `startMusic()`. Этот контракт приведён к фактической последовательности; код аудио не менялся. Зелёный прогон 3196d8d был до появления этого утверждения в f1b1064.
-- Исторически browser QA падал на трёх старых запусках из-за того, что Autoptimize выдаёт некоторые скрипты/стили через cache URL. Исправление runner по тегам HTML вошло в `d42818a`. Последний проверенный результат: на `dc8a08e` regression workflow [38369594418](https://github.com/ShamanOrWitch/BCM4StarAtlas/actions/runs/38369594418) и browser QA [38369594467](https://github.com/ShamanOrWitch/BCM4StarAtlas/actions/runs/38369594467) — оба success. Browser QA использовал подмену ассетов выбранного коммита в открытой WordPress-странице и покрыл текущий сценарий Warp map → Tube → cancel; это не доказывает поведение без подмены и не покрывает Room0 → B или кнопку mute.
+- Исторический PASS `dc8a08e` (regression [38369594418](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38369594418), browser [38369594467](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38369594467)) по-прежнему подтверждает только прежний Warp map → Tube → cancel сценарий. Более новый P1 browser QA достиг игрового цикла и подтвердил отсутствие `LOOP ERR`, но остановился на global mute из-за Tower click-capture handler (Issue #21).
 - Удалённый повтор после подмены handle: browser QA run [38369594467](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38369594467) на `dc8a08e` — success, видео выключены, артефакт `minisim-browser-qa-dc8a08e…` (id 11798337294). Regression run [38369594418](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38369594418) на том же SHA — success. Это снова подмена файлов коммита внутри открытой страницы, не деплой 0.9.83 и не сценарий Room0 → B.
 - Игровой Warp/Tube/астероидный лабиринт пока локальный аркадный прототип. Он не выполняет реальное перемещение флота в SAGE и не меняет блокчейн-состояние.
 
@@ -66,26 +66,31 @@ Last code/runner SHA covered by successful Actions: d42818adec98adc77d8a4e471f8e
 
 ### P1 — Расширить удалённый Browser QA: Room0 → B → старт Room1 и mute
 
-**Статус: открытая проверка. Микшер/Home реализованы в коде, а базовые регрессионные и текущие browser smoke проверки на соответствующем SHA проходят. Но Room0 → B и mute ещё не входят в browser-сценарий; не переписывать микшер до добавления этих проверок и воспроизводимого отказа. Live WordPress без подмены всё ещё отдаёт старые cache versions 0.9.82 / 0.2.53.**
+**Статус: BLOCKED на отдельном runtime-дефекте [Issue #21](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/21).** Не переписывать микшер/Home и не закрывать Issue #17 / PR #18, пока не исправлена доставка клика и тест не пройдёт.
 
-Уже имеющиеся коммиты:
-- 3196d8d — единый OST-микшер и сброс Home в Room1. Regression workflow на этом SHA был success.
-- 962a5d0 — Tower OST переведён на общий микшер.
-- f6afd57 — перечёркнутая нотка в muted-состоянии.
-- 4030d30 — cache version Mini-Sim 0.9.83.
-- e0a9e21 — cache version Tower 0.2.54.
-- f1b1064 — source-contract tests; с этого SHA regression workflow красный из-за контракта Home, не из-за нового игрового патча.
+Baseline, проверенный в этой сессии:
+- Main HEAD: `1cfc864e9e6ba821998bc5eaad02725ff6faebb1`; исправление `look.yaw` уже интегрировано.
+- QA runner/test baseline: `f8e9b4689819ad2c4cd4f36a0a0a57f6c06423bb` в существующем [PR #18](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/18); ветка основана на актуальном main и не отстаёт от него.
+- Regression workflow: [run 38376740774](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740774) — PASS.
+- Browser QA: [run 38376740771](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740771) — FAIL на global mute; артефакт [11801033559](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740771/artifacts/11801033559), срок до 2026-10-20.
 
-Что уже проверено, без изменения `returnToStart` / микшера:
-1. Сайт walkingyog.com/bcm4sa/ отдавал Mini-Sim 0.9.82 и Tower 0.2.53 на момент проверки; Warp JS и некоторые CSS/JS идут через Autoptimize.
-2. Runner сопоставляет id `bcm-deep-space-warp-js`, `bcm-mini-sim-css` и соседние handle с файлами checkout даже при cache URL.
-3. GitHub Actions на `dc8a08e`: regression PASS и browser smoke PASS. Browser-сценарий с подменой: карта Warp → Tube → отмена; Warp OST непрерывен, после отмены возвращается обычный OST.
-4. Артефакт browser run: `minisim-browser-qa-dc8a08e35b5e457c4a18cf437cbe9661e58e56d6`, ID 11798337294, срок до 2026-10-20. Theme 404 `core.css`, 502 `admin-ajax.php` и ошибка прелоадера темы отделены от ошибок самого Mini-Sim.
+Что фактически прошло в браузере с подменой ассетов выбранного checkout:
+1. WordPress-страница и Mini-Sim shortcode доступны; Mini-Sim JS, Warp JS и CSS подтверждены как заменённые файлами тестового commit.
+2. Crew preflight стартовал; render loop отображал `ROOM 1 · SPD 0.0` без `LOOP ERR`.
+3. Synthetic Gamepad создан; Starbase был единственным активным OST до теста кнопки mute.
+4. Нажатие на видимую `.bcm-mini-sim-music` не доходит до своего обработчика: click останавливается на `document` capture, `bcm:game-music-mute` не испускается, global mute и состояние кнопки не меняются.
 
-Ещё не проверено:
-- Room0 → gamepad B → старт Room1 и Starbase.
-- Глобальный mute через нотку при смене зоны.
-- Что публичная страница без подмены файлов ведёт себя так же. Для посетителя сайта по-прежнему закэшированные 0.9.82/0.2.53, пока плагин не обновлён на сервере. Подмена в QA сайт не меняет.
+Локализованная причина: `mini-sim/tower/assets/js/tower.js`, document-level capturing listener около строк 2895–2903. Пока Tower не запущен, он вызывает `towerModeAt(event.clientX, event.clientY)`, затем `preventDefault()` и `stopPropagation()` при попадании в его hit-test. В браузерном отчёте именно этот handler был зарегистрирован как причина остановки события. Создана отдельная runtime-задача [Issue #21](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/21); исправление игры не включается в QA PR #18.
+
+Уже реализовано в исходниках и не должно переписываться заново:
+- единый OST mixer и Room1 Home — commits `3196d8d` / `962a5d0`;
+- визуальное состояние mute-нотки — `f6afd57`;
+- cache-version commits — `4030d30` / `e0a9e21`;
+- исправление `look.yaw` уже находится в main как `1cfc864`.
+
+Не проверено в этом P1 browser run: Room0 → Gamepad B → Home в Room1, сохранение mute через Warp entry/cancel и последующее восстановление Starbase — сценарий прерван на клике mute. Физический геймпад не проверялся. Браузер использует подмену ассетов GitHub commit на живой WordPress-странице; это не подтверждает поведение страницы без подмены и не является деплоем плагина.
+
+Следующий шаг: исправить scope/hit-test Tower capture handler отдельно в Issue #21, затем повторить remote browser QA через существующий PR #18 и закрывать P1 только после зелёного regression и полного браузерного сценария.
 
 ### P2 — Управление, локальная вертикаль и переходы
 
@@ -148,18 +153,19 @@ Last code/runner SHA covered by successful Actions: d42818adec98adc77d8a4e471f8e
 ## Текущий свод статусов после сверки коммитов
 
 - Crew names: IMPLEMENTED в коде; см. DECISIONS.md D-001 и коммиты 8ad3e72, 892ea3a, ec01831, b3b2148, 0e7c65b. Не повторять исправление без нового свидетельства; live status не записан.
-- Единый OST/mute и Room0 B → Room1 Home: IMPLEMENTED в коде. Warp-непрерывность проверена только сессией browser QA с подменой ассетов этого checkout, не на немодифицированном сайте и не для Room0 → B. См. D-002/D-003/D-008.
+- Единый OST/mute и Room0 B → Room1 Home: IMPLEMENTED в коде, но путь клика по mute в браузере сейчас блокируется Tower document-capture handler; runtime issue [#21](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/21). Не помечать P1 как VERIFIED-LIVE. См. D-002/D-003/D-008/D-010.
 - Gamepad yaw / ship-local vertical: частично реализовано; ориентация относительно текущего коридора/прилипание всё ещё требует теста. Следующий этап после закрытия дыры Room0 → B в browser QA.
 - Tube 48s / roll / скорости по секциям: реализовано частично; визуальная вариативность, читаемость препятствий и безопасный выход не подтверждены.
 - Полная Galaxy/SAGE-карта: не реализована; текущая сетка — test preview.
-- Удалённый browser QA из GitHub Actions: на `dc8a08e` regression и browser smoke — success. Runner подменяет ассеты, включая URL Autoptimize. Следующая задача — добавить Room0 → B → начало Room1 и global mute, не меняя микшер до результата проверки. Публичный сайт без подмены на момент последней проверки оставался на 0.9.82 / 0.2.53.
+- Удалённый browser QA: regression PASS на P1 QA SHA `f8e9b4689819ad2c4cd4f36a0a0a57f6c06423bb` (run 38376740774); browser FAIL при клике mute (run 38376740771, artifact 11801033559). Room0 → B ещё не запускался, потому что сценарий прерывается на кнопке. Деталь — Issue #21. Все результаты сделаны с подменой ассетов и не доказывают поведение непереписанной live-версии.
 
 ## Известные ограничения и проверочный статус
 
-- Контрактные тесты Node на рабочей копии после выравнивания контракта Home: 9 pass.
-- Browser smoke с подменой: PASS для существующего сценария Warp map/Tube/cancel на https://walkingyog.com/bcm4sa/ . Не включает Room0 → B и mute.
-- Regression workflow на 7489982 исторически падал из-за завышенного source-contract теста. После корректировки runner/assertion на `dc8a08e`: regression success (run 38369594418), browser workflow success (run 38369594467), артефакт сохранён.
-- Не помечать Room0 → B или mute как VERIFIED-LIVE. Не считать PASS подмены доказательством, что посетитель без подмены получил 0.9.83.
+- Node regression workflow: PASS на QA code/test SHA `f8e9b4689819ad2c4cd4f36a0a0a57f6c06423bb`, run [38376740774](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740774).
+- Browser QA с подменой ассетов: FAIL на клике global mute, run [38376740771](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740771), artifact [11801033559](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740771/artifacts/11801033559). Renderer no-`LOOP ERR` и единственный Starbase OST подтверждены до клика.
+- Причина передана в отдельный runtime Issue #21: document-capture listener Tower останавливает click до обработчика Mini-Sim. P1 issue #17 и PR #18 остаются открыты.
+- Room0 → B, global mute через переходы и завершающие проверки Warp не прошли этот запуск, так как mute click остановил сценарий до них.
+- Не подтверждены физический Gamepad и непереписанная live-страница без подмены. Ранее успешный run на `dc8a08e` покрывал лишь Warp map → Tube → cancel, и не должен цитироваться как PASS для текущего P1.
 
 ## Шаблон передачи следующему агенту
 
