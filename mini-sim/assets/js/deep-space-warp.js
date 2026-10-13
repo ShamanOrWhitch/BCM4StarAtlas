@@ -1119,8 +1119,8 @@
          Math.sin(loopPhase + d * Math.PI * 2.4) * loopMix * 0.15) * h * d;
       const radiusX = (d) => 4 + maxRadius * Math.pow(Math.max(0, d), 1.20) * widthScale;
       const radiusY = (d) => radiusX(d) * 0.91;
-      const twistAt = (d) => roll + d * (0.9 + Math.sin(t * 0.07) * 0.38) +
-        Math.sin(d * Math.PI * 2 + phase) * curveScale * 0.20;
+      const twistAt = (d) => roll + (d - 0.92) * (0.9 + Math.sin(t * 0.07) * 0.38) +
+        (Math.sin(d * Math.PI * 2 + phase) - Math.sin(0.92 * Math.PI * 2 + phase)) * curveScale * 0.20;
       const point = (d, theta, extra) => {
         const angle = theta + twistAt(d);
         const rx = radiusX(d) + (extra || 0);
