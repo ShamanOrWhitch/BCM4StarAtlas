@@ -191,3 +191,25 @@ HEAD at the start of the session was `748998250d39ac9ed163b84caa1f7178da920d9a` 
 - [WORK_COORDINATION.md](WORK_COORDINATION.md)
 - [AGENTS.md](AGENTS.md)
 - [PROJECT_STATE.md](PROJECT_STATE.md)
+
+---
+
+## D-010 — Tower capture listener must not intercept Mini-Sim global mute
+
+**Статус: OPEN / runtime defect reproduced in remote browser QA; tracked separately in [Issue #21](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/21). Do not rewrite the shared audio mixer to work around this.**
+
+On 2026-10-13, the existing P1 QA branch `test/minisim-room0-home-qa` was exercised against `https://walkingyog.com/bcm4sa/` with the QA runner substituting assets from the chosen GitHub commit. Tested source/test baseline: `f8e9b4689819ad2c4cd4f36a0a0a57f6c06423bb`.
+
+Evidence:
+- Regression workflow [38376740774](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740774): PASS.
+- Browser QA [38376740771](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740771): FAIL at the first global-mute click; artifact [11801033559](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740771/artifacts/11801033559), retained through 2026-10-20.
+- The actual Mini-Sim render loop reached `ROOM 1 · SPD 0.0` without `LOOP ERR`. The Starbase OST was the only active game OST before the failed click.
+- The button `.bcm-mini-sim-music` was connected, enabled, not disabled/inert, and was the top element at the pointer coordinates. A trusted Playwright mouse click reached document capture; `event.cancelBubble` was already true by a later document capture listener. The music button handler never ran, no `bcm:game-music-mute` event fired, and mute state/aria/class remained unchanged.
+
+Localized source: `mini-sim/tower/assets/js/tower.js`, document-level capturing click handler around lines 2895–2903 (main blob SHA `92766b7b3cbd1e57c1ac66c0082052ab9d88a3cd`). When Tower is not started, it calls `towerModeAt(event.clientX, event.clientY)`; when that hit test returns a Tower mode button, it calls `preventDefault()` and `stopPropagation()`. The browser diagnostic identified this Tower handler as the capturing listener cancelling the mute-note click before `mini-sim/assets/js/mini-sim.js` around line 4393 can handle it.
+
+Decision:
+- Fix Tower's menu hit-test / event scope separately in Issue #21, leaving Mini-Sim's mixer and Home transition unchanged unless a distinct reproduction proves another defect.
+- Keep the work in the existing P1 QA PR #18; do not create a duplicate QA PR or merge a Tower runtime change into the test-only PR.
+- After the runtime fix, repeat regression + remote browser QA and require: mute ON/OFF, Room0 → Gamepad B → start of Room1 with Starbase and mute preserved, mute through Warp entry/cancel, and existing Warp map → Tube → cancel.
+- This QA run used asset substitution on the public WordPress page. It does not prove that the unmodified live site serves these assets, and the downstream Room0 → B / Warp-mute checks were not reached because the click failed first. A physical Gamepad remains untested.
