@@ -4,11 +4,20 @@
 >
 > **Текущий активный этап: P1 — расширить удалённый Browser QA тестом Room0 → B → начало Room1 и глобального mute.** Общий микшер не переписывать, пока именно этот сценарий не даёт воспроизводимый сбой.
 
-Last reconciled repository HEAD: b9d031295f7baeac387b71cbaa9e74984c66a410  
-Last code/runner SHA covered by successful Actions: d42818adec98adc77d8a4e471f8e57984fcbe494  
-Последний коммит b9d0312 обновлял документацию, код после d42818a в main не менялся.
+Last reconciled main HEAD: c01cec1e6776b53192c15b3027e0240f3ed27a45 (Mini-Sim 0.9.85 / Tower 0.2.56).  
+Текущая рабочая ветка `fix/exterior-shell-texture-cycle` основана на этом main SHA; новый WORK LOCK — [Issue #32](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/32). В ней восстановлена периодическая смена текстур внешней оболочки и поднят Mini-Sim до 0.9.86 для cache-busting. Проверки CI для последнего SHA ещё ожидаются; это код ветки, не деплой WordPress.  
+Предыдущая задача browser QA Room0 → B / global mute остаётся отдельно открытой в [Issue #17](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/17); текущая правка не меняет её runtime-логику.
 
 Обновляй этот файл в конце каждой рабочей сессии. Он описывает актуальные требования и состояние, а не историю всех старых решений.
+
+
+## Текущий узкий дефект: внешний shell / liquid-metal texture cycle
+
+- Репорт пользователя 2026-10-14: периодически меняющаяся внешняя оболочка снова перестала менять текстуры; оптимизация не должна убирать задуманное визуальное поведение жидкого металла.
+- Baseline main: `c01cec1e6776b53192c15b3027e0240f3ed27a45`; WORK LOCK: [Issue #32](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/32); branch: `fix/exterior-shell-texture-cycle`.
+- Root cause в main: shell использовал `allUrls.slice(0, 4)` и удалённые вызовы `randomizeBackside()` / `updateBacksideCamouflage()`; source-contract тест требовал отсутствия циклирования. Историческая рабочая реализация имеется в commit `0fc809c2597debee629fecb0c25dd4ab370d65f9`.
+- В текущей ветке desktop снова использует весь набор внешних `back*.png`; touch-landscape сохраняет limit 4 и существующее уменьшение изображений. Материалы внешних панелей меняются индивидуально по таймерам около 0.8–3.0 s, с повторным stagger при появлении оболочки. Цикл исполняется только при видимой внешней оболочке. Интерьер Room 1/2, геометрия и физика не меняются.
+- Mini-Sim cache version в ветке: 0.9.86. Статус: IMPLEMENTED; автоматические проверки ожидаются. VERIFIED-LIVE / USER-CONFIRMED не утверждать до визуального теста после установки файлов на WordPress.
 
 ## Что известно сейчас
 
