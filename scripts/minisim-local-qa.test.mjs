@@ -88,11 +88,11 @@ test("Playwright runner overrides plugin files from local checkout",async()=>{
   assert.match(s,/08-after-cancel\.png/);
   assert.match(s,/__BCM_QA_GAMEPAD/);
   assert.match(s,/Mini-Sim render loop does not report LOOP ERR/);
-  assert.match(s,/activation:"dom-click-traced"/);
+  assert.match(s,/activation:"playwright-mouse-click-trusted"/);
   assert.match(s,/muteEvents/);
   assert.match(s,/clickEvents/);
-  assert.match(s,/el\.click\(\);/);
-  assert.match(s,/window\.addEventListener\("bcm:game-music-mute",onMute\)/);
+  assert.match(s,/await page\.mouse\.click\(box\.x\+box\.width\/2,box\.y\+box\.height\/2\)/);
+  assert.match(s,/window\.addEventListener\("bcm:game-music-mute",window\.__BCM_QA_MUTE_RECORDER\)/);
   assert.match(s,/DOM click toggles global mute ON/);
   assert.match(s,/DOM click toggles global mute OFF/);
   assert.match(s,/const clickMusicNote=async\(\)=>\{/);
