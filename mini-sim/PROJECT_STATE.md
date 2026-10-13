@@ -14,7 +14,7 @@ Last reconciled code SHA: d42818adec98adc77d8a4e471f8e57984fcbe494
 - Текущие версии в main: Mini-Sim 0.9.83 и Tower 0.2.54. На https://walkingyog.com/bcm4sa/ страница всё ещё запрашивает Mini-Sim `?ver=0.9.82` и Tower `?ver=0.2.53`. Autoptimize отдаёт `deep-space-warp.js`, `crew-wallet.js`, `mini-sim.css` и `tower.css` из `/wp-content/cache/autoptimize/`, а не из каталога плагина. `mini-sim.js` и `tower.js` остаются прямыми URL плагина.
 - Source-contract tests: `node --test scripts/minisim-local-qa.test.mjs`. На 7489982 GitHub Actions «Mini-Sim regression checks» (run 38368355012) был красным: 8 pass, 1 fail. Падал контракт Home из-за слишком широкого `doesNotMatch(/stopMiniSimAudio\(\);[\s\S]*?setStatus/)`, хотя `returnToStart()` после `stopMiniSimAudio()` вызывает `startMusic()`. Этот контракт приведён к фактической последовательности; код аудио не менялся. Зелёный прогон 3196d8d был до появления этого утверждения в f1b1064.
 - Удалённый browser QA `.github/workflows/minisim-browser-qa.yml` запускался трижды, все failure. Последний: run [38366114002](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38366114002) на SHA `7ae46c4`, job `browser-smoke`, артефакт `minisim-browser-qa-7ae46c4…` (id 11796367897, не просрочен на момент сверки 2026-10-13). Прогон 2 (`e8cbd54`) тоже сохранил артефакт; прогон 1 (`ec70ed5`) — без артефакта. Причина падения: проверка «Warp JavaScript is served from this GitHub commit» до любых проверок OST. Runner смотрел только путь `/wp-content/plugins/mini-sim/`. Это не доказательство поломки микшера.
-- Локальный повтор runner с подменой handle-id (включая Autoptimize URL) по той же странице, видео выключены: все 13 существующих проверок PASS, включая один Warp OST на карте, непрерывный Warp OST в Tube и возврат обычного OST после отмены. Это проверка сессии с подменой файлов коммита, не поведение сайта без подмены и не сценарий Room0 → B. Кнопка mute и вход в Tower этим прогоном не нажимались.
+- Удалённый повтор после подмены handle: browser QA run [38369594467](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38369594467) на `dc8a08e` — success, видео выключены, артефакт `minisim-browser-qa-dc8a08e…` (id 11798337294). Regression run [38369594418](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38369594418) на том же SHA — success. Это снова подмена файлов коммита внутри открытой страницы, не деплой 0.9.83 и не сценарий Room0 → B.
 - Игровой Warp/Tube/астероидный лабиринт пока локальный аркадный прототип. Он не выполняет реальное перемещение флота в SAGE и не меняет блокчейн-состояние.
 
 ## Непереговорные требования пользователя
@@ -150,13 +150,13 @@ Last reconciled code SHA: d42818adec98adc77d8a4e471f8e57984fcbe494
 - Gamepad yaw / ship-local vertical: частично реализовано; ориентация относительно текущего коридора/прилипание всё ещё требует теста. Следующий этап после закрытия дыры Room0 → B в browser QA.
 - Tube 48s / roll / скорости по секциям: реализовано частично; визуальная вариативность, читаемость препятствий и безопасный выход не подтверждены.
 - Полная Galaxy/SAGE-карта: не реализована; текущая сетка — test preview.
-- Удалённый browser QA из GitHub Actions: workflow есть, три прошлых прогона failure из-за Autoptimize. Подмена по id скрипта/стиля добавлена в runner; локальный повтор этого сценария PASS. Повторный Actions-прогон на новом SHA ещё нужно дождаться после push.
+- Удалённый browser QA из GitHub Actions: на `dc8a08e` и regression, и browser smoke — success. Прогон подменяет ассеты, включая URL Autoptimize. Room0 → B и mute по-прежнему не в сценарии. Публичный сайт без подмены остаётся на 0.9.82 / 0.2.53.
 
 ## Известные ограничения и проверочный статус
 
 - Контрактные тесты Node на рабочей копии после выравнивания контракта Home: 9 pass.
 - Browser smoke с подменой: PASS для существующего сценария Warp map/Tube/cancel на https://walkingyog.com/bcm4sa/ . Не включает Room0 → B и mute.
-- Regression workflow на 7489982: failure, одна упавшая проверка Home. Browser workflow: 3 failure, последний с артефактом.
+- Regression workflow на 7489982: failure. На `dc8a08e`: success (run 38369594418). Browser workflow: три старых failure; новый run 38369594467 success с артефактом.
 - Не помечать Room0 → B или mute как VERIFIED-LIVE. Не считать PASS подмены доказательством, что посетитель без подмены получил 0.9.83.
 
 ## Шаблон передачи следующему агенту
