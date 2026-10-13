@@ -12,10 +12,10 @@
 
 ## Последняя проверенная сверка — 2026-10-13
 
-Текущий проверенный `main` HEAD: [`1cfc864`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/1cfc864e9e6ba821998bc5eaad02725ff6faebb1). Исправление `look.yaw` уже вошло в main через PR #20. P1 продолжается в существующем [PR #18](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/18), branch `test/minisim-room0-home-qa`; ветка не отстаёт от main. QA source/test baseline, на котором выполнены последние проверочные workflow: `f8e9b4689819ad2c4cd4f36a0a0a57f6c06423bb`. Последующие коммиты в PR добавляют трассировку/документацию, а не игровой runtime.
+Текущий проверенный `main` HEAD: [`1cfc864`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/1cfc864e9e6ba821998bc5eaad02725ff6faebb1). Исправление `look.yaw` уже вошло в main через PR #20. P1 продолжается в существующем [PR #18](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/18), branch `test/minisim-room0-home-qa`; ветка не отстаёт от main. QA runner/test baseline: `f8e9b4689819ad2c4cd4f36a0a0a57f6c06423bb`; latest Actions ran again on documentation-only descendant branch head `824bf5269c20dcf96d5594a5a4cd7c50f988d49e`. Последующие изменения не касались игрового runtime.
 
-- Regression workflow [38376740774](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740774): **success** на указанном QA baseline.
-- Browser QA [38376740771](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740771): **failure** на попытке переключить global mute. Артефакт [11801033559](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38376740771/artifacts/11801033559), срок хранения до 20 октября 2026 года.
+- Regression workflow [38377460756](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377460756): **success** на branch head `824bf5269c20dcf96d5594a5a4cd7c50f988d49e`.
+- Browser QA [38377460797](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377460797): **failure** на попытке переключить global mute. Артефакт [11801987268](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38377460797/artifacts/11801987268), срок хранения до 20 октября 2026 года.
 - Страница WordPress и Mini-Sim запустились при подмене JS/CSS ассетами выбранного GitHub checkout; render loop был в состоянии `ROOM 1 · SPD 0.0` без `LOOP ERR`, Starbase был единственным активным OST перед проверкой mute.
 - В браузере документный capturing handler из `mini-sim/tower/assets/js/tower.js` вызвал `stopPropagation()` на клике по видимой кнопке `.bcm-mini-sim-music` до того, как сработал обработчик Mini-Sim. Причина зарегистрирована отдельно: [Issue #21](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/21). Не переписывать микшер ради этого симптома.
 - Исходный успешный прогон на `dc8a08e` — regression [38369594418](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38369594418), browser [38369594467](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38369594467), artifact `11798337294` — покрывает только Warp map → Tube → cancel. Он не означает, что текущий P1 прошёл.
@@ -42,7 +42,7 @@
 ## Следующий шаг
 
 1. Исправить Tower document-capture handler отдельно в [Issue #21](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/21): клики по меню Tower должны работать, но не должны перехватывать Mini-Sim controls. PR #18 оставить QA-only.
-2. После отдельного runtime fix повторно запустить existing regression и remote Browser QA через PR #18, не загружая полный плагин на WordPress вручную.
+2. После отдельного runtime fix повторно запустить existing regression и remote Browser QA через PR #18, не загружая полный плагин на WordPress вручную. Последняя проверка на branch head `824bf5269c20dcf96d5594a5a4cd7c50f988d49e` повторила тот же перехват click; artifact ID `11801987268`.
 3. Добиться полного зелёного браузерного сценария: одна Starbase OST → global mute ON → Room0 → Gamepad B → начало Room1 с нулевыми линейной/угловой скоростями и сохранённым mute/Starbase → Warp map → cancel при mute → mute OFF → существующая проверка Warp map → Tube → cancel.
 4. Только после успешного сценария обновить статусы Issue #17 и PR #18. Не закрывать P1 на основании только regression/source-contract tests.
 
