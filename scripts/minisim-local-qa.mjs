@@ -51,6 +51,12 @@ try{
  const context=await browser.newContext({viewport:{width:1440,height:900},ignoreHTTPSErrors:true});
  await context.addInitScript(()=>{
    window.__BCM_QA_MEDIA=new Set();window.__BCM_QA_MEDIA_EVENTS=[];
+   // Deterministic synthetic standard gamepad: button index 1 is B/Home.
+   // This exercises the real readPad edge handler without requiring a physical controller.
+   window.__BCM_QA_GAMEPAD={id:"BCM QA synthetic gamepad",index:0,connected:true,timestamp:0,mapping:"standard",axes:[0,0,0,0],buttons:Array.from({length:17},()=>({pressed:false,touched:false,value:0}))};
+   const getQaPads=()=>[window.__BCM_QA_GAMEPAD];
+   try{Object.defineProperty(Navigator.prototype,"getGamepads",{configurable:true,value:getQaPads});}
+   catch(e){try{Object.defineProperty(navigator,"getGamepads",{configurable:true,value:getQaPads});}catch(_){}}
    const create=Document.prototype.createElement;
    Document.prototype.createElement=function(name,options){const node=create.call(this,name,options);if(["audio","video"].includes(String(name).toLowerCase()))window.__BCM_QA_MEDIA.add(node);return node;};
    const play=HTMLMediaElement.prototype.play;
@@ -59,6 +65,52 @@ try{
    HTMLMediaElement.prototype.pause=function(){window.__BCM_QA_MEDIA.add(this);window.__BCM_QA_MEDIA_EVENTS.push({action:"pause",tag:this.tagName,src:this.currentSrc||this.src||"",at:performance.now()});return pause.apply(this,arguments);};
  });
  page=await context.newPage();
+ const readOstState=async()=>page.evaluate(()=>{
+   const all=new Set([...(window.__BCM_QA_MEDIA||[]),...document.querySelectorAll("audio")]);
+   return [...all].filter(a=>a&&a.tagName==="AUDIO"&&a.dataset.bcmGameOst).map(a=>({
+     channel:a.dataset.bcmGameOst,src:a.currentSrc||a.src||"",paused:a.paused,ended:a.ended,muted:a.muted,
+     volume:a.volume,time:a.currentTime,audible:!a.paused&&!a.ended&&!a.muted&&a.volume>0
+   }));
+ });
+ const setQaGamepadButton=async(index,pressed)=>page.evaluate(({index,pressed})=>{
+   const button=window.__BCM_QA_GAMEPAD&&window.__BCM_QA_GAMEPAD.buttons[index];
+   if(!button)throw new Error("Synthetic QA gamepad/button missing");
+   button.pressed=!!pressed;button.value=pressed?1:0;window.__BCM_QA_GAMEPAD.timestamp=performance.now();
+ },{index,pressed});
+ // The in-game canvas overlaps the decorative music note in WordPress layout.
+ // Calling the DOM button's native click exercises its registered handler without
+ // relying on pointer hit-testing that is unrelated to the audio/mute logic.
+ const clickMusicNote=async()=>page.locator(".bcm-mini-sim-music").first().evaluate(el=>{
+   const readState=()=>({
+     globalMuted:window.BCMGameAudio?.isMuted?.()??null,
+     ariaPressed:el.getAttribute("aria-pressed"),
+     classMuted:el.classList.contains("is-muted"),
+     buttonCount:document.querySelectorAll(".bcm-mini-sim-music").length,
+     disabled:!!el.disabled
+   });
+   const describe=node=>node?({
+     tag:node.tagName,
+     id:node.id||"",
+     className:typeof node.className==="string"?node.className:"",
+     pointerEvents:getComputedStyle(node).pointerEvents,
+     position:getComputedStyle(node).position,
+     zIndex:getComputedStyle(node).zIndex,
+     inert:!!node.closest("[inert]")
+   }):null;
+   const rect=el.getBoundingClientRect();
+   const pointerTarget=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);
+   const before=readState();
+   let clickEventSeen=false;
+   el.addEventListener("click",()=>{clickEventSeen=true;},{once:true});
+   const dispatched=el.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true,view:window}));
+   return{
+     before,after:readState(),clickEventSeen,dispatched,button:el.outerHTML,
+     pointerTarget:describe(pointerTarget),buttonStyle:describe(el),
+     canvasStyle:describe(document.querySelector(".bcm-mini-sim-canvas")),
+     ancestors:[...function*(){for(let n=el.parentElement;n&&n!==document.body;n=n.parentElement)yield n}()].slice(0,6).map(describe),
+     clickMethod:String(el.click).slice(0,140)
+   };
+ });
  page.on("request",r=>{if(r.url().includes("/wp-content/plugins/mini-sim/"))report.pluginAssetRequests.push(r.url());});
  page.on("console",m=>{if(m.type()==="error")report.consoleErrors.push(m.text());});
  page.on("pageerror",e=>report.pageErrors.push(String(e&&e.stack?e.stack:e)));
@@ -105,8 +157,90 @@ try{
  try{await page.waitForFunction(()=>{const r=document.querySelector(".bcm-mini-sim");return !!r&&r.classList.contains("game-active")&&!!window.BCMiniSimAPI;},null,{timeout:15000});}
  catch(e){const status=await page.locator(".bcm-mini-sim-crew-preflight-status").first().textContent().catch(()=>"");throw Error("Crew preflight did not start: "+(status||e.message));}
  check(true,"flight starts from Crew preflight");
+ await page.waitForTimeout(120);
+ const runtimeStatus=await page.locator(".bcm-mini-sim-status").first().textContent().catch(()=> "");
+ report.runtimeStatusAtStart=runtimeStatus;
+ check(!/LOOP ERR/i.test(runtimeStatus||""),"Mini-Sim render loop does not report LOOP ERR: "+String(runtimeStatus||"").slice(0,180));
+ const syntheticPad=await page.evaluate(()=>typeof navigator.getGamepads==="function"&&navigator.getGamepads()?.[0]?.id==="BCM QA synthetic gamepad");
+ report.syntheticGamepad=syntheticPad;
+ check(syntheticPad,"QA synthetic gamepad is available to the real input polling loop");
+
+ await page.locator(".bcm-mini-sim-music").first().waitFor({state:"visible",timeout:8000});
+ const beforeMute=await readOstState();report.audioAtFlightStart=beforeMute;
+ const firstPlaying=beforeMute.filter(a=>!a.paused&&!a.ended);
+ check(firstPlaying.length===1&&firstPlaying[0].channel==="starbase","Starbase is the only active OST in the ONI CSS location");
+
+ // Mute first: Home and Warp transitions must not override the user's global preference.
+ const muteProbe=await clickMusicNote();report.muteClickProbe=muteProbe;
+ check(muteProbe.dispatched&&muteProbe.clickEventSeen,"music note receives a dispatched DOM click event; state="+JSON.stringify(muteProbe));
+ check(muteProbe.after.globalMuted===true&&muteProbe.after.ariaPressed==="true"&&muteProbe.after.classMuted,
+   "music note toggles global mute ON; state="+JSON.stringify(muteProbe));
+
+ // Place the test craft at Room 1's rear doorway. The production collision/door
+ // path must enter the actual Room 0 slipstream; movement controls are not under test here.
+ const doorway=await page.evaluate(()=>{
+   const api=window.BCMiniSimAPI;
+   if(!api?.teleport)throw new Error("Mini-Sim teleport test hook is unavailable");
+   api.teleport({x:0,y:0,z:5.3});
+   const p=api.getRuntime()?.ship?.position;
+   return p?[p.x,p.y,p.z]:null;
+ });
+ report.room0DoorwayPosition=doorway;
+ await page.waitForFunction(()=>/ТРАССА/.test(document.querySelector(".bcm-mini-sim-status")?.textContent||""),null,{timeout:15000});
+ await page.waitForTimeout(200);
+ await shot(page,"03-room0-active.png");
+ check(true,"passing Room 1 capdoor enters the Room 0 slipstream");
+ const room0State=await readOstState();report.audioInRoom0=room0State;
+ const room0Playing=room0State.filter(a=>!a.paused&&!a.ended);
+ check(room0Playing.length===1&&room0Playing[0].channel==="starbase"&&room0Playing[0].muted,"Room 0 keeps Starbase OST selected and muted");
+
+ await setQaGamepadButton(1,true);
+ try{
+   await page.waitForFunction(()=>/ROOM 1 · HOME · ONI CSS/.test(document.querySelector(".bcm-mini-sim-status")?.textContent||""),null,{timeout:8000});
+ }finally{
+   await setQaGamepadButton(1,false);
+ }
+ await page.waitForTimeout(250);
+ await shot(page,"04-home-room1-muted.png");
+ const home=await page.evaluate(()=>{
+   const rt=window.BCMiniSimAPI?.getRuntime?.(),p=rt?.ship?.position,v=rt?.ship?.velocity,w=rt?.ship?.angularVelocity;
+   return{status:document.querySelector(".bcm-mini-sim-status")?.textContent||"",position:p?[p.x,p.y,p.z]:null,
+     velocity:v?[v.x,v.y,v.z]:null,angularVelocity:w?[w.x,w.y,w.z]:null,
+     muted:window.BCMGameAudio?.isMuted?.(),noteMuted:document.querySelector(".bcm-mini-sim-music")?.classList.contains("is-muted")};
+ });
+ report.room1HomeMuted=home;
+ check(/ROOM 1 · HOME · ONI CSS/.test(home.status),"Gamepad B returns from Room 0 to the start of Room 1");
+ check(!!home.position&&Math.abs(home.position[0])<0.1&&Math.abs(home.position[1])<0.1&&Math.abs(home.position[2]-2)<0.5,"Home places the ship at the Room 1 start");
+ check(home.velocity?.every(v=>Math.abs(v)<0.01)&&home.angularVelocity?.every(v=>Math.abs(v)<0.01),"Home clears ship linear and angular velocity");
+ check(home.muted===true&&home.noteMuted===true,"global mute stays enabled after Gamepad B Home");
+ const homeAudio=await readOstState();report.audioAtRoom1HomeMuted=homeAudio;
+ const homePlaying=homeAudio.filter(a=>!a.paused&&!a.ended);
+ check(homePlaying.length===1&&homePlaying[0].channel==="starbase"&&homePlaying[0].muted,"Room 1 resumes exactly one muted Starbase OST, not Tower or Warp");
+
+ // Check a second zone transition while mute remains enabled; cancel must return to muted Starbase.
+ await page.keyboard.press("V");
+ await page.locator(".bcm-warp-overlay:not([hidden])").first().waitFor({state:"visible",timeout:10000});
+ const warpMuted=await readOstState();report.audioOnWarpMapMuted=warpMuted;
+ const warpMutedPlaying=warpMuted.filter(a=>!a.paused&&!a.ended);
+ check(warpMutedPlaying.length===1&&warpMutedPlaying[0].channel==="warp"&&warpMutedPlaying[0].muted,"Warp map respects global mute and keeps one exclusive OST");
+ check(await page.locator(".bcm-mini-sim-music").first().getAttribute("aria-pressed")==="true","mute button stays OFF through Warp entry");
+ await page.locator("[data-warp-cancel]").first().click();
+ await page.waitForFunction(()=>!!document.querySelector(".bcm-warp-overlay[hidden]"),null,{timeout:8000});
+ await page.waitForTimeout(250);
+ const backMuted=await readOstState();report.audioAfterMutedWarpCancel=backMuted;await shot(page,"05-after-warp-cancel-muted.png");
+ const backMutedPlaying=backMuted.filter(a=>!a.paused&&!a.ended);
+ check(backMutedPlaying.length===1&&backMutedPlaying[0].channel==="starbase"&&backMutedPlaying[0].muted,"Warp cancel resumes only muted Starbase OST");
+ const unmuteProbe=await clickMusicNote();report.unmuteClickProbe=unmuteProbe;
+ check(unmuteProbe.dispatched&&unmuteProbe.clickEventSeen,"music note receives a dispatched DOM click event while muted; state="+JSON.stringify(unmuteProbe));
+ check(unmuteProbe.after.globalMuted===false&&unmuteProbe.after.ariaPressed==="false"&&!unmuteProbe.after.classMuted,
+   "music note toggles global mute OFF; state="+JSON.stringify(unmuteProbe));
+ const unmutedHome=await readOstState();report.audioAfterUnmute=unmutedHome;
+ const unmutedPlaying=unmutedHome.filter(a=>!a.paused&&!a.ended);
+ check(unmutedPlaying.length===1&&unmutedPlaying[0].channel==="starbase"&&!unmutedPlaying[0].muted,"turning music ON resumes only Starbase OST");
+ check(await page.locator(".bcm-mini-sim-music").first().getAttribute("aria-pressed")==="false","music note reflects the enabled state");
+
  const before=await page.evaluate(()=>{const p=window.BCMiniSimAPI?.getRuntime?.()?.ship?.position;return p?[p.x,p.y,p.z]:null;});
- await page.keyboard.press("V");await page.locator(".bcm-warp-overlay:not([hidden])").first().waitFor({state:"visible",timeout:10000});await page.waitForTimeout(250);await shot(page,"03-warp-map.png");
+ await page.keyboard.press("V");await page.locator(".bcm-warp-overlay:not([hidden])").first().waitFor({state:"visible",timeout:10000});await page.waitForTimeout(250);await shot(page,"06-warp-map.png");
  const current=await page.locator("[data-warp-current]").first().textContent();
  check(/ONI CSS|NEUNO|-40|TEST/i.test(current||""),"WARP map shows its current start point");
  const activeAudio=async()=>page.evaluate(()=>{const all=new Set([...(window.__BCM_QA_MEDIA||[]),...document.querySelectorAll("audio")]);return [...all].filter(a=>a&&a.tagName==="AUDIO"&&!a.paused&&!a.ended&&!a.muted&&a.volume>0).map(a=>({src:a.currentSrc||a.src||"",time:a.currentTime}));});
@@ -114,14 +248,14 @@ try{
  check(mapAudio.length===1&&/warp\.mp3/i.test(mapAudio[0].src),"Warp OST is audible already on the map");
  const mapTrackTime=mapAudio[0]?.time||0;
  const neighbor=page.locator('[data-warp-grid] .bcm-warp-grid-cell.is-connected').first();await neighbor.waitFor({state:"visible",timeout:8000});await neighbor.click();
- await page.locator("[data-warp-start]").click();await page.locator('[data-warp-view="tube"]:not([hidden])').waitFor({state:"visible",timeout:8000});await page.waitForTimeout(700);await shot(page,"04-tube.png");
+ await page.locator("[data-warp-start]").click();await page.locator('[data-warp-view="tube"]:not([hidden])').waitFor({state:"visible",timeout:8000});await page.waitForTimeout(700);await shot(page,"07-tube.png");
  check(true,"choosing a neighbour opens Tube");
  const during=await activeAudio();report.audioDuringTube=during;
  check(during.length===1&&/warp\.mp3/i.test(during[0].src),"Warp OST remains the only audible track in Tube");
  check(during[0].time>mapTrackTime,"Warp OST continues forward instead of resetting when Tube begins");
  await page.keyboard.press("Escape");await page.waitForFunction(()=>!!document.querySelector(".bcm-warp-overlay[hidden]"),null,{timeout:8000});await page.waitForTimeout(350);
  const after=await page.evaluate(()=>{const p=window.BCMiniSimAPI?.getRuntime?.()?.ship?.position,all=new Set([...(window.__BCM_QA_MEDIA||[]),...document.querySelectorAll("audio")]);return{position:p?[p.x,p.y,p.z]:null,audio:[...all].filter(a=>a&&a.tagName==="AUDIO"&&!a.paused&&!a.ended&&!a.muted&&a.volume>0).map(a=>a.currentSrc||a.src||"")};});
- report.afterCancel=after;await shot(page,"05-after-cancel.png");
+ report.afterCancel=after;await shot(page,"08-after-cancel.png");
  check(!!before&&!!after.position&&after.position.every((v,i)=>Math.abs(v-before[i])<1),"cancel restores the ship position");
  check(after.audio.length===1&&!/warp\\.mp3/i.test(after.audio[0]),"cancel stops Warp OST and restores the normal flight OST");
  const benignConsole=text=>!full&&/ERR_BLOCKED_BY_CLIENT/.test(text);
