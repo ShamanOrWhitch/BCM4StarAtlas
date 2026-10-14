@@ -2126,10 +2126,10 @@
 
     const planetMaterial = textured("OniStation.png", 0x496b8f);
     const planet = new THREE.Mesh(
-      new THREE.SphereGeometry(28, 24, 16),
+      new THREE.SphereGeometry(11, 24, 16),
       planetMaterial
     );
-    planet.position.set(0, 16, -220);
+    planet.position.set(-26, 9, -190);
     planet.name = "deep-space-planet";
     parent.add(planet);
     spacePlanet.mesh = planet;

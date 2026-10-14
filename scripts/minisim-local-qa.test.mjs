@@ -40,7 +40,10 @@ test("Room 2 can already see the deep-space satellite and planet",async()=>{
   assert.match(body,/zone === "ROOM2" \|\| zone === "DEEP_SPACE"/);
   assert.match(s,/metalness: 0\.82/);
   assert.match(s,/existing\.listeners\.push/);
-  assert.match(s,/planet\.position\.set\(0, 16, -220\)/);
+  assert.match(s,/new THREE\.SphereGeometry\(11, 24, 16\)/);
+  assert.match(s,/planet\.position\.set\(-26, 9, -190\)/);
+  assert.doesNotMatch(s,/new THREE\.SphereGeometry\(28, 24, 16\)/);
+  assert.doesNotMatch(s,/planet\.position\.set\(0, 16, -220\)/);
 });
 test("Room 1 Home clears Room 0 constraints and restores Starbase OST",async()=>{
   const s=await read("mini-sim/assets/js/mini-sim.js");
