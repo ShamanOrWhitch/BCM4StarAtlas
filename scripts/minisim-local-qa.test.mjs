@@ -13,17 +13,29 @@ test("Warp OST belongs to the whole Warp stage and loops",async()=>{
   assert.doesNotMatch(tube,/startWarpAudio/);
   assert.match(s,/function enterAsteroidMaze\(\) \{\s*\/\/ Warp OST owns the whole Warp stage/);
 });
-test("Tube has a stable forward road, varied sections, open gates and controller steering",async()=>{
+test("Warp uses a rolling circular wall and angular obstacle course",async()=>{
   const s=await read("mini-sim/assets/js/deep-space-warp.js");
-  assert.match(s,/const roadY=d=>/);
-  assert.match(s,/Continuous floor panels and centre dashes/);
-  assert.doesNotMatch(s,/g\.rotate\(roll\)|const roll\s*=/);
-  assert.match(s,/tubeSectionBlend\(speedBySection, state\.elapsed\)\.value/);
-  assert.match(s,/const bank=Math\.max\(-\.24,Math\.min\(\.24,-state\.playerX\*\.20\)\)/);
-  assert.match(s,/const speedBySection = \[0\.76, 1\.24, 0\.84, 1\.34, 0\.68, 1\.14\]/);
-  assert.match(s,/const gateCount = 14/);
-  assert.match(s,/rng\(\) < 0\.38/);
-  assert.match(s,/navigator\.getGamepads\?navigator\.getGamepads\(\):\[\]/);
+  const body=s.slice(s.indexOf("function drawTubeTunnel"),s.indexOf("function drawBackdrop"));
+  const update=s.slice(s.indexOf("function updateTube(dt, now)"),s.indexOf("window.BCMDeepSpaceWarpToggle"));
+  assert.match(s,/const WARP_DURATION = 48/);
+  assert.match(body,/const roll = Number\(state\.tubeRoll \|\| 0\)/);
+  assert.match(body,/const radiusX = \(d\) =>/);
+  assert.match(body,/const radiusY = \(d\) => radiusX\(d\) \* 0\.91/);
+  assert.match(body,/const twistAt = \(d\) =>/);
+  assert.match(body,/for \(let panel = 0; panel < panelCount; panel \+= 1\)/);
+  assert.match(body,/for \(let seam = 0; seam < 12; seam \+= 1\)/);
+  assert.match(body,/layer\.type === "gate"/);
+  assert.match(body,/layer\.type === "sweeper"/);
+  assert.match(body,/layer\.type === "spikes"/);
+  assert.match(body,/layer\.type === "boost"/);
+  assert.match(body,/layer\.type === "launcher"/);
+  assert.match(body,/g\.rotate\(playerAngle \+ craftRoll - Math\.PI \/ 2\)/);
+  assert.match(update,/state\.tubeRoll = Number\(state\.tubeRoll \|\| 0\) \+ dt \* tubeSectionBlend\(rollRates/);
+  assert.match(update,/angleDifference\(playerAngle, layer\.safeAngle\)/);
+  assert.match(update,/layer\.blockedAngles\.some/);
+  assert.match(update,/layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
+  assert.match(update,/state\.playerX = nextX \/ radial \* 0\.78/);
+  assert.doesNotMatch(body,/const roadY=d=>|const half=d=>|Continuous floor panels and centre dashes/);
 });
 test("Room 1 Home clears Room 0 constraints and restores Starbase OST",async()=>{
   const s=await read("mini-sim/assets/js/mini-sim.js");
@@ -48,7 +60,59 @@ test("Note button shares one mute state across Starbase, Warp and Tower OSTs",as
   assert.match(mini,/musicButton\.classList\.toggle\("is-muted", cinema\.mute\)/);
   assert.match(warp,/playExclusive\(warpAudio, "warp"\)/);
   assert.match(tower,/playExclusive\(audio, "tower"\)/);
+  assert.match(tower,/transitionVideo\.onplaying = \(\) => \{[\s\S]*?playTowerAudio\(\)/);
   assert.doesNotMatch(tower,/transitionStarted = true;\s*playTowerAudio\(\)/);
+});
+
+test("startup prioritizes Starbase OST, initial room textures, right-wall video and the actual portal element",async()=>{
+  const mini=await read("mini-sim/assets/js/mini-sim.js");
+  const boot=mini.slice(mini.indexOf("const config = window.BCMMiniSimConfig"),mini.indexOf("let miniSimReleased"));
+  assert.match(boot,/musicAudio\.preload = "auto"/);
+  assert.match(boot,/musicAudio\.fetchPriority = "high"/);
+  assert.match(boot,/musicAudio\.src = config\.musicUrl/);
+  const textured=mini.slice(mini.indexOf("function textured(name, fallback, side)"),mini.indexOf("function deferredTextured"));
+  assert.match(textured,/img\.fetchPriority = textureRequestPriority\(name\) <= 1 \? "auto" : "low"/);
+  const arm=mini.slice(mini.indexOf("let levelMediaArmed = false"),mini.indexOf("updateLiveWall();"));
+  assert.ok(arm.indexOf("room1-right-wall-live") < arm.indexOf("primePortalVideo(\"FORWARD\", \"high\")"));
+  assert.ok(arm.indexOf("primePortalVideo(\"FORWARD\", \"high\")") < arm.indexOf("startBackgroundTextureLoading()"));
+  assert.match(arm,/room1RightWall\.el\.fetchPriority = "high"/);
+  assert.match(mini,/queueLowPriorityImage\(url, finish, \(\) => \{[\s\S]*?\}, 9\)/);
+  assert.match(mini,/function addRoofCorners\([\s\S]*?const corner = deferredTextured\(/);
+  assert.ok(mini.includes('if (/^roofa[0-9]*\\.png$/.test(base)) return 4;'));
+  const zones=mini.slice(mini.indexOf("const videoZones = Array.isArray(config.spaceVideoZones)"),mini.indexOf("// Room 1 rear wall"));
+  assert.doesNotMatch(zones,/video\.src = zone\.url;\s*video\.load\(\)/);
+});
+
+test("portal buffering leaves flight live until the transition video actually plays",async()=>{
+  const mini=await read("mini-sim/assets/js/mini-sim.js");
+  const portal=mini.slice(mini.indexOf("function playPortalVideo(direction)"),mini.indexOf("function tryPortal()"));
+  const activation=portal.indexOf("const activateTransition = () =>");
+  assert.ok(activation>0);
+  assert.doesNotMatch(portal.slice(0,activation),/transitionBusy = true|ship\.velocity\.set\(0, 0, 0\)|ship\.angularVelocity\.set\(0, 0, 0\)/);
+  assert.match(portal,/transitionVideo\.onloadeddata = requestPlayback/);
+  assert.match(portal,/transitionVideo\.onplaying = activateTransition/);
+  assert.match(portal,/const result = transitionVideo\.play\(\)/);
+  assert.match(portal,/transitionVideo\.onerror = \(\) => \{\s*transitionLoading = false;\s*transitionBusy = false/);
+});
+
+test("ONICSS keeps the scene until Tower API is ready and tower.mp4 is playing",async()=>{
+  const mini=await read("mini-sim/assets/js/mini-sim.js");
+  const tower=await read("mini-sim/tower/assets/js/tower.js");
+  const handoff=mini.slice(mini.indexOf("function handoffToTower()"),mini.indexOf("function enterTowerFromGate()"));
+  const callback=handoff.indexOf("api.beginLanding((success) =>");
+  const dispose=handoff.indexOf("disposeMiniSimResources()");
+  assert.ok(callback>0 && dispose>callback);
+  assert.match(handoff,/Promise\.resolve\(ensureTowerJsLoaded\(\)\)/);
+  assert.match(handoff,/pauseAllCinemaVideos\(\)/);
+  assert.match(tower,/window\.BCMTowerAPI\.preloadLanding = \(\) => primeTransitionVideo\(\)/);
+  assert.match(tower,/window\.BCMTowerAPI\.beginLanding = \(onFirstFrame\)/);
+  assert.match(tower,/transitionVideo\.onplaying = \(\) => \{[\s\S]*?playTowerAudio\(\)[\s\S]*?resolveLandingFirstFrame\(true\)/);
+  assert.match(tower,/canvas\.style\.visibility = "hidden"/);
+  assert.match(tower,/landingFirstFrameCallback = typeof onFirstFrame === "function"/);
+  const boot=tower.slice(tower.indexOf("// The landing clip is deliberately not fetched on page boot"));
+  assert.match(boot,/if \(!root\.classList\.contains\("bcm-tower-embedded"\)\) showMenu\(\)/);
+  assert.doesNotMatch(boot,/primeTransitionVideo\(\);/);
+  assert.doesNotMatch(boot,/status\.textContent = "TOWER STANDBY";\s*showMenu\(\)/);
 });
 test("Vertical movement uses the ship's current local up axis and gamepad turning is faster",async()=>{
   const s=await read("mini-sim/assets/js/mini-sim.js");

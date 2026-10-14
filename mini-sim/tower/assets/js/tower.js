@@ -930,6 +930,9 @@
     let gameStarted = false;
     let transitionStarted = false;
     let towerAudio = null;
+    let landingFirstFrameCallback = null;
+    let landingHandoffPending = false;
+    let landingFrameNotified = false;
 
     let wallMesh = null;
     let platformMeshes = [];
@@ -2398,6 +2401,7 @@
     function playTowerAudio() {
       const audio = ensureTowerAudio();
       if (!audio) return;
+      if (!audio.paused && !audio.ended) return;
       audio.loop = true;
       audio.volume = 0.48;
       if (window.BCMGameAudio?.playExclusive) {
@@ -2422,7 +2426,9 @@
     function startMode(nextMode) {
       mode = nextMode === "multi" ? "multi" : "single";
       enableTowerTilt();
-      playTowerAudio();
+      // The OST normally started on tower.mp4's first actual playback frame.
+      // Keep this as a fallback, but never restart an already playing track.
+      if (!towerAudio || towerAudio.paused || towerAudio.ended) playTowerAudio();
       menu.hidden = true;
       mobile?.setAttribute("aria-hidden", "false");
       mobile?.querySelector(".bcm-tower-mobile-p2")?.toggleAttribute("hidden", mode !== "multi");
@@ -2536,6 +2542,15 @@
       return transitionVideo.readyState >= 2;
     }
 
+    function resolveLandingFirstFrame(success) {
+      const callback = landingFirstFrameCallback;
+      landingFirstFrameCallback = null;
+      landingHandoffPending = false;
+      if (typeof callback === "function") {
+        try { callback(!!success); } catch (e) {}
+      }
+    }
+
     function triggerTransition() {
       if (transitionStarted) return false;
       const url = transitionUrl();
@@ -2544,13 +2559,11 @@
         transition.hidden = true;
         transition.style.backgroundImage = "";
         transitionVideo.style.opacity = "0";
+        if (landingFirstFrameCallback) resolveLandingFirstFrame(false);
         return false;
       }
 
       transitionStarted = true;
-      // Never reveal the H1 pad or an opened transition while the media is
-      // buffering. The frame/transition begins only once a real decoded frame
-      // is ready; primeTransitionVideo normally makes this immediate.
       window.clearTimeout(showEndLevelMarker.timer);
       transition.hidden = true;
       transition.style.backgroundImage = "";
@@ -2567,23 +2580,19 @@
       transitionVideo.preload = "auto";
       try { transitionVideo.fetchPriority = "high"; } catch (e) {}
 
-      let revealed = false;
-      const revealFirstFrame = () => {
-        if (revealed || !transitionStarted || transitionVideo.readyState < 2) return;
-        revealed = true;
-
-        // The video was loaded off-screen. Reveal it only now, so the player
-        // never watches a blank/H1 placeholder while waiting for its first frame.
+      let playRequested = false;
+      const requestPlayback = () => {
+        if (playRequested || !transitionStarted || transitionVideo.readyState < 2) return;
+        playRequested = true;
         try { transitionVideo.currentTime = 0; } catch (e) {}
-        transition.style.backgroundImage = "";
-        transition.hidden = false;
-        transitionVideo.style.opacity = "1";
-
-        // Tower OST starts with SINGLE/MULTI gameplay in startMode(), not under
-        // the landing clip.
-        const playPromise = transitionVideo.play();
-        if (playPromise && playPromise.catch) {
-          playPromise.catch(() => {
+        const result = transitionVideo.play();
+        if (result && result.catch) {
+          result.catch(() => {
+            playRequested = false;
+            if (landingFirstFrameCallback) resolveLandingFirstFrame(false);
+            transitionStarted = false;
+            transition.hidden = true;
+            transitionVideo.style.opacity = "0";
             status.textContent = "TOWER LANDING VIDEO READY · PLAY BLOCKED";
           });
         }
@@ -2592,12 +2601,28 @@
       transitionVideo.onloadedmetadata = () => {
         try { transitionVideo.currentTime = 0; } catch (e) {}
       };
-      transitionVideo.onloadeddata = revealFirstFrame;
-      transitionVideo.oncanplay = revealFirstFrame;
+      transitionVideo.onloadeddata = requestPlayback;
+      transitionVideo.oncanplay = requestPlayback;
       transitionVideo.onplaying = () => {
-        if (!revealed) return;
+        if (!playRequested || !transitionStarted) return;
+
+        // Both the transition and the Tower OST are tied to actual playback,
+        // not merely loadeddata or the old H1 end-level marker.
+        transition.style.backgroundImage = "";
         transition.hidden = false;
         transitionVideo.style.opacity = "1";
+        playTowerAudio();
+
+        if (landingHandoffPending && !landingFrameNotified) {
+          landingFrameNotified = true;
+          canvas.style.visibility = "";
+          root.style.background = "";
+          root.style.pointerEvents = "";
+          document.querySelectorAll(".bcm-mini-sim").forEach((el) => {
+            el.style.pointerEvents = "none";
+          });
+          resolveLandingFirstFrame(true);
+        }
       };
       transitionVideo.onended = () => {
         stopTransition();
@@ -2605,11 +2630,16 @@
       };
       transitionVideo.onerror = () => {
         stopTransition();
+        if (landingFirstFrameCallback) resolveLandingFirstFrame(false);
+        landingFrameNotified = false;
+        landingHandoffPending = false;
         status.textContent = "TOWER LANDING VIDEO ERROR · tower.mp4";
+        if (root) root.hidden = true;
       };
 
       const absolute = (value) => {
-        try { return new URL(value, document.baseURI).href; } catch (e) { return String(value || ""); }
+        try { return new URL(value, document.baseURI).href; }
+        catch (e) { return String(value || ""); }
       };
       const currentSrc = transitionVideo.getAttribute("src");
       if (!currentSrc || absolute(currentSrc) !== absolute(url)) {
@@ -2617,15 +2647,9 @@
         transitionVideo.load();
       }
 
-      // If the background preloader already decoded a frame, reveal immediately.
-      if (transitionVideo.readyState >= 2) {
-        revealFirstFrame();
-      } else {
-        // Start decoding while hidden; loadeddata opens the transition as soon as
-        // its first frame exists rather than showing H1 during the wait.
-        const preloadPromise = transitionVideo.play();
-        if (preloadPromise && preloadPromise.catch) preloadPromise.catch(() => {});
-      }
+      // If the first frame is already decoded, ask for playback now. The
+      // overlay remains hidden until onplaying confirms the frame has started.
+      if (transitionVideo.readyState >= 2) requestPlayback();
       return true;
     }
 
@@ -3055,12 +3079,29 @@
     window.BCMTowerAPI.getCrewMatrix = () => window.BCMTowerCrewMatrix || null;
     window.BCMTowerAPI.getWallet = () => window.BCMiniCrewWallet || null;
     window.BCMTowerAPI.stopAudio = () => stopTowerAudio();
-    window.BCMTowerAPI.enter = () => {
+    // Called by Mini-Sim only when the ship approaches ONICSS. Do not fetch
+    // tower.mp4 during the initial Starbase load.
+    window.BCMTowerAPI.preloadLanding = () => primeTransitionVideo();
+    window.BCMTowerAPI.enter = (options) => {
+      const deferHandoff = !!(options && options.deferHandoff);
       root.hidden = false;
       root.style.zIndex = "1000001";
-      document.querySelectorAll(".bcm-mini-sim").forEach((el) => {
-        el.style.pointerEvents = "none";
-      });
+      if (deferHandoff) {
+        // Tower remains visually and interactively transparent while the live
+        // Mini-Sim scene keeps flying underneath the unready landing clip.
+        root.style.pointerEvents = "none";
+        root.style.background = "transparent";
+        canvas.style.visibility = "hidden";
+        transition.hidden = true;
+        transitionVideo.style.opacity = "0";
+      } else {
+        root.style.pointerEvents = "";
+        root.style.background = "";
+        canvas.style.visibility = "";
+        document.querySelectorAll(".bcm-mini-sim").forEach((el) => {
+          el.style.pointerEvents = "none";
+        });
+      }
       menu.hidden = true;
       status.textContent = "LANDING VIDEO · PREPARING TOWER...";
       try {
@@ -3069,15 +3110,27 @@
         gameStarted = false;
         status.textContent = "TOWER ERROR: " + (error?.message || "BUILD FAILED");
         console.error("BCM Tower entry build failed", error);
-        return;
+        if (landingFirstFrameCallback) resolveLandingFirstFrame(false);
+        if (deferHandoff) root.hidden = true;
+        return false;
       }
       resize();
       renderViews();
-      if (!triggerTransition()) {
+      const started = triggerTransition();
+      if (!started) {
         status.textContent = "tower.mp4 не найден рядом с ассетами башни";
+        if (landingFirstFrameCallback) resolveLandingFirstFrame(false);
+        if (deferHandoff) root.hidden = true;
+        return false;
       }
+      return true;
     };
-    window.BCMTowerAPI.beginLanding = () => window.BCMTowerAPI.enter();
+    window.BCMTowerAPI.beginLanding = (onFirstFrame) => {
+      landingFirstFrameCallback = typeof onFirstFrame === "function" ? onFirstFrame : null;
+      landingHandoffPending = !!landingFirstFrameCallback;
+      landingFrameNotified = false;
+      return window.BCMTowerAPI.enter({ deferHandoff: landingHandoffPending });
+    };
     window.BCMTowerAPI.mount = (targetRoot) => {
       if (targetRoot && targetRoot !== root) {
         root.hidden = false;
@@ -3093,10 +3146,8 @@
     window.addEventListener("resize", resize);
     window.addEventListener("orientationchange", resize);
 
-    // Warm the landing clip while the Tower menu/scene initializes. The transition
-    // can then reveal its first frame immediately when the player enters Tower.
-    primeTransitionVideo();
-
+    // The landing clip is deliberately not fetched on page boot. Mini-Sim calls
+    // preloadLanding() when the ship enters the ONICSS approach radius.
     const autostart = root.dataset.bcmTowerAutostart !== "0";
     if (autostart) {
       status.textContent = "LANDING VIDEO...";
@@ -3104,7 +3155,10 @@
       triggerTransition();
     } else {
       status.textContent = "TOWER STANDBY";
-      showMenu();
+      // The embedded Tower sits hidden behind Starbase. Building its preview
+      // here would start many texture requests and compete with startup media.
+      // Mini-Sim opens it only when the ship approaches ONICSS.
+      if (!root.classList.contains("bcm-tower-embedded")) showMenu();
     }
     setInterval(pollGamepads, 60);
     requestAnimationFrame(frame);

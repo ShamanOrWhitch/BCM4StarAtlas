@@ -46,6 +46,14 @@
     ? crewPreflight.querySelector(".bcm-mini-sim-crew-preflight-status")
     : null;
   const config = window.BCMMiniSimConfig || {};
+  if (musicAudio && config.musicUrl) {
+    musicAudio.preload = "auto";
+    try { musicAudio.fetchPriority = "high"; } catch (e) {}
+    if (!musicAudio.getAttribute("src")) {
+      musicAudio.src = config.musicUrl;
+      musicAudio.load();
+    }
+  }
   let miniSimReleased = false;
 
   const towerPreload = {
@@ -566,35 +574,53 @@
     const armLevelMedia = () => {
       if (levelMediaArmed) return;
       levelMediaArmed = true;
-      const capdoor = liveInterior.find((item) => item.mesh && item.mesh.name === "room1-rear-capdoor");
-      const room2Corridor = liveInterior.find((item) => item.mesh && item.mesh.name === "room2-right-wall-live-bottom-right");
-      const primeVideo = (name, priority) => {
-        const url = assetUrl(name);
-        if (!url) return;
-        const video = document.createElement("video");
-        video.muted = true;
-        video.preload = "auto";
-        video.playsInline = true;
-        try { video.fetchPriority = priority; } catch (e) {}
-        video.src = url;
-        video.load();
-      };
-      primeVideo("portal2.mp4", "high");
-      if (room2Corridor) {
-        try { room2Corridor.el.fetchPriority = "high"; } catch (e) {}
-        warmInteriorVideo(room2Corridor);
+
+      // Priority 1: the visible Room 1 right-wall video. Keep using this exact
+      // VideoTexture element so the scene can show it as soon as it decodes.
+      const room1RightWall = liveInterior.find((item) => item.mesh && item.mesh.name === "room1-right-wall-live");
+      if (room1RightWall) {
+        try {
+          room1RightWall.el.preload = "auto";
+          room1RightWall.el.fetchPriority = "high";
+        } catch (e) {}
+        warmInteriorVideo(room1RightWall);
       }
-      setTimeout(() => {
-        primeVideo("portal1.mp4", "low");
+
+      // Priority 2: preload the real transition element, not a duplicate video
+      // which would decode the first frame that the transition itself cannot use.
+      primePortalVideo("FORWARD", "high");
+
+      // After critical requests have been issued, warm the next room / rear cap
+      // and portal-return clip; finally let background textures drain by priority.
+      window.setTimeout(() => {
+        const capdoor = liveInterior.find((item) => item.mesh && item.mesh.name === "room1-rear-capdoor");
+        const room2Corridor = liveInterior.find((item) => item.mesh && item.mesh.name === "room2-right-wall-live-bottom-right");
         if (capdoor) warmInteriorVideo(capdoor);
-      }, 900);
-      if (liveWall.el && liveWall.ready) {
-        const wallPlay = liveWall.el.play();
-        if (wallPlay && wallPlay.catch) wallPlay.catch(() => {});
-      }
+        if (room2Corridor) {
+          try {
+            room2Corridor.el.preload = "auto";
+            room2Corridor.el.fetchPriority = "auto";
+          } catch (e) {}
+          warmInteriorVideo(room2Corridor);
+        }
+        const portalBackUrl = assetUrl("portal1.mp4");
+        if (portalBackUrl && !transitionVideo.getAttribute("src")) {
+          const prime = document.createElement("video");
+          prime.muted = true;
+          prime.preload = "auto";
+          prime.playsInline = true;
+          try { prime.fetchPriority = "low"; } catch (e) {}
+          prime.src = portalBackUrl;
+          prime.load();
+        }
+        if (liveWall.el && liveWall.ready) {
+          const wallPlay = liveWall.el.play();
+          if (wallPlay && wallPlay.catch) wallPlay.catch(() => {});
+        }
+        startBackgroundTextureLoading();
+      }, 650);
     };
-    if (musicAudio) musicAudio.addEventListener("playing", armLevelMedia, { once: true });
-    setTimeout(armLevelMedia, 900);
+    armLevelMedia();
 
     updateLiveWall();
     root.classList.add("game-active");
@@ -757,14 +783,38 @@
     jobs: [],
     active: 0,
     running: false,
-    seen: Object.create(null)
+    seen: Object.create(null),
+    sequence: 0
   };
 
-  function queueLowPriorityImage(url, onload, onerror) {
+  function textureRequestPriority(name) {
+    const base = String(name || "").split(/[\\/]/).pop().toLowerCase();
+    if (/^back.*\.png$/.test(base)) return 9;
+    // Main Room 1 walls/roof and portal/door faces are critical; corner
+    // ornaments are deferred until their queue starts after the portal request.
+    if (/^(wall[1-5]|roof[0-9]*|door[0-9]*|portal[0-9]*)\.png$/.test(base)) return 1;
+    if (/^roofa[0-9]*\.png$/.test(base)) return 4;
+    return 3;
+  }
+
+  function queueLowPriorityImage(url, onload, onerror, priority) {
     if (!url) return;
     if (backgroundTextureQueue.seen[url]) return;
     backgroundTextureQueue.seen[url] = true;
-    backgroundTextureQueue.jobs.push({ url, onload, onerror });
+    const job = {
+      url,
+      onload,
+      onerror,
+      priority: Number.isFinite(Number(priority)) ? Number(priority) : 5,
+      sequence: backgroundTextureQueue.sequence++
+    };
+    let index = backgroundTextureQueue.jobs.findIndex((row) =>
+      row.priority > job.priority ||
+      (row.priority === job.priority && row.sequence > job.sequence)
+    );
+    if (index < 0) index = backgroundTextureQueue.jobs.length;
+    backgroundTextureQueue.jobs.splice(index, 0, job);
+    if (backgroundTextureQueue.running) pumpBackgroundTextures();
   }
 
   function pumpBackgroundTextures() {
@@ -775,18 +825,20 @@
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.decoding = "async";
-      try { img.fetchPriority = "low"; } catch (e) {}
+      // The priority queue starts only after OST, near-wall textures, right
+      // video and portal requests have been issued; its own images stay auto/low.
+      try { img.fetchPriority = job.priority <= 1 ? "auto" : "low"; } catch (e) {}
       img.onload = () => {
         backgroundTextureQueue.active--;
         if (miniSimReleased) return;
         try { job.onload(img); } catch (e) {}
-        setTimeout(pumpBackgroundTextures, 60);
+        setTimeout(pumpBackgroundTextures, 25);
       };
       img.onerror = () => {
         backgroundTextureQueue.active--;
         if (miniSimReleased) return;
         try { if (job.onerror) job.onerror(); } catch (e) {}
-        setTimeout(pumpBackgroundTextures, 60);
+        setTimeout(pumpBackgroundTextures, 25);
       };
       img.src = job.url;
     }
@@ -798,11 +850,7 @@
       return;
     }
     backgroundTextureQueue.running = true;
-    if (typeof window.requestIdleCallback === "function") {
-      requestIdleCallback(() => pumpBackgroundTextures(), { timeout: 1200 });
-    } else {
-      setTimeout(pumpBackgroundTextures, 700);
-    }
+    pumpBackgroundTextures();
   }
 
   // Speed matrix: mode 2 keeps the previous 0.9.0 flight values.
@@ -1161,6 +1209,10 @@
     }
     const img = new Image();
     img.crossOrigin = "anonymous";
+    img.decoding = "async";
+    // Audio keeps the sole high-priority slot. Initial room-surface images
+    // start at normal priority; decorative/exterior assets use the later queue.
+    try { img.fetchPriority = textureRequestPriority(name) <= 1 ? "auto" : "low"; } catch (e) {}
     img.onload = () => {
       if (miniSimReleased) return;
       try {
@@ -1231,7 +1283,7 @@
       stats.loaded++;
       stats.last = name + " 404";
       hudAssets();
-    });
+    }, textureRequestPriority(name));
 
     return mat;
   }
@@ -1252,19 +1304,22 @@
   }
 
   function addRoofCorners(parent, z, width, height, variants) {
-    const corner = textured(
+    // Corner trims are decorative rather than route-critical surfaces, so let
+    // the priority queue fetch them after the OST, nearby walls, right video,
+    // and the real portal transition request have already been issued.
+    const corner = deferredTextured(
       seededVariant(variants || ["roofa.png", "roofa1.png", "roofa2.png"], z * 17 + width, "roofa.png"),
       0x8a9098
     );
-    const corner2 = textured(
+    const corner2 = deferredTextured(
       seededVariant(["roofa.png", "roofa1.png", "roofa2.png"], z * 31 + height, "roofa1.png"),
       0x8a9098
     );
     const s = 1.6;
     plane(parent, -width / 2 + 0.8, height / 2 - 0.05, z, s, s, Math.PI / 2, 0, 0, corner);
     plane(parent, width / 2 - 0.8, height / 2 - 0.05, z, s, s, Math.PI / 2, 0, Math.PI / 2, corner2);
-    plane(parent, -width / 2 + 0.8, height / 2 - 0.05, z - 8, s, s, Math.PI / 2, 0, -Math.PI / 2, textured("roofa2.png", 0x8a9098));
-    plane(parent, width / 2 - 0.8, height / 2 - 0.05, z + 8, s, s, Math.PI / 2, 0, Math.PI, textured("roofa.png", 0x8a9098));
+    plane(parent, -width / 2 + 0.8, height / 2 - 0.05, z - 8, s, s, Math.PI / 2, 0, -Math.PI / 2, deferredTextured("roofa2.png", 0x8a9098));
+    plane(parent, width / 2 - 0.8, height / 2 - 0.05, z + 8, s, s, Math.PI / 2, 0, Math.PI, deferredTextured("roofa.png", 0x8a9098));
   }
 
   function buildShipVisual() {
@@ -1448,7 +1503,7 @@
       queueLowPriorityImage(url, finish, () => {
         material.color.set(0x303943);
         material.needsUpdate = true;
-      });
+      }, 9);
       return material;
     }
 
@@ -2219,12 +2274,8 @@
       mesh.renderOrder = 22;
       scene.add(mesh);
 
-      if (zone.preloadWhenStarted && zone.url) {
-        video.preload = "auto";
-        video.src = zone.url;
-        video.load();
-      }
-
+      // Space-screen videos stay lazy until the pilot is near them. In
+      // particular, onicss.mp4 must not compete with the start-room textures.
       const item = {
         el: video,
         texture,
@@ -2234,7 +2285,7 @@
         maxVolume: 1,
         active: false,
         visible: false,
-        loaded: !!zone.preloadWhenStarted,
+        loaded: false,
         keepLoaded: !!zone.preloadWhenStarted,
         towerGate: !!zone.towerGate,
         distance: 99
@@ -2684,63 +2735,85 @@
   }
 
   function ensureTowerJsLoaded() {
-    if (towerPreload.jsPromise || !config.towerJsUrl) return towerPreload.jsPromise;
+    if (window.BCMTowerAPI && typeof window.BCMTowerAPI.beginLanding === "function") return Promise.resolve(true);
+    if (towerPreload.jsPromise) return towerPreload.jsPromise;
+    if (!config.towerJsUrl) return Promise.resolve(false);
 
-    // Tower.js is normally already enqueued by bcm_tower_enqueue_assets().
-    // WordPress appends ?ver=... to that script URL, so comparing s.src to the
-    // raw config URL is not reliable and used to inject a second Tower runtime.
-    // A duplicate runtime means two WebGL renderers and two game loops can
-    // attach to the same Tower canvas.
+    // WordPress may already have inserted Tower.js but its async request may
+    // not have executed yet. Do not mistake the presence of a script element
+    // for a usable Tower API; leave the Mini-Sim live while it finishes.
     const wanted = new URL(config.towerJsUrl, document.baseURI);
-    const alreadyLoaded = [...document.scripts].some((script) => {
-      try {
-        return new URL(script.src, document.baseURI).pathname === wanted.pathname;
-      } catch (e) {
-        return false;
-      }
+    const existing = [...document.scripts].find((script) => {
+      try { return new URL(script.src, document.baseURI).pathname === wanted.pathname; }
+      catch (e) { return false; }
     });
 
-    if (alreadyLoaded || (window.BCMTowerAPI && typeof window.BCMTowerAPI.enter === "function")) {
-      towerPreload.jsPromise = Promise.resolve();
-      return towerPreload.jsPromise;
-    }
-
     towerPreload.jsPromise = new Promise((resolve) => {
+      let settled = false;
+      const finish = (ok) => {
+        if (settled) return;
+        settled = true;
+        resolve(!!ok);
+      };
+      const pollApi = () => {
+        if (window.BCMTowerAPI && typeof window.BCMTowerAPI.beginLanding === "function") {
+          finish(true);
+          return;
+        }
+        if (performance.now() >= deadline) {
+          finish(false);
+          return;
+        }
+        window.setTimeout(pollApi, 100);
+      };
+      const deadline = performance.now() + 7000;
+
+      if (existing) {
+        existing.addEventListener("load", pollApi, { once: true });
+        existing.addEventListener("error", () => finish(false), { once: true });
+        pollApi();
+        return;
+      }
+
       const script = document.createElement("script");
       script.src = config.towerJsUrl;
       script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => resolve();
+      script.onload = pollApi;
+      script.onerror = () => finish(false);
       document.head.appendChild(script);
+      pollApi();
     });
     return towerPreload.jsPromise;
-  }
-
-  function ensureTowerVideoLoaded() {
-    const url = config.towerLandingUrl || config.towerFallbackUrl || "";
-    if (!url) return;
-
-    if (!towerPreload.landingVideo || towerPreload.landingVideo.src !== url) {
-      const video = document.createElement("video");
-      video.muted = true;
-      video.defaultMuted = true;
-      video.playsInline = true;
-      video.setAttribute("muted", "");
-      video.setAttribute("playsinline", "");
-      video.setAttribute("webkit-playsinline", "");
-      video.preload = "auto";
-      video.src = url;
-      video.load();
-      towerPreload.landingVideo = video;
-    }
   }
 
   function preloadTowerApproach() {
     if (towerPreload.started) return;
     towerPreload.started = true;
     ensureTowerCssLoaded();
-    ensureTowerJsLoaded();
-    ensureTowerVideoLoaded();
+
+    // ONICSS is intentionally loaded only as the player approaches it, not
+    // while building Room 1. Reuse the actual video zone element.
+    const gate = getTowerGateZone();
+    if (gate && gate.el && !gate.loaded && gate.url) {
+      try {
+        gate.el.preload = "auto";
+        gate.el.fetchPriority = "auto";
+      } catch (e) {}
+      gate.el.src = gate.url;
+      gate.el.load();
+      gate.loaded = true;
+    }
+
+    const scriptReady = ensureTowerJsLoaded();
+    if (window.BCMTowerAPI && typeof window.BCMTowerAPI.preloadLanding === "function") {
+      window.BCMTowerAPI.preloadLanding();
+    } else {
+      Promise.resolve(scriptReady).then((ready) => {
+        if (ready && window.BCMTowerAPI && typeof window.BCMTowerAPI.preloadLanding === "function") {
+          window.BCMTowerAPI.preloadLanding();
+        }
+      });
+    }
     if (status) setStatus("DEEP SPACE · TOWER PRELOAD");
   }
 
@@ -2809,42 +2882,61 @@
 
   let towerGateTriggered = false;
 
+  function resetPendingTowerHandoff(message) {
+    towerGateTriggered = false;
+    transitionLoading = false;
+    transitionBusy = false;
+    if (status && message) setStatus(message);
+  }
+
   function handoffToTower() {
     const root = document.querySelector(".bcm-tower-embedded");
     if (!root) {
-      towerGateTriggered = false;
-      transitionLoading = false;
-      transitionBusy = false;
-      setStatus("TOWER OVERLAY MISSING");
+      resetPendingTowerHandoff("TOWER OVERLAY MISSING · SCENE CONTINUES");
       return;
     }
 
-    transitionLoading = false;
-    transitionBusy = true;
-
-    // Release the entire space-labyrinth WebGL application before Tower takes over.
-    disposeMiniSimResources();
-
-    root.hidden = false;
-    if (window.BCMTowerAPI && typeof window.BCMTowerAPI.enter === "function") {
-      window.BCMTowerAPI.enter();
-    } else {
-      towerGateTriggered = false;
-      transitionBusy = false;
-      setStatus("TOWER ENGINE NOT READY");
-    }
+    // Keep the live scene, controls, onicss video and renderer untouched while
+    // Tower.js initializes and tower.mp4 gets its first playable frame.
+    preloadTowerApproach();
+    Promise.resolve(ensureTowerJsLoaded()).then((ready) => {
+      const api = window.BCMTowerAPI;
+      if (!ready || !api || typeof api.beginLanding !== "function") {
+        resetPendingTowerHandoff("TOWER ENGINE NOT READY · FLIGHT CONTINUES");
+        return;
+      }
+      root.hidden = false;
+      const started = api.beginLanding((success) => {
+        if (miniSimReleased) return;
+        if (!success) {
+          resetPendingTowerHandoff("TOWER VIDEO NOT READY · FLIGHT CONTINUES");
+          root.hidden = true;
+          return;
+        }
+        // Take over only once tower.mp4 is really playing, never at the H1
+        // trigger or when the async Tower script/video merely starts loading.
+        transitionLoading = false;
+        transitionBusy = true;
+        ship.velocity.set(0, 0, 0);
+        ship.angularVelocity.set(0, 0, 0);
+        pauseAllCinemaVideos();
+        disposeMiniSimResources();
+      });
+      if (started === false) {
+        resetPendingTowerHandoff("TOWER LANDING START FAILED · FLIGHT CONTINUES");
+        root.hidden = true;
+      }
+    }).catch(() => {
+      resetPendingTowerHandoff("TOWER PRELOAD FAILED · FLIGHT CONTINUES");
+      if (root) root.hidden = true;
+    });
   }
 
   function beginTowerLanding() {
     if (towerGateTriggered || transitionBusy) return;
     towerGateTriggered = true;
-    pauseAllCinemaVideos();
-    preloadTowerApproach();
-    if (window.BCMTowerAPI && typeof window.BCMTowerAPI.beginLanding === "function") {
-      disposeMiniSimResources();
-      window.BCMTowerAPI.beginLanding();
-      return;
-    }
+    // Do not pause screens or dispose Mini-Sim while the transition is only
+    // buffering. handoffToTower owns the first-frame takeover callback.
     handoffToTower();
   }
 
@@ -2854,10 +2946,7 @@
       setStatus("TOWER OVERLAY MISSING");
       return;
     }
-
-    towerGateTriggered = true;
-    pauseAllCinemaVideos();
-    handoffToTower();
+    beginTowerLanding();
   }
 
   function portalCoverage() {
@@ -2997,33 +3086,50 @@
     }
   }
 
+  function portalVideoUrl(direction) {
+    return direction === "BACK"
+      ? (assetUrl("portal1.mp4") || assetUrl("portal3.mp4") || assetUrl("portal2.mp4"))
+      : (assetUrl("portal2.mp4") || assetUrl("portal3.mp4") || assetUrl("portal1.mp4"));
+  }
+
+  function primePortalVideo(direction, priority) {
+    if (!transitionVideo) return false;
+    const url = portalVideoUrl(direction);
+    if (!url) return false;
+    const absolute = (value) => {
+      try { return new URL(value, document.baseURI).href; }
+      catch (e) { return String(value || ""); }
+    };
+    const current = transitionVideo.getAttribute("src");
+    if (current && absolute(current) === absolute(url)) {
+      return transitionVideo.readyState >= 2;
+    }
+    transitionVideo.muted = true;
+    transitionVideo.defaultMuted = true;
+    transitionVideo.playsInline = true;
+    transitionVideo.setAttribute("muted", "");
+    transitionVideo.setAttribute("playsinline", "");
+    transitionVideo.setAttribute("webkit-playsinline", "");
+    transitionVideo.preload = "auto";
+    try { transitionVideo.fetchPriority = priority || "high"; } catch (e) {}
+    transitionVideo.src = url;
+    transitionVideo.load();
+    return transitionVideo.readyState >= 2;
+  }
+
   function playPortalVideo(direction) {
     if (transitionBusy || transitionLoading) return;
 
     portal.direction = direction === "BACK" ? "BACK" : "FORWARD";
-    const url = portal.direction === "BACK"
-      ? (assetUrl("portal1.mp4") || assetUrl("portal3.mp4") || assetUrl("portal2.mp4"))
-      : (assetUrl("portal2.mp4") || assetUrl("portal3.mp4") || assetUrl("portal1.mp4"));
-
+    const url = portalVideoUrl(portal.direction);
     if (!url || !transitionVideo || !transitionRoot) {
-      setStatus("PORTAL VIDEO MISSING");
-      finishTeleport();
+      setStatus("PORTAL VIDEO MISSING · CONTROLS RESTORED");
       return;
     }
 
-    // Stop at the portal immediately. The clip may still be decoding,
-    // but the ship must not fly through it to the planet while it loads.
-    transitionBusy = true;
+    // Buffer in the background without stopping the ship, simulation, camera,
+    // or input. The lock begins only from the video element's onplaying event.
     transitionLoading = true;
-    ship.velocity.set(0, 0, 0);
-    ship.angularVelocity.set(0, 0, 0);
-
-    // Portal video gets the active/high-priority path; Room 2 textures and live panels warm quietly underneath it.
-    startBackgroundTextureLoading();
-    liveInterior.forEach((item) => {
-      if (item.mesh && item.mesh.name !== "room1-rear-capdoor") warmInteriorVideo(item);
-    });
-
     if (transitionRoot) {
       transitionRoot.classList.remove("ready");
       transitionRoot.hidden = true;
@@ -3034,57 +3140,60 @@
     transitionVideo.setAttribute("muted", "");
     transitionVideo.setAttribute("playsinline", "");
     transitionVideo.setAttribute("webkit-playsinline", "");
-    transitionVideo.defaultMuted = true;
-    transitionVideo.setAttribute("muted", "");
-    transitionVideo.setAttribute("playsinline", "");
-    transitionVideo.setAttribute("webkit-playsinline", "");
     transitionVideo.playsInline = true;
     transitionVideo.preload = "auto";
     try { transitionVideo.fetchPriority = "high"; } catch (e) {}
 
-    const revealFirstFrame = () => {
-      if (!transitionLoading) return;
-
-      // Hold the decoded opening frame over the live scene first.
+    let playRequested = false;
+    let activated = false;
+    const activateTransition = () => {
+      if (activated || !transitionLoading || transitionVideo.readyState < 2) return;
+      activated = true;
       transitionLoading = false;
       transitionBusy = true;
+      ship.velocity.set(0, 0, 0);
+      ship.angularVelocity.set(0, 0, 0);
       pauseAllCinemaVideos();
-
       if (transitionRoot) {
         transitionRoot.hidden = false;
         transitionRoot.classList.add("ready");
       }
       transitionVideo.style.opacity = "1";
-
-      const p = transitionVideo.play();
-      if (p && p.catch) {
-        p.catch(() => {
-          setStatus("PORTAL VIDEO PLAY BLOCKED · ИСПОЛЬЗУЙТЕ G / Y ЕЩЁ РАЗ");
+    };
+    const requestPlayback = () => {
+      if (playRequested || !transitionLoading || transitionVideo.readyState < 2) return;
+      playRequested = true;
+      const result = transitionVideo.play();
+      if (result && result.catch) {
+        result.catch(() => {
+          // Do not freeze or teleport on an autoplay rejection; controls remain live.
+          playRequested = false;
+          transitionLoading = false;
+          transitionBusy = false;
+          if (transitionRoot) {
+            transitionRoot.classList.remove("ready");
+            transitionRoot.hidden = true;
+          }
+          setStatus("PORTAL VIDEO READY · PRESS G / Y AGAIN");
         });
       }
     };
 
     transitionVideo.onloadedmetadata = () => {
-      try {
-        transitionVideo.currentTime = 0;
-      } catch (e) {}
+      try { transitionVideo.currentTime = 0; } catch (e) {}
     };
-    transitionVideo.onloadeddata = revealFirstFrame;
-    transitionVideo.onplaying = () => {
-      if (transitionRoot && transitionBusy) {
-        transitionRoot.hidden = false;
-        transitionRoot.classList.add("ready");
-      }
-    };
+    transitionVideo.onloadeddata = requestPlayback;
+    transitionVideo.oncanplay = requestPlayback;
+    transitionVideo.onplaying = activateTransition;
     transitionVideo.onended = finishTeleport;
     transitionVideo.onerror = () => {
       transitionLoading = false;
+      transitionBusy = false;
       if (transitionRoot) {
         transitionRoot.classList.remove("ready");
         transitionRoot.hidden = true;
       }
-      setStatus("PORTAL MP4 ERROR · SKIP");
-      finishTeleport();
+      setStatus("PORTAL MP4 ERROR · CONTROLS RESTORED");
     };
 
     if (transitionLabel) {
@@ -3093,15 +3202,16 @@
         : "CUTSCENE · ROOM 1 → ROOM 2";
     }
 
-    transitionVideo.src = url;
-    transitionVideo.load();
-
-    // Kick decoding immediately. Failure here does not stop the live scene;
-    // the loadeddata handler takes over when the first frame arrives.
-    const p = transitionVideo.play();
-    if (p && p.catch) {
-      p.catch(() => {});
+    const current = transitionVideo.getAttribute("src");
+    const absolute = (value) => {
+      try { return new URL(value, document.baseURI).href; }
+      catch (e) { return String(value || ""); }
+    };
+    if (!current || absolute(current) !== absolute(url)) {
+      transitionVideo.src = url;
+      transitionVideo.load();
     }
+    if (transitionVideo.readyState >= 2) requestPlayback();
   }
 
   function tryPortal() {
