@@ -4,7 +4,7 @@
 >
 > **Текущий активный этап: Warp 0.9.88 — крен одним углом, как в Tube, и видимость спутника/планеты из Room 2.** Room 2 и сдача Tower пользователем подтверждены на 0.9.87. Не переписывать их. Карта SAGE по-прежнему не сделана.
 
-Last reconciled main HEAD before this patch: `1fdf61ad686016381919863c90dfcf079a550111` (Mini-Sim 0.9.87). This working tree changes Mini-Sim to 0.9.88. Live site at the user's report was 0.9.87. GitHub merge does not upload the plugin.  
+Last reconciled code: `ae18b2f3e5155ad178de36122cad73831032549d` on branch `fix/warp-angle-and-room2-view` (Mini-Sim 0.9.88). Parent main was `1fdf61ad686016381919863c90dfcf079a550111` (0.9.87). Live site at the user's report was 0.9.87. GitHub merge does not upload the plugin.  
 Issue [#32](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/32) closed after [PR #33](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/33) merged. Post-merge Mini-Sim regression checks passed: [run 38471956269](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471956269). The code-identical pre-merge browser smoke passed on [run 38471671934](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471671934); the post-merge browser QA run [38471956003](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471956003) was still in progress when this note was written. Browser QA does not visually inspect the liquid-metal shell. The plugin files have not been uploaded to WordPress.  
 Current separate task: [Issue #17](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/17), Room0 → B / Room1 / global mute.
 
