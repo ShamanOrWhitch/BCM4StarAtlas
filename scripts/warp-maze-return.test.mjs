@@ -66,8 +66,7 @@ test("Warp Tube is a rolling circular cylinder with a curved / corkscrew route",
   const body = section(warp, "function drawTubeTunnel", "function drawBackdrop");
   const update = section(warp, "function updateTube(dt, now)", "window.BCMDeepSpaceWarpToggle");
   assert.match(warp, /const WARP_DURATION = 48/);
-  assert.match(body, /const roll = Number\(state\.tubeRoll \|\| 0\)/);
-  assert.match(body, /const twistAt = \(d\) => roll \+ \(d - 0\.92\)/);
+  assert.match(body, /const twistAt = \(d\) => -playerAngle \+ Math\.PI \/ 2 \+ courseTwist\(d\)/);
   assert.match(body, /const radiusX = \(d\) =>/);
   assert.match(body, /const radiusY = \(d\) => radiusX\(d\) \* 0\.91/);
   assert.match(body, /const point = \(d, theta, extra\)/);
@@ -78,12 +77,12 @@ test("Warp Tube is a rolling circular cylinder with a curved / corkscrew route",
   assert.match(body, /layer\.type === "spikes"/);
   assert.match(body, /layer\.type === "boost"/);
   assert.match(body, /layer\.type === "launcher"/);
-  assert.match(body, /g\.rotate\(playerAngle \+ craftRoll - Math\.PI \/ 2\)/);
-  assert.match(update, /state\.tubeRoll = Number\(state\.tubeRoll \|\| 0\) \+ dt \* tubeSectionBlend\(rollRates/);
+  assert.match(body, /g\.rotate\(state\.steerBank \|\| 0\)/);
+  assert.match(update, /state\.playerAngle = Number\(state\.playerAngle \|\| 0\) \+ steer \* dt \* 1\.85/);
   assert.match(update, /angleDifference\(playerAngle, layer\.safeAngle\)/);
   assert.match(update, /layer\.blockedAngles\.some/);
   assert.match(update, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
-  assert.match(update, /state\.playerX = nextX \/ radial \* 0\.78/);
+  assert.doesNotMatch(update, /state\.playerX = nextX \/ radial \* 0\.78/);
   assert.doesNotMatch(body, /const roadY=d=>|const half=d=>|Continuous floor panels and centre dashes/);
 });
 

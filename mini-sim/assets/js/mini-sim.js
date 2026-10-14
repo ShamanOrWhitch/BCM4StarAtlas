@@ -2002,16 +2002,8 @@
     group.position.set(0, 0, -155);
     group.visible = false;
 
-    const frameMat = new THREE.MeshStandardMaterial({
-      color: 0x4b5662,
-      metalness: 0.82,
-      roughness: 0.3
-    });
-    const darkMat = new THREE.MeshStandardMaterial({
-      color: 0x18212b,
-      metalness: 0.72,
-      roughness: 0.26
-    });
+    const frameMat = new THREE.MeshBasicMaterial({ color: 0x8ea0b0 });
+    const darkMat = new THREE.MeshBasicMaterial({ color: 0x3d4c5c });
     const lightMat = new THREE.MeshBasicMaterial({ color: 0x9bd9ff });
     const beaconRed = new THREE.MeshBasicMaterial({ color: 0xff3344 });
     const dockingMat = new THREE.MeshBasicMaterial({ color: 0xdbeeff });
@@ -2141,7 +2133,8 @@
   }
 
   function updateSpaceSatelliteVisibility() {
-    const visible = !!ship.position && getSpaceZone(ship.position.z) === "DEEP_SPACE";
+    const zone = ship.position ? getSpaceZone(ship.position.z) : "ROOM1";
+    const visible = zone === "ROOM2" || zone === "DEEP_SPACE";
     if (spaceSatellite.group) spaceSatellite.group.visible = visible;
     if (spaceSatellite.stars) spaceSatellite.stars.visible = visible;
     if (spacePlanet.mesh) spacePlanet.mesh.visible = visible;

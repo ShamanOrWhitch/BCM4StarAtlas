@@ -25,13 +25,12 @@ test("Tube section geometry and speed interpolate cyclically without a loop seam
 
 test("Tube rendering is a rotating cylinder, not a fixed trapezoid", () => {
   const draw = section(warp, "function drawTubeTunnel", "function drawBackdrop");
-  assert.match(draw, /const roll = Number\(state\.tubeRoll \|\| 0\)/);
+  assert.match(draw, /const twistAt = \(d\) => -playerAngle \+ Math\.PI \/ 2 \+ courseTwist\(d\)/);
   assert.match(draw, /const radiusX = \(d\) =>/);
   assert.match(draw, /const radiusY = \(d\) => radiusX\(d\) \* 0\.91/);
-  assert.match(draw, /const twistAt = \(d\) =>/);
   assert.match(draw, /Circumferential rings and seams/);
   assert.match(draw, /for \(let seam = 0; seam < 12; seam \+= 1\)/);
-  assert.match(draw, /g\.rotate\(playerAngle \+ craftRoll - Math\.PI \/ 2\)/);
+  assert.match(draw, /g\.rotate\(state\.steerBank \|\| 0\)/);
   assert.match(draw, /Math\.sin\(loopPhase \+ d \* Math\.PI \* 2\.4\) \* loopMix/);
   assert.doesNotMatch(draw, /const roadY=d=>|const half=d=>|Continuous floor panels and centre dashes/);
 });
@@ -52,18 +51,24 @@ test("Tube displays multiple obstacle types and tests collisions against their v
   assert.match(update, /angleDifference\(playerAngle, layer\.safeAngle\)/);
   assert.match(update, /layer\.blockedAngles\.some/);
   assert.match(update, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
-  assert.match(update, /state\.tubeRoll = Number\(state\.tubeRoll \|\| 0\) \+ dt \* tubeSectionBlend\(rollRates/);
+  assert.match(update, /state\.playerAngle = Number\(state\.playerAngle \|\| 0\) \+ steer \* dt \* 1\.85/);
 });
 
-test("a successful Warp to (-40,30) returns to the ONI CSS home", () => {
+test("a successful Warp to (-40,30) returns home only after the continue button", () => {
   const finish = section(warp, "function finishTube(success)", "function isOniCssDestination");
-  assert.match(finish, /isOniCssDestination\(state\.target\)/);
-  assert.match(finish, /returnToOniCss\(\)/);
+  assert.doesNotMatch(finish, /returnToOniCss\(\)/);
+  assert.doesNotMatch(finish, /setTimeout/);
+  assert.match(finish, /tubeContinue\.hidden = !success/);
+  const confirm = section(warp, "function confirmTubeArrival()", "function returnToOniCss()");
+  assert.match(confirm, /isOniCssDestination\(state\.target\)/);
+  assert.match(confirm, /returnToOniCss\(\)/);
+  assert.match(confirm, /enterAsteroidMaze\(\)/);
   const home = section(warp, "function returnToOniCss()", "function makeMazeTexture");
   assert.match(home, /candidate\.x === -40 && candidate\.y === 30/);
   assert.match(home, /name = "ONI CSS · NEUNO"/);
   assert.match(home, /closeOverlay\(false\)/);
   assert.match(home, /engine\.teleport\(\{ x: 0, y: 0, z: 2, yaw: 0 \}, null\)/);
+  assert.match(warp, /tubeAbort\.addEventListener\("click", \(\) => closeOverlay\(true\)\)/);
 });
 
 test("portal buffering leaves the live flight controls and velocity untouched", () => {
