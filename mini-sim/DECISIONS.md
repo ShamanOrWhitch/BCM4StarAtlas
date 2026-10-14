@@ -18,6 +18,18 @@
 
 ---
 
+## D-012 — Planeta remains outside Room 2 while visible from its corridor
+
+**Статус: IMPLEMENTED на ветке `fix/room2-planet-established-position`; TESTED-CODE pending; VERIFIED-LIVE нет.**
+
+После версии 0.9.89 пользователь сообщил, что планета стала выглядеть как объект внутри Room 2. Причина — радиус был увеличен с 11 до 28, а позиция смещена с `(-26, 9, -190)` на `(0, 16, -220)`. Хотя координата Z всё ещё находится за пределами Room 2, увеличенная сфера оказалась прямо на оси прохода.
+
+Восстановлено прежнее внешнее положение: `SphereGeometry(11, 24, 16)` и `position.set(-26, 9, -190)`. При этом `updateSpaceSatelliteVisibility()` продолжает показывать космические объекты как в `ROOM2`, так и в `DEEP_SPACE`. Коллизии, геометрия комнат, материалы спутника, media queue и Warp не менялись. Кэш-версия Mini-Sim — 0.9.90.
+
+Связанные изменения: `9b37c93` (позиция/размер), `a8355a7` (cache version), `af8608b` (source-contract test). Живую страницу WordPress не обновляли; после CI результат пометить отдельно.
+
+---
+
 ## D-011 — Warp: один угол крена, отмена без автопереноса, объекты космоса видны из Room 2
 
 **Статус: IMPLEMENTED в 0.9.89 на ветке `fix/warp-angle-and-room2-view`. TESTED-CODE — 31 source-contract pass. VERIFIED-LIVE нет.**
