@@ -799,12 +799,22 @@
 
   function queueLowPriorityImage(url, onload, onerror, priority) {
     if (!url) return;
-    if (backgroundTextureQueue.seen[url]) return;
-    backgroundTextureQueue.seen[url] = true;
+    const existing = backgroundTextureQueue.seen[url];
+    if (existing) {
+      existing.listeners.push({ onload, onerror });
+      if (existing.done) deliverTextureRecord(existing);
+      return;
+    }
+    const record = {
+      listeners: [{ onload, onerror }],
+      done: false,
+      ok: false,
+      image: null
+    };
+    backgroundTextureQueue.seen[url] = record;
     const job = {
       url,
-      onload,
-      onerror,
+      record,
       priority: Number.isFinite(Number(priority)) ? Number(priority) : 5,
       sequence: backgroundTextureQueue.sequence++
     };
@@ -817,29 +827,42 @@
     if (backgroundTextureQueue.running) pumpBackgroundTextures();
   }
 
+  function deliverTextureRecord(record) {
+    const pending = record.listeners.splice(0);
+    pending.forEach((listener) => {
+      try {
+        if (record.ok && listener.onload) listener.onload(record.image);
+        else if (listener.onerror) listener.onerror();
+      } catch (e) {}
+    });
+  }
+
   function pumpBackgroundTextures() {
     if (!backgroundTextureQueue.running) return;
     while (backgroundTextureQueue.active < 2 && backgroundTextureQueue.jobs.length) {
       const job = backgroundTextureQueue.jobs.shift();
+      const record = job.record;
       backgroundTextureQueue.active++;
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.decoding = "async";
-      // The priority queue starts only after OST, near-wall textures, right
-      // video and portal requests have been issued; its own images stay auto/low.
       try { img.fetchPriority = job.priority <= 1 ? "auto" : "low"; } catch (e) {}
-      img.onload = () => {
+      let settled = false;
+      const finish = (ok) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
         backgroundTextureQueue.active--;
         if (miniSimReleased) return;
-        try { job.onload(img); } catch (e) {}
+        record.done = true;
+        record.ok = ok;
+        record.image = ok ? img : null;
+        deliverTextureRecord(record);
         setTimeout(pumpBackgroundTextures, 25);
       };
-      img.onerror = () => {
-        backgroundTextureQueue.active--;
-        if (miniSimReleased) return;
-        try { if (job.onerror) job.onerror(); } catch (e) {}
-        setTimeout(pumpBackgroundTextures, 25);
-      };
+      const timer = setTimeout(() => finish(false), 20000);
+      img.onload = () => finish(true);
+      img.onerror = () => finish(false);
       img.src = job.url;
     }
   }
@@ -1641,6 +1664,7 @@
     backside.panels = panels;
     backside.nextAt = performance.now() + 1000;
     randomizeBackside(performance.now());
+    startBackgroundTextureLoading();
   }
 
   function trackSurfaceName(kind, index) {
@@ -2002,8 +2026,16 @@
     group.position.set(0, 0, -155);
     group.visible = false;
 
-    const frameMat = new THREE.MeshBasicMaterial({ color: 0x8ea0b0 });
-    const darkMat = new THREE.MeshBasicMaterial({ color: 0x3d4c5c });
+    const frameMat = new THREE.MeshStandardMaterial({
+      color: 0x4b5662,
+      metalness: 0.82,
+      roughness: 0.3
+    });
+    const darkMat = new THREE.MeshStandardMaterial({
+      color: 0x18212b,
+      metalness: 0.72,
+      roughness: 0.26
+    });
     const lightMat = new THREE.MeshBasicMaterial({ color: 0x9bd9ff });
     const beaconRed = new THREE.MeshBasicMaterial({ color: 0xff3344 });
     const dockingMat = new THREE.MeshBasicMaterial({ color: 0xdbeeff });
@@ -2094,10 +2126,10 @@
 
     const planetMaterial = textured("OniStation.png", 0x496b8f);
     const planet = new THREE.Mesh(
-      new THREE.SphereGeometry(11, 24, 16),
+      new THREE.SphereGeometry(28, 24, 16),
       planetMaterial
     );
-    planet.position.set(-26, 9, -190);
+    planet.position.set(0, 16, -220);
     planet.name = "deep-space-planet";
     parent.add(planet);
     spacePlanet.mesh = planet;

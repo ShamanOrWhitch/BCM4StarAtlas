@@ -25,12 +25,12 @@ test("Tube section geometry and speed interpolate cyclically without a loop seam
 
 test("Tube rendering is a rotating cylinder, not a fixed trapezoid", () => {
   const draw = section(warp, "function drawTubeTunnel", "function drawBackdrop");
-  assert.match(draw, /const twistAt = \(d\) => -playerAngle \+ Math\.PI \/ 2 \+ courseTwist\(d\)/);
+  assert.match(draw, /const twistAt = \(d\) => courseTwist\(d\)/);
   assert.match(draw, /const radiusX = \(d\) =>/);
   assert.match(draw, /const radiusY = \(d\) => radiusX\(d\) \* 0\.91/);
   assert.match(draw, /Circumferential rings and seams/);
   assert.match(draw, /for \(let seam = 0; seam < 12; seam \+= 1\)/);
-  assert.match(draw, /g\.rotate\(state\.steerBank \|\| 0\)/);
+  assert.match(draw, /g\.rotate\(craftAngle - Math\.PI \/ 2 \+ \(state\.steerBank \|\| 0\)\)/);
   assert.match(draw, /Math\.sin\(loopPhase \+ d \* Math\.PI \* 2\.4\) \* loopMix/);
   assert.doesNotMatch(draw, /const roadY=d=>|const half=d=>|Continuous floor panels and centre dashes/);
 });
@@ -51,7 +51,7 @@ test("Tube displays multiple obstacle types and tests collisions against their v
   assert.match(update, /angleDifference\(playerAngle, layer\.safeAngle\)/);
   assert.match(update, /layer\.blockedAngles\.some/);
   assert.match(update, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
-  assert.match(update, /state\.playerAngle = Number\(state\.playerAngle \|\| 0\) \+ steer \* dt \* 1\.85/);
+  assert.match(update, /state\.playerAngle = Number\(state\.playerAngle \|\| 0\) - steer \* dt \* 1\.85/);
 });
 
 test("a successful Warp to (-40,30) returns home only after the continue button", () => {

@@ -134,7 +134,7 @@
         '</div>' +
       '</section>' +
       '<section class="bcm-warp-view bcm-warp-tube-view" data-warp-view="tube" hidden>' +
-        '<div class="bcm-warp-tube-hud"><div class="bcm-warp-kicker">SUBSPACE TUNNEL</div><h2 data-tube-title>WARP IN PROGRESS</h2><div class="bcm-warp-tube-meta" data-tube-meta></div><div class="bcm-warp-shield"><span data-tube-shield></span></div><div class="bcm-warp-tube-help" data-tube-help>Только влево/вправо: крен по стенке трубы. Корабль остаётся внизу экрана, туннель крутится вокруг него. Вверх и вниз этот крен не меняют.</div></div>' +
+        '<div class="bcm-warp-tube-hud"><div class="bcm-warp-kicker">SUBSPACE TUNNEL</div><h2 data-tube-title>WARP IN PROGRESS</h2><div class="bcm-warp-tube-meta" data-tube-meta></div><div class="bcm-warp-shield"><span data-tube-shield></span></div><div class="bcm-warp-tube-help" data-tube-help>Влево и вправо двигают корабль по стенке. Труба от стика не крутится. Препятствие проходит мимо, а не зависает у носа.</div></div>' +
         '<div class="bcm-warp-touch-controls"><button type="button" data-warp-control="left">◀</button><div><button type="button" data-warp-control="up">▲</button><button type="button" data-warp-control="down">▼</button></div><button type="button" data-warp-control="right">▶</button></div>' +
         '<div class="bcm-warp-result" data-tube-result hidden><h2 data-tube-result-title></h2><p data-tube-result-text></p><div class="bcm-warp-actions"><button type="button" data-tube-continue hidden>ПРОДОЛЖИТЬ</button><button type="button" data-tube-retry>ПОВТОРИТЬ WARP</button><button type="button" data-tube-abort class="bcm-warp-secondary">ОТМЕНА</button></div></div>' +
       '</section>';
@@ -541,7 +541,7 @@
       // stable radius so input moves around the wall, sides and ceiling.
       state.playerX = 0;
       state.playerY = 0;
-      state.playerAngle = 0;
+      state.playerAngle = Math.PI / 2;
       state.steerBank = 0;
       state.tubeRoll = 0;
       state.tubeBoostUntil = 0;
@@ -1118,15 +1118,15 @@
          Math.sin(loopPhase + d * Math.PI * 2.4) * loopMix * 0.15) * h * d;
       const radiusX = (d) => 4 + maxRadius * Math.pow(Math.max(0, d), 1.20) * widthScale;
       const radiusY = (d) => radiusX(d) * 0.91;
-      // Course twist is zero at the ship, so a bend is visible ahead before it arrives.
-      // The view roll is the inverse of the pilot angle: the ship stays at the bottom.
+      // The tube does not roll with the stick. courseTwist is only the bend ahead.
+      // playerAngle moves the ship around the wall; at the ship the twist is zero.
       const courseTwist = (d) => {
         const ahead = d - 0.92;
         return ahead * (0.55 + Math.sin(t * 0.07) * 0.22) +
           (Math.sin(d * Math.PI * 2 + phase) - Math.sin(0.92 * Math.PI * 2 + phase)) * curveScale * 0.28 +
           (Math.sin(loopPhase + d * Math.PI * 2.4) - Math.sin(loopPhase + 0.92 * Math.PI * 2.4)) * loopMix * 1.35;
       };
-      const twistAt = (d) => -playerAngle + Math.PI / 2 + courseTwist(d);
+      const twistAt = (d) => courseTwist(d);
       const point = (d, theta, extra) => {
         const angle = theta + twistAt(d);
         const rx = radiusX(d) + (extra || 0);
@@ -1222,10 +1222,17 @@
       }
 
       const routeProgress = Math.min(1, state.elapsed / WARP_DURATION);
+      const obstacleDepth = (distance) => {
+        // Linear depth parked a gate at full size for several seconds.
+        // 1/z keeps the approach fast and lets the obstacle leave the camera.
+        const z = distance + 0.045;
+        if (z < 0.02 || distance > 0.42) return null;
+        return Math.min(2.4, 0.07 / z);
+      };
       state.layers.forEach((layer) => {
         const distance = layer.progress - routeProgress;
-        if (distance < -0.14 || distance > 0.34) return;
-        const d = Math.max(0.04, Math.min(1.04, 1 - distance / 0.34));
+        const d = obstacleDepth(distance);
+        if (d == null) return;
         const rx = radiusX(d);
         const strokeWidth = Math.max(3, rx * 0.052);
         if (layer.type === "gate") {
@@ -1302,13 +1309,14 @@
         }
       });
 
-      // The craft stays on the bottom of the screen. Its world angle is playerAngle;
-      // twistAt rolls the tunnel so that angle is always the near floor.
+      // The ship rides the wall. Right decreases the angle so it moves screen-right
+      // from the bottom; the tunnel itself stays put.
       const nearDepth = 0.92;
+      const craftAngle = playerAngle + courseTwist(nearDepth);
       const craftPoint = point(nearDepth, playerAngle, -radiusX(nearDepth) * 0.20);
       g.save();
       g.translate(craftPoint.x, craftPoint.y);
-      g.rotate(state.steerBank || 0);
+      g.rotate(craftAngle - Math.PI / 2 + (state.steerBank || 0));
       g.scale(Math.min(1, w / 900), Math.min(1, w / 900));
       const flare = 0.65 + (Math.sin(now * 0.032) + 1) * 0.18;
       g.fillStyle = "rgba(63,213,255," + flare * 0.42 + ")";
@@ -1442,7 +1450,7 @@
       const steer = Math.max(-1, Math.min(1,
         ((state.keys.ArrowRight || state.keys.KeyD || state.touch.right ? 1 : 0) -
          (state.keys.ArrowLeft || state.keys.KeyA || state.touch.left ? 1 : 0)) + padX));
-      state.playerAngle = Number(state.playerAngle || 0) + steer * dt * 1.85;
+      state.playerAngle = Number(state.playerAngle || 0) - steer * dt * 1.85;
       state.playerAngle = Math.atan2(Math.sin(state.playerAngle), Math.cos(state.playerAngle));
       const bankTarget = -steer * 0.42;
       state.steerBank = Number(state.steerBank || 0) + (bankTarget - Number(state.steerBank || 0)) * Math.min(1, dt * 10);
@@ -1509,7 +1517,7 @@
         if (!state.pointerDown || state.mode !== "tube") return;
         const rect = backdrop.getBoundingClientRect();
         const dx = event.clientX - state.pointerX;
-        state.playerAngle = Number(state.playerAngle || 0) + dx / Math.max(1, rect.width) * Math.PI * 1.25;
+        state.playerAngle = Number(state.playerAngle || 0) - dx / Math.max(1, rect.width) * Math.PI * 1.25;
         state.playerAngle = Math.atan2(Math.sin(state.playerAngle), Math.cos(state.playerAngle));
         state.pointerX = event.clientX;
         state.pointerY = event.clientY;
