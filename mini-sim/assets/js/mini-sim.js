@@ -1501,7 +1501,7 @@
     function makeBackMaterial(url) {
       const material = new THREE.MeshBasicMaterial({
         color: 0x303943,
-        side: THREE.FrontSide,
+        side: THREE.DoubleSide,
         depthTest: true,
         depthWrite: true,
         fog: false,
@@ -1962,11 +1962,9 @@
   }
 
   function updateBacksideVisibility() {
-    // Keep the morphing exterior shell out of the interior and the BLACK HOLE gap.
-    const zone = ship.position ? getSpaceZone(ship.position.z) : "ROOM1";
-    const exterior = exteriorFlight &&
-      zone !== "BLACK_HOLE" &&
-      !isInsideCorridor(ship.position);
+    // The photoli shell stays hidden only inside a corridor. Outside, in the
+    // cavity between that corridor and the shell, and in open space, it shows.
+    const exterior = !!(ship.position) && !isInsideCorridor(ship.position);
 
     if (backside.group) {
       const wasVisible = backside.group.visible;
@@ -3848,7 +3846,7 @@
 
   function collideStarbaseShell(before, allowInteriorOpenings) {
     let blocked = false;
-    const shellPadding = 8.0;
+    const shellPadding = 1.2;
 
     starbaseHull.forEach((hull, index) => {
       // Collision is only for the physical starbase shell itself.
@@ -3879,10 +3877,14 @@
       const frontOpeningZ = room1 ? -25.5 : -47.5;
       const rearCapZ = room1 ? 5.5 : -84.5;
 
-      // The visible hull has no physical front opening. Room transitions
-      // use the portal cutscene instead of noclip through the shell.
+      // The corridor mouth stays solid after a portal teleport. The ring between
+      // that mouth and the photoli shell is the flyable cavity, so it may cross
+      // the open front. Ships outside the shell are not grabbed by this Z plane.
+      const inCorridorMouth =
+        (Math.abs(before.x) <= 6.2 && Math.abs(before.y) <= 3.7) ||
+        (Math.abs(ship.position.x) <= 6.2 && Math.abs(ship.position.y) <= 3.7);
       const crossedFront = shellCrossed(before.z, ship.position.z, frontOpeningZ);
-      if (crossedFront) {
+      if (crossedFront && inCorridorMouth) {
         ship.position.z = before.z < frontOpeningZ
           ? frontOpeningZ - 0.06
           : frontOpeningZ + 0.06;
@@ -3921,18 +3923,16 @@
         blocked = true;
       }
 
-      // Room 1 rear cap is closed.
-      // Room 2 rear cap is the one-way INSIDE -> OUTSIDE exit.
+      // Room 2's rear cap is solid except the corridor-sized exit. The old
+      // check let the whole rear face, including the cavity, noclip outward.
       if (shellCrossed(before.z, ship.position.z, rearCapZ)) {
-        if (!room1 && before.z > rearCapZ && ship.position.z < rearCapZ) {
+        const leavingThroughCorridor = !room1 && inCorridorMouth &&
+          before.z > rearCapZ && ship.position.z < rearCapZ;
+        if (leavingThroughCorridor) {
           exteriorFlight = true;
-          return;
-        }
-        if (before.z < rearCapZ && ship.position.z >= rearCapZ) {
-          ship.position.z = rearCapZ - 0.06;
-          blocked = true;
-        } else if (room1 || before.z > rearCapZ) {
-          ship.position.z = rearCapZ + 0.06;
+        } else {
+          ship.position.z = before.z < rearCapZ ? rearCapZ - 0.06 : rearCapZ + 0.06;
+          ship.velocity.z = 0;
           blocked = true;
         }
       }

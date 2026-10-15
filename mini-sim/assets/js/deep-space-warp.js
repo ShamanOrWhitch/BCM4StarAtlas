@@ -134,7 +134,7 @@
         '</div>' +
       '</section>' +
       '<section class="bcm-warp-view bcm-warp-tube-view" data-warp-view="tube" hidden>' +
-        '<div class="bcm-warp-tube-hud"><div class="bcm-warp-kicker">SUBSPACE TUNNEL</div><h2 data-tube-title>WARP IN PROGRESS</h2><div class="bcm-warp-tube-meta" data-tube-meta></div><div class="bcm-warp-shield"><span data-tube-shield></span></div><div class="bcm-warp-tube-help" data-tube-help>Влево и вправо двигают корабль по стенке. Труба от стика не крутится. Препятствие проходит мимо, а не зависает у носа.</div></div>' +
+        '<div class="bcm-warp-tube-hud"><div class="bcm-warp-kicker">SUBSPACE TUNNEL</div><h2 data-tube-title>WARP IN PROGRESS</h2><div class="bcm-warp-tube-meta" data-tube-meta></div><div class="bcm-warp-shield"><span data-tube-shield></span></div><div class="bcm-warp-tube-help" data-tube-help>Влево и вправо двигают корабль по кольцу. Препятствие остаётся на своём кольце и не растягивается.</div></div>' +
         '<div class="bcm-warp-touch-controls"><button type="button" data-warp-control="left">◀</button><div><button type="button" data-warp-control="up">▲</button><button type="button" data-warp-control="down">▼</button></div><button type="button" data-warp-control="right">▶</button></div>' +
         '<div class="bcm-warp-result" data-tube-result hidden><h2 data-tube-result-title></h2><p data-tube-result-text></p><div class="bcm-warp-actions"><button type="button" data-tube-continue hidden>ПРОДОЛЖИТЬ</button><button type="button" data-tube-retry>ПОВТОРИТЬ WARP</button><button type="button" data-tube-abort class="bcm-warp-secondary">ОТМЕНА</button></div></div>' +
       '</section>';
@@ -1104,27 +1104,27 @@
         Math.min((state.elapsed - 20) / 2.5, (34 - state.elapsed) / 2.5)));
       const loopPhase = ((state.elapsed + 5) / 10.5) * Math.PI * 2;
 
-      // d=0 is the distant end and d=1 is the player's near wall. The centre
-      // line bends sideways, dives vertically and winds through a corkscrew.
+      // The near ring stays on screen. Depth only shifts the far vanishing point,
+      // so a bend cannot unwind the cylinder into the spiral seen in 0.9.90.
       const centerX = (d) => mid +
-        (Math.sin(t * 0.19 + d * 4.3) * 0.095 +
-         Math.sin(t * 0.11 + d * 7.1) * 0.038 +
-         Math.sin(d * Math.PI * 1.55 + phase) * curveScale * 0.11 +
-         Math.cos(loopPhase + d * Math.PI * 2.4) * loopMix * 0.14) * w * d;
-      const centerY = (d) => h * 0.49 +
-        (Math.sin(t * 0.15 + d * 3.6) * 0.065 +
-         Math.sin(t * 0.09 + d * 7.7) * 0.032 +
-         Math.sin(d * Math.PI * 1.25 + phase) * liftScale * 0.08 +
-         Math.sin(loopPhase + d * Math.PI * 2.4) * loopMix * 0.15) * h * d;
+        (Math.sin(t * 0.19 + d * 4.3) * 0.045 +
+         Math.sin(t * 0.11 + d * 7.1) * 0.02 +
+         Math.sin(d * Math.PI * 1.55 + phase) * curveScale * 0.05 +
+         Math.sin(loopPhase + d * Math.PI * 2.4) * loopMix * 0.06) * minDim * (1 - d);
+      const centerY = (d) => h * 0.5 +
+        (Math.sin(t * 0.15 + d * 3.6) * 0.035 +
+         Math.sin(t * 0.09 + d * 7.7) * 0.018 +
+         Math.sin(d * Math.PI * 1.25 + phase) * liftScale * 0.04 +
+         Math.sin(loopPhase + d * Math.PI * 2.4) * loopMix * 0.05) * minDim * (1 - d);
       const radiusX = (d) => 4 + maxRadius * Math.pow(Math.max(0, d), 1.20) * widthScale;
       const radiusY = (d) => radiusX(d) * 0.91;
-      // The tube does not roll with the stick. courseTwist is only the bend ahead.
-      // playerAngle moves the ship around the wall; at the ship the twist is zero.
+      // Twist stays small and is zero at the ship, so the opening on screen is
+      // the opening that collides. A large depth twist was hitting empty space.
       const courseTwist = (d) => {
         const ahead = d - 0.92;
-        return ahead * (0.55 + Math.sin(t * 0.07) * 0.22) +
-          (Math.sin(d * Math.PI * 2 + phase) - Math.sin(0.92 * Math.PI * 2 + phase)) * curveScale * 0.28 +
-          (Math.sin(loopPhase + d * Math.PI * 2.4) - Math.sin(loopPhase + 0.92 * Math.PI * 2.4)) * loopMix * 1.35;
+        return ahead * 0.12 +
+          (Math.sin(d * Math.PI * 2 + phase) - Math.sin(0.92 * Math.PI * 2 + phase)) * curveScale * 0.04 +
+          (Math.sin(loopPhase + d * Math.PI * 2.4) - Math.sin(loopPhase + 0.92 * Math.PI * 2.4)) * loopMix * 0.10;
       };
       const twistAt = (d) => courseTwist(d);
       const point = (d, theta, extra) => {
@@ -1163,8 +1163,8 @@
       const depthSteps = 23;
       const panelCount = 18;
       for (let step = 0; step < depthSteps; step += 1) {
-        const d0 = 0.025 + (step / depthSteps) * 1.08;
-        const d1 = 0.025 + ((step + 1) / depthSteps) * 1.08;
+        const d0 = 0.04 + (step / depthSteps) * 0.96;
+        const d1 = 0.04 + ((step + 1) / depthSteps) * 0.96;
         for (let panel = 0; panel < panelCount; panel += 1) {
           const a0 = panel * Math.PI * 2 / panelCount;
           const a1 = (panel + 1) * Math.PI * 2 / panelCount;
@@ -1193,7 +1193,7 @@
 
       // Circumferential rings and seams make the enclosing cylinder legible.
       for (let ring = 0; ring < 17; ring += 1) {
-        const d = 0.06 + (ring / 17) * 1.02;
+        const d = 0.06 + (ring / 17) * 0.92;
         for (let part = 0; part < 48; part += 1) {
           const a0 = part * Math.PI * 2 / 48;
           const a1 = (part + 1) * Math.PI * 2 / 48;
@@ -1211,7 +1211,7 @@
         const theta = seam * Math.PI * 2 / 12;
         g.beginPath();
         for (let step = 0; step <= 35; step += 1) {
-          const d = 0.025 + (step / 35) * 1.08;
+          const d = 0.04 + (step / 35) * 0.96;
           const p = point(d, theta, -1.5);
           if (!step) g.moveTo(p.x, p.y);
           else g.lineTo(p.x, p.y);
@@ -1223,11 +1223,9 @@
 
       const routeProgress = Math.min(1, state.elapsed / WARP_DURATION);
       const obstacleDepth = (distance) => {
-        // Linear depth parked a gate at full size for several seconds.
-        // 1/z keeps the approach fast and lets the obstacle leave the camera.
-        const z = distance + 0.045;
-        if (z < 0.02 || distance > 0.42) return null;
-        return Math.min(2.4, 0.07 / z);
+        // Stay inside the near ring. d>1 is what stretched spikes into the gold wedge.
+        if (distance > 0.36 || distance <= 0) return null;
+        return Math.min(1, 0.055 / (distance + 0.05));
       };
       state.layers.forEach((layer) => {
         const distance = layer.progress - routeProgress;
