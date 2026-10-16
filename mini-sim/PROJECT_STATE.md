@@ -4,7 +4,19 @@
 >
 > **Текущий этап: Mini-Sim 0.9.92 в main.** Интегрированы исправления Warp из Grok 0.9.91: корабль рулится по кольцу, препятствия остаются на кольце, успешный проход требует явного «Продолжить», а отмена оставляет корабль в исходной позиции. Планета остаётся снаружи: радиус 11, место (-26, 9, -190), видна из Room 2 и Deep Space. На мобильных Warp canvas ограничен 30 FPS и DPR 1 для снижения нагрузки.
 
-Предыдущий main baseline: 1fdf61ad686016381919863c90dfcf079a550111. Release changes are committed directly on main; WordPress deployment and Android battery/gameplay verification remain pending. Tower gameplay/input is unchanged; only its visible version label is synchronized to PHP/cache 0.2.57.
+Code release commit: [46dea0ed](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/46dea0ed32cebac7636f8c2522ccb6fe4348ddda), built on previous main baseline 1fdf61ad686016381919863c90dfcf079a550111. Documentation reconciliation: [4f830ff3](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/4f830ff3a4284c9cac1b62485ba95322e8c2a64d). Regression checks passed on the code SHA; browser smoke passed with video disabled and the video-enabled scenario skipped. WordPress deployment and Android battery/gameplay verification remain pending. Tower gameplay/input is unchanged; only its visible version label is synchronized to PHP/cache 0.2.57.
+
+### Next handoff to Desktop — 0.9.93 mobile QA and feature queue
+
+These are follow-up tasks, not claimed as implemented in 0.9.92:
+
+- Test Warp on a real Android phone and compare battery drain with the new 30 FPS / DPR 1 cap. Do not declare battery use fixed without a timed device test.
+- Verify Deep Space touchscreen look/screen positioning by dragging a finger, with normal left/right direction and aviation-style pitch. Keep camera look separate from ship movement so Warp/menu overlays do not swallow the ship's up/down controls.
+- Prototype phone tilt for the Warp Tube only after baseline touch controls are tested; tilt-based Warp input was not added in 0.9.92.
+- Recheck small-screen text and overlay blocking; compact UI further only where an actual phone layout confirms it is needed.
+- Tower mobile QA: make jump reliably respond in SINGLE and MULTI, test tap-on-door transitions, inspect chibi jump hit-area/stacking order, and lower sensitivity without intentionally lowering frame rate.
+- Revisit asteroid-maze openness/variety; current sector navigation remains a local preview unless real read-only SAGE navigation supplies sector links.
+- Planet billboard/sprite rendering for different planet types is a separate visual task. Preserve the planet's current location and appearance until it is deliberately scoped.
 
 Planet-fix baseline: `02236dbd43a64238b53e869bd896e0e44cf1798e` on `fix/warp-angle-and-room2-view` (Mini-Sim 0.9.89). Code correction commits: JS `9b37c931629e1c4f27b78431950d53b4f6a59303`, cache version `a8355a71fd8554cc92d7b007cb50632caaa513c1`, source-contract test `af8608bc664c5689b5134709ec21e630a1e5ced0`. Targeted source-contract checks and the JavaScript parse check pass; the full Node suite and live WordPress visual test were not run. GitHub branch updates do not upload the plugin.  
 Issue [#32](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/32) closed after [PR #33](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/33) merged. Post-merge Mini-Sim regression checks passed: [run 38471956269](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471956269). The code-identical pre-merge browser smoke passed on [run 38471671934](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471671934); the post-merge browser QA run [38471956003](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471956003) was still in progress when this note was written. Browser QA does not visually inspect the liquid-metal shell. The plugin files have not been uploaded to WordPress.  
