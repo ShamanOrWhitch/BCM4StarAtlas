@@ -10,6 +10,12 @@
     const config = window.BCMMiniSimConfig || {};
     const levelAudio = root.querySelector(".bcm-mini-sim-music-audio");
     const WARP_DURATION = 48;
+    // Reduce repeated canvas work on touch devices without changing elapsed-time gameplay.
+    const mobileRenderTarget = !!(
+      (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) ||
+      (navigator.maxTouchPoints > 0 && window.innerWidth < 900)
+    );
+    const warpFrameInterval = mobileRenderTarget ? 1000 / 30 : 1000 / 60;
     let levelAudioWasPlaying = false;
     const warpAudio = document.createElement("audio");
     warpAudio.preload = "none";
@@ -134,9 +140,9 @@
         '</div>' +
       '</section>' +
       '<section class="bcm-warp-view bcm-warp-tube-view" data-warp-view="tube" hidden>' +
-        '<div class="bcm-warp-tube-hud"><div class="bcm-warp-kicker">SUBSPACE TUNNEL</div><h2 data-tube-title>WARP IN PROGRESS</h2><div class="bcm-warp-tube-meta" data-tube-meta></div><div class="bcm-warp-shield"><span data-tube-shield></span></div><div class="bcm-warp-tube-help" data-tube-help>Управление: WASD / стрелки / свайп. Избегайте преград в тоннеле. Длина маршрута — 48 секунд.</div></div>' +
+        '<div class="bcm-warp-tube-hud"><div class="bcm-warp-kicker">SUBSPACE TUNNEL</div><h2 data-tube-title>WARP IN PROGRESS</h2><div class="bcm-warp-tube-meta" data-tube-meta></div><div class="bcm-warp-shield"><span data-tube-shield></span></div><div class="bcm-warp-tube-help" data-tube-help>Влево и вправо двигают корабль по кольцу. Препятствие остаётся на своём кольце и не растягивается.</div></div>' +
         '<div class="bcm-warp-touch-controls"><button type="button" data-warp-control="left">◀</button><div><button type="button" data-warp-control="up">▲</button><button type="button" data-warp-control="down">▼</button></div><button type="button" data-warp-control="right">▶</button></div>' +
-        '<div class="bcm-warp-result" data-tube-result hidden><h2 data-tube-result-title></h2><p data-tube-result-text></p><div class="bcm-warp-actions"><button type="button" data-tube-retry>ПОВТОРИТЬ WARP</button><button type="button" data-tube-abort class="bcm-warp-secondary">ВЕРНУТЬСЯ</button></div></div>' +
+        '<div class="bcm-warp-result" data-tube-result hidden><h2 data-tube-result-title></h2><p data-tube-result-text></p><div class="bcm-warp-actions"><button type="button" data-tube-continue hidden>ПРОДОЛЖИТЬ</button><button type="button" data-tube-retry>ПОВТОРИТЬ WARP</button><button type="button" data-tube-abort class="bcm-warp-secondary">ОТМЕНА</button></div></div>' +
       '</section>';
     root.appendChild(overlay);
 
@@ -161,6 +167,7 @@
     const tubeResultTitle = overlay.querySelector("[data-tube-result-title]");
     const tubeResultText = overlay.querySelector("[data-tube-result-text]");
     const tubeRetry = overlay.querySelector("[data-tube-retry]");
+    const tubeContinue = overlay.querySelector("[data-tube-continue]");
     const tubeAbort = overlay.querySelector("[data-tube-abort]");
     const touchControls = overlay.querySelector(".bcm-warp-touch-controls");
 
@@ -539,7 +546,9 @@
       // X/Y are the pilot's position on the tube cross-section, held at a
       // stable radius so input moves around the wall, sides and ceiling.
       state.playerX = 0;
-      state.playerY = 0.78;
+      state.playerY = 0;
+      state.playerAngle = Math.PI / 2;
+      state.steerBank = 0;
       state.tubeRoll = 0;
       state.tubeBoostUntil = 0;
       state.statusText = "";
@@ -592,25 +601,21 @@
       tubeTitle.textContent = success ? "WARP STABLE" : "WARP DISTURBED";
       tubeResultTitle.textContent = success ? "Переход завершён" : "Защита туннеля перегружена";
       tubeResultText.textContent = success
-        ? "Координаты " + sectorText(state.target) + " подтверждены для локальной симуляции. Следующий этап — астероидный комплекс."
-        : "Пилот получил слишком много попаданий. Повторите короткий участок Warp или отмените переход.";
+        ? "Координаты " + sectorText(state.target) + " подтверждены. «Продолжить» ведёт дальше. «Отмена» оставляет корабль там, откуда открыт Warp."
+        : "Пилот получил слишком много попаданий. Повторите короткий участок или отмените переход — корабль останется на прежнем месте.";
       tubeRetry.hidden = success;
-      tubeAbort.textContent = success ? "ОТМЕНА" : "ОТМЕНИТЬ";
-      if (success) {
-        tubeResult.hidden = true;
-        window.setTimeout(() => {
-          if (state.mode !== "result") return;
-          if (isOniCssDestination(state.target)) {
-            returnToOniCss();
-          } else {
-            enterAsteroidMaze();
-          }
-        }, 420);
-      }
+      tubeContinue.hidden = !success;
+      tubeAbort.textContent = "ОТМЕНА";
     }
 
     function isOniCssDestination(sector) {
       return !!sector && Number(sector.x) === -40 && Number(sector.y) === 30;
+    }
+
+    function confirmTubeArrival() {
+      if (state.mode !== "result") return;
+      if (isOniCssDestination(state.target)) returnToOniCss();
+      else enterAsteroidMaze();
     }
 
     function returnToOniCss() {
@@ -1048,7 +1053,7 @@
 
     function resizeBackdrop() {
       const rect = backdrop.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
+      const dpr = Math.min(window.devicePixelRatio || 1, mobileRenderTarget ? 1 : 1.25);
       const width = Math.max(1, Math.floor(rect.width));
       const height = Math.max(1, Math.floor(rect.height));
       backdrop.width = Math.floor(width * dpr);
@@ -1100,27 +1105,34 @@
       const curveScale = tubeSectionBlend(curves, state.elapsed).value;
       const liftScale = tubeSectionBlend(liftShape, state.elapsed).value;
       const phase = tubeSectionBlend(curves, state.elapsed).phase;
-      const roll = Number(state.tubeRoll || 0) + Math.sin(t * 0.13) * 0.28;
+      const playerAngle = Number(state.playerAngle || 0);
       const loopMix = Math.max(0, Math.min(1,
         Math.min((state.elapsed - 20) / 2.5, (34 - state.elapsed) / 2.5)));
       const loopPhase = ((state.elapsed + 5) / 10.5) * Math.PI * 2;
 
-      // d=0 is the distant end and d=1 is the player's near wall. The centre
-      // line bends sideways, dives vertically and winds through a corkscrew.
+      // The near ring stays on screen. Depth only shifts the far vanishing point,
+      // so a bend cannot unwind the cylinder into the spiral seen in 0.9.90.
       const centerX = (d) => mid +
-        (Math.sin(t * 0.19 + d * 4.3) * 0.095 +
-         Math.sin(t * 0.11 + d * 7.1) * 0.038 +
-         Math.sin(d * Math.PI * 1.55 + phase) * curveScale * 0.11 +
-         Math.cos(loopPhase + d * Math.PI * 2.4) * loopMix * 0.14) * w * d;
-      const centerY = (d) => h * 0.49 +
-        (Math.sin(t * 0.15 + d * 3.6) * 0.065 +
-         Math.sin(t * 0.09 + d * 7.7) * 0.032 +
-         Math.sin(d * Math.PI * 1.25 + phase) * liftScale * 0.08 +
-         Math.sin(loopPhase + d * Math.PI * 2.4) * loopMix * 0.15) * h * d;
+        (Math.sin(t * 0.19 + d * 4.3) * 0.045 +
+         Math.sin(t * 0.11 + d * 7.1) * 0.02 +
+         Math.sin(d * Math.PI * 1.55 + phase) * curveScale * 0.05 +
+         Math.sin(loopPhase + d * Math.PI * 2.4) * loopMix * 0.06) * minDim * (1 - d);
+      const centerY = (d) => h * 0.5 +
+        (Math.sin(t * 0.15 + d * 3.6) * 0.035 +
+         Math.sin(t * 0.09 + d * 7.7) * 0.018 +
+         Math.sin(d * Math.PI * 1.25 + phase) * liftScale * 0.04 +
+         Math.sin(loopPhase + d * Math.PI * 2.4) * loopMix * 0.05) * minDim * (1 - d);
       const radiusX = (d) => 4 + maxRadius * Math.pow(Math.max(0, d), 1.20) * widthScale;
       const radiusY = (d) => radiusX(d) * 0.91;
-      const twistAt = (d) => roll + (d - 0.92) * (0.9 + Math.sin(t * 0.07) * 0.38) +
-        (Math.sin(d * Math.PI * 2 + phase) - Math.sin(0.92 * Math.PI * 2 + phase)) * curveScale * 0.20;
+      // Twist stays small and is zero at the ship, so the opening on screen is
+      // the opening that collides. A large depth twist was hitting empty space.
+      const courseTwist = (d) => {
+        const ahead = d - 0.92;
+        return ahead * 0.12 +
+          (Math.sin(d * Math.PI * 2 + phase) - Math.sin(0.92 * Math.PI * 2 + phase)) * curveScale * 0.04 +
+          (Math.sin(loopPhase + d * Math.PI * 2.4) - Math.sin(loopPhase + 0.92 * Math.PI * 2.4)) * loopMix * 0.10;
+      };
+      const twistAt = (d) => courseTwist(d);
       const point = (d, theta, extra) => {
         const angle = theta + twistAt(d);
         const rx = radiusX(d) + (extra || 0);
@@ -1157,8 +1169,8 @@
       const depthSteps = 23;
       const panelCount = 18;
       for (let step = 0; step < depthSteps; step += 1) {
-        const d0 = 0.025 + (step / depthSteps) * 1.08;
-        const d1 = 0.025 + ((step + 1) / depthSteps) * 1.08;
+        const d0 = 0.04 + (step / depthSteps) * 0.96;
+        const d1 = 0.04 + ((step + 1) / depthSteps) * 0.96;
         for (let panel = 0; panel < panelCount; panel += 1) {
           const a0 = panel * Math.PI * 2 / panelCount;
           const a1 = (panel + 1) * Math.PI * 2 / panelCount;
@@ -1172,7 +1184,7 @@
           g.lineTo(p11.x, p11.y);
           g.lineTo(p10.x, p10.y);
           g.closePath();
-          const shimmer = Math.sin(t * 1.35 + panel * 1.72 + step * 0.77 + roll) * 0.5 + 0.5;
+          const shimmer = Math.sin(t * 1.35 + panel * 1.72 + step * 0.77 + playerAngle) * 0.5 + 0.5;
           const light = ((step + Math.floor(t * 8) + panel * 3) % 5 === 0) ? 1 : 0;
           const red = Math.round(8 + shimmer * 8 + light * 2);
           const green = Math.round(20 + shimmer * 18 + light * 12);
@@ -1187,7 +1199,7 @@
 
       // Circumferential rings and seams make the enclosing cylinder legible.
       for (let ring = 0; ring < 17; ring += 1) {
-        const d = 0.06 + (ring / 17) * 1.02;
+        const d = 0.06 + (ring / 17) * 0.92;
         for (let part = 0; part < 48; part += 1) {
           const a0 = part * Math.PI * 2 / 48;
           const a1 = (part + 1) * Math.PI * 2 / 48;
@@ -1205,7 +1217,7 @@
         const theta = seam * Math.PI * 2 / 12;
         g.beginPath();
         for (let step = 0; step <= 35; step += 1) {
-          const d = 0.025 + (step / 35) * 1.08;
+          const d = 0.04 + (step / 35) * 0.96;
           const p = point(d, theta, -1.5);
           if (!step) g.moveTo(p.x, p.y);
           else g.lineTo(p.x, p.y);
@@ -1216,10 +1228,15 @@
       }
 
       const routeProgress = Math.min(1, state.elapsed / WARP_DURATION);
+      const obstacleDepth = (distance) => {
+        // Stay inside the near ring. d>1 is what stretched spikes into the gold wedge.
+        if (distance > 0.36 || distance <= 0) return null;
+        return Math.min(1, 0.055 / (distance + 0.05));
+      };
       state.layers.forEach((layer) => {
         const distance = layer.progress - routeProgress;
-        if (distance < -0.14 || distance > 0.34) return;
-        const d = Math.max(0.04, Math.min(1.04, 1 - distance / 0.34));
+        const d = obstacleDepth(distance);
+        if (d == null) return;
         const rx = radiusX(d);
         const strokeWidth = Math.max(3, rx * 0.052);
         if (layer.type === "gate") {
@@ -1296,19 +1313,14 @@
         }
       });
 
-      // The craft occupies a point on the cylinder's inner circumference and
-      // rolls with the local surface as it climbs from floor to wall/ceiling.
-      const playerAngle = Math.atan2(state.playerY, state.playerX);
+      // The ship rides the wall. Right decreases the angle so it moves screen-right
+      // from the bottom; the tunnel itself stays put.
       const nearDepth = 0.92;
-      const craftRoll = twistAt(nearDepth);
-      const craftAngle = playerAngle + craftRoll;
-      const craftPoint = {
-        x: centerX(nearDepth) + Math.cos(craftAngle) * radiusX(nearDepth) * 0.77,
-        y: centerY(nearDepth) + Math.sin(craftAngle) * radiusY(nearDepth) * 0.77
-      };
+      const craftAngle = playerAngle + courseTwist(nearDepth);
+      const craftPoint = point(nearDepth, playerAngle, -radiusX(nearDepth) * 0.20);
       g.save();
       g.translate(craftPoint.x, craftPoint.y);
-      g.rotate(playerAngle + craftRoll - Math.PI / 2);
+      g.rotate(craftAngle - Math.PI / 2 + (state.steerBank || 0));
       g.scale(Math.min(1, w / 900), Math.min(1, w / 900));
       const flare = 0.65 + (Math.sin(now * 0.032) + 1) * 0.18;
       g.fillStyle = "rgba(63,213,255," + flare * 0.42 + ")";
@@ -1336,6 +1348,10 @@
     function drawBackdrop(now) {
       if (overlay.hidden || !ctx) {
         state.animationRunning = false;
+        return;
+      }
+      if (state.lastFrame && now - state.lastFrame < warpFrameInterval) {
+        requestAnimationFrame(drawBackdrop);
         return;
       }
       const w = backdrop.clientWidth || root.clientWidth || 800;
@@ -1418,46 +1434,35 @@
     function updateTube(dt, now) {
       state.elapsed = Math.max(0, (now - state.startedAt) / 1000);
       const speedBySection = [0.76, 1.24, 0.84, 1.34, 0.68, 1.14];
-      const rollRates = [0.42, 0.82, 0.55, 1.12, 0.31, 0.72];
       const boosted = state.elapsed < Number(state.tubeBoostUntil || 0);
       const speed = tubeSectionBlend(speedBySection, state.elapsed).value * (boosted ? 1.34 : 1);
       state.tubeTravel += dt * speed;
-      state.tubeRoll = Number(state.tubeRoll || 0) + dt * tubeSectionBlend(rollRates, state.elapsed).value;
       const routeProgress = Math.min(1, state.elapsed / WARP_DURATION);
 
-      let padX = 0, padY = 0;
+      let padX = 0;
       try {
         const pads = navigator.getGamepads ? navigator.getGamepads() : [];
         const gp = pads && [...pads].find((p) => p && p.connected);
         if (gp) {
           const axes = gp.axes || [];
           const button = (n) => !!(gp.buttons && gp.buttons[n] && gp.buttons[n].pressed);
-          padX = Math.abs(axes[0] || 0) > 0.18 ? axes[0] : 0;
-          padY = Math.abs(axes[1] || 0) > 0.18 ? axes[1] : 0;
+          const axis = axes[0] || 0;
+          padX = Math.abs(axis) > 0.18 ? axis : 0;
           padX += (button(15) ? 1 : 0) - (button(14) ? 1 : 0);
-          padY += (button(13) ? 1 : 0) - (button(12) ? 1 : 0);
         }
       } catch (e) {}
 
+      // Left/right is the only steering axis and always changes the same angle.
+      // Adding up/down into X/Y made "up" continue a right turn after the ship
+      // left the bottom of the circle.
       const steer = Math.max(-1, Math.min(1,
         ((state.keys.ArrowRight || state.keys.KeyD || state.touch.right ? 1 : 0) -
          (state.keys.ArrowLeft || state.keys.KeyA || state.touch.left ? 1 : 0)) + padX));
-      const lift = Math.max(-1, Math.min(1,
-        ((state.keys.ArrowDown || state.keys.KeyS || state.touch.down ? 1 : 0) -
-         (state.keys.ArrowUp || state.keys.KeyW || state.touch.up ? 1 : 0)) + padY));
-
-      // Move on the cross-section then constrain to the circular wall.
-      let nextX = state.playerX + steer * dt * 1.52;
-      let nextY = state.playerY + lift * dt * 1.52;
-      let radial = Math.hypot(nextX, nextY);
-      if (radial < 0.08) {
-        nextX = state.playerX;
-        nextY = state.playerY;
-        radial = Math.max(0.08, Math.hypot(nextX, nextY));
-      }
-      state.playerX = nextX / radial * 0.78;
-      state.playerY = nextY / radial * 0.78;
-      const playerAngle = Math.atan2(state.playerY, state.playerX);
+      state.playerAngle = Number(state.playerAngle || 0) - steer * dt * 1.85;
+      state.playerAngle = Math.atan2(Math.sin(state.playerAngle), Math.cos(state.playerAngle));
+      const bankTarget = -steer * 0.42;
+      state.steerBank = Number(state.steerBank || 0) + (bankTarget - Number(state.steerBank || 0)) * Math.min(1, dt * 10);
+      const playerAngle = state.playerAngle;
 
       state.layers.forEach((layer) => {
         const distance = layer.progress - routeProgress;
@@ -1520,12 +1525,8 @@
         if (!state.pointerDown || state.mode !== "tube") return;
         const rect = backdrop.getBoundingClientRect();
         const dx = event.clientX - state.pointerX;
-        const dy = event.clientY - state.pointerY;
-        let nextX = state.playerX + dx / Math.max(1, rect.width) * 1.7;
-        let nextY = state.playerY + dy / Math.max(1, rect.height) * 1.7;
-        const radial = Math.max(0.08, Math.hypot(nextX, nextY));
-        state.playerX = nextX / radial * 0.78;
-        state.playerY = nextY / radial * 0.78;
+        state.playerAngle = Number(state.playerAngle || 0) - dx / Math.max(1, rect.width) * Math.PI * 1.25;
+        state.playerAngle = Math.atan2(Math.sin(state.playerAngle), Math.cos(state.playerAngle));
         state.pointerX = event.clientX;
         state.pointerY = event.clientY;
       });
@@ -1574,6 +1575,7 @@
     cancelButton.addEventListener("click", () => closeOverlay(true));
     startButton.addEventListener("click", showTube);
     tubeRetry.addEventListener("click", showTube);
+    tubeContinue.addEventListener("click", confirmTubeArrival);
     tubeAbort.addEventListener("click", () => closeOverlay(true));
     exitButton.addEventListener("click", returnToWarpMap);
     manualForm.addEventListener("submit", (event) => {

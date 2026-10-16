@@ -18,10 +18,7 @@ test("Warp uses a rolling circular wall and angular obstacle course",async()=>{
   const body=s.slice(s.indexOf("function drawTubeTunnel"),s.indexOf("function drawBackdrop"));
   const update=s.slice(s.indexOf("function updateTube(dt, now)"),s.indexOf("window.BCMDeepSpaceWarpToggle"));
   assert.match(s,/const WARP_DURATION = 48/);
-  assert.match(body,/const roll = Number\(state\.tubeRoll \|\| 0\)/);
-  assert.match(body,/const radiusX = \(d\) =>/);
-  assert.match(body,/const radiusY = \(d\) => radiusX\(d\) \* 0\.91/);
-  assert.match(body,/const twistAt = \(d\) =>/);
+  assert.match(body,/const twistAt = \(d\) => courseTwist\(d\)/);
   assert.match(body,/for \(let panel = 0; panel < panelCount; panel \+= 1\)/);
   assert.match(body,/for \(let seam = 0; seam < 12; seam \+= 1\)/);
   assert.match(body,/layer\.type === "gate"/);
@@ -29,13 +26,24 @@ test("Warp uses a rolling circular wall and angular obstacle course",async()=>{
   assert.match(body,/layer\.type === "spikes"/);
   assert.match(body,/layer\.type === "boost"/);
   assert.match(body,/layer\.type === "launcher"/);
-  assert.match(body,/g\.rotate\(playerAngle \+ craftRoll - Math\.PI \/ 2\)/);
-  assert.match(update,/state\.tubeRoll = Number\(state\.tubeRoll \|\| 0\) \+ dt \* tubeSectionBlend\(rollRates/);
+  assert.match(body,/g\.rotate\(craftAngle - Math\.PI \/ 2 \+ \(state\.steerBank \|\| 0\)\)/);
+  assert.match(update,/state\.playerAngle = Number\(state\.playerAngle \|\| 0\) - steer \* dt \* 1\.85/);
   assert.match(update,/angleDifference\(playerAngle, layer\.safeAngle\)/);
   assert.match(update,/layer\.blockedAngles\.some/);
   assert.match(update,/layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
-  assert.match(update,/state\.playerX = nextX \/ radial \* 0\.78/);
+  assert.doesNotMatch(update,/state\.playerX = nextX \/ radial \* 0\.78/);
   assert.doesNotMatch(body,/const roadY=d=>|const half=d=>|Continuous floor panels and centre dashes/);
+});
+test("Room 2 can already see the deep-space satellite and planet",async()=>{
+  const s=await read("mini-sim/assets/js/mini-sim.js");
+  const body=s.slice(s.indexOf("function updateSpaceSatelliteVisibility"),s.indexOf("function buildWorld"));
+  assert.match(body,/zone === "ROOM2" \|\| zone === "DEEP_SPACE"/);
+  assert.match(s,/metalness: 0\.82/);
+  assert.match(s,/existing\.listeners\.push/);
+  assert.match(s,/new THREE\.SphereGeometry\(11, 24, 16\)/);
+  assert.match(s,/planet\.position\.set\(-26, 9, -190\)/);
+  assert.doesNotMatch(s,/new THREE\.SphereGeometry\(28, 24, 16\)/);
+  assert.doesNotMatch(s,/planet\.position\.set\(0, 16, -220\)/);
 });
 test("Room 1 Home clears Room 0 constraints and restores Starbase OST",async()=>{
   const s=await read("mini-sim/assets/js/mini-sim.js");
@@ -161,4 +169,16 @@ test("Playwright runner overrides plugin files from local checkout",async()=>{
   assert.match(s,/05-after-cancel\.png/);
   const qaPackage=JSON.parse(await read("tools/minisim-qa/package.json"));
   assert.ok(qaPackage.devDependencies.playwright);
+});
+
+
+test("Mini-Sim and Tower displayed versions match their PHP asset-cache versions", async () => {
+  const miniPhp = await read("mini-sim/bcm-mini-sim.php");
+  const towerPhp = await read("mini-sim/tower/bcm-tower.php");
+  const tower = await read("mini-sim/tower/assets/js/tower.js");
+  assert.ok(miniPhp.includes("Version: 0.9.92"));
+  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.9.92'"));
+  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.9.92"));
+  assert.ok(towerPhp.includes("BCM_TOWER_VERSION', '0.2.57'"));
+  assert.ok(tower.includes('const TOWER_VERSION = "0.2.57"'));
 });

@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.9.83
+# BCM Mini-Sim 0.9.92
 
 > **Новый сеанс / краткая передача:** [HANDOFF.md](HANDOFF.md). Сверяйся с ним вместе с AGENTS, PROJECT_STATE и DECISIONS перед продолжением работы.
 
@@ -6,7 +6,16 @@
 > Первым делом сверить коммиты и журнал решений. Старые bug reports не должны автоматически превращаться в новые задачи, если исправление уже есть в коде.
 
 
-### 0.9.83 current code baseline
+### 0.9.92 current source baseline — 2026-10-16
+
+- Integrated the Grok Warp/Room 2 line from `fix/warp-angle-and-room2-view` (previously 0.9.91) directly into `main`.
+- Warp Tube keeps the course and obstacles aligned with the ring, keeps steering on one angle, and requires an explicit Continue after successful arrival.
+- Restores planet radius 11 at `(-26, 9, -190)`; it stays outside Room 2 and is visible from Room 2 and Deep Space.
+- Mobile Warp canvas pacing: 30 FPS and DPR capped at 1 on coarse/touch screens; desktop capped at 60 FPS. This is a load-reduction measure, not yet Android battery verification.
+- Tower displayed JS version synced to existing PHP/cache version 0.2.57.
+- This repository update does not deploy files to WordPress. Android Warp, physical gamepad and Tower touch/jump still need live-device testing.
+
+### Historical baseline: 0.9.83
 
 - PHP cache/plugin version: Mini-Sim 0.9.83; Tower 0.2.54. The bump commits are 4030d30 and e0a9e21.
 - Relevant current implementations are tracked in [DECISIONS.md](DECISIONS.md): shared OST/Home reset, global mute indicator, and 48-second rolling Tube.

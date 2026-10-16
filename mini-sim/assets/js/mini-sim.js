@@ -799,12 +799,22 @@
 
   function queueLowPriorityImage(url, onload, onerror, priority) {
     if (!url) return;
-    if (backgroundTextureQueue.seen[url]) return;
-    backgroundTextureQueue.seen[url] = true;
+    const existing = backgroundTextureQueue.seen[url];
+    if (existing) {
+      existing.listeners.push({ onload, onerror });
+      if (existing.done) deliverTextureRecord(existing);
+      return;
+    }
+    const record = {
+      listeners: [{ onload, onerror }],
+      done: false,
+      ok: false,
+      image: null
+    };
+    backgroundTextureQueue.seen[url] = record;
     const job = {
       url,
-      onload,
-      onerror,
+      record,
       priority: Number.isFinite(Number(priority)) ? Number(priority) : 5,
       sequence: backgroundTextureQueue.sequence++
     };
@@ -817,29 +827,42 @@
     if (backgroundTextureQueue.running) pumpBackgroundTextures();
   }
 
+  function deliverTextureRecord(record) {
+    const pending = record.listeners.splice(0);
+    pending.forEach((listener) => {
+      try {
+        if (record.ok && listener.onload) listener.onload(record.image);
+        else if (listener.onerror) listener.onerror();
+      } catch (e) {}
+    });
+  }
+
   function pumpBackgroundTextures() {
     if (!backgroundTextureQueue.running) return;
     while (backgroundTextureQueue.active < 2 && backgroundTextureQueue.jobs.length) {
       const job = backgroundTextureQueue.jobs.shift();
+      const record = job.record;
       backgroundTextureQueue.active++;
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.decoding = "async";
-      // The priority queue starts only after OST, near-wall textures, right
-      // video and portal requests have been issued; its own images stay auto/low.
       try { img.fetchPriority = job.priority <= 1 ? "auto" : "low"; } catch (e) {}
-      img.onload = () => {
+      let settled = false;
+      const finish = (ok) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
         backgroundTextureQueue.active--;
         if (miniSimReleased) return;
-        try { job.onload(img); } catch (e) {}
+        record.done = true;
+        record.ok = ok;
+        record.image = ok ? img : null;
+        deliverTextureRecord(record);
         setTimeout(pumpBackgroundTextures, 25);
       };
-      img.onerror = () => {
-        backgroundTextureQueue.active--;
-        if (miniSimReleased) return;
-        try { if (job.onerror) job.onerror(); } catch (e) {}
-        setTimeout(pumpBackgroundTextures, 25);
-      };
+      const timer = setTimeout(() => finish(false), 20000);
+      img.onload = () => finish(true);
+      img.onerror = () => finish(false);
       img.src = job.url;
     }
   }
@@ -1478,7 +1501,7 @@
     function makeBackMaterial(url) {
       const material = new THREE.MeshBasicMaterial({
         color: 0x303943,
-        side: THREE.FrontSide,
+        side: THREE.DoubleSide,
         depthTest: true,
         depthWrite: true,
         fog: false,
@@ -1641,6 +1664,7 @@
     backside.panels = panels;
     backside.nextAt = performance.now() + 1000;
     randomizeBackside(performance.now());
+    startBackgroundTextureLoading();
   }
 
   function trackSurfaceName(kind, index) {
@@ -1938,11 +1962,9 @@
   }
 
   function updateBacksideVisibility() {
-    // Keep the morphing exterior shell out of the interior and the BLACK HOLE gap.
-    const zone = ship.position ? getSpaceZone(ship.position.z) : "ROOM1";
-    const exterior = exteriorFlight &&
-      zone !== "BLACK_HOLE" &&
-      !isInsideCorridor(ship.position);
+    // The photoli shell stays hidden only inside a corridor. Outside, in the
+    // cavity between that corridor and the shell, and in open space, it shows.
+    const exterior = !!(ship.position) && !isInsideCorridor(ship.position);
 
     if (backside.group) {
       const wasVisible = backside.group.visible;
@@ -2141,7 +2163,8 @@
   }
 
   function updateSpaceSatelliteVisibility() {
-    const visible = !!ship.position && getSpaceZone(ship.position.z) === "DEEP_SPACE";
+    const zone = ship.position ? getSpaceZone(ship.position.z) : "ROOM1";
+    const visible = zone === "ROOM2" || zone === "DEEP_SPACE";
     if (spaceSatellite.group) spaceSatellite.group.visible = visible;
     if (spaceSatellite.stars) spaceSatellite.stars.visible = visible;
     if (spacePlanet.mesh) spacePlanet.mesh.visible = visible;
@@ -3823,7 +3846,7 @@
 
   function collideStarbaseShell(before, allowInteriorOpenings) {
     let blocked = false;
-    const shellPadding = 8.0;
+    const shellPadding = 1.2;
 
     starbaseHull.forEach((hull, index) => {
       // Collision is only for the physical starbase shell itself.
@@ -3854,10 +3877,14 @@
       const frontOpeningZ = room1 ? -25.5 : -47.5;
       const rearCapZ = room1 ? 5.5 : -84.5;
 
-      // The visible hull has no physical front opening. Room transitions
-      // use the portal cutscene instead of noclip through the shell.
+      // The corridor mouth stays solid after a portal teleport. The ring between
+      // that mouth and the photoli shell is the flyable cavity, so it may cross
+      // the open front. Ships outside the shell are not grabbed by this Z plane.
+      const inCorridorMouth =
+        (Math.abs(before.x) <= 6.2 && Math.abs(before.y) <= 3.7) ||
+        (Math.abs(ship.position.x) <= 6.2 && Math.abs(ship.position.y) <= 3.7);
       const crossedFront = shellCrossed(before.z, ship.position.z, frontOpeningZ);
-      if (crossedFront) {
+      if (crossedFront && inCorridorMouth) {
         ship.position.z = before.z < frontOpeningZ
           ? frontOpeningZ - 0.06
           : frontOpeningZ + 0.06;
@@ -3896,18 +3923,16 @@
         blocked = true;
       }
 
-      // Room 1 rear cap is closed.
-      // Room 2 rear cap is the one-way INSIDE -> OUTSIDE exit.
+      // Room 2's rear cap is solid except the corridor-sized exit. The old
+      // check let the whole rear face, including the cavity, noclip outward.
       if (shellCrossed(before.z, ship.position.z, rearCapZ)) {
-        if (!room1 && before.z > rearCapZ && ship.position.z < rearCapZ) {
+        const leavingThroughCorridor = !room1 && inCorridorMouth &&
+          before.z > rearCapZ && ship.position.z < rearCapZ;
+        if (leavingThroughCorridor) {
           exteriorFlight = true;
-          return;
-        }
-        if (before.z < rearCapZ && ship.position.z >= rearCapZ) {
-          ship.position.z = rearCapZ - 0.06;
-          blocked = true;
-        } else if (room1 || before.z > rearCapZ) {
-          ship.position.z = rearCapZ + 0.06;
+        } else {
+          ship.position.z = before.z < rearCapZ ? rearCapZ - 0.06 : rearCapZ + 0.06;
+          ship.velocity.z = 0;
           blocked = true;
         }
       }
