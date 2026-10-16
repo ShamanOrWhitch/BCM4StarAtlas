@@ -1,6 +1,6 @@
 # Новый сеанс — BCM4StarAtlas / Mini-Sim
 
-> **Release update — 2026-10-16:** Mini-Sim 0.9.92 integrates the Grok Warp fixes previously on `fix/warp-angle-and-room2-view`, restores exterior planet placement/visibility from Room 2, caps mobile Warp canvas animation at 30 FPS/DPR 1, and synchronizes the Tower JS display label to 0.2.57. Check current `main` and Actions before further work. This is a source-code release, not a WordPress deployment; Android battery and hands-on game controls remain unverified.
+> **Release update — 2026-10-16:** Mini-Sim 0.9.92 integrates the Grok Warp fixes previously on `fix/warp-angle-and-room2-view`, restores exterior planet placement/visibility from Room 2, caps mobile Warp canvas animation at 30 FPS/DPR 1, and synchronizes the Tower JS display label to 0.2.57. Check current `main` and Actions before further work. Code release commit: [46dea0e](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/46dea0ed32cebac7636f8c2522ccb6fe4348ddda). Regression workflow [38841425206](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38841425206) passed; browser smoke [38841425219](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38841425219) passed with video downloads disabled, while the video-enabled test was skipped. This is a source-code release, not a WordPress deployment; Android battery and hands-on game controls remain unverified.
 
 Этот файл подготовлен для переноса работы в новый чат без повторного пересказа всей переписки. Он не заменяет обязательную сверку текущей ветки и коммитов.
 

@@ -13,7 +13,8 @@
 - Restores planet radius 11 at `(-26, 9, -190)`; it stays outside Room 2 and is visible from Room 2 and Deep Space.
 - Mobile Warp canvas pacing: 30 FPS and DPR capped at 1 on coarse/touch screens; desktop capped at 60 FPS. This is a load-reduction measure, not yet Android battery verification.
 - Tower displayed JS version synced to existing PHP/cache version 0.2.57.
-- This repository update does not deploy files to WordPress. Android Warp, physical gamepad and Tower touch/jump still need live-device testing.
+- Source release commit: [46dea0e](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/46dea0ed32cebac7636f8c2522ccb6fe4348ddda). Regression checks [38841425206](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38841425206) passed; browser smoke [38841425219](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38841425219) passed with video media disabled (video-enabled test skipped).
+- This repository update does not deploy files to WordPress. Android Warp/battery, physical touch/gamepad and Tower jump/door behavior still need live-device testing.
 
 ### Historical baseline: 0.9.83
 

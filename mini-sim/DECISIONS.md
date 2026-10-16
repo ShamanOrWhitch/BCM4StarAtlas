@@ -2,7 +2,7 @@
 
 ## D-013 — Mobile Warp render pacing for 0.9.92
 
-**Статус: IMPLEMENTED; automated checks pending on the release commit; Android battery use is not yet VERIFIED-LIVE.**
+**Статус: TESTED-CODE on [46dea0e](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/46dea0ed32cebac7636f8c2522ccb6fe4348ddda).** Regression check [38841425206](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38841425206) succeeded. Browser smoke [38841425219](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38841425219) succeeded with video media disabled; the video-enabled scenario was skipped. Android battery use is not yet VERIFIED-LIVE.
 
 Integrated Grok's `fix/warp-angle-and-room2-view` code into `main` as Mini-Sim 0.9.92. Warp canvas animation is capped at 30 FPS on touch/mobile devices and at 60 FPS on desktop; mobile canvas backing resolution is capped at device-pixel-ratio 1. The Tube duration remains 48 seconds and its elapsed time remains timestamp-based. This reduces repeated canvas work but is not proof of measured battery savings. Verify on Android before calling battery use fixed.
 
