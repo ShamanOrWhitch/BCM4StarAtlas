@@ -4,10 +4,10 @@
 
 ## Источник истины
 
-- Проверенный main: Mini-Sim 0.9.92, Tower 0.2.57, релизный коммит [46dea0ed](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/46dea0ed32cebac7636f8c2522ccb6fe4348ddda).
-- Рабочая ветка: [fix/mobile-controls-0.9.93](https://github.com/ShamanOrWhitch/BCM4StarAtlas/tree/fix/mobile-controls-0.9.93), [PR #38](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/38). Все 5 Actions checks прошли на head `962cb6267012232bfa4dd866b4af1ef5a07f3e43` (включая browser smoke с подменой ассетов). Физический Android-тест не выполнен; PR готов к review, не merged и не deployed на WordPress.
-- **Пользователь подтвердил, что возврат из астероидного лабиринта к карте текущего сектора работает.** Сохранять это поведение и не менять sector/return logic. GitHub issues #21, #22, #24 и #26 закрыты; новые мобильные проблемы ведутся в PR #38.
-- Крупная отсутствующая функция: полная карта SAGE/галактики — [Issue #28](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/28).
+- Проверенный main: Mini-Sim 0.9.93, Tower 0.2.58, merge commit [09c0a955](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/09c0a9553daa6406302c3e54cd0bca1aaeff6702) from [PR #38](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/38).
+- All five required GitHub Actions checks passed on the PR head, including browser smoke with asset overrides. The actual Android controls and WordPress install have not been verified/deployed.
+- **Пользователь подтвердил, что возврат из астероидного лабиринта к карте текущего сектора работает.** Сохранять это поведение и не менять sector/return logic.
+- Issues #21, #22, #24, #26, and #30 are closed. Remaining product feature: full SAGE galaxy map — [Issue #28](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/28). Issue #17 remains only as an automation coverage task for Room0 → B → Room1/global mute.
 
 ## Что меняется в 0.9.93
 
