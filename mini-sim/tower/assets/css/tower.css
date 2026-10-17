@@ -207,6 +207,12 @@
     pointer-events: auto;
 }
 
+.bcm-tower-mobile[hidden],
+.bcm-tower-mobile-player[hidden],
+.bcm-tower-mobile-player button[hidden] {
+    display: none !important;
+}
+
 .bcm-tower-mobile-player button {
     pointer-events: auto;
     width: 60px;
