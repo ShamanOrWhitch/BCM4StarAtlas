@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.57";
+  const TOWER_VERSION = "0.2.58";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -2778,8 +2778,8 @@
           towerTilt.calibrate = false;
         }
         const delta = towerTilt.filtered - towerTilt.neutral;
-        const dead = 1.6;
-        const shaped = Math.abs(delta) <= dead ? 0 : clamp((delta - Math.sign(delta) * dead) / 8, -1, 1);
+        const dead = 2.0;
+        const shaped = Math.abs(delta) <= dead ? 0 : clamp((delta - Math.sign(delta) * dead) / 10, -1, 1);
         towerTilt.horizontal = -shaped;
       }, true);
       towerTilt.bound = true;
@@ -2845,7 +2845,9 @@
       p.vy += clamp(-dy * 0.018, -2.4, 2.4);
     });
 
+    const pointerEventsAvailable = typeof window.PointerEvent === "function";
     mobile?.querySelectorAll("[data-tower-control]").forEach((button) => {
+      if (!pointerEventsAvailable) return;
       const index = Number(button.dataset.towerPlayer || 0);
       const action = button.dataset.towerControl;
       const down = (event) => {
@@ -2862,10 +2864,8 @@
       button.addEventListener("pointerdown", down);
       button.addEventListener("pointerup", up);
       button.addEventListener("pointercancel", up);
+      button.addEventListener("lostpointercapture", up);
       button.addEventListener("pointerleave", up);
-      button.addEventListener("touchstart", down, { passive: false });
-      button.addEventListener("touchend", up, { passive: false });
-      button.addEventListener("touchcancel", up, { passive: false });
     });
 
     function towerButtonAt(x, y) {
@@ -2880,31 +2880,35 @@
     }
 
     const heldTowerTouches = new Map();
-    root.addEventListener("touchstart", (event) => {
-      if (!gameStarted) return;
-      let used = false;
-      for (const touch of event.changedTouches) {
-        if (heldTowerTouches.size >= 3) break;
-        const button = towerButtonAt(touch.clientX, touch.clientY);
-        if (!button) continue;
-        const index = Number(button.dataset.towerPlayer || 0);
-        const action = button.dataset.towerControl;
-        heldTowerTouches.set(touch.identifier, { index, action });
-        if (action === "jump") doJump(index);
-        else setAction(index, action, true);
-        used = true;
-      }
-      if (used) event.preventDefault();
-    }, { capture: true, passive: false });
-    const releaseTowerTouch = (event) => {
-      for (const touch of event.changedTouches) {
-        const held = heldTowerTouches.get(touch.identifier);
-        heldTowerTouches.delete(touch.identifier);
-        if (held && held.action !== "jump") setAction(held.index, held.action, false);
-      }
-    };
-    root.addEventListener("touchend", releaseTowerTouch, { capture: true });
-    root.addEventListener("touchcancel", releaseTowerTouch, { capture: true });
+    // Old-browser fallback only. Modern Android/iOS use Pointer Events, so the
+    // same finger no longer triggers both pointerdown and touchstart (two jumps).
+    if (!pointerEventsAvailable) {
+      root.addEventListener("touchstart", (event) => {
+        if (!gameStarted) return;
+        let used = false;
+        for (const touch of event.changedTouches) {
+          if (heldTowerTouches.size >= 3) break;
+          const button = towerButtonAt(touch.clientX, touch.clientY);
+          if (!button) continue;
+          const index = Number(button.dataset.towerPlayer || 0);
+          const action = button.dataset.towerControl;
+          heldTowerTouches.set(touch.identifier, { index, action });
+          if (action === "jump") doJump(index);
+          else setAction(index, action, true);
+          used = true;
+        }
+        if (used) event.preventDefault();
+      }, { capture: true, passive: false });
+      const releaseTowerTouch = (event) => {
+        for (const touch of event.changedTouches) {
+          const held = heldTowerTouches.get(touch.identifier);
+          heldTowerTouches.delete(touch.identifier);
+          if (held && held.action !== "jump") setAction(held.index, held.action, false);
+        }
+      };
+      root.addEventListener("touchend", releaseTowerTouch, { capture: true });
+      root.addEventListener("touchcancel", releaseTowerTouch, { capture: true });
+    }
 
     // Mini Sim commits its Crew selection only when the player starts.
     // Refresh the Tower preview then, because boot() may already have built it
