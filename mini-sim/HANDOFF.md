@@ -1,54 +1,30 @@
-# Новый сеанс — BCM4StarAtlas / Mini-Sim
+# BCM4StarAtlas / Mini-Sim — актуальная передача
 
-> **Release update — 2026-10-16:** Mini-Sim 0.9.92 integrates the Grok Warp fixes previously on `fix/warp-angle-and-room2-view`, restores exterior planet placement/visibility from Room 2, caps mobile Warp canvas animation at 30 FPS/DPR 1, and synchronizes the Tower JS display label to 0.2.57. Check current `main` and Actions before further work. Code release commit: [46dea0e](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/46dea0ed32cebac7636f8c2522ccb6fe4348ddda). Regression workflow [38841425206](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38841425206) passed; browser smoke [38841425219](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38841425219) passed with video downloads disabled, while the video-enabled test was skipped. This is a source-code release, not a WordPress deployment; Android battery and hands-on game controls remain unverified.
+Дата: 2026-10-17.
 
-Этот файл подготовлен для переноса работы в новый чат без повторного пересказа всей переписки. Он не заменяет обязательную сверку текущей ветки и коммитов.
+## Источник истины
 
-## С чего начать — обязательно
+- Проверенный main: Mini-Sim 0.9.92, Tower 0.2.57, релизный коммит [46dea0ed](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/46dea0ed32cebac7636f8c2522ccb6fe4348ddda).
+- Рабочая ветка: [fix/mobile-controls-0.9.93](https://github.com/ShamanOrWhitch/BCM4StarAtlas/tree/fix/mobile-controls-0.9.93), [PR #38](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/38). Все 5 Actions checks прошли на head `962cb6267012232bfa4dd866b4af1ef5a07f3e43` (включая browser smoke с подменой ассетов). Физический Android-тест не выполнен; PR готов к review, не merged и не deployed на WordPress.
+- **Пользователь подтвердил, что возврат из астероидного лабиринта к карте текущего сектора работает.** Сохранять это поведение и не менять sector/return logic. GitHub issues #21, #22, #24 и #26 закрыты; новые мобильные проблемы ведутся в PR #38.
+- Крупная отсутствующая функция: полная карта SAGE/галактики — [Issue #28](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/28).
 
-1. Открой корневой `README.md`, затем прочитай `mini-sim/WORK_COORDINATION.md`, `AGENTS.md`, `PROJECT_STATE.md`, `DECISIONS.md` и этот handoff.
-2. Сверь актуальный `main`/HEAD, открытые Issues/PRs, активные WORK LOCK reservations и коммиты после baseline SHA в `PROJECT_STATE.md`. Не ориентируйся только на название коммита; посмотри diff и текущий код.
-3. Не перечитывай всю историю чата и все исходники подряд. Используй журнал решений, затем открой только затронутые обработчики и их потребителей.
-4. Не начинай старое исправление заново без свежего доказательства регрессии. Отсутствие жалобы — не подтверждение, но и не доказательство, что работа не сделана. Если код/тесты есть, а живое состояние существенно неизвестно, задай один узкий вопрос только тогда, когда ответ влияет на следующий шаг.
-5. После существенной работы обнови `PROJECT_STATE.md` и `DECISIONS.md` с SHA коммита, доказательствами и статусом.
+## Что меняется в 0.9.93
 
-## Последняя проверенная сверка — 2026-10-13
+1. **Загрузка:** soundtrack заранее с высоким приоритетом; очередь ближайших стен запускается до правого видео, портал запрашивается после правого видео; наружные и декоративные текстуры остаются низкоприоритетными.
+2. **Warp Tube на телефоне:** компактный HUD без больших заголовков/инструкций, управление наклоном телефона с перекалибровкой, осевое вращение возвращено примерно к 45% прежнего слишком сильного темпа.
+3. **Deep Space:** когда экран зафиксирован тапом, drag пальцем вращает позицию корабля вокруг выбранного экрана, а не накручивает обычный обзор.
+4. **Tower:** на современных телефонах используются Pointer Events без повторного touch-пути, скрытые P2-кнопки явно убраны из layout, чувствительность наклона P1 немного снижена. Прыжок и P2 требуется подтвердить на реальном телефоне после CI.
 
-Текущий `main` HEAD на момент последней сверки: [b9d0312](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/b9d031295f7baeac387b71cbaa9e74984c66a410). Последний коммит, меняющий runner/tests, — [d42818a](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/d42818adec98adc77d8a4e471f8e57984fcbe494); `dc8a08e` содержит успешное выполнение workflows, `b9d0312` фиксирует результат документацией.
+## Не затрагивать
 
-- Regression workflow [38369594418](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38369594418): success.
-- Browser QA [38369594467](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38369594467): success; артефакт ID `11798337294`, срок до 20 октября 2026 года.
-- Исправлено сопоставление Autoptimize-URL с файлами выбранного GitHub commit. Прогон использует подмену ассетов в браузерной сессии страницы WordPress.
-- Проверенный сценарий пока только Warp map → Tube → cancel. Это не подтверждает непереписанный live сайт без подмены и не проверяет Room0 → B или кнопку mute.
+- Не менять механизм возврата к текущему сектору и адаптер навигации.
+- Не менять планету и её координаты (радиус 11, (-26, 9, -190)).
+- Не возвращать случайную смену текстуры левой стены Room1.
+- Не переписывать глобальный музыкальный микшер без нового воспроизводимого отказа.
+- Не выдавать локальный Warp grid за полную SAGE карту или настоящий переход флота.
 
-### Уже реализовано в коде — не повторять слепо
+## Проверка
 
-- **Имена Crew:** нормализация в `crew-wallet.js` и Mini-Sim на месте. Журнал D-001 содержит историю коммитов `8ad3e72`, `892ea3a`, `ec01831`, `b3b2148`, `0e7c65b`. Не создавать новую систему имён без нового воспроизводимого примера.
-- **Единый OST / mute / B из Room0 к Room1:** реализация внесена коммитом `3196d8d`, Tower подключён к общему микшеру `962a5d0`, состояние перечёркнутой нотки добавлено `f6afd57`. Регрессионные source-contract tests существуют. Это **реализовано в коде**, но текущее поведение на live WordPress пока не подтверждено.
-- **Warp/Tube:** коммит `14f9c8b` добавил 48-секундную трассу, вращение/прокрутку трубы и изменение скорости по секциям. Это прототип, не завершённая игра: визуальная вариативность, заслоняющие экран препятствия и раскрутка корабля после выхода остаются открытыми по пользовательскому отзыву.
-- **Текстура левой стены Room1:** устранение случайных замен материала — намеренное изменение. Не возвращать периодическое переключение текстуры; не менять комнатную геометрию ради этого. Не возвращать ранее предложенную модель внешней обшивки — пользователь специально отказался от неё.
-- **Полная SAGE/galaxy-карта:** не реализована. Сейчас в Warp есть локальная сетка тестовых соседей и optional navigation adapter, но не полноценная карта галактики и не реальные перемещения флота.
-- **Дистанционный браузерный QA:** workflow `.github/workflows/minisim-browser-qa.yml` добавлен в коммите `ec70ed5`; последующие коммиты `02624ef`, `3907828`, `e8cbd54`, `7ae46c4` улучшают документацию/проверку реальной подмены ассетов/артефакты/диагностику. Он должен позволять тестировать выбранный commit в GitHub Actions без скачивания репозитория на компьютер и без повторной загрузки JS/CSS на сайт. Однако наличие workflow не доказывает, что его последний запуск успешно прошёл: проверь Actions и артефакты.
-
-## Требования пользователя, которые нельзя потерять
-
-- Музыка: `starbase` во всей первой локации ONI CSS (включая Room0 и Room1); `tower` только в Tower; `warp` на карте Warp, в Tube и астероидном лабиринте до выхода, пока отдельного трека астероидов нет. Никаких одновременных OST. Нотка — глобальный ON/OFF с понятным перечёркнутым состоянием; mute обязан сохраняться при переходах.
-- B из Room0 должен приводить к началу Room1 и возвращать `starbase`, а не сбрасывать Room0. Если текущий код вроде исправлен, сначала проверить, какая версия реально обслуживается сайтом, и выполнить browser QA.
-- Управление: gamepad-поворот отзывчивее; вертикаль в коридоре должна учитывать пол/потолок текущего коридора, без прилипания и без потери управления; на выходе Warp нельзя переносить случайное вращение/залипший ввод.
-- Tube должна ощущаться настоящей трубой: вариативные повороты, осевое вращение, петли/изгибы, стены/потолок как возможный путь, читаемые препятствия и проходы, согласованные с физикой. Длина не менее 48 секунд. Не закрывать экран сплошными плитами.
-- SAGE: нужна видимая целиком карта для планирования маршрута, индикация текущего сектора (старт — ONI CSS / NEUNO), выбор следующего связанного сектора по реальным данным. Сам прыжок происходит на одну соседнюю клетку, но маршрут нужно планировать на всей карте. В астероидном секторе не должно быть принудительного возврата на базу. Проверить полноту/источник карты, не выводить полный объём галактики из названия файла `69regions-v9.json`.
-- Тестирование не должно требовать постоянного скачивания/загрузки тяжёлого репозитория. Сначала проверь GitHub Actions remote browser QA. Не отправляй пользователя в многошаговую локальную установку без необходимости.
-
-## Завершённая задача от 2026-10-14: внешняя оболочка / liquid-metal cycle
-
-- Baseline SHA: `c01cec1e6776b53192c15b3027e0240f3ed27a45`; merge commit main: `ad4d8cf8cdf261cecb30b95ddbf85ceaf7514f02`, versions Mini-Sim 0.9.86 / Tower 0.2.56.
-- WORK LOCK [Issue #32](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/32) закрыт после merge [PR #33](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/33).
-- Причина регрессии: код принудительно использовал только четыре внешние текстуры и удалил вызов периодической смены. Старый source-contract тест закреплял неверное поведение.
-- В ветке восстановлены полный пул на desktop, мобильный limit в четыре текстуры, индивидуальные stagger-таймеры внешних shell-панелей (~0.8–3.0 s) и обновление только когда shell видим. Интерьер Room 1/2 и геометрия не затрагиваются. Mini-Sim cache version поднят до 0.9.86.
-- Post-merge Mini-Sim regression PASS: [run 38471956269](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471956269). Warp source-contract PASS: [run 38471847602](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471847602). Browser smoke passed on code-identical runtime SHA: [run 38471671934](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471671934); post-merge browser run was still in progress. The shell effect itself has not been visually checked on the live WordPress page and the plugin files have not been uploaded there.
-- Отдельная WORK LOCK задача [Issue #17](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/17) про Room0 → B / Room1 / global mute остаётся на тестовом наборе и не объединялась с этим runtime-изменением.
-
-## Следующий шаг
-
-Активная задача P1: добавить в удалённый browser smoke тест последовательности Room0 → gamepad B → начало Room1, подтвердить Starbase OST и отдельно проверить глобальный mute при переходе между зонами. Сначала проверь активные WORK LOCK Issues и latest HEAD. Не меняй микшер, пока тест не даст конкретный воспроизводимый сбой. Merge does not deploy the plugin to WordPress; check the live plugin version before claiming the site uses 0.9.86. Browser QA with asset overrides is not a production deployment.
+Regression workflow запускает JS parse check и source-contract tests; browser QA открывает https://walkingyog.com/bcm4sa/ с временной подменой ассетов и по умолчанию блокирует видео. Это не deploy на WordPress, не полная проверка видеоконтента и не измерение расхода батареи. Версию сайта проверять отдельно после установки плагина.
 

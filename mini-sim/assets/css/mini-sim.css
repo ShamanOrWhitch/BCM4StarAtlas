@@ -1328,6 +1328,60 @@
 }
 
 
+/* 0.9.93: keep the Warp Tube HUD out of the pilot's view on touch screens. */
+@media (pointer: coarse), (max-width: 760px) {
+  .bcm-mini-sim .bcm-warp-overlay.is-tubing .bcm-warp-topbar {
+    top: 4px;
+    left: auto;
+    right: 5px;
+    z-index: 6;
+  }
+  .bcm-mini-sim .bcm-warp-overlay.is-tubing .bcm-warp-topbar > div,
+  .bcm-mini-sim .bcm-warp-tube-hud .bcm-warp-kicker,
+  .bcm-mini-sim .bcm-warp-tube-hud h2,
+  .bcm-mini-sim .bcm-warp-tube-help {
+    display: none !important;
+  }
+  .bcm-mini-sim .bcm-warp-overlay.is-tubing .bcm-warp-close {
+    width: 30px;
+    height: 30px;
+    font-size: 20px;
+  }
+  .bcm-mini-sim .bcm-warp-tube-hud {
+    top: max(4px, env(safe-area-inset-top));
+    left: 5px;
+    width: min(245px, calc(100% - 48px));
+    padding: 4px 7px;
+    border: 0;
+    background: rgba(2, 5, 11, .34);
+  }
+  .bcm-mini-sim .bcm-warp-tube-meta {
+    max-width: calc(100vw - 65px);
+    font-size: 9px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .bcm-mini-sim .bcm-warp-shield {
+    height: 3px;
+    margin-top: 3px;
+  }
+  .bcm-mini-sim .bcm-warp-touch-controls {
+    bottom: max(5px, env(safe-area-inset-bottom));
+    gap: 7px;
+  }
+  .bcm-mini-sim .bcm-warp-touch-controls button {
+    width: 39px;
+    height: 36px;
+    font-size: 16px;
+  }
+  .bcm-mini-sim .bcm-warp-touch-controls button[data-warp-control="tilt"] {
+    width: 68px;
+    min-width: 68px;
+    font-size: 10px;
+    letter-spacing: .3px;
+  }
+}
+
 /* Visible focus feedback for Mini-Sim and WARP controller menus. */
 .bcm-mini-sim .bcm-gamepad-focused,
 .bcm-warp-overlay .bcm-gamepad-focused {

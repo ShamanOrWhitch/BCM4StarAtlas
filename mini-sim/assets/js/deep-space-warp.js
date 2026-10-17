@@ -103,7 +103,8 @@
       statusText: "",
       lastStatusAt: 0,
       keys: Object.create(null),
-      touch: { left: false, right: false, up: false, down: false }
+      touch: { left: false, right: false, up: false, down: false },
+      tilt: { enabled: false, bound: false, permissionGranted: false, available: false, filterReady: false, filtered: 0, neutral: 0, calibrating: false, samples: 0, sum: 0, value: 0 }
     };
 
     const launchButton = document.createElement("button");
@@ -141,7 +142,7 @@
       '</section>' +
       '<section class="bcm-warp-view bcm-warp-tube-view" data-warp-view="tube" hidden>' +
         '<div class="bcm-warp-tube-hud"><div class="bcm-warp-kicker">SUBSPACE TUNNEL</div><h2 data-tube-title>WARP IN PROGRESS</h2><div class="bcm-warp-tube-meta" data-tube-meta></div><div class="bcm-warp-shield"><span data-tube-shield></span></div><div class="bcm-warp-tube-help" data-tube-help>Влево и вправо двигают корабль по кольцу. Препятствие остаётся на своём кольце и не растягивается.</div></div>' +
-        '<div class="bcm-warp-touch-controls"><button type="button" data-warp-control="left">◀</button><div><button type="button" data-warp-control="up">▲</button><button type="button" data-warp-control="down">▼</button></div><button type="button" data-warp-control="right">▶</button></div>' +
+        '<div class="bcm-warp-touch-controls"><button type="button" data-warp-control="left" aria-label="Рулить влево">◀</button><button type="button" data-warp-control="tilt" aria-label="Включить или откалибровать управление наклоном">↻ TILT</button><button type="button" data-warp-control="right" aria-label="Рулить вправо">▶</button></div>' +
         '<div class="bcm-warp-result" data-tube-result hidden><h2 data-tube-result-title></h2><p data-tube-result-text></p><div class="bcm-warp-actions"><button type="button" data-tube-continue hidden>ПРОДОЛЖИТЬ</button><button type="button" data-tube-retry>ПОВТОРИТЬ WARP</button><button type="button" data-tube-abort class="bcm-warp-secondary">ОТМЕНА</button></div></div>' +
       '</section>';
     root.appendChild(overlay);
@@ -170,6 +171,7 @@
     const tubeContinue = overlay.querySelector("[data-tube-continue]");
     const tubeAbort = overlay.querySelector("[data-tube-abort]");
     const touchControls = overlay.querySelector(".bcm-warp-touch-controls");
+    const tiltButton = overlay.querySelector('[data-warp-control="tilt"]');
 
     function hashSeed(value) {
       let h = 2166136261 >>> 0;
@@ -515,6 +517,8 @@
     function closeOverlay(restoreMain) {
       stopWarpAudio();
       overlay.hidden = true;
+      overlay.classList.remove("is-tubing");
+      state.tilt.value = 0;
       root.classList.remove("bcm-warp-open", "is-tubing");
       launchButton.classList.remove("is-active");
       state.mode = "closed";
@@ -550,6 +554,10 @@
       state.playerAngle = Math.PI / 2;
       state.steerBank = 0;
       state.tubeRoll = 0;
+      state.tilt.value = 0;
+      state.tilt.enabled = false;
+      state.tilt.calibrating = false;
+      tiltButton?.classList.remove("active");
       state.tubeBoostUntil = 0;
       state.statusText = "";
       state.touch.left = state.touch.right = state.touch.up = state.touch.down = false;
@@ -587,6 +595,7 @@
       tubeView.hidden = false;
       mapView.hidden = true;
       overlay.classList.add("is-tubing");
+      if (mobileRenderTarget) enableWarpTilt(true);
       resizeBackdrop();
       startBackdropLoop();
     }
@@ -1095,6 +1104,8 @@
 
     function drawTubeTunnel(g, w, h, now) {
       const t = state.tubeTravel;
+      // 45% of the former roll rate: midway between the old over-rotation and the current almost-static tube.
+      const axialRoll = Number(state.tubeRoll || 0) + Math.sin(t * 0.13) * 0.126;
       const mid = w * 0.5;
       const minDim = Math.min(w, h);
       const maxRadius = minDim * 0.435;
@@ -1128,7 +1139,7 @@
       // the opening that collides. A large depth twist was hitting empty space.
       const courseTwist = (d) => {
         const ahead = d - 0.92;
-        return ahead * 0.12 +
+return axialRoll + ahead * 0.12 +
           (Math.sin(d * Math.PI * 2 + phase) - Math.sin(0.92 * Math.PI * 2 + phase)) * curveScale * 0.04 +
           (Math.sin(loopPhase + d * Math.PI * 2.4) - Math.sin(loopPhase + 0.92 * Math.PI * 2.4)) * loopMix * 0.10;
       };
@@ -1434,9 +1445,11 @@
     function updateTube(dt, now) {
       state.elapsed = Math.max(0, (now - state.startedAt) / 1000);
       const speedBySection = [0.76, 1.24, 0.84, 1.34, 0.68, 1.14];
+      const rollRates = [0.42, 0.82, 0.55, 1.12, 0.31, 0.72];
       const boosted = state.elapsed < Number(state.tubeBoostUntil || 0);
       const speed = tubeSectionBlend(speedBySection, state.elapsed).value * (boosted ? 1.34 : 1);
       state.tubeTravel += dt * speed;
+      state.tubeRoll = Number(state.tubeRoll || 0) + dt * tubeSectionBlend(rollRates, state.elapsed).value * 0.45;
       const routeProgress = Math.min(1, state.elapsed / WARP_DURATION);
 
       let padX = 0;
@@ -1457,7 +1470,7 @@
       // left the bottom of the circle.
       const steer = Math.max(-1, Math.min(1,
         ((state.keys.ArrowRight || state.keys.KeyD || state.touch.right ? 1 : 0) -
-         (state.keys.ArrowLeft || state.keys.KeyA || state.touch.left ? 1 : 0)) + padX));
+         (state.keys.ArrowLeft || state.keys.KeyA || state.touch.left ? 1 : 0)) + padX + (state.tilt.enabled ? state.tilt.value * 0.9 : 0)));
       state.playerAngle = Number(state.playerAngle || 0) - steer * dt * 1.85;
       state.playerAngle = Math.atan2(Math.sin(state.playerAngle), Math.cos(state.playerAngle));
       const bankTarget = -steer * 0.42;
@@ -1500,15 +1513,88 @@
       });
 
       if (state.elapsed >= WARP_DURATION) finishTube(state.shields > 0);
-      tubeMeta.textContent = "SECTOR " + sectorText(state.target) + " · " +
-        Math.max(0, WARP_DURATION - state.elapsed).toFixed(1) + " s · " +
-        Math.round(playerAngle * 180 / Math.PI) + "° WALL ALIGN";
+      tubeMeta.textContent = Math.ceil(Math.max(0, WARP_DURATION - state.elapsed)) + "s · " +
+        Math.round(playerAngle * 180 / Math.PI) + "°";
       tubeShield.style.width = state.shields + "%";
     }
 
     window.BCMDeepSpaceWarpToggle = function () {
       if (state.mode === "closed") openMap();
     };
+
+    function enableWarpTilt(recalibrate) {
+      const orientation = window.DeviceOrientationEvent;
+      if (!orientation) return;
+
+      const begin = () => {
+        if (!state.tilt.bound) {
+          window.addEventListener("deviceorientation", (event) => {
+            if (typeof event.gamma !== "number" || typeof event.beta !== "number") return;
+            state.tilt.available = true;
+            let horizontal = event.gamma;
+            const angleRaw = screen.orientation && typeof screen.orientation.angle === "number"
+              ? screen.orientation.angle
+              : (typeof window.orientation === "number" ? window.orientation : 0);
+            const angle = ((angleRaw % 360) + 360) % 360;
+            if (angle === 90) horizontal = -event.beta;
+            else if (angle === 270) horizontal = event.beta;
+            else if (angle === 180) horizontal = -event.gamma;
+
+            if (!state.tilt.filterReady) {
+              state.tilt.filtered = horizontal;
+              state.tilt.filterReady = true;
+            } else {
+              state.tilt.filtered += (horizontal - state.tilt.filtered) * 0.22;
+            }
+
+            if (state.tilt.calibrating) {
+              state.tilt.sum += state.tilt.filtered;
+              state.tilt.samples += 1;
+              if (state.tilt.samples >= 10) {
+                state.tilt.neutral = state.tilt.sum / state.tilt.samples;
+                state.tilt.calibrating = false;
+                state.tilt.enabled = true;
+                state.tilt.value = 0;
+                tiltButton?.classList.add("active");
+              }
+              return;
+            }
+            if (!state.tilt.enabled) return;
+            const delta = state.tilt.filtered - state.tilt.neutral;
+            const dead = 2.5;
+            state.tilt.value = Math.abs(delta) <= dead
+              ? 0
+              : Math.max(-1, Math.min(1, (delta - Math.sign(delta) * dead) / 16));
+          }, true);
+          state.tilt.bound = true;
+        }
+
+        state.tilt.permissionGranted = true;
+        if (recalibrate || !state.tilt.enabled) {
+          state.tilt.calibrating = true;
+          state.tilt.samples = 0;
+          state.tilt.sum = 0;
+          state.tilt.value = 0;
+          state.tilt.enabled = false;
+          tiltButton?.classList.add("active");
+        }
+      };
+
+      if (typeof orientation.requestPermission === "function" && !state.tilt.permissionGranted) {
+        orientation.requestPermission().then((permission) => {
+          if (permission === "granted") begin();
+          else {
+            state.tilt.enabled = false;
+            tiltButton?.classList.remove("active");
+          }
+        }).catch(() => {
+          state.tilt.enabled = false;
+          tiltButton?.classList.remove("active");
+        });
+      } else {
+        begin();
+      }
+    }
 
     function bindWarpInput() {
       overlay.addEventListener("pointerdown", (event) => {
@@ -1557,7 +1643,9 @@
         const direction = button.dataset.warpControl;
         const down = (event) => {
           event.preventDefault();
-          if (state.mode === "tube") state.touch[direction] = true;
+          if (state.mode !== "tube") return;
+          if (direction === "tilt") { enableWarpTilt(true); return; }
+          state.touch[direction] = true;
         };
         const up = (event) => {
           event.preventDefault();

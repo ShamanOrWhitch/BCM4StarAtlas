@@ -575,8 +575,12 @@
       if (levelMediaArmed) return;
       levelMediaArmed = true;
 
-      // Priority 1: the visible Room 1 right-wall video. Keep using this exact
-      // VideoTexture element so the scene can show it as soon as it decodes.
+      // First issue the nearest Room 1 wall requests. Critical wall textures
+      // use the highest queue/fetch priority; this never pauses flight or controls.
+      startBackgroundTextureLoading();
+
+      // Next request the live right-wall video, after local wall textures have
+      // already been queued and dispatched.
       const room1RightWall = liveInterior.find((item) => item.mesh && item.mesh.name === "room1-right-wall-live");
       if (room1RightWall) {
         try {
@@ -586,12 +590,12 @@
         warmInteriorVideo(room1RightWall);
       }
 
-      // Priority 2: preload the real transition element, not a duplicate video
-      // which would decode the first frame that the transition itself cannot use.
-      primePortalVideo("FORWARD", "high");
+      // Queue the actual portal transition after the right-wall video request.
+      // If the player reaches it earlier, the transition code still loads it on demand.
+      window.setTimeout(() => primePortalVideo("FORWARD", "high"), 250);
 
-      // After critical requests have been issued, warm the next room / rear cap
-      // and portal-return clip; finally let background textures drain by priority.
+      // Only after critical startup requests, warm the rear cap / Room 2 video
+      // and the portal-return clip. Decorative and exterior PNGs stay low priority.
       window.setTimeout(() => {
         const capdoor = liveInterior.find((item) => item.mesh && item.mesh.name === "room1-rear-capdoor");
         const room2Corridor = liveInterior.find((item) => item.mesh && item.mesh.name === "room2-right-wall-live-bottom-right");
@@ -617,7 +621,6 @@
           const wallPlay = liveWall.el.play();
           if (wallPlay && wallPlay.catch) wallPlay.catch(() => {});
         }
-        startBackgroundTextureLoading();
       }, 650);
     };
     armLevelMedia();
@@ -789,11 +792,11 @@
 
   function textureRequestPriority(name) {
     const base = String(name || "").split(/[\\/]/).pop().toLowerCase();
-    if (/^back.*\.png$/.test(base)) return 9;
-    // Main Room 1 walls/roof and portal/door faces are critical; corner
-    // ornaments are deferred until their queue starts after the portal request.
-    if (/^(wall[1-5]|roof[0-9]*|door[0-9]*|portal[0-9]*)\.png$/.test(base)) return 1;
+    if (/^wall[1-5]\.png$/.test(base)) return 1;
+    if (/^roof[0-9]*\.png$/.test(base)) return 2;
+    if (/^(door[0-9]*|portal[0-9]*)\.png$/.test(base)) return 4;
     if (/^roofa[0-9]*\.png$/.test(base)) return 4;
+    if (/^back.*\.png$/.test(base)) return 9;
     return 3;
   }
 
@@ -846,7 +849,7 @@
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.decoding = "async";
-      try { img.fetchPriority = job.priority <= 1 ? "auto" : "low"; } catch (e) {}
+      try { img.fetchPriority = job.priority <= 1 ? "high" : (job.priority <= 4 ? "auto" : "low"); } catch (e) {}
       let settled = false;
       const finish = (ok) => {
         if (settled) return;
@@ -3739,6 +3742,31 @@
     focusVideoTarget(getNearestVideoTarget());
   }
 
+  function orbitFocusedScreenByDrag(dx, dy) {
+    if (!mobileLandscape() || !cinema.focus || !cinema.focus.mesh) return false;
+    const target = cinema.focus.mesh.getWorldPosition(new THREE.Vector3());
+    const offset = ship.position.clone().sub(target);
+    const distance = offset.length();
+    if (distance < 2.5) return false;
+
+    offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), -dx * 0.006);
+    const currentPitch = Math.asin(Math.max(-1, Math.min(1, offset.y / distance)));
+    const nextPitch = Math.max(-0.9, Math.min(0.9, currentPitch + dy * 0.004));
+    const horizontal = Math.hypot(offset.x, offset.z);
+    const nextHorizontal = Math.cos(nextPitch) * distance;
+    if (horizontal > 1e-6) {
+      offset.x = offset.x / horizontal * nextHorizontal;
+      offset.z = offset.z / horizontal * nextHorizontal;
+    }
+    offset.y = Math.sin(nextPitch) * distance;
+
+    ship.position.copy(target).add(offset);
+    ship.velocity.set(0, 0, 0);
+    ship.angularVelocity.set(0, 0, 0);
+    collide();
+    return true;
+  }
+
   function orbitFocusedScreen(dt) {
     if (!mobileLandscape() || !cinema.focus || !cinema.focus.mesh) return false;
     const orbitDir = touch.yawLeft ? -1 : (touch.yawRight ? 1 : 0);
@@ -4557,8 +4585,12 @@
       const dx = ev.clientX - prevX, dy = ev.clientY - prevY;
       if (Math.hypot(ev.clientX - dragStartX, ev.clientY - dragStartY) > 9) dragMoved = true;
       dragX = ev.clientX; dragY = ev.clientY;
-      ship.angularVelocity.y -= dx * 0.0011;
-      ship.angularVelocity.x -= dy * 0.0010;
+      if (cinema.focus && mobileLandscape()) {
+        orbitFocusedScreenByDrag(dx, dy);
+      } else {
+        ship.angularVelocity.y -= dx * 0.0011;
+        ship.angularVelocity.x -= dy * 0.0010;
+      }
     });
     const endDrag = (ev) => {
       if (dragPointerId !== ev.pointerId) return;
