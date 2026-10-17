@@ -1,6 +1,6 @@
 ## D-014 — 0.9.93 mobile controls, media priority and return status
 
-**Статус: IMPLEMENTED-IN-BRANCH; CI / live Android verification pending.** Рабочая ветка: fix/mobile-controls-0.9.93.
+**Статус: TESTED-CODE + BROWSER-SMOKE on PR #38 head `962cb6267012232bfa4dd866b4af1ef5a07f3e43`; manual Android confirmation still pending.** Рабочая ветка: fix/mobile-controls-0.9.93. All five checks succeeded: Mini-Sim regression [39023693544](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39023693544), Warp maze return [39023693553](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39023693553), Warp course/portal first-frame [39023693536](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39023693536), Tower top-cap regression [39023693535](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39023693535), browser QA [39023693611](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39023693611).
 
 - Загрузка: запуск очереди текстур ближайших стен до видео правой стены; реальное видео портала запрашивается после правого видео; наружные и декоративные текстуры сохраняют низкий приоритет.
 - Warp Tube: компактный HUD на touch-экранах; управление наклоном устройства с запросом разрешения iOS и кнопкой перекалибровки; осевое вращение восстановлено с коэффициентом 0.45 от прежнего чрезмерного темпа при сохранении текущего кольцевого курса и углов коллизий.
