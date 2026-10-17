@@ -1139,11 +1139,11 @@
       // the opening that collides. A large depth twist was hitting empty space.
       const courseTwist = (d) => {
         const ahead = d - 0.92;
-        return ahead * 0.12 +
+line => line.replace("return ahead * 0.12 +", "return axialRoll + ahead * 0.12 +")
           (Math.sin(d * Math.PI * 2 + phase) - Math.sin(0.92 * Math.PI * 2 + phase)) * curveScale * 0.04 +
           (Math.sin(loopPhase + d * Math.PI * 2.4) - Math.sin(loopPhase + 0.92 * Math.PI * 2.4)) * loopMix * 0.10;
       };
-      const twistAt = (d) => axialRoll + courseTwist(d);
+      const twistAt = (d) => courseTwist(d);
       const point = (d, theta, extra) => {
         const angle = theta + twistAt(d);
         const rx = radiusX(d) + (extra || 0);
@@ -1327,7 +1327,7 @@
       // The ship rides the wall. Right decreases the angle so it moves screen-right
       // from the bottom; the tunnel itself stays put.
       const nearDepth = 0.92;
-      const craftAngle = playerAngle + axialRoll + courseTwist(nearDepth);
+      const craftAngle = playerAngle + courseTwist(nearDepth);
       const craftPoint = point(nearDepth, playerAngle, -radiusX(nearDepth) * 0.20);
       g.save();
       g.translate(craftPoint.x, craftPoint.y);
