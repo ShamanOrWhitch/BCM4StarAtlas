@@ -1139,7 +1139,7 @@
       // the opening that collides. A large depth twist was hitting empty space.
       const courseTwist = (d) => {
         const ahead = d - 0.92;
-line => line.replace("return ahead * 0.12 +", "return axialRoll + ahead * 0.12 +")
+return axialRoll + ahead * 0.12 +
           (Math.sin(d * Math.PI * 2 + phase) - Math.sin(0.92 * Math.PI * 2 + phase)) * curveScale * 0.04 +
           (Math.sin(loopPhase + d * Math.PI * 2.4) - Math.sin(loopPhase + 0.92 * Math.PI * 2.4)) * loopMix * 0.10;
       };
