@@ -585,14 +585,14 @@
       if (room1RightWall) {
         try {
           room1RightWall.el.preload = "auto";
-          room1RightWall.el.fetchPriority = "auto";
+          room1RightWall.el.fetchPriority = "high";
         } catch (e) {}
         warmInteriorVideo(room1RightWall);
       }
 
       // Queue the actual portal transition after the right-wall video request.
       // If the player reaches it earlier, the transition code still loads it on demand.
-      window.setTimeout(() => primePortalVideo("FORWARD", "low"), 250);
+      window.setTimeout(() => primePortalVideo("FORWARD", "high"), 250);
 
       // Only after critical startup requests, warm the rear cap / Room 2 video
       // and the portal-return clip. Decorative and exterior PNGs stay low priority.
@@ -795,9 +795,9 @@
     if (/^wall[1-5]\.png$/.test(base)) return 1;
     if (/^roof[0-9]*\.png$/.test(base)) return 2;
     if (/^(door[0-9]*|portal[0-9]*)\.png$/.test(base)) return 4;
-    if (/^roofa[0-9]*\.png$/.test(base)) return 7;
-    if (/^back.*\.png$/.test(base)) return 15;
-    return 8;
+    if (/^roofa[0-9]*\.png$/.test(base)) return 4;
+    if (/^back.*\.png$/.test(base)) return 9;
+    return 3;
   }
 
   function queueLowPriorityImage(url, onload, onerror, priority) {
