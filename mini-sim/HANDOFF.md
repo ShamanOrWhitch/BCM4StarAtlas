@@ -5,8 +5,8 @@
 ## Источник истины
 
 - Проверенный main: Mini-Sim 0.9.92, Tower 0.2.57, релизный коммит [46dea0ed](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/46dea0ed32cebac7636f8c2522ccb6fe4348ddda).
-- Рабочая ветка: [fix/mobile-controls-0.9.93](https://github.com/ShamanOrWhitch/BCM4StarAtlas/tree/fix/mobile-controls-0.9.93). В ней подготовлены изменения Mini-Sim 0.9.93 и Tower 0.2.58. CI/PR и реальный телефонный тест ещё должны подтвердить их.
-- **Пользователь подтвердил, что возврат из астероидного лабиринта к карте текущего сектора работает.** Сохранять это поведение и не менять sector/return logic.
+- Рабочая ветка: [fix/mobile-controls-0.9.93](https://github.com/ShamanOrWhitch/BCM4StarAtlas/tree/fix/mobile-controls-0.9.93), [PR #38](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/38). Все 5 Actions checks прошли на head `962cb6267012232bfa4dd866b4af1ef5a07f3e43` (включая browser smoke с подменой ассетов). Физический Android-тест не выполнен; PR готов к review, не merged и не deployed на WordPress.
+- **Пользователь подтвердил, что возврат из астероидного лабиринта к карте текущего сектора работает.** Сохранять это поведение и не менять sector/return logic. GitHub issues #21, #22, #24 и #26 закрыты; новые мобильные проблемы ведутся в PR #38.
 - Крупная отсутствующая функция: полная карта SAGE/галактики — [Issue #28](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/28).
 
 ## Что меняется в 0.9.93
