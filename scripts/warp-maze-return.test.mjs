@@ -67,7 +67,7 @@ test("Warp Tube is a rolling circular cylinder with a curved / corkscrew route",
   const body = section(warp, "function drawTubeTunnel", "function drawBackdrop");
   const update = section(warp, "function updateTube(dt, now)", "window.BCMDeepSpaceWarpToggle");
   assert.match(warp, /const WARP_DURATION = 48/);
-  assert.match(body, /const twistAt = \(d\) => axialRoll \+ courseTwist\(d\)/);
+  assert.match(body, /const twistAt = \(d\) => courseTwist\(d\)/);
   assert.match(body, /const radiusX = \(d\) =>/);
   assert.match(body, /const radiusY = \(d\) => radiusX\(d\) \* 0\.91/);
   assert.match(body, /const point = \(d, theta, extra\)/);
@@ -126,6 +126,7 @@ test("Warp Tube restores a moderated axial roll and phone tilt steering", () => 
   assert.match(warp, /data-warp-control="tilt"/);
   assert.match(warp, /function enableWarpTilt\(recalibrate\)/);
   assert.match(draw, /const axialRoll = Number\(state\.tubeRoll \|\| 0\) \+ Math\.sin\(t \* 0\.13\) \* 0\.126/);
+  assert.match(draw, /return axialRoll \+ ahead \* 0\.12/);
   assert.match(update, /const rollRates = \[0\.42, 0\.82, 0\.55, 1\.12, 0\.31, 0\.72\]/);
   assert.match(update, /tubeSectionBlend\(rollRates, state\.elapsed\)\.value \* 0\.45/);
   assert.match(update, /state\.tilt\.value \* 0\.9/);
