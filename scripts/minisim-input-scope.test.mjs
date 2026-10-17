@@ -38,7 +38,7 @@ test("startup requests nearby wall textures before right-wall video and portal m
   assert.match(priorities, /roof\[0-9\].*return 2/);
   assert.match(priorities, /back.*return 15/);
   assert.ok(arm.indexOf("startBackgroundTextureLoading()") < arm.indexOf("warmInteriorVideo(room1RightWall)"));
-  assert.ok(arm.indexOf("warmInteriorVideo(room1RightWall)") < arm.indexOf('primePortalVideo("FORWARD", "low")'));
+  assert.ok(arm.indexOf("warmInteriorVideo(room1RightWall)") < arm.indexOf('primePortalVideo("FORWARD", "high")'));
   assert.match(source, /img\.fetchPriority = job\.priority <= 1 \? "high"/);
 });
 
