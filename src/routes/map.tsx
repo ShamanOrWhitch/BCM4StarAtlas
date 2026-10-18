@@ -24,16 +24,16 @@ class MapBoundary extends Component<{ children: ReactNode }, { error: string }> 
 }
 
 export function MapPage() {
-  const [globe, setGlobe] = useState(false);
+  const [globe, setGlobe] = useState(true);
   return (
     <MapBoundary>
       <main className="relative h-full min-h-[560px] w-full overflow-hidden bg-bg">
         <button
           type="button"
           onClick={() => setGlobe((on) => !on)}
-          className="absolute top-3 right-3 z-20 h-11 rounded-lg border border-line bg-surface px-3 font-display text-sm"
+          className="absolute right-3 bottom-4 z-20 h-11 rounded-lg border border-line bg-surface px-3 font-display text-sm"
         >
-          {globe ? "Плоская SAGE" : "3D глобус"}
+          {globe ? "Сектора" : "3D"}
         </button>
         {globe ? (
           <>

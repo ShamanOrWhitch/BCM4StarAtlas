@@ -14,6 +14,7 @@ const _look = new THREE.Vector3();
 const _dest = new THREE.Vector3();
 const _shipLook = new THREE.Vector3();
 const _orbit = new THREE.Vector3();
+const liveCss = new THREE.Vector3(2.38, 0.78, 1.12);
 
 function glowTexture() {
   const c = document.createElement("canvas");
@@ -32,9 +33,7 @@ function glowTexture() {
 }
 
 function markerPos(marker: Marker, target: THREE.Vector3) {
-  if (marker.orbit) {
-    return target.set(marker.orbit[0], marker.orbit[1], marker.orbit[2]);
-  }
+  if (marker.orbit) return target.copy(liveCss);
   return latLngToVec3(marker.lat, marker.lng, RADIUS + 0.04, target);
 }
 
@@ -177,18 +176,25 @@ function CssStation({
     return m?.placement === "hab" || (m?.placement === "orbit" && m.id !== marker.id && Boolean(m.orbit));
   });
   const group = useRef<THREE.Group>(null);
-  const pos = marker.orbit ?? [2.38, 0.78, 1.12];
+  const spin = useRef<THREE.Group>(null);
 
-  useFrame((_, d) => {
-    if (group.current) group.current.rotation.y += Math.min(d, 0.1) * 0.18;
+  useFrame((state, raw) => {
+    const d = Math.min(raw, 0.05);
+    const reduce =
+      typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const t = reduce ? 0.4 : state.clock.elapsedTime * 0.22;
+    const radius = 2.5;
+    liveCss.set(Math.cos(t) * radius, 0.48 + Math.sin(t * 2) * 0.07, Math.sin(t) * radius * 0.9);
+    if (group.current) group.current.position.copy(liveCss);
+    if (spin.current) spin.current.rotation.y += d * (reduce ? 0 : 0.35);
   });
 
   const metal = selected ? "#f2e6c2" : color;
 
   return (
     <group
-      position={pos}
-      scale={1.55}
+      ref={group}
+      scale={1.35}
       onClick={(e) => {
         e.stopPropagation();
         onPick(marker.id);
@@ -198,7 +204,7 @@ function CssStation({
         <sphereGeometry args={[0.95, 24, 24]} />
         <meshBasicMaterial color={color} transparent opacity={selected ? 0.08 : 0.04} depthWrite={false} />
       </mesh>
-      <group ref={group}>
+      <group ref={spin}>
         <mesh rotation={[Math.PI / 2, 0, 0.2]}>
           <torusGeometry args={[0.42, 0.038, 10, 48]} />
           <meshStandardMaterial color={metal} metalness={0.72} roughness={0.28} emissive={metal} emissiveIntensity={0.22} />
