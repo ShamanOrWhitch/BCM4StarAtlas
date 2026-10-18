@@ -42,6 +42,8 @@ test("Tower seed generation is gentler; keyboard/touch slow down without slowing
   assert.match(tower, /const footContactReach = 0\.32;/);
   assert.match(tower, /let depth = 1\.9;/);
   assert.match(tower, /let width = platformWidth;/);
+  assert.match(tower, /let depth = 1\.9;/);
+  assert.match(tower, /Math\.abs\(player\.radial - targetRadial\) > 0\.88/);
   assert.match(tower, /const angularReach = Math\.atan2\(platformHalfWidth \+ footContactReach, Math\.max\(1, surfaceRadius\)\)/);
   assert.match(tower, /Math\.abs\(player\.radial - targetRadial\) > 0\.88/);
   assert.match(tower, /controls\[i\]\.gamepad = true/);
