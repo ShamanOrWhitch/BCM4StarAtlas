@@ -63,10 +63,15 @@ test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, amm
   assert.match(hull, /new THREE\.Sprite\(new THREE\.SpriteMaterial/);
   assert.match(hull, /data-hull-control="shoot"/);
   assert.match(hull, /data-hull-control="reload"/);
+  assert.match(hull, /data-hull-control="helm"/);
+  assert.match(hull, /pilotMode = true/);
+  assert.match(hull, /enginePower = Math\.max\(0, Math\.min\(1, enginePower \+ input\.dy \* dt \* 0\.7\)\)/);
+  assert.match(hull, /function makeHullSideTexture\(THREE\)/);
+  assert.match(hull, /PИЛОТ \/ НАВИГАЦИЯ|ПИЛОТ \/ НАВИГАЦИЯ/);
   assert.match(hull, /ОРУДИЕ \/ БОЕЗАПАС/);
   assert.match(hull, /function fireWeapon\(player\)/);
   assert.match(hull, /const maxAmmo = 6/);
-  assert.match(hull, /reloadProgress >= 1\.05/);
+  assert.match(hull, /reloadProgress\[index\] >= 1\.05/);
   assert.match(hull, /window\.caches\.open\("bcm-tower-crew-cutouts-v8"\)/);
   assert.match(hull, /function readGamepad\(\)/);
   assert.match(hull, /navigator\.getGamepads/);
