@@ -8,7 +8,14 @@ on:
       - main
     paths:
       - mini-sim/tower/assets/js/tower.js
+      - mini-sim/assets/js/deep-space-warp.js
+      - mini-sim/assets/js/hull-dive.js
+      - mini-sim/assets/js/mini-sim.js
+      - mini-sim/bcm-mini-sim.php
+      - mini-sim/tower/bcm-tower.php
       - scripts/tower-top-cap.test.mjs
+      - scripts/minisim-local-qa.test.mjs
+      - scripts/asteroid-tower-hull-controls.test.mjs
       - .github/workflows/tower-top-cap-regression.yml
 jobs:
   source-contract:
@@ -20,5 +27,5 @@ jobs:
           node-version: 20
       - name: Check Tower syntax
         run: node --check mini-sim/tower/assets/js/tower.js
-      - name: Run top cap source-contract
-        run: node --test scripts/tower-top-cap.test.mjs
+      - name: Run Mini-Sim / Tower source-contract tests
+        run: node --test scripts/tower-top-cap.test.mjs scripts/minisim-local-qa.test.mjs scripts/asteroid-tower-hull-controls.test.mjs

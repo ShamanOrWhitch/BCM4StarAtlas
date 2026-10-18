@@ -1,3 +1,19 @@
+## D-015 — asteroіd textures, calmer Tower, faster Warp and controllable Hull Dive crew
+
+**Статус:** IMPLEMENTED IN BRANCH; TESTED-CODE ожидает CI на PR SHA; VERIFIED-LIVE отсутствует. Baseline `437be7a24970f3d0e52438427f4dcb1c4bf7fd86`, branch `fix/asteroid-tower-hull-controls`, [WORK LOCK Issue #39](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/39).
+
+- Астероидные стены берут текстуры из семейства `mini-sim/assets/asterwall*`. В одном входе лабиринта выбираются максимум четыре варианта, затем панели распределяются по ним; при ошибке загрузки остаётся процедурная fallback-текстура. Ограничение удерживает загрузку разумной для старых телефонов.
+- Tower: более короткие прыжки между секторами, меньше боковых опасностей и объектов. Keyboard/touch/mouse/tilt реагируют спокойнее; когда подключён gamepad, его масштаб ввода остаётся 1.0.
+- Warp Tube: перемещение/прокрутка ускорены коэффициентом 1.25, boost — 1.4; длительность составляет 42 секунды вместо 48. Сцена и аудио по-прежнему общие с Mini-Sim.
+- Room 0 временно использует speed level 3 (thrust 24 / max speed 60). Предыдущий режим запоминается и восстанавливается при возврате с трассы либо Home.
+- Hull Dive: два процедурных чиби-астронавта; P1 — WASD, F/E, экранные кнопки и gamepad (левый стик/D-pad, A repair, B pump); P2 — стрелки, Enter/Shift. Механики воды, общего кислорода, насоса и сварки пока сохранены.
+- Это не сетевой мультиплеер: роли пилота/стрелка/инженера, FPS у штурвала, скафандры, вакуумное вытягивание и zero-G — следующий отдельный дизайн/реализационный этап. Для инкрементального подхода к маленькому игровому прототипу как вдохновение просмотрен [studioigor/ref2game](https://github.com/studioigor/ref2game); репозиторий не устанавливается как runtime dependency.
+- Не менять подтверждённый пользователем переход обратно к карте текущего сектора, SAGE навигацию/сектор, порядок мультимедийной загрузки, глобальный OST mixer или Crew segmentation workflow. Никаких on-chain команд/транзакций не добавляется.
+
+Результаты CI, commit SHA и живой статус дописать после проверок.
+
+---
+
 ## D-014 — 0.9.93 mobile controls, media priority and return status
 
 **Статус: MERGED / TESTED-CODE + BROWSER-SMOKE; физический Android-тест ещё нужен.** Mini-Sim 0.9.93 / Tower 0.2.58 merged by [09c0a955](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/09c0a9553daa6406302c3e54cd0bca1aaeff6702) from [PR #38](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/38). All five Actions checks passed on the tested PR head `962cb6267012232bfa4dd866b4af1ef5a07f3e43`; documentation reconciliation was validated on the later PR head. Browser QA on code head [39023846140](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39023846140) also succeeded. These checks do not prove input on a physical Android phone and do not deploy to WordPress.
