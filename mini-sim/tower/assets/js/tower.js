@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.59";
+  const TOWER_VERSION = "0.2.60";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -966,6 +966,10 @@
     const baseTurnSpeed = 2.2;
     const trimPower = 10.5;
     const sectorWidth = () => tower ? Math.PI * 2 / tower.sectors : Math.PI / 9;
+    // Platforms overlap slightly across neighboring sectors, while collision permits
+    // landing when the near foot (not the body center) is still over the surface.
+    const platformWidth = 3.35;
+    const footContactReach = 0.32;
 
     const controls = [
       { left: false, right: false, up: false, down: false, jump: false, interact: false, gamepad: false },
@@ -1094,8 +1098,8 @@
       let texUrl = "";
       let color = 0x8eb0c9;
       let height = 0.46;
-      let depth = 1.65;
-      let width = 2.65;
+      let depth = 1.9;
+      let width = platformWidth;
 
       if (cell.surface === "rock") {
         geometry = new THREE.DodecahedronGeometry(1.0, 0);
@@ -1278,7 +1282,7 @@
     function buildBirds() {
       birds = [];
       const rand = mulberry32(seed ^ 0xB17D5EED);
-      const count = 36;
+      const count = 38;
       const colors = [0xe6d7a8, 0xf2f2f2, 0x8fd0ff, 0xffb0c8, 0xb7f0a8, 0xffd27a];
 
       for (let i = 0; i < count; i++) {
@@ -1733,10 +1737,12 @@
           }
 
           const da = Math.abs(angleDelta(player.angle, surfaceAngle));
-          if (da > sectorWidth() * 0.36) continue;
+          const platformHalfWidth = cell.surface === "rock" ? 1.05 : platformWidth / 2;
+          const angularReach = Math.atan2(platformHalfWidth + footContactReach, Math.max(1, surfaceRadius));
+          if (da > angularReach) continue;
 
           const targetRadial = surfaceRadius + 0.65;
-          if (Math.abs(player.radial - targetRadial) > 0.72) continue;
+          if (Math.abs(player.radial - targetRadial) > 0.88) continue;
 
           const y = mesh ? mesh.position.y : cellWorldY(cell);
           const dy = player.y - (y + 0.72);
