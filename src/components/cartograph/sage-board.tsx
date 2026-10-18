@@ -6,7 +6,7 @@ const ZONES = [
   { id: "ustur", title: "Ustur", tone: "Жёлтый", note: "Safe zone. Дом роботов — Ioki, не сектор Galia." },
 ] as const;
 
-export function SageBoard() {
+export function SageBoard({ onOpen }: { onOpen?: (id: string) => void }) {
   return (
     <div className="flex h-full min-h-[560px] flex-col gap-4 overflow-y-auto bg-[#070b12] p-4 md:p-6">
       <div>
@@ -34,6 +34,15 @@ export function SageBoard() {
                   </li>
                 ))}
               </ul>
+              {onOpen ? (
+                <button
+                  type="button"
+                  onClick={() => onOpen(zone.id)}
+                  className="mt-3 h-11 w-full rounded-lg border border-line font-display text-sm"
+                >
+                  3D · CSS
+                </button>
+              ) : null}
             </section>
           );
         })}

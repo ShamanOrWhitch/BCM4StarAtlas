@@ -226,6 +226,17 @@ export function MarketPage() {
               Биржа Star Atlas
             </a>
           </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <PairCard name="ATLAS / USD" value={snap?.pairQuotes?.atlasUsdc ?? snap?.atlas?.usd ?? null} unit="USD" />
+            <PairCard name="POLIS / USD" value={snap?.pairQuotes?.polisUsdc ?? snap?.polis?.usd ?? null} unit="USD" />
+            <PairCard name="SOL за 1 POLIS" value={snap?.pairQuotes?.solPerPolis ?? null} unit="SOL" />
+            <PairCard name="ATLAS за 1 SOL" value={snap?.pairQuotes?.atlasPerSol ?? null} unit="ATLAS" />
+          </div>
+          <CandleChart title="ATLAS / USD" candles={snap?.candles ?? []} />
+          <CandleChart title="POLIS / USD" candles={snap?.polisUsdcCandles ?? []} />
+          <CandleChart title="SOL за 1 POLIS" candles={snap?.solPolisCandles ?? []} />
+          <CandleChart title="ATLAS за 1 SOL" candles={snap?.solAtlasCandles ?? []} />
+          <CandleChart title="ATLAS за 1 POLIS" candles={snap?.pairCandles ?? []} />
           <BubbleField
             title="Ресурсы"
             rows={viewRows}
@@ -240,17 +251,6 @@ export function MarketPage() {
             floors={floors}
             versus={period === "all" ? "floor" : "tape"}
           />
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <PairCard name="ATLAS / USD" value={snap?.pairQuotes?.atlasUsdc ?? snap?.atlas?.usd ?? null} unit="USD" />
-            <PairCard name="POLIS / USD" value={snap?.pairQuotes?.polisUsdc ?? snap?.polis?.usd ?? null} unit="USD" />
-            <PairCard name="SOL за 1 POLIS" value={snap?.pairQuotes?.solPerPolis ?? null} unit="SOL" />
-            <PairCard name="ATLAS за 1 SOL" value={snap?.pairQuotes?.atlasPerSol ?? null} unit="ATLAS" />
-          </div>
-          <CandleChart title="ATLAS / USD" candles={snap?.candles ?? []} />
-          <CandleChart title="POLIS / USD" candles={snap?.polisUsdcCandles ?? []} />
-          <CandleChart title="SOL за 1 POLIS" candles={snap?.solPolisCandles ?? []} />
-          <CandleChart title="ATLAS за 1 SOL" candles={snap?.solAtlasCandles ?? []} />
-          <CandleChart title="ATLAS за 1 POLIS" candles={snap?.pairCandles ?? []} />
 
           <div className="flex flex-wrap items-center gap-2">
             {FILTERS.map((item) => (

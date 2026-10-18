@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.8.14
+ * Version: 0.8.15
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -1110,9 +1110,11 @@ function galia_desk_shortcode() {
         <button type="button" data-galia-refresh>Обновить</button>
         <span data-galia-status>Загрузка…</span>
       </div>
-      <div data-galia-chart></div>
       <div class="galia-desk-tokens" data-galia-tokens></div>
+      <div data-galia-chart></div>
+      <div data-galia-resources></div>
       <div class="galia-desk-table" data-galia-table></div>
+      <div data-galia-ships></div>
       <h3 class="galia-desk-title">Сейф</h3>
       <form class="galia-desk-row" data-galia-wallet>
         <input type="text" name="owner" placeholder="Публичный ключ" autocomplete="off" spellcheck="false" />
@@ -1191,7 +1193,11 @@ function galia_desk_shortcode() {
             return '<div class="galia-desk-card"><strong>' + key.toUpperCase() + '</strong> $' + num(q.usd) + ' · 24ч ' + num(q.change24h) + '% · оборот ' + num(q.circulating) + '</div>';
           }).join("");
           var week = weekAsks(data);
-          root.querySelector("[data-galia-chart]").innerHTML = bubblesHtml("Ресурсы", data.resources || [], week) + bubblesHtml("Корабли", data.ships || [], week) + candlesSvg("POLIS / ATLAS · 1д", data.pairCandles || []) + candlesSvg("ATLAS / USD · 1д", data.candles || []);
+          root.querySelector("[data-galia-chart]").innerHTML = candlesSvg("ATLAS / USD · 1д", data.candles || []) + candlesSvg("POLIS / ATLAS · 1д", data.pairCandles || []);
+          var resources = root.querySelector("[data-galia-resources]");
+          if (resources) resources.innerHTML = bubblesHtml("Ресурсы", data.resources || [], week);
+          var ships = root.querySelector("[data-galia-ships]");
+          if (ships) ships.innerHTML = bubblesHtml("Корабли", data.ships || [], week);
           var rows = (data.resources || []).filter(function (row) { return row.ask != null; });
           var html = '<table><thead><tr><th>Ресурс</th><th>Класс</th><th>Продажа, ATLAS</th><th>Покупка, ATLAS</th><th>Δ</th></tr></thead><tbody>';
           rows.forEach(function (row) {
@@ -1604,13 +1610,13 @@ function galia_desk_globe_markup($full = false) {
     ?>
     <div id="galia-root" style="min-height:<?php echo esc_attr($height); ?>;background:#07090e"></div>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" />
-    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.8.14'); ?>" />
+    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.8.15'); ?>" />
     <!-- noptimize -->
     <script>
       window.GALIA_ASSET = <?php echo wp_json_encode($base); ?>;
       window.GALIA_WP = <?php echo wp_json_encode(array('ajax' => $ajax, 'nonce' => $nonce)); ?>;
     </script>
-    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.8.14'); ?>"></script>
+    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.8.15'); ?>"></script>
     <!-- /noptimize -->
     <?php
     return ob_get_clean();

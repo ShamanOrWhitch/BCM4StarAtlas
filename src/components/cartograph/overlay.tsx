@@ -20,7 +20,7 @@ const PLACE: Record<Placement, string> = {
   hab: "на CSS",
 };
 
-export function Overlay() {
+export function Overlay({ expanse = false }: { expanse?: boolean }) {
   const systemId = useCartograph((s) => s.systemId);
   const markerId = useCartograph((s) => s.markerId);
   const favorites = useCartograph((s) => s.favorites);
@@ -66,7 +66,9 @@ export function Overlay() {
       <header className="pointer-events-auto absolute top-0 right-0 left-0 z-30 flex h-14 items-center gap-2 border-b border-line bg-bg/85 px-3 backdrop-blur-md md:h-16 md:px-4">
         <div className="min-w-0 flex-1">
           <p className="font-display text-[10px] tracking-[0.22em] text-brass uppercase">Star Atlas · Galia</p>
-          <p className="truncate font-display text-base font-semibold leading-tight md:text-lg">{system.name}</p>
+          <p className="truncate font-display text-base font-semibold leading-tight md:text-lg">
+            {expanse ? "Galia Expanse" : system.name}
+          </p>
         </div>
         <div className="hidden md:block">
           <AppNav current="map" />
@@ -192,7 +194,11 @@ export function Overlay() {
 
       <footer className="pointer-events-none absolute right-3 bottom-32 left-3 md:right-80 md:bottom-16 md:left-64">
         <div className="pointer-events-auto mx-auto max-w-lg">
-          {marker ? (
+          {expanse ? (
+            <p className="rounded-xl border border-line bg-surface/80 px-4 py-3 text-sm text-muted backdrop-blur-md">
+              Galia — весь простор, не планета. Без кошелька остаётесь здесь. ONI открывает спутник ONI CSS, Ustur — Ioki.
+            </p>
+          ) : marker ? (
             <div className="rounded-xl border border-line bg-surface/90 px-4 py-3 backdrop-blur-md">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
