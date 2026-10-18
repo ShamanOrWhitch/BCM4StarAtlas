@@ -16,7 +16,7 @@
     root.id = "bcm-hull-dive";
     root.style.cssText = "position:fixed;inset:0;z-index:80;background:#041018;color:#e7eef2;font-family:Rajdhani,sans-serif;";
     root.innerHTML =
-      '<div style="position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:12px;pointer-events:none">' +
+      '<div style="position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:12px;pointer-events:none;z-index:10">' +
       '<div><div style="letter-spacing:.18em;font-size:12px;color:#c4a35a">ОТСЕК · ПРОРЫВ</div>' +
       '<div data-hull-status style="font-size:14px;margin-top:4px">Завари пробоину и откачай воду</div></div>' +
       '<button type="button" data-hull-exit style="pointer-events:auto;height:44px;padding:0 14px;border:1px solid #355066;background:#10202c;color:#e7eef2;border-radius:8px">К КОЛЬЦУ</button></div>' +
@@ -255,7 +255,7 @@
           map: texture, transparent: true, depthTest: false, depthWrite: false
         }));
         sprite.scale.set(0.82, 1.1, 1);
-        sprite.position.set(player.x, player.y, 0.72 + index * 0.01);
+        sprite.position.set(player.x, player.y + 0.16, 0.72 + index * 0.01);
         sprite.renderOrder = 20 + index;
         player.sprite = sprite;
         player.texture = texture;
@@ -295,9 +295,9 @@
       const inputs = players.map((player, index) => playerInput(index, pad));
       const submergedRooms = players.map((player) => water[roomAt(player.x)] > 0.42);
       const submergedCount = submergedRooms.filter(Boolean).length;
-      const speed = submergedCount ? 1.7 : 2.5;
       players.forEach((player, index) => {
         const input = inputs[index];
+        const speed = submergedRooms[index] ? 1.7 : 2.5;
         player.x += input.dx * speed * dt;
         if (submergedRooms[index]) {
           player.y += input.dy * speed * dt;
@@ -310,7 +310,7 @@
           const room = roomAt(player.x);
           water[room] = Math.max(0, water[room] - 0.16 * dt);
         }
-        if (player.sprite) player.sprite.position.set(player.x, player.y, 0.72 + index * 0.01);
+        if (player.sprite) player.sprite.position.set(player.x, player.y + 0.16, 0.72 + index * 0.01);
       });
 
       const nearBreach = players.map((player) => Math.abs(player.x) < 0.7 && player.y < floor + 0.9);
