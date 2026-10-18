@@ -16,7 +16,9 @@ test("Asteroid walls are resolved from the prepared asterwall asset family", asy
 
 test("Room 0 uses speed level 3 temporarily and restores its previous setting", async () => {
   const mini = await read("mini-sim/assets/js/mini-sim.js");
-  assert.match(mini, /1: \{ thrust: 8\.5, maxSpeed: 18 \}/);\n  assert.match(mini, /2: \{ thrust: 13\.5, maxSpeed: 31 \}/);\n  assert.match(mini, /3: \{ thrust: 18, maxSpeed: 45 \}/);
+  assert.match(mini, /1: \{ thrust: 8\.5, maxSpeed: 18 \}/);
+  assert.match(mini, /2: \{ thrust: 13\.5, maxSpeed: 31 \}/);
+  assert.match(mini, /3: \{ thrust: 18, maxSpeed: 45 \}/);
   assert.match(mini, /function beginRoom0Speed\(\)/);
   assert.match(mini, /setSpeedMode\(3\)/);
   assert.match(mini, /ROOM 0 · SPEED 3/);
@@ -42,22 +44,34 @@ test("Tower seed generation is gentler; keyboard/touch slow down without slowing
 test("Warp Tube scrolls faster while retaining shared scene and soundtrack state", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(warp, /const WARP_DURATION = 42/);
-  assert.match(warp, /function warpSpeedMultiplier\(elapsed\)/);\n  assert.match(warp, /return Math\.pow\(8, warpNormalizedTime\(elapsed\)\)/);\n  assert.match(warp, /function warpCourseProgress\(elapsed\)/);\n  assert.match(warp, /const rampMultiplier = warpSpeedMultiplier\(state\.elapsed\)/);\n  assert.match(warp, /Math\.min\(8, Math\.max\(1,/);
+  assert.match(warp, /function warpSpeedMultiplier\(elapsed\)/);
+  assert.match(warp, /return Math\.pow\(8, warpNormalizedTime\(elapsed\)\)/);
+  assert.match(warp, /function warpCourseProgress\(elapsed\)/);
+  assert.match(warp, /const rampMultiplier = warpSpeedMultiplier\(state\.elapsed\)/);
+  assert.match(warp, /Math\.min\(8, Math\.max\(1,/);
   assert.match(warp, /const runtime = engine\.getRuntime\(\)/);
   assert.match(warp, /if \(engine\.setSpeedMode\) engine\.setSpeedMode\(2\)/);
 });
 
-test("Hull Dive supplies two chibi crew members and keyboard, touch and gamepad controls", async () => {
+test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, ammunition and repair stations", async () => {
   const hull = await read("mini-sim/assets/js/hull-dive.js");
   assert.match(hull, /window\.BCMMiniCrewSelection\?\.players/);
-  assert.match(hull, /function makeChibiTexture\(THREE, suitColor, accentColor\)/);
+  assert.match(hull, /function makeCrewTexture\(THREE, crew\)/);
+  assert.match(hull, /function makeFallbackChibiTexture\(THREE, suitColor, accentColor\)/);
+  assert.match(hull, /bcm-tower-crew-cutouts-v8/);
+  assert.match(hull, /function officialCrewCutoutUrl\(url\)/);
   assert.match(hull, /new THREE\.Sprite\(new THREE\.SpriteMaterial/);
-  assert.match(hull, /const players = \[/);
-  assert.match(hull, /data-hull-control="repair"/);
-  assert.match(hull, /data-hull-control="pump"/);
+  assert.match(hull, /data-hull-control="shoot"/);
+  assert.match(hull, /data-hull-control="reload"/);
+  assert.match(hull, /ОРУДИЕ \/ БОЕЗАПАС/);
+  assert.match(hull, /function fireWeapon\(player\)/);
+  assert.match(hull, /const maxAmmo = 6/);
+  assert.match(hull, /reloadProgress >= 1\.05/);
+  assert.match(hull, /window\.caches\.open\("bcm-tower-crew-cutouts-v8"\)/);
   assert.match(hull, /function readGamepad\(\)/);
   assert.match(hull, /navigator\.getGamepads/);
-  assert.match(hull, /repair: !!keys\.enter/);
+  assert.match(hull, /shoot: !!\(keys\.space \|\| pad\.shoot\)/);
+  assert.match(hull, /repair: !!keys\.period/);
   assert.match(hull, /pump: !!keys\.shift/);
   assert.match(hull, /submergedRooms/);
   assert.match(hull, /const repairers = nearBreach\.reduce/);
