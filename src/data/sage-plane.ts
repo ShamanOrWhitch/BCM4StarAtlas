@@ -83,3 +83,13 @@ export const SAGE_CSS = [
 ] as const;
 
 export type SageCss = (typeof SAGE_CSS)[number];
+
+/** Nearest real stars on the square grid. A one-cell ring around a CSS is empty; the next stars sit a few cells out. */
+export function nearestStars(x: number, y: number, within = 8): Array<SageStar & { dist: number }> {
+  return SAGE_STARS.map((star) => ({
+    ...star,
+    dist: Math.max(Math.abs(star.x - x), Math.abs(star.y - y)),
+  }))
+    .filter((star) => star.dist > 0 && star.dist <= within)
+    .sort((a, b) => a.dist - b.dist || b.size - a.size);
+}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { MapPin, Star, Orbit } from "lucide-react";
 import { SYSTEMS, FACTION_TONE, markerKey, type Marker, type MarkerKind, type Placement } from "@/data/systems";
+import { SAGE_CSS, nearestStars } from "@/data/sage-plane";
 import { loadFavorites } from "@/lib/favorites";
 import { AppNav } from "@/components/app-nav";
 import { ArchiveButton, ArchivePanel } from "@/components/archive";
@@ -41,6 +42,8 @@ export function Overlay({ expanse = false }: { expanse?: boolean }) {
 
   const system = SYSTEMS.find((s) => s.id === systemId) ?? SYSTEMS[0];
   const marker = system.markers.find((m) => m.id === markerId) ?? null;
+  const css = SAGE_CSS.find((row) => row.id === system.id);
+  const near = css ? nearestStars(css.x, css.y) : [];
   const favKey = marker ? markerKey(system.id, marker.id) : "";
   const favItems = useMemo(
     () =>
@@ -196,7 +199,7 @@ export function Overlay({ expanse = false }: { expanse?: boolean }) {
         <div className="pointer-events-auto mx-auto max-w-lg">
           {expanse ? (
             <p className="rounded-xl border border-line bg-surface/80 px-4 py-3 text-sm text-muted backdrop-blur-md">
-              Galia — весь простор −50…50, не планета. Без кошелька видна вся сетка. ONI, MUD и Ustur стоят на своих CSS.
+              Galia — снимок сетки −50…50. Планета и местные корабли открываются кнопкой сектора.
             </p>
           ) : marker ? (
             <div className="rounded-xl border border-line bg-surface/90 px-4 py-3 backdrop-blur-md">
@@ -207,6 +210,15 @@ export function Overlay({ expanse = false }: { expanse?: boolean }) {
                   </p>
                   <h2 className="font-display text-lg font-semibold">{marker.name}</h2>
                   <p className="mt-1 text-sm leading-snug text-muted">{marker.blurb}</p>
+                  {css ? (
+                    <p className="mt-2 font-mono text-[10px] text-faint">
+                      {css.x}, {css.y}
+                      {near.length
+                        ? ` · рядом ${near.map((star) => `${star.name} ${star.x},${star.y}`).join(" · ")}`
+                        : " · соседние клетки пустые"}
+                      . Флот галактики не грузится.
+                    </p>
+                  ) : null}
                 </div>
                 <button
                   type="button"
