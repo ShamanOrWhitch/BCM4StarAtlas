@@ -1,12 +1,25 @@
-## D-015 — asteroіd textures, calmer Tower, faster Warp and controllable Hull Dive crew
+## D-016 — slower ship launch, 1×→8× Warp ramp, Tower Crew art and Hull Dive stations
 
-**Статус:** IMPLEMENTED IN BRANCH; TESTED-CODE ожидает CI на PR SHA; VERIFIED-LIVE отсутствует. Baseline `437be7a24970f3d0e52438427f4dcb1c4bf7fd86`, branch `fix/asteroid-tower-hull-controls`, [WORK LOCK Issue #39](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/39).
+**Статус:** IMPLEMENTED IN BRANCH; automated syntax/source-contract checks pending PR. Baseline main [ef04168e](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/ef04168e69cdc46a7f9f92c63f8e81bec35c2340), branch \`fix/hull-dive-crew-roles-warp-ramp\`, [WORK LOCK Issue #41](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/41). Candidate Mini-Sim 0.9.96 / Tower 0.2.59.
+
+- Ship thrust/top speed are lowered for all three speed modes, while Room 0 still temporarily selects mode 3.
+- Warp Tube speed ramps exponentially from 1× to 8× over its 42-second elapsed-time run. Obstacle and HUD progress share the normalized exponential curve, preserving course alignment; boost remains capped by the 8× limit.
+- Hull Dive draws the selected Crew image from \`BCMMiniCrewSelection\`. It uses Tower's \`bcm-tower-crew-cutouts-v8\` browser cache and identical Star Atlas official cut-out URL convention, falling back to ISNet segmentation only when no alpha/cached cut-out is available. It does not replace selected Crew with freshly hand-drawn avatars.
+- The hull side texture labels pilot/navigation, weapon/ammunition, and engineer/repair stations. The pilot's V helm toggle enables W/S thrust and A/D course control; thrust/heading move an asteroid target lane visibly. Firing consumes shared ammunition; each crew member has independent reload progress while at the central magazine. Water, oxygen, leak/repair and pump remain playable.
+- This is not network co-op and does not add a true external FPS helm view, suits, zero-G vacuum flow, blockchain writes, or actual SAGE fleet travel. Those remain open design steps.
+- Do not touch the existing sector/return path or the confirmed planet position for this change. GitHub changes are not production deploy; verify the cache version and visual gameplay on walkingyog.com/Android after deployment.
+
+---
+
+## D-015 — asteroid textures, gentler Tower, Warp baseline and Hull Dive Crew input
+
+**Статус:** MERGED / TESTED-CODE. Main commit [ef04168e](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/ef04168e69cdc46a7f9f92c63f8e81bec35c2340), PR [#40](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/40), WORK LOCK [Issue #39](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/39). Post-merge regression passed in [run 39170229815](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39170229815). VERIFIED-LIVE not claimed; no WordPress deploy or physical Android test.
 
 - Астероидные стены берут текстуры из семейства `mini-sim/assets/asterwall*`. В одном входе лабиринта выбираются максимум четыре варианта, затем панели распределяются по ним; при ошибке загрузки остаётся процедурная fallback-текстура. Ограничение удерживает загрузку разумной для старых телефонов.
 - Tower: более короткие прыжки между секторами, меньше боковых опасностей и объектов. Keyboard/touch/mouse/tilt реагируют спокойнее; когда подключён gamepad, его масштаб ввода остаётся 1.0.
-- Warp Tube: перемещение/прокрутка ускорены коэффициентом 1.25, boost — 1.4; длительность составляет 42 секунды вместо 48. Сцена и аудио по-прежнему общие с Mini-Sim.
-- Room 0 временно использует speed level 3 (thrust 24 / max speed 60). Предыдущий режим запоминается и восстанавливается при возврате с трассы либо Home.
-- Hull Dive: два процедурных чиби-астронавта; P1 — WASD, F/E, экранные кнопки и gamepad (левый стик/D-pad, A repair, B pump); P2 — стрелки, Enter/Shift. Механики воды, общего кислорода, насоса и сварки пока сохранены.
+- Warp Tube baseline: перемещение/прокрутка ускорены коэффициентом 1.25, boost — 1.4; длительность составляет 42 секунды вместо 48. Следующий патч (D-016) добавляет нарастание до 8×.
+- Room 0 временно использует speed level 3. В последующем патче D-016 абсолютные значения всех режимов снижены; предыдущий режим по-прежнему запоминается и восстанавливается при возврате с трассы либо Home.
+- Hull Dive у базового PR #40: управляемые выбранные места/движение экипажа и водный цикл. Следующим этапом D-016 заменяет процедурных фигур выбранной Crew artwork и добавляет оружие/боезапас/штурвал.
 - Это не сетевой мультиплеер: роли пилота/стрелка/инженера, FPS у штурвала, скафандры, вакуумное вытягивание и zero-G — следующий отдельный дизайн/реализационный этап. Для инкрементального подхода к маленькому игровому прототипу как вдохновение просмотрен [studioigor/ref2game](https://github.com/studioigor/ref2game); репозиторий не устанавливается как runtime dependency.
 - Не менять подтверждённый пользователем переход обратно к карте текущего сектора, SAGE навигацию/сектор, порядок мультимедийной загрузки, глобальный OST mixer или Crew segmentation workflow. Никаких on-chain команд/транзакций не добавляется.
 

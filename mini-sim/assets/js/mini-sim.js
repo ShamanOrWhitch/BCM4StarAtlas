@@ -881,10 +881,12 @@
 
   // Speed matrix: mode 2 keeps the previous 0.9.0 flight values.
   // Mode 1 is the new default: slightly slower forward/back flight.
+  // Gentle opening flight: each selectable mode keeps its relative step but
+  // uses a lower thrust/top-speed pair so the ship is controllable from spawn.
   const speedMatrix = {
-    1: { thrust: 11.5, maxSpeed: 24 },
-    2: { thrust: 18, maxSpeed: 42 },
-    3: { thrust: 24, maxSpeed: 60 }
+    1: { thrust: 8.5, maxSpeed: 18 },
+    2: { thrust: 13.5, maxSpeed: 31 },
+    3: { thrust: 18, maxSpeed: 45 }
   };
   let speedMode = 1;
 

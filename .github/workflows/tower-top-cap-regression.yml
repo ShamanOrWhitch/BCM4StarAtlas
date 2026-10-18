@@ -25,7 +25,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Check Tower syntax
-        run: node --check mini-sim/tower/assets/js/tower.js
+      - name: Check modified Mini-Sim JavaScript syntax
+        run: |
+          node --check mini-sim/assets/js/deep-space-warp.js
+          node --check mini-sim/assets/js/hull-dive.js
+          node --check mini-sim/assets/js/mini-sim.js
+          node --check mini-sim/tower/assets/js/tower.js
       - name: Run Mini-Sim / Tower source-contract tests
         run: node --test scripts/tower-top-cap.test.mjs scripts/minisim-local-qa.test.mjs scripts/asteroid-tower-hull-controls.test.mjs

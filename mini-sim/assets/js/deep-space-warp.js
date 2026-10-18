@@ -1165,6 +1165,20 @@
       requestAnimationFrame(drawBackdrop);
     }
 
+    function warpNormalizedTime(elapsed) {
+      return Math.max(0, Math.min(1, Number(elapsed || 0) / WARP_DURATION));
+    }
+
+    // The visual/collision course accelerates as a single journey: 1x at launch,
+    // smoothly reaching 8x by the final second without desynchronizing the gates.
+    function warpSpeedMultiplier(elapsed) {
+      return Math.pow(8, warpNormalizedTime(elapsed));
+    }
+
+    function warpCourseProgress(elapsed) {
+      return (warpSpeedMultiplier(elapsed) - 1) / 7;
+    }
+
     function tubeSectionBlend(values, elapsed) {
       const count = values.length;
       const sectionDuration = WARP_DURATION / count;
@@ -1320,7 +1334,7 @@ return axialRoll + ahead * 0.12 +
         g.stroke();
       }
 
-      const routeProgress = Math.min(1, state.elapsed / WARP_DURATION);
+      const routeProgress = warpCourseProgress(state.elapsed);
       const obstacleDepth = (distance) => {
         // Stay inside the near ring. d>1 is what stretched spikes into the gold wedge.
         if (distance > 0.36 || distance <= 0) return null;
@@ -1429,7 +1443,7 @@ return axialRoll + ahead * 0.12 +
       g.fillStyle = "#ffce91"; g.fillRect(-17, 8, 5, 3); g.fillRect(12, 8, 5, 3);
       g.restore();
 
-      const progress = Math.min(1, t / WARP_DURATION);
+      const progress = warpCourseProgress(t);
       g.fillStyle = "rgba(255,255,255,.15)"; g.fillRect(w * 0.18, h - 17, w * 0.64, 3);
       g.fillStyle = "#56f0d0"; g.fillRect(w * 0.18, h - 17, w * 0.64 * progress, 3);
       if (state.shields < 100) {
@@ -1529,10 +1543,14 @@ return axialRoll + ahead * 0.12 +
       const speedBySection = [0.76, 1.24, 0.84, 1.34, 0.68, 1.14];
       const rollRates = [0.42, 0.82, 0.55, 1.12, 0.31, 0.72];
       const boosted = state.elapsed < Number(state.tubeBoostUntil || 0);
-      const speed = tubeSectionBlend(speedBySection, state.elapsed).value * 1.25 * (boosted ? 1.4 : 1);
+      const rampMultiplier = warpSpeedMultiplier(state.elapsed);
+      const speed = Math.min(8, Math.max(1,
+        tubeSectionBlend(speedBySection, state.elapsed).value * 1.25 *
+        rampMultiplier * (boosted ? 1.4 : 1)
+      ));
       state.tubeTravel += dt * speed;
       state.tubeRoll = Number(state.tubeRoll || 0) + dt * tubeSectionBlend(rollRates, state.elapsed).value * 0.45;
-      const routeProgress = Math.min(1, state.elapsed / WARP_DURATION);
+      const routeProgress = warpCourseProgress(state.elapsed);
 
       let padX = 0;
       try {
