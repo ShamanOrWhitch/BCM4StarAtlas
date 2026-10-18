@@ -1,13 +1,15 @@
 ## D-016 — slower ship launch, 1×→8× Warp ramp, Tower Crew art and Hull Dive stations
 
-**Статус:** IMPLEMENTED IN BRANCH; automated syntax/source-contract checks pending PR. Baseline main [ef04168e](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/ef04168e69cdc46a7f9f92c63f8e81bec35c2340), branch \`fix/hull-dive-crew-roles-warp-ramp\`, [WORK LOCK Issue #41](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/41). Candidate Mini-Sim 0.9.96 / Tower 0.2.59.
+**Статус: MERGED / TESTED-CODE.** Squash merge [e6e39a60](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/e6e39a60da7063e7bd43423e89395bbf31924171), PR [#42](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/42), [WORK LOCK Issue #41](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/41). Mini-Sim 0.9.96 / Tower 0.2.59. All five PR workflows succeeded.
 
-- Ship thrust/top speed are lowered for all three speed modes, while Room 0 still temporarily selects mode 3.
-- Warp Tube speed ramps exponentially from 1× to 8× over its 42-second elapsed-time run. Obstacle and HUD progress share the normalized exponential curve, preserving course alignment; boost remains capped by the 8× limit.
-- Hull Dive draws the selected Crew image from \`BCMMiniCrewSelection\`. It uses Tower's \`bcm-tower-crew-cutouts-v8\` browser cache and identical Star Atlas official cut-out URL convention, falling back to ISNet segmentation only when no alpha/cached cut-out is available. It does not replace selected Crew with freshly hand-drawn avatars.
-- The hull side texture labels pilot/navigation, weapon/ammunition, and engineer/repair stations. The pilot's V helm toggle enables W/S thrust and A/D course control; thrust/heading move an asteroid target lane visibly. Firing consumes shared ammunition; each crew member has independent reload progress while at the central magazine. Water, oxygen, leak/repair and pump remain playable.
-- This is not network co-op and does not add a true external FPS helm view, suits, zero-G vacuum flow, blockchain writes, or actual SAGE fleet travel. Those remain open design steps.
-- Do not touch the existing sector/return path or the confirmed planet position for this change. GitHub changes are not production deploy; verify the cache version and visual gameplay on walkingyog.com/Android after deployment.
+- Ship thrust/top speed lowered in all three modes; Room 0 still temporarily selects mode 3 and restores the previous setting.
+- Warp Tube accelerates exponentially from 1× to 8× across 42 seconds. Course progress and obstacle progression use the same normalized curve; boost is capped by 8×.
+- Hull Dive uses selected Crew art from \`BCMMiniCrewSelection\`, the Tower \`bcm-tower-crew-cutouts-v8\` browser cache and the Star Atlas official cut-out URL convention. ISNet segmentation is used only when no alpha/cached cut-out exists; selected Crew is not replaced with hand-drawn avatars.
+- The side texture marks pilot/navigation, weapon/ammunition and engineer/repair stations. V toggles helm mode; W/S control thrust, A/D heading. Shooting consumes ammo; per-character reload progress runs independently at the central magazine. Water, oxygen, leak/repair and pump remain playable.
+- This is not network co-op and adds no true FPS helm view, suits, zero-G vacuum flow, blockchain writes or real SAGE fleet movement.
+- Do not touch the confirmed sector/return path or planet location for this change. The merge does not deploy to walkingyog.com; visual production/Android testing remains manual.
+
+---
 
 ---
 
