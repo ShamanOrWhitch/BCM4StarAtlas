@@ -9,7 +9,7 @@
     const api = () => window.BCMiniSimAPI || null;
     const config = window.BCMMiniSimConfig || {};
     const levelAudio = root.querySelector(".bcm-mini-sim-music-audio");
-    const WARP_DURATION = 48;
+    const WARP_DURATION = 42;
     // Reduce repeated canvas work on touch devices without changing elapsed-time gameplay.
     const mobileRenderTarget = !!(
       (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) ||
@@ -702,9 +702,23 @@
       g.fillRect(28, 28, 8, 2);
       g.fillRect(31, 25, 2, 8);
       const texture = new THREE.CanvasTexture(c);
-      texture.generateMipmaps = true;
-      if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
+      texture.generateMipmaps = false;
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      if (THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
+      else if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
       return texture;
+    }
+
+    function asteroidWallAssetPool() {
+      return (Array.isArray(config.assets) ? config.assets : [])
+        .filter((asset) => {
+          if (!asset || typeof asset.url !== "string" || !asset.url) return false;
+          if (asset.type && asset.type !== "image") return false;
+          const base = String(asset.name || "").split(/[\\/]/).pop();
+          return /^asterwall\d*\.(?:png|jpe?g|webp)$/i.test(base);
+        })
+        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
     }
 
     function enterAsteroidMaze() {
@@ -808,26 +822,71 @@
         }
       });
 
-      const texture = makeMazeTexture(THREE);
-      const material = new THREE.MeshStandardMaterial({
-        map: texture, color: 0xa9bec8, roughness: 0.82, metalness: 0.24, emissive: 0x07121a
-      });
+      // Use a small deterministic subset of the prepared asterwall family to
+      // vary the entire ONI asteroid corridor without loading 17+ images on phones.
+      const fallbackTexture = makeMazeTexture(THREE);
+      const availableWallAssets = asteroidWallAssetPool();
+      for (let i = availableWallAssets.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(rng() * (i + 1));
+        [availableWallAssets[i], availableWallAssets[j]] = [availableWallAssets[j], availableWallAssets[i]];
+      }
+      const chosenWallAssets = availableWallAssets.slice(0, 4);
+      const wallMaterials = [];
+      const wallTextures = [];
+      if (chosenWallAssets.length) {
+        const loader = new THREE.TextureLoader();
+        chosenWallAssets.forEach((asset, index) => {
+          const texture = loader.load(asset.url, undefined, undefined, () => {
+            if (wallMaterials[index]) {
+              wallMaterials[index].map = fallbackTexture;
+              wallMaterials[index].needsUpdate = true;
+            }
+          });
+          texture.generateMipmaps = false;
+          texture.minFilter = THREE.LinearFilter;
+          texture.magFilter = THREE.LinearFilter;
+          texture.wrapS = THREE.RepeatWrapping;
+          texture.wrapT = THREE.RepeatWrapping;
+          texture.repeat.set(1, 1);
+          if (THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
+          else if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
+          const maxAnisotropy = runtime.renderer?.capabilities?.getMaxAnisotropy?.() || 1;
+          texture.anisotropy = Math.min(4, maxAnisotropy);
+          wallTextures.push(texture);
+          wallMaterials.push(new THREE.MeshStandardMaterial({
+            map: texture, color: 0xffffff, roughness: 0.82, metalness: 0.24, emissive: 0x07121a
+          }));
+        });
+      } else {
+        wallTextures.push(fallbackTexture);
+        wallMaterials.push(new THREE.MeshStandardMaterial({
+          map: fallbackTexture, color: 0xa9bec8, roughness: 0.82, metalness: 0.24, emissive: 0x07121a
+        }));
+      }
       const unit = new THREE.BoxGeometry(1, 1, 1);
-      const wallMesh = new THREE.InstancedMesh(unit, material, walls.length);
-      wallMesh.name = "asteroid-maze-wall-panels";
-      wallMesh.frustumCulled = false;
-      const matrix = new THREE.Matrix4();
-      const rotation = new THREE.Quaternion();
-      walls.forEach((wall, i) => {
-        matrix.compose(
-          new THREE.Vector3(wall.x, wall.y, wall.z),
-          rotation,
-          new THREE.Vector3(wall.sx, wall.sy, wall.sz)
-        );
-        wallMesh.setMatrixAt(i, matrix);
+      const wallBatches = Array.from({ length: wallMaterials.length }, () => []);
+      walls.forEach((wall, index) => wallBatches[index % wallBatches.length].push(wall));
+      const wallMeshes = wallBatches.map((batch, index) => {
+        const wallMesh = new THREE.InstancedMesh(unit, wallMaterials[index], batch.length);
+        wallMesh.name = "asteroid-maze-wall-panels-" + index;
+        wallMesh.frustumCulled = false;
+        const matrix = new THREE.Matrix4();
+        const rotation = new THREE.Quaternion();
+        batch.forEach((wall, instanceIndex) => {
+          matrix.compose(
+            new THREE.Vector3(wall.x, wall.y, wall.z),
+            rotation,
+            new THREE.Vector3(wall.sx, wall.sy, wall.sz)
+          );
+          wallMesh.setMatrixAt(instanceIndex, matrix);
+        });
+        wallMesh.instanceMatrix.needsUpdate = true;
+        group.add(wallMesh);
+        return wallMesh;
       });
-      wallMesh.instanceMatrix.needsUpdate = true;
-      group.add(wallMesh);
+      const wallMesh = wallMeshes[0];
+      const material = wallMaterials[0];
+      const texture = wallTextures[0];
 
       const shell = new THREE.Mesh(
         new THREE.SphereGeometry(31, 18, 14),
@@ -873,6 +932,7 @@
         cells,
         walls,
         wallMesh,
+        wallMeshes,
         shell,
         crystals,
         beacon,
@@ -881,7 +941,9 @@
         count: 0,
         sinceStatus: 0,
         texture,
+        textures: wallTextures.concat(fallbackTexture === texture ? [] : [fallbackTexture]),
         material,
+        materials: wallMaterials,
         geometry: unit,
         crystalGeometry,
         crystalMaterial,
@@ -898,8 +960,8 @@
       root.classList.remove("bcm-warp-open");
       launchButton.classList.remove("is-active");
 
-      // The main physics resumes in this scene. The seeded maze uses one instanced wall mesh
-      // and a single 64x64 generated tile texture, so geometry is cheap on older devices.
+      // The main physics resumes in this scene. The seeded maze uses a small number of
+      // instanced wall batches and up to four asterwall textures, with a tiny procedural fallback.
       // Default Mini-Sim forward is -Z; face inward from the asteroid entrance.
       engine.teleport({ x: maze.start.x, y: maze.start.y, z: maze.start.z, yaw: 0 }, null);
       engine.pauseForWarp(false);
@@ -1003,10 +1065,16 @@
       if (!maze) return;
       maze.active = false;
       if (maze.group && maze.group.parent) maze.group.parent.remove(maze.group);
-      try { maze.wallMesh.dispose(); } catch (e) {}
+      for (const mesh of maze.wallMeshes || [maze.wallMesh]) {
+        try { mesh?.dispose?.(); } catch (e) {}
+      }
       try { maze.geometry.dispose(); } catch (e) {}
-      try { maze.material.dispose(); } catch (e) {}
-      try { maze.texture.dispose(); } catch (e) {}
+      for (const material of new Set(maze.materials || [maze.material])) {
+        try { material?.dispose?.(); } catch (e) {}
+      }
+      for (const texture of new Set(maze.textures || [maze.texture])) {
+        try { texture?.dispose?.(); } catch (e) {}
+      }
       try { maze.shell.geometry.dispose(); } catch (e) {}
       try { maze.shell.material.dispose(); } catch (e) {}
       try { maze.crystalGeometry.dispose(); } catch (e) {}
@@ -1461,7 +1529,7 @@ return axialRoll + ahead * 0.12 +
       const speedBySection = [0.76, 1.24, 0.84, 1.34, 0.68, 1.14];
       const rollRates = [0.42, 0.82, 0.55, 1.12, 0.31, 0.72];
       const boosted = state.elapsed < Number(state.tubeBoostUntil || 0);
-      const speed = tubeSectionBlend(speedBySection, state.elapsed).value * (boosted ? 1.34 : 1);
+      const speed = tubeSectionBlend(speedBySection, state.elapsed).value * 1.25 * (boosted ? 1.4 : 1);
       state.tubeTravel += dt * speed;
       state.tubeRoll = Number(state.tubeRoll || 0) + dt * tubeSectionBlend(rollRates, state.elapsed).value * 0.45;
       const routeProgress = Math.min(1, state.elapsed / WARP_DURATION);

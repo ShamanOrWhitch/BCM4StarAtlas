@@ -7,7 +7,7 @@ const read=(path)=>readFile(new URL(path,repoRoot),"utf8");
 test("Warp OST belongs to the whole Warp stage and loops",async()=>{
   const s=await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(s,/warpAudio\.loop = true/);
-  assert.match(s,/const WARP_DURATION = 48/);
+  assert.match(s,/const WARP_DURATION = 42/);
   assert.match(s,/pauseLevelOst\(\);\s*startWarpAudio\(true\);\s*state\.nav = readNavigation\(\)/);
   const tube=s.slice(s.indexOf("function showTube()"),s.indexOf("function finishTube"));
   assert.doesNotMatch(tube,/startWarpAudio/);
@@ -17,7 +17,7 @@ test("Warp uses a rolling circular wall and angular obstacle course",async()=>{
   const s=await read("mini-sim/assets/js/deep-space-warp.js");
   const body=s.slice(s.indexOf("function drawTubeTunnel"),s.indexOf("function drawBackdrop"));
   const update=s.slice(s.indexOf("function updateTube(dt, now)"),s.indexOf("window.BCMDeepSpaceWarpToggle"));
-  assert.match(s,/const WARP_DURATION = 48/);
+  assert.match(s,/const WARP_DURATION = 42/);
   assert.match(body,/const twistAt = \(d\) => courseTwist\(d\)/);
   assert.match(body,/for \(let panel = 0; panel < panelCount; panel \+= 1\)/);
   assert.match(body,/for \(let seam = 0; seam < 12; seam \+= 1\)/);
@@ -177,9 +177,9 @@ test("Mini-Sim and Tower displayed versions match their PHP asset-cache versions
   const miniPhp = await read("mini-sim/bcm-mini-sim.php");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   const tower = await read("mini-sim/tower/assets/js/tower.js");
-  assert.ok(miniPhp.includes("Version: 0.9.93"));
-  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.9.93'"));
-  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.9.93"));
-  assert.ok(towerPhp.includes("BCM_TOWER_VERSION', '0.2.58'"));
-  assert.ok(tower.includes('const TOWER_VERSION = "0.2.58"'));
+  assert.ok(miniPhp.includes("Version: 0.9.95"));
+  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.9.95'"));
+  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.9.95"));
+  assert.ok(towerPhp.includes("BCM_TOWER_VERSION', '0.2.59'"));
+  assert.ok(tower.includes('const TOWER_VERSION = "0.2.59"'));
 });

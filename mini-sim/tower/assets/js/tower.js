@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.58";
+  const TOWER_VERSION = "0.2.59";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -652,12 +652,14 @@
     let biasLeft = 2 + Math.floor(rand() * 6);
     for (let level = levels - 2; level >= 0; level--) {
       const wide = temperament > 0.62;
-      const maxDelta = wide ? 2 + Math.floor(rand() * 3) : (level % 4 === 0 ? 3 : 2);
+      // Shorter route jumps and fewer sharp switches make random seeds fairer
+      // without changing the tower's dimensions or its guaranteed landing path.
+      const maxDelta = wide ? 1 + Math.floor(rand() * 3) : (level % 4 === 0 ? 2 : 1);
       let delta = 0;
-      if (rand() < (temperament < 0.28 ? 0.94 : 0.86)) {
+      if (rand() < (temperament < 0.28 ? 0.87 : 0.78)) {
         if (biasLeft <= 0) {
           turnBias *= -1;
-          biasLeft = 2 + Math.floor(rand() * 5);
+          biasLeft = 3 + Math.floor(rand() * 5);
         }
         biasLeft -= 1;
         delta = turnBias * (1 + Math.floor(rand() * maxDelta));
@@ -667,9 +669,10 @@
 
       let routeSurface = "platform";
       const surfaceRoll = rand();
+      const routeIceChance = temperament > 0.45 ? 0.15 : 0.08;
       if (level < 2) routeSurface = "upper";
-      else if (surfaceRoll < (temperament > 0.45 ? 0.2 : 0.1)) routeSurface = "ice";
-      else if (surfaceRoll < 0.16) routeSurface = "lift";
+      else if (surfaceRoll < routeIceChance) routeSurface = "ice";
+      else if (surfaceRoll < routeIceChance + 0.10) routeSurface = "lift";
       setCell(level, sector, {
         surface: routeSurface,
         object: level === 0 ? "landing" : null
@@ -678,28 +681,28 @@
 
     for (let level = 0; level < levels; level++) {
       const routeSector = path[levels - 1 - level];
-      const sideCount = 1 + Math.floor(rand() * 3);
+      const sideCount = 1 + Math.floor(rand() * 2);
 
       for (let i = 0; i < sideCount; i++) {
-        const delta = (rand() < 0.5 ? -1 : 1) * (1 + Math.floor(rand() * 4));
+        const delta = (rand() < 0.5 ? -1 : 1) * (1 + Math.floor(rand() * 3));
         const s = wrapSector(routeSector + delta, sectors);
         const k = key(level, s);
         if (cells.has(k)) continue;
 
         const roll = rand();
         let surface = "platform";
-        if (roll < 0.13) surface = "rock";
-        else if (roll < 0.25) surface = "ice";
-        else if (roll < 0.33) surface = "hot";
-        else if (roll < 0.38) surface = "lava";
-        else if (roll < 0.49) surface = "lift";
+        if (roll < 0.10) surface = "rock";
+        else if (roll < 0.19) surface = "ice";
+        else if (roll < 0.26) surface = "hot";
+        else if (roll < 0.30) surface = "lava";
+        else if (roll < 0.42) surface = "lift";
 
         setCell(level, s, { surface });
       }
 
       // Boxes, doors and test NPCs are objects placed on existing surfaces.
       const objectRoll = rand();
-      if (level > 2 && level < levels - 3 && objectRoll < 0.30) {
+      if (level > 2 && level < levels - 3 && objectRoll < 0.22) {
         const objectSector = wrapSector(routeSector + (rand() < 0.5 ? -2 : 2), sectors);
         const target = cells.get(key(level, objectSector));
         if (target) {
@@ -965,8 +968,8 @@
     const sectorWidth = () => tower ? Math.PI * 2 / tower.sectors : Math.PI / 9;
 
     const controls = [
-      { left: false, right: false, up: false, down: false, jump: false, interact: false },
-      { left: false, right: false, up: false, down: false, jump: false, interact: false }
+      { left: false, right: false, up: false, down: false, jump: false, interact: false, gamepad: false },
+      { left: false, right: false, up: false, down: false, jump: false, interact: false, gamepad: false }
     ];
 
     const edgeState = [
@@ -1992,6 +1995,10 @@
         if (Math.abs(tiltTurn) > Math.abs(turn)) turn = tiltTurn;
       }
       let trim = (c.up ? 1 : 0) - (c.down ? 1 : 0);
+      // Keep gamepad response unchanged; keyboard and touch are less twitchy.
+      const manualInputScale = c.gamepad ? 1 : 0.84;
+      turn *= manualInputScale;
+      trim *= manualInputScale;
 
       const onIce = p.currentCell?.surface === "ice" || p.currentCell?.liftHazard === "ice";
       const onHot = p.currentCell?.surface === "hot" || p.currentCell?.liftHazard === "hot";
@@ -2779,7 +2786,7 @@
         }
         const delta = towerTilt.filtered - towerTilt.neutral;
         const dead = 2.0;
-        const shaped = Math.abs(delta) <= dead ? 0 : clamp((delta - Math.sign(delta) * dead) / 10, -1, 1);
+        const shaped = Math.abs(delta) <= dead ? 0 : clamp((delta - Math.sign(delta) * dead) / 11, -1, 1);
         towerTilt.horizontal = -shaped;
       }, true);
       towerTilt.bound = true;
@@ -2841,8 +2848,8 @@
       dragPointer.y = event.clientY;
       if (!dx && !dy) return;
       const p = players[mousePlayer];
-      p.angle += dx * 0.008;
-      p.vy += clamp(-dy * 0.018, -2.4, 2.4);
+      p.angle += dx * 0.0065;
+      p.vy += clamp(-dy * 0.015, -2.0, 2.0);
     });
 
     const pointerEventsAvailable = typeof window.PointerEvent === "function";
@@ -3026,6 +3033,7 @@
         }
 
         gamepadPresent[i] = true;
+        controls[i].gamepad = true;
 
         const lx = pad.axes?.[0] || 0;
         const ly = pad.axes?.[1] || 0;

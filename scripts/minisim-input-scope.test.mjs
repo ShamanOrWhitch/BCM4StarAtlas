@@ -70,6 +70,6 @@ test("Tower mobile jump uses one input event path on modern phones and softer ti
   assert.match(controls, /button\.addEventListener\("pointerdown", down\)/);
   assert.doesNotMatch(controls, /button\.addEventListener\("touchstart"/);
   assert.match(source, /if \(!pointerEventsAvailable\)\s*\{\s*root\.addEventListener\("touchstart"/);
-  assert.match(source, /const dead = 2\.0;[\s\S]*?\) \/ 10,/);
+  assert.match(source, /const dead = 2\.0;[\s\S]*?\) \/ 11,/);
   assert.match(css, /\.bcm-tower-mobile-player\[hidden\][\s\S]*?display: none !important/);
 });

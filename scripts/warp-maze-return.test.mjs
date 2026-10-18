@@ -17,7 +17,9 @@ function section(source, startMarker, endMarker) {
 test("asteroid exit and return beacon both return to the Warp map", () => {
   assert.match(warp, /exitButton\.textContent = "RETURN TO WARP MAP"/);
   assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
-  assert.match(warp, /if \(maze\.count === 3[\s\S]*?returnToWarpMap\(\)/);
+  assert.match(warp, /maze\.count === 3 \? "GOLD RING IS OPEN"/);
+  assert.match(warp, /if \(!state\.hullOpen && ringDistance < 2\.6 && window\.BCMHullDive/);
+  assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
 });
 
 test("returning to the sector map keeps Warp active and pauses the ship", () => {
@@ -66,7 +68,7 @@ test("Warp gamepad horizontal directions use the corrected left/right mapping", 
 test("Warp Tube is a rolling circular cylinder with a curved / corkscrew route", () => {
   const body = section(warp, "function drawTubeTunnel", "function drawBackdrop");
   const update = section(warp, "function updateTube(dt, now)", "window.BCMDeepSpaceWarpToggle");
-  assert.match(warp, /const WARP_DURATION = 48/);
+  assert.match(warp, /const WARP_DURATION = 42/);
   assert.match(body, /const twistAt = \(d\) => courseTwist\(d\)/);
   assert.match(body, /const radiusX = \(d\) =>/);
   assert.match(body, /const radiusY = \(d\) => radiusX\(d\) \* 0\.91/);

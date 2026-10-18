@@ -1,20 +1,21 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
-Дата: 2026-10-17.
+Дата: 2026-10-18.
 
 ## Источник истины
 
-- Проверенный main: Mini-Sim 0.9.93, Tower 0.2.58, merge commit [09c0a955](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/09c0a9553daa6406302c3e54cd0bca1aaeff6702) from [PR #38](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/38).
-- All five required GitHub Actions checks passed on the PR head, including browser smoke with asset overrides. The actual Android controls and WordPress install have not been verified/deployed.
+- Main на старте этапа: Mini-Sim **0.9.94**, Tower **0.2.58**, HEAD [437be7a2](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/437be7a24970f3d0e52438427f4dcb1c4bf7fd86); добавлены `asterwall*` assets.
+- Новый этап P2: [Issue #39](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/39), ветка `fix/asteroid-tower-hull-controls`; версии-кандидаты Mini-Sim 0.9.95 / Tower 0.2.59. До прохождения CI это не main.
 - **Пользователь подтвердил, что возврат из астероидного лабиринта к карте текущего сектора работает.** Сохранять это поведение и не менять sector/return logic.
-- Issues #21, #22, #24, #26, and #30 are closed. Remaining product feature: full SAGE galaxy map — [Issue #28](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/28). Issue #17 remains only as an automation coverage task for Room0 → B → Room1/global mute.
+- Полная карта SAGE/галактики остаётся отдельной задачей — [Issue #28](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/28). Не выдавать локальную Warp grid за карту или реальное движение флота.
 
-## Что меняется в 0.9.93
+## P2 — текущая работа
 
-1. **Загрузка:** soundtrack заранее с высоким приоритетом; очередь ближайших стен запускается до правого видео, портал запрашивается после правого видео; наружные и декоративные текстуры остаются низкоприоритетными.
-2. **Warp Tube на телефоне:** компактный HUD без больших заголовков/инструкций, управление наклоном телефона с перекалибровкой, осевое вращение возвращено примерно к 45% прежнего слишком сильного темпа.
-3. **Deep Space:** когда экран зафиксирован тапом, drag пальцем вращает позицию корабля вокруг выбранного экрана, а не накручивает обычный обзор.
-4. **Tower:** на современных телефонах используются Pointer Events без повторного touch-пути, скрытые P2-кнопки явно убраны из layout, чувствительность наклона P1 немного снижена. Прыжок и P2 требуется подтвердить на реальном телефоне после CI.
+1. Использовать подготовленное семейство `mini-sim/assets/asterwall*` для стен ближайшего астероидного лабиринта. До четырёх текстур в одной сессии ради производительности.
+2. Смягчить генерацию Tower seed и снизить keyboard/touch/mouse/tilt sensitivity, сохранив обычную скорость gamepad.
+3. Ускорить Warp Tube; Room 0 должен временно работать на speed level 3 и возвращать предыдущий режим после выхода.
+4. Hull Dive получает двух процедурных чиби-астронавтов: P1 WASD + F/E, тач-кнопки/gamepad; P2 стрелки + Enter/Shift. Вода пока остаётся.
+5. Следующий отдельный этап: сетевые/кооперативные роли пилота, стрелка и инженера, FPS на штурвале, скафандры, разгерметизация с направленным потоком наружу и zero-G. См. D-015 в `DECISIONS.md` и вдохновение [studioigor/ref2game](https://github.com/studioigor/ref2game).
 
 ## Не затрагивать
 
@@ -24,7 +25,6 @@
 - Не переписывать глобальный музыкальный микшер без нового воспроизводимого отказа.
 - Не выдавать локальный Warp grid за полную SAGE карту или настоящий переход флота.
 
-## Проверка
+## Проверка и развёртывание
 
-Regression workflow запускает JS parse check и source-contract tests; browser QA открывает https://walkingyog.com/bcm4sa/ с временной подменой ассетов и по умолчанию блокирует видео. Это не deploy на WordPress, не полная проверка видеоконтента и не измерение расхода батареи. Версию сайта проверять отдельно после установки плагина.
-
+Regression workflow проверяет синтаксис Tower и source contracts. Browser QA может подменять JS/CSS выбранного коммита, но это не deploy на WordPress, не полная проверка видео и не тест на физическом Android. После merge отдельно проверить версию сайта и управление на телефоне.
