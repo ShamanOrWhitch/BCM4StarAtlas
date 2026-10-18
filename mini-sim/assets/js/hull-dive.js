@@ -28,7 +28,7 @@
       '<button type="button" data-hull-control="right" aria-label="Идти вправо">▶</button>' +
       '<button type="button" data-hull-control="up" aria-label="Плыть вверх">▲</button>' +
       '<button type="button" data-hull-control="down" aria-label="Плыть вниз">▼</button></div>' +
-      '<div style="display:flex;gap:5px;pointer-events:auto">' +
+      '<div style="display:flex;gap:5px;pointer-events:auto;flex-wrap:wrap;max-width:min(72vw,560px);justify-content:flex-end">' +
       '<button type="button" data-hull-control="helm">V · ШТУРВАЛ</button>' +
       '<button type="button" data-hull-control="shoot">SPACE · ОРУДИЕ</button>' +
       '<button type="button" data-hull-control="reload">R · БОЕЗАПАС</button>' +
