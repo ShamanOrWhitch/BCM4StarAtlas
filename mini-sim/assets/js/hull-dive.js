@@ -158,7 +158,7 @@
     let ammo = maxAmmo;
     let targetArmor = 3;
     let shotCooldown = 0;
-    let reloadProgress = 0;
+    const reloadProgress = [0, 0];
     const reloadHeld = [false, false];
     const laserShots = [];
     let gunTarget = null;
@@ -774,10 +774,11 @@
         if (input.shoot && shotCooldown <= 0) fireWeapon(player);
         if (input.reload && Math.abs(player.x) < 1.35) {
           if (ammo < maxAmmo || (gunTarget && !gunTarget.visible)) {
-            reloadProgress += dt;
-            if (reloadProgress >= 1.05) {
+            reloadProgress[index] += dt;
+            if (reloadProgress[index] >= 1.05) {
               ammo = maxAmmo;
-              reloadProgress = 0;
+              reloadProgress[0] = 0;
+              reloadProgress[1] = 0;
               if (gunTarget && !gunTarget.visible) {
                 targetArmor = 3;
                 gunTarget.visible = true;
@@ -786,10 +787,10 @@
               notifyStatus("Боезапас пополнен " + ammo + "/" + maxAmmo, 2000);
             }
           } else {
-            reloadProgress = 0;
+            reloadProgress[index] = 0;
           }
         } else {
-          reloadProgress = 0;
+          reloadProgress[index] = 0;
         }
         if (input.reload && !reloadHeld[index] && Math.abs(player.x) >= 1.35) {
           notifyStatus("Подойди к центральной стойке боезапаса и удерживай R", 2200);
@@ -828,7 +829,8 @@
       }
       oxEl.textContent = "O2 " + Math.round(oxygen);
       weldEl.textContent = "шов " + Math.round(weld * 100) + "%";
-      if (ammoEl) ammoEl.textContent = "БОЕЗАПАС " + ammo + "/" + maxAmmo + (reloadProgress > 0 ? " · ЗАРЯДКА " + Math.round(reloadProgress / 1.05 * 100) + "%" : "");
+      const activeReload = Math.max(reloadProgress[0], reloadProgress[1]);
+      if (ammoEl) ammoEl.textContent = "БОЕЗАПАС " + ammo + "/" + maxAmmo + (activeReload > 0 ? " · ЗАРЯДКА " + Math.round(activeReload / 1.05 * 100) + "%" : "");
       const flightEl = root.querySelector("[data-hull-flight]");
       if (flightEl) flightEl.textContent = (pilotMode ? "ШТУРВАЛ" : "ЭКИПАЖ") + " · ТЯГА " + Math.round(enginePower * 100) + "% · КУРС " + Math.round(flightHeading * 45) + "°";
       waters.forEach((mesh, index) => {
