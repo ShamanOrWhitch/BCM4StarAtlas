@@ -18,24 +18,27 @@
     root.innerHTML =
       '<div style="position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:12px;pointer-events:none;z-index:10">' +
       '<div><div style="letter-spacing:.18em;font-size:12px;color:#c4a35a">ОТСЕК · ПРОРЫВ</div>' +
-      '<div data-hull-status style="font-size:14px;margin-top:4px">Завари пробоину и откачай воду</div></div>' +
+      '<div data-hull-status style="font-size:14px;margin-top:4px">Управляй кораблём, стреляй, пополняй боезапас и чини корпус</div>' +\n      '<div data-hull-roles style="margin-top:5px;color:#9bb5c3;font-size:11px;letter-spacing:.07em">ПИЛОТ · ОРУДИЕ / БОЕЗАПАС · ИНЖЕНЕР</div></div>' +
       '<button type="button" data-hull-exit style="pointer-events:auto;height:44px;padding:0 14px;border:1px solid #355066;background:#10202c;color:#e7eef2;border-radius:8px">К КОЛЬЦУ</button></div>' +
       '<div data-hull-view style="position:absolute;inset:0"></div>' +
       '<div data-hull-controls style="position:absolute;left:10px;right:10px;bottom:54px;display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap;pointer-events:none">' +
-      '<div style="display:flex;gap:5px;pointer-events:auto">' +
+      '<div style="display:flex;gap:5px;pointer-events:auto;flex-wrap:wrap;max-width:min(64vw,520px)">' +
       '<button type="button" data-hull-control="left" aria-label="Идти влево">◀</button>' +
       '<button type="button" data-hull-control="right" aria-label="Идти вправо">▶</button>' +
       '<button type="button" data-hull-control="up" aria-label="Плыть вверх">▲</button>' +
       '<button type="button" data-hull-control="down" aria-label="Плыть вниз">▼</button></div>' +
       '<div style="display:flex;gap:5px;pointer-events:auto">' +
+      '<button type="button" data-hull-control="shoot">SPACE · ОРУДИЕ</button>' +
+      '<button type="button" data-hull-control="reload">R · БОЕЗАПАС</button>' +
       '<button type="button" data-hull-control="repair">F · РЕМОНТ</button>' +
       '<button type="button" data-hull-control="pump">E · НАСОС</button></div></div>' +
       '<div style="position:absolute;left:12px;right:12px;bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px">' +
       '<span data-hull-ox style="font-variant-numeric:tabular-nums">O2 100</span>' +
       '<span data-hull-weld>шов 0%</span>' +
+      '<span data-hull-ammo>БОЕЗАПАС 6/6</span>' +
       '<span data-hull-crew>CREW</span>' +
-      '<span data-hull-hint style="opacity:.75">P1 WASD · F/E · P2 стрелки · Enter/Shift</span></div>' +
-      '<style>#bcm-hull-dive [data-hull-controls] button{touch-action:none;min-height:38px;min-width:38px;padding:5px 9px;border:1px solid #46667b;border-radius:8px;background:rgba(16,32,44,.94);color:#e7eef2;font-weight:700}#bcm-hull-dive [data-hull-controls] button.is-active{background:#294b60;border-color:#7bd9ee}#bcm-hull-dive canvas{display:block;width:100%;height:100%}@media(max-width:620px){#bcm-hull-dive [data-hull-controls] button{font-size:12px;padding:4px 7px;min-height:36px}}@media(min-width:1000px){#bcm-hull-dive [data-hull-controls]{left:50%;right:auto;transform:translateX(-50%);width:min(800px,94vw)}}</style>';
+      '<span data-hull-hint style="opacity:.75">P1 WASD · SPACE огонь · R зарядка · F/E ремонт/насос · P2 arrows + Enter/Shift</span></div>' +
+      '<style>#bcm-hull-dive [data-hull-controls] button{touch-action:none;min-height:38px;min-width:38px;padding:5px 9px;border:1px solid #46667b;border-radius:8px;background:rgba(16,32,44,.94);color:#e7eef2;font-weight:700}#bcm-hull-dive [data-hull-controls] button.is-active{background:#294b60;border-color:#7bd9ee}#bcm-hull-dive canvas{display:block;width:100%;height:100%}@media(max-width:620px){#bcm-hull-dive [data-hull-controls] button{font-size:10px;padding:4px 6px;min-height:34px;min-width:34px}}@media(min-width:1000px){#bcm-hull-dive [data-hull-controls]{left:50%;right:auto;transform:translateX(-50%);width:min(800px,94vw)}}</style>';
     document.body.appendChild(root);
 
     const view = root.querySelector("[data-hull-view]");
@@ -43,6 +46,7 @@
     const oxEl = root.querySelector("[data-hull-ox]");
     const weldEl = root.querySelector("[data-hull-weld]");
     const crewEl = root.querySelector("[data-hull-crew]");
+    const ammoEl = root.querySelector("[data-hull-ammo]");
     const crewSelection = Array.isArray(window.BCMMiniCrewSelection?.players)
       ? window.BCMMiniCrewSelection.players.slice(0, 2)
       : [];
@@ -51,8 +55,8 @@
       (entry?.mint ? String(entry.mint).slice(0, 8) + "…" : "Crew " + (index + 1))
     ).slice(0, 28);
     const players = [
-      { x: -4.2, y: floor + 0.42, sprite: null, texture: null, name: crewName(crewSelection[0], 0) },
-      { x: -3.1, y: floor + 0.42, sprite: null, texture: null, name: crewName(crewSelection[1], 1) }
+      { x: -4.75, y: floor + 0.42, sprite: null, texture: null, crew: crewSelection[0] || null, name: crewName(crewSelection[0], 0) },
+      { x: 4.75, y: floor + 0.42, sprite: null, texture: null, crew: crewSelection[1] || null, name: crewName(crewSelection[1], 1) }
     ];
     if (crewEl) crewEl.textContent = "CREW: " + players.map((player) => player.name).join(" / ");
     let closed = false;
@@ -73,6 +77,17 @@
         if (scene) scene.remove(player.sprite);
         player.sprite = null;
       });
+      if (scene && scene.traverse) {
+        scene.traverse((object) => {
+          if (object.geometry && typeof object.geometry.dispose === "function") object.geometry.dispose();
+          if (!object.material) return;
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          materials.forEach((material) => {
+            try { material.map && material.map.dispose && material.map.dispose(); } catch (e) {}
+            try { material.dispose && material.dispose(); } catch (e) {}
+          });
+        });
+      }
       if (renderer) {
         renderer.dispose();
         if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
@@ -84,12 +99,15 @@
 
     const keys = Object.create(null);
     const handledCodes = new Set([
-      "KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyF", "KeyR", "KeyC",
+      "KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyF", "KeyR", "KeyQ", "KeyC", "Period", "Slash",
       "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter", "ShiftLeft", "ShiftRight", "Space"
     ]);
     function onKey(event) {
       const down = event.type === "keydown";
       keys[String(event.key || "").toLowerCase()] = down;
+      if (event.code === "Space") keys.space = down;
+      if (event.code === "Period") keys.period = down;
+      if (event.code === "Slash") keys.slash = down;
       if (handledCodes.has(event.code)) {
         event.preventDefault();
         event.stopPropagation();
@@ -99,7 +117,7 @@
     window.addEventListener("keydown", onKey, true);
     window.addEventListener("keyup", onKey, true);
 
-    const buttonKeys = { left: "a", right: "d", up: "w", down: "s", repair: "f", pump: "e" };
+    const buttonKeys = { left: "a", right: "d", up: "w", down: "s", shoot: "space", reload: "r", repair: "f", pump: "e" };
     root.querySelectorAll("[data-hull-control]").forEach((button) => {
       const key = buttonKeys[button.dataset.hullControl];
       if (!key) return;
@@ -133,12 +151,28 @@
     let pressure = 1;
     let won = false;
     let last = performance.now();
+    const maxAmmo = 6;
+    let ammo = maxAmmo;
+    let targetArmor = 3;
+    let shotCooldown = 0;
+    let reloadProgress = 0;
+    const reloadHeld = [false, false];
+    const laserShots = [];
+    let gunTarget = null;
+    let gunTargetRing = null;
+    let actionStatus = "";
+    let actionStatusUntil = 0;
+
+    function notifyStatus(message, duration) {
+      actionStatus = String(message || "");
+      actionStatusUntil = performance.now() + (duration || 2200);
+    }
 
     function readGamepad() {
       try {
         const pads = navigator.getGamepads ? [...navigator.getGamepads()] : [];
         const gp = pads.find((pad) => pad && pad.connected);
-        if (!gp) return { x: 0, y: 0, repair: false, pump: false };
+        if (!gp) return { x: 0, y: 0, repair: false, pump: false, shoot: false, reload: false };
         const axis = (value) => Math.abs(value) < 0.18 ? 0 : Math.sign(value) * (Math.abs(value) - 0.18) / 0.82;
         const button = (index) => !!(gp.buttons && gp.buttons[index] && gp.buttons[index].pressed);
         const axes = gp.axes || [];
@@ -146,7 +180,9 @@
           x: Math.max(-1, Math.min(1, axis(axes[0] || 0) + (button(15) ? 1 : 0) - (button(14) ? 1 : 0))),
           y: Math.max(-1, Math.min(1, axis(axes[1] || 0) + (button(13) ? 1 : 0) - (button(12) ? 1 : 0))),
           repair: button(0),
-          pump: button(1)
+          pump: button(1),
+          shoot: button(2),
+          reload: button(3)
         };
       } catch (e) {
         return { x: 0, y: 0, repair: false, pump: false };
@@ -159,18 +195,22 @@
           dx: Math.max(-1, Math.min(1, (keys.d ? 1 : 0) - (keys.a ? 1 : 0) + pad.x)),
           dy: Math.max(-1, Math.min(1, (keys.w ? 1 : 0) - (keys.s ? 1 : 0) - pad.y)),
           repair: !!(keys.f || pad.repair),
-          pump: !!(keys.e || pad.pump)
+          pump: !!(keys.e || pad.pump),
+          shoot: !!(keys.space || pad.shoot),
+          reload: !!(keys.r || pad.reload)
         };
       }
       return {
         dx: (keys.arrowright ? 1 : 0) - (keys.arrowleft ? 1 : 0),
         dy: (keys.arrowup ? 1 : 0) - (keys.arrowdown ? 1 : 0),
-        repair: !!keys.enter,
-        pump: !!keys.shift
+        repair: !!keys.period,
+        pump: !!keys.shift,
+        shoot: !!keys.enter,
+        reload: !!keys.slash
       };
     }
 
-    function makeChibiTexture(THREE, suitColor, accentColor) {
+    function makeFallbackChibiTexture(THREE, suitColor, accentColor) {
       const canvas = document.createElement("canvas");
       canvas.width = 96;
       canvas.height = 128;
@@ -207,6 +247,296 @@
       return texture;
     }
 
+
+    let hullCrewSegmentationPipelinePromise = null;
+
+    function officialCrewCutoutUrl(url) {
+      const text = String(url || "");
+      const full = text.match(/^(https?:\/\/cdn\.staratlas\.com\/crew\/v1\/)(\d+)_full\.(?:jpe?g|png|webp)(?:\?.*)?$/i);
+      if (full) return full[1] + full[2] + ".png";
+      const bare = text.match(/^https?:\/\/cdn\.staratlas\.com\/crew\/v1\/\d+\.png(?:\?.*)?$/i);
+      return bare ? text : "";
+    }
+
+    function crewCutoutCacheRequest(url) {
+      if (!window.caches || !window.location || !window.location.origin) return null;
+      let hash = 2166136261;
+      const input = String(url || "") + "|crew-isnet-v8";
+      for (let i = 0; i < input.length; i += 1) {
+        hash ^= input.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+      }
+      return new Request(window.location.origin + "/?bcm-crew-cutout=v8-" + (hash >>> 0).toString(36));
+    }
+
+    async function readCrewCutoutCache(url) {
+      try {
+        const request = crewCutoutCacheRequest(url);
+        if (!request) return null;
+        const cache = await window.caches.open("bcm-tower-crew-cutouts-v8");
+        const response = await cache.match(request);
+        return response && response.ok ? await response.blob() : null;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    async function writeCrewCutoutCache(url, canvas) {
+      try {
+        const request = crewCutoutCacheRequest(url);
+        if (!request || !canvas.toBlob || typeof Response !== "function") return;
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+        if (!blob) return;
+        const cache = await window.caches.open("bcm-tower-crew-cutouts-v8");
+        await cache.put(request, new Response(blob, { headers: { "Content-Type": "image/png" } }));
+      } catch (error) {}
+    }
+
+    function loadCrewImage(url) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.crossOrigin = "anonymous";
+        image.decoding = "async";
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error("Crew image failed to load"));
+        image.src = url;
+      });
+    }
+
+    function crewPixelsHaveCutoutAlpha(pixels) {
+      let samples = 0;
+      let clear = 0;
+      for (let i = 3; i < pixels.length; i += 16) {
+        samples += 1;
+        if (pixels[i] < 16) clear += 1;
+      }
+      return samples > 0 && clear / samples > 0.18;
+    }
+
+    function cropCrewCanvas(source) {
+      const ctx = source.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return source;
+      const frame = ctx.getImageData(0, 0, source.width, source.height);
+      const pixels = frame.data;
+      let minX = source.width;
+      let minY = source.height;
+      let maxX = -1;
+      let maxY = -1;
+      for (let y = 0; y < source.height; y += 1) {
+        for (let x = 0; x < source.width; x += 1) {
+          if (pixels[(y * source.width + x) * 4 + 3] < 4) continue;
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        }
+      }
+      if (maxX < minX || maxY < minY) throw new Error("Crew cut-out is empty");
+      const padX = Math.max(3, Math.round(source.width * 0.025));
+      const padY = Math.max(3, Math.round(source.height * 0.02));
+      const left = Math.max(0, minX - padX);
+      const top = Math.max(0, minY - padY);
+      const right = Math.min(source.width, maxX + padX + 1);
+      const bottom = Math.min(source.height, maxY + padY + 1);
+      const cropped = document.createElement("canvas");
+      cropped.width = Math.max(1, right - left);
+      cropped.height = Math.max(1, bottom - top);
+      const croppedContext = cropped.getContext("2d");
+      if (!croppedContext) return source;
+      croppedContext.drawImage(source, left, top, cropped.width, cropped.height, 0, 0, cropped.width, cropped.height);
+      return cropped;
+    }
+
+    function getHullCrewSegmenter() {
+      if (!hullCrewSegmentationPipelinePromise) {
+        hullCrewSegmentationPipelinePromise = import("https://esm.sh/@huggingface/transformers@3.8.1?bundle")
+          .then((module) => {
+            if (module.env) {
+              module.env.useBrowserCache = true;
+              module.env.allowRemoteModels = true;
+            }
+            return module.pipeline("background-removal", "Ko033/isnet-general-use-onnx", { dtype: "q8" });
+          })
+          .catch((error) => {
+            hullCrewSegmentationPipelinePromise = null;
+            throw error;
+          });
+      }
+      return hullCrewSegmentationPipelinePromise;
+    }
+
+    async function cutOutCrewCanvas(canvas) {
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) throw new Error("No Crew canvas context");
+      const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const output = await (await getHullCrewSegmenter())(canvas);
+      const results = Array.isArray(output) ? output : [output];
+      const picked = results.find((item) => item && item.mask && item.mask.data && item.mask.width && item.mask.height)
+        || results.find((item) => item && item.data && item.width && item.height);
+      const mask = picked && picked.mask ? picked.mask : picked;
+      if (!mask || !mask.data || !mask.width || !mask.height) throw new Error("ISNet returned no Crew matte");
+      const channels = Math.max(1, Number(mask.channels) || 1);
+      const embeddedAlpha = !picked.mask && channels === 4;
+      const channel = embeddedAlpha ? 3 : 0;
+      const count = mask.width * mask.height;
+      if (mask.data.length < count * channels) throw new Error("ISNet returned incomplete matte");
+      let minMask = Infinity;
+      let maxMask = -Infinity;
+      for (let i = 0; i < count; i += 1) {
+        const value = Number(mask.data[i * channels + channel]) || 0;
+        minMask = Math.min(minMask, value);
+        maxMask = Math.max(maxMask, value);
+      }
+      const byteMask = mask.data instanceof Uint8Array || mask.data instanceof Uint8ClampedArray || maxMask > 1.5;
+      const maskScale = byteMask ? 255 : 1;
+      if (!Number.isFinite(minMask) || !Number.isFinite(maxMask) || maxMask - minMask < (byteMask ? 2 : 0.01)) {
+        throw new Error("ISNet returned a flat Crew matte");
+      }
+      const smoothstep = (a, b, value) => {
+        const t = Math.max(0, Math.min(1, (value - a) / (b - a)));
+        return t * t * (3 - 2 * t);
+      };
+      for (let y = 0; y < canvas.height; y += 1) {
+        const my = Math.min(mask.height - 1, Math.round(y * (mask.height - 1) / Math.max(1, canvas.height - 1)));
+        for (let x = 0; x < canvas.width; x += 1) {
+          const mx = Math.min(mask.width - 1, Math.round(x * (mask.width - 1) / Math.max(1, canvas.width - 1)));
+          const mi = (my * mask.width + mx) * channels + channel;
+          const normalized = Math.max(0, Math.min(1, (Number(mask.data[mi]) || 0) / maskScale));
+          const alpha = embeddedAlpha ? smoothstep(0.025, 0.26, normalized) : smoothstep(0.18, 0.52, normalized);
+          const pi = (y * canvas.width + x) * 4;
+          frame.data[pi + 3] = Math.round(frame.data[pi + 3] * alpha);
+        }
+      }
+      ctx.putImageData(frame, 0, 0);
+      return cropCrewCanvas(canvas);
+    }
+
+    function setCrewTextureColorSpace(THREE, texture) {
+      if (THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
+      else if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
+      texture.needsUpdate = true;
+      return texture;
+    }
+
+    async function makeCrewTexture(THREE, crew) {
+      const sourceUrl = String(crew && crew.image || "").trim();
+      if (!sourceUrl) return null;
+      const officialUrl = officialCrewCutoutUrl(sourceUrl);
+      const candidates = Array.from(new Set([officialUrl, sourceUrl].filter(Boolean)));
+
+      for (const candidate of candidates) {
+        const cached = await readCrewCutoutCache(candidate);
+        if (!cached) continue;
+        try {
+          if (typeof createImageBitmap === "function") {
+            const bitmap = await createImageBitmap(cached);
+            return setCrewTextureColorSpace(THREE, new THREE.Texture(bitmap));
+          }
+          const objectUrl = URL.createObjectURL(cached);
+          try {
+            const cachedImage = await loadCrewImage(objectUrl);
+            const canvas = document.createElement("canvas");
+            canvas.width = cachedImage.naturalWidth || cachedImage.width || 1;
+            canvas.height = cachedImage.naturalHeight || cachedImage.height || 1;
+            const context = canvas.getContext("2d");
+            context.drawImage(cachedImage, 0, 0);
+            return setCrewTextureColorSpace(THREE, new THREE.CanvasTexture(canvas));
+          } finally {
+            URL.revokeObjectURL(objectUrl);
+          }
+        } catch (error) {}
+      }
+
+      let image = null;
+      let cacheUrl = candidates[0] || sourceUrl;
+      for (const candidate of candidates) {
+        try {
+          image = await loadCrewImage(candidate);
+          cacheUrl = candidate;
+          break;
+        } catch (error) {}
+      }
+      if (!image) throw new Error("Selected Crew artwork is unavailable");
+
+      const maxSide = 512;
+      const scale = Math.min(1, maxSide / Math.max(image.naturalWidth || image.width || 1, image.naturalHeight || image.height || 1));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round((image.naturalWidth || image.width || 1) * scale));
+      canvas.height = Math.max(1, Math.round((image.naturalHeight || image.height || 1) * scale));
+      let ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) throw new Error("No Crew texture context");
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const cutout = crewPixelsHaveCutoutAlpha(frame.data)
+        ? cropCrewCanvas(canvas)
+        : await cutOutCrewCanvas(canvas);
+      await writeCrewCutoutCache(cacheUrl, cutout);
+      return setCrewTextureColorSpace(THREE, new THREE.CanvasTexture(cutout));
+    }
+
+    function makeHullSideTexture(THREE) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1536;
+      canvas.height = 384;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, "#567282");
+      gradient.addColorStop(0.18, "#243f50");
+      gradient.addColorStop(0.75, "#102534");
+      gradient.addColorStop(1, "#07141e");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#8ca7b2"; ctx.fillRect(0, 18, canvas.width, 10);
+      ctx.fillStyle = "#07131c"; ctx.fillRect(0, 34, canvas.width, 5);
+      ctx.fillRect(0, 336, canvas.width, 20);
+      ctx.fillStyle = "#537384"; ctx.fillRect(0, 359, canvas.width, 8);
+      ctx.fillStyle = "rgba(4,12,18,.62)";
+      ctx.fillRect(0, 42, canvas.width, 280);
+      for (let i = 0; i < 3; i += 1) {
+        const x = i * 512;
+        ctx.fillStyle = i === 1 ? "#182d3a" : "#1b3443";
+        ctx.fillRect(x + 10, 52, 492, 260);
+        ctx.strokeStyle = "#648392"; ctx.lineWidth = 5;
+        ctx.strokeRect(x + 10, 52, 492, 260);
+        ctx.strokeStyle = "rgba(160,190,203,.28)"; ctx.lineWidth = 2;
+        for (let j = 1; j < 5; j += 1) {
+          ctx.beginPath(); ctx.moveTo(x + 20, 52 + j * 52); ctx.lineTo(x + 492, 52 + j * 52); ctx.stroke();
+        }
+        ctx.fillStyle = i === 0 ? "#7ae4ff" : i === 1 ? "#ffbe65" : "#83e3b0";
+        ctx.fillRect(x + 34, 65, 12, 234);
+        ctx.fillStyle = "#081722"; ctx.fillRect(x + 65, 73, 360, 58);
+        ctx.strokeStyle = i === 0 ? "#4bb3d0" : i === 1 ? "#b47a37" : "#3e9a70";
+        ctx.lineWidth = 3; ctx.strokeRect(x + 65, 73, 360, 58);
+        ctx.fillStyle = "#e5f2f7";
+        ctx.font = "bold 28px Arial, sans-serif";
+        ctx.fillText(i === 0 ? "ПИЛОТ / НАВИГАЦИЯ" : i === 1 ? "ОРУДИЕ / БОЕЗАПАС" : "ИНЖЕНЕР / РЕМОНТ", x + 82, 109);
+        ctx.fillStyle = "#507181";
+        for (let j = 0; j < 7; j += 1) {
+          ctx.beginPath(); ctx.arc(x + 88 + j * 48, 161, 5, 0, Math.PI * 2); ctx.fill();
+        }
+        for (let j = 0; j < 4; j += 1) {
+          ctx.fillStyle = j % 2 ? "#183b4b" : "#245269";
+          ctx.fillRect(x + 75 + j * 86, 190, 70, 62);
+          ctx.strokeStyle = "#52798b"; ctx.lineWidth = 2;
+          ctx.strokeRect(x + 75 + j * 86, 190, 70, 62);
+          ctx.fillStyle = i === 1 ? (j % 2 ? "#f0a248" : "#8b5426") : "#3a7088";
+          ctx.fillRect(x + 84 + j * 86, 201, 52, 9);
+          ctx.fillStyle = "#a9c3cf";
+          ctx.fillRect(x + 84 + j * 86, 218, 35, 5);
+        }
+      }
+      ctx.fillStyle = "#eab85c";
+      for (let i = 0; i < 12; i += 1) {
+        ctx.fillRect(i * 18, 0, 9, 14);
+        ctx.fillRect(canvas.width - 216 + i * 18, 370, 9, 14);
+      }
+      ctx.fillStyle = "#b8ccd5"; ctx.font = "bold 16px Arial, sans-serif";
+      ctx.fillText("BCM ASTEROID RUNNER · PRESSURIZED HULL", 555, 31);
+      const texture = new THREE.CanvasTexture(canvas);
+      return setCrewTextureColorSpace(THREE, texture);
+    }
+
     let waters = [];
     let breach = null;
     if (THREE && view) {
@@ -219,11 +549,51 @@
       renderer.setSize(view.clientWidth || window.innerWidth, view.clientHeight || window.innerHeight);
       view.appendChild(renderer.domElement);
       scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+      const hullTexture = makeHullSideTexture(THREE);
       const hull = new THREE.Mesh(
         new THREE.BoxGeometry(12.8, 3.7, 0.4),
-        new THREE.MeshStandardMaterial({ color: 0x1c3344, metalness: 0.35, roughness: 0.55 })
+        new THREE.MeshStandardMaterial({ map: hullTexture, color: 0xffffff, metalness: 0.42, roughness: 0.5 })
       );
       scene.add(hull);
+
+      const hullMetal = new THREE.MeshStandardMaterial({ color: 0x426171, metalness: 0.62, roughness: 0.38 });
+      const hullDark = new THREE.MeshStandardMaterial({ color: 0x101f2b, metalness: 0.34, roughness: 0.58 });
+      const hullScreen = new THREE.MeshStandardMaterial({ color: 0x48c7dc, emissive: 0x125268, emissiveIntensity: 0.8, metalness: 0.15, roughness: 0.28 });
+      const hullAmber = new THREE.MeshStandardMaterial({ color: 0xe6a44d, emissive: 0x4a2607, emissiveIntensity: 0.32 });
+      const hullGreen = new THREE.MeshStandardMaterial({ color: 0x69d39a, emissive: 0x113e28, emissiveIntensity: 0.3 });
+      const addHullPart = (geometry, material, x, y, z, rz) => {
+        const part = new THREE.Mesh(geometry, material);
+        part.position.set(x, y, z);
+        if (rz) part.rotation.z = rz;
+        scene.add(part);
+        return part;
+      };
+
+      // Pilot console and wheel.
+      addHullPart(new THREE.BoxGeometry(1.1, 0.52, 0.2), hullMetal, -4.5, -0.85, 0.48);
+      addHullPart(new THREE.BoxGeometry(0.76, 0.28, 0.12), hullDark, -4.5, -0.49, 0.61);
+      addHullPart(new THREE.BoxGeometry(0.54, 0.1, 0.08), hullScreen, -4.5, -0.49, 0.69);
+      addHullPart(new THREE.TorusGeometry(0.22, 0.045, 7, 20), hullMetal, -4.85, -0.08, 0.64);
+
+      // Central gun mount and magazine: this is a playable station, not just decoration.
+      addHullPart(new THREE.CylinderGeometry(0.34, 0.4, 0.18, 12), hullMetal, 0, 1.96, 0.45);
+      addHullPart(new THREE.BoxGeometry(1.15, 0.15, 0.18), hullDark, -0.3, 2.11, 0.62);
+      addHullPart(new THREE.BoxGeometry(0.92, 0.58, 0.2), hullMetal, 0, -0.9, 0.52);
+      for (let i = 0; i < 4; i += 1) {
+        addHullPart(new THREE.CylinderGeometry(0.075, 0.075, 0.36, 8), hullAmber, -0.3 + i * 0.2, -0.83, 0.68, Math.PI / 2);
+      }
+      addHullPart(new THREE.BoxGeometry(0.62, 0.09, 0.08), hullScreen, 0, -0.48, 0.68);
+
+      // Engineering panel and crossed repair tools.
+      addHullPart(new THREE.BoxGeometry(1.1, 0.55, 0.2), hullMetal, 4.45, -0.85, 0.48);
+      addHullPart(new THREE.BoxGeometry(0.74, 0.28, 0.12), hullDark, 4.45, -0.49, 0.61);
+      addHullPart(new THREE.BoxGeometry(0.54, 0.1, 0.08), hullGreen, 4.45, -0.49, 0.69);
+      addHullPart(new THREE.BoxGeometry(0.55, 0.07, 0.08), hullAmber, 4.45, -0.15, 0.64, 0.62);
+      addHullPart(new THREE.BoxGeometry(0.55, 0.07, 0.08), hullMetal, 4.45, -0.15, 0.65, -0.62);
+
+      // A visible asteroid marks the forward gun lane.
+      gunTarget = addHullPart(new THREE.DodecahedronGeometry(0.28, 0), hullMetal, 0.7, 2.62, 0.78);
+      gunTargetRing = addHullPart(new THREE.TorusGeometry(0.4, 0.025, 6, 20), hullAmber, 0.7, 2.62, 0.79);
       rooms.forEach((room, index) => {
         if (index === 0) return;
         const wall = new THREE.Mesh(
@@ -248,18 +618,37 @@
       );
       breach.position.set(0, floor + 0.15, 0.45);
       scene.add(breach);
-      players.forEach((player, index) => {
-        const texture = makeChibiTexture(THREE, index === 0 ? "#62b9d8" : "#d7a65a", index === 0 ? "#d9f6ff" : "#fff0bd");
-        if (!texture) return;
+      const addCrewSprite = (player, index, texture) => {
+        if (!texture || closed || !scene) {
+          try { texture && texture.dispose(); } catch (e) {}
+          return;
+        }
         const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
           map: texture, transparent: true, depthTest: false, depthWrite: false
         }));
-        sprite.scale.set(0.82, 1.1, 1);
-        sprite.position.set(player.x, player.y + 0.16, 0.72 + index * 0.01);
+        const image = texture.image || {};
+        const imageWidth = image.width || image.naturalWidth || 1;
+        const imageHeight = image.height || image.naturalHeight || 1;
+        const spriteHeight = 1.42;
+        sprite.scale.set(spriteHeight * imageWidth / Math.max(1, imageHeight), spriteHeight, 1);
+        sprite.position.set(player.x, player.y + 0.16, 0.82 + index * 0.015);
         sprite.renderOrder = 20 + index;
         player.sprite = sprite;
         player.texture = texture;
         scene.add(sprite);
+      };
+      players.forEach((player, index) => {
+        if (player.crew && player.crew.image) {
+          makeCrewTexture(THREE, player.crew)
+            .then((texture) => addCrewSprite(player, index, texture))
+            .catch((error) => {
+              console.warn("Hull Dive Crew cut-out unavailable; selected Crew was not replaced by a substitute", error);
+              notifyStatus("Не удалось подготовить изображение выбранного Crew", 3500);
+            });
+        } else {
+          const fallback = makeFallbackChibiTexture(THREE, index === 0 ? "#62b9d8" : "#d7a65a", index === 0 ? "#d9f6ff" : "#fff0bd");
+          addCrewSprite(player, index, fallback);
+        }
       });
       const paint = () => {
         if (!renderer || closed) return;
@@ -269,6 +658,40 @@
         renderer.render(scene, camera);
       };
       root._paint = paint;
+    }
+
+    function fireWeapon(player) {
+      if (Math.abs(player.x) > 1.35) {
+        notifyStatus("Орудие и боезапас — в центральном отсеке", 1800);
+        return;
+      }
+      if (!gunTarget) return;
+      if (ammo <= 0) {
+        notifyStatus("Боезапас пуст. У стойки нажми R и удерживай для зарядки", 2300);
+        return;
+      }
+      if (!gunTarget.visible) {
+        notifyStatus("Цель уже уничтожена. Пополни боезапас для следующего астероида", 2200);
+        return;
+      }
+      ammo -= 1;
+      shotCooldown = 0.42;
+      const geometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 2.06, 0.88),
+        new THREE.Vector3(gunTarget.position.x, gunTarget.position.y, gunTarget.position.z + 0.04)
+      ]);
+      const material = new THREE.LineBasicMaterial({ color: 0x74efff, transparent: true, opacity: 0.9 });
+      const laser = new THREE.Line(geometry, material);
+      scene.add(laser);
+      laserShots.push({ mesh: laser, life: 0.16 });
+      targetArmor = Math.max(0, targetArmor - 1);
+      if (targetArmor <= 0) {
+        gunTarget.visible = false;
+        if (gunTargetRing) gunTargetRing.visible = false;
+        notifyStatus("Астероид сбит! Перезарядись, чтобы продолжить", 2500);
+      } else {
+        notifyStatus("Попадание · броня астероида " + targetArmor + "/3 · боезапас " + (ammo) + "/" + maxAmmo, 1600);
+      }
     }
 
     function roomAt(x) {
@@ -282,8 +705,17 @@
       if (closed) return;
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      if (keys.r) pressure = Math.max(0.45, pressure - dt * 0.35);
+      shotCooldown = Math.max(0, shotCooldown - dt);
+      if (keys.q) pressure = Math.max(0.45, pressure - dt * 0.35);
       if (keys.c) pressure = Math.min(1.7, pressure + dt * 0.35);
+      laserShots.forEach((shot) => { shot.life -= dt; });
+      for (let i = laserShots.length - 1; i >= 0; i -= 1) {
+        if (laserShots[i].life > 0) continue;
+        scene.remove(laserShots[i].mesh);
+        laserShots[i].mesh.geometry.dispose();
+        laserShots[i].mesh.material.dispose();
+        laserShots.splice(i, 1);
+      }
       const leak = (1 - weld) * 0.11 * pressure;
       water[1] = Math.min(1, water[1] + leak * dt);
       for (let i = 0; i < 2; i += 1) {
@@ -310,7 +742,31 @@
           const room = roomAt(player.x);
           water[room] = Math.max(0, water[room] - 0.16 * dt);
         }
-        if (player.sprite) player.sprite.position.set(player.x, player.y + 0.16, 0.72 + index * 0.01);
+        if (input.shoot && shotCooldown <= 0) fireWeapon(player);
+        if (input.reload && Math.abs(player.x) < 1.35) {
+          if (ammo < maxAmmo || (gunTarget && !gunTarget.visible)) {
+            reloadProgress += dt;
+            if (reloadProgress >= 1.05) {
+              ammo = maxAmmo;
+              reloadProgress = 0;
+              if (gunTarget && !gunTarget.visible) {
+                targetArmor = 3;
+                gunTarget.visible = true;
+                if (gunTargetRing) gunTargetRing.visible = true;
+              }
+              notifyStatus("Боезапас пополнен " + ammo + "/" + maxAmmo, 2000);
+            }
+          } else {
+            reloadProgress = 0;
+          }
+        } else {
+          reloadProgress = 0;
+        }
+        if (input.reload && !reloadHeld[index] && Math.abs(player.x) >= 1.35) {
+          notifyStatus("Подойди к центральной стойке боезапаса и удерживай R", 2200);
+        }
+        reloadHeld[index] = input.reload;
+        if (player.sprite) player.sprite.position.set(player.x, player.y + 0.16, 0.82 + index * 0.015);
       });
 
       const nearBreach = players.map((player) => Math.abs(player.x) < 0.7 && player.y < floor + 0.9);
@@ -334,6 +790,7 @@
       }
       oxEl.textContent = "O2 " + Math.round(oxygen);
       weldEl.textContent = "шов " + Math.round(weld * 100) + "%";
+      if (ammoEl) ammoEl.textContent = "БОЕЗАПАС " + ammo + "/" + maxAmmo + (reloadProgress > 0 ? " · ЗАРЯДКА " + Math.round(reloadProgress / 1.05 * 100) + "%" : "");
       waters.forEach((mesh, index) => {
         const depth = Math.max(0.04, water[index] * 3.15);
         mesh.scale.y = depth;
@@ -344,6 +801,7 @@
         breach.scale.set(left, left, 1);
         breach.material.color.set(weld >= 1 ? 0x7dcea0 : 0xffb15a);
       }
+      if (now < actionStatusUntil && actionStatus) status.textContent = actionStatus;
       if (root._paint) root._paint();
       frame = requestAnimationFrame(tick);
     }
