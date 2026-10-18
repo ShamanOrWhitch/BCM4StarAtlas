@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppChrome } from "@/components/app-chrome";
 import { loadMarket, watchLiveBooks, type Candle, type MarketSnap, type ResourceRow, type TapePoint } from "@/lib/desk";
@@ -23,13 +23,6 @@ const FILTERS = [
   { id: "component", label: "компоненты" },
   { id: "compound material", label: "сплавы" },
   { id: "contracts", label: "контракты" },
-];
-
-const SPECIAL_RESOURCES = [
-  { label: "Еда", re: /^food$/i },
-  { label: "Топливо", re: /^fuel$/i },
-  { label: "Амуниция", re: /ammunition|ammo/i },
-  { label: "Ремкомплекты", re: /repair|repair kit|repairkit/i },
 ];
 
 const PERIODS = [
@@ -119,7 +112,7 @@ export function MarketPage() {
   const [resourceMint, setResourceMint] = useState("");
   const [bookMint, setBookMint] = useState("");
   const [quote, setQuote] = useState<"USDC" | "ATLAS" | "POLIS">("USDC");
-  const [period, setPeriod] = useState<PeriodId>("all");
+  const [period, setPeriod] = useState<PeriodId>("1w");
 
   async function pull(_force: boolean) {
     setLoading(true);
@@ -209,112 +202,10 @@ export function MarketPage() {
   const viewShips = useMemo(() => (snap?.ships ?? []).map((row) => priced(row, quote)), [snap, quote]);
   const anchor = useMemo(() => anchorAsks(tape, floors, period), [tape, floors, period]);
 
-  const movers = useMemo(() => {
-    if (!previous) return [];
-    return [...(snap?.resources ?? []), ...(snap?.ships ?? [])]
-      .map((row) => ({ row, d: deltaPct(row.usdcAsk ?? row.ask, previous.asks[row.mint]) }))
-      .filter((item): item is { row: ResourceRow; d: number } => item.d != null && Math.abs(item.d) >= 1)
-      .sort((a, b) => Math.abs(b.d) - Math.abs(a.d))
-      .slice(0, 8);
-  }, [snap, previous]);
-
-  const specialResources = SPECIAL_RESOURCES
-    .map((item) => ({
-      ...item,
-      row: snap?.resources.find((row) => item.re.test(row.name)) ?? null,
-    }))
-    .filter((item): item is typeof SPECIAL_RESOURCES[number] & { row: ResourceRow } => Boolean(item.row));
-
   return (
     <AppChrome current="market" kicker="Galaxy · Galactic Marketplace" title="Цены ресурсов">
       <div className="h-full overflow-y-auto">
         <div className="mx-auto flex max-w-5xl flex-col gap-4 px-3 py-4 md:px-6">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <PairCard name="ATLAS / USD" value={snap?.pairQuotes?.atlasUsdc ?? snap?.atlas?.usd ?? null} unit="USD" />
-            <PairCard name="POLIS / USD" value={snap?.pairQuotes?.polisUsdc ?? snap?.polis?.usd ?? null} unit="USD" />
-            <PairCard name="SOL за 1 POLIS" value={snap?.pairQuotes?.solPerPolis ?? null} unit="SOL" />
-            <PairCard name="ATLAS за 1 SOL" value={snap?.pairQuotes?.atlasPerSol ?? null} unit="ATLAS" />
-          </div>
-          <CandleChart title="ATLAS / USD" candles={snap?.candles ?? []} source="Дневные свечи Kraken ATLASUSD. Подпись USD, не USDC. «Сейчас» — закрытие последней свечи." />
-          <CandleChart title="POLIS / USD" candles={snap?.polisUsdcCandles ?? []} source="Дневные свечи Kraken POLISUSD. Подпись USD, не USDC." />
-          <CandleChart title="SOL за 1 POLIS" candles={snap?.solPolisCandles ?? []} source="Цена POLIS в USD, делённая на цену SOL в USD. Сколько SOL стоит один POLIS." />
-          <CandleChart title="ATLAS за 1 SOL" candles={snap?.solAtlasCandles ?? []} source="Цена SOL в USD, делённая на цену ATLAS в USD. Сколько ATLAS покупает один SOL." />
-          <CandleChart title="ATLAS за 1 POLIS" candles={snap?.pairCandles ?? []} source="Цена POLIS в USD, делённая на цену ATLAS в USD." />
-
-          <div className="grid gap-3 sm:grid-cols-4">
-            {specialResources.map(({ label, row }) => (
-              <article key={row.mint} className="galia-hop rounded-xl border border-line bg-surface p-3">
-                <p className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{label}</p>
-                <p className="mt-1 font-mono text-lg text-fg">USDC {fmtAtlas(row.usdcAsk ?? null)}</p>
-                <p className="font-mono text-sm text-muted">ATLAS {fmtAtlas(row.atlasAsk ?? null)}</p>
-                <p className="text-xs text-faint">
-                  {row.usdcDerived ? "USDC рассчитан из ATLAS/USDC" : "USDC из прямого стакана"}
-                </p>
-              </article>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {FILTERS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setFilter(item.id)}
-                className={`h-11 rounded-lg border px-3 font-display text-sm ${
-                  filter === item.id ? "border-brass bg-surface-2 text-fg" : "border-line text-muted"
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Поиск"
-              className="h-11 min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 text-fg outline-none placeholder:text-faint"
-            />
-            <button
-              type="button"
-              onClick={() => void pull(true)}
-              className="h-11 rounded-lg border border-line bg-surface px-3 font-display text-sm text-fg"
-            >
-              {loading && !snap ? "Разбудить Render…" : "Обновить"}
-            </button>
-          </div>
-
-          {error ? <p className="text-sm text-danger">{error}</p> : null}
-          <p className="text-sm text-muted">Цены обновляются сами каждые 3 минуты, пока вкладка открыта.</p>
-
-          {movers.length ? (
-            <p className="text-sm text-muted">
-              С прошлого снимка:{" "}
-              {movers.map((item) => (
-                <span key={item.row.mint} className={item.d > 0 ? "text-ok" : "text-danger"}>
-                  {item.row.name} {fmtPct(item.d)}{" "}
-                </span>
-              ))}
-            </p>
-          ) : (
-            <p className="text-sm text-muted">
-              {tape.length < 2
-                ? "Первый серверный снимок записан. Цены ресурсов и кораблей берутся из стаканов; если прямого USDC нет, ATLAS пересчитывается по текущему ATLAS/USDC."
-                : `Общих снимков сервера: ${tape.length}. Ноль значит, что стакан между ними не сдвинулся.`}
-            </p>
-          )}
-
-          <div className="flex gap-2">
-            {(["USDC", "ATLAS", "POLIS"] as const).map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setQuote(item)}
-                className={`h-11 rounded-full border px-3 font-display text-sm ${quote === item ? "border-brass-dim bg-surface-2 text-fg" : "border-line text-muted"}`}
-              >
-                {item}
-              </button>
-            ))}
-
-          </div>
           <div className="flex flex-wrap items-center gap-2">
             {PERIODS.map((item) => (
               <button
@@ -335,31 +226,71 @@ export function MarketPage() {
               Биржа Star Atlas
             </a>
           </div>
-          <p className="text-sm text-muted">
-            Пузырь красится за выбранный срок: 15м, 4ч, день, неделя, год или всё время от пола. Если снимка за этот срок ещё нет, процент пустой, а не выдуманный.
-          </p>
           <BubbleField
-            title={quote === "USDC" ? "Ресурсы · размер по цене" : `Ресурсы · ${quote}`}
-            rows={viewRows.filter((row) => row.ask != null)}
+            title="Ресурсы"
+            rows={viewRows}
             anchor={anchor}
             floors={floors}
             versus={period === "all" ? "floor" : "tape"}
           />
-          <SmallHullCheck rows={viewShips} floors={floors} />
-          <FloorLift rows={viewShips} floors={floors} />
           <BubbleField
-            title={`Корабли · ${quote} · размер по цене, цвет за срок, не спред`}
-            rows={viewShips.filter((row) => row.ask != null)}
+            title="Корабли"
+            rows={viewShips}
             anchor={anchor}
             floors={floors}
             versus={period === "all" ? "floor" : "tape"}
           />
-          <ResourceTape rows={rows} tape={tape} mint={resourceMint} onMint={setResourceMint} />
-          <p className="text-sm text-muted">
-            Экипаж на Galactic Marketplace стаканом не торгуется. Карточки — NFT, их статы в метадате, пол — на Tensor. Пузырь цены экипажа без чужого архива был бы выдумкой.
-          </p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <PairCard name="ATLAS / USD" value={snap?.pairQuotes?.atlasUsdc ?? snap?.atlas?.usd ?? null} unit="USD" />
+            <PairCard name="POLIS / USD" value={snap?.pairQuotes?.polisUsdc ?? snap?.polis?.usd ?? null} unit="USD" />
+            <PairCard name="SOL за 1 POLIS" value={snap?.pairQuotes?.solPerPolis ?? null} unit="SOL" />
+            <PairCard name="ATLAS за 1 SOL" value={snap?.pairQuotes?.atlasPerSol ?? null} unit="ATLAS" />
+          </div>
+          <CandleChart title="ATLAS / USD" candles={snap?.candles ?? []} />
+          <CandleChart title="POLIS / USD" candles={snap?.polisUsdcCandles ?? []} />
+          <CandleChart title="SOL за 1 POLIS" candles={snap?.solPolisCandles ?? []} />
+          <CandleChart title="ATLAS за 1 SOL" candles={snap?.solAtlasCandles ?? []} />
+          <CandleChart title="ATLAS за 1 POLIS" candles={snap?.pairCandles ?? []} />
 
-          <h2 className="font-display text-sm tracking-[0.16em] text-brass uppercase">Ресурсы</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            {FILTERS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setFilter(item.id)}
+                className={`h-11 rounded-lg border px-3 font-display text-sm ${
+                  filter === item.id ? "border-brass bg-surface-2 text-fg" : "border-line text-muted"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Поиск"
+              className="h-11 min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 text-fg outline-none placeholder:text-faint"
+            />
+            {(["USDC", "ATLAS", "POLIS"] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setQuote(item)}
+                className={`h-11 rounded-full border px-3 font-display text-sm ${quote === item ? "border-brass-dim bg-surface-2 text-fg" : "border-line text-muted"}`}
+              >
+                {item}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => void pull(true)}
+              className="h-11 rounded-lg border border-line bg-surface px-3 font-display text-sm text-fg"
+            >
+              {loading && !snap ? "…" : "Обновить"}
+            </button>
+          </div>
+          {error ? <p className="text-sm text-danger">{error}</p> : null}
+
           <div className="overflow-x-auto rounded-xl border border-line">
             <table className="w-full min-w-[36rem] border-collapse text-sm">
               <thead className="bg-surface-2 text-left text-faint">
@@ -396,7 +327,6 @@ export function MarketPage() {
               </tbody>
             </table>
           </div>
-          <p className="pb-6 text-sm text-muted">{snap?.note}</p>
         </div>
       </div>
     </AppChrome>
@@ -494,68 +424,6 @@ function SmallHullCheck({ rows, floors }: { rows: ResourceRow[]; floors: Record<
   );
 }
 
-type Packed = { row: ResourceRow; x: number; y: number; r: number; change: number | null; discount: number | null };
-
-function packBubbles(
-  rows: ResourceRow[],
-  width: number,
-  height: number,
-  anchor: Record<string, number>,
-  floors: Record<string, number>,
-  versus: "tape" | "floor",
-): Packed[] {
-  const priced = rows
-    .filter((row) => row.ask != null && row.ask > 0)
-    .map((row) => ({ row, weight: row.ask as number }))
-    .sort((a, b) => b.weight - a.weight)
-    .slice(0, 36);
-  if (!priced.length || width < 40) return [];
-  const max = priced[0].weight;
-  const minR = 34;
-  const maxR = Math.min(118, Math.min(width, height) * 0.28);
-  const circles = priced.map((item) => {
-    const base = versus === "floor" ? (anchor[item.row.mint] ?? floors[item.row.mint]) : anchor[item.row.mint];
-    const ask = item.row.usdcAsk ?? item.row.ask;
-    const change = deltaPct(ask, base);
-    return {
-      row: item.row,
-      r: minR + Math.sqrt(item.weight / max) * (maxR - minR),
-      change,
-      discount: msrpPct(item.row),
-    };
-  });
-  const placed: Packed[] = [];
-  for (const circle of circles) {
-    if (!placed.length) {
-      placed.push({ ...circle, x: width / 2, y: height / 2 });
-      continue;
-    }
-    let x = width / 2;
-    let y = height / 2;
-    let angle = circle.row.name.length;
-    let dist = 0;
-    for (let guard = 0; guard < 700; guard += 1) {
-      x = width / 2 + Math.cos(angle) * dist;
-      y = height / 2 + Math.sin(angle) * dist * 0.86;
-      const inside = x > circle.r + 2 && y > circle.r + 2 && x < width - circle.r - 2 && y < height - circle.r - 2;
-      const hit = placed.some((other) => Math.hypot(other.x - x, other.y - y) < other.r + circle.r - 1);
-      if (inside && !hit) break;
-      angle += 0.55;
-      dist += 1.15;
-    }
-    placed.push({ ...circle, x, y });
-  }
-  return placed;
-}
-
-function bubbleFill(change: number | null, fromLow: boolean): string {
-  if (change == null) return "#243041";
-  if (fromLow && change < 8) return "#243041";
-  const mag = Math.min(1, Math.abs(change) / (fromLow ? 300 : 120));
-  if (change >= 0) return `rgb(${18 + mag * 20}, ${92 + mag * 90}, ${64 + mag * 20})`;
-  return `rgb(${120 + mag * 90}, ${32}, ${42})`;
-}
-
 function BubbleField({
   title,
   rows,
@@ -569,45 +437,43 @@ function BubbleField({
   floors?: Record<string, number>;
   versus?: "tape" | "floor";
 }) {
-  const host = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(720);
-  const height = Math.max(340, Math.min(640, 180 + Math.sqrt(Math.max(rows.length, 1)) * 70));
-  useEffect(() => {
-    const node = host.current;
-    if (!node) return;
-    const read = () => setWidth(Math.max(280, node.clientWidth));
-    read();
-    const observer = new ResizeObserver(read);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
-  const packed = useMemo(() => packBubbles(rows, width, height, anchor, floors, versus), [rows, width, height, anchor, floors, versus]);
-  if (!rows.length) return null;
+  const shown = rows
+    .filter((row) => (row.ask ?? 0) > 0 || Boolean(row.image))
+    .slice()
+    .sort((a, b) => (b.ask ?? 0) - (a.ask ?? 0))
+    .slice(0, 42);
+  if (!shown.length) return null;
+  const max = Math.max(...shown.map((row) => row.ask ?? 0), 1);
   return (
     <section>
       <h2 className="mb-2 font-display text-sm tracking-[0.16em] text-brass uppercase">{title}</h2>
-      <div ref={host} className="relative overflow-hidden rounded-xl border border-line bg-[#070b12]" style={{ height }}>
-        {packed.map((bubble) => (
-          <div
-            key={bubble.row.mint}
-            className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center overflow-hidden rounded-full px-2 text-center text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14)]"
-            style={{
-              left: bubble.x,
-              top: bubble.y,
-              width: bubble.r * 2,
-              height: bubble.r * 2,
-              background: bubbleFill(bubble.change, versus === "floor"),
-            }}
-            title={`${bubble.row.name} · ${money(bubble.row)}`}
-          >
-            <span className="line-clamp-2 font-display text-[11px] leading-tight">{bubble.row.name}</span>
-            <span className="font-mono text-sm font-semibold">{bubble.change == null ? "—" : fmtPct(bubble.change)}</span>
-            {versus === "floor" ? (
-              <span className="font-mono text-[9px] text-white/70">MSRP {fmtPct(bubble.discount)}</span>
-            ) : null}
-            <span className="font-mono text-[10px] text-white/80">{money(bubble.row)}</span>
-          </div>
-        ))}
+      <div className="flex flex-wrap items-end gap-3">
+        {shown.map((row) => {
+          const base = versus === "floor" ? (anchor[row.mint] ?? floors[row.mint]) : anchor[row.mint];
+          const ask = row.usdcAsk ?? row.ask;
+          const change = deltaPct(ask, base);
+          const weight = row.ask && row.ask > 0 ? row.ask : max * 0.15;
+          const size = 108 + Math.sqrt(weight / max) * 56;
+          const up = change != null && change >= 0;
+          const ring = change == null ? "rgba(232,238,242,0.45)" : up ? "#3dba7a" : "#e15b4a";
+          return (
+            <div
+              key={row.mint}
+              className="relative shrink-0 overflow-hidden rounded-full border-[3px] bg-[#121820]"
+              style={{ width: size, height: size, borderColor: ring }}
+              title={row.name}
+            >
+              {row.image ? <img src={row.image} alt="" className="absolute inset-0 h-full w-full object-cover" /> : null}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-black/10" />
+              <div className="absolute inset-x-1 bottom-2 z-10 text-center text-white">
+                <p className="font-mono text-sm font-semibold leading-none" style={{ color: ring }}>
+                  {change == null ? money(row) : fmtPct(change)}
+                </p>
+                <p className="mt-1 line-clamp-2 font-display text-[11px] leading-tight">{row.name}</p>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </section>
   );
@@ -723,7 +589,7 @@ function BookPeek({ row, quote }: { row: ResourceRow; quote: "USDC" | "ATLAS" | 
   );
 }
 
-function CandleChart({ title, candles, source }: { title: string; candles: Candle[]; source?: string }) {
+function CandleChart({ title, candles }: { title: string; candles: Candle[] }) {
   const [hover, setHover] = useState<{ x: number; y: number; index: number; price: number } | null>(null);
 
   if (candles.length < 2) return <p className="text-sm text-muted">{title}: свечи ещё не пришли.</p>;
@@ -815,7 +681,6 @@ function CandleChart({ title, candles, source }: { title: string; candles: Candl
           );
         })}
       </svg>
-      <p className="mt-1 text-sm text-muted">{source ?? "Дневные свечи. Ось справа — цена. Наведи на свечу: дата и OHLC."}</p>
     </figure>
   );
 }

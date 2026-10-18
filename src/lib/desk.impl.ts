@@ -153,13 +153,13 @@ async function marketProgramAccounts(
       (result): result is PromiseFulfilledResult<Awaited<ReturnType<Connection["getProgramAccounts"]>>> =>
         result.status === "fulfilled" && result.value.length > 0,
     );
-    if (nonEmpty) return nonEmpty.value;
+    if (nonEmpty) return [...nonEmpty.value];
 
     const emptyAllowed = results.find(
       (result): result is PromiseFulfilledResult<Awaited<ReturnType<Connection["getProgramAccounts"]>>> =>
         result.status === "fulfilled",
     );
-    if (emptyAllowed && mint !== USDC) return emptyAllowed.value;
+    if (emptyAllowed && mint !== USDC) return [...emptyAllowed.value];
 
     if (mint === USDC && pass + 1 < maxPasses) {
       await new Promise((resolve) => setTimeout(resolve, 150 * (pass + 1)));

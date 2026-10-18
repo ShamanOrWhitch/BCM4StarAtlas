@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.8.12
+ * Version: 0.8.13
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -479,6 +479,7 @@ function galia_desk_market() {
         'candles' => $atlas_candles,
         'pairCandles' => galia_desk_cross(galia_desk_kraken('POLISUSD'), $atlas_candles),
         'tape' => galia_desk_push_tape(array_merge($resources, $ships)),
+        'daily' => get_option('galia_desk_daily', array()),
         'gmp' => function_exists('gmp_init') || function_exists('bcadd'),
     );
     if (!empty($resources)) {
@@ -633,7 +634,29 @@ function galia_desk_push_tape($resources) {
         $tape = array_slice($tape, -400);
     }
     update_option('galia_desk_tape', $tape, false);
+    galia_desk_push_daily($asks, $now);
     return $tape;
+}
+
+function galia_desk_push_daily($asks, $now) {
+    if (!is_array($asks) || count($asks) === 0) {
+        return get_option('galia_desk_daily', array());
+    }
+    $daily = get_option('galia_desk_daily', array());
+    if (!is_array($daily)) {
+        $daily = array();
+    }
+    $day = (int) floor($now / 86400000);
+    $last = end($daily);
+    $last_day = is_array($last) && isset($last['day']) ? (int) $last['day'] : -1;
+    if ($last_day !== $day) {
+        $daily[] = array('day' => $day, 't' => $now, 'asks' => $asks);
+    }
+    if (count($daily) > 400) {
+        $daily = array_slice($daily, -400);
+    }
+    update_option('galia_desk_daily', $daily, false);
+    return $daily;
 }
 
 function galia_desk_token($supply, $prices, $mint) {
@@ -1083,13 +1106,12 @@ function galia_desk_shortcode() {
     <div class="galia-desk">
       <p class="galia-desk-kicker">Star Atlas · Galia</p>
       <h2 class="galia-desk-title">Стол цен</h2>
-      <p class="galia-desk-note">Свечи ATLAS — общий рынок, не ноль браузера. Ресурсы — стакан Galactic Marketplace. Подпись кошелька не нужна: пустой адрес значит, что груз уже в игре. Лабиринт mini-sim остаётся своим шорткодом, этот блок его не заменяет.</p>
       <div class="galia-desk-row">
         <button type="button" data-galia-refresh>Обновить</button>
         <span data-galia-status>Загрузка…</span>
       </div>
-      <div class="galia-desk-tokens" data-galia-tokens></div>
       <div data-galia-chart></div>
+      <div class="galia-desk-tokens" data-galia-tokens></div>
       <div class="galia-desk-table" data-galia-table></div>
       <h3 class="galia-desk-title">Сейф</h3>
       <form class="galia-desk-row" data-galia-wallet>
@@ -1115,6 +1137,13 @@ function galia_desk_shortcode() {
       .galia-desk table{width:100%;border-collapse:collapse;font-size:.9rem}
       .galia-desk th,.galia-desk td{text-align:left;padding:.45rem .4rem;border-top:1px solid rgba(232,238,242,.12)}
       .galia-desk-card{border:1px solid rgba(232,238,242,.12);border-radius:10px;padding:.6rem .75rem;margin:.4rem 0;background:#10141c}
+      .galia-bubbles{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;margin-top:.6rem}
+      .galia-bubble{position:relative;flex:0 0 auto;overflow:hidden;border-radius:999px;border:3px solid rgba(232,238,242,.45);background:#121820}
+      .galia-bubble img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;max-width:none}
+      .galia-bubble-shade{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.82),rgba(0,0,0,.12) 55%,rgba(0,0,0,.15))}
+      .galia-bubble-copy{position:absolute;left:6px;right:6px;bottom:8px;display:flex;flex-direction:column;align-items:center;text-align:center;color:#fff}
+      .galia-bubble-copy b{font:600 14px/1 ui-monospace,monospace}
+      .galia-bubble-copy i{margin-top:3px;font:600 11px/1.15 Rajdhani,system-ui,sans-serif;font-style:normal}
       .galia-wallet-section{margin-top:.9rem}
       .galia-wallet-section h4{margin:.25rem 0 .45rem;color:#c4a35a;letter-spacing:.06em}
       .galia-wallet-card{display:flex;gap:.65rem;align-items:flex-start;border:1px solid rgba(232,238,242,.12);border-radius:10px;padding:.55rem .65rem;margin:.45rem 0;background:#10141c}
@@ -1161,41 +1190,49 @@ function galia_desk_shortcode() {
             var q = data[key] || {};
             return '<div class="galia-desk-card"><strong>' + key.toUpperCase() + '</strong> $' + num(q.usd) + ' · 24ч ' + num(q.change24h) + '% · оборот ' + num(q.circulating) + '</div>';
           }).join("");
-          var tape = data.tape || [];
-          var prev = tape.length >= 2 ? tape[tape.length - 2].asks || {} : {};
-          root.querySelector("[data-galia-chart]").innerHTML = candlesSvg("POLIS / ATLAS · 1д", data.pairCandles || []) + candlesSvg("ATLAS / USD · 1д", data.candles || []) + bubblesHtml("Ресурсы и сырьё · ATLAS", data.resources || [], prev) + bubblesHtml("Корабли", data.ships || [], prev);
+          var week = weekAsks(data);
+          root.querySelector("[data-galia-chart]").innerHTML = bubblesHtml("Ресурсы", data.resources || [], week) + bubblesHtml("Корабли", data.ships || [], week) + candlesSvg("POLIS / ATLAS · 1д", data.pairCandles || []) + candlesSvg("ATLAS / USD · 1д", data.candles || []);
           var rows = (data.resources || []).filter(function (row) { return row.ask != null; });
           var html = '<table><thead><tr><th>Ресурс</th><th>Класс</th><th>Продажа, ATLAS</th><th>Покупка, ATLAS</th><th>Δ</th></tr></thead><tbody>';
           rows.forEach(function (row) {
             var d = "—";
-            if (prev[row.mint]) {
-              var pct = ((row.ask - prev[row.mint]) / prev[row.mint]) * 100;
+            if (week && week[row.mint] && row.ask != null) {
+              var pct = ((row.ask - week[row.mint]) / week[row.mint]) * 100;
               d = (pct > 0 ? "+" : "") + pct.toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + "%";
             }
             html += '<tr><td>' + row.name + '</td><td>' + row.className + '</td><td>' + num(row.ask) + '</td><td>' + num(row.bid) + '</td><td>' + d + '</td></tr>';
           });
           root.querySelector("[data-galia-table]").innerHTML = html + '</tbody></table>';
-          var tapeNote = tape.length < 2 ? " Первый общий снимок ресурсов записан на сайте." : " Снимков ресурса на сайте: " + tape.length + ".";
-          status.textContent = (data.gmp === false ? "На сервере нет GMP — цены стакана не посчитались." : ("Ордеров " + (data.orderCount || 0))) + tapeNote + " · авто 3 мин";
+          status.textContent = data.gmp === false ? "Стакан с этого хоста не прочитался." : ("Ордеров " + (data.orderCount || 0));
+        }
+        function weekAsks(data) {
+          var cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+          var hit = null;
+          (data.daily || []).forEach(function (point) {
+            var t = point.t < 1e12 ? point.t * 1000 : point.t;
+            if (t <= cutoff) hit = point.asks || {};
+          });
+          return hit;
         }
         function bubblesHtml(title, rows, prev) {
-          var priced = (rows || []).filter(function (row) { return row.image || row.usdcAsk != null || row.ask != null; }).slice(0, 60);
+          var priced = (rows || []).filter(function (row) { return row.image || row.usdcAsk != null || row.ask != null || row.atlasAsk != null; }).slice(0, 42);
           if (!priced.length) return "";
-          var html = '<div class="galia-desk-card"><strong>' + title + '</strong><div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem">';
+          priced.sort(function (a, b) { return (b.usdcAsk || b.ask || 0) - (a.usdcAsk || a.ask || 0); });
+          var max = 1;
+          priced.forEach(function (row) { var p = row.usdcAsk || row.ask || 0; if (p > max) max = p; });
+          var html = '<div class="galia-desk-card"><strong>' + title + '</strong><div class="galia-bubbles">';
           priced.forEach(function (row) {
-            var change = "—";
-            var color = "#8b96a3";
-            if (prev[row.mint]) {
-              var pct = ((row.ask - prev[row.mint]) / prev[row.mint]) * 100;
-              change = (pct > 0 ? "+" : "") + pct.toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + "%";
-              color = pct > 0 ? "#c45c4a" : "#7a9a7e";
-            } else {
-              change = num(row.usdcAsk != null ? row.usdcAsk : row.ask) + " USDC";
-            }
-            var size = 74 + Math.min(48, Math.log10((row.askQty || 1) + 10) * 16);
-            html += '<div style="width:' + size + 'px;height:' + size + 'px;border-radius:999px;border:1px solid ' + color + ';display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:.25rem">';
-            if (row.image) html += '<img alt="" src="' + row.image + '" style="width:22px;height:22px;border-radius:999px;object-fit:cover" />';
-            html += '<span style="font-size:11px;line-height:1.1">' + row.name + '</span><span style="color:' + color + ';font-size:10px">' + change + '</span></div>';
+            var now = row.usdcAsk != null ? row.usdcAsk : row.ask;
+            var base = prev && prev[row.mint];
+            var change = null;
+            if (base && now != null) change = ((now - base) / base) * 100;
+            var ring = change == null ? "rgba(232,238,242,.45)" : (change >= 0 ? "#3dba7a" : "#e15b4a");
+            var weight = now && now > 0 ? now : max * 0.15;
+            var size = Math.round(108 + Math.sqrt(weight / max) * 56);
+            var label = change == null ? (num(now) + (row.usdcAsk != null || row.ask != null ? "" : "")) : ((change > 0 ? "+" : "") + change.toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + "%");
+            html += '<div class="galia-bubble" style="width:' + size + 'px;height:' + size + 'px;border-color:' + ring + '">';
+            if (row.image) html += '<img alt="" src="' + row.image + '" />';
+            html += '<span class="galia-bubble-shade"></span><span class="galia-bubble-copy"><b style="color:' + ring + '">' + label + '</b><i>' + row.name + '</i></span></div>';
           });
           return html + '</div></div>';
         }
@@ -1567,13 +1604,13 @@ function galia_desk_globe_markup($full = false) {
     ?>
     <div id="galia-root" style="min-height:<?php echo esc_attr($height); ?>;background:#07090e"></div>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" />
-    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.8.12'); ?>" />
+    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.8.13'); ?>" />
     <!-- noptimize -->
     <script>
       window.GALIA_ASSET = <?php echo wp_json_encode($base); ?>;
       window.GALIA_WP = <?php echo wp_json_encode(array('ajax' => $ajax, 'nonce' => $nonce)); ?>;
     </script>
-    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.8.12'); ?>"></script>
+    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.8.13'); ?>"></script>
     <!-- /noptimize -->
     <?php
     return ob_get_clean();
