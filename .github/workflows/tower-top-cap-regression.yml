@@ -2,6 +2,7 @@ name: Tower top cap regression
 on:
   push:
     branches:
+      - main
       - fix/tower-top-cap-y-offset
   pull_request:
     branches:
