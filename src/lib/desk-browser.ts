@@ -82,6 +82,7 @@ function snapFromPhp(data: Record<string, unknown>): MarketSnap {
     solAtlasCandles: Array.isArray(data.solAtlasCandles) ? (data.solAtlasCandles as MarketSnap["solAtlasCandles"]) : [],
     solPolisCandles: Array.isArray(data.solPolisCandles) ? (data.solPolisCandles as MarketSnap["solPolisCandles"]) : [],
     tape: Array.isArray(data.tape) ? (data.tape as MarketSnap["tape"]) : [],
+    floors: data.floors && typeof data.floors === "object" ? (data.floors as Record<string, number>) : {},
     note:
       typeof data.note === "string"
         ? data.note

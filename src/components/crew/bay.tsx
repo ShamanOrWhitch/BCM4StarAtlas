@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { Gem, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import {
   APTITUDES,
@@ -14,7 +15,7 @@ import {
   type TensorTier,
 } from "@/data/crew";
 import { DIAMOND_ROWS, STATIONS, XP_RATES, diamondRecipe } from "@/data/diamonds";
-import { EMPTY_QUERY, filterCrew, houses, type CrewQuery, type SortKey } from "@/lib/crew-query";
+import { EMPTY_QUERY, filterCrew, type CrewQuery, type SortKey } from "@/lib/crew-query";
 import { loadStars, saveStars } from "@/lib/crew-stars";
 import { CrewPortrait } from "@/components/crew/portrait";
 import { packetOf } from "@/data/packets";
@@ -213,14 +214,26 @@ export function CrewBay() {
       kicker="Star Atlas · крио"
       title={live ? `С ключа · ${live.length}` : `Экипаж · ${CREW.length}`}
       actions={
-        <button
-          type="button"
-          onClick={() => setDiamondOpen(true)}
-          className="flex h-11 items-center gap-2 rounded-lg border border-line bg-surface px-3 font-display text-sm"
-        >
-          <Gem className="size-4 text-ice" />
-          <span className="hidden sm:inline">Алмаз</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <a
+            href="https://www.tensor.trade/trade/staratlascrew"
+            target="_blank"
+            rel="noreferrer"
+            className="flex h-11 items-center gap-2 rounded-lg border border-brass-dim bg-surface px-2 font-display text-sm"
+            title="Купить экипаж на Tensor"
+          >
+            <StarbaseMark />
+            <span className="hidden sm:inline">Tensor</span>
+          </a>
+          <button
+            type="button"
+            onClick={() => setDiamondOpen(true)}
+            className="flex h-11 items-center gap-2 rounded-lg border border-line bg-surface px-3 font-display text-sm"
+          >
+            <Gem className="size-4 text-ice" />
+            <span className="hidden sm:inline">Алмаз</span>
+          </button>
+        </div>
       }
     >
       <div className="flex h-full min-h-0">
@@ -253,13 +266,37 @@ export function CrewBay() {
             </div>
           ) : null}
           <div className="flex shrink-0 flex-col gap-3 border-b border-line px-4 py-3 md:px-5">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="font-display text-xs tracking-wide text-muted uppercase">Нервозность ≤ {query.nMax}</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={query.nMax}
+                  onChange={(e) => patch({ nMax: Number(e.target.value) })}
+                  className="mt-1 w-full accent-brass"
+                />
+              </label>
+              <label className="block">
+                <span className="font-display text-xs tracking-wide text-muted uppercase">Дисциплина ≥ {query.cMin}</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={query.cMin}
+                  onChange={(e) => patch({ cMin: Number(e.target.value) })}
+                  className="mt-1 w-full accent-brass"
+                />
+              </label>
+            </div>
             <div className="flex gap-2">
               <label className="relative min-w-0 flex-1">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
                 <input
                   value={query.q}
                   onChange={(e) => patch({ q: e.target.value })}
-                  placeholder="Имя, дом, университет"
+                  placeholder="Имя, университет"
                   className="h-11 w-full rounded-lg border border-line bg-surface pr-3 pl-10 text-sm text-fg outline-none placeholder:text-faint focus:border-brass-dim"
                 />
               </label>
@@ -451,7 +488,7 @@ function Filters({
     <div className="flex flex-col gap-5">
       <p className="font-display text-xs tracking-[0.18em] text-brass uppercase">Две шкалы</p>
       <p className="text-sm leading-snug text-muted">
-        Бирюзовый алмаз на play.staratlas — слоты XP, не цвет Tensor. Rare = три ветки. Сейчас в SAGE алмаз не качает урон.
+        Бирюзовый алмаз на play.staratlas — слоты XP, не цвет Tensor. Rare = три ветки. Сейчас в SAGE алмаз не качает урон. N и C — ползунки над списком.
       </p>
 
       <Field label="Tensor (цвет карты)">
@@ -516,37 +553,6 @@ function Filters({
             </Chip>
           ))}
         </ChipRow>
-      </Field>
-
-      <Field label="Дом">
-        <ChipRow>
-          {houses().map((h) => (
-            <Chip key={h} on={query.house === h} onClick={() => patch({ house: query.house === h ? null : h })}>
-              {h}
-            </Chip>
-          ))}
-        </ChipRow>
-      </Field>
-
-      <Field label={`Нервозность ≤ ${query.nMax}`}>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          value={query.nMax}
-          onChange={(e) => patch({ nMax: Number(e.target.value) })}
-          className="w-full accent-brass"
-        />
-      </Field>
-      <Field label={`Дисциплина ≥ ${query.cMin}`}>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          value={query.cMin}
-          onChange={(e) => patch({ cMin: Number(e.target.value) })}
-          className="w-full accent-brass"
-        />
       </Field>
 
       <label className="flex items-center gap-2 text-sm">
@@ -790,5 +796,17 @@ function DiamondPanel({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function StarbaseMark() {
+  return (
+    <svg viewBox="0 0 32 32" className="size-7" aria-hidden="true">
+      <polygon points="16,2 27,8.5 27,23.5 16,30 5,23.5 5,8.5" fill="#121820" stroke="#c4a35a" strokeWidth="1.4" />
+      <polygon points="16,7 23,11 23,21 16,25 9,21 9,11" fill="none" stroke="#8eb4c8" strokeWidth="1" />
+      <text x="16" y="19" textAnchor="middle" fill="#e8eef2" fontSize="11" fontFamily="ui-sans-serif, system-ui">
+        T
+      </text>
+    </svg>
   );
 }

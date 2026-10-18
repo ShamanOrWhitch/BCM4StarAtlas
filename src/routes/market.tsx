@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppChrome } from "@/components/app-chrome";
 import { loadMarket, watchLiveBooks, type Candle, type MarketSnap, type ResourceRow, type TapePoint } from "@/lib/desk";
-import { deltaPct } from "@/lib/price-tape";
+import { deltaPct, recordTape, rememberFloors } from "@/lib/price-tape";
 
 export const Route = createFileRoute("/market")({ component: MarketPage });
 
@@ -31,6 +31,42 @@ const SPECIAL_RESOURCES = [
   { label: "Амуниция", re: /ammunition|ammo/i },
   { label: "Ремкомплекты", re: /repair|repair kit|repairkit/i },
 ];
+
+const PERIODS = [
+  { id: "15m", label: "15м", ms: 15 * 60 * 1000 },
+  { id: "4h", label: "4ч", ms: 4 * 60 * 60 * 1000 },
+  { id: "1d", label: "1д", ms: 24 * 60 * 60 * 1000 },
+  { id: "1w", label: "1н", ms: 7 * 24 * 60 * 60 * 1000 },
+  { id: "1y", label: "1г", ms: 365 * 24 * 60 * 60 * 1000 },
+  { id: "all", label: "всё", ms: Number.POSITIVE_INFINITY },
+] as const;
+
+type PeriodId = (typeof PERIODS)[number]["id"];
+
+function stampMs(t: number): number {
+  return t > 0 && t < 1e12 ? t * 1000 : t;
+}
+
+function mergeTape(server: TapePoint[], local: TapePoint[]): TapePoint[] {
+  const map = new Map<number, TapePoint>();
+  for (const point of [...server, ...local]) {
+    if (!point?.asks || typeof point.t !== "number") continue;
+    const t = stampMs(point.t);
+    map.set(t, { t, asks: point.asks });
+  }
+  return [...map.values()].sort((a, b) => a.t - b.t);
+}
+
+function anchorAsks(tape: TapePoint[], floors: Record<string, number>, period: PeriodId): Record<string, number> {
+  if (period === "all") return floors;
+  const span = PERIODS.find((item) => item.id === period)?.ms ?? 0;
+  const cutoff = Date.now() - span;
+  let hit: Record<string, number> | undefined;
+  for (const point of tape) {
+    if (stampMs(point.t) <= cutoff) hit = point.asks;
+  }
+  return hit ?? {};
+}
 
 function fmtAtlas(n: number | null): string {
   if (n == null) return "—";
@@ -79,8 +115,11 @@ export function MarketPage() {
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [tape, setTape] = useState<TapePoint[]>([]);
+  const [floors, setFloors] = useState<Record<string, number>>({});
   const [resourceMint, setResourceMint] = useState("");
+  const [bookMint, setBookMint] = useState("");
   const [quote, setQuote] = useState<"USDC" | "ATLAS" | "POLIS">("USDC");
+  const [period, setPeriod] = useState<PeriodId>("all");
 
   async function pull(_force: boolean) {
     setLoading(true);
@@ -88,7 +127,13 @@ export function MarketPage() {
     try {
       const data = await loadMarket();
       setSnap(data);
-      setTape(data.tape);
+      const asks: Record<string, number> = {};
+      for (const row of [...data.resources, ...data.ships]) {
+        const price = row.usdcAsk ?? row.ask;
+        if (price != null) asks[row.mint] = price;
+      }
+      setTape(mergeTape(data.tape ?? [], recordTape(asks, data.atlas.usd)));
+      setFloors(rememberFloors(asks, data.floors, lowsOf(data.tape)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Стакан не ответил");
     } finally {
@@ -108,7 +153,13 @@ export function MarketPage() {
         const data = await loadMarket();
         if (!alive) return;
         setSnap(data);
-        setTape(data.tape);
+        const asks: Record<string, number> = {};
+        for (const row of [...data.resources, ...data.ships]) {
+          const price = row.usdcAsk ?? row.ask;
+          if (price != null) asks[row.mint] = price;
+        }
+        setTape(recordTape(asks, data.atlas.usd));
+        setFloors(rememberFloors(asks, data.floors, lowsOf(data.tape)));
         setError("");
       } catch (err) {
         if (!alive) return;
@@ -156,14 +207,15 @@ export function MarketPage() {
   }, [snap, filter, query]);
   const viewRows = useMemo(() => rows.map((row) => priced(row, quote)), [rows, quote]);
   const viewShips = useMemo(() => (snap?.ships ?? []).map((row) => priced(row, quote)), [snap, quote]);
+  const anchor = useMemo(() => anchorAsks(tape, floors, period), [tape, floors, period]);
 
   const movers = useMemo(() => {
-    if (!snap || !previous) return [];
-    return snap.resources
-      .map((row) => ({ row, d: deltaPct(row.ask, previous.asks[row.mint]) }))
-      .filter((item): item is { row: ResourceRow; d: number } => item.d != null && Math.abs(item.d) >= 0.05)
+    if (!previous) return [];
+    return [...(snap?.resources ?? []), ...(snap?.ships ?? [])]
+      .map((row) => ({ row, d: deltaPct(row.usdcAsk ?? row.ask, previous.asks[row.mint]) }))
+      .filter((item): item is { row: ResourceRow; d: number } => item.d != null && Math.abs(item.d) >= 1)
       .sort((a, b) => Math.abs(b.d) - Math.abs(a.d))
-      .slice(0, 6);
+      .slice(0, 8);
   }, [snap, previous]);
 
   const specialResources = SPECIAL_RESOURCES
@@ -193,8 +245,8 @@ export function MarketPage() {
             {specialResources.map(({ label, row }) => (
               <article key={row.mint} className="galia-hop rounded-xl border border-line bg-surface p-3">
                 <p className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{label}</p>
-                <p className="mt-1 font-mono text-lg text-fg">USDC {fmtAtlas(row.usdcAsk)}</p>
-                <p className="font-mono text-sm text-muted">ATLAS {fmtAtlas(row.atlasAsk)}</p>
+                <p className="mt-1 font-mono text-lg text-fg">USDC {fmtAtlas(row.usdcAsk ?? null)}</p>
+                <p className="font-mono text-sm text-muted">ATLAS {fmtAtlas(row.atlasAsk ?? null)}</p>
                 <p className="text-xs text-faint">
                   {row.usdcDerived ? "USDC рассчитан из ATLAS/USDC" : "USDC из прямого стакана"}
                 </p>
@@ -237,7 +289,7 @@ export function MarketPage() {
             <p className="text-sm text-muted">
               С прошлого снимка:{" "}
               {movers.map((item) => (
-                <span key={item.row.mint} className={item.d > 0 ? "text-danger" : "text-ok"}>
+                <span key={item.row.mint} className={item.d > 0 ? "text-ok" : "text-danger"}>
                   {item.row.name} {fmtPct(item.d)}{" "}
                 </span>
               ))}
@@ -263,8 +315,45 @@ export function MarketPage() {
             ))}
 
           </div>
-          <BubbleField title={quote === "USDC" ? "Ресурсы · USDC, если стакана нет — показан ATLAS" : `Ресурсы · ${quote}`} rows={viewRows} previous={previous} />
-          <BubbleField title={`Корабли · ${quote}`} rows={viewShips} previous={previous} />
+          <div className="flex flex-wrap items-center gap-2">
+            {PERIODS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setPeriod(item.id)}
+                className={`h-11 rounded-full border px-3 font-display text-sm ${period === item.id ? "border-brass bg-surface-2 text-fg" : "border-line text-muted"}`}
+              >
+                {item.label}
+              </button>
+            ))}
+            <a
+              href="https://play.staratlas.com/market/"
+              target="_blank"
+              rel="noreferrer"
+              className="ml-auto flex h-11 items-center rounded-lg border border-brass-dim px-3 font-display text-sm text-fg"
+            >
+              Биржа Star Atlas
+            </a>
+          </div>
+          <p className="text-sm text-muted">
+            Пузырь красится за выбранный срок: 15м, 4ч, день, неделя, год или всё время от пола. Если снимка за этот срок ещё нет, процент пустой, а не выдуманный.
+          </p>
+          <BubbleField
+            title={quote === "USDC" ? "Ресурсы · размер по цене" : `Ресурсы · ${quote}`}
+            rows={viewRows.filter((row) => row.ask != null)}
+            anchor={anchor}
+            floors={floors}
+            versus={period === "all" ? "floor" : "tape"}
+          />
+          <SmallHullCheck rows={viewShips} floors={floors} />
+          <FloorLift rows={viewShips} floors={floors} />
+          <BubbleField
+            title={`Корабли · ${quote} · размер по цене, цвет за срок, не спред`}
+            rows={viewShips.filter((row) => row.ask != null)}
+            anchor={anchor}
+            floors={floors}
+            versus={period === "all" ? "floor" : "tape"}
+          />
           <ResourceTape rows={rows} tape={tape} mint={resourceMint} onMint={setResourceMint} />
           <p className="text-sm text-muted">
             Экипаж на Galactic Marketplace стаканом не торгуется. Карточки — NFT, их статы в метадате, пол — на Tensor. Пузырь цены экипажа без чужого архива был бы выдумкой.
@@ -285,11 +374,15 @@ export function MarketPage() {
               <tbody>
                 {viewRows.map((row) => {
                   const d = deltaPct(row.ask, previous?.asks[row.mint]);
+                  const open = bookMint === row.mint;
                   return (
                     <tr key={row.mint} className="border-t border-line">
                       <td className="px-3 py-2">
-                        <span className="text-fg">{row.name}</span>
+                        <button type="button" className="text-left text-fg" onClick={() => setBookMint(open ? "" : row.mint)}>
+                          {row.name}
+                        </button>
                         <span className="ml-2 font-mono text-faint">{row.symbol}</span>
+                        {open ? <BookPeek row={row} quote={quote} /> : null}
                       </td>
                       <td className="px-3 py-2 text-muted">{CLASS_LABEL[row.className] ?? row.className}</td>
                       <td className="px-3 py-2 font-mono text-fg">{fmtAtlas(row.ask)}</td>
@@ -310,30 +403,211 @@ export function MarketPage() {
   );
 }
 
-function BubbleField({ title, rows, previous }: { title: string; rows: ResourceRow[]; previous?: TapePoint }) {
+const SMALL_CLASS = new Set(["xx-small", "x-small", "small"]);
+
+function lowsOf(tape: TapePoint[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const point of tape) {
+    for (const [mint, price] of Object.entries(point.asks)) {
+      if (!(price > 0)) continue;
+      if (out[mint] == null || price < out[mint]) out[mint] = price;
+    }
+  }
+  return out;
+}
+
+function msrpPct(row: ResourceRow): number | null {
+  const ask = row.usdcAsk ?? (row.quote === "USDC" ? row.ask : null);
+  if (ask == null || row.msrp == null || row.msrp <= 0) return null;
+  return ((ask - row.msrp) / row.msrp) * 100;
+}
+
+function fromFloor(row: ResourceRow, floors: Record<string, number>): number | null {
+  const ask = row.usdcAsk ?? row.ask;
+  const floor = floors[row.mint];
+  if (ask == null || floor == null || floor <= 0) return null;
+  return ((ask - floor) / floor) * 100;
+}
+
+function FloorLift({ rows, floors }: { rows: ResourceRow[]; floors: Record<string, number> }) {
+  const lifted = rows
+    .map((row) => ({ row, lift: fromFloor(row, floors), discount: msrpPct(row) }))
+    .filter((item): item is { row: ResourceRow; lift: number; discount: number | null } => item.lift != null && item.lift >= 8)
+    .sort((a, b) => b.lift - a.lift)
+    .slice(0, 10);
+  return (
+    <section className="rounded-xl border border-line bg-surface p-3">
+      <h2 className="font-display text-sm tracking-[0.16em] text-brass uppercase">От пола</h2>
+      <p className="mt-1 text-sm text-muted">
+        Скидка от MSRP остаётся: это длинная свеча, часто −90% и ниже. Здесь другое — продажа против самой низкой цены USDC, которую это окно уже записало. Спред Atlas в расчёт не берётся: в альфе стакан широкий, потому что торгующих мало. Старые $10–15 Galaxy задним числом не отдаёт, пол не выдумывается.
+      </p>
+      {lifted.length ? (
+        <div className="mt-2 grid gap-1">
+          {lifted.map(({ row, lift, discount }) => (
+            <p key={row.mint} className="flex justify-between gap-3 font-mono text-xs">
+              <span className="text-fg">{row.name}</span>
+              <span>
+                <span className="text-ok">от пола {fmtPct(lift)}</span>
+                <span className="text-danger"> · MSRP {fmtPct(discount)}</span>
+                <span className="text-muted"> · пол {fmtAtlas(floors[row.mint] ?? null)}</span>
+              </span>
+            </p>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-2 text-sm text-muted">Пока все продажи стоят у своего пола. Отскок появится, когда цена уйдёт вверх и пол не поднимется следом.</p>
+      )}
+    </section>
+  );
+}
+
+function SmallHullCheck({ rows, floors }: { rows: ResourceRow[]; floors: Record<string, number> }) {
+  const small = rows
+    .filter((row) => SMALL_CLASS.has(row.className) && row.usdcAsk != null)
+    .map((row) => {
+      const lift = fromFloor(row, floors);
+      const discount = msrpPct(row);
+      return { row, lift, discount };
+    })
+    .sort((a, b) => (b.lift ?? -1) - (a.lift ?? -1) || (b.discount ?? -1e9) - (a.discount ?? -1e9));
+  if (!small.length) return null;
+  return (
+    <section className="rounded-xl border border-line bg-surface p-3">
+      <h2 className="font-display text-sm tracking-[0.16em] text-brass uppercase">Мелкие корпуса · MSRP и пол</h2>
+      <p className="mt-1 text-sm text-muted">
+        MSRP показывает скидку от изначальной цены. Пол — самая низкая продажа в этой ленте. Рост на 100–300% от пола на фоне −98% к MSRP иначе не виден.
+      </p>
+      <div className="mt-2 grid gap-1 sm:grid-cols-2">
+        {small.map(({ row, lift, discount }) => (
+          <p key={row.mint} className="flex justify-between gap-3 font-mono text-xs">
+            <span className="text-fg">
+              {row.className} · {row.name}
+            </span>
+            <span>
+              <span className={lift != null && lift >= 8 ? "text-ok" : "text-faint"}>{fmtAtlas(row.usdcAsk ?? null)} · пол {fmtPct(lift)}</span>
+              <span className={discount != null && discount < 0 ? "text-danger" : "text-ok"}> · MSRP {fmtPct(discount)}</span>
+            </span>
+          </p>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+type Packed = { row: ResourceRow; x: number; y: number; r: number; change: number | null; discount: number | null };
+
+function packBubbles(
+  rows: ResourceRow[],
+  width: number,
+  height: number,
+  anchor: Record<string, number>,
+  floors: Record<string, number>,
+  versus: "tape" | "floor",
+): Packed[] {
+  const priced = rows
+    .filter((row) => row.ask != null && row.ask > 0)
+    .map((row) => ({ row, weight: row.ask as number }))
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 36);
+  if (!priced.length || width < 40) return [];
+  const max = priced[0].weight;
+  const minR = 34;
+  const maxR = Math.min(118, Math.min(width, height) * 0.28);
+  const circles = priced.map((item) => {
+    const base = versus === "floor" ? (anchor[item.row.mint] ?? floors[item.row.mint]) : anchor[item.row.mint];
+    const ask = item.row.usdcAsk ?? item.row.ask;
+    const change = deltaPct(ask, base);
+    return {
+      row: item.row,
+      r: minR + Math.sqrt(item.weight / max) * (maxR - minR),
+      change,
+      discount: msrpPct(item.row),
+    };
+  });
+  const placed: Packed[] = [];
+  for (const circle of circles) {
+    if (!placed.length) {
+      placed.push({ ...circle, x: width / 2, y: height / 2 });
+      continue;
+    }
+    let x = width / 2;
+    let y = height / 2;
+    let angle = circle.row.name.length;
+    let dist = 0;
+    for (let guard = 0; guard < 700; guard += 1) {
+      x = width / 2 + Math.cos(angle) * dist;
+      y = height / 2 + Math.sin(angle) * dist * 0.86;
+      const inside = x > circle.r + 2 && y > circle.r + 2 && x < width - circle.r - 2 && y < height - circle.r - 2;
+      const hit = placed.some((other) => Math.hypot(other.x - x, other.y - y) < other.r + circle.r - 1);
+      if (inside && !hit) break;
+      angle += 0.55;
+      dist += 1.15;
+    }
+    placed.push({ ...circle, x, y });
+  }
+  return placed;
+}
+
+function bubbleFill(change: number | null, fromLow: boolean): string {
+  if (change == null) return "#243041";
+  if (fromLow && change < 8) return "#243041";
+  const mag = Math.min(1, Math.abs(change) / (fromLow ? 300 : 120));
+  if (change >= 0) return `rgb(${18 + mag * 20}, ${92 + mag * 90}, ${64 + mag * 20})`;
+  return `rgb(${120 + mag * 90}, ${32}, ${42})`;
+}
+
+function BubbleField({
+  title,
+  rows,
+  anchor,
+  floors = {},
+  versus = "tape",
+}: {
+  title: string;
+  rows: ResourceRow[];
+  anchor: Record<string, number>;
+  floors?: Record<string, number>;
+  versus?: "tape" | "floor";
+}) {
+  const host = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(720);
+  const height = Math.max(340, Math.min(640, 180 + Math.sqrt(Math.max(rows.length, 1)) * 70));
+  useEffect(() => {
+    const node = host.current;
+    if (!node) return;
+    const read = () => setWidth(Math.max(280, node.clientWidth));
+    read();
+    const observer = new ResizeObserver(read);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  const packed = useMemo(() => packBubbles(rows, width, height, anchor, floors, versus), [rows, width, height, anchor, floors, versus]);
   if (!rows.length) return null;
-  const shown = rows.slice(0, 42);
-  const max = Math.max(...shown.map((row) => Math.log10((row.askQty || 1) + 10)));
   return (
     <section>
       <h2 className="mb-2 font-display text-sm tracking-[0.16em] text-brass uppercase">{title}</h2>
-      <div className="flex flex-wrap items-center gap-2">
-        {shown.map((row) => {
-          const change = deltaPct(row.ask, previous?.asks[row.mint]);
-          const size = 76 + (Math.log10((row.askQty || 1) + 10) / (max || 1)) * 48;
-          const tone = change == null ? "border-line text-muted" : change > 0 ? "border-danger text-danger" : "border-ok text-ok";
-          return (
-            <div
-              key={row.mint}
-              className={`flex flex-col items-center justify-center rounded-full border bg-surface px-2 text-center ${tone}`}
-              style={{ width: size, height: size }}
-            >
-              {row.image ? <img src={row.image} alt="" width={28} height={28} loading="lazy" decoding="async" className="mb-1 size-7 rounded-full object-cover" /> : null}
-              <span className="line-clamp-2 font-display text-xs leading-tight text-fg">{row.name}</span>
-              <span className="font-mono text-[10px]">{row.ask == null ? "нет стакана" : change == null ? money(row) : fmtPct(change)}</span>
-            </div>
-          );
-        })}
+      <div ref={host} className="relative overflow-hidden rounded-xl border border-line bg-[#070b12]" style={{ height }}>
+        {packed.map((bubble) => (
+          <div
+            key={bubble.row.mint}
+            className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center overflow-hidden rounded-full px-2 text-center text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14)]"
+            style={{
+              left: bubble.x,
+              top: bubble.y,
+              width: bubble.r * 2,
+              height: bubble.r * 2,
+              background: bubbleFill(bubble.change, versus === "floor"),
+            }}
+            title={`${bubble.row.name} · ${money(bubble.row)}`}
+          >
+            <span className="line-clamp-2 font-display text-[11px] leading-tight">{bubble.row.name}</span>
+            <span className="font-mono text-sm font-semibold">{bubble.change == null ? "—" : fmtPct(bubble.change)}</span>
+            {versus === "floor" ? (
+              <span className="font-mono text-[9px] text-white/70">MSRP {fmtPct(bubble.discount)}</span>
+            ) : null}
+            <span className="font-mono text-[10px] text-white/80">{money(bubble.row)}</span>
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -417,6 +691,35 @@ function TapeLine({ name, points }: { name: string; points: { t: number; v: numb
         <path d={d} fill="none" stroke="#c4a35a" strokeWidth="2" />
       </svg>
     </figure>
+  );
+}
+
+function BookPeek({ row, quote }: { row: ResourceRow; quote: "USDC" | "ATLAS" | "POLIS" }) {
+  const asks = quote === "ATLAS" ? row.atlasAsks : quote === "POLIS" ? [] : row.usdcAsks?.length ? row.usdcAsks : row.atlasAsks;
+  const bids = quote === "ATLAS" ? row.atlasBids : quote === "POLIS" ? [] : row.usdcBids?.length ? row.usdcBids : row.atlasBids;
+  const unit = asks?.length ? (quote === "USDC" && row.usdcAsks?.length ? "USDC" : "ATLAS") : quote;
+  if (!asks?.length && !bids?.length) {
+    return <p className="mt-1 text-xs text-muted">Стакан в {quote} пуст. Если цена есть только в другой валюте — переключи ползунок сверху.</p>;
+  }
+  return (
+    <div className="mt-2 grid grid-cols-2 gap-3 text-xs">
+      <div>
+        <p className="text-danger">продавцы · {unit}</p>
+        {(asks ?? []).map((level) => (
+          <p key={`a-${level.price}`} className="font-mono">
+            {fmtAtlas(level.price)} ×{level.qty}
+          </p>
+        ))}
+      </div>
+      <div>
+        <p className="text-ok">покупатели · {unit}</p>
+        {(bids ?? []).map((level) => (
+          <p key={`b-${level.price}`} className="font-mono">
+            {fmtAtlas(level.price)} ×{level.qty}
+          </p>
+        ))}
+      </div>
+    </div>
   );
 }
 

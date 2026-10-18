@@ -61,10 +61,12 @@ const LOOK_RANK: Record<OfficialRarity, number> = {
 };
 
 function lookOf(traits: WalletTrait[]): OfficialRarity {
+  const rows = traits.filter((row) => /rarity/i.test(row.trait) && !/^none$/i.test(row.value));
+  const core = rows.filter((row) => !/background/i.test(row.trait));
+  const pool = core.length ? core : rows;
   let best: OfficialRarity = "Common";
   let score = LOOK_RANK.Common;
-  for (const row of traits) {
-    if (!/rarity/i.test(row.trait) || /^none$/i.test(row.value)) continue;
+  for (const row of pool) {
     const hit = rarityOf(row.value);
     if (LOOK_RANK[hit] < score) {
       best = hit;
@@ -72,6 +74,10 @@ function lookOf(traits: WalletTrait[]): OfficialRarity {
     }
   }
   return best;
+}
+
+export function crewFace(item: WalletItem): { name: string; look: OfficialRarity } {
+  return { name: personName(item), look: lookOf(item.traits) };
 }
 
 function personName(item: WalletItem): string {
@@ -122,7 +128,7 @@ export function walletCrew(items: WalletItem[]): Crew[] {
       a: ocean(item.traits, "Agreeableness"),
       n: ocean(item.traits, "Neuroticism"),
       image: item.image || undefined,
-      note: `Цвет Tensor по слоям одежды: ${look}. Алмаз персонажа отдельно.`,
+      note: `Цвет Tensor по слоям, кроме фона: ${look}. Background почти не поднимает карту. Алмаз персонажа отдельно.`,
     } satisfies Crew;
   });
 }

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.8.11
+ * Version: 0.8.12
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -621,11 +621,16 @@ function galia_desk_push_tape($resources) {
         }
     }
     $last = end($tape);
-    if (count($asks) > 0 && (!is_array($last) || !isset($last['t']) || (time() - (int) $last['t']) >= 120)) {
-        $tape[] = array('t' => time(), 'asks' => $asks);
+    $now = (int) round(microtime(true) * 1000);
+    $last_t = is_array($last) && isset($last['t']) ? (int) $last['t'] : 0;
+    if ($last_t > 0 && $last_t < 1000000000000) {
+        $last_t *= 1000;
     }
-    if (count($tape) > 48) {
-        $tape = array_slice($tape, -48);
+    if (count($asks) > 0 && ($last_t === 0 || ($now - $last_t) >= 120000)) {
+        $tape[] = array('t' => $now, 'asks' => $asks);
+    }
+    if (count($tape) > 400) {
+        $tape = array_slice($tape, -400);
     }
     update_option('galia_desk_tape', $tape, false);
     return $tape;
@@ -1562,13 +1567,13 @@ function galia_desk_globe_markup($full = false) {
     ?>
     <div id="galia-root" style="min-height:<?php echo esc_attr($height); ?>;background:#07090e"></div>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" />
-    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.8.11'); ?>" />
+    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.8.12'); ?>" />
     <!-- noptimize -->
     <script>
       window.GALIA_ASSET = <?php echo wp_json_encode($base); ?>;
       window.GALIA_WP = <?php echo wp_json_encode(array('ajax' => $ajax, 'nonce' => $nonce)); ?>;
     </script>
-    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.8.11'); ?>"></script>
+    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.8.12'); ?>"></script>
     <!-- /noptimize -->
     <?php
     return ob_get_clean();

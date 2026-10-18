@@ -1,7 +1,8 @@
-import { Component, type ReactNode } from "react";
+import { Component, useState, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { GlobeCanvas } from "@/components/cartograph/scene";
 import { Overlay } from "@/components/cartograph/overlay";
+import { SageBoard } from "@/components/cartograph/sage-board";
 
 export const Route = createFileRoute("/map")({ component: MapPage });
 
@@ -23,11 +24,25 @@ class MapBoundary extends Component<{ children: ReactNode }, { error: string }> 
 }
 
 export function MapPage() {
+  const [globe, setGlobe] = useState(false);
   return (
     <MapBoundary>
       <main className="relative h-full min-h-[560px] w-full overflow-hidden bg-bg">
-        <GlobeCanvas />
-        <Overlay />
+        <button
+          type="button"
+          onClick={() => setGlobe((on) => !on)}
+          className="absolute top-3 right-3 z-20 h-11 rounded-lg border border-line bg-surface px-3 font-display text-sm"
+        >
+          {globe ? "Плоская SAGE" : "3D глобус"}
+        </button>
+        {globe ? (
+          <>
+            <GlobeCanvas />
+            <Overlay />
+          </>
+        ) : (
+          <SageBoard />
+        )}
       </main>
     </MapBoundary>
   );

@@ -7,6 +7,7 @@ import { addToFleet, assignSeat, dropHull, loadFleets, saveFleets, type SavedFle
 import { walletCrew } from "@/lib/wallet-crew";
 import { displayName, type Crew } from "@/data/crew";
 import { CrewPortrait } from "@/components/crew/portrait";
+import { rememberWalletScan } from "@/lib/wallet-cache";
 
 export const Route = createFileRoute("/ships")({ component: ShipsPage });
 
@@ -56,6 +57,7 @@ export function ShipsPage() {
     if (!owner) return;
     void scanDeskWallet({ data: { owner } })
       .then((scan) => {
+        rememberWalletScan(scan);
         const counts: Record<string, number> = {};
         for (const item of scan.items) {
           if (item.kind === "ship") counts[item.mint] = (counts[item.mint] ?? 0) + item.amount;
@@ -73,11 +75,19 @@ export function ShipsPage() {
   return (
     <AppChrome current="ships" kicker="play.staratlas.com/market · корабли" title="Флот">
       <div className="flex h-full min-h-0 flex-col">
-        <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-line px-3 py-2">
+        <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-line px-3 py-2">
           <Tab on={tab === "market"} onClick={() => setTab("market")} label="Рынок" />
           {fleets.map((row) => (
             <Tab key={row.id} on={tab === row.id} onClick={() => setTab(row.id)} label={row.name} />
           ))}
+          <a
+            href="https://play.staratlas.com/market/?category=ship"
+            target="_blank"
+            rel="noreferrer"
+            className="ml-auto flex h-11 shrink-0 items-center rounded-lg border border-brass-dim px-3 font-display text-sm"
+          >
+            Биржа
+          </a>
         </div>
         {error ? <p className="px-4 py-2 text-sm text-danger">{error}</p> : null}
         {tab === "market" ? (
@@ -275,9 +285,19 @@ function FleetSheet({ fleet, crew, onChange, onGone }: { fleet: SavedFleet; crew
   const jobs = ["Flight", "Operator", "Command", "Engineering", "Medical", "Science", "Fitness", "Hospitality"];
   const matches = crew.filter((member) => member.aptitudes.some((apt) => apt.name === job) && member.n <= calm).slice(0, 12);
   const hull = fleet.hulls.find((row) => row.mint === openMint) ?? null;
+  const hulls = fleet.hulls.map((row) => ({ name: row.name, qty: row.copies.length, seats: row.copies[0]?.seats.length ?? row.slots.length }));
+  const shipsN = hulls.reduce((sum, row) => sum + row.qty, 0);
+  const seatsN = hulls.reduce((sum, row) => sum + row.qty * row.seats, 0);
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 md:px-6">
-      <h2 className="font-display text-2xl">{fleet.name}</h2>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="font-display text-2xl">{fleet.name}</h2>
+          <p className="text-sm text-muted">
+            {shipsN} корпусов · {seatsN} мест экипажа
+          </p>
+        </div>
+      </div>
       <ul className="mt-3 flex flex-col gap-2">
         {fleet.hulls.map((row) => (
           <li key={row.mint} className="rounded-xl border border-line bg-surface">

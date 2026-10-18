@@ -49,6 +49,11 @@ export type ResourceRow = {
   atlasBid?: number | null;
   polisAsk?: number | null;
   polisBid?: number | null;
+  msrp?: number | null;
+  usdcAsks?: BookLevel[];
+  usdcBids?: BookLevel[];
+  atlasAsks?: BookLevel[];
+  atlasBids?: BookLevel[];
 };
 
 export type MarketPairQuotes = {
@@ -81,6 +86,8 @@ export type MarketSnap = {
   /** POLIS priced in SOL, from the two USD candles. */
   solPolisCandles?: Candle[];
   tape: TapePoint[];
+  /** Lowest recorded USDC ask by mint. Absent until a server has kept a floor file. */
+  floors?: Record<string, number>;
   note: string;
 };
 

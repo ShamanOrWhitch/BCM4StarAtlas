@@ -1,4 +1,6 @@
 import { Connection, PublicKey } from "@solana/web3.js";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import type { BookLevel, Candle, FleetPeek, MarketShip, MarketSnap, ProfilePeek, ResourceRow, TapePoint, TokenQuote, WalletItem, WalletScan, WalletTrait } from "./desk-types";
 
 const RPC_URL = "https://api.mainnet-beta.solana.com";
@@ -59,6 +61,70 @@ const marketConnections = [
   new Connection("https://solana-rpc.publicnode.com", "confirmed"),
 ];
 const serverTape: TapePoint[] = [];
+const TAPE_PATH = join(process.cwd(), "data", "market-tape.json");
+const FLOOR_PATH = join(process.cwd(), "data", "market-floor.json");
+let tapeLoaded = false;
+let floorsLoaded = false;
+const floors: Record<string, number> = {};
+
+function ensureServerTape() {
+  if (tapeLoaded) return;
+  tapeLoaded = true;
+  try {
+    const parsed = JSON.parse(readFileSync(TAPE_PATH, "utf8")) as TapePoint[];
+    if (!Array.isArray(parsed)) return;
+    for (const point of parsed) {
+      if (point && typeof point.t === "number" && point.asks && typeof point.asks === "object") serverTape.push(point);
+    }
+  } catch {
+    // The first scan creates the file.
+  }
+}
+
+function sinkFloor(asks: Record<string, number>) {
+  for (const [mint, price] of Object.entries(asks)) {
+    if (!(price > 0)) continue;
+    if (floors[mint] == null || price < floors[mint]) floors[mint] = price;
+  }
+}
+
+function ensureFloors() {
+  if (floorsLoaded) return;
+  floorsLoaded = true;
+  try {
+    const parsed = JSON.parse(readFileSync(FLOOR_PATH, "utf8")) as Record<string, number>;
+    if (parsed && typeof parsed === "object") sinkFloor(parsed);
+  } catch {
+    // The first scan creates the file.
+  }
+  ensureServerTape();
+  for (const point of serverTape) sinkFloor(point.asks);
+}
+
+function compactServerTape(points: TapePoint[]): TapePoint[] {
+  const sorted = [...points].sort((a, b) => a.t - b.t);
+  const now = Date.now();
+  const out: TapePoint[] = [];
+  let last = 0;
+  for (const point of sorted) {
+    const age = now - point.t;
+    const gap = age <= 6 * 60 * 60 * 1000 ? 90_000 : age <= 10 * 24 * 60 * 60 * 1000 ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+    if (point.t - last >= gap * 0.9) {
+      out.push(point);
+      last = point.t;
+    }
+  }
+  return out.slice(-900);
+}
+
+function writeJson(path: string, value: unknown) {
+  try {
+    mkdirSync(join(process.cwd(), "data"), { recursive: true });
+    writeFileSync(path, JSON.stringify(value));
+  } catch {
+    // A read-only disk still serves the in-memory copy.
+  }
+}
 
 async function marketProgramAccounts(
   mint: string,
@@ -275,15 +341,23 @@ async function atlasCandles(): Promise<Candle[]> {
 }
 
 function pushTape(resources: ResourceRow[]): TapePoint[] {
+  ensureServerTape();
   const asks: Record<string, number> = {};
   for (const row of resources) {
-    if (row.ask != null) asks[row.mint] = row.ask;
+    const price = row.usdcAsk ?? row.ask;
+    if (price != null) asks[row.mint] = price;
   }
-  const last = serverTape.at(-1);
   const now = Date.now();
+  ensureFloors();
+  sinkFloor(asks);
+  writeJson(FLOOR_PATH, floors);
+  const last = serverTape.at(-1);
   if (!last || now - last.t >= 90_000) {
     serverTape.push({ t: now, asks });
-    if (serverTape.length > 48) serverTape.shift();
+    const compact = compactServerTape(serverTape);
+    serverTape.length = 0;
+    serverTape.push(...compact);
+    writeJson(TAPE_PATH, serverTape);
   }
   return serverTape.map((point) => ({ t: point.t, asks: { ...point.asks } }));
 }
@@ -388,6 +462,11 @@ export async function buildMarket(): Promise<MarketSnap> {
       atlasBid: atlasSide?.bid ?? null,
       polisAsk: polisSide?.ask ?? null,
       polisBid: polisSide?.bid ?? null,
+      msrp: item.kind === "ship" ? item.msrp : null,
+      usdcAsks: (usdcSide?.asks ?? []).slice(0, 6),
+      usdcBids: (usdcSide?.bids ?? []).slice(0, 6),
+      atlasAsks: (atlasSide?.asks ?? []).slice(0, 6),
+      atlasBids: (atlasSide?.bids ?? []).slice(0, 6),
     };
 
     if (item.kind === "resource") resources.push(row);
@@ -452,6 +531,7 @@ export async function buildMarket(): Promise<MarketSnap> {
     polisUsdcCandles,
     pairQuotes,
     tape: pushTape([...resources, ...ships]),
+    floors: { ...floors },
     note:
       "Рынок читается сервером. Ресурсы и корабли сначала ищутся в USDC; если прямого USDC-ордера нет, цена ATLAS переводится в USDC по текущему курсу ATLAS/USDC. Отдельно сохраняются стаканы ATLAS и POLIS. Графики: ATLAS/USDC, POLIS/USDC и POLIS/ATLAS.",
   };
