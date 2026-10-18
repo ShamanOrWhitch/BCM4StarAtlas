@@ -49,7 +49,7 @@ export function SageBoard({ onOpen }: { onOpen?: (id: string) => void }) {
       </div>
       <section className="rounded-xl border border-dashed border-line p-3">
         <p className="font-display text-sm text-muted uppercase">MRZ · серый</p>
-        <p className="mt-1 text-sm text-muted">Нейтраль между тремя зонами. Высокий риск в этой схеме ещё не открыт. 945 систем SAGE сюда не подставлены: публичной плоской карты без клиента игры нет.</p>
+        <p className="mt-1 text-sm text-muted">Нейтраль между тремя зонами. Плоская карта — отдельный слой с координат цепи, не эта схема.</p>
       </section>
     </div>
   );

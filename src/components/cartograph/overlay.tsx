@@ -196,7 +196,7 @@ export function Overlay({ expanse = false }: { expanse?: boolean }) {
         <div className="pointer-events-auto mx-auto max-w-lg">
           {expanse ? (
             <p className="rounded-xl border border-line bg-surface/80 px-4 py-3 text-sm text-muted backdrop-blur-md">
-              Galia — весь простор, не планета. Без кошелька остаётесь здесь. ONI открывает спутник ONI CSS, Ustur — Ioki.
+              Galia — весь простор −50…50, не планета. Без кошелька видна вся сетка. ONI, MUD и Ustur стоят на своих CSS.
             </p>
           ) : marker ? (
             <div className="rounded-xl border border-line bg-surface/90 px-4 py-3 backdrop-blur-md">

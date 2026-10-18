@@ -1,7 +1,7 @@
 import { Component, useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Overlay } from "@/components/cartograph/overlay";
-import { SageBoard } from "@/components/cartograph/sage-board";
+import { SagePlane } from "@/components/cartograph/sage-plane";
 import { useCartograph } from "@/components/cartograph/store";
 import { SYSTEMS, cssMarker } from "@/data/systems";
 import type { WalletItem } from "@/lib/desk-types";
@@ -63,7 +63,7 @@ export function MapPage() {
   const [globe, setGlobe] = useState(false);
   const [CanvasView, setCanvasView] = useState<ComponentType | null>(null);
   const [webglError, setWebglError] = useState("");
-
+  const [focus, setFocus] = useState<Race | null>(null);
   const alive = useRef(true);
 
   async function loadCanvas() {
@@ -82,15 +82,12 @@ export function MapPage() {
 
   useEffect(() => {
     alive.current = true;
-    if (applyHome()) void loadCanvas();
-    const unsub = useCartograph.subscribe((state, prev) => {
-      if (state.systemId !== prev.systemId || (state.markerId && state.markerId !== prev.markerId)) {
-        void loadCanvas();
-      }
-    });
+    const scan = rememberedWalletScan();
+    const race = scan ? raceOf(scan.items) : null;
+    setFocus(race);
+    if (race) applyHome();
     return () => {
       alive.current = false;
-      unsub();
     };
   }, []);
 
@@ -106,17 +103,21 @@ export function MapPage() {
           <CanvasView />
         </CanvasBoundary>
       ) : (
-        <div className="h-full overflow-y-auto pt-16">
+        <>
           {webglError ? (
-            <p className="px-4 pt-3 text-sm text-muted">3D не открылось ({webglError}). Меню на месте.</p>
+            <p className="pointer-events-none absolute top-16 right-3 left-3 z-20 text-sm text-muted">
+              3D не открылось ({webglError}). Плоскость на месте.
+            </p>
           ) : null}
-          <SageBoard
+          <SagePlane
+            focus={focus}
+            onAim={(id) => useCartograph.getState().setSystem(id)}
             onOpen={(id) => {
               useCartograph.getState().setSystem(id);
               void loadCanvas();
             }}
           />
-        </div>
+        </>
       )}
       <Overlay expanse={!globe} />
       <button
