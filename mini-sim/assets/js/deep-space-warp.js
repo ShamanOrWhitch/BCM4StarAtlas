@@ -716,7 +716,7 @@
           if (!asset || typeof asset.url !== "string" || !asset.url) return false;
           if (asset.type && asset.type !== "image") return false;
           const base = String(asset.name || "").split(/[\\/]/).pop();
-          return /^asterwall\d*\.(?:png|jpe?g|webp)$/i.test(base);
+          return /^asterwall[^.]*\.(?:png|jpe?g|webp)$/i.test(base);
         })
         .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
     }
