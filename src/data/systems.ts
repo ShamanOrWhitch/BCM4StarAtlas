@@ -106,6 +106,27 @@ export const SYSTEMS: StarSystem[] = [
     ],
   },
   {
+    id: "galia",
+    name: "Galia",
+    planet: "Galia",
+    faction: "ECOS",
+    texture: "/textures/earth.jpg",
+    atmosphere: "#8ec8ff",
+    sun: "#fff4d2",
+    lore: "Готовая планетка простора. Текстура Земли, не Ustur и не ONI CSS.",
+    markers: [
+      {
+        id: "galia-port",
+        name: "Порт Галии",
+        lat: 18,
+        lng: 12,
+        kind: "port",
+        placement: "surface",
+        blurb: "Планета с земной текстурой. Станция CSS здесь не висит.",
+      },
+    ],
+  },
+  {
     id: "mud",
     name: "MUD · Pearce",
     planet: "Pearce analog · Mars",

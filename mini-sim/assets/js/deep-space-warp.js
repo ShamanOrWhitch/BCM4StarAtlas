@@ -861,6 +861,7 @@
       const beacon = new THREE.Mesh(beaconGeometry, beaconMaterial);
       beacon.position.copy(cellPosition(exitNode.x, exitNode.y, exitNode.z));
       beacon.rotation.x = Math.PI / 2;
+      beacon.scale.set(1.65, 1.65, 1.65);
       beacon.name = "return-warp-beacon";
       group.add(beacon);
 
@@ -902,7 +903,7 @@
       // Default Mini-Sim forward is -Z; face inward from the asteroid entrance.
       engine.teleport({ x: maze.start.x, y: maze.start.y, z: maze.start.z, yaw: 0 }, null);
       engine.pauseForWarp(false);
-      engine.setExternalHUD("ASTEROID COMPLEX · " + sectorText(state.target), "EXPEDITION · CORE SHARDS 0/3 · FIND THE RETURN BEACON");
+      engine.setExternalHUD("ASTEROID COMPLEX · " + sectorText(state.target), "EXPEDITION · CORE SHARDS 0/3 · GOLD RING OPENS THE HULL");
       maze.lastPosition = runtime.ship.position.clone();
       state.mode = "maze";
       state.lastStatusAt = 0;
@@ -954,12 +955,25 @@
           crystal.taken = true;
           crystal.mesh.visible = false;
           maze.count += 1;
-          setMazeStatus("CORE SHARDS " + maze.count + "/3 · " + (maze.count === 3 ? "RETURN BEACON UNLOCKED" : "SEARCH THE CONNECTED CORRIDORS"));
+          setMazeStatus("CORE SHARDS " + maze.count + "/3 · " + (maze.count === 3 ? "GOLD RING IS OPEN" : "SEARCH THE CONNECTED CORRIDORS"));
         }
       });
       maze.beacon.rotation.z += Math.min(frame.dt || 0.016, 0.04) * 0.4;
-      if (maze.count === 3 && pos.distanceTo(maze.exit) < 3.8) {
-        returnToWarpMap();
+      const ringDistance = pos.distanceTo(maze.beacon.position);
+      if (!state.hullOpen && ringDistance < 2.6 && window.BCMHullDive && window.BCMHullDive.open) {
+        state.hullOpen = true;
+        const engine = api();
+        if (engine && engine.pauseForWarp) engine.pauseForWarp(true);
+        const away = pos.clone().sub(maze.beacon.position);
+        if (away.lengthSq() < 0.04) away.set(0, 0.4, 1);
+        away.setLength(5.2);
+        pos.copy(maze.beacon.position).add(away);
+        ship.velocity.set(0, 0, 0);
+        window.BCMHullDive.open(function () {
+          state.hullOpen = false;
+          if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
+          setMazeStatus("BACK AT THE RING · FLY IN TO DIVE AGAIN");
+        });
         return;
       }
 
@@ -974,7 +988,7 @@
       maze.lastPosition.copy(pos);
       if (performance.now() - maze.sinceStatus > 1300) {
         maze.sinceStatus = performance.now();
-        const message = "EXPEDITION · CORE SHARDS " + maze.count + "/3" + (maze.count === 3 ? " · REACH GOLD RETURN BEACON" : " · FIND 3 SHARDS");
+        const message = "EXPEDITION · CORE SHARDS " + maze.count + "/3 · FLY INTO THE GOLD RING";
         setMazeStatus(message);
       }
     }
