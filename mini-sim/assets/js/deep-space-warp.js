@@ -822,15 +822,15 @@
         }
       });
 
-      // Use a small deterministic subset of the prepared asterwall family to
-      // vary the entire ONI asteroid corridor without loading 17+ images on phones.
+      // Use every prepared asterwall variant. The files are small, and a full
+      // shuffle means the entire asteroid run can display the whole texture family.
       const fallbackTexture = makeMazeTexture(THREE);
       const availableWallAssets = asteroidWallAssetPool();
       for (let i = availableWallAssets.length - 1; i > 0; i -= 1) {
         const j = Math.floor(rng() * (i + 1));
         [availableWallAssets[i], availableWallAssets[j]] = [availableWallAssets[j], availableWallAssets[i]];
       }
-      const chosenWallAssets = availableWallAssets.slice(0, 4);
+      const chosenWallAssets = availableWallAssets;
       const wallMaterials = [];
       const wallTextures = [];
       if (chosenWallAssets.length) {
