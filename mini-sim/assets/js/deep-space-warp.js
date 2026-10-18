@@ -960,8 +960,8 @@
       root.classList.remove("bcm-warp-open");
       launchButton.classList.remove("is-active");
 
-      // The main physics resumes in this scene. The seeded maze uses one instanced wall mesh
-      // and a single 64x64 generated tile texture, so geometry is cheap on older devices.
+      // The main physics resumes in this scene. The seeded maze uses a small number of
+      // instanced wall batches and up to four asterwall textures, with a tiny procedural fallback.
       // Default Mini-Sim forward is -Z; face inward from the asteroid entrance.
       engine.teleport({ x: maze.start.x, y: maze.start.y, z: maze.start.z, yaw: 0 }, null);
       engine.pauseForWarp(false);
