@@ -29,6 +29,7 @@
       '<button type="button" data-hull-control="up" aria-label="Плыть вверх">▲</button>' +
       '<button type="button" data-hull-control="down" aria-label="Плыть вниз">▼</button></div>' +
       '<div style="display:flex;gap:5px;pointer-events:auto">' +
+      '<button type="button" data-hull-control="helm">V · ШТУРВАЛ</button>' +
       '<button type="button" data-hull-control="shoot">SPACE · ОРУДИЕ</button>' +
       '<button type="button" data-hull-control="reload">R · БОЕЗАПАС</button>' +
       '<button type="button" data-hull-control="repair">F · РЕМОНТ</button>' +
@@ -37,6 +38,7 @@
       '<span data-hull-ox style="font-variant-numeric:tabular-nums">O2 100</span>' +
       '<span data-hull-weld>шов 0%</span>' +
       '<span data-hull-ammo>БОЕЗАПАС 6/6</span>' +
+      '<span data-hull-flight>ТЯГА 0% · КУРС 0°</span>' +
       '<span data-hull-crew>CREW</span>' +
       '<span data-hull-hint style="opacity:.75">P1 WASD · SPACE огонь · R зарядка · F/E ремонт/насос · P2 arrows + Enter/Shift</span></div>' +
       '<style>#bcm-hull-dive [data-hull-controls] button{touch-action:none;min-height:38px;min-width:38px;padding:5px 9px;border:1px solid #46667b;border-radius:8px;background:rgba(16,32,44,.94);color:#e7eef2;font-weight:700}#bcm-hull-dive [data-hull-controls] button.is-active{background:#294b60;border-color:#7bd9ee}#bcm-hull-dive canvas{display:block;width:100%;height:100%}@media(max-width:620px){#bcm-hull-dive [data-hull-controls] button{font-size:10px;padding:4px 6px;min-height:34px;min-width:34px}}@media(min-width:1000px){#bcm-hull-dive [data-hull-controls]{left:50%;right:auto;transform:translateX(-50%);width:min(800px,94vw)}}</style>';
@@ -118,7 +120,7 @@
     window.addEventListener("keydown", onKey, true);
     window.addEventListener("keyup", onKey, true);
 
-    const buttonKeys = { left: "a", right: "d", up: "w", down: "s", shoot: "space", reload: "r", repair: "f", pump: "e" };
+    const buttonKeys = { left: "a", right: "d", up: "w", down: "s", helm: "v", shoot: "space", reload: "r", repair: "f", pump: "e" };
     root.querySelectorAll("[data-hull-control]").forEach((button) => {
       const key = buttonKeys[button.dataset.hullControl];
       if (!key) return;
@@ -163,6 +165,11 @@
     let gunTargetRing = null;
     let actionStatus = "";
     let actionStatusUntil = 0;
+    let pilotMode = true;
+    let helmToggleWasDown = false;
+    let enginePower = 0;
+    let flightHeading = 0;
+    let flightTime = 0;
 
     function notifyStatus(message, duration) {
       actionStatus = String(message || "");
@@ -183,7 +190,8 @@
           repair: button(0),
           pump: button(1),
           shoot: button(2),
-          reload: button(3)
+          reload: button(3),
+          helm: button(4)
         };
       } catch (e) {
         return { x: 0, y: 0, repair: false, pump: false, shoot: false, reload: false };
@@ -198,7 +206,8 @@
           repair: !!(keys.f || pad.repair),
           pump: !!(keys.e || pad.pump),
           shoot: !!(keys.space || pad.shoot),
-          reload: !!(keys.r || pad.reload)
+          reload: !!(keys.r || pad.reload),
+          helm: !!(keys.v || pad.helm)
         };
       }
       return {
@@ -207,7 +216,8 @@
         repair: !!keys.period,
         pump: !!keys.shift,
         shoot: !!keys.enter,
-        reload: !!keys.slash
+        reload: !!keys.slash,
+        helm: false
       };
     }
 
@@ -731,12 +741,29 @@
       const submergedCount = submergedRooms.filter(Boolean).length;
       players.forEach((player, index) => {
         const input = inputs[index];
-        const speed = submergedRooms[index] ? 1.7 : 2.5;
-        player.x += input.dx * speed * dt;
-        if (submergedRooms[index]) {
-          player.y += input.dy * speed * dt;
+        const atHelm = index === 0 && Math.abs(player.x + 4.75) < 0.8;
+        if (index === 0 && input.helm && !helmToggleWasDown) {
+          if (atHelm) {
+            pilotMode = !pilotMode;
+            notifyStatus(pilotMode ? "Штурвал: W/S — тяга, A/D — курс. V — покинуть пост" : "Экипаж: A/D и W/S — перемещение. V — вернуться к штурвалу", 2800);
+          } else {
+            notifyStatus("Чтобы сесть за штурвал, вернись в носовой отсек", 2200);
+          }
+        }
+        if (index === 0) helmToggleWasDown = input.helm;
+        const usingHelm = index === 0 && atHelm && pilotMode;
+        if (usingHelm) {
+          enginePower = Math.max(0, Math.min(1, enginePower + input.dy * dt * 0.7));
+          flightHeading = Math.max(-1, Math.min(1, flightHeading + input.dx * dt * 0.75));
+          flightTime += dt * (0.25 + enginePower * 1.8);
         } else {
-          player.y += (floor + 0.42 - player.y) * Math.min(1, dt * 8);
+          const speed = submergedRooms[index] ? 1.7 : 2.5;
+          player.x += input.dx * speed * dt;
+          if (submergedRooms[index]) {
+            player.y += input.dy * speed * dt;
+          } else {
+            player.y += (floor + 0.42 - player.y) * Math.min(1, dt * 8);
+          }
         }
         player.x = Math.max(-6, Math.min(6, player.x));
         player.y = Math.max(floor + 0.3, Math.min(ceil - 0.2, player.y));
@@ -783,6 +810,15 @@
         water[1] = Math.min(1, water[1] + 0.2);
         status.textContent = "Воздух кончился. Насос E (или gamepad B), пока голова над водой.";
       }
+      if (gunTarget && gunTarget.visible) {
+        const lateral = Math.sin(flightTime * 0.62 + flightHeading * 2.1) * (0.34 + enginePower * 1.25);
+        gunTarget.position.x = 0.7 + lateral;
+        gunTarget.position.y = 2.62 + Math.sin(flightTime * 0.83) * (0.08 + enginePower * 0.18);
+        if (gunTargetRing) {
+          gunTargetRing.position.x = gunTarget.position.x;
+          gunTargetRing.position.y = gunTarget.position.y;
+        }
+      }
       const anyNearBreach = nearBreach.some(Boolean);
       if (weld >= 1 && water.every((level) => level < 0.12)) {
         won = true;
@@ -793,6 +829,8 @@
       oxEl.textContent = "O2 " + Math.round(oxygen);
       weldEl.textContent = "шов " + Math.round(weld * 100) + "%";
       if (ammoEl) ammoEl.textContent = "БОЕЗАПАС " + ammo + "/" + maxAmmo + (reloadProgress > 0 ? " · ЗАРЯДКА " + Math.round(reloadProgress / 1.05 * 100) + "%" : "");
+      const flightEl = root.querySelector("[data-hull-flight]");
+      if (flightEl) flightEl.textContent = (pilotMode ? "ШТУРВАЛ" : "ЭКИПАЖ") + " · ТЯГА " + Math.round(enginePower * 100) + "% · КУРС " + Math.round(flightHeading * 45) + "°";
       waters.forEach((mesh, index) => {
         const depth = Math.max(0.04, water[index] * 3.15);
         mesh.scale.y = depth;
