@@ -8,7 +8,8 @@ test("Asteroid walls are resolved from the prepared asterwall asset family", asy
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(warp, /function asteroidWallAssetPool\(\)/);
   assert.match(warp, /asterwall/);
-  assert.match(warp, /availableWallAssets\.slice\(0, 4\)/);
+  assert.match(warp, /const chosenWallAssets = availableWallAssets;/);
+  assert.doesNotMatch(warp, /availableWallAssets\.slice\(0, 4\)/);
   assert.match(warp, /wallMesh\.name = "asteroid-maze-wall-panels-" \+ index/);
   assert.match(warp, /wallMaterials\[index\]\.map = fallbackTexture/);
   assert.match(warp, /for \(const texture of new Set\(maze\.textures/);
@@ -36,6 +37,13 @@ test("Tower seed generation is gentler; keyboard/touch slow down without slowing
   assert.match(tower, /const sideCount = 1 \+ Math\.floor\(rand\(\) \* 2\)/);
   assert.match(tower, /objectRoll < 0\.22/);
   assert.match(tower, /const manualInputScale = c\.gamepad \? 1 : 0\.84/);
+  assert.match(tower, /const count = 38;/);
+  assert.match(tower, /const platformWidth = 3\.35;/);
+  assert.match(tower, /const footContactReach = 0\.32;/);
+  assert.match(tower, /let depth = 1\.9;/);
+  assert.match(tower, /let width = platformWidth;/);
+  assert.match(tower, /const angularReach = Math\.atan2\(platformHalfWidth \+ footContactReach, Math\.max\(1, surfaceRadius\)\)/);
+  assert.match(tower, /Math\.abs\(player\.radial - targetRadial\) > 0\.88/);
   assert.match(tower, /controls\[i\]\.gamepad = true/);
   assert.match(tower, /p\.angle \+= dx \* 0\.0065/);
   assert.match(tower, /\/ 11, -1, 1\)/);
