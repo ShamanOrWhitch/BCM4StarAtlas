@@ -16,7 +16,7 @@ test("Asteroid walls are resolved from the prepared asterwall asset family", asy
 
 test("Room 0 uses speed level 3 temporarily and restores its previous setting", async () => {
   const mini = await read("mini-sim/assets/js/mini-sim.js");
-  assert.match(mini, /3: \{ thrust: 24, maxSpeed: 60 \}/);
+  assert.match(mini, /1: \{ thrust: 8\.5, maxSpeed: 18 \}/);\n  assert.match(mini, /2: \{ thrust: 13\.5, maxSpeed: 31 \}/);\n  assert.match(mini, /3: \{ thrust: 18, maxSpeed: 45 \}/);
   assert.match(mini, /function beginRoom0Speed\(\)/);
   assert.match(mini, /setSpeedMode\(3\)/);
   assert.match(mini, /ROOM 0 · SPEED 3/);
@@ -42,7 +42,7 @@ test("Tower seed generation is gentler; keyboard/touch slow down without slowing
 test("Warp Tube scrolls faster while retaining shared scene and soundtrack state", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(warp, /const WARP_DURATION = 42/);
-  assert.match(warp, /value \* 1\.25 \* \(boosted \? 1\.4 : 1\)/);
+  assert.match(warp, /function warpSpeedMultiplier\(elapsed\)/);\n  assert.match(warp, /return Math\.pow\(8, warpNormalizedTime\(elapsed\)\)/);\n  assert.match(warp, /function warpCourseProgress\(elapsed\)/);\n  assert.match(warp, /const rampMultiplier = warpSpeedMultiplier\(state\.elapsed\)/);\n  assert.match(warp, /Math\.min\(8, Math\.max\(1,/);
   assert.match(warp, /const runtime = engine\.getRuntime\(\)/);
   assert.match(warp, /if \(engine\.setSpeedMode\) engine\.setSpeedMode\(2\)/);
 });
