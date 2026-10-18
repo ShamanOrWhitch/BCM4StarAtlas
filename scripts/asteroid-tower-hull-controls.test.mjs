@@ -8,7 +8,7 @@ test("Asteroid walls are resolved from the prepared asterwall asset family", asy
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(warp, /function asteroidWallAssetPool\(\)/);
   assert.match(warp, /asterwall/);
-  assert.match(warp, /chosenWallAssets\.slice\(0, 4\)/);
+  assert.match(warp, /availableWallAssets\.slice\(0, 4\)/);
   assert.match(warp, /wallMesh\.name = "asteroid-maze-wall-panels-" \+ index/);
   assert.match(warp, /wallMaterials\[index\]\.map = fallbackTexture/);
   assert.match(warp, /for \(const texture of new Set\(maze\.textures/);

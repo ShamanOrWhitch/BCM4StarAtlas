@@ -17,7 +17,7 @@ test("Warp uses a rolling circular wall and angular obstacle course",async()=>{
   const s=await read("mini-sim/assets/js/deep-space-warp.js");
   const body=s.slice(s.indexOf("function drawTubeTunnel"),s.indexOf("function drawBackdrop"));
   const update=s.slice(s.indexOf("function updateTube(dt, now)"),s.indexOf("window.BCMDeepSpaceWarpToggle"));
-  assert.match(s,/const WARP_DURATION = 48/);
+  assert.match(s,/const WARP_DURATION = 42/);
   assert.match(body,/const twistAt = \(d\) => courseTwist\(d\)/);
   assert.match(body,/for \(let panel = 0; panel < panelCount; panel \+= 1\)/);
   assert.match(body,/for \(let seam = 0; seam < 12; seam \+= 1\)/);

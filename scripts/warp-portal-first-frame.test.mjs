@@ -20,7 +20,7 @@ test("Tube section geometry and speed interpolate cyclically without a loop seam
   assert.match(helper, /const next = \(current \+ 1\) % count/);
   assert.match(helper, /phase: position \* Math\.PI \* 2 \/ count/);
   assert.match(warp, /tubeSectionBlend\(speedBySection, state\.elapsed\)\.value/);
-  assert.match(warp, /const WARP_DURATION = 48/);
+  assert.match(warp, /const WARP_DURATION = 42/);
 });
 
 test("Tube rendering is a rotating cylinder, not a fixed trapezoid", () => {
