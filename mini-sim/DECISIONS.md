@@ -2,10 +2,10 @@
 
 **Статус: committed directly to main; automated CI for these latest commits not confirmed.** Mini-Sim 0.9.97 / Tower 0.2.60.
 
-- Remove the four-texture cap for asteroid walls. Use every image asset matching \`asterwall*\` in the manifest; shuffle the full pool per generated maze and distribute wall batches among all loaded textures. Keep the procedural fallback for missing/failed texture files.
+- Remove the four-texture cap for asteroid walls. Use every image asset matching `asterwall*` in the manifest; shuffle the full pool per generated maze and distribute wall batches among all loaded textures. Keep the procedural fallback for missing/failed texture files.
 - Tower bird count increases from 36 to 38, exactly two additional birds.
 - Increase platform box width from 2.65 to 3.35 and radial depth from 1.65 to 1.9. Neighboring same-level platform edges overlap slightly, reducing visual/physical gaps.
-- Surface landing uses \`atan2(platformHalfWidth + footContactReach, surfaceRadius)\` rather than the body-center-only fixed angular threshold. Expand radial contact tolerance from 0.72 to 0.88 so a near foot may still make contact at an edge.
+- Surface landing uses `atan2(platformHalfWidth + footContactReach, surfaceRadius)` rather than the body-center-only fixed angular threshold. Expand radial contact tolerance from 0.72 to 0.88 so a near foot may still make contact at an edge.
 - Update source-contract tests and cache-version assertions. This is not yet manually verified on a real phone or deployed WordPress site.
 - Keep the established Warp/sector return paths, audio, Hull Dive, and planet placement unchanged.
 
