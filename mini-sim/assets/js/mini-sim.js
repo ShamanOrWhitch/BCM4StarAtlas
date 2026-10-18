@@ -883,7 +883,8 @@
   // Mode 1 is the new default: slightly slower forward/back flight.
   const speedMatrix = {
     1: { thrust: 11.5, maxSpeed: 24 },
-    2: { thrust: 18, maxSpeed: 42 }
+    2: { thrust: 18, maxSpeed: 42 },
+    3: { thrust: 24, maxSpeed: 60 }
   };
   let speedMode = 1;
 
@@ -979,7 +980,8 @@
     segments: [],
     gates: [],
     group: null,
-    prev: null
+    prev: null,
+    savedSpeedMode: null
   };
   const room0Labyrinth = {
     group: null,
@@ -1842,8 +1844,19 @@
     race.prev = ship.position.clone();
   }
 
+  function beginRoom0Speed() {
+    if (race.savedSpeedMode === null) race.savedSpeedMode = speedMode;
+    setSpeedMode(3);
+  }
+
+  function restoreRoom0Speed() {
+    if (race.savedSpeedMode !== null) setSpeedMode(race.savedSpeedMode);
+    race.savedSpeedMode = null;
+  }
+
   function placeOnSlipstream() {
     race.active = true;
+    beginRoom0Speed();
     race.busy = false;
     race.laps = 0;
     race.nextGate = 1;
@@ -1861,11 +1874,12 @@
     camera.quaternion.copy(ship.quaternion);
     if (race.group) race.group.visible = true;
     showMission("МИССИЯ: 2 КРУГА ПО ТРАССЕ, НИ РАЗУ НЕ ВЫЛЕТАЯ В КОСМОС");
-    setStatus("ТРАССА · " + (race.kindLabel || "") + " · КРУГ 1/2");
+    setStatus("ROOM 0 · SPEED 3 · " + (race.kindLabel || "ТРАССА") + " · КРУГ 1/2");
   }
 
   function returnFromSlipstream() {
     race.active = false;
+    restoreRoom0Speed();
     race.busy = false;
     race.laps = 0;
     race.nextGate = 1;
@@ -3017,6 +3031,7 @@
     // Disable Room 0 constraints before moving the ship so the next physics
     // frame cannot pull it back into the labyrinth.
     race.active = false;
+    restoreRoom0Speed();
     race.busy = false;
     race.laps = 0;
     race.nextGate = 1;
