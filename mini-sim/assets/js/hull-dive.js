@@ -73,6 +73,9 @@
       cancelAnimationFrame(frame);
       window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("keyup", onKey, true);
+      window.removeEventListener("blur", clearHeldKeys);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      clearHeldKeys();
       players.forEach((player) => {
         if (!player.sprite) return;
         try { player.texture?.dispose?.(); } catch (e) {}
@@ -102,23 +105,42 @@
 
     const keys = Object.create(null);
     const handledCodes = new Set([
-      "KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyF", "KeyR", "KeyQ", "KeyC", "Period", "Slash",
+      "KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyF", "KeyR", "KeyQ", "KeyC", "KeyV", "Period", "Slash",
       "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter", "ShiftLeft", "ShiftRight", "Space"
     ]);
+    let helmTogglePending = false;
+    function clearHeldKeys() {
+      Object.keys(keys).forEach((key) => { keys[key] = false; });
+      helmToggleWasDown = false;
+      helmTogglePending = false;
+      root.querySelectorAll("[data-hull-control]").forEach((button) => button.classList.remove("is-active"));
+    }
+    function onVisibilityChange() {
+      if (document.hidden) clearHeldKeys();
+    }
     function onKey(event) {
       const down = event.type === "keydown";
       keys[String(event.key || "").toLowerCase()] = down;
       if (event.code === "Space") keys.space = down;
       if (event.code === "Period") keys.period = down;
       if (event.code === "Slash") keys.slash = down;
+      if (event.code === "KeyV" && down) helmTogglePending = true;
       if (handledCodes.has(event.code)) {
         event.preventDefault();
-        event.stopPropagation();
+        // This input belongs to the Hull Dive scene; it must not also trigger
+        // Mini-Sim flight/Warp handlers attached to the same window.
+        event.stopImmediatePropagation();
       }
-      if (event.code === "Escape" && down) finish();
+      if (event.code === "Escape" && down) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        finish();
+      }
     }
     window.addEventListener("keydown", onKey, true);
     window.addEventListener("keyup", onKey, true);
+    window.addEventListener("blur", clearHeldKeys);
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     const buttonKeys = { left: "a", right: "d", up: "w", down: "s", helm: "v", shoot: "space", reload: "r", repair: "f", pump: "e" };
     root.querySelectorAll("[data-hull-control]").forEach((button) => {
@@ -128,6 +150,7 @@
         event.preventDefault();
         event.stopPropagation();
         keys[key] = true;
+        if (button.dataset.hullControl === "helm") helmTogglePending = true;
         button.classList.add("is-active");
         try { if (button.setPointerCapture && event.pointerId != null) button.setPointerCapture(event.pointerId); } catch (e) {}
       };
@@ -742,10 +765,15 @@
       players.forEach((player, index) => {
         const input = inputs[index];
         const atHelm = index === 0 && Math.abs(player.x + 4.75) < 0.8;
-        if (index === 0 && input.helm && !helmToggleWasDown) {
-          if (atHelm) {
-            pilotMode = !pilotMode;
-            notifyStatus(pilotMode ? "Штурвал: W/S — тяга, A/D — курс. V — покинуть пост" : "Экипаж: A/D и W/S — перемещение. V — вернуться к штурвалу", 2800);
+        if (index === 0 && ((input.helm && !helmToggleWasDown) || helmTogglePending)) {
+          if (pilotMode) {
+            // Leaving the helm must always be possible, even if drift put the
+            // Crew sprite just outside the narrow physical station radius.
+            pilotMode = false;
+            notifyStatus("Экипаж: A/D и W/S — перемещение. V — вернуться к штурвалу", 2800);
+          } else if (atHelm) {
+            pilotMode = true;
+            notifyStatus("Штурвал: W/S — тяга, A/D — курс. V — покинуть пост", 2800);
           } else {
             notifyStatus("Чтобы сесть за штурвал, вернись в носовой отсек", 2200);
           }
@@ -798,6 +826,9 @@
         reloadHeld[index] = input.reload;
         if (player.sprite) player.sprite.position.set(player.x, player.y + 0.16, 0.82 + index * 0.015);
       });
+      // A short touchscreen tap can begin and end between animation frames.
+      // Consume the edge-triggered request once so the helm never feels stuck.
+      helmTogglePending = false;
 
       const nearBreach = players.map((player) => Math.abs(player.x) < 0.7 && player.y < floor + 0.9);
       const repairers = nearBreach.reduce((count, near, index) =>
