@@ -78,7 +78,7 @@ test("Hull Dive exclusively owns key input and handles V across keyboard layouts
   assert.match(hull, /down && !event\.repeat/);
   assert.match(hull, /event\.stopImmediatePropagation\(\)/);
   assert.match(mini, /document\.getElementById\("bcm-hull-dive"\)/);
-  assert.match(mini, /Do not let this earlier global handler reinterpret V as Warp/);
+  assert.match(mini, /Hull Dive owns keyboard input while its overlay is open/);
 });
 
 test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, ammunition and repair stations", async () => {
