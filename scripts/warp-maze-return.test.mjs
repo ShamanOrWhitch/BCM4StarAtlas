@@ -19,6 +19,9 @@ test("asteroid exit and return beacon both return to the Warp map", () => {
   assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
   assert.match(warp, /maze\.count === 3 \? "GOLD RING IS OPEN"/);
   assert.match(warp, /if \(!state\.hullOpen && ringDistance < 2\.6 && window\.BCMHullDive/);
+  const ring = section(warp, "function updateMazeFrame(frame)", "function setMazeStatus");
+  assert.match(ring, /new THREE\.Quaternion\(\)\.setFromAxisAngle/);
+  assert.match(ring, /ship\.angularVelocity\) ship\.angularVelocity\.set\(0, 0, 0\)/);
   assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
 });
 
@@ -31,6 +34,9 @@ test("returning to the sector map keeps Warp active and pauses the ship", () => 
   assert.match(body, /engine\.pauseForWarp\(true\)/);
   assert.doesNotMatch(body, /stopWarpAudio\(\)|resumeLevelOst\(\)/);
   assert.doesNotMatch(body, /state\.savedPosition = null|state\.savedQuaternion = null/);
+  assert.match(body, /state\.savedPosition = runtime\.ship\.position\.clone\(\)/);
+  assert.match(body, /const yaw = Math\.atan2\(-forward\.x, -forward\.z\)/);
+  assert.ok(body.indexOf("state.savedPosition = runtime.ship.position.clone()") < body.indexOf("disposeMaze()"), "capture asteroid anchor before disposing maze");
 });
 
 test("asteroid maze uses speed mode 2 and restores the previous mode", () => {
