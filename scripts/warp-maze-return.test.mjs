@@ -105,7 +105,7 @@ test("Every generated obstacle layer has a distinct type and a passable opening"
   assert.match(body, /type === "sweeper"/);
   assert.match(body, /type === "spikes"/);
   assert.match(body, /\? "boost"/);
-  assert.match(body, /\? "launcher"/);
+  assert.match(body, /"boost" : "launcher"/);
   assert.match(body, /progress = 0\.08 \+ \(i \/ Math\.max\(1, gateCount - 1\)\) \* 0\.86/);
 });
 
