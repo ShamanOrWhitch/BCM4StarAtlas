@@ -37,10 +37,11 @@
       '<div style="position:absolute;left:12px;right:12px;bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px">' +
       '<span data-hull-ox style="font-variant-numeric:tabular-nums">O2 100</span>' +
       '<span data-hull-weld>шов 0%</span>' +
+      '<span data-hull-hazards style="font-variant-numeric:tabular-nums">ВОДА 12% · ДЫМ 9% · ОГОНЬ 6%</span>' +
       '<span data-hull-ammo>БОЕЗАПАС 6/6</span>' +
       '<span data-hull-flight>ТЯГА 0% · КУРС 0°</span>' +
       '<span data-hull-crew>CREW</span>' +
-      '<span data-hull-hint style="opacity:.75">P1 WASD · SPACE огонь · R зарядка · F/E ремонт/насос · P2 arrows + Enter/Shift</span></div>' +
+      '<span data-hull-hint style="opacity:.75">P1 WASD · SPACE огонь · R зарядка · F/E ремонт/насос · геймпад: стик Crew, LB штурвал, A ремонт, B насос</span></div>' +
       '<style>#bcm-hull-dive [data-hull-controls] button{touch-action:none;min-height:38px;min-width:38px;padding:5px 9px;border:1px solid #46667b;border-radius:8px;background:rgba(16,32,44,.94);color:#e7eef2;font-weight:700}#bcm-hull-dive [data-hull-controls] button.is-active{background:#294b60;border-color:#7bd9ee}#bcm-hull-dive canvas{display:block;width:100%;height:100%}@media(max-width:620px){#bcm-hull-dive [data-hull-controls] button{font-size:10px;padding:4px 6px;min-height:34px;min-width:34px}}@media(min-width:1000px){#bcm-hull-dive [data-hull-controls]{left:50%;right:auto;transform:translateX(-50%);width:min(800px,94vw)}}</style>';
     document.body.appendChild(root);
 
@@ -50,6 +51,7 @@
     const weldEl = root.querySelector("[data-hull-weld]");
     const crewEl = root.querySelector("[data-hull-crew]");
     const ammoEl = root.querySelector("[data-hull-ammo]");
+    const hazardsEl = root.querySelector("[data-hull-hazards]");
     const crewSelection = Array.isArray(window.BCMMiniCrewSelection?.players)
       ? window.BCMMiniCrewSelection.players.slice(0, 2)
       : [];
@@ -177,6 +179,10 @@
     });
 
     const water = [0.05, 0.12, 0.05];
+    const smoke = [0.025, 0.09, 0.02];
+    const fire = [0.01, 0.06, 0.01];
+    const integrity = [100, 100, 100];
+    const externalHole = [false, false, false];
     let weld = 0;
     let oxygen = 100;
     let pressure = 1;
@@ -193,7 +199,9 @@
     let gunTargetRing = null;
     let actionStatus = "";
     let actionStatusUntil = 0;
-    let pilotMode = true;
+    // Begin in visible Crew-movement mode so a connected stick immediately moves
+    // a character. V / gamepad LB switches into helm controls.
+    let pilotMode = false;
     let helmToggleWasDown = false;
     let enginePower = 0;
     let flightHeading = 0;
@@ -453,6 +461,8 @@
     function setCrewTextureColorSpace(THREE, texture) {
       if (THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
       else if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
+      // Keep a single top-to-bottom convention for every Crew texture.
+      texture.flipY = true;
       texture.needsUpdate = true;
       return texture;
     }
@@ -467,10 +477,9 @@
         const cached = await readCrewCutoutCache(candidate);
         if (!cached) continue;
         try {
-          if (typeof createImageBitmap === "function") {
-            const bitmap = await createImageBitmap(cached);
-            return setCrewTextureColorSpace(THREE, new THREE.Texture(bitmap));
-          }
+          // Decode cached PNGs through the same image -> canvas route as fresh
+          // cut-outs. ImageBitmap ignores WebGL's flipY upload flag in some
+          // browsers, which can invert just one of two Crew sprites.
           const objectUrl = URL.createObjectURL(cached);
           try {
             const cachedImage = await loadCrewImage(objectUrl);
@@ -578,6 +587,8 @@
     }
 
     let waters = [];
+    let smokeParticles = [];
+    let fireRing = null;
     let breach = null;
     if (THREE && view) {
       scene = new THREE.Scene();
@@ -658,6 +669,29 @@
       );
       breach.position.set(0, floor + 0.15, 0.45);
       scene.add(breach);
+      fireRing = new THREE.Mesh(
+        new THREE.TorusGeometry(0.34, 0.035, 6, 18),
+        new THREE.MeshBasicMaterial({ color: 0xff9955, transparent: true, opacity: 0.18, depthWrite: false })
+      );
+      fireRing.position.set(0, floor + 0.15, 0.49);
+      fireRing.visible = true;
+      scene.add(fireRing);
+      // Lightweight compartment smoke: a handful of small 2D puffs per room,
+      // animated in place rather than spawning unbounded particles every frame.
+      rooms.forEach((room, roomIndex) => {
+        for (let puff = 0; puff < 7; puff += 1) {
+          const phase = puff * 0.83 + roomIndex * 1.71;
+          const baseX = room.x0 + 0.22 + (puff + 0.5) / 7 * (room.x1 - room.x0 - 0.44);
+          const mesh = new THREE.Mesh(
+            new THREE.CircleGeometry(0.09 + (puff % 3) * 0.035, 9),
+            new THREE.MeshBasicMaterial({ color: 0x7b8a91, transparent: true, opacity: 0, depthWrite: false })
+          );
+          mesh.position.set(baseX, floor + 0.45 + ((puff * 3) % 6) * 0.29, 0.73);
+          mesh.visible = false;
+          scene.add(mesh);
+          smokeParticles.push({ mesh, roomIndex, phase, baseX });
+        }
+      });
       const addCrewSprite = (player, index, texture) => {
         if (!texture || closed || !scene) {
           try { texture && texture.dispose(); } catch (e) {}
@@ -763,6 +797,20 @@
         water[i] -= flow;
         water[i + 1] += flow;
       }
+
+      // Fire and smoke are compartment state, not just decoration. The central
+      // leak feeds the fire until the seam is sealed; E pumps and extinguishes.
+      fire[1] = Math.max(0, Math.min(0.95,
+        fire[1] + dt * ((weld < 0.99 ? 0.035 * pressure : -0.015))
+      ));
+      smoke[1] = Math.max(0, Math.min(1, smoke[1] + dt * (fire[1] * 0.24 - 0.012)));
+      for (const side of [0, 2]) {
+        const spread = (smoke[1] - smoke[side]) * 0.055 * dt;
+        smoke[side] = Math.max(0, Math.min(1, smoke[side] + spread));
+        fire[side] = Math.max(0, Math.min(0.6,
+          fire[side] + dt * (smoke[side] > 0.72 ? 0.008 : -0.012)
+        ));
+      }
       const pad = readGamepad();
       const inputs = players.map((player, index) => playerInput(index, pad));
       const submergedRooms = players.map((player) => water[roomAt(player.x)] > 0.42);
@@ -803,6 +851,8 @@
         if (input.pump) {
           const room = roomAt(player.x);
           water[room] = Math.max(0, water[room] - 0.16 * dt);
+          fire[room] = Math.max(0, fire[room] - 0.30 * dt);
+          smoke[room] = Math.max(0, smoke[room] - 0.34 * dt);
         }
         if (input.shoot && shotCooldown <= 0) fireWeapon(player);
         if (input.reload && Math.abs(player.x) < 1.35) {
@@ -837,8 +887,11 @@
 
       const nearBreach = players.map((player) => Math.abs(player.x) < 0.7 && player.y < floor + 0.9);
       const repairers = nearBreach.reduce((count, near, index) =>
-        count + (near && inputs[index].repair ? 1 : 0), 0);
+        count + (near && inputs[index].repair && !externalHole[1] ? 1 : 0), 0);
       if (repairers && weld < 1) weld = Math.min(1, weld + dt * 0.42 * Math.min(2, repairers));
+      if (nearBreach.some((near, index) => near && inputs[index].repair) && externalHole[1]) {
+        notifyStatus("Снаружи пробоина ещё открыта: сначала требуется наружная заплата", 2500);
+      }
       if (submergedCount) oxygen = Math.max(0, oxygen - 9 * dt);
       else oxygen = Math.min(100, oxygen + 7 * dt);
       if (oxygen <= 0 && !won) {
@@ -868,12 +921,33 @@
       const activeReload = Math.max(reloadProgress[0], reloadProgress[1]);
       if (ammoEl) ammoEl.textContent = "БОЕЗАПАС " + ammo + "/" + maxAmmo + (activeReload > 0 ? " · ЗАРЯДКА " + Math.round(activeReload / 1.05 * 100) + "%" : "");
       const flightEl = root.querySelector("[data-hull-flight]");
-      if (flightEl) flightEl.textContent = (pilotMode ? "ШТУРВАЛ" : "ЭКИПАЖ") + " · ТЯГА " + Math.round(enginePower * 100) + "% · КУРС " + Math.round(flightHeading * 45) + "°";
+      if (flightEl) flightEl.textContent = (pilotMode ? "ШТУРВАЛ · LB/V ВЫХОД" : "CREW · LB/V ШТУРВАЛ") +
+        " · ТЯГА " + Math.round(enginePower * 100) + "% · КУРС " + Math.round(flightHeading * 45) + "°";
       waters.forEach((mesh, index) => {
         const depth = Math.max(0.04, water[index] * 3.15);
         mesh.scale.y = depth;
         mesh.position.y = floor + depth / 2;
       });
+      smokeParticles.forEach((puff) => {
+        const level = smoke[puff.roomIndex];
+        const cycle = ((now * 0.00012 + puff.phase) % 1 + 1) % 1;
+        puff.mesh.visible = level > 0.025;
+        puff.mesh.position.x = puff.baseX + Math.sin(now * 0.0011 + puff.phase) * (0.06 + level * 0.16);
+        puff.mesh.position.y = floor + 0.25 + cycle * 2.55;
+        puff.mesh.scale.setScalar(0.55 + level * 1.25);
+        puff.mesh.material.opacity = Math.min(0.36, level * 0.42) * (0.72 + Math.sin(now * 0.003 + puff.phase) * 0.18);
+      });
+      if (fireRing) {
+        fireRing.visible = fire[1] > 0.015;
+        fireRing.material.opacity = Math.min(0.72, 0.12 + fire[1] * 0.56);
+        fireRing.rotation.z += dt * (0.35 + fire[1] * 1.8);
+        fireRing.scale.setScalar(0.8 + fire[1] * 0.55);
+      }
+      if (hazardsEl) {
+        hazardsEl.textContent = "ВОДА " + Math.round(water[1] * 100) + "% · ДЫМ " +
+          Math.round(smoke[1] * 100) + "% · ОГОНЬ " + Math.round(fire[1] * 100) + "%";
+        hazardsEl.style.color = fire[1] > 0.45 || smoke[1] > 0.65 ? "#ffad83" : "#c4d2d9";
+      }
       if (breach) {
         const left = Math.max(0.08, 1 - weld);
         breach.scale.set(left, left, 1);
