@@ -1,3 +1,15 @@
+## D-018 — isolate Hull Dive input, preserve asteroid return, accelerate Warp and add Tower boosts
+
+**Статус: committed directly to main; browser/phone tests not yet performed.** Mini-Sim 0.9.98 / Tower 0.2.61.
+
+- Hull Dive captures keyboard input across keyboard layouts via physical key codes; the global Mini-Sim handler returns while the Hull Dive overlay is open, so V does not also toggle Warp. Lost focus clears held controls. Leaving pilot mode remains possible if the Crew sprite drifts away from the helm.
+- Entering the asteroid ring resets ship pitch/roll and angular momentum. Returning to the Warp map saves the current asteroid position and a yaw-only orientation before disposing the maze, so subsequent cancellation restores that location instead of the old Room 1 launch point.
+- Warp travel starts at 8× and accelerates to 64× over the same 42-second course. Course progress is normalized to that new range. Tunnel shimmer/sweeper timing calculations are unchanged.
+- Tower platform width is 3.32, reducing overlap while retaining the expanded foot-contact reach. Generated optional side-platform crates grant JET (stronger second jump plus twin jet flames), SHIELD (restore protection), or SPRING (stronger next ground jump). Lids display the corresponding symbol and label.
+- Mini-Sim cache/version: 0.9.98; Tower: 0.2.61. Source contracts were updated. Do not claim browser QA, phone controls, or WordPress deployment without a real run.
+
+---
+
 ## D-017 — use every asteroid wall texture and improve Tower foothold
 
 **Статус: committed directly to main; automated CI for these latest commits not confirmed.** Mini-Sim 0.9.97 / Tower 0.2.60.
