@@ -1030,7 +1030,14 @@
         if (away.lengthSq() < 0.04) away.set(0, 0.4, 1);
         away.setLength(5.2);
         pos.copy(maze.beacon.position).add(away);
+        // Enter the hull and return to the maze upright, facing away from the ring.
+        // Discard pitch/roll accumulated while banking through the tunnel.
+        if (ship.quaternion && THREE?.Quaternion && THREE?.Vector3) {
+          const yaw = Math.atan2(-away.x, -away.z);
+          ship.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+        }
         ship.velocity.set(0, 0, 0);
+        if (ship.angularVelocity) ship.angularVelocity.set(0, 0, 0);
         window.BCMHullDive.open(function () {
           state.hullOpen = false;
           if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
@@ -1088,13 +1095,28 @@
       const maze = state.maze;
       if (!maze) return;
 
+      // Leaving the asteroid run makes that location the new return anchor.
+      // Never restore the older Room 1 pose saved before the outward Warp.
+      const engine = api();
+      const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
+      if (runtime && runtime.ship && runtime.ship.position && runtime.ship.quaternion) {
+        state.savedPosition = runtime.ship.position.clone();
+        const THREE = runtime.THREE;
+        if (THREE && THREE.Vector3 && THREE.Quaternion) {
+          const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(runtime.ship.quaternion);
+          const yaw = Math.atan2(-forward.x, -forward.z);
+          state.savedQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+        } else {
+          state.savedQuaternion = runtime.ship.quaternion.clone();
+        }
+      }
+
       const arrivedSector = state.target || (state.nav && state.nav.current);
       disposeMaze();
       window.BCMDeepSpaceWarpFrame = null;
       root.classList.remove("bcm-warp-maze-active", "is-tubing");
       exitButton.hidden = true;
 
-      const engine = api();
       if (arrivedSector) {
         state.nav = navigationAfterArrival(arrivedSector);
         state.sectorProgressed = true;
@@ -1172,11 +1194,14 @@
     // The visual/collision course accelerates as a single journey: 1x at launch,
     // smoothly reaching 8x by the final second without desynchronizing the gates.
     function warpSpeedMultiplier(elapsed) {
-      return Math.pow(8, warpNormalizedTime(elapsed));
+      // Start at the old finish-line pace (8x) and accelerate to 64x by the end.
+      return 8 * Math.pow(8, warpNormalizedTime(elapsed));
     }
 
     function warpCourseProgress(elapsed) {
-      return (warpSpeedMultiplier(elapsed) - 1) / 7;
+      // Normalize only the new 8x..64x speed band so gate timing stays aligned
+      // with the existing course and its independent tunnel shimmer animation.
+      return (warpSpeedMultiplier(elapsed) / 8 - 1) / 7;
     }
 
     function tubeSectionBlend(values, elapsed) {
@@ -1544,7 +1569,7 @@ return axialRoll + ahead * 0.12 +
       const rollRates = [0.42, 0.82, 0.55, 1.12, 0.31, 0.72];
       const boosted = state.elapsed < Number(state.tubeBoostUntil || 0);
       const rampMultiplier = warpSpeedMultiplier(state.elapsed);
-      const speed = Math.min(8, Math.max(1,
+      const speed = Math.max(8, Math.min(64,
         tubeSectionBlend(speedBySection, state.elapsed).value * 1.25 *
         rampMultiplier * (boosted ? 1.4 : 1)
       ));
