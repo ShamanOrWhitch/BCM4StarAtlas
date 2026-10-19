@@ -1,12 +1,12 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
-Дата: 2026-10-19.
+Дата: 2026-10-20.
 
 ## Источник истины
 
-- Main: Mini-Sim **0.9.101**, Tower **0.2.62**.
-- Последний запрос пользователя напрямую реализован в main: Hull Dive изолирует клавиатуру от глобального управления Mini-Sim, а V больше не должен включать Warp вместо штурвала; физические коды работают при русской/украинской раскладке. Возврат фиксирует текущую точку в астероидной зоне. Warp — от 8× к 64× без изменения тайминга мерцания/качания препятствий. При паузе Warp/телепортации сбрасываются удержанные клавиши, экранные кнопки и старые оси управления; при закрытии отсека по Esc освобождается pointer lock. Tower: ширина платформ 3.23, 38 птиц, twin-jet эффект второго прыжка и коробки JET / SHIELD / SPRING.
-- Source-contract и Mini-Sim regression tests прошли на коммите `8ee3a76a`: [source-contract](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39228505118), [Mini-Sim regression](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39228505182). Browser QA, физический Android и развёртывание WordPress всё ещё не выполнены.
+- Main: Mini-Sim **0.9.102**, Tower **0.2.62**. Активный WORK LOCK [#43](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/43).
+- Текущая задача: Crew starts in visibly controllable movement mode (left stick), LB/V switches between movement and helm; cached Crew art uses one upload/orientation path. E pumps and extinguishes visible smoke/fire. Compartments persist integrity/external-hole/water/smoke/fire state and expose impact/patch hooks; a real exterior EVA scene is still future work. Warp Tube geometry is +12% while a separate shimmer clock keeps its previous tempo; hazards are faster, 22 layers are randomized per run and adjacent safe-lane changes are bounded. Asteroid comeback pose is stored separately from the original launch pose and should be restored before physics resumes.
+- Source-contract and regression checks for 0.9.102 must be confirmed on the new commit. Browser QA, physical Android/gamepad testing and WordPress deployment are separate; live behavior is not confirmed yet.
 - Ранее подтверждено пользователем: возврат из астероидного лабиринта к карте текущего сектора работает. Не менять навигацию/сектор/путь возврата.
 - Полная карта SAGE/галактики — [Issue #28](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/28). Локальная Warp-сцена не является реальным перемещением флота или on-chain интеграцией.
 
@@ -14,12 +14,12 @@
 
 1. `deep-space-warp.js`: весь pool `asterwall*` используется по стеновым batches; asset pool остаётся ограниченным фильтром имени/типа картинки, но больше не ограничивается четырьмя текстурами. На ошибку загрузки предусмотрен fallback.
 2. `tower.js`: count птиц — 38; ширина обычных платформ 3.23, глубина 1.9. Допуск контакта ноги сохранён; добавлены эффект двойного прыжка и три типа коробок-бустов.
-3. Версии/кэш: Mini-Sim 0.9.101, Tower 0.2.62; source-contract expectations синхронизированы.
-4. Warp начинается с 8× и растёт до 64×. Тайминг мерцания туннеля и движения sweep-препятствий не менялся.
+3. Версии/кэш: Mini-Sim 0.9.102, Tower 0.2.62; source-contract expectations sync with the Crew/Warp changes.
+4. Warp remains 8×→64×; tube geometry advances 12% faster while the independent shimmer clock preserves its prior tempo. Hazards use a faster curve, 22 layers and a fresh per-run seed; sweeper rotation formula itself is unchanged.
 
 ## Не затрагивать
 
-- Не менять механизм возврата к текущему сектору и адаптер навигации.
+- Не менять адаптер навигации вне тестируемой local-return anchor correction. `galia-desk`, сканер и таблицы цен полностью вне области изменений.
 - Не менять планету и её координаты (радиус 11, (-26, 9, -190)).
 - Не возвращать случайную смену текстуры левой стены Room1.
 - Не переписывать глобальный музыкальный микшер без нового воспроизводимого отказа.

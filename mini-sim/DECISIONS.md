@@ -1,3 +1,15 @@
+## D-019 — fix Crew/gamepad controls, preserve return anchors and enrich Warp/repair feedback
+
+**Статус:** source-contract and regression changes included in the next commit; CI must be checked before declaring tests passed. Mini-Sim 0.9.102 / Tower 0.2.62. WORK LOCK [Issue #43](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/43).
+
+- Hull Dive starts in visibly controllable Crew-movement mode so the gamepad left stick moves a character. LB/V switches to helm controls. Cached Crew art is decoded through the same image-to-canvas path as fresh cut-outs and uses explicit \`flipY\` normalization.
+- The current interior leak loop now also has per-compartment smoke/fire levels, bounded smoke particles and a pulsing fire indicator. E pumps water and extinguishes. \`window.BCMHullRepairState\` stores per-compartment integrity, external-hole, water, smoke and fire values; external impact opens a hole at zero integrity and the patch hook clears it while restoring integrity to 10. A proper exterior EVA scene is not yet implemented.
+- Warp keeps the 8×→64× course speed. Tube geometry advances 12% faster while a separate shimmer clock preserves its old rate. Hazard progress uses a 0.86 power curve; layer count increases from 15 to 22, each run gets a fresh seed, adjacent safe lanes are limited to 1.18 radians and gamepad steer rate rises to 2.2.
+- Keep the original launch pose distinct from the asteroid-comeback cancellation anchor, and restore the active anchor before releasing physics pause. Source order is corrected; live browser behavior must be verified separately.
+- Strict exclusion: do not edit \`galia-desk\`, scanner, price tables, marketplace price data, or their shared PHP/assets. No changes to planet placement, navigation adapter, global OST, Tower mechanics, or Crew segmentation model in this lock.
+
+---
+
 ## D-018 — isolate Hull Dive input, preserve asteroid return, accelerate Warp and add Tower boosts
 
 **Статус: committed directly to main; JavaScript syntax, source-contract and Mini-Sim regression passed on `8ee3a76a` (runs [39228505118](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39228505118), [39228505182](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39228505182)). Browser/phone tests and deploy not yet performed.** Mini-Sim 0.9.101 / Tower 0.2.62.

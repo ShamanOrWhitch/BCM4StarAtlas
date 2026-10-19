@@ -64,6 +64,11 @@ test("Warp Tube scrolls faster while retaining shared scene and soundtrack state
   assert.match(warp, /return 8 \* Math\.pow\(8, warpNormalizedTime\(elapsed\)\)/);
   assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) \/ 8 - 1\) \/ 7/);
   assert.match(warp, /function warpCourseProgress\(elapsed\)/);
+  assert.match(warp, /function warpObstacleProgress\(elapsed\)/);
+  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
+  assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
+  assert.match(warp, /const gateCount = 22/);
+  assert.match(warp, /const runNonce = Date\.now\(\).*Math\.random/);
   assert.match(warp, /const rampMultiplier = warpSpeedMultiplier\(state\.elapsed\)/);
   assert.match(warp, /Math\.max\(8, Math\.min\(64,/);
   assert.match(warp, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
@@ -118,5 +123,13 @@ test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, amm
   assert.match(hull, /pump: !!keys\.shift/);
   assert.match(hull, /submergedRooms/);
   assert.match(hull, /const repairers = nearBreach\.reduce/);
+  assert.match(hull, /let pilotMode = false/);
+  assert.match(hull, /texture\.flipY = true/);
+  assert.doesNotMatch(hull, /createImageBitmap\(cached\)/);
+  assert.match(hull, /window\.BCMHullRepairState/);
+  assert.match(hull, /repairState\.triggerExternalImpact =/);
+  assert.match(hull, /repairState\.patchExternalHole =/);
+  assert.match(hull, /fire\[room\] = Math\.max\(0, fire\[room\] - 0\.30 \* dt\)/);
+  assert.match(hull, /smokeParticles\.forEach/);
   assert.match(hull, /BCMHullDive = \{ open: open \}/);
 });

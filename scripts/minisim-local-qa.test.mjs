@@ -27,7 +27,7 @@ test("Warp uses a rolling circular wall and angular obstacle course",async()=>{
   assert.match(body,/layer\.type === "boost"/);
   assert.match(body,/layer\.type === "launcher"/);
   assert.match(body,/g\.rotate\(craftAngle - Math\.PI \/ 2 \+ \(state\.steerBank \|\| 0\)\)/);
-  assert.match(update,/state\.playerAngle = Number\(state\.playerAngle \|\| 0\) - steer \* dt \* 1\.85/);
+  assert.match(update,/state\.playerAngle = Number\(state\.playerAngle \|\| 0\) - steer \* dt \* 2\.2/);
   assert.match(update,/angleDifference\(playerAngle, layer\.safeAngle\)/);
   assert.match(update,/layer\.blockedAngles\.some/);
   assert.match(update,/layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
@@ -179,6 +179,10 @@ test("Warp starts at 8x and accelerates to 64x without changing tunnel shimmer t
   assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) \/ 8 - 1\) \/ 7/);
   assert.match(warp, /Math\.max\(8, Math\.min\(64,/);
   assert.match(warp, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
+  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
+  assert.match(warp, /Math\.pow\(warpCourseProgress\(elapsed\), 0\.86\)/);
+  assert.match(warp, /const gateCount = 22/);
+  assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
 });
 
 test("Warp pause and teleport clear retained ship input", async () => {
@@ -194,9 +198,20 @@ test("Mini-Sim and Tower displayed versions match their PHP asset-cache versions
   const miniPhp = await read("mini-sim/bcm-mini-sim.php");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   const tower = await read("mini-sim/tower/assets/js/tower.js");
-  assert.ok(miniPhp.includes("Version: 0.9.101"));
-  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.9.101'"));
-  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.9.101"));
+  assert.ok(miniPhp.includes("Version: 0.9.102"));
+  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.9.102'"));
+  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.9.102"));
   assert.ok(towerPhp.includes("BCM_TOWER_VERSION', '0.2.62'"));
   assert.ok(tower.includes('const TOWER_VERSION = "0.2.62"'));
+});
+
+
+test("Warp travel motion increases while shimmer rate stays on its own previous clock", async () => {
+  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
+  assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
+  assert.match(warp, /Math\.sin\(shimmerTime \* 1\.35/);
+  assert.match(warp, /Math\.floor\(shimmerTime \* 8\)/);
+  assert.match(warp, /Math\.pow\(warpCourseProgress\(elapsed\), 0\.86\)/);
+  assert.match(warp, /const gateCount = 22/);
 });

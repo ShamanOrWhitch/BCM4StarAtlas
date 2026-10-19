@@ -34,9 +34,9 @@ test("returning to the sector map keeps Warp active and pauses the ship", () => 
   assert.match(body, /engine\.pauseForWarp\(true\)/);
   assert.doesNotMatch(body, /stopWarpAudio\(\)|resumeLevelOst\(\)/);
   assert.doesNotMatch(body, /state\.savedPosition = null|state\.savedQuaternion = null/);
-  assert.match(body, /state\.savedPosition = runtime\.ship\.position\.clone\(\)/);
+  assert.match(body, /state\.returnPosition = runtime\.ship\.position\.clone\(\)/);
   assert.match(body, /const yaw = Math\.atan2\(-forward\.x, -forward\.z\)/);
-  assert.ok(body.indexOf("state.savedPosition = runtime.ship.position.clone()") < body.indexOf("disposeMaze()"), "capture asteroid anchor before disposing maze");
+  assert.ok(body.indexOf("state.returnPosition = runtime.ship.position.clone()") < body.indexOf("disposeMaze()"), "capture asteroid anchor before disposing maze");
 });
 
 test("asteroid maze uses speed mode 2 and restores the previous mode", () => {
@@ -87,7 +87,7 @@ test("Warp Tube is a rolling circular cylinder with a curved / corkscrew route",
   assert.match(body, /layer\.type === "boost"/);
   assert.match(body, /layer\.type === "launcher"/);
   assert.match(body, /g\.rotate\(craftAngle - Math\.PI \/ 2 \+ \(state\.steerBank \|\| 0\)\)/);
-  assert.match(update, /state\.playerAngle = Number\(state\.playerAngle \|\| 0\) - steer \* dt \* 1\.85/);
+  assert.match(update, /state\.playerAngle = Number\(state\.playerAngle \|\| 0\) - steer \* dt \* 2\.2/);
   assert.match(update, /angleDifference\(playerAngle, layer\.safeAngle\)/);
   assert.match(update, /layer\.blockedAngles\.some/);
   assert.match(update, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
@@ -96,7 +96,7 @@ test("Warp Tube is a rolling circular cylinder with a curved / corkscrew route",
 });
 
 test("Every generated obstacle layer has a distinct type and a passable opening", () => {
-  const start = warp.indexOf("const gateCount = 15");
+  const start = warp.indexOf("const gateCount = 22");
   const end = warp.indexOf("tubeTitle.textContent", start);
   assert.ok(start > 0 && end > start);
   const body = warp.slice(start, end);
@@ -106,7 +106,7 @@ test("Every generated obstacle layer has a distinct type and a passable opening"
   assert.match(body, /type === "spikes"/);
   assert.match(body, /\? "boost"/);
   assert.match(body, /\? "launcher"/);
-  assert.match(body, /progress = 0\.15 \+ \(i \/ Math\.max\(1, gateCount - 1\)\) \* 0\.72/);
+  assert.match(body, /progress = 0\.08 \+ \(i \/ Math\.max\(1, gateCount - 1\)\) \* 0\.86/);
 });
 
 test("reopening Warp retains the arrived local sector instead of resetting to the adapter launch sector", () => {
@@ -144,4 +144,24 @@ test("Warp Tube mobile HUD hides instructional blocks and keeps only compact tel
   assert.match(css, /\.bcm-warp-tube-help \{\s*display: none !important/);
   assert.match(css, /\.bcm-warp-tube-meta \{[\s\S]*?font-size: 9px/);
   assert.match(warp, /tubeMeta\.textContent = Math\.ceil\(Math\.max\(0, WARP_DURATION - state\.elapsed\)\) \+ "s · "/);
+});
+
+
+test("Warp comeback cancellation restores the post-maze anchor before resuming flight", () => {
+  const close = section(warp, "function closeOverlay(restoreMain)", "function showTube()");
+  assert.match(close, /const anchorPosition = state\.returnPosition \|\| state\.savedPosition/);
+  assert.match(close, /const anchorQuaternion = state\.returnQuaternion \|\| state\.savedQuaternion/);
+  assert.match(close, /engine\.teleport\(anchorPosition, anchorQuaternion\)/);
+  assert.ok(close.indexOf("engine.teleport(anchorPosition, anchorQuaternion)") < close.indexOf("engine.pauseForWarp(false)"));
+});
+
+test("Warp hazards are faster, denser, randomized per run and visually decoupled from shimmer", () => {
+  assert.match(warp, /function warpObstacleProgress\(elapsed\)/);
+  assert.match(warp, /Math\.pow\(warpCourseProgress\(elapsed\), 0\.86\)/);
+  assert.match(warp, /const gateCount = 22/);
+  assert.match(warp, /const runNonce = Date\.now\(\)\.toString\(36\) \+ "-" \+ Math\.random/);
+  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
+  assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
+  assert.match(warp, /Math\.sin\(shimmerTime \* 1\.35/);
+  assert.match(warp, /if \(Math\.abs\(delta\) > 1\.18\)/);
 });
