@@ -4512,6 +4512,12 @@
 
   function bind() {
     window.addEventListener("keydown", (e) => {
+      // Hull Dive owns keyboard input while its overlay is open. Do not let
+      // this earlier global handler reinterpret V as Warp or retain ship input.
+      if (document.getElementById("bcm-hull-dive")) {
+        if (e.code !== "Escape") e.preventDefault();
+        return;
+      }
       if (e.code === "Escape") {
         if (document.exitPointerLock) document.exitPointerLock();
         return;
