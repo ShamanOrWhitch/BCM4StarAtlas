@@ -84,10 +84,15 @@
       target: null,
       savedPosition: null,
       savedQuaternion: null,
+      // Launch pose is immutable during a trip. A returned asteroid-run pose
+      // is separate so cancelling after comeback cannot restore Room 1.
+      returnPosition: null,
+      returnQuaternion: null,
       savedSpeedMode: null,
       sectorProgressed: false,
       elapsed: 0,
       tubeTravel: 0,
+      tubeShimmerTime: 0,
       startedAt: 0,
       shields: 100,
       playerX: 0,
@@ -491,6 +496,8 @@
       state.elapsed = 0;
       state.savedPosition = engine.getRuntime().ship.position.clone();
       state.savedQuaternion = engine.getRuntime().ship.quaternion.clone();
+      state.returnPosition = null;
+      state.returnQuaternion = null;
       engine.pauseForWarp(true);
       if (document.exitPointerLock) document.exitPointerLock();
       currentElement.textContent = "CURRENT · " + sectorText(state.nav.current);
@@ -530,12 +537,18 @@
       window.BCMDeepSpaceWarpFrame = null;
       const engine = api();
       if (engine) {
-        engine.pauseForWarp(false);
         engine.clearExternalHUD();
-        if (restoreMain && state.savedPosition && state.savedQuaternion) {
-          engine.teleport(state.savedPosition, state.savedQuaternion);
+        const anchorPosition = state.returnPosition || state.savedPosition;
+        const anchorQuaternion = state.returnQuaternion || state.savedQuaternion;
+        // Restore the chosen pose before unpausing physics. This avoids a stale
+        // post-Warp movement update winning over the return position.
+        if (restoreMain && anchorPosition && anchorQuaternion) {
+          engine.teleport(anchorPosition, anchorQuaternion);
         }
+        engine.pauseForWarp(false);
       }
+      state.returnPosition = null;
+      state.returnQuaternion = null;
     }
 
     function showTube() {
@@ -545,6 +558,7 @@
       state.mode = "tube";
       state.elapsed = 0;
       state.tubeTravel = 0;
+      state.tubeShimmerTime = 0;
       state.startedAt = performance.now();
       state.shields = 100;
       // X/Y are the pilot's position on the tube cross-section, held at a
@@ -561,12 +575,26 @@
       state.tubeBoostUntil = 0;
       state.statusText = "";
       state.touch.left = state.touch.right = state.touch.up = state.touch.down = false;
-      const rng = randomFrom(hashSeed(state.nav.current.id + ">" + state.target.id + ":" + state.target.x + ":" + state.target.y));
+      // Repeated trips through the same sector pair should still create a fresh
+      // obstacle run rather than showing the exact same 15-piece sequence.
+      const runNonce = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+      const rng = randomFrom(hashSeed(state.nav.current.id + ">" + state.target.id + ":" + state.target.x + ":" + state.target.y + ":" + runNonce));
       state.layers = [];
-      const gateCount = 15;
+      const gateCount = 22;
+      let previousSafeAngle = null;
       for (let i = 0; i < gateCount; i += 1) {
-        const type = i % 7 === 2 ? "spikes" : (i % 7 === 4 ? "sweeper" : (i % 7 === 5 ? "boost" : (i % 7 === 6 ? "launcher" : "gate")));
-        const safeAngle = rng() * Math.PI * 2 - Math.PI;
+        const typeRoll = rng();
+        const type = typeRoll < 0.34 ? "gate"
+          : typeRoll < 0.55 ? "sweeper"
+          : typeRoll < 0.70 ? "spikes"
+          : typeRoll < 0.86 ? "boost" : "launcher";
+        let safeAngle = rng() * Math.PI * 2 - Math.PI;
+        if (previousSafeAngle != null) {
+          const delta = Math.atan2(Math.sin(safeAngle - previousSafeAngle), Math.cos(safeAngle - previousSafeAngle));
+          // Cap adjacent lane changes so a human can physically steer between them.
+          if (Math.abs(delta) > 1.18) safeAngle = previousSafeAngle + Math.sign(delta) * 1.18;
+        }
+        previousSafeAngle = safeAngle;
         const blockedAngles = [];
         const spikeCount = type === "spikes" ? 3 : 0;
         for (let n = 0; n < spikeCount; n += 1) {
@@ -576,7 +604,7 @@
           }
           blockedAngles.push(Math.atan2(Math.sin(angle), Math.cos(angle)));
         }
-        const progress = 0.15 + (i / Math.max(1, gateCount - 1)) * 0.72 + (rng() - 0.5) * 0.006;
+        const progress = 0.08 + (i / Math.max(1, gateCount - 1)) * 0.86 + (rng() - 0.5) * 0.006;
         state.layers.push({
           progress,
           type,
@@ -1100,14 +1128,14 @@
       const engine = api();
       const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
       if (runtime && runtime.ship && runtime.ship.position && runtime.ship.quaternion) {
-        state.savedPosition = runtime.ship.position.clone();
+        state.returnPosition = runtime.ship.position.clone();
         const THREE = runtime.THREE;
         if (THREE && THREE.Vector3 && THREE.Quaternion) {
           const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(runtime.ship.quaternion);
           const yaw = Math.atan2(-forward.x, -forward.z);
-          state.savedQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+          state.returnQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
         } else {
-          state.savedQuaternion = runtime.ship.quaternion.clone();
+          state.returnQuaternion = runtime.ship.quaternion.clone();
         }
       }
 
@@ -1199,9 +1227,14 @@
     }
 
     function warpCourseProgress(elapsed) {
-      // Normalize only the new 8x..64x speed band so gate timing stays aligned
-      // with the existing course and its independent tunnel shimmer animation.
+      // 0..1 progress follows the 8x..64x flight profile.
       return (warpSpeedMultiplier(elapsed) / 8 - 1) / 7;
+    }
+
+    function warpObstacleProgress(elapsed) {
+      // Hazards approach a little more briskly than the underlying tube. Keep
+      // the same endpoints and use this curve for both drawing and collisions.
+      return Math.pow(warpCourseProgress(elapsed), 0.86);
     }
 
     function tubeSectionBlend(values, elapsed) {
@@ -1225,6 +1258,7 @@
 
     function drawTubeTunnel(g, w, h, now) {
       const t = state.tubeTravel;
+      const shimmerTime = Number(state.tubeShimmerTime || 0);
       // 45% of the former roll rate: midway between the old over-rotation and the current almost-static tube.
       const axialRoll = Number(state.tubeRoll || 0) + Math.sin(t * 0.13) * 0.126;
       const mid = w * 0.5;
@@ -1316,8 +1350,8 @@ return axialRoll + ahead * 0.12 +
           g.lineTo(p11.x, p11.y);
           g.lineTo(p10.x, p10.y);
           g.closePath();
-          const shimmer = Math.sin(t * 1.35 + panel * 1.72 + step * 0.77 + playerAngle) * 0.5 + 0.5;
-          const light = ((step + Math.floor(t * 8) + panel * 3) % 5 === 0) ? 1 : 0;
+          const shimmer = Math.sin(shimmerTime * 1.35 + panel * 1.72 + step * 0.77 + playerAngle) * 0.5 + 0.5;
+          const light = ((step + Math.floor(shimmerTime * 8) + panel * 3) % 5 === 0) ? 1 : 0;
           const red = Math.round(8 + shimmer * 8 + light * 2);
           const green = Math.round(20 + shimmer * 18 + light * 12);
           const blue = Math.round(31 + shimmer * 22 + light * 18);
@@ -1359,7 +1393,7 @@ return axialRoll + ahead * 0.12 +
         g.stroke();
       }
 
-      const routeProgress = warpCourseProgress(state.elapsed);
+      const routeProgress = warpObstacleProgress(state.elapsed);
       const obstacleDepth = (distance) => {
         // Stay inside the near ring. d>1 is what stretched spikes into the gold wedge.
         if (distance > 0.36 || distance <= 0) return null;
@@ -1468,7 +1502,7 @@ return axialRoll + ahead * 0.12 +
       g.fillStyle = "#ffce91"; g.fillRect(-17, 8, 5, 3); g.fillRect(12, 8, 5, 3);
       g.restore();
 
-      const progress = warpCourseProgress(t);
+      const progress = warpObstacleProgress(t);
       g.fillStyle = "rgba(255,255,255,.15)"; g.fillRect(w * 0.18, h - 17, w * 0.64, 3);
       g.fillStyle = "#56f0d0"; g.fillRect(w * 0.18, h - 17, w * 0.64 * progress, 3);
       if (state.shields < 100) {
@@ -1573,9 +1607,12 @@ return axialRoll + ahead * 0.12 +
         tubeSectionBlend(speedBySection, state.elapsed).value * 1.25 *
         rampMultiplier * (boosted ? 1.4 : 1)
       ));
-      state.tubeTravel += dt * speed;
+      // Give the tube geometry a modestly faster sense of forward movement,
+      // while keeping its established material shimmer tempo independent.
+      state.tubeTravel += dt * speed * 1.12;
+      state.tubeShimmerTime = Number(state.tubeShimmerTime || 0) + dt * speed;
       state.tubeRoll = Number(state.tubeRoll || 0) + dt * tubeSectionBlend(rollRates, state.elapsed).value * 0.45;
-      const routeProgress = warpCourseProgress(state.elapsed);
+      const routeProgress = warpObstacleProgress(state.elapsed);
 
       let padX = 0;
       try {
@@ -1584,8 +1621,10 @@ return axialRoll + ahead * 0.12 +
         if (gp) {
           const axes = gp.axes || [];
           const button = (n) => !!(gp.buttons && gp.buttons[n] && gp.buttons[n].pressed);
-          const axis = axes[0] || 0;
-          padX = Math.abs(axis) > 0.18 ? axis : 0;
+          const leftStickX = Number(axes[0] || 0);
+           const alternateStickX = Number(axes[2] || 0);
+           const axis = Math.abs(leftStickX) > 0.18 ? leftStickX : alternateStickX;
+           padX = Math.abs(axis) > 0.18 ? axis : 0;
           padX += (button(15) ? 1 : 0) - (button(14) ? 1 : 0);
         }
       } catch (e) {}
@@ -1596,7 +1635,7 @@ return axialRoll + ahead * 0.12 +
       const steer = Math.max(-1, Math.min(1,
         ((state.keys.ArrowRight || state.keys.KeyD || state.touch.right ? 1 : 0) -
          (state.keys.ArrowLeft || state.keys.KeyA || state.touch.left ? 1 : 0)) + padX + (state.tilt.enabled ? state.tilt.value * 0.9 : 0)));
-      state.playerAngle = Number(state.playerAngle || 0) - steer * dt * 1.85;
+      state.playerAngle = Number(state.playerAngle || 0) - steer * dt * 2.2;
       state.playerAngle = Math.atan2(Math.sin(state.playerAngle), Math.cos(state.playerAngle));
       const bankTarget = -steer * 0.42;
       state.steerBank = Number(state.steerBank || 0) + (bankTarget - Number(state.steerBank || 0)) * Math.min(1, dt * 10);
