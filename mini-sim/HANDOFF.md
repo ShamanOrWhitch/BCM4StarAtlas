@@ -6,7 +6,7 @@
 
 - Main: Mini-Sim **0.9.98**, Tower **0.2.61**.
 - Последний запрос пользователя напрямую реализован в main: Hull Dive изолирует клавиатуру от глобального управления Mini-Sim, а V больше не должен включать Warp вместо штурвала; физические коды работают при русской/украинской раскладке. Возврат фиксирует текущую точку в астероидной зоне. Warp — от 8× к 64× без изменения тайминга мерцания/качания препятствий. Tower: ширина платформ 3.32, 38 птиц, twin-jet эффект второго прыжка и коробки JET / SHIELD / SPRING.
-- Source-contract tests и expected asset-cache versions обновлены, но полноценный Actions run именно для последних прямых main commits не подтверждён. Не отмечать новые изменения как browser-tested/live до отдельной проверки.
+- Source-contract и Mini-Sim regression tests прошли на коммите `c4dbc823`: [source-contract](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39227273860), [Mini-Sim regression](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39227273994). Browser QA, физический Android и развёртывание WordPress всё ещё не выполнены.
 - Ранее подтверждено пользователем: возврат из астероидного лабиринта к карте текущего сектора работает. Не менять навигацию/сектор/путь возврата.
 - Полная карта SAGE/галактики — [Issue #28](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/28). Локальная Warp-сцена не является реальным перемещением флота или on-chain интеграцией.
 
