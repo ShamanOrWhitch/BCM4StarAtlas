@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.61";
+  const TOWER_VERSION = "0.2.62";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -1035,8 +1035,8 @@
     const baseTurnSpeed = 2.2;
     const trimPower = 10.5;
     const sectorWidth = () => tower ? Math.PI * 2 / tower.sectors : Math.PI / 9;
-    // Trim platform overlap to roughly 3.5%; foot-contact reach keeps landings forgiving.
-    const platformWidth = 3.32;
+    // Reduce platform width by about 3.5%; expanded foot-contact reach keeps adjacent landings forgiving.
+    const platformWidth = 3.23;
     const footContactReach = 0.32;
 
     const controls = [
