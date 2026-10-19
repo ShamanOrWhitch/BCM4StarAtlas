@@ -165,3 +165,12 @@ test("Warp hazards are faster, denser, randomized per run and visually decoupled
   assert.match(warp, /Math\.sin\(shimmerTime \* 1\.35/);
   assert.match(warp, /if \(Math\.abs\(delta\) > 1\.18\)/);
 });
+
+
+test("starting another Tube after asteroid comeback resets the cancel anchor to this trip's launch pose", () => {
+  const tube = section(warp, "function showTube()", "function finishTube");
+  assert.match(tube, /state\.savedPosition = startRuntime\.ship\.position\.clone\(\)/);
+  assert.match(tube, /state\.savedQuaternion = startRuntime\.ship\.quaternion\.clone\(\)/);
+  assert.match(tube, /state\.returnPosition = null/);
+  assert.match(tube, /state\.returnQuaternion = null/);
+});

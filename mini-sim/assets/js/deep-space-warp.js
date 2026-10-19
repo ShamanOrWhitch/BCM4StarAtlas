@@ -554,7 +554,16 @@
     function showTube() {
       if (!state.target) return;
       const engine = api();
-      if (!engine || !engine.getRuntime || !engine.getRuntime().scene) return;
+      if (!engine || !engine.getRuntime) return;
+      const startRuntime = engine.getRuntime();
+      if (!startRuntime || !startRuntime.scene || !startRuntime.ship ||
+          !startRuntime.ship.position || !startRuntime.ship.quaternion) return;
+      // Each new Tube launch gets its own start anchor. A previous asteroid
+      // comeback anchor must not bleed into a newly started Warp attempt.
+      state.savedPosition = startRuntime.ship.position.clone();
+      state.savedQuaternion = startRuntime.ship.quaternion.clone();
+      state.returnPosition = null;
+      state.returnQuaternion = null;
       state.mode = "tube";
       state.elapsed = 0;
       state.tubeTravel = 0;
@@ -576,7 +585,7 @@
       state.statusText = "";
       state.touch.left = state.touch.right = state.touch.up = state.touch.down = false;
       // Repeated trips through the same sector pair should still create a fresh
-      // obstacle run rather than showing the exact same 15-piece sequence.
+      // obstacle run rather than showing the exact same 22-piece sequence.
       const runNonce = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
       const rng = randomFrom(hashSeed(state.nav.current.id + ">" + state.target.id + ":" + state.target.x + ":" + state.target.y + ":" + runNonce));
       state.layers = [];
