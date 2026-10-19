@@ -1,6 +1,6 @@
 ## D-018 — isolate Hull Dive input, preserve asteroid return, accelerate Warp and add Tower boosts
 
-**Статус: committed directly to main; browser/phone tests not yet performed.** Mini-Sim 0.9.98 / Tower 0.2.61.
+**Статус: committed directly to main; JavaScript syntax, source-contract and Mini-Sim regression passed on `c4dbc823` (runs [39227273860](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39227273860), [39227273994](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39227273994)). Browser/phone tests and deploy not yet performed.** Mini-Sim 0.9.98 / Tower 0.2.61.
 
 - Hull Dive captures keyboard input across keyboard layouts via physical key codes; the global Mini-Sim handler returns while the Hull Dive overlay is open, so V does not also toggle Warp. Lost focus clears held controls. Leaving pilot mode remains possible if the Crew sprite drifts away from the helm.
 - Entering the asteroid ring resets ship pitch/roll and angular momentum. Returning to the Warp map saves the current asteroid position and a yaw-only orientation before disposing the maze, so subsequent cancellation restores that location instead of the old Room 1 launch point.
