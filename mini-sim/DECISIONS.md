@@ -1,12 +1,12 @@
 ## D-018 — isolate Hull Dive input, preserve asteroid return, accelerate Warp and add Tower boosts
 
-**Статус: committed directly to main; JavaScript syntax, source-contract and Mini-Sim regression passed on `f3dfb66d` (runs [39228104488](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39228104488), [39228104562](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39228104562)). Browser/phone tests and deploy not yet performed.** Mini-Sim 0.9.100 / Tower 0.2.62.
+**Статус: committed directly to main; JavaScript syntax, source-contract and Mini-Sim regression passed on `8ee3a76a` (runs [39228505118](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39228505118), [39228505182](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39228505182)). Browser/phone tests and deploy not yet performed.** Mini-Sim 0.9.101 / Tower 0.2.62.
 
-- Hull Dive captures keyboard input across keyboard layouts via physical key codes; the global Mini-Sim handler returns while the Hull Dive overlay is open, so V does not also toggle Warp. Lost focus clears held controls; Warp pause and teleport also clear remembered keyboard, touch and stale gamepad-axis input. Leaving pilot mode remains possible if the Crew sprite drifts away from the helm.
+- Hull Dive captures keyboard input across keyboard layouts via physical key codes; the global Mini-Sim handler returns while the Hull Dive overlay is open, so V does not also toggle Warp. Lost focus clears held controls; Warp pause and teleport also clear remembered keyboard, touch and stale gamepad-axis input. Hull Dive finish explicitly releases the browser pointer lock, including Escape close. Leaving pilot mode remains possible if the Crew sprite drifts away from the helm.
 - Entering the asteroid ring resets ship pitch/roll and angular momentum. Returning to the Warp map saves the current asteroid position and a yaw-only orientation before disposing the maze, so subsequent cancellation restores that location instead of the old Room 1 launch point.
 - Warp travel starts at 8× and accelerates to 64× over the same 42-second course. Course progress is normalized to that new range. Tunnel shimmer/sweeper timing calculations are unchanged.
 - Tower platform width is 3.23, reducing platform width by about 3.5% while retaining the expanded foot-contact reach. Generated optional side-platform crates grant JET (stronger second jump plus twin jet flames), SHIELD (restore protection), or SPRING (stronger next ground jump). Lids display the corresponding symbol and label.
-- Mini-Sim cache/version: 0.9.100; Tower: 0.2.62. Source contracts were updated. Do not claim browser QA, phone controls, or WordPress deployment without a real run.
+- Mini-Sim cache/version: 0.9.101; Tower: 0.2.62. Source contracts were updated. Do not claim browser QA, phone controls, or WordPress deployment without a real run.
 
 ---
 
