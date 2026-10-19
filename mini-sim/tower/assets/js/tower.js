@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.60";
+  const TOWER_VERSION = "0.2.61";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -552,6 +552,41 @@
     });
   }
 
+  function makeJetFlameTexture(color) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 128;
+    canvas.height = 144;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    const glow = ctx.createRadialGradient(64, 76, 3, 64, 76, 74);
+    glow.addColorStop(0, "rgba(255,255,255,0.75)");
+    glow.addColorStop(0.28, color);
+    glow.addColorStop(0.7, "rgba(75,184,255,0.45)");
+    glow.addColorStop(1, "rgba(30,90,140,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (const x of [43, 85]) {
+      const flame = ctx.createLinearGradient(x, 20, x, 132);
+      flame.addColorStop(0, "rgba(255,255,255,0)");
+      flame.addColorStop(0.18, color);
+      flame.addColorStop(0.55, "rgba(110,225,255,0.9)");
+      flame.addColorStop(1, "rgba(70,155,255,0)");
+      ctx.fillStyle = flame;
+      ctx.beginPath();
+      ctx.moveTo(x - 13, 16);
+      ctx.quadraticCurveTo(x - 12, 58, x, 132);
+      ctx.quadraticCurveTo(x + 12, 58, x + 13, 16);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.fillRect(x - 3, 18, 6, 38);
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    if (THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
+    else if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
+    return texture;
+  }
+
   // A separate shield oval keeps the Crew readable without baking card background
   // into the cutout. The AI mask never touches this layer and it never clips the feet.
   function makePlayerHaloTexture(colorHex) {
@@ -775,6 +810,39 @@
       }
     }
 
+    // Optional boost crates appear on nearby side platforms while the guaranteed route stays intact.
+    const boostTypes = ["jet", "shield", "spring"];
+    const boostOffsets = [1, -1, 2, -2, 3, -3];
+    let boostIndex = 0;
+    for (let level = 4; level < levels - 4; level += 5) {
+      const routeSector = path[levels - 1 - level];
+      if (routeSector == null) continue;
+      let boostCell = null;
+      for (const delta of boostOffsets) {
+        const targetSector = wrapSector(routeSector + delta, sectors);
+        let candidate = cells.get(key(level, targetSector));
+        if (!candidate) {
+          candidate = setCell(level, targetSector, { surface: "platform", object: "safebox" });
+          boostCell = candidate;
+          break;
+        }
+        if (
+          (!candidate.object || candidate.object === "safebox" || candidate.object === "box") &&
+          candidate.surface !== "rock" &&
+          candidate.surface !== "hot" &&
+          candidate.surface !== "lava"
+        ) {
+          boostCell = candidate;
+          break;
+        }
+      }
+      if (!boostCell) continue;
+      boostCell.object = "safebox";
+      boostCell.boostType = boostTypes[boostIndex % boostTypes.length];
+      boostCell.collected = false;
+      boostIndex += 1;
+    }
+
     const planetMap = Array.isArray(CONFIG.planetMaps) && CONFIG.planetMaps.length
       ? CONFIG.planetMaps[Math.floor(rand() * CONFIG.planetMaps.length)]
       : "";
@@ -945,6 +1013,7 @@
     let playerHalos = [];
     let playerSprites = [];
     let playerLegSprites = [];
+    let playerJetEffects = [];
     let playerTextures = [null, null];
     // Mierese art uses the current facing; most other races need the reverse.
     let playerFacingFactors = [-1, -1];
@@ -966,9 +1035,8 @@
     const baseTurnSpeed = 2.2;
     const trimPower = 10.5;
     const sectorWidth = () => tower ? Math.PI * 2 / tower.sectors : Math.PI / 9;
-    // Platforms overlap slightly across neighboring sectors, while collision permits
-    // landing when the near foot (not the body center) is still over the surface.
-    const platformWidth = 3.35;
+    // Trim platform overlap to roughly 3.5%; foot-contact reach keeps landings forgiving.
+    const platformWidth = 3.32;
     const footContactReach = 0.32;
 
     const controls = [
@@ -990,14 +1058,16 @@
         currentCell: null, liftRide: null, hazard: 0, slide: 0, finished: false,
         doorCooldown: 0, collected: 0, jumpStarted: false, fallStartY: null,
         maxFallSpeed: 0, birdHitCooldown: 0, visualFacing: 1, visualAngle: 0,
-        shieldDownUntil: 0, shieldBlinkUntil: 0, knockUntil: 0, lavaGrace: 0
+        shieldDownUntil: 0, shieldBlinkUntil: 0, knockUntil: 0, lavaGrace: 0,
+        jetCharges: 0, springCharges: 0, jetFxUntil: 0, jetFxPower: 1
       },
       {
         y: 0, vy: 0, angle: 0, radial: 0, jumps: 0, grounded: false,
         currentCell: null, liftRide: null, hazard: 0, slide: 0, finished: false,
         doorCooldown: 0, collected: 0, jumpStarted: false, fallStartY: null,
         maxFallSpeed: 0, birdHitCooldown: 0, visualFacing: 1, visualAngle: 0,
-        shieldDownUntil: 0, shieldBlinkUntil: 0, knockUntil: 0, lavaGrace: 0
+        shieldDownUntil: 0, shieldBlinkUntil: 0, knockUntil: 0, lavaGrace: 0,
+        jetCharges: 0, springCharges: 0, jetFxUntil: 0, jetFxPower: 1
       }
     ];
 
@@ -1164,6 +1234,126 @@
       return mesh;
     }
 
+    function makeBoostCrateSideTexture(boostType) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      const color = boostType === "jet" ? "#59d8ee" : boostType === "shield" ? "#83e0a0" : "#ffbd69";
+      ctx.fillStyle = "#152733";
+      ctx.fillRect(0, 0, 256, 256);
+      ctx.fillStyle = "#263f4d";
+      ctx.fillRect(10, 10, 236, 236);
+      ctx.strokeStyle = "#607e8c";
+      ctx.lineWidth = 7;
+      ctx.strokeRect(13, 13, 230, 230);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 4;
+      ctx.strokeRect(28, 30, 200, 196);
+      ctx.fillStyle = "#0a1822";
+      ctx.fillRect(38, 78, 180, 96);
+      ctx.fillStyle = color;
+      ctx.font = "bold 31px Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(boostType.toUpperCase(), 128, 126);
+      ctx.fillStyle = "#9db7c2";
+      for (let i = 0; i < 5; i += 1) ctx.fillRect(48 + i * 40, 191, 22, 5);
+      const texture = new THREE.CanvasTexture(canvas);
+      if (THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
+      else if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
+      return texture;
+    }
+
+    function makeBoostCrateLidTexture(boostType) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 280;
+      canvas.height = 200;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      const color = boostType === "jet" ? "#6de7ff" : boostType === "shield" ? "#8be7a8" : "#ffd080";
+      const roundRect = (x, y, w, h, r) => {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.arcTo(x + w, y, x + w, y + r, r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+        ctx.lineTo(x + r, y + h);
+        ctx.arcTo(x, y + h, x, y + h - r, r);
+        ctx.lineTo(x, y + r);
+        ctx.arcTo(x, y, x + r, y, r);
+        ctx.closePath();
+      };
+      ctx.fillStyle = "#132632";
+      roundRect(8, 8, 264, 184, 16);
+      ctx.fill();
+      ctx.strokeStyle = "#839daa";
+      ctx.lineWidth = 5;
+      ctx.stroke();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      roundRect(22, 20, 236, 160, 12);
+      ctx.stroke();
+      ctx.fillStyle = "#0b1a24";
+      roundRect(64, 62, 152, 76, 12);
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      if (boostType === "jet") {
+        // Twin nozzle/flame markings echo the requested JET crate lid.
+        for (const x of [111, 169]) {
+          ctx.fillStyle = "#a1c1cd";
+          roundRect(x - 15, 28, 30, 42, 8);
+          ctx.fill();
+          ctx.strokeStyle = "#d4e5eb";
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          ctx.fillStyle = "#0b1c26";
+          roundRect(x - 9, 34, 18, 22, 4);
+          ctx.fill();
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.moveTo(x - 8, 71);
+          ctx.lineTo(x, 94);
+          ctx.lineTo(x + 8, 71);
+          ctx.closePath();
+          ctx.fill();
+        }
+      } else if (boostType === "shield") {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(140, 30);
+        ctx.lineTo(170, 42);
+        ctx.lineTo(165, 67);
+        ctx.quadraticCurveTo(140, 91, 115, 67);
+        ctx.lineTo(110, 42);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(116, 32);
+        ctx.lineTo(164, 43);
+        ctx.lineTo(116, 54);
+        ctx.lineTo(164, 65);
+        ctx.lineTo(116, 76);
+        ctx.stroke();
+      }
+      ctx.fillStyle = color;
+      ctx.font = "bold 25px Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(boostType.toUpperCase(), 140, 156);
+      const texture = new THREE.CanvasTexture(canvas);
+      if (THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
+      else if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
+      return texture;
+    }
+
     function makeObject(cell) {
       if (!cell.object) return null;
 
@@ -1202,9 +1392,11 @@
         w = 2.0; h = 2.7;
       }
 
-      if (!url) return null;
+      if (!url && !cell.boostType) return null;
       const keyedDark = cell.object === "door" || cell.object === "walldoor";
-      const tex = assetTexture(url, renderer, { removeWhite: true, removeBlack: keyedDark });
+      const tex = url
+        ? assetTexture(url, renderer, { removeWhite: true, removeBlack: keyedDark })
+        : makeBoostCrateSideTexture(cell.boostType);
       if (!tex) return null;
 
       const sectorAngle = (cell.sector / tower.sectors) * Math.PI * 2;
@@ -1214,7 +1406,17 @@
         const depth = 1.15;
         const radial = radius + depth * 0.5;
         const material = makeMaterial(tex, 0xffffff, true, 0.02);
-        const materials = [material, material, material, material, material, material];
+        const lidTexture = cell.boostType ? makeBoostCrateLidTexture(cell.boostType) : null;
+        const lidMaterial = lidTexture
+          ? new THREE.MeshStandardMaterial({
+              map: lidTexture,
+              roughness: 0.66,
+              metalness: 0.28,
+              side: THREE.DoubleSide
+            })
+          : material;
+        // BoxGeometry material order: +X, -X, +Y (lid), -Y, +Z, -Z.
+        const materials = [material, material, lidMaterial, material, material, material];
         const mesh = new THREE.Mesh(
           new THREE.BoxGeometry(w, h, depth),
           materials
@@ -1600,6 +1802,13 @@
           safeDispose(old);
         }
       }
+      while (playerJetEffects.length) {
+        const oldJet = playerJetEffects.pop();
+        if (oldJet) {
+          scene.remove(oldJet);
+          safeDispose(oldJet);
+        }
+      }
 
       for (let i = 0; i < 2; i++) {
         const haloTexture = makePlayerHaloTexture(i === 0 ? 0x74d7ff : 0xffbf6d);
@@ -1656,6 +1865,23 @@
           playerSprites.push(null);
           playerLegSprites.push(null);
         }
+
+        const jetTexture = makeJetFlameTexture(i === 0 ? "#6de7ff" : "#ffd080");
+        const jetFx = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: jetTexture,
+          transparent: true,
+          opacity: 0,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          depthTest: true,
+          sizeAttenuation: true
+        }));
+        jetFx.center.set(0.5, 0.5);
+        jetFx.scale.set(0.58, 0.86, 1);
+        jetFx.renderOrder = 5;
+        jetFx.visible = false;
+        scene.add(jetFx);
+        playerJetEffects.push(jetFx);
       }
 
       for (let i = 0; i < 2; i++) {
@@ -1696,6 +1922,10 @@
       p.birdHitCooldown = 0;
       p.knockUntil = 0;
       p.lavaGrace = 0;
+      p.jetCharges = 0;
+      p.springCharges = 0;
+      p.jetFxUntil = 0;
+      p.jetFxPower = 1;
       p.visualFacing = 1;
       p.visualAngle = p.angle;
     }
@@ -1771,12 +2001,23 @@
       return null;
     }
 
+    function triggerDoubleJump(player) {
+      const powered = Number(player.jetCharges || 0) > 0;
+      if (powered) player.jetCharges -= 1;
+      player.vy = doubleJumpVelocity * (powered ? 1.42 : 1);
+      player.jetFxUntil = performance.now() + (powered ? 650 : 390);
+      player.jetFxPower = powered ? 1.32 : 1;
+    }
+
     function doJump(index) {
       const p = players[index];
       if (p.finished || doorTransit[index]) return;
 
       if (p.grounded) {
-        p.vy = jumpVelocity;
+        const springBoosted = Number(p.springCharges || 0) > 0;
+        if (springBoosted) p.springCharges -= 1;
+        p.vy = jumpVelocity * (springBoosted ? 1.27 : 1);
+        if (springBoosted) status.textContent = "SPRING BOOST · УСИЛЕННЫЙ ПРЫЖОК";
         p.grounded = false;
         p.jumps = 1;
         p.jumpStarted = true;
@@ -1789,14 +2030,14 @@
       // platform. Walking/falling off a platform counts as the first jump,
       // so that state gets at most one emergency air jump.
       if (p.jumpStarted && p.jumps === 1) {
-        p.vy = doubleJumpVelocity;
+        triggerDoubleJump(p);
         p.jumps = 2;
         p.jumpStarted = false;
         return;
       }
 
       if (!p.jumpStarted && p.jumps === 1) {
-        p.vy = doubleJumpVelocity;
+        triggerDoubleJump(p);
         p.jumps = 2;
       }
     }
@@ -1806,10 +2047,25 @@
       status.textContent = message;
     }
 
-    function collectObject(cell, objectMesh) {
-      if (!cell || cell.collected) return;
+    function collectObject(cell, objectMesh, player, index) {
+      if (!cell || cell.collected) return false;
       cell.collected = true;
       if (objectMesh) objectMesh.visible = false;
+
+      if (player && cell.boostType) {
+        if (cell.boostType === "jet") {
+          player.jetCharges = Math.min(2, Number(player.jetCharges || 0) + 1);
+          status.textContent = "JET BOOST · УСИЛЕННЫЙ ВТОРОЙ ПРЫЖОК" + (index === 1 ? " · P2" : " · P1");
+        } else if (cell.boostType === "shield") {
+          player.shieldDownUntil = 0;
+          player.shieldBlinkUntil = performance.now() + 1800;
+          status.textContent = "SHIELD BOOST · ЗАЩИТА ВОССТАНОВЛЕНА" + (index === 1 ? " · P2" : " · P1");
+        } else if (cell.boostType === "spring") {
+          player.springCharges = Math.min(2, Number(player.springCharges || 0) + 1);
+          status.textContent = "SPRING BOOST · СЛЕДУЮЩИЙ ПРЫЖОК УСИЛЕН" + (index === 1 ? " · P2" : " · P1");
+        }
+      }
+      return true;
     }
 
     function findObjectMesh(cell) {
@@ -1849,9 +2105,11 @@
       }
 
       if (cell.object === "safebox" || cell.object === "box") {
-        collectObject(cell, findObjectMesh(cell));
-        p.collected += 1;
-        status.textContent = "ЯЩИК ОТКРЫТ";
+        const collectedNow = collectObject(cell, findObjectMesh(cell), p, index);
+        if (collectedNow) {
+          p.collected += 1;
+          if (!cell.boostType) status.textContent = "ЯЩИК ОТКРЫТ";
+        }
       }
 
       if (cell.object === "dangerbox") {
@@ -2161,7 +2419,7 @@
       }
 
       if (p.currentCell?.object === "safebox" || p.currentCell?.object === "box") {
-        if (!p.currentCell.collected) collectObject(p.currentCell, findObjectMesh(p.currentCell));
+        if (!p.currentCell.collected) collectObject(p.currentCell, findObjectMesh(p.currentCell), p, index);
       }
     }
 
@@ -2194,6 +2452,25 @@
         halo.visible = !!sprite && (shieldOn || shieldBlink);
         if (halo.material) {
           halo.material.opacity = shieldBlink && (Math.floor(performance.now() / 80) % 2) ? 0.2 : 0.98;
+        }
+      }
+      const jetFx = playerJetEffects[index];
+      if (jetFx) {
+        const now = performance.now();
+        const remaining = Number(p.jetFxUntil || 0) - now;
+        jetFx.visible = remaining > 0 && !p.finished;
+        if (jetFx.visible) {
+          const pulse = 0.86 + Math.sin(now * 0.055 + index) * 0.14;
+          const power = Number(p.jetFxPower || 1);
+          const jetRadius = r + 0.035;
+          jetFx.position.set(
+            Math.sin(a) * jetRadius,
+            p.y - feetOffset + footLift - 0.18,
+            Math.cos(a) * jetRadius
+          );
+          jetFx.scale.set(0.58 * power * pulse, 0.86 * power * pulse, 1);
+          jetFx.material.opacity = Math.min(0.98, Math.max(0, remaining / 100)) * pulse;
+          jetFx.material.rotation = Math.sin(now * 0.04 + index) * 0.08;
         }
       }
       if (!sprite) return;
