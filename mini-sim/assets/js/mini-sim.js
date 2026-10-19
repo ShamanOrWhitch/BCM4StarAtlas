@@ -1039,6 +1039,17 @@
   let externalPause = false;
   let externalHud = null;
 
+  function clearStoredInputState() {
+    Object.keys(keys).forEach((code) => { keys[code] = false; });
+    Object.keys(touch).forEach((control) => { touch[control] = false; });
+    pad.lx = 0;
+    pad.ly = 0;
+    pad.rx = 0;
+    pad.ry = 0;
+    pad.roll = 0;
+    pad.vert = 0;
+  }
+
   function setSpeedMode(mode) {
     const next = speedMatrix[Number(mode)] ? Number(mode) : 1;
     speedMode = next;
@@ -4656,6 +4667,7 @@
     window.BCMiniSimAPI.setSpeedMode = (mode) => setSpeedMode(mode);
     window.BCMiniSimAPI.pauseForWarp = (value) => {
       externalPause = !!value;
+      if (externalPause) clearStoredInputState();
       if (externalPause && ship.velocity && ship.angularVelocity) {
         ship.velocity.set(0, 0, 0);
         ship.angularVelocity.set(0, 0, 0);
@@ -4664,6 +4676,7 @@
     window.BCMiniSimAPI.getRuntime = () => ({ renderer, scene, camera, ship, THREE: window.THREE, root, running });
     window.BCMiniSimAPI.teleport = (position, quaternion) => {
       if (!position || !ship.position || !ship.quaternion) return false;
+      clearStoredInputState();
       ship.position.set(Number(position.x) || 0, Number(position.y) || 0, Number(position.z) || 0);
       ship.velocity.set(0, 0, 0);
       ship.angularVelocity.set(0, 0, 0);
