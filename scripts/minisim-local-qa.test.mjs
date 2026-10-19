@@ -173,13 +173,21 @@ test("Playwright runner overrides plugin files from local checkout",async()=>{
 });
 
 
+test("Warp starts at 8x and accelerates to 64x without changing tunnel shimmer timing", async () => {
+  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  assert.match(warp, /return 8 \* Math\.pow\(8, warpNormalizedTime\(elapsed\)\)/);
+  assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) \/ 8 - 1\) \/ 7/);
+  assert.match(warp, /Math\.max\(8, Math\.min\(64,/);
+  assert.match(warp, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
+});
+
 test("Mini-Sim and Tower displayed versions match their PHP asset-cache versions", async () => {
   const miniPhp = await read("mini-sim/bcm-mini-sim.php");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   const tower = await read("mini-sim/tower/assets/js/tower.js");
-  assert.ok(miniPhp.includes("Version: 0.9.97"));
-  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.9.97'"));
-  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.9.97"));
-  assert.ok(towerPhp.includes("BCM_TOWER_VERSION', '0.2.60'"));
-  assert.ok(tower.includes('const TOWER_VERSION = "0.2.60"'));
+  assert.ok(miniPhp.includes("Version: 0.9.98"));
+  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.9.98'"));
+  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.9.98"));
+  assert.ok(towerPhp.includes("BCM_TOWER_VERSION', '0.2.61'"));
+  assert.ok(tower.includes('const TOWER_VERSION = "0.2.61"'));
 });
