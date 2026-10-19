@@ -39,7 +39,7 @@ test("Tower seed generation is gentler; keyboard/touch slow down without slowing
   assert.match(tower, /objectRoll < 0\.22/);
   assert.match(tower, /const manualInputScale = c\.gamepad \? 1 : 0\.84/);
   assert.match(tower, /const count = 38;/);
-  assert.match(tower, /const platformWidth = 3\\.23;/);
+  assert.match(tower, /const platformWidth = 3\.23;/);
   assert.match(tower, /const footContactReach = 0\.32;/);
   assert.match(tower, /let width = platformWidth;/);
   assert.match(tower, /let depth = 1\.9;/);
