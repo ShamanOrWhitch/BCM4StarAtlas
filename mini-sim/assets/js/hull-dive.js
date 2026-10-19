@@ -9,6 +9,46 @@
   const floor = -1.85;
   const ceil = 1.55;
 
+  // Shared repair state is the contract between interior compartments and the
+  // future exterior EVA loop. IDs are 1-based to match the design document.
+  const repairState = window.BCMHullRepairState || (window.BCMHullRepairState = {
+    compartments: rooms.map((room, index) => ({
+      id: index + 1,
+      name: room.name,
+      integrity: 100,
+      externalHole: false,
+      waterLevel: [0.05, 0.12, 0.05][index],
+      smokeLevel: [0.025, 0.09, 0.02][index],
+      fireLevel: [0.01, 0.06, 0.01][index]
+    }))
+  });
+  repairState.compartments = Array.isArray(repairState.compartments) ? repairState.compartments : [];
+  rooms.forEach((room, index) => {
+    if (!repairState.compartments[index]) {
+      repairState.compartments[index] = {
+        id: index + 1, name: room.name, integrity: 100, externalHole: false,
+        waterLevel: 0.05, smokeLevel: 0.02, fireLevel: 0.01
+      };
+    }
+  });
+  repairState.triggerExternalImpact = (compartmentId, damage) => {
+    const index = Math.floor(Number(compartmentId)) - 1;
+    const component = repairState.compartments[index];
+    const amount = Math.max(0, Number(damage) || 0);
+    if (!component || amount <= 0) return false;
+    component.integrity = Math.max(0, Number(component.integrity ?? 100) - amount);
+    if (component.integrity <= 0) component.externalHole = true;
+    return { ...component };
+  };
+  repairState.patchExternalHole = (compartmentId) => {
+    const index = Math.floor(Number(compartmentId)) - 1;
+    const component = repairState.compartments[index];
+    if (!component || !component.externalHole) return false;
+    component.externalHole = false;
+    component.integrity = 10;
+    return { ...component };
+  };
+
   function open(onClose) {
     if (document.getElementById("bcm-hull-dive")) return;
     const THREE = window.THREE;
@@ -178,11 +218,11 @@
       }
     });
 
-    const water = [0.05, 0.12, 0.05];
-    const smoke = [0.025, 0.09, 0.02];
-    const fire = [0.01, 0.06, 0.01];
-    const integrity = [100, 100, 100];
-    const externalHole = [false, false, false];
+    const water = repairState.compartments.map((item) => Math.max(0, Math.min(1, Number(item.waterLevel) || 0)));
+    const smoke = repairState.compartments.map((item) => Math.max(0, Math.min(1, Number(item.smokeLevel) || 0)));
+    const fire = repairState.compartments.map((item) => Math.max(0, Math.min(0.95, Number(item.fireLevel) || 0)));
+    const integrity = repairState.compartments.map((item) => Math.max(0, Math.min(100, Number(item.integrity ?? 100))));
+    const externalHole = repairState.compartments.map((item) => !!item.externalHole);
     let weld = 0;
     let oxygen = 100;
     let pressure = 1;
@@ -590,6 +630,7 @@
     let smokeParticles = [];
     let fireRing = null;
     let breach = null;
+    let externalHoleMeshes = [];
     if (THREE && view) {
       scene = new THREE.Scene();
       scene.background = new THREE.Color(0x041018);
@@ -669,6 +710,16 @@
       );
       breach.position.set(0, floor + 0.15, 0.45);
       scene.add(breach);
+      externalHoleMeshes = rooms.map((room) => {
+        const mesh = new THREE.Mesh(
+          new THREE.CircleGeometry(0.23, 14),
+          new THREE.MeshBasicMaterial({ color: 0xff6b55, transparent: true, opacity: 0.9, depthWrite: false })
+        );
+        mesh.position.set((room.x0 + room.x1) / 2, floor + 0.15, 0.47);
+        mesh.visible = false;
+        scene.add(mesh);
+        return mesh;
+      });
       fireRing = new THREE.Mesh(
         new THREE.TorusGeometry(0.34, 0.035, 6, 18),
         new THREE.MeshBasicMaterial({ color: 0xff9955, transparent: true, opacity: 0.18, depthWrite: false })
@@ -779,6 +830,12 @@
       if (closed) return;
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
+      // Exterior events can arrive from a separate spacewalk/impact system.
+      // Read integrity/hole flags each tick without resetting live water levels.
+      repairState.compartments.forEach((component, index) => {
+        integrity[index] = Math.max(0, Math.min(100, Number(component.integrity ?? integrity[index])));
+        externalHole[index] = !!component.externalHole;
+      });
       shotCooldown = Math.max(0, shotCooldown - dt);
       if (keys.q) pressure = Math.max(0.45, pressure - dt * 0.35);
       if (keys.c) pressure = Math.min(1.7, pressure + dt * 0.35);
@@ -792,6 +849,12 @@
       }
       const leak = (1 - weld) * 0.11 * pressure;
       water[1] = Math.min(1, water[1] + leak * dt);
+      externalHole.forEach((isOpen, index) => {
+        if (!isOpen) return;
+        water[index] = Math.min(1, water[index] + 0.5 * dt);
+        smoke[index] = Math.min(1, smoke[index] + 0.2 * dt);
+        fire[index] = Math.min(0.95, fire[index] + 0.08 * dt);
+      });
       for (let i = 0; i < 2; i += 1) {
         const flow = (water[i] - water[i + 1]) * 0.35 * dt;
         water[i] -= flow;
@@ -927,6 +990,18 @@
         const depth = Math.max(0.04, water[index] * 3.15);
         mesh.scale.y = depth;
         mesh.position.y = floor + depth / 2;
+      });
+      repairState.compartments.forEach((component, index) => {
+        component.integrity = integrity[index];
+        component.externalHole = externalHole[index];
+        component.waterLevel = water[index];
+        component.smokeLevel = smoke[index];
+        component.fireLevel = fire[index];
+      });
+      externalHoleMeshes.forEach((mesh, index) => {
+        mesh.visible = externalHole[index];
+        const pulse = 0.86 + Math.sin(now * 0.008 + index) * 0.1;
+        mesh.scale.setScalar(pulse);
       });
       smokeParticles.forEach((puff) => {
         const level = smoke[puff.roomIndex];
