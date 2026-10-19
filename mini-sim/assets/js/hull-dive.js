@@ -70,6 +70,7 @@
     function finish() {
       if (closed) return;
       closed = true;
+      if (document.exitPointerLock && document.pointerLockElement) document.exitPointerLock();
       cancelAnimationFrame(frame);
       window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("keyup", onKey, true);
