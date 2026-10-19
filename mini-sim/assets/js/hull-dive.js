@@ -120,11 +120,15 @@
     }
     function onKey(event) {
       const down = event.type === "keydown";
-      keys[String(event.key || "").toLowerCase()] = down;
+      const physicalKey = ({
+        KeyW: "w", KeyA: "a", KeyS: "s", KeyD: "d", KeyE: "e",
+        KeyF: "f", KeyR: "r", KeyQ: "q", KeyC: "c", KeyV: "v"
+      })[event.code] || String(event.key || "").toLowerCase();
+      keys[physicalKey] = down;
       if (event.code === "Space") keys.space = down;
       if (event.code === "Period") keys.period = down;
       if (event.code === "Slash") keys.slash = down;
-      if (event.code === "KeyV" && down) helmTogglePending = true;
+      if (event.code === "KeyV" && down && !event.repeat) helmTogglePending = true;
       if (handledCodes.has(event.code)) {
         event.preventDefault();
         // This input belongs to the Hull Dive scene; it must not also trigger
