@@ -83,11 +83,15 @@ test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, amm
   assert.match(hull, /data-hull-control="reload"/);
   assert.match(hull, /data-hull-control="helm"/);
   assert.match(hull, /pilotMode = true/);
+  assert.match(hull, /KeyV: "v"/);
+  assert.match(hull, /down && !event\.repeat/);
   assert.match(hull, /\"KeyV\"/);
   assert.match(hull, /event\.stopImmediatePropagation\(\)/);
   assert.match(hull, /let helmTogglePending = false/);
   assert.match(hull, /Leaving the helm must always be possible/);
   assert.match(hull, /window\.addEventListener\(\"blur\", clearHeldKeys\)/);
+  const mini = await read("mini-sim/assets/js/mini-sim.js");
+  assert.match(mini, /document\.getElementById\(\"bcm-hull-dive\"\)/);
   assert.match(hull, /enginePower = Math\.max\(0, Math\.min\(1, enginePower \+ input\.dy \* dt \* 0\.7\)\)/);
   assert.match(hull, /function makeHullSideTexture\(THREE\)/);
   assert.match(hull, /PИЛОТ \/ НАВИГАЦИЯ|ПИЛОТ \/ НАВИГАЦИЯ/);
