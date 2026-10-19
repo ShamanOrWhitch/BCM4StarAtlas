@@ -20,7 +20,7 @@ test("asteroid exit and return beacon both return to the Warp map", () => {
   assert.match(warp, /maze\.count === 3 \? "GOLD RING IS OPEN"/);
   assert.match(warp, /if \(!state\.hullOpen && ringDistance < 2\.6 && window\.BCMHullDive/);
   const ring = section(warp, "function updateMazeFrame(frame)", "function setMazeStatus");
-  assert.match(ring, /new THREE\.Quaternion\(\)\.setFromAxisAngle/);
+  assert.match(ring, /ship\.quaternion\.setFromAxisAngle/);
   assert.match(ring, /ship\.angularVelocity\) ship\.angularVelocity\.set\(0, 0, 0\)/);
   assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
 });
