@@ -71,6 +71,16 @@ test("Warp Tube scrolls faster while retaining shared scene and soundtrack state
   assert.match(warp, /if \(engine\.setSpeedMode\) engine\.setSpeedMode\(2\)/);
 });
 
+test("Hull Dive exclusively owns key input and handles V across keyboard layouts", async () => {
+  const hull = await read("mini-sim/assets/js/hull-dive.js");
+  const mini = await read("mini-sim/assets/js/mini-sim.js");
+  assert.match(hull, /KeyV: "v"/);
+  assert.match(hull, /down && !event\.repeat/);
+  assert.match(hull, /event\.stopImmediatePropagation\(\)/);
+  assert.match(mini, /document\.getElementById\("bcm-hull-dive"\)/);
+  assert.match(mini, /Do not let this earlier global handler reinterpret V as Warp/);
+});
+
 test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, ammunition and repair stations", async () => {
   const hull = await read("mini-sim/assets/js/hull-dive.js");
   assert.match(hull, /window\.BCMMiniCrewSelection\?\.players/);
