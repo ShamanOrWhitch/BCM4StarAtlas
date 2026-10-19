@@ -92,6 +92,7 @@ test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, amm
   assert.match(hull, /data-hull-control="shoot"/);
   assert.match(hull, /data-hull-control="reload"/);
   assert.match(hull, /data-hull-control="helm"/);
+  assert.match(hull, /document\.exitPointerLock && document\.pointerLockElement/);
   assert.match(hull, /pilotMode = true/);
   assert.match(hull, /KeyV: "v"/);
   assert.match(hull, /down && !event\.repeat/);
