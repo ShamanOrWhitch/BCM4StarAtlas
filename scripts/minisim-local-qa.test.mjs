@@ -181,13 +181,22 @@ test("Warp starts at 8x and accelerates to 64x without changing tunnel shimmer t
   assert.match(warp, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
 });
 
+test("Warp pause and teleport clear retained ship input", async () => {
+  const s = await read("mini-sim/assets/js/mini-sim.js");
+  assert.match(s, /function clearStoredInputState\(\)/);
+  assert.match(s, /if \(externalPause\) clearStoredInputState\(\)/);
+  const api = s.slice(s.indexOf("window.BCMiniSimAPI.pauseForWarp"), s.indexOf("window.BCMiniSimAPI.setExternalHUD"));
+  assert.match(api, /clearStoredInputState\(\)/);
+  assert.ok(api.includes("window.BCMiniSimAPI.teleport ="));
+});
+
 test("Mini-Sim and Tower displayed versions match their PHP asset-cache versions", async () => {
   const miniPhp = await read("mini-sim/bcm-mini-sim.php");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   const tower = await read("mini-sim/tower/assets/js/tower.js");
-  assert.ok(miniPhp.includes("Version: 0.9.99"));
-  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.9.99'"));
-  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.9.99"));
+  assert.ok(miniPhp.includes("Version: 0.9.100"));
+  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.9.100'"));
+  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.9.100"));
   assert.ok(towerPhp.includes("BCM_TOWER_VERSION', '0.2.62'"));
   assert.ok(tower.includes('const TOWER_VERSION = "0.2.62"'));
 });
