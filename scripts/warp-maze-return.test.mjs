@@ -174,3 +174,19 @@ test("starting another Tube after asteroid comeback resets the cancel anchor to 
   assert.match(tube, /state\.returnPosition = null/);
   assert.match(tube, /state\.returnQuaternion = null/);
 });
+
+test("cancelling after asteroid comeback restores the launch sector without moving the ship out of the asteroid zone", () => {
+  const close = section(warp, "function closeOverlay(restoreMain)", "function showTube()");
+  assert.match(close, /if \(restoreMain && state\.launchNav\)/);
+  assert.match(close, /state\.nav = state\.launchNav/);
+  assert.match(close, /state\.sectorProgressed = state\.launchSectorProgressed/);
+  assert.match(close, /const anchorPosition = state\.returnPosition \|\| state\.savedPosition/);
+  assert.match(close, /engine\.teleport\(anchorPosition, anchorQuaternion\)/);
+  assert.match(close, /state\.launchNav = null/);
+});
+
+test("a new Tube attempt snapshots the currently selected sector as its own origin", () => {
+  const tube = section(warp, "function showTube()", "function finishTube");
+  assert.match(tube, /state\.launchNav = state\.nav/);
+  assert.match(tube, /state\.launchSectorProgressed = state\.sectorProgressed/);
+});
