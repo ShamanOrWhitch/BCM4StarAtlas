@@ -88,6 +88,8 @@
       // is separate so cancelling after comeback cannot restore Room 1.
       returnPosition: null,
       returnQuaternion: null,
+      launchNav: null,
+      launchSectorProgressed: false,
       savedSpeedMode: null,
       sectorProgressed: false,
       elapsed: 0,
@@ -540,6 +542,13 @@
         engine.clearExternalHUD();
         const anchorPosition = state.returnPosition || state.savedPosition;
         const anchorQuaternion = state.returnQuaternion || state.savedQuaternion;
+        // Cancelling means the simulated sector change was not committed. Keep
+        // the ship's physical comeback position, but restore the sector from
+        // which this particular Tube launch began.
+        if (restoreMain && state.launchNav) {
+          state.nav = state.launchNav;
+          state.sectorProgressed = state.launchSectorProgressed;
+        }
         // Restore the chosen pose before unpausing physics. This avoids a stale
         // post-Warp movement update winning over the return position.
         if (restoreMain && anchorPosition && anchorQuaternion) {
@@ -549,6 +558,8 @@
       }
       state.returnPosition = null;
       state.returnQuaternion = null;
+      state.launchNav = null;
+      state.launchSectorProgressed = false;
     }
 
     function showTube() {
@@ -558,12 +569,14 @@
       const startRuntime = engine.getRuntime();
       if (!startRuntime || !startRuntime.scene || !startRuntime.ship ||
           !startRuntime.ship.position || !startRuntime.ship.quaternion) return;
-      // Each new Tube launch gets its own start anchor. A previous asteroid
-      // comeback anchor must not bleed into a newly started Warp attempt.
+      // Each new Tube launch snapshots its own origin sector and ship pose.
+      // A previous asteroid comeback must not bleed into this Warp attempt.
       state.savedPosition = startRuntime.ship.position.clone();
       state.savedQuaternion = startRuntime.ship.quaternion.clone();
       state.returnPosition = null;
       state.returnQuaternion = null;
+      state.launchNav = state.nav;
+      state.launchSectorProgressed = state.sectorProgressed;
       state.mode = "tube";
       state.elapsed = 0;
       state.tubeTravel = 0;
