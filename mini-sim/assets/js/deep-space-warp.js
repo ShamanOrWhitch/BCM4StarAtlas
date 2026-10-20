@@ -242,8 +242,11 @@
     });
     window.addEventListener("keydown", (event) => {
       if (event.code !== "KeyU" || event.repeat ||
+          !root.classList.contains("game-active") ||
           state.mode === "map" || state.mode === "tube" || state.mode === "result" ||
           state.ringPlatformer || state.ringTransitionActive || state.hullOpen) return;
+      const towerRoot = document.querySelector(".bcm-tower");
+      if (towerRoot && !towerRoot.hidden) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       openHullInterior();
@@ -1558,8 +1561,12 @@
         const headerHeight = (cellSize - doorHeight) / 2;
         const hatchSize = 1.18;
 
-        function addBox(bucket, x, y, z, sx, sy, sz, color) {
-          buckets[bucket].push({ x, y, z, sx, sy, sz, color: color || 0x28414d });
+        function addBox(bucket, x, y, z, sx, sy, sz, color, metadata) {
+          buckets[bucket].push({
+            x, y, z, sx, sy, sz,
+            color: color || 0x28414d,
+            ...(metadata && typeof metadata === "object" ? metadata : {})
+          });
         }
         function addFrameX(x, y, z, color) {
           addBox("framesX", x, y, z - doorWidth / 2, wallThickness * 0.8, doorHeight, 0.075, color || 0x59d7ea);
@@ -1648,12 +1655,20 @@
             const dx = roomRng() < 0.5 ? -1.18 : 1.18;
             const dz = roomRng() < 0.5 ? -0.72 : 0.72;
             const platformHeight = 1.18 + roomRng() * 0.42;
-            addBox("platforms", p.x + dx, floorY + platformHeight - 0.08, p.z + dz, 1.7, 0.16, 1.9, 0x3a626d);
+            // Each view direction gets a ledge aligned to its 2D movement plane.
+            addBox("platforms", p.x + dx, floorY + platformHeight - 0.08, p.z + 0.72,
+              1.7, 0.16, 1.1, 0x7898a4, { viewAxis: "z" });
             platforms.push({
-              x: cell.x, y: cell.y, z: cell.z,
-              worldX: p.x + dx, worldZ: p.z + dz,
-              topHeight: platformHeight,
-              halfX: 0.85, halfZ: 0.95
+              x: cell.x, y: cell.y, z: cell.z, orientation: 0,
+              worldX: p.x + dx, worldZ: p.z + 0.72,
+              topHeight: platformHeight, halfX: 0.85, halfZ: 0.55
+            });
+            addBox("platforms", p.x + 0.72, floorY + platformHeight - 0.08, p.z + dz,
+              1.1, 0.16, 1.9, 0x7898a4, { viewAxis: "x" });
+            platforms.push({
+              x: cell.x, y: cell.y, z: cell.z, orientation: 1,
+              worldX: p.x + 0.72, worldZ: p.z + dz,
+              topHeight: platformHeight, halfX: 0.55, halfZ: 0.95
             });
           }
         });
@@ -1791,7 +1806,8 @@
             ? Math.round((nz - 1) / 2 - (item.z - maze.center.z) / cellSize)
             : Math.round((item.x - maze.center.x) / cellSize + (nx - 1) / 2);
           const itemFloor = Math.round((item.y - maze.center.y) / cellSize + (ny - 1) / 2);
-          const visible = itemLane === laneIndex && itemFloor === floorIndex;
+          const viewAxisAllowed = !item.viewAxis || item.viewAxis === axis;
+          const visible = viewAxisAllowed && itemLane === laneIndex && itemFloor === floorIndex;
           position.set(item.x, item.y, item.z);
           scale.set(visible ? item.sx : 0, visible ? item.sy : 0, visible ? item.sz : 0);
           matrix.compose(position, rotation, scale);
@@ -2189,6 +2205,7 @@
             const floorY = floorYForCell(player.y);
             const currentWorld = playerWorldPosition(player);
             const landed = worldState.platforms.find((platform) =>
+              platform.orientation === player.orientation &&
               platform.x === player.x && platform.y === player.y && platform.z === player.z &&
               player.vy <= 0 &&
               previousHeight > platform.topHeight && player.jumpHeight <= platform.topHeight &&
