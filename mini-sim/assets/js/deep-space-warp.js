@@ -1640,7 +1640,7 @@
           }
 
           if (cell.open.yp || cell.open.yn) {
-            const ladderX = p.x + 1.55;
+            const ladderX = p.x;
             addBox("ladders", ladderX - 0.35, p.y, p.z, 0.08, cellSize * 0.58, 0.08, 0x69d9e8);
             addBox("ladders", ladderX + 0.35, p.y, p.z, 0.08, cellSize * 0.58, 0.08, 0x69d9e8);
             for (let rung = 0; rung < 5; rung += 1) {
