@@ -8,17 +8,17 @@ Main soundtrack asset: `mini-sim/assets/ring.mp3`, added to main in commit `cb1f
 ## Implemented in this branch
 
 - The side-scrolling 2D Ring level uses three local core collectibles and a randomized seven-stage deck/platform layout. Its objective no longer borrows already-collected shards from the 3D asteroid maze.
-- Ring audio resolves the exact `ring.mp3` asset name from the existing asset manifest, lazy-loads only when the player enters the level, and uses the shared exclusive OST/mute API.
+- Ring entry first plays `ringgummy.mp4` as a muted full-screen transition. `ring.mp3` is preloaded without playback, then starts on `requestVideoFrameCallback` for the first presented video frame; the side-scrolling level opens when the clip ends. Older WebViews fall back to `loadeddata`. If the intro video is missing or cannot play, the level opens directly and the soundtrack starts there. Audio uses the shared exclusive OST/mute API.
 - Escape safely returns from an incomplete Ring attempt; the resize listener is properly removed when the level closes.
 - Ring attraction is range-limited and gentler.
 - Hull Dive uses transparent rendering so the existing 3D ring/ship scene remains visible through the cabin window; has a bounded pool of 60 smoke puffs and 84 water bubbles whose active density follows compartment levels; one gamepad is assigned to P2 to preserve keyboard P1, two pads can steer separate Crew; pointer dragging/holding supports Crew movement, pumping and seam repair.
 - Asteroid/tube collisions damage the compartment model through the existing Hull Repair state/hooks.
 - Tower gamepad polling and Tower OST are suppressed while its root is hidden or Hull Dive/Ring owns input.
-- Cache versions are Mini-Sim 0.9.103 and Tower 0.2.63.
+- Cache versions are Mini-Sim 0.9.104 and Tower 0.2.63.
 
 ## Verified code and browser smoke
 
-The gameplay-source code was verified at `e0add2edc6f6bf369c907b6f8aef9b35eff0c40f`; the current regression set and an extra `stat()` check that the uploaded `ring.mp3` exists in the PR merge checkout passed on head `abda2bedc4df24fb4ef4153816c77d22a28002dd`.
+The Ring intro/audio timing and dense-bubble source-contract assertions passed on the current PR head, alongside Mini-Sim regression, Warp maze return, Warp course/portal first-frame and Tower top-cap checks. Browser smoke does not enter the Ring platformer or verify soundtrack timing, so live playback remains unverified.
 
 - Mini-Sim regression checks: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39395201677
 - Tower top-cap regression: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39395201840
