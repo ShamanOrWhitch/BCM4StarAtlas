@@ -1016,6 +1016,457 @@
       const runtime = engine.getRuntime();
       const THREE = runtime.THREE;
       const scene = runtime.scene;
+      if (!THREE || !scene || !runtime.ship) return;
+
+      const NX = 7, NY = 3, NZ = 7, CELL = 5.4, WALL = 0.46;
+      // Keep the test maze off-axis and away from the old negative-Z texture-preload trigger.
+      const center = new THREE.Vector3(230, 0, 150);
+      const runNonce = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+      const seed = hashSeed(state.nav.current.id + "->" + state.target.id + ":" + state.target.x + ":" + state.target.y + ":" + runNonce);
+      const rng = randomFrom(seed);
+      const cells = [];
+      function idx(x, y, z) { return (z * NY + y) * NX + x; }
+      function at(x, y, z) { return cells[idx(x, y, z)]; }
+      function cellX(x) { return center.x + (x - (NX - 1) / 2) * CELL; }
+      function cellY(y) { return center.y + (y - (NY - 1) / 2) * CELL; }
+      function cellZ(z) { return center.z + ((NZ - 1) / 2 - z) * CELL; }
+      function cellPosition(x, y, z) { return new THREE.Vector3(cellX(x), cellY(y), cellZ(z)); }
+      const dirs = [
+        { x: 1, y: 0, z: 0, key: "xp", opposite: "xn" },
+        { x: -1, y: 0, z: 0, key: "xn", opposite: "xp" },
+        { x: 0, y: 1, z: 0, key: "yp", opposite: "yn" },
+        { x: 0, y: -1, z: 0, key: "yn", opposite: "yp" },
+        { x: 0, y: 0, z: 1, key: "zp", opposite: "zn" },
+        { x: 0, y: 0, z: -1, key: "zn", opposite: "zp" }
+      ];
+      for (let z = 0; z < NZ; z += 1) {
+        for (let y = 0; y < NY; y += 1) {
+          for (let x = 0; x < NX; x += 1) {
+            cells.push({ x, y, z, visited: false, open: { xp: false, xn: false, yp: false, yn: false, zp: false, zn: false } });
+          }
+        }
+      }
+
+      // Seeded depth-first carve guarantees a connected route through every level of the maze.
+      const start = at(0, 1, 0);
+      const stack = [start];
+      start.visited = true;
+      while (stack.length) {
+        const here = stack[stack.length - 1];
+        const possible = [];
+        dirs.forEach((d) => {
+          const x = here.x + d.x, y = here.y + d.y, z = here.z + d.z;
+          if (x < 0 || x >= NX || y < 0 || y >= NY || z < 0 || z >= NZ) return;
+          const next = at(x, y, z);
+          if (!next.visited) possible.push({ d, next });
+        });
+        if (!possible.length) {
+          stack.pop();
+        } else {
+          const pick = possible[Math.floor(rng() * possible.length)];
+          here.open[pick.d.key] = true;
+          pick.next.open[pick.d.opposite] = true;
+          pick.next.visited = true;
+          stack.push(pick.next);
+        }
+      }
+
+      // Add a few extra links so routes can loop rather than forcing one long chain.
+      cells.forEach((cell) => {
+        if (cell.x < NX - 1 && !cell.open.xp && rng() < 0.14) {
+          cell.open.xp = true; at(cell.x + 1, cell.y, cell.z).open.xn = true;
+        }
+        if (cell.y < NY - 1 && !cell.open.yp && rng() < 0.12) {
+          cell.open.yp = true; at(cell.x, cell.y + 1, cell.z).open.yn = true;
+        }
+        if (cell.z < NZ - 1 && !cell.open.zp && rng() < 0.16) {
+          cell.open.zp = true; at(cell.x, cell.y, cell.z + 1).open.zn = true;
+        }
+      });
+
+      const group = new THREE.Group();
+      group.name = "bcm-procedural-asteroid-maze";
+      const walls = [];
+      function addWall(x, y, z, sx, sy, sz) {
+        walls.push({ x, y, z, sx, sy, sz });
+      }
+      cells.forEach((cell) => {
+        const x = cellX(cell.x), y = cellY(cell.y), z = cellZ(cell.z);
+        if (cell.x === 0) addWall(x - CELL / 2, y, z, WALL, CELL, CELL);
+        if (cell.x === NX - 1) addWall(x + CELL / 2, y, z, WALL, CELL, CELL);
+        else if (!cell.open.xp) addWall(x + CELL / 2, y, z, WALL, CELL, CELL);
+        if (cell.y === 0) addWall(x, y - CELL / 2, z, CELL, WALL, CELL);
+        if (cell.y === NY - 1) addWall(x, y + CELL / 2, z, CELL, WALL, CELL);
+        else if (!cell.open.yp) addWall(x, y + CELL / 2, z, CELL, WALL, CELL);
+        if (cell.z === 0) {
+          // Leave one clean entrance into the first central cell.
+          if (!(cell.x === 0 && cell.y === 1)) addWall(x, y, z + CELL / 2, CELL, CELL, WALL);
+        } else if (!cell.open.zn) {
+          addWall(x, y, z + CELL / 2, CELL, CELL, WALL);
+        }
+        if (cell.z === NZ - 1) {
+          // Far exit is opened only at the last cell. Internal Z-planes are emitted once
+          // from the adjacent cell's positive face, avoiding overlapping double walls.
+          if (!(cell.x === NX - 1 && cell.y === 1)) addWall(x, y, z - CELL / 2, CELL, CELL, WALL);
+        }
+      });
+
+      // Use every prepared asterwall variant. The files are small, and a full
+      // shuffle means the entire asteroid run can display the whole texture family.
+      const fallbackTexture = makeMazeTexture(THREE);
+      const availableWallAssets = asteroidWallAssetPool();
+      for (let i = availableWallAssets.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(rng() * (i + 1));
+        [availableWallAssets[i], availableWallAssets[j]] = [availableWallAssets[j], availableWallAssets[i]];
+      }
+      const chosenWallAssets = availableWallAssets;
+      const wallMaterials = [];
+      const wallTextures = [];
+      if (chosenWallAssets.length) {
+        const loader = new THREE.TextureLoader();
+        chosenWallAssets.forEach((asset, index) => {
+          const texture = loader.load(asset.url, undefined, undefined, () => {
+            if (wallMaterials[index]) {
+              wallMaterials[index].map = fallbackTexture;
+              wallMaterials[index].needsUpdate = true;
+            }
+          });
+          texture.generateMipmaps = false;
+          texture.minFilter = THREE.LinearFilter;
+          texture.magFilter = THREE.LinearFilter;
+          texture.wrapS = THREE.RepeatWrapping;
+          texture.wrapT = THREE.RepeatWrapping;
+          texture.repeat.set(1, 1);
+          if (THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
+          else if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
+          const maxAnisotropy = runtime.renderer?.capabilities?.getMaxAnisotropy?.() || 1;
+          texture.anisotropy = Math.min(4, maxAnisotropy);
+          wallTextures.push(texture);
+          wallMaterials.push(new THREE.MeshStandardMaterial({
+            map: texture, color: 0xffffff, roughness: 0.82, metalness: 0.24, emissive: 0x07121a
+          }));
+        });
+      } else {
+        wallTextures.push(fallbackTexture);
+        wallMaterials.push(new THREE.MeshStandardMaterial({
+          map: fallbackTexture, color: 0xa9bec8, roughness: 0.82, metalness: 0.24, emissive: 0x07121a
+        }));
+      }
+      const unit = new THREE.BoxGeometry(1, 1, 1);
+      const wallBatches = Array.from({ length: wallMaterials.length }, () => []);
+      walls.forEach((wall, index) => wallBatches[index % wallBatches.length].push(wall));
+      const wallMeshes = wallBatches.map((batch, index) => {
+        const wallMesh = new THREE.InstancedMesh(unit, wallMaterials[index], batch.length);
+        wallMesh.name = "asteroid-maze-wall-panels-" + index;
+        wallMesh.frustumCulled = false;
+        const matrix = new THREE.Matrix4();
+        const rotation = new THREE.Quaternion();
+        batch.forEach((wall, instanceIndex) => {
+          matrix.compose(
+            new THREE.Vector3(wall.x, wall.y, wall.z),
+            rotation,
+            new THREE.Vector3(wall.sx, wall.sy, wall.sz)
+          );
+          wallMesh.setMatrixAt(instanceIndex, matrix);
+        });
+        wallMesh.instanceMatrix.needsUpdate = true;
+        group.add(wallMesh);
+        return wallMesh;
+      });
+      const wallMesh = wallMeshes[0];
+      const material = wallMaterials[0];
+      const texture = wallTextures[0];
+
+      const shell = new THREE.Mesh(
+        new THREE.SphereGeometry(31, 18, 14),
+        new THREE.MeshBasicMaterial({ color: 0x254050, transparent: true, opacity: 0.11, side: THREE.BackSide, depthWrite: false })
+      );
+      shell.name = "asteroid-inner-shell";
+      shell.position.copy(center);
+      group.add(shell);
+
+      const crystalMaterial = new THREE.MeshBasicMaterial({ color: 0x52f0dc });
+      const crystalGeometry = new THREE.OctahedronGeometry(0.54, 0);
+      const beaconMaterial = new THREE.MeshBasicMaterial({ color: 0xdbc17a });
+      const beaconGeometry = new THREE.TorusGeometry(1.1, 0.12, 6, 20);
+      const startNode = at(0, 1, 0);
+      const exitNode = at(NX - 1, 1, NZ - 1);
+      const candidates = cells.filter((cell) => !(cell.x === startNode.x && cell.y === startNode.y && cell.z === startNode.z) &&
+        !(cell.x === exitNode.x && cell.y === exitNode.y && cell.z === exitNode.z));
+      for (let i = candidates.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(rng() * (i + 1));
+        const temp = candidates[i]; candidates[i] = candidates[j]; candidates[j] = temp;
+      }
+      const crystals = [];
+      candidates.slice(0, 3).forEach((cell, index) => {
+        const mesh = new THREE.Mesh(crystalGeometry, crystalMaterial);
+        mesh.position.copy(cellPosition(cell.x, cell.y, cell.z));
+        mesh.position.y += 0.2;
+        mesh.name = "core-shard-" + index;
+        group.add(mesh);
+        crystals.push({ mesh, taken: false, phase: rng() * Math.PI * 2, cell: { x: cell.x, y: cell.y, z: cell.z } });
+      });
+      const beacon = new THREE.Mesh(beaconGeometry, beaconMaterial);
+      beacon.position.copy(cellPosition(exitNode.x, exitNode.y, exitNode.z));
+      beacon.rotation.x = Math.PI / 2;
+      beacon.scale.set(1.65, 1.65, 1.65);
+      beacon.name = "return-warp-beacon";
+      group.add(beacon);
+
+      scene.add(group);
+      const maze = {
+        active: true,
+        group,
+        center,
+        // The 2D Ring mode reuses this exact maze instance and topology, not a second RNG.
+        seed,
+        dimensions: { nx: NX, ny: NY, nz: NZ },
+        startCell: { x: startNode.x, y: startNode.y, z: startNode.z },
+        exitCell: { x: exitNode.x, y: exitNode.y, z: exitNode.z },
+        cells,
+        walls,
+        wallMesh,
+        wallMeshes,
+        shell,
+        crystals,
+        beacon,
+        start: cellPosition(startNode.x, startNode.y, startNode.z),
+        exit: cellPosition(exitNode.x, exitNode.y, exitNode.z),
+        count: 0,
+        sinceStatus: 0,
+        texture,
+        textures: wallTextures.concat(fallbackTexture === texture ? [] : [fallbackTexture]),
+        material,
+        materials: wallMaterials,
+        geometry: unit,
+        crystalGeometry,
+        crystalMaterial,
+        beaconGeometry,
+        beaconMaterial,
+        lastPosition: null,
+        lastImpactAt: 0,
+        ringCompleted: false
+      };
+      state.savedSpeedMode = engine.getSpeedMode ? engine.getSpeedMode() : 1;
+      if (engine.setSpeedMode) engine.setSpeedMode(2);
+      state.maze = maze;
+      state.ringApproachArmed = true;
+      root.classList.add("bcm-warp-maze-active");
+      exitButton.hidden = false;
+      overlay.hidden = true;
+      root.classList.remove("bcm-warp-open");
+      launchButton.classList.remove("is-active");
+
+      // The main physics resumes in this scene. The seeded maze uses a small number of
+      // instanced wall batches and up to four asterwall textures, with a tiny procedural fallback.
+      // Default Mini-Sim forward is -Z; face inward from the asteroid entrance.
+      engine.teleport({ x: maze.start.x, y: maze.start.y, z: maze.start.z, yaw: 0 }, null);
+      engine.pauseForWarp(false);
+      engine.setExternalHUD("ASTEROID COMPLEX · " + sectorText(state.target), "EXPEDITION · CORE SHARDS 0/3 · GOLD RING OPENS THE HULL");
+      maze.lastPosition = runtime.ship.position.clone();
+      state.mode = "maze";
+      state.lastStatusAt = 0;
+      window.BCMDeepSpaceWarpFrame = updateMazeFrame;
+    }
+
+    function updateMazeFrame(frame) {
+      const maze = state.maze;
+      if (!maze || !maze.active || !frame || !frame.ship) return;
+      const ship = frame.ship;
+      const pos = ship.position;
+      const radius = 0.7;
+
+      // The external ship scene remains the transparent window's backdrop while either
+      // overlay is active; keep camera/visual transforms synced, but never move a paused ship.
+      if (state.ringPlatformer || state.hullOpen) {
+        if (frame.camera) {
+          frame.camera.position.copy(pos);
+          frame.camera.quaternion.copy(ship.quaternion);
+        }
+        if (ship.visual) {
+          ship.visual.position.copy(pos);
+          ship.visual.quaternion.copy(ship.quaternion);
+        }
+        maze.lastPosition.copy(pos);
+        return;
+      }
+
+      // Only test wall panels close to the craft; distant cells cost almost nothing per frame.
+      for (let pass = 0; pass < 2; pass += 1) {
+        for (let i = 0; i < maze.walls.length; i += 1) {
+          const w = maze.walls[i];
+          const hx = w.sx / 2 + radius, hy = w.sy / 2 + radius, hz = w.sz / 2 + radius;
+          if (Math.abs(pos.x - w.x) > hx + 1.2 || Math.abs(pos.y - w.y) > hy + 1.2 || Math.abs(pos.z - w.z) > hz + 1.2) continue;
+          const px = hx - Math.abs(pos.x - w.x);
+          const py = hy - Math.abs(pos.y - w.y);
+          const pz = hz - Math.abs(pos.z - w.z);
+          if (px <= 0 || py <= 0 || pz <= 0) continue;
+          const impactSpeed = ship.velocity.length();
+          const impactNow = performance.now();
+          if (impactSpeed > 3.0 && impactNow - maze.lastImpactAt > 650) {
+            maze.lastImpactAt = impactNow;
+            const compartmentId = pos.x < maze.center.x - 5.4 ? 1 : (pos.x > maze.center.x + 5.4 ? 3 : 2);
+            const damage = Math.max(4, Math.min(24, Math.round((impactSpeed - 2.0) * 4.4)));
+            const damaged = window.BCMHullRepairState?.triggerExternalImpact?.(compartmentId, damage);
+            if (damaged) {
+              setMazeStatus("IMPACT · " + damaged.name + " · INTEGRITY " + Math.round(damaged.integrity) + "% · HIT " + damage);
+            }
+          }
+          if (px <= py && px <= pz) {
+            pos.x = w.x + (pos.x >= w.x ? 1 : -1) * (hx + 0.015);
+            ship.velocity.x *= 0.15;
+          } else if (py <= pz) {
+            pos.y = w.y + (pos.y >= w.y ? 1 : -1) * (hy + 0.015);
+            ship.velocity.y *= 0.15;
+          } else {
+            pos.z = w.z + (pos.z >= w.z ? 1 : -1) * (hz + 0.015);
+            ship.velocity.z *= 0.15;
+          }
+        }
+      }
+
+      const fromCenter = pos.clone().sub(maze.center);
+      if (fromCenter.length() > 29.4) {
+        fromCenter.setLength(29.4);
+        pos.copy(maze.center).add(fromCenter);
+        ship.velocity.multiplyScalar(0.25);
+      }
+
+      // Local artificial gravity activates near the gold ring, with a smooth falloff.
+      const ringVector = maze.beacon.position.clone().sub(pos);
+      const approachDistance = ringVector.length();
+      state.ringDistance = approachDistance;
+      if (approachDistance < 22 && approachDistance > 2.65) {
+        const falloff = Math.max(0, 1 - approachDistance / 22);
+        ringVector.normalize();
+        ship.velocity.addScaledVector(ringVector, (frame.dt || 0.016) * (0.25 + falloff * falloff * 1.8));
+      }
+
+      maze.crystals.forEach((crystal) => {
+        if (crystal.taken) return;
+        crystal.mesh.rotation.y += Math.min(frame.dt || 0.016, 0.04) * 1.35;
+        crystal.mesh.position.y += Math.sin(performance.now() * 0.002 + crystal.phase) * 0.001;
+        if (pos.distanceTo(crystal.mesh.position) < 1.55) {
+          crystal.taken = true;
+          crystal.mesh.visible = false;
+          maze.count += 1;
+          setMazeStatus("CORE SHARDS " + maze.count + "/3 · " + (maze.count === 3 ? "GOLD RING IS OPEN" : "SEARCH THE CONNECTED CORRIDORS"));
+        }
+      });
+      maze.beacon.rotation.z += Math.min(frame.dt || 0.016, 0.04) * 0.4;
+      const ringDistance = pos.distanceTo(maze.beacon.position);
+      state.ringDistance = ringDistance;
+      syncHullButtonVisibility();
+      // Require the ship to leave the beacon's capture radius after exiting Ring
+      // before accepting another approach; the same level can still be re-entered.
+      if (ringDistance > 4.2) state.ringApproachArmed = true;
+      if (state.ringApproachArmed && !state.ringPlatformer && !maze.ringCompleted && ringDistance < 2.6) {
+        openRingPlatformer(maze);
+        return;
+      }
+
+      if (frame.camera) {
+        frame.camera.position.copy(pos);
+        frame.camera.quaternion.copy(ship.quaternion);
+      }
+      if (ship.visual) {
+        ship.visual.position.copy(pos);
+        ship.visual.quaternion.copy(ship.quaternion);
+      }
+      maze.lastPosition.copy(pos);
+      if (performance.now() - maze.sinceStatus > 1300) {
+        maze.sinceStatus = performance.now();
+        const message = state.ringDistance < 22
+          ? "RING GRAVITY ACTIVE · PRESS U / R3 OR TAP THE HULL BUTTON"
+          : "EXPEDITION · CORE SHARDS " + maze.count + "/3 · FOLLOW THE GOLD RING";
+        setMazeStatus(message);
+      }
+    }
+
+    function openHullInterior() {
+      const engine = api();
+      const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
+      const maze = state.maze && state.maze.active && state.mode === "maze" ? state.maze : null;
+      if (state.hullOpen || state.ringPlatformer || state.ringTransitionActive ||
+          !root.classList.contains("game-active") || !runtime || !runtime.ship ||
+          !window.BCMHullDive || typeof window.BCMHullDive.open !== "function") return false;
+
+      // This is the ship's interior, not a teleport to the golden Ring.
+      // Preserve the current first-person flight pose and only pause the ship while
+      // the transparent compartment simulation owns the screen.
+      state.hullOpen = true;
+      syncHullButtonVisibility();
+      if (engine.pauseForWarp) engine.pauseForWarp(true);
+
+      const nearRing = !!(maze && maze.beacon && state.ringDistance < 18);
+      window.BCMRingWindowState = nearRing ? {
+        visible: true,
+        ringDistance: state.ringDistance,
+        target: maze.beacon.position.clone(),
+        maze
+      } : null;
+
+      window.BCMHullDive.open(() => {
+        state.hullOpen = false;
+        window.BCMRingWindowState = null;
+        if (engine.pauseForWarp) engine.pauseForWarp(false);
+        const freshRuntime = engine.getRuntime ? engine.getRuntime() : null;
+        if (maze && freshRuntime?.ship?.position) {
+          state.ringDistance = freshRuntime.ship.position.distanceTo(maze.beacon.position);
+          setMazeStatus("BACK IN THE SHIP · RING WINDOW " +
+            (state.ringDistance < 18 ? "VISIBLE" : "OUT OF VIEW"));
+        }
+        syncHullButtonVisibility();
+      });
+      syncHullButtonVisibility();
+      return true;
+    }
+
+    const hullEntryPadWasDown = new Map();
+    window.BCMDeepSpaceWarpPoll = () => {
+      syncHullButtonVisibility();
+      const pads = navigator.getGamepads ? [...navigator.getGamepads()] : [];
+      let pressed = false;
+      for (const pad of pads) {
+        if (!pad || !pad.connected) continue;
+        const down = !!pad.buttons?.[11]?.pressed;
+        const wasDown = hullEntryPadWasDown.get(pad.index) || false;
+        hullEntryPadWasDown.set(pad.index, down);
+        if (down && !wasDown) pressed = true;
+      }
+      for (const index of [...hullEntryPadWasDown.keys()]) {
+        if (!pads.some((pad) => pad && pad.connected && pad.index === index)) hullEntryPadWasDown.delete(index);
+      }
+      if (!pressed || state.mode === "map" || state.mode === "tube" || state.mode === "result" ||
+          state.ringPlatformer || state.ringTransitionActive || state.hullOpen ||
+          document.getElementById("bcm-hull-dive") ||
+          document.getElementById("bcm-ring-platformer") ||
+          document.getElementById("bcm-ring-transition")) return;
+      const towerRoot = document.querySelector(".bcm-tower");
+      if (towerRoot && !towerRoot.hidden) return;
+      openHullInterior();
+    };
+
+    function openRingPlatformer(maze, afterTransition = false) {
+      if (!maze || !maze.active || state.ringPlatformer || state.hullOpen || state.mode !== "maze") return false;
+      // Disarm at the first approach (including the transition clip). Escape must
+      // not instantly retrigger the Ring while the ship is still at the beacon.
+      state.ringApproachArmed = false;
+      const engine = api();
+      const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
+      if (!runtime?.ship || !runtime.THREE || !runtime.scene) return false;
+      if (!afterTransition) {
+        const transitionSource = findRingTransitionVideoSource();
+        if (transitionSource) return playRingTransition(maze, transitionSource, engine);
+      }
+
+      startRingAudio();
+      state.ringPlatformer = true;
+      hullEnterButton.hidden = true;
+      if (engine.pauseForWarp) engine.pauseForWarp(true);
+
+      const THREE = runtime.THREE;
+      const scene = runtime.scene;
       const seed = Number(maze.seed) || 0;
 
       const root2d = document.createElement("div");
@@ -1089,7 +1540,7 @@
       const touchInputs = [{}, {}];
       const padInputs = [{}, {}];
       const previousPad = [{}, {}];
-      const oneShotActions = new Set(["attack", "dash"]);
+      const oneShotActions = new Set(["turnUp", "turnDown", "floorUp", "floorDown"]);
       const worldSaved = {
         oldMazeVisible: maze.group ? maze.group.visible : true,
         oldShipVisible: runtime.ship.visual ? runtime.ship.visual.visible : true,
@@ -1103,50 +1554,35 @@
         mapHeight = Math.max(1, rect.height);
         canvas.width = Math.round(mapWidth * pixelRatio);
         canvas.height = Math.round(mapHeight * pixelRatio);
-        width = Math.max(1, root2d.clientWidth);
-        height = Math.max(1, root2d.clientHeight);
-        updateSplitState();
       }
 
       function buildRingWorld() {
         const world = new THREE.Group();
         world.name = "bcm-ring-frontier-side-scroll";
-        const buckets = { floor: [], platforms: [], backdrop: [], trim: [], barriers: [] };
+        const buckets = { floor: [], platforms: [], backdrop: [], trim: [] };
         const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
         const materials = [
           new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0.22 }),
           new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.35, emissive: 0x06121b }),
           new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0.04, emissive: 0x030a13 }),
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45, metalness: 0.45, emissive: 0x0b2630 }),
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, metalness: 0.35, emissive: 0x16363f })
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45, metalness: 0.45, emissive: 0x0b2630 })
         ];
-        const floorMat = materials[0];
-        const platformMat = materials[1];
-        const backdropMat = materials[2];
-        const trimMat = materials[3];
-        const barrierMat = materials[4];
         function addBox(bucket, x, y, z, sx, sy, sz, color) {
           buckets[bucket].push({ x, y, z, sx, sy, sz, color: color || 0x28414d });
         }
         const platforms = [];
         function addPlatform(x1, x2, topY, color) {
-          const length = x2 - x1;
           addBox(topY === 0 ? "floor" : "platforms", (x1 + x2) / 2, topY - 0.18, 0,
-            length, 0.36, 3.8, color || (topY === 0 ? 0x182b38 : 0x486b7d));
+            x2 - x1, 0.36, 3.8, color || (topY === 0 ? 0x182b38 : 0x486b7d));
           platforms.push({ minX: x1, maxX: x2, y: topY });
         }
         addPlatform(-51, 84, 0, 0x142936);
-
-        // Three broad locations, not a room/cell graph. The ledges are hand-authored
-        // for readable jumps and are independent of the ship's asteroid maze.
         [
           [-39, -33, 2.2], [-31, -26, 4.25], [-24, -19, 2.3], [-16, -9, 3.75],
           [1, 6, 2.1], [8, 13, 4.1], [15, 21, 2.35], [24, 31, 4.0],
           [39, 45, 2.15], [47, 52, 4.35], [55, 61, 2.5], [64, 71, 4.0]
-        ].forEach((ledge, i) => {
-          const colors = [0x456b7b, 0x607786, 0x485f7c];
-          addPlatform(ledge[0], ledge[1], ledge[2], colors[i % colors.length]);
-        });
+        ].forEach((ledge, i) => addPlatform(ledge[0], ledge[1], ledge[2],
+          [0x456b7b, 0x607786, 0x485f7c][i % 3]));
 
         const zones = [
           { x1: -50, x2: -2, center: -26, color: 0x0a2639, trim: 0x37c5e7 },
@@ -1155,7 +1591,6 @@
         ];
         zones.forEach((zone, index) => {
           addBox("backdrop", zone.center, 4.9, -4.1, zone.x2 - zone.x1, 11.2, 0.6, zone.color);
-          // Large sci-fi ribs and window columns give each zone a distinct silhouette.
           for (let x = zone.x1 + 3.2; x < zone.x2; x += 6.4) {
             addBox("trim", x, 4.0, -2.8, 0.24, 8.1, 0.24, zone.trim);
             addBox("trim", x + 1.25, 7.6, -2.7, 2.4, 0.14, 0.18, zone.trim);
@@ -1171,16 +1606,13 @@
         ].forEach((item) => {
           const barrierGroup = new THREE.Group();
           barrierGroup.position.set(item.x, 3.3, 0.15);
-          const mesh = new THREE.Mesh(
-            new THREE.BoxGeometry(0.32, 6.6, 0.45),
-            new THREE.MeshStandardMaterial({
-              color: item.color, emissive: item.color, emissiveIntensity: 1.1,
-              transparent: true, opacity: 0.72, roughness: 0.24, metalness: 0.28
-            })
-          );
-          barrierGroup.add(mesh);
+          const material = new THREE.MeshStandardMaterial({
+            color: item.color, emissive: item.color, emissiveIntensity: 1.1,
+            transparent: true, opacity: 0.72, roughness: 0.24, metalness: 0.28
+          });
+          barrierGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.32, 6.6, 0.45), material));
           world.add(barrierGroup);
-          materials.push(mesh.material);
+          materials.push(material);
           barriers.push({ x: item.x, unlockAfter: item.unlockAfter, group: barrierGroup });
         });
 
@@ -1226,12 +1658,7 @@
           ring.scale.set(1.18 + index * 0.12, 1.18 + index * 0.12, 1);
           group.add(ring);
           world.add(group);
-          boss.group = group;
-          boss.hp = boss.maxHp;
-          boss.alive = true;
-          boss.activated = false;
-          boss.nextAttackAt = 0;
-          boss.lastDamageAt = 0;
+          Object.assign(boss, { group, hp: boss.maxHp, alive: true, activated: false, nextAttackAt: 0, lastDamageAt: 0 });
         });
 
         const exitMarker = new THREE.Mesh(exitGeometry, exitMaterial);
@@ -1265,12 +1692,11 @@
           }
           mesh.instanceMatrix.needsUpdate = true;
           world.add(mesh);
-          return mesh;
         };
-        meshBatch("ring-frontier-floor", buckets.floor, floorMat);
-        meshBatch("ring-frontier-platforms", buckets.platforms, platformMat);
-        meshBatch("ring-frontier-backdrop", buckets.backdrop, backdropMat);
-        meshBatch("ring-frontier-ribs", buckets.trim, trimMat);
+        meshBatch("ring-frontier-floor", buckets.floor, materials[0]);
+        meshBatch("ring-frontier-platforms", buckets.platforms, materials[1]);
+        meshBatch("ring-frontier-backdrop", buckets.backdrop, materials[2]);
+        meshBatch("ring-frontier-ribs", buckets.trim, materials[3]);
         scene.add(world);
 
         return {
@@ -1283,7 +1709,7 @@
       }
 
       function updateRoomSlice() {
-        // The side-scrolling frontier is a continuous scene; no maze-room slicing is used.
+        // Continuous side-scrolling locations do not slice the asteroid maze into rooms.
       }
 
       maze.group.visible = false;
@@ -1297,6 +1723,7 @@
       const cameraOne = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
       const cameraTwo = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
       const cameraFocus = { x: worldState.spawnX, y: 1.6, z: 0 };
+
       const savedPlayerVisualState = [];
       let width = 1, height = 1;
 
@@ -1471,9 +1898,7 @@
           ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
           Space: "jump", ArrowUp: "jump", KeyW: "jump"
         };
-        const p2 = {
-          KeyJ: "left", KeyL: "right", KeyP: "jump"
-        };
+        const p2 = { KeyJ: "left", KeyL: "right", KeyP: "jump" };
         let index = 0;
         let action = p1[event.code] || null;
         if (!action && mode === "multi") {
@@ -1549,7 +1974,8 @@
         const living = players.filter(Boolean);
         worldState.bosses.forEach((boss) => {
           if (!boss.alive) return;
-          if (boss.group.children[2]) boss.group.children[2].rotation.z += dt * 0.8;
+          const ring = boss.group.children[3];
+          if (ring) ring.rotation.z += dt * 0.8;
           const target = living.reduce((best, player) =>
             !best || Math.abs(player.worldX - boss.x) < Math.abs(best.worldX - boss.x) ? player : best, null);
           if (!target || Math.abs(target.worldX - boss.x) > 14) return;
@@ -1695,7 +2121,6 @@
           if (!core.taken) core.mesh.rotation.y += dt * (1.0 + index * 0.2);
         });
         worldState.exitMarker.rotation.z += dt * 0.42;
-
         if (worldState.defeatedBosses >= 3 && players.some((player) => player.worldX >= worldState.exitX - 1.3)) {
           finishRingPlatformer(maze, true);
           return;
@@ -1859,9 +2284,7 @@
         players = [createPlayer(0, spawn1)];
         if (spawn2) players.push(createPlayer(1, spawn2));
         updateSplitState();
-        updateHud(mode === "multi"
-          ? "MULTI · ИССЛЕДУЙТЕ ЗОНЫ ВМЕСТЕ"
-          : "SINGLE · ДОБЕРИСЬ ДО ПЕРВОЙ АРЕНЫ");
+        updateHud(mode === "multi" ? "MULTI · ИССЛЕДУЙТЕ ЗОНЫ ВМЕСТЕ" : "SINGLE · ДОБЕРИСЬ ДО ПЕРВОЙ АРЕНЫ");
         resize2d();
         root2d.focus({ preventScroll: true });
       }
@@ -1983,8 +2406,8 @@
       if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
       syncHullButtonVisibility();
       setMazeStatus(success
-        ? "RING FRONTIER COMPLETE · BACK IN THE ASTEROID FIELD"
-        : "RING FRONTIER PAUSED · BACK IN THE ASTEROID FIELD");
+        ? "2D IN 3D · ROUTE COMPLETE · BACK IN THE ASTEROID MAZE"
+        : "BACK IN THE ASTEROID MAZE · RING RUN PAUSED");
       return true;
     }
 
