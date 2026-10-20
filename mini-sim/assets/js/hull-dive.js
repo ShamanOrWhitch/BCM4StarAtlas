@@ -82,7 +82,7 @@
       '<span data-hull-flight>ТЯГА 0% · КУРС 0°</span>' +
       '<span data-hull-crew>CREW</span>' +
       '<span data-hull-hint style="opacity:.9">P1 WASD · P2 стрелки · 1 геймпад = P2 · 2 = оба Crew · мышь/палец: тащи Crew, удерживай воду для насоса, шов для ремонта</span></div>' +
-      '<style>#bcm-hull-dive [data-hull-controls] button{touch-action:none;min-height:38px;min-width:38px;padding:5px 9px;border:1px solid #46667b;border-radius:8px;background:rgba(16,32,44,.94);color:#e7eef2;font-weight:700}#bcm-hull-dive [data-hull-controls] button.is-active{background:#294b60;border-color:#7bd9ee}#bcm-hull-dive canvas{display:block;width:100%;height:100%}@media(max-width:620px){#bcm-hull-dive [data-hull-controls] button{font-size:10px;padding:4px 6px;min-height:34px;min-width:34px}}@media(min-width:1000px){#bcm-hull-dive [data-hull-controls]{left:50%;right:auto;transform:translateX(-50%);width:min(800px,94vw)}}</style>';
+      '<style>#bcm-hull-dive [data-hull-controls] button{touch-action:none;min-height:38px;min-width:38px;padding:5px 9px;border:1px solid #46667b;border-radius:8px;background:rgba(16,32,44,.94);color:#e7eef2;font-weight:700}#bcm-hull-dive [data-hull-controls] button.is-active{background:#294b60;border-color:#7bd9ee}#bcm-hull-dive canvas{display:block;width:100%;height:100%;touch-action:none}@media(max-width:620px){#bcm-hull-dive [data-hull-controls] button{font-size:10px;padding:4px 6px;min-height:34px;min-width:34px}}@media(min-width:1000px){#bcm-hull-dive [data-hull-controls]{left:50%;right:auto;transform:translateX(-50%);width:min(800px,94vw)}}</style>';
     document.body.appendChild(root);
 
     const view = root.querySelector("[data-hull-view]");
@@ -901,14 +901,6 @@
       ["pointerup", "pointercancel", "lostpointercapture"].forEach((name) => {
         canvas.addEventListener(name, endPointerAction);
       });
-      if (typeof window.PointerEvent !== "function") {
-        canvas.addEventListener("touchstart", (event) => {
-          const touch = event.changedTouches && event.changedTouches[0];
-          if (touch && renderer) canvas.dispatchEvent(new PointerEvent("pointerdown", {
-            clientX: touch.clientX, clientY: touch.clientY, button: 0, pointerId: 1, bubbles: true
-          }));
-        }, { passive: false });
-      }
     }
 
     function fireWeapon(player) {
