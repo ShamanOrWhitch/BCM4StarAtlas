@@ -4389,6 +4389,10 @@
         if (!externalHud) setStatus("WARP MODULE ERROR · " + (err && err.message ? err.message : "frame"));
       }
     }
+    if (typeof window.BCMDeepSpaceWarpPoll === "function") {
+      try { window.BCMDeepSpaceWarpPoll({ dt, running, paused: externalPause, root }); }
+      catch (err) { window.BCMDeepSpaceWarpPoll = null; }
+    }
     // Ring's room view reuses the existing WebGL context (as Tower does), including
     // optional two-viewport split-screen. If it handled this frame, don't draw the
     // ordinary ship camera over its result.
