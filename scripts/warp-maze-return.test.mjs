@@ -17,19 +17,23 @@ function section(source, startMarker, endMarker) {
   return source.slice(start, end);
 }
 
-test("asteroid exit and return beacon both return to the Warp map", () => {
+test("asteroid exit returns to Warp, Ring stays separate and Hull Dive is enterable in first-person", () => {
   assert.match(warp, /exitButton\.textContent = "RETURN TO WARP MAP"/);
   assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
   assert.match(warp, /maze\.count === 3 \? "GOLD RING IS OPEN"/);
   assert.match(warp, /if \(!state\.ringPlatformer && !maze\.ringCompleted && ringDistance < 2\.6\)\s*\{\s*openRingPlatformer\(maze\)/);
-  const ring = section(warp, "function updateMazeFrame(frame)", "function setMazeStatus");
-  assert.match(ring, /ship\.quaternion\.setFromAxisAngle/);
-  assert.match(ring, /ship\.angularVelocity\) ship\.angularVelocity\.set\(0, 0, 0\)/);
-  assert.match(ring, /state\.ringDistance = approachDistance/);
-  assert.match(ring, /function openHullAtRing\(\)/);
+  const mazeFrame = section(warp, "function updateMazeFrame(frame)", "function openHullInterior");
+  assert.match(mazeFrame, /const ringDistance = pos\.distanceTo\(maze\.beacon\.position\)/);
+  assert.match(mazeFrame, /state\.ringDistance = ringDistance/);
+  assert.match(warp, /function openHullInterior\(\)/);
+  assert.match(warp, /hullEnterButton\.textContent = "ВНУТРЬ КОРАБЛЯ · U \/ R3"/);
+  assert.match(warp, /hullEnterButton\.addEventListener\("click", \(\) => openHullInterior\(\)\)/);
+  const hull = section(warp, "function openHullInterior()", "function openRingPlatformer");
+  assert.match(hull, /state\.hullOpen = true/);
+  assert.match(hull, /engine\.pauseForWarp\(true\)/);
+  assert.doesNotMatch(hull, /ship\.position\.copy\(maze\.beacon\.position\)/);
   assert.match(warp, /function openRingPlatformer\(maze, afterTransition = false\)/);
   assert.match(warp, /maze\.ringCompleted = success/);
-  assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
 });
 
 test("returning to the sector map keeps Warp active and pauses the ship", () => {
@@ -234,25 +238,30 @@ test("Ring intro plays ringgummy.mp4 and starts ring.mp3 on the first rendered v
   assert.match(warp, /ringTransitionActive: false/);
 });
 
-test("Ring 2D mode reuses the exact seeded maze topology and selected Crew", () => {
+test("Ring is a 2D-in-3D platform maze reusing the same seeded graph, Crew and adaptive cameras", () => {
   const ring = section(warp, "function openRingPlatformer(maze, afterTransition = false)", "function finishRingPlatformer");
   assert.ok(warp.includes("dimensions: { nx: NX, ny: NY, nz: NZ }"));
   assert.ok(warp.includes("startCell: { x: startNode.x, y: startNode.y, z: startNode.z }"));
   assert.ok(warp.includes("exitCell: { x: exitNode.x, y: exitNode.y, z: exitNode.z }"));
   assert.ok(ring.includes("const cellMap = new Map(maze.cells.map"));
-  assert.ok(ring.includes("maze.cells.filter((cell) => cell.y === viewFloor)"));
+  assert.ok(ring.includes("function buildRingWorld()"));
+  assert.ok(ring.includes("new THREE.OrthographicCamera"));
+  assert.ok(ring.includes("window.BCMDeepSpaceWarpRender = renderRingViews"));
   assert.ok(ring.includes("data-ring-single"));
   assert.ok(ring.includes("data-ring-multi"));
   assert.ok(ring.includes("window.BCMMiniCrewSelection?.players"));
-  assert.ok(ring.includes("const p2Map"));
+  assert.ok(ring.includes("makeCrewSpriteTexture"));
+  assert.ok(ring.includes("function triggerTurn(player, direction)"));
+  assert.ok(ring.includes("function triggerFloor(player, direction)"));
+  assert.ok(ring.includes("function updateSplitState()"));
+  assert.ok(ring.includes("function renderRingViews(frameContext)"));
+  assert.ok(ring.includes("function drawMiniMap()"));
   assert.ok(ring.includes("maze.crystals"));
   assert.ok(ring.includes("maze.count >= 3"));
   assert.doesNotMatch(ring, /corePickups|stageWidth|layoutPlatforms/);
   assert.ok(warp.includes("maze.ringCompleted = success"));
   assert.ok(warp.includes("falloff * falloff * 1.8"));
 });
-
-
 test("Ring transition video asset is present in the Mini-Sim merge checkout", async () => {
   const info = await stat(new URL("../mini-sim/assets/ringgummy.mp4", import.meta.url));
   assert.equal(info.isFile(), true);
