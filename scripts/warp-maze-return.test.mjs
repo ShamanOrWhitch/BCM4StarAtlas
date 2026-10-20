@@ -27,7 +27,7 @@ test("asteroid exit and return beacon both return to the Warp map", () => {
   assert.match(ring, /ship\.angularVelocity\) ship\.angularVelocity\.set\(0, 0, 0\)/);
   assert.match(ring, /state\.ringDistance = approachDistance/);
   assert.match(ring, /function openHullAtRing\(\)/);
-  assert.match(ring, /function openRingPlatformer\(maze\)/);
+  assert.match(warp, /function openRingPlatformer\(maze, afterTransition = false\)/);
   assert.match(warp, /maze\.ringCompleted = maze\.ringCoreCount >= 3/);
   assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
 });
@@ -235,7 +235,7 @@ test("Ring intro plays ringgummy.mp4 and starts ring.mp3 on the first rendered v
 });
 
 test("Ring platformer has independent randomized cores, a recoverable exit, and lazy ring.mp3 audio", () => {
-  const ring = section(warp, "function openRingPlatformer(maze)", "function finishRingPlatformer");
+  const ring = section(warp, "function openRingPlatformer(maze, afterTransition = false)", "function finishRingPlatformer");
   assert.match(warp, /candidate === "ring\.mp3"/);
   assert.match(warp, /ringAudio\.preload = "auto"/);
   assert.match(warp, /const ringTrackAvailable = startRingAudio\(\)/);
