@@ -236,6 +236,22 @@
       } catch (e) {}
     }
 
+    // Warp visuals are keyed to the actual Warp Drive slot size, not the ship hull's own size.
+    // Small is the staged Class 2 preview for Opal Jetjet. When the selected ship's Galaxy
+    // metadata is wired in, pass its slots.componentSlots Warp Drive size here.
+    function warpVisualClassForSlotSize(slotSize) {
+      const size = String(slotSize || "").trim().toLowerCase().replace(/[ _]+/g, "-");
+      if (/^(xx-small|x-small|xxs|xs|extra-small)$/.test(size)) return 1;
+      if (/^(small|s)$/.test(size)) return 2;
+      if (/^(medium|m)$/.test(size)) return 3;
+      if (/^(large|x-large|xx-large|capital|class-8|xl|xxl)$/.test(size)) return 4;
+      return 2;
+    }
+
+    function currentWarpDriveSlotSize() {
+      return String(config.warpDriveSlotSize || root.dataset.warpDriveSlotSize || "small").trim();
+    }
+
     window.addEventListener("bcm:game-music-mute", (event) => {
       warpAudio.muted = !!event.detail?.muted;
       if (ringAudio) ringAudio.muted = !!event.detail?.muted;
@@ -270,6 +286,8 @@
       elapsed: 0,
       tubeTravel: 0,
       tubeShimmerTime: 0,
+      warpDriveSlotSize: currentWarpDriveSlotSize(),
+      warpVisualClass: warpVisualClassForSlotSize(currentWarpDriveSlotSize()),
       startedAt: 0,
       shields: 100,
       playerX: 0,
@@ -296,6 +314,15 @@
       touch: { left: false, right: false, up: false, down: false },
       tilt: { enabled: false, bound: false, permissionGranted: false, available: false, filterReady: false, filtered: 0, neutral: 0, calibrating: false, samples: 0, sum: 0, value: 0 }
     };
+
+    // Small public bridge for the later NFT/Galaxy selection integration.
+    // It only changes decorative rendering; route, collision, speed and controls stay untouched.
+    window.BCMDeepSpaceWarpSetDriveSlot = (slotSize) => {
+      state.warpDriveSlotSize = String(slotSize || "").trim();
+      state.warpVisualClass = warpVisualClassForSlotSize(state.warpDriveSlotSize);
+      return state.warpVisualClass;
+    };
+    window.BCMDeepSpaceWarpGetVisualClass = () => state.warpVisualClass;
 
     const hullEnterButton = document.createElement("button");
     hullEnterButton.className = "bcm-warp-hull-enter";
@@ -2888,6 +2915,42 @@ return axialRoll + ahead * 0.12 +
         g.strokeStyle = seam % 3 === 0 ? "rgba(110,239,246,0.78)" : "rgba(110,191,210,0.32)";
         g.lineWidth = seam % 3 === 0 ? 1.5 : 0.8;
         g.stroke();
+      }
+
+      // Class 2 upgrade: flowing race-engine ion rails laid over the existing curved shell.
+      // This is Canvas-only (no new renderer, textures, geometry, or collision surfaces).
+      if (state.warpVisualClass >= 2) {
+        const railCount = 4;
+        const railSpin = state.tubeTravel * 0.012;
+        const railTravel = ((state.tubeTravel * 0.0013) % 1 + 1) % 1;
+        g.save();
+        g.globalCompositeOperation = "lighter";
+        for (let rail = 0; rail < railCount; rail += 1) {
+          const baseAngle = rail * Math.PI * 2 / railCount;
+          g.beginPath();
+          for (let step = 0; step <= 52; step += 1) {
+            const d = 0.045 + (step / 52) * 0.93;
+            const theta = baseAngle + railSpin + d * Math.PI * 4.2 +
+              Math.sin(shimmerTime * 0.24 + d * 8 + rail) * 0.055;
+            const p = point(d, theta, -1.9);
+            if (step === 0) g.moveTo(p.x, p.y);
+            else g.lineTo(p.x, p.y);
+          }
+          g.strokeStyle = rail % 2 === 0 ? "rgba(64,230,255,0.78)" : "rgba(255,181,104,0.68)";
+          g.lineWidth = 1.1 + maxRadius * 0.004;
+          g.lineCap = "round";
+          g.stroke();
+
+          // A short brighter pulse runs along each rail; it is visual-only.
+          const pulseDepth = 0.07 + ((railTravel + rail / railCount) % 1) * 0.88;
+          const pulseAngle = baseAngle + railSpin + pulseDepth * Math.PI * 4.2;
+          const pulse = point(pulseDepth, pulseAngle, -2.7);
+          g.beginPath();
+          g.arc(pulse.x, pulse.y, 1.2 + pulseDepth * 2.2, 0, Math.PI * 2);
+          g.fillStyle = rail % 2 === 0 ? "rgba(167,248,255,0.96)" : "rgba(255,225,172,0.94)";
+          g.fill();
+        }
+        g.restore();
       }
 
       const routeProgress = warpObstacleProgress(state.elapsed);
