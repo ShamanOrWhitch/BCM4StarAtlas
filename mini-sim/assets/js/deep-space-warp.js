@@ -1282,9 +1282,9 @@
       }
       ship.velocity?.set(0, 0, 0);
       ship.angularVelocity?.set(0, 0, 0);
-      if (frame.camera) {
-        frame.camera.position.copy(ship.position);
-        frame.camera.quaternion.copy(ship.quaternion);
+      if (runtime.camera) {
+        runtime.camera.position.copy(ship.position);
+        runtime.camera.quaternion.copy(ship.quaternion);
       }
 
       const old = document.getElementById("bcm-ring-platformer");
@@ -1344,6 +1344,7 @@
       let stopped = false;
       let lastTick = performance.now();
       let statusTimer = 0;
+      let jumpWasDown = false;
 
       function resize2d() {
         const rect = canvas2d.getBoundingClientRect();
@@ -1357,30 +1358,45 @@
         if (player.y === 0) player.y = floorY - player.h;
         return { width, height };
       }
+      resize2d();
 
-      for (let stage = 0; stage < stageCount; stage += 1) {
-        // A broken floor and randomized side ledges form a lightweight,
-        // re-generated platforming maze that remains jump-reachable.
-        platforms.push({ x: stage * stageWidth, y: floorY, w: 222 + rng() * 24, h: 14 });
-        platforms.push({ x: stage * stageWidth + 246, y: floorY, w: 25 + rng() * 12, h: 14 });
-        for (let ledge = 0; ledge < 2; ledge += 1) {
-          platforms.push({
-            x: stage * stageWidth + 38 + rng() * 145,
-            y: floorY - (42 + rng() * Math.min(68, Math.max(42, height * 0.16))),
-            w: 72 + rng() * 66,
-            h: 12
-          });
-        }
-      }
       const corePickups = maze.crystals.map((crystal, index) => {
         const cell = crystal.cell || { x: index * 2, y: index % 3, z: index * 2 };
         const stage = Math.max(0, Math.min(stageCount - 1, Number(cell.z) || 0));
         const x = stage * stageWidth + 36 + Math.max(0, Math.min(6, Number(cell.x) || 0)) / 6 * 220;
         const y = floorY - (58 + Math.max(0, Math.min(2, Number(cell.y) || 0)) * 45 + rng() * 12);
-        // Guarantee a jumpable ledge below each shard at the corresponding maze location.
-        platforms.push({ x: Math.max(stage * stageWidth + 12, x - 42), y: y + 24, w: 84, h: 11 });
         return { crystal, x, y, phase: rng() * Math.PI * 2, index };
       });
+      function layoutPlatforms() {
+        platforms.length = 0;
+        for (let stage = 0; stage < stageCount; stage += 1) {
+          // A broken floor and randomized side ledges form a lightweight,
+          // re-generated platforming maze that remains jump-reachable.
+          platforms.push({ x: stage * stageWidth, y: floorY, w: 222 + rng() * 24, h: 14 });
+          if (stage < stageCount - 1) {
+            platforms.push({ x: stage * stageWidth + 246, y: floorY, w: 25 + rng() * 12, h: 14 });
+          } else {
+            // Keep the final exit walkway continuous and reachable after the third shard.
+            platforms.push({ x: stage * stageWidth + 220, y: floorY, w: worldWidth - (stage * stageWidth + 220), h: 14 });
+          }
+          for (let ledge = 0; ledge < 2; ledge += 1) {
+            platforms.push({
+              x: stage * stageWidth + 38 + rng() * 145,
+              y: floorY - (42 + rng() * Math.min(68, Math.max(42, height * 0.16))),
+              w: 72 + rng() * 66,
+              h: 12
+            });
+          }
+        }
+        corePickups.forEach((pickup) => {
+          const cell = pickup.crystal.cell || { x: pickup.index * 2, y: pickup.index % 3, z: pickup.index * 2 };
+          const stage = Math.max(0, Math.min(stageCount - 1, Number(cell.z) || 0));
+          pickup.x = stage * stageWidth + 36 + Math.max(0, Math.min(6, Number(cell.x) || 0)) / 6 * 220;
+          pickup.y = floorY - (58 + Math.max(0, Math.min(2, Number(cell.y) || 0)) * 45 + rng() * 12);
+          platforms.push({ x: Math.max(stage * stageWidth + 12, pickup.x - 42), y: pickup.y + 24, w: 84, h: 11 });
+        });
+      }
+      layoutPlatforms();
       const exitX = worldWidth - 34;
 
       // Default ring soundtrack starts only for this side-scrolling level.
@@ -1401,6 +1417,12 @@
 
       function onPlatformKey(event) {
         const down = event.type === "keydown";
+        if (event.code === "KeyU" && down && !event.repeat && maze.count >= maze.crystals.length) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          finishRingPlatformer(maze);
+          return;
+        }
         if (["ArrowLeft", "KeyA"].includes(event.code)) held.left = down;
         else if (["ArrowRight", "KeyD"].includes(event.code)) held.right = down;
         else if (["Space", "ArrowUp", "KeyW"].includes(event.code)) {
@@ -1431,8 +1453,11 @@
       window.addEventListener("keydown", onPlatformKey, true);
       window.addEventListener("keyup", onPlatformKey, true);
       window.addEventListener("blur", onBlur);
-      window.addEventListener("resize", resize2d);
-      resize2d();
+      window.addEventListener("resize", () => {
+        resize2d();
+        layoutPlatforms();
+        player.y = Math.min(player.y, floorY - player.h);
+      });
       player.y = floorY - player.h;
       player.checkpoint = player.x;
 
@@ -1460,12 +1485,12 @@
         const direction = Math.max(-1, Math.min(1,
           (held.right ? 1 : 0) - (held.left ? 1 : 0) + pad.x));
         player.vx = direction * (held.left || held.right || Math.abs(pad.x) > 0.18 ? 255 : 0);
-        if (held.jump || pad.jump) {
-          if (player.grounded) {
-            player.vy = -420;
-            player.grounded = false;
-          }
+        const jumpDown = !!(held.jump || pad.jump);
+        if (jumpDown && !jumpWasDown && player.grounded) {
+          player.vy = -420;
+          player.grounded = false;
         }
+        jumpWasDown = jumpDown;
         player.vy = Math.min(620, player.vy + 1060 * dt);
         const previousBottom = player.y + player.h;
         player.x = Math.max(0, Math.min(worldWidth - player.w, player.x + player.vx * dt));
