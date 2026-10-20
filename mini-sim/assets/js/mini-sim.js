@@ -4383,16 +4383,33 @@
     // It receives the existing r128 runtime; no second WebGL context is created.
     if (typeof window.BCMDeepSpaceWarpFrame === "function") {
       try {
-        window.BCMDeepSpaceWarpFrame({ dt, running, paused: externalPause, scene, camera, ship, THREE: window.THREE, root });
+        window.BCMDeepSpaceWarpFrame({ dt, running, paused: externalPause, scene, camera, ship, THREE: window.THREE, root, renderer });
       } catch (err) {
         window.BCMDeepSpaceWarpFrame = null;
         if (!externalHud) setStatus("WARP MODULE ERROR · " + (err && err.message ? err.message : "frame"));
       }
     }
-    // The 2D Warp overlay replaces the visible scene during map/Tube, so stop drawing
-    // the hidden WebGL frame there; keep the same renderer alive and resume it in the maze.
+    // Ring's room view reuses the existing WebGL context (as Tower does), including
+    // optional two-viewport split-screen. If it handled this frame, don't draw the
+    // ordinary ship camera over its result.
+    let deepSpaceCustomRendered = false;
+    if (typeof window.BCMDeepSpaceWarpRender === "function") {
+      try {
+        deepSpaceCustomRendered = window.BCMDeepSpaceWarpRender({
+          dt, running, paused: externalPause, scene, camera, ship,
+          THREE: window.THREE, root, renderer
+        }) === true;
+      } catch (err) {
+        window.BCMDeepSpaceWarpRender = null;
+        if (!externalHud) setStatus("RING RENDER ERROR · " + (err && err.message ? err.message : "frame"));
+      }
+    }
+    // The Warp map/Tube overlays hide the scene. Ring handles its own views through
+    // the same renderer; all other states keep the ordinary single-camera render.
     const showUnderlyingScene = !externalPause || root.classList.contains("bcm-warp-maze-active");
-    if (renderer && scene && camera && showUnderlyingScene) renderer.render(scene, camera);
+    if (!deepSpaceCustomRendered && renderer && scene && camera && showUnderlyingScene) {
+      renderer.render(scene, camera);
+    }
     requestAnimationFrame(render);
   }
 
