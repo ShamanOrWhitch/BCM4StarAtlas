@@ -1567,6 +1567,8 @@
           new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0.04, emissive: 0x030a13 }),
           new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45, metalness: 0.45, emissive: 0x0b2630 })
         ];
+        const worldTextures = [];
+        const extraGeometries = [];
         function addBox(bucket, x, y, z, sx, sy, sz, color) {
           buckets[bucket].push({ x, y, z, sx, sy, sz, color: color || 0x28414d });
         }
@@ -2394,6 +2396,14 @@
       function configureCamera(camera, viewport, center) {
         const aspect = Math.max(0.3, viewport.w / Math.max(1, viewport.h));
         const halfHeight = viewport.h > viewport.w ? 7.1 : 5.4;
+        // The painted zone backgrounds drift more slowly than the action plane.
+        // Apply per view so local split-screen cameras each get the same parallax illusion.
+        const worldState = state.ringRenderState && state.ringRenderState.worldState;
+        if (worldState && Array.isArray(worldState.parallaxPanels)) {
+          worldState.parallaxPanels.forEach((layer) => {
+            layer.mesh.position.x = layer.baseX + center.x * (1 - layer.factor);
+          });
+        }
         camera.left = -halfHeight * aspect;
         camera.right = halfHeight * aspect;
         camera.top = halfHeight;
