@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.63";
+  const TOWER_VERSION = "0.2.64";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
