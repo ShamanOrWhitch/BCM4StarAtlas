@@ -116,11 +116,11 @@ test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, amm
   assert.match(hull, /const maxAmmo = 6/);
   assert.match(hull, /reloadProgress\[index\] >= 1\.05/);
   assert.match(hull, /window\.caches\.open\("bcm-tower-crew-cutouts-v8"\)/);
-  assert.match(hull, /function readGamepad\(\)/);
+  assert.match(hull, /function readAssignedGamepads\(\)/);\n  assert.match(hull, /function readGamepad\(gp\)/);
   assert.match(hull, /navigator\.getGamepads/);
-  assert.match(hull, /shoot: !!\(keys\.space \|\| pad\.shoot\)/);
-  assert.match(hull, /repair: !!keys\.period/);
-  assert.match(hull, /pump: !!keys\.shift/);
+  assert.match(hull, /shoot: !!keys\.space/);
+  assert.match(hull, /repair: !!\(keys\.period \|\| pad\.repair\)/);
+  assert.match(hull, /pump: !!\(keys\.shift \|\| pad\.pump\)/);
   assert.match(hull, /submergedRooms/);
   assert.match(hull, /const repairers = nearBreach\.reduce/);
   assert.match(hull, /let pilotMode = false/);
