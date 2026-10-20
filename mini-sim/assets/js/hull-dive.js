@@ -832,6 +832,83 @@
         renderer.render(scene, camera);
       };
       root._paint = paint;
+
+      // One pointer path covers mouse, touchpad and finger. Crew can be dragged;
+      // holding on a flooded compartment pumps it, while holding the central seam repairs.
+      const canvas = renderer.domElement;
+      const pointerWorld = (event) => {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (event.clientX - rect.left) / Math.max(1, rect.width) * 16 - 8,
+          y: 4.5 - (event.clientY - rect.top) / Math.max(1, rect.height) * 9
+        };
+      };
+      const endPointerAction = (event) => {
+        if (!pointerInteraction || (event && event.pointerId != null && event.pointerId !== pointerInteraction.pointerId)) return;
+        pointerInteraction = null;
+      };
+      canvas.addEventListener("pointerdown", (event) => {
+        if (closed || event.button !== 0) return;
+        const point = pointerWorld(event);
+        const crewIndex = players.findIndex((player) =>
+          Math.abs(point.x - player.x) < 0.48 &&
+          point.y >= player.y - 0.58 && point.y <= player.y + 0.9
+        );
+        let action = "";
+        let roomIndex = roomAt(point.x);
+        if (crewIndex >= 0) {
+          action = "drag";
+        } else {
+          const surface = floor + Math.max(0.04, water[roomIndex] * 3.15);
+          if (water[roomIndex] > 0.015 &&
+              point.y >= floor - 0.08 && point.y <= surface + 0.24) {
+            action = "pump";
+          } else if (Math.abs(point.x) < 0.8 &&
+                     point.y >= floor - 0.2 && point.y <= floor + 0.95) {
+            action = "repair";
+          }
+        }
+        if (!action) return;
+        event.preventDefault();
+        pointerInteraction = {
+          pointerId: event.pointerId,
+          action,
+          playerIndex: crewIndex,
+          roomIndex,
+          blockedNotice: false
+        };
+        try { canvas.setPointerCapture(event.pointerId); } catch (e) {}
+        if (action === "drag") {
+          players[crewIndex].x = Math.max(-6, Math.min(6, point.x));
+          players[crewIndex].y = Math.max(floor + 0.3, Math.min(ceil - 0.2, point.y));
+        }
+      });
+      canvas.addEventListener("pointermove", (event) => {
+        if (!pointerInteraction || event.pointerId !== pointerInteraction.pointerId) return;
+        const point = pointerWorld(event);
+        if (pointerInteraction.action === "drag") {
+          const player = players[pointerInteraction.playerIndex];
+          if (!player) return;
+          player.x = Math.max(-6, Math.min(6, point.x));
+          player.y = Math.max(floor + 0.3, Math.min(ceil - 0.2, point.y));
+          if (player.sprite) player.sprite.position.set(player.x, player.y + 0.16, 0.82 + pointerInteraction.playerIndex * 0.015);
+        } else if (pointerInteraction.action === "pump") {
+          const roomIndex = roomAt(point.x);
+          const surface = floor + Math.max(0.04, water[roomIndex] * 3.15);
+          if (point.y >= floor - 0.08 && point.y <= surface + 0.24) pointerInteraction.roomIndex = roomIndex;
+        }
+      });
+      ["pointerup", "pointercancel", "lostpointercapture"].forEach((name) => {
+        canvas.addEventListener(name, endPointerAction);
+      });
+      if (typeof window.PointerEvent !== "function") {
+        canvas.addEventListener("touchstart", (event) => {
+          const touch = event.changedTouches && event.changedTouches[0];
+          if (touch && renderer) canvas.dispatchEvent(new PointerEvent("pointerdown", {
+            clientX: touch.clientX, clientY: touch.clientY, button: 0, pointerId: 1, bubbles: true
+          }));
+        }, { passive: false });
+      }
     }
 
     function fireWeapon(player) {
