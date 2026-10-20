@@ -2006,8 +2006,11 @@
       function triggerTurn(player, direction) {
         const now = performance.now();
         if (!gameStarted || done || now < player.turnReadyAt) return false;
-        if (Math.abs(player.localX) > 1.28) {
-          updateHud("ПОВОРОТ · ПОДОЙДИ К ДВЕРНОМУ ТРИГГЕРУ В ЦЕНТРЕ");
+        const triggerOffset = player.orientation === 0
+          ? (direction === "turnUp" ? 0.64 : -0.64)
+          : (direction === "turnUp" ? -0.64 : 0.64);
+        if (Math.abs(player.localX - triggerOffset) > 0.78) {
+          updateHud("ПОВОРОТ · ПОДОЙДИ К СВЕТЯЩЕМУСЯ ТРИГГЕРУ");
           return false;
         }
         const cell = getCell(player.x, player.y, player.z);
