@@ -28,7 +28,7 @@ test("asteroid exit and return beacon both return to the Warp map", () => {
   assert.match(ring, /state\.ringDistance = approachDistance/);
   assert.match(ring, /function openHullAtRing\(\)/);
   assert.match(ring, /function openRingPlatformer\(maze\)/);
-  assert.match(ring, /maze\.ringCompleted = maze\.count >= maze\.crystals\.length/);
+  assert.match(warp, /maze\.ringCompleted = maze\.ringCoreCount >= 3/);
   assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
 });
 
@@ -239,7 +239,7 @@ test("Ring platformer has independent randomized cores, a recoverable exit, and 
 });
 
 test("Tower gamepad polling is suppressed while its root is hidden or Ring/Hull owns input", () => {
-  const poll = section(tower, "function pollGamepads()", "restartButton.addEventListener");
+  const poll = section(tower, "function pollGamepads()", "window.BCMTowerAPI = window.BCMTowerAPI || {}");
   assert.match(poll, /const inputSuppressed = !!root\.hidden/);
   assert.match(poll, /getElementById\("bcm-hull-dive"\)/);
   assert.match(poll, /getElementById\("bcm-ring-platformer"\)/);
