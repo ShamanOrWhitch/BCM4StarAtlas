@@ -1711,6 +1711,30 @@
           color: 0xeac56f, emissive: 0x83531a, emissiveIntensity: 0.8,
           roughness: 0.24, metalness: 0.65
         });
+        // Doorway triggers are physical-looking neon hoops: turn triggers lie in
+        // the room's depth walls, while vertical links remain marked by ladders.
+        const turnTriggerGeometry = new THREE.TorusGeometry(0.72, 0.095, 7, 20);
+        const turnTriggerMaterial = new THREE.MeshStandardMaterial({
+          color: 0x6de7f1, emissive: 0x166b7b, emissiveIntensity: 0.9,
+          roughness: 0.3, metalness: 0.38
+        });
+        const turnTriggers = [];
+        maze.cells.forEach((cell) => {
+          const p = cellWorld(cell);
+          const triggerY = floorYForCell(cell.y) + 1.78;
+          const place = (axis, x, z, yaw) => {
+            const mesh = new THREE.Mesh(turnTriggerGeometry, turnTriggerMaterial);
+            mesh.name = "ring-door-trigger-" + axis + "-" + cell.x + "-" + cell.y + "-" + cell.z;
+            mesh.position.set(x, triggerY, z);
+            if (yaw) mesh.rotation.y = yaw;
+            world.add(mesh);
+            turnTriggers.push({ mesh, cell, axis });
+          };
+          if (cell.open.zn) place("z", p.x, p.z + roomHalf - 0.18, 0);
+          if (cell.open.zp) place("z", p.x, p.z - roomHalf + 0.18, 0);
+          if (cell.open.xp) place("x", p.x + roomHalf - 0.18, p.z, Math.PI / 2);
+          if (cell.open.xn) place("x", p.x - roomHalf + 0.18, p.z, Math.PI / 2);
+        });
         const ringMarker = new THREE.Mesh(ringGeometry, ringMaterial);
         const ringPos = cellWorld(ringCell);
         ringMarker.position.set(ringPos.x, floorYForCell(ringCell.y) + 0.95, ringPos.z);
@@ -1730,9 +1754,9 @@
         return {
           group: world, floorsMesh, ceilingsMesh, wallsX, wallsZ, framesX, framesZ,
           platformsMesh, laddersMesh, platforms, coreMeshes, boxGeometry,
-          materials: [wallMat, floorMat, ceilingMat, frameMat, platformMat, ladderMat, coreMaterial, ringMaterial, exitMarker.material],
-          specialGeometry: [coreGeometry, ringGeometry, exitMarker.geometry],
-          ringMarker, exitMarker
+          materials: [wallMat, floorMat, ceilingMat, frameMat, platformMat, ladderMat, coreMaterial, ringMaterial, turnTriggerMaterial, exitMarker.material],
+          specialGeometry: [coreGeometry, ringGeometry, turnTriggerGeometry, exitMarker.geometry],
+          ringMarker, exitMarker, turnTriggers
         };
       }
 
@@ -1786,6 +1810,10 @@
         }
         worldState.ringMarker.visible = ringCell.y === player.y && ringCell[axis] === lane;
         worldState.exitMarker.visible = exitCell.y === player.y && exitCell[axis] === lane;
+        worldState.turnTriggers.forEach((trigger) => {
+          const matchesViewAxis = player.orientation === 0 ? trigger.axis === "z" : trigger.axis === "x";
+          trigger.mesh.visible = matchesViewAxis && trigger.cell.y === player.y && trigger.cell[axis] === lane;
+        });
       }
 
       maze.group.visible = false;
