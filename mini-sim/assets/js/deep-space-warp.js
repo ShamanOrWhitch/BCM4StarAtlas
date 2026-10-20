@@ -1395,86 +1395,92 @@
       if (!maze || !maze.active || state.ringPlatformer || state.hullOpen || state.mode !== "maze") return false;
       const engine = api();
       const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
-      if (!runtime?.ship || !runtime.THREE) return false;
+      if (!runtime?.ship || !runtime.THREE || !runtime.scene) return false;
       if (!afterTransition) {
         const transitionSource = findRingTransitionVideoSource();
         if (transitionSource) return playRingTransition(maze, transitionSource, engine);
       }
-      // If the video is unavailable or could not play, keep the level usable and
-      // start its own soundtrack here. Normally this is already playing from frame 1.
-      startRingAudio();
 
+      startRingAudio();
       state.ringPlatformer = true;
       hullEnterButton.hidden = true;
       if (engine.pauseForWarp) engine.pauseForWarp(true);
 
+      const THREE = runtime.THREE;
+      const scene = runtime.scene;
       const nx = Math.max(1, Number(maze.dimensions?.nx) || Math.max(...maze.cells.map((c) => c.x)) + 1);
       const ny = Math.max(1, Number(maze.dimensions?.ny) || Math.max(...maze.cells.map((c) => c.y)) + 1);
       const nz = Math.max(1, Number(maze.dimensions?.nz) || Math.max(...maze.cells.map((c) => c.z)) + 1);
       const seed = Number(maze.seed) || 0;
+      const cellSize = Number(maze.cellSize) || 5.4;
+      const wallThickness = 0.24;
+      const doorWidth = 2.5;
+      const doorHeight = 3.35;
+      const roomHalf = cellSize / 2;
+      const floorYForCell = (cellY) => cellWorld({ x: 0, y: cellY, z: 0 }).y - roomHalf + 0.16;
       const cellMap = new Map(maze.cells.map((cell) => [cell.x + ":" + cell.y + ":" + cell.z, cell]));
       const getCell = (x, y, z) => cellMap.get(x + ":" + y + ":" + z) || null;
       const entryCell = maze.startCell || { x: 0, y: 1, z: 0 };
       const ringCell = maze.exitCell || { x: nx - 1, y: Math.min(1, ny - 1), z: nz - 1 };
       const exitCell = { x: entryCell.x, y: entryCell.y, z: entryCell.z };
 
-      const previous = document.getElementById("bcm-ring-platformer");
-      if (previous) previous.remove();
+      function cellWorld(cell) {
+        return {
+          x: maze.center.x + (cell.x - (nx - 1) / 2) * cellSize,
+          y: maze.center.y + (cell.y - (ny - 1) / 2) * cellSize,
+          z: maze.center.z + ((nz - 1) / 2 - cell.z) * cellSize
+        };
+      }
+
       const root2d = document.createElement("div");
       root2d.id = "bcm-ring-platformer";
       root2d.tabIndex = 0;
-      root2d.style.cssText = "position:fixed;inset:0;z-index:1000600;background:#030812;color:#e8f4f8;font:14px system-ui,sans-serif;overflow:hidden;touch-action:manipulation";
+      root2d.style.cssText = "position:fixed;inset:0;z-index:1000600;background:transparent;color:#e8f4f8;font:14px system-ui,sans-serif;overflow:hidden;touch-action:none;pointer-events:none";
       root2d.innerHTML =
-        '<canvas data-ring-canvas aria-label="2D карта того же астероидного лабиринта" style="position:absolute;inset:0;width:100%;height:100%;touch-action:manipulation"></canvas>' +
-        '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;pointer-events:none;z-index:2">' +
-          '<div style="max-width:68%;text-shadow:0 2px 8px #000"><div style="font-size:11px;letter-spacing:.16em;color:#60ddec">RING // 2D ASTEROID MAZE</div>' +
-          '<div data-ring-status style="font-weight:700;margin-top:5px;line-height:1.3">Выбери режим и пройди тот же лабиринт</div>' +
+        '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;pointer-events:none;z-index:3">' +
+          '<div style="max-width:62%;text-shadow:0 2px 8px #000"><div style="font-size:11px;letter-spacing:.16em;color:#60ddec">RING // 2D IN 3D</div>' +
+          '<div data-ring-status style="font-weight:800;margin-top:5px;line-height:1.3">Выбери режим</div>' +
           '<div data-ring-floor style="margin-top:5px;color:#b8cbd6;font-size:12px"></div></div>' +
-          '<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:auto">' +
-            '<div data-ring-count style="padding:6px 9px;background:rgba(7,22,34,.88);border:1px solid #25485b;border-radius:8px;color:#d9f8ff;white-space:nowrap">ЯДРА 0/3</div>' +
-            '<button type="button" data-ring-exit style="min-height:42px;padding:7px 11px;border:1px solid #547083;border-radius:9px;background:#10232d;color:#e8fbff;font-weight:700">К КОРАБЛЮ · Esc</button>' +
+          '<div style="display:flex;flex-direction:column;gap:7px;align-items:flex-end;pointer-events:auto">' +
+            '<div data-ring-count style="padding:6px 9px;background:rgba(7,22,34,.94);border:1px solid #25485b;border-radius:8px;color:#d9f8ff;white-space:nowrap">ЯДРА 0/3</div>' +
+            '<button type="button" data-ring-exit style="min-height:42px;padding:7px 11px;border:1px solid #547083;border-radius:9px;background:rgba(16,35,45,.96);color:#e8fbff;font-weight:800">В КОРАБЛЬ · Esc</button>' +
           '</div>' +
         '</div>' +
-        '<div style="position:absolute;left:0;right:0;bottom:8px;display:flex;justify-content:center;align-items:flex-end;gap:9px;z-index:2;pointer-events:none">' +
-          '<div style="display:grid;grid-template-columns:repeat(3,42px);grid-template-rows:repeat(2,40px);gap:4px;pointer-events:auto">' +
-            '<span></span><button type="button" data-ring-move="up" aria-label="Вперёд" style="grid-column:2;grid-row:1;min-height:40px">▲</button><span></span>' +
-            '<button type="button" data-ring-move="left" aria-label="Влево" style="min-height:40px">◀</button><button type="button" data-ring-move="down" aria-label="Назад" style="min-height:40px">▼</button><button type="button" data-ring-move="right" aria-label="Вправо" style="min-height:40px">▶</button>' +
+        '<canvas data-ring-canvas aria-label="Карта текущего лабиринта" style="position:absolute;right:12px;top:100px;width:min(34vw,240px);height:min(30vh,190px);min-width:124px;min-height:116px;border:1px solid rgba(88,173,198,.55);border-radius:10px;background:rgba(3,10,18,.83);z-index:2;pointer-events:none"></canvas>' +
+        '<div data-ring-split-divider hidden style="position:absolute;inset:0;z-index:1;pointer-events:none;border:0"></div>' +
+        '<div style="position:absolute;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:flex-end;gap:12px;z-index:4;pointer-events:none">' +
+          '<div style="display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(2,42px);gap:4px;pointer-events:auto">' +
+            '<span></span><button type="button" data-ring-action="turnUp" aria-label="Повернуть вглубь" style="grid-column:2;grid-row:1;min-height:42px">▲</button><span></span>' +
+            '<button type="button" data-ring-action="left" aria-label="Влево" style="min-height:42px">◀</button><button type="button" data-ring-action="jump" aria-label="Прыжок" style="min-height:42px">↑</button><button type="button" data-ring-action="right" aria-label="Вправо" style="min-height:42px">▶</button>' +
+            '<button type="button" data-ring-action="turnDown" aria-label="Повернуть назад" style="grid-column:2;grid-row:3;min-height:38px">▼</button>' +
           '</div>' +
-          '<div style="display:flex;flex-direction:column;gap:4px;pointer-events:auto">' +
-            '<button type="button" data-ring-move="floorUp" style="min-height:38px;padding:5px 9px;font-size:12px">ЭТАЖ +</button>' +
-            '<button type="button" data-ring-move="floorDown" style="min-height:38px;padding:5px 9px;font-size:12px">ЭТАЖ −</button>' +
+          '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;pointer-events:auto">' +
+            '<div style="color:#b9d3df;background:rgba(4,13,23,.82);border:1px solid rgba(76,139,163,.35);border-radius:8px;padding:5px 8px;font-size:11px;text-align:right">ТРИГГЕРЫ · ПОВОРОТЫ · ЛЕСТНИЦЫ</div>' +
+            '<div style="display:flex;gap:5px">' +
+              '<button type="button" data-ring-action="floorUp" style="min-height:38px;padding:5px 9px;font-size:12px">ЭТАЖ +</button>' +
+              '<button type="button" data-ring-action="floorDown" style="min-height:38px;padding:5px 9px;font-size:12px">ЭТАЖ −</button>' +
+            '</div>' +
           '</div>' +
         '</div>' +
-        '<div data-ring-mode-menu style="position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(1,5,12,.76)">' +
-          '<div style="width:min(440px,100%);padding:22px;border:1px solid #37677c;border-radius:16px;background:rgba(6,20,32,.98);box-shadow:0 12px 60px #0009;text-align:center">' +
-            '<div style="font-size:12px;letter-spacing:.18em;color:#60ddec">СОХРАНЁННЫЙ SEED ' + seed + '</div>' +
-            '<div style="font-size:23px;font-weight:800;margin:12px 0 7px">Тот же лабиринт · другой вид</div>' +
-            '<div style="color:#b7cbd6;line-height:1.45;margin-bottom:17px">Та же схема коридоров и те же ядра, что в 3D. Начало — у золотого кольца, цель — вход в лабиринт.</div>' +
+        '<div data-ring-mode-menu style="position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(1,5,12,.74);pointer-events:auto">' +
+          '<div style="width:min(460px,100%);padding:22px;border:1px solid #37677c;border-radius:16px;background:rgba(6,20,32,.97);box-shadow:0 12px 60px #0009;text-align:center">' +
+            '<div style="font-size:12px;letter-spacing:.18em;color:#60ddec">SEED ' + seed + ' · ТОТ ЖЕ ЛАБИРИНТ</div>' +
+            '<div style="font-size:23px;font-weight:900;margin:12px 0 7px">Внутри лабиринта</div>' +
+            '<div style="color:#b7cbd6;line-height:1.45;margin-bottom:17px">2D-управление в трёхмерных комнатах. Двери меняют направление камеры, лестницы ведут на другие этажи. Открой те же коридоры и собери оставшиеся ядра.</div>' +
             '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">' +
-              '<button type="button" data-ring-single style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #69d7ea;border-radius:10px;background:#123c48;color:#e8fbff;font-weight:800">SINGLE</button>' +
-              '<button type="button" data-ring-multi style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #bb9a57;border-radius:10px;background:#3b301b;color:#fff0c7;font-weight:800">MULTI · 2 CREW</button>' +
+              '<button type="button" data-ring-single style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #69d7ea;border-radius:10px;background:#123c48;color:#e8fbff;font-weight:900">SINGLE</button>' +
+              '<button type="button" data-ring-multi style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #bb9a57;border-radius:10px;background:#3b301b;color:#fff0c7;font-weight:900">MULTI · 2 CREW</button>' +
             '</div>' +
           '</div>' +
         '</div>';
+      document.body.appendChild(root2d);
       const canvas = root2d.querySelector("[data-ring-canvas]");
       const g = canvas.getContext("2d");
       const statusEl = root2d.querySelector("[data-ring-status]");
       const countEl = root2d.querySelector("[data-ring-count]");
       const floorEl = root2d.querySelector("[data-ring-floor]");
       const menu = root2d.querySelector("[data-ring-mode-menu]");
-      const styleText = "border:1px solid #426779;border-radius:9px;background:#10232d;color:#e8fbff;font-weight:800;touch-action:manipulation";
-      root2d.querySelectorAll("button").forEach((button) => {
-        if (!button.hasAttribute("data-ring-single") && !button.hasAttribute("data-ring-multi")) {
-          button.style.cssText += ";" + styleText;
-        }
-      });
-      document.body.appendChild(root2d);
-
-      let width = 1, height = 1, pixelRatio = 1, raf = 0, done = false, gameStarted = false;
-      let mode = "single";
-      let players = [];
-      let lastPadMove = [0, 0];
-      let lastHudCount = -1;
+      const splitDivider = root2d.querySelector("[data-ring-split-divider]");
       const playerColors = ["#65dcf0", "#f3c46c"];
       const crewSelection = Array.isArray(window.BCMMiniCrewSelection?.players)
         ? window.BCMMiniCrewSelection.players : [];
@@ -1489,34 +1495,761 @@
         crewImages[index] = img;
       });
 
+      let mapWidth = 1, mapHeight = 1, pixelRatio = 1, raf = 0, done = false, gameStarted = false;
+      let mode = "single";
+      let players = [];
+      let splitActive = false;
+      let frameStamp = 0;
+      let lastHudCount = -1;
+      const keyboardInputs = [{}, {}];
+      const touchInputs = [{}, {}];
+      const padInputs = [{}, {}];
+      const previousPad = [{}, {}];
+      const oneShotActions = new Set(["turnUp", "turnDown", "floorUp", "floorDown"]);
+      const worldSaved = {
+        oldMazeVisible: maze.group ? maze.group.visible : true,
+        oldShipVisible: runtime.ship.visual ? runtime.ship.visual.visible : true,
+        oldBackground: scene.background
+      };
+
       function resize2d() {
-        const rect = root2d.getBoundingClientRect();
+        const rect = canvas.getBoundingClientRect();
         pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
-        width = Math.max(1, rect.width);
-        height = Math.max(1, rect.height);
-        canvas.width = Math.round(width * pixelRatio);
-        canvas.height = Math.round(height * pixelRatio);
+        mapWidth = Math.max(1, rect.width);
+        mapHeight = Math.max(1, rect.height);
+        canvas.width = Math.round(mapWidth * pixelRatio);
+        canvas.height = Math.round(mapHeight * pixelRatio);
       }
 
-      function currentCell(player) {
-        return getCell(player.x, player.y, player.z);
-      }
+      function buildRingWorld() {
+        const world = new THREE.Group();
+        world.name = "bcm-ring-cutaway-world";
+        const buckets = { floor: [], ceiling: [], wallsX: [], wallsZ: [], frames: [], platforms: [], ladders: [] };
+        const platforms = [];
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.72, metalness: 0.32 });
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.82, metalness: 0.2 });
+        const ceilingMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.86, metalness: 0.16 });
+        const frameMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45, metalness: 0.45, emissive: 0x06202a });
+        const platformMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0.34, emissive: 0x07171d });
+        const ladderMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.42, metalness: 0.42, emissive: 0x0a2630 });
+        const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const doorSide = (cellSize - doorWidth) / 2;
+        const headerHeight = (cellSize - doorHeight) / 2;
+        const hatchSize = 1.18;
 
-      function safeSecondSpawn() {
-        const cell = getCell(ringCell.x, ringCell.y, ringCell.z);
-        if (!cell) return { x: ringCell.x, y: ringCell.y, z: ringCell.z };
-        const options = [
-          { flag: "zn", x: 0, y: 0, z: -1 },
-          { flag: "xn", x: -1, y: 0, z: 0 },
-          { flag: "zp", x: 0, y: 0, z: 1 },
-          { flag: "xp", x: 1, y: 0, z: 0 }
-        ];
-        for (const option of options) {
-          if (!cell.open[option.flag]) continue;
-          const x = ringCell.x + option.x, y = ringCell.y + option.y, z = ringCell.z + option.z;
-          if (getCell(x, y, z)) return { x, y, z };
+        function addBox(bucket, x, y, z, sx, sy, sz, color) {
+          buckets[bucket].push({ x, y, z, sx, sy, sz, color: color || 0x28414d });
         }
-        return { x: ringCell.x, y: ringCell.y, z: ringCell.z };
+        function addFrameX(x, y, z, color) {
+          addBox("frames", x, y, z - doorWidth / 2, wallThickness * 0.8, doorHeight, 0.075, color || 0x59d7ea);
+          addBox("frames", x, y, z + doorWidth / 2, wallThickness * 0.8, doorHeight, 0.075, color || 0x59d7ea);
+          addBox("frames", x, y + doorHeight / 2, z, wallThickness * 0.8, 0.075, doorWidth, color || 0x59d7ea);
+        }
+        function addFrameZ(x, y, z, color) {
+          addBox("frames", x - doorWidth / 2, y, z, 0.075, doorHeight, wallThickness * 0.8, color || 0x59d7ea);
+          addBox("frames", x + doorWidth / 2, y, z, 0.075, doorHeight, wallThickness * 0.8, color || 0x59d7ea);
+          addBox("frames", x, y + doorHeight / 2, z, doorWidth, 0.075, wallThickness * 0.8, color || 0x59d7ea);
+        }
+        function addFaceX(xFace, yCenter, zCenter, opening, color) {
+          const baseColor = color || 0x263e4a;
+          if (!opening) {
+            addBox("wallsX", xFace, yCenter, zCenter, wallThickness, cellSize, cellSize, baseColor);
+            return;
+          }
+          addBox("wallsX", xFace, yCenter, zCenter - (doorWidth + cellSize) / 4, wallThickness, cellSize, doorSide, baseColor);
+          addBox("wallsX", xFace, yCenter, zCenter + (doorWidth + cellSize) / 4, wallThickness, cellSize, doorSide, baseColor);
+          addBox("wallsX", xFace, yCenter + (doorHeight + cellSize) / 4, zCenter, wallThickness, headerHeight, doorWidth, baseColor);
+          addFrameX(xFace, yCenter - cellSize / 2 + doorHeight / 2, zCenter, 0x50cce0);
+        }
+        function addFaceZ(xCenter, yCenter, zFace, opening, color) {
+          const baseColor = color || 0x263e4a;
+          if (!opening) {
+            addBox("wallsZ", xCenter, yCenter, zFace, cellSize, cellSize, wallThickness, baseColor);
+            return;
+          }
+          addBox("wallsZ", xCenter - (doorWidth + cellSize) / 4, yCenter, zFace, doorSide, cellSize, wallThickness, baseColor);
+          addBox("wallsZ", xCenter + (doorWidth + cellSize) / 4, yCenter, zFace, doorSide, cellSize, wallThickness, baseColor);
+          addBox("wallsZ", xCenter, yCenter + (doorHeight + cellSize) / 4, zFace, doorWidth, headerHeight, wallThickness, baseColor);
+          addFrameZ(xCenter, yCenter - cellSize / 2 + doorHeight / 2, zFace, 0x50cce0);
+        }
+        function addHatch(bucket, x, y, z, color) {
+          const span = cellSize - wallThickness;
+          const side = (span - hatchSize) / 2;
+          addBox(bucket, x - (hatchSize + span) / 4, y, z, side, wallThickness, span, color);
+          addBox(bucket, x + (hatchSize + span) / 4, y, z, side, wallThickness, span, color);
+          addBox(bucket, x, y, z - (hatchSize + span) / 4, hatchSize, wallThickness, side, color);
+          addBox(bucket, x, y, z + (hatchSize + span) / 4, hatchSize, wallThickness, side, color);
+        }
+
+        maze.cells.forEach((cell) => {
+          const p = cellWorld(cell);
+          const floorY = p.y - roomHalf + wallThickness / 2;
+          const ceilingY = p.y + roomHalf - wallThickness / 2;
+          const floorColor = ((cell.x + cell.z + cell.y) & 1) ? 0x102632 : 0x142d39;
+          addBox("floor", p.x, floorY, p.z, cellSize - wallThickness, wallThickness, cellSize - wallThickness, floorColor);
+          if (cell.open.yp) addHatch("ceiling", p.x, ceilingY, p.z, 0x1a3440);
+          else addBox("ceiling", p.x, ceilingY, p.z, cellSize - wallThickness, wallThickness, cellSize - wallThickness, 0x152a34);
+          if (cell.open.yn) addHatch("floor", p.x, floorY, p.z, floorColor);
+
+          const leftDoor = cell.x < nx - 1 && !!cell.open.xp;
+          addFaceX(p.x + roomHalf, p.y, p.z, leftDoor, 0x263e4a);
+          if (cell.x === 0) addFaceX(p.x - roomHalf, p.y, p.z, false, 0x263e4a);
+
+          // The two map boundaries use the same openings as the 3D asteroid maze:
+          // entrance at the initial cell and the gold Ring at the far exit cell.
+          if (cell.z === 0) {
+            const entranceDoor = cell.x === 0 && cell.y === 1;
+            addFaceZ(p.x, p.y, p.z + roomHalf, entranceDoor, 0x263e4a);
+            if (entranceDoor) addFrameZ(p.x, p.y - roomHalf + doorHeight / 2, p.z + roomHalf, 0xf1c66e);
+          }
+          if (cell.z < nz - 1) {
+            const open = !!cell.open.zp;
+            addFaceZ(p.x, p.y, p.z - roomHalf, open, 0x263e4a);
+          } else {
+            const ringGate = cell.x === nx - 1 && cell.y === 1;
+            addFaceZ(p.x, p.y, p.z - roomHalf, ringGate, 0x263e4a);
+            if (ringGate) addFrameZ(p.x, p.y - roomHalf + doorHeight / 2, p.z - roomHalf, 0xf1c66e);
+          }
+
+          if (cell.open.yp || cell.open.yn) {
+            const ladderX = p.x + 1.55;
+            addBox("ladders", ladderX - 0.35, p.y, p.z, 0.08, cellSize * 0.58, 0.08, 0x69d9e8);
+            addBox("ladders", ladderX + 0.35, p.y, p.z, 0.08, cellSize * 0.58, 0.08, 0x69d9e8);
+            for (let rung = 0; rung < 5; rung += 1) {
+              addBox("ladders", ladderX, p.y - 1.1 + rung * 0.55, p.z, 0.72, 0.07, 0.08, 0xd4b66e);
+            }
+          }
+
+          // Stable seed-derived platforms make the room a small parkour stage without
+          // altering the actual graph links or the existing crystal locations.
+          const roomRng = randomFrom(hashSeed(String(seed) + ":ring-platform:" + cell.x + ":" + cell.y + ":" + cell.z));
+          if (roomRng() < 0.32) {
+            const dx = roomRng() < 0.5 ? -1.18 : 1.18;
+            const dz = roomRng() < 0.5 ? -0.72 : 0.72;
+            const platformHeight = 1.18 + roomRng() * 0.42;
+            addBox("platforms", p.x + dx, floorY + platformHeight - 0.08, p.z + dz, 1.7, 0.16, 1.9, 0x3a626d);
+            platforms.push({
+              x: cell.x, y: cell.y, z: cell.z,
+              worldX: p.x + dx, worldZ: p.z + dz,
+              topHeight: platformHeight,
+              halfX: 0.85, halfZ: 0.95
+            });
+          }
+        });
+
+        const box = new THREE.Object3D();
+        const createBatch = (name, items, material, visible = true) => {
+          if (!items.length) return null;
+          const mesh = new THREE.InstancedMesh(boxGeometry, material, items.length);
+          mesh.name = name;
+          mesh.frustumCulled = false;
+          for (let i = 0; i < items.length; i += 1) {
+            const item = items[i];
+            box.position.set(item.x, item.y, item.z);
+            box.rotation.set(0, 0, 0);
+            box.scale.set(item.sx, item.sy, item.sz);
+            box.updateMatrix();
+            mesh.setMatrixAt(i, box.matrix);
+            if (mesh.setColorAt) mesh.setColorAt(i, new THREE.Color(item.color));
+          }
+          mesh.instanceMatrix.needsUpdate = true;
+          mesh.visible = visible;
+          world.add(mesh);
+          return mesh;
+        };
+        createBatch("ring-room-floors", buckets.floor, floorMat);
+        createBatch("ring-room-ceilings", buckets.ceiling, ceilingMat);
+        const wallsX = createBatch("ring-room-side-walls-x", buckets.wallsX, wallMat);
+        const wallsZ = createBatch("ring-room-side-walls-z", buckets.wallsZ, wallMat);
+        createBatch("ring-room-door-frames", buckets.frames, frameMat);
+        createBatch("ring-room-platforms", buckets.platforms, platformMat);
+        createBatch("ring-room-ladders", buckets.ladders, ladderMat);
+
+        const coreMeshes = [];
+        const coreGeometry = new THREE.OctahedronGeometry(0.42, 0);
+        const coreMaterial = new THREE.MeshStandardMaterial({
+          color: 0x62f0df, emissive: 0x0e6d6b, emissiveIntensity: 0.75,
+          roughness: 0.26, metalness: 0.4
+        });
+        (maze.crystals || []).forEach((crystal, index) => {
+          if (!crystal.cell) { coreMeshes[index] = null; return; }
+          const p = cellWorld(crystal.cell);
+          const mesh = new THREE.Mesh(coreGeometry, coreMaterial);
+          mesh.name = "ring-2d-core-" + index;
+          mesh.position.set(p.x, floorYForCell(crystal.cell.y) + 1.05, p.z);
+          mesh.visible = !crystal.taken;
+          world.add(mesh);
+          coreMeshes[index] = mesh;
+        });
+        const ringGeometry = new THREE.TorusGeometry(0.88, 0.13, 8, 26);
+        const ringMaterial = new THREE.MeshStandardMaterial({
+          color: 0xeac56f, emissive: 0x83531a, emissiveIntensity: 0.8,
+          roughness: 0.24, metalness: 0.65
+        });
+        const ringMarker = new THREE.Mesh(ringGeometry, ringMaterial);
+        const ringPos = cellWorld(ringCell);
+        ringMarker.position.set(ringPos.x, floorYForCell(ringCell.y) + 0.95, ringPos.z);
+        ringMarker.rotation.x = Math.PI / 2;
+        world.add(ringMarker);
+
+        const exitMarker = new THREE.Mesh(
+          new THREE.TorusGeometry(0.7, 0.1, 7, 24),
+          new THREE.MeshStandardMaterial({ color: 0x75e6ed, emissive: 0x1b6b78, emissiveIntensity: 0.9 })
+        );
+        const exitPos = cellWorld(exitCell);
+        exitMarker.position.set(exitPos.x, floorYForCell(exitCell.y) + 0.9, exitPos.z);
+        exitMarker.rotation.x = Math.PI / 2;
+        world.add(exitMarker);
+        scene.add(world);
+
+        return {
+          group: world, wallsX, wallsZ, platforms, coreMeshes, boxGeometry,
+          materials: [wallMat, floorMat, ceilingMat, frameMat, platformMat, ladderMat, coreMaterial, ringMaterial, exitMarker.material],
+          specialGeometry: [coreGeometry, ringGeometry, exitMarker.geometry],
+          ringMarker, exitMarker
+        };
+      }
+
+      const worldState = buildRingWorld();
+      maze.group.visible = false;
+      if (runtime.ship.visual) runtime.ship.visual.visible = false;
+      const oldBackground = scene.background;
+      scene.background = new THREE.Color(0x030812);
+
+      const old = document.getElementById("bcm-ring-platformer-old");
+      if (old) old.remove();
+
+      const cameraOne = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
+      const cameraTwo = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
+      const cameraFocus = cellWorld(ringCell);
+      const savedPlayerVisualState = [];
+      let width = 1, height = 1, done = false, gameStarted = false, splitActive = false;
+      let mode = "single";
+      let players = [];
+      let lastHudCount = -1, raf = 0, frameStamp = 0;
+      const keyboardInputs = [{}, {}];
+      const touchInputs = [{}, {}];
+      const padInputs = [{}, {}];
+      const previousPad = [{}, {}];
+      const oneShotActions = new Set(["turnUp", "turnDown", "floorUp", "floorDown"]);
+      const playerColors = ["#65dcf0", "#f3c46c"];
+
+      const textureLoader = new THREE.TextureLoader();
+      function fallbackCrewTexture(index) {
+        const portrait = document.createElement("canvas");
+        portrait.width = 64; portrait.height = 96;
+        const ctx = portrait.getContext("2d");
+        ctx.fillStyle = playerColors[index]; ctx.beginPath(); ctx.arc(32, 18, 11, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#e8d9bb"; ctx.fillRect(22, 30, 20, 12);
+        ctx.fillStyle = playerColors[index]; ctx.fillRect(16, 39, 32, 32);
+        ctx.fillStyle = "#1a2730"; ctx.fillRect(18, 71, 11, 22); ctx.fillRect(35, 71, 11, 22);
+        return new THREE.CanvasTexture(portrait);
+      }
+
+      function makePlayerSprite(player) {
+        let texture = null;
+        const imageUrl = String(crewSelection[player.index]?.image || "");
+        if (imageUrl && window.BCMTowerAPI?.makeCrewSpriteTexture) {
+          try { texture = window.BCMTowerAPI.makeCrewSpriteTexture(imageUrl); } catch (e) {}
+        }
+        if (!texture && imageUrl) {
+          try { texture = textureLoader.load(imageUrl); } catch (e) {}
+        }
+        if (!texture) texture = fallbackCrewTexture(player.index);
+        if (texture.colorSpace !== undefined && THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
+        const material = new THREE.SpriteMaterial({
+          map: texture, transparent: true, alphaTest: 0.035, depthWrite: false
+        });
+        const sprite = new THREE.Sprite(material);
+        sprite.name = "ring-crew-sprite-" + (player.index + 1);
+        sprite.scale.set(1.18, 1.78, 1);
+        sprite.renderOrder = 8;
+        worldState.group.add(sprite);
+        player.sprite = sprite;
+        player.spriteMaterial = material;
+      }
+
+      function cellPositionOf(player) { return cellWorld({ x: player.x, y: player.y, z: player.z }); }
+      function playerWorldPosition(player) {
+        const p = cellPositionOf(player);
+        const floorY = floorYForCell(player.y);
+        if (player.orientation === 0) {
+          return { x: p.x + player.localX, y: floorY + 0.98 + player.jumpHeight, z: p.z + 0.72 };
+        }
+        return { x: p.x + 0.72, y: floorY + 0.98 + player.jumpHeight, z: p.z - player.localX };
+      }
+      function updatePlayerSprite(player) {
+        if (!player.sprite) return;
+        const p = playerWorldPosition(player);
+        player.sprite.position.set(p.x, p.y, p.z);
+        player.sprite.scale.x = player.facing < 0 ? -1.18 : 1.18;
+        player.sprite.visible = true;
+      }
+
+      function createPlayer(index, spawn) {
+        const crew = crewSelection[index] || {};
+        const player = {
+          index,
+          name: String(crew.name || crew.displayName || ("Crew " + (index + 1))),
+          x: spawn.x, y: spawn.y, z: spawn.z,
+          localX: 0, jumpHeight: 0, vy: 0, grounded: true, supportPlatform: null,
+          orientation: 0, facing: 1, turnReadyAt: 0, lastActionAt: 0,
+          wasJumpDown: false, padTurnUpWasDown: false, padTurnDownWasDown: false,
+          padFloorUpWasDown: false, padFloorDownWasDown: false,
+          image: crewImages[index] || null, tint: playerColors[index], moves: 0,
+          sprite: null, spriteMaterial: null
+        };
+        makePlayerSprite(player);
+        return player;
+      }
+
+      function getInput(player) {
+        const index = player.index;
+        const keys = keyboardInputs[index] || {};
+        const touch = touchInputs[index] || {};
+        const pad = padInputs[index] || {};
+        return {
+          left: !!(keys.left || touch.left || pad.left),
+          right: !!(keys.right || touch.right || pad.right),
+          jump: !!(keys.jump || touch.jump || pad.jump)
+        };
+      }
+
+      function updateHud(message) {
+        countEl.textContent = "ЯДРА " + Math.max(0, maze.count || 0) + "/3";
+        const p1 = players[0];
+        const p2 = players[1];
+        if (p1) {
+          floorEl.textContent = "P1: ЭТАЖ " + (p1.y + 1) +
+            (p2 ? " · P2: ЭТАЖ " + (p2.y + 1) : "") +
+            " · SEED " + seed + (splitActive ? " · SPLIT" : " · SHARED");
+        } else {
+          floorEl.textContent = "ЭТАЖ " + (ringCell.y + 1) + " · SEED " + seed;
+        }
+        if (message) {
+          statusEl.textContent = message;
+          return;
+        }
+        if (lastHudCount !== Number(maze.count || 0)) {
+          lastHudCount = Number(maze.count || 0);
+          statusEl.textContent = maze.count >= 3
+            ? "ЯДРА СОБРАНЫ · ВЕРНИСЬ ЧЕРЕЗ ТРИГГЕРЫ К ВХОДУ"
+            : "ИССЛЕДУЙ КОМНАТЫ · ЯДЕР ОСТАЛОСЬ " + Math.max(0, 3 - maze.count);
+        }
+      }
+
+      function syncCoreMeshes() {
+        (maze.crystals || []).forEach((crystal, index) => {
+          if (worldState.coreMeshes[index]) worldState.coreMeshes[index].visible = !crystal.taken;
+        });
+      }
+
+      function collectAt(player) {
+        if (Math.abs(player.localX) > 0.74 || player.jumpHeight > 0.6) return false;
+        const crystal = (maze.crystals || []).find((item) =>
+          !item.taken && item.cell &&
+          item.cell.x === player.x && item.cell.y === player.y && item.cell.z === player.z
+        );
+        if (!crystal) return false;
+        crystal.taken = true;
+        if (crystal.mesh) crystal.mesh.visible = false;
+        maze.count = Math.min(3, Number(maze.count || 0) + 1);
+        syncCoreMeshes();
+        updateHud("ЯДРО СОБРАНО · " + maze.count + "/3");
+        return true;
+      }
+
+      function triggerTurn(player, direction) {
+        const now = performance.now();
+        if (!gameStarted || done || now < player.turnReadyAt) return false;
+        if (Math.abs(player.localX) > 1.28) {
+          updateHud("ПОВОРОТ · ПОДОЙДИ К ДВЕРНОМУ ТРИГГЕРУ В ЦЕНТРЕ");
+          return false;
+        }
+        const cell = getCell(player.x, player.y, player.z);
+        if (!cell) return false;
+        let flag, dx = 0, dz = 0;
+        if (player.orientation === 0) {
+          flag = direction === "turnUp" ? "zn" : "zp";
+          dz = direction === "turnUp" ? -1 : 1;
+        } else {
+          flag = direction === "turnUp" ? "xp" : "xn";
+          dx = direction === "turnUp" ? 1 : -1;
+        }
+        if (!cell.open[flag] || !getCell(player.x + dx, player.y, player.z + dz)) {
+          updateHud("СТЕНА · ИЩИ ДРУГОЙ ДВЕРНОЙ ТРИГГЕР");
+          return false;
+        }
+        player.x += dx;
+        player.z += dz;
+        player.orientation = player.orientation === 0 ? 1 : 0;
+        player.localX = 0;
+        player.supportPlatform = null;
+        player.turnReadyAt = now + 260;
+        player.moves += 1;
+        collectAt(player);
+        updateHud("РАЗВОРОТ · КАМЕРА ПЕРЕШЛА В СОСЕДНЮЮ СЕКЦИЮ");
+        checkFinish(player);
+        return true;
+      }
+
+      function triggerFloor(player, direction) {
+        const now = performance.now();
+        if (!gameStarted || done || now < player.turnReadyAt) return false;
+        if (Math.abs(player.localX) > 1.05) {
+          updateHud("ЛЕСТНИЦА · ПОДОЙДИ К ВЕРТИКАЛЬНОМУ ТРИГГЕРУ");
+          return false;
+        }
+        const cell = getCell(player.x, player.y, player.z);
+        const flag = direction === "floorUp" ? "yp" : "yn";
+        const dy = direction === "floorUp" ? 1 : -1;
+        if (!cell || !cell.open[flag] || !getCell(player.x, player.y + dy, player.z)) {
+          updateHud("ЗДЕСЬ НЕТ ЛЕСТНИЦЫ · ПРОВЕРЬ КАРТУ");
+          return false;
+        }
+        player.y += dy;
+        player.localX = 0;
+        player.jumpHeight = 0;
+        player.vy = 0;
+        player.grounded = true;
+        player.supportPlatform = null;
+        player.turnReadyAt = now + 340;
+        player.moves += 1;
+        collectAt(player);
+        updateHud("ЭТАЖ " + (player.y + 1) + " · ПЕРЕХОД ПО ЛЕСТНИЦЕ");
+        checkFinish(player);
+        return true;
+      }
+
+      function checkFinish(player) {
+        if (maze.count < 3 || player.x !== exitCell.x || player.y !== exitCell.y ||
+            player.z !== exitCell.z || Math.abs(player.localX) > 0.72 || player.jumpHeight > 0.45) return false;
+        finishRingPlatformer(maze, true);
+        return true;
+      }
+
+      function triggerAction(index, action) {
+        const player = players[index];
+        if (!player || !gameStarted || done) return false;
+        if (action === "turnUp" || action === "turnDown") return triggerTurn(player, action);
+        if (action === "floorUp" || action === "floorDown") return triggerFloor(player, action);
+        return false;
+      }
+
+      function keyboardMove(event) {
+        if (done) return;
+        const down = event.type === "keydown";
+        if (down && event.code === "Escape") {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          finishRingPlatformer(maze, false);
+          return;
+        }
+        const p1 = {
+          ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
+          Space: "jump"
+        };
+        const p2 = {
+          KeyJ: "left", KeyL: "right", KeyP: "jump"
+        };
+        let index = 0;
+        let action = p1[event.code] || null;
+        if (!action && mode === "multi") {
+          action = p2[event.code] || null;
+          if (action) index = 1;
+        }
+        const isP1TurnUp = event.code === "ArrowUp" || event.code === "KeyW";
+        const isP1TurnDown = event.code === "ArrowDown" || event.code === "KeyS";
+        const isP2TurnUp = event.code === "KeyI";
+        const isP2TurnDown = event.code === "KeyK";
+        const floorUp = event.code === "KeyE" || (mode === "multi" && event.code === "KeyO");
+        const floorDown = event.code === "KeyQ" || (mode === "multi" && event.code === "KeyU");
+        if (!action && (isP1TurnUp || isP1TurnDown || isP2TurnUp || isP2TurnDown || floorUp || floorDown)) {
+          if (mode === "multi" && (isP2TurnUp || isP2TurnDown || (event.code === "KeyO" || event.code === "KeyU"))) index = 1;
+          if (isP1TurnUp || isP2TurnUp) action = "turnUp";
+          else if (isP1TurnDown || isP2TurnDown) action = "turnDown";
+          else if (floorUp) action = "floorUp";
+          else if (floorDown) action = "floorDown";
+          if (down && !event.repeat) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            triggerAction(index, action);
+          }
+          return;
+        }
+        if (!action || index >= (mode === "multi" ? 2 : 1)) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        keyboardInputs[index][action] = down;
+      }
+
+      function pollGamepads() {
+        if (!gameStarted || done || !navigator.getGamepads) return;
+        const connected = [...navigator.getGamepads()].filter((pad) => pad && pad.connected);
+        const assignment = mode === "multi"
+          ? (connected.length > 1 ? [connected[0], connected[1]] : [null, connected[0] || null])
+          : [connected[0] || null];
+        for (let i = 0; i < 2; i += 1) {
+          const pad = assignment[i];
+          const statePad = padInputs[i] = {};
+          if (!pad || !players[i]) continue;
+          const axisX = Number(pad.axes?.[0] || 0);
+          const axisY = Number(pad.axes?.[1] || 0);
+          statePad.left = !!(pad.buttons?.[14]?.pressed || axisX < -0.42);
+          statePad.right = !!(pad.buttons?.[15]?.pressed || axisX > 0.42);
+          statePad.turnUp = !!(pad.buttons?.[12]?.pressed || axisY < -0.58);
+          statePad.turnDown = !!(pad.buttons?.[13]?.pressed || axisY > 0.58);
+          statePad.floorUp = !!pad.buttons?.[5]?.pressed;
+          statePad.floorDown = !!pad.buttons?.[4]?.pressed;
+          statePad.jump = !!pad.buttons?.[0]?.pressed;
+          if (statePad.turnUp && !previousPad[i].turnUp) triggerAction(i, "turnUp");
+          if (statePad.turnDown && !previousPad[i].turnDown) triggerAction(i, "turnDown");
+          if (statePad.floorUp && !previousPad[i].floorUp) triggerAction(i, "floorUp");
+          if (statePad.floorDown && !previousPad[i].floorDown) triggerAction(i, "floorDown");
+          previousPad[i] = {
+            turnUp: statePad.turnUp, turnDown: statePad.turnDown,
+            floorUp: statePad.floorUp, floorDown: statePad.floorDown
+          };
+        }
+      }
+
+      function updatePlayers(dt) {
+        pollGamepads();
+        for (const player of players) {
+          const input = getInput(player);
+          const direction = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+          if (direction !== 0) {
+            player.localX += direction * 4.15 * dt;
+            player.facing = direction;
+            player.moves += Math.abs(direction) * dt;
+          }
+
+          const edge = roomHalf;
+          if (player.localX > edge || player.localX < -edge) {
+            const side = player.localX > 0 ? 1 : -1;
+            const cell = getCell(player.x, player.y, player.z);
+            const flag = player.orientation === 0
+              ? (side > 0 ? "xp" : "xn")
+              : (side > 0 ? "zp" : "zn");
+            let dx = 0, dz = 0;
+            if (player.orientation === 0) dx = side;
+            else dz = side;
+            if (cell && cell.open[flag] && getCell(player.x + dx, player.y, player.z + dz)) {
+              player.x += dx;
+              player.z += dz;
+              player.localX -= side * cellSize;
+              player.turnReadyAt = performance.now() + 120;
+              player.supportPlatform = null;
+              collectAt(player);
+              checkFinish(player);
+            } else {
+              player.localX = side * (roomHalf - 0.55);
+            }
+          }
+
+          const pWorld = playerWorldPosition(player);
+          const previousHeight = player.jumpHeight;
+          if (input.jump && !player.wasJumpDown && player.grounded) {
+            player.vy = 5.1;
+            player.grounded = false;
+            player.supportPlatform = null;
+          }
+          player.wasJumpDown = input.jump;
+
+          if (!player.grounded) {
+            player.vy -= 12.5 * dt;
+            player.jumpHeight = Math.max(-0.3, player.jumpHeight + player.vy * dt);
+            const floorY = floorYForCell(player.y);
+            const currentWorld = playerWorldPosition(player);
+            const landed = worldState.platforms.find((platform) =>
+              platform.x === player.x && platform.y === player.y && platform.z === player.z &&
+              player.vy <= 0 &&
+              previousHeight > platform.topHeight && player.jumpHeight <= platform.topHeight &&
+              Math.abs(currentWorld.x - platform.worldX) <= platform.halfX &&
+              Math.abs(currentWorld.z - platform.worldZ) <= platform.halfZ
+            );
+            if (landed) {
+              player.jumpHeight = landed.topHeight;
+              player.vy = 0;
+              player.grounded = true;
+              player.supportPlatform = landed;
+            } else if (player.jumpHeight <= 0) {
+              player.jumpHeight = 0;
+              player.vy = 0;
+              player.grounded = true;
+              player.supportPlatform = null;
+            }
+          } else if (player.supportPlatform) {
+            const platform = player.supportPlatform;
+            const currentWorld = playerWorldPosition(player);
+            if (Math.abs(currentWorld.x - platform.worldX) > platform.halfX ||
+                Math.abs(currentWorld.z - platform.worldZ) > platform.halfZ) {
+              player.grounded = false;
+              player.vy = 0;
+              player.supportPlatform = null;
+            }
+          }
+
+          if (player.grounded && player.jumpHeight < 0.05) player.jumpHeight = 0;
+          collectAt(player);
+          updatePlayerSprite(player);
+        }
+      }
+
+      function updateSplitState() {
+        if (mode !== "multi" || players.length < 2) { splitActive = false; return; }
+        const a = playerWorldPosition(players[0]);
+        const b = playerWorldPosition(players[1]);
+        const distance = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+        const samePlane = players[0].y === players[1].y &&
+          players[0].orientation === players[1].orientation &&
+          (players[0].orientation === 0
+            ? players[0].z === players[1].z
+            : players[0].x === players[1].x);
+        if (!splitActive && (!samePlane || distance > cellSize * 1.62)) splitActive = true;
+        else if (splitActive && samePlane && distance < cellSize * 1.22) splitActive = false;
+        const landscape = width >= height;
+        splitDivider.hidden = !splitActive;
+        splitDivider.style.border = splitActive ? "1px solid rgba(115,203,225,.45)" : "0";
+        splitDivider.style.background = "transparent";
+        if (splitActive) {
+          splitDivider.style.borderTop = landscape ? "0" : "2px solid rgba(115,203,225,.75)";
+          splitDivider.style.borderLeft = landscape ? "2px solid rgba(115,203,225,.75)" : "0";
+        } else {
+          splitDivider.style.border = "0";
+        }
+      }
+
+      function configureCamera(camera, viewport, center, orientation) {
+        const halfHeight = Math.max(3.7, Math.min(4.7, cellSize * 0.82));
+        const aspect = Math.max(0.3, viewport.w / Math.max(1, viewport.h));
+        camera.left = -halfHeight * aspect;
+        camera.right = halfHeight * aspect;
+        camera.top = halfHeight;
+        camera.bottom = -halfHeight;
+        camera.near = 0.1;
+        camera.far = 500;
+        camera.updateProjectionMatrix();
+        camera.up.set(0, 1, 0);
+        if (orientation === 0) {
+          camera.position.set(center.x, center.y + 0.55, center.z + cellSize * 2.05);
+          camera.lookAt(center.x, center.y, center.z);
+        } else {
+          camera.position.set(center.x + cellSize * 2.05, center.y + 0.55, center.z);
+          camera.lookAt(center.x, center.y, center.z);
+        }
+      }
+
+      function cameraTargetFor(player) {
+        const p = playerWorldPosition(player);
+        return { x: p.x, y: p.y - 0.1, z: p.z };
+      }
+
+      function renderRingViews(frameContext) {
+        if (!state.ringPlatformer || !state.ringRenderState || done) return false;
+        const renderer = frameContext && frameContext.renderer;
+        const activeScene = frameContext && frameContext.scene;
+        if (!renderer || !activeScene || !players.length) {
+          const defaultPos = cellWorld(ringCell);
+          configureCamera(cameraOne, { w: Math.max(1, root.clientWidth), h: Math.max(1, root.clientHeight) }, {
+            x: defaultPos.x, y: floorYForCell(ringCell.y) + 1, z: defaultPos.z
+          }, 0);
+          if (renderer && activeScene) renderer.render(activeScene, cameraOne);
+          return true;
+        }
+        const viewW = Math.max(1, root.clientWidth);
+        const viewH = Math.max(1, root.clientHeight);
+        const oldAutoClear = renderer.autoClear;
+        renderer.autoClear = false;
+        renderer.setScissorTest(true);
+        const landscape = viewW >= viewH;
+        let views;
+        if (splitActive && mode === "multi" && players.length > 1) {
+          const half = Math.floor((landscape ? viewW : viewH) / 2);
+          views = landscape
+            ? [
+                { x: 0, y: 0, w: half, h: viewH, player: players[0], camera: cameraOne },
+                { x: half, y: 0, w: viewW - half, h: viewH, player: players[1], camera: cameraTwo }
+              ]
+            : [
+                { x: 0, y: Math.floor(viewH / 2), w: viewW, h: viewH - Math.floor(viewH / 2), player: players[0], camera: cameraOne },
+                { x: 0, y: 0, w: viewW, h: Math.floor(viewH / 2), player: players[1], camera: cameraTwo }
+              ];
+        } else {
+          let target = cameraTargetFor(players[0]);
+          if (mode === "multi" && players[1]) {
+            const other = cameraTargetFor(players[1]);
+            target = { x: (target.x + other.x) * 0.5, y: (target.y + other.y) * 0.5, z: (target.z + other.z) * 0.5 };
+          }
+          views = [{ x: 0, y: 0, w: viewW, h: viewH, player: players[0], camera: cameraOne, shared: true, target }];
+        }
+
+        for (const view of views) {
+          const p = view.player;
+          let target;
+          if (view.shared) {
+            target = view.target;
+          } else {
+            target = cameraTargetFor(p);
+          }
+          configureCamera(view.camera, view, target, p.orientation);
+          renderer.setViewport(view.x, view.y, view.w, view.h);
+          renderer.setScissor(view.x, view.y, view.w, view.h);
+          renderer.clear(true, true, true);
+          renderer.render(activeScene, view.camera);
+        }
+        renderer.setScissorTest(false);
+        renderer.setViewport(0, 0, viewW, viewH);
+        renderer.autoClear = oldAutoClear;
+        return true;
+      }
+
+      function drawMiniMap() {
+        if (done || !g) return;
+        g.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+        g.clearRect(0, 0, mapWidth, mapHeight);
+        const bg = g.createLinearGradient(0, 0, mapWidth, mapHeight);
+        bg.addColorStop(0, "#081826"); bg.addColorStop(1, "#02070d");
+        g.fillStyle = bg; g.fillRect(0, 0, mapWidth, mapHeight);
+        const floor = players.length ? players[0].y : ringCell.y;
+        const pad = 7;
+        const cell = Math.max(8, Math.min(24, Math.floor(Math.min(mapWidth - pad * 2, mapHeight - pad * 2) / Math.max(nx, nz))));
+        const x0 = Math.floor((mapWidth - cell * nx) / 2);
+        const y0 = Math.floor((mapHeight - cell * nz) / 2);
+        const floorCells = maze.cells.filter((c) => c.y === floor);
+        floorCells.forEach((c) => {
+          const x = x0 + c.x * cell, y = y0 + c.z * cell;
+          g.fillStyle = ((c.x + c.z) & 1) ? "#102532" : "#0c1e29";
+          g.fillRect(x + 1, y + 1, cell - 2, cell - 2);
+        });
+        g.lineWidth = Math.max(1.2, cell * 0.095);
+        g.lineCap = "square";
+        g.strokeStyle = "#4fa9be";
+        floorCells.forEach((c) => {
+          const x = x0 + c.x * cell, y = y0 + c.z * cell;
+          g.beginPath();
+          if (c.x === 0) { g.moveTo(x, y); g.lineTo(x, y + cell); }
+          if (c.x === nx - 1 || !c.open.xp) { g.moveTo(x + cell, y); g.lineTo(x + cell, y + cell); }
+          if (c.z === 0 && !(c.x === 0 && c.y === 1)) { g.moveTo(x, y); g.lineTo(x + cell, y); }
+          if (c.z === nz - 1 && !(c.x === nx - 1 && c.y === 1)) { g.moveTo(x, y + cell); g.lineTo(x + cell, y + cell); }
+          if (c.z < nz - 1 && !c.open.zp) { g.moveTo(x, y + cell); g.lineTo(x + cell, y + cell); }
+          g.stroke();
+        });
+        (maze.crystals || []).forEach((crystal) => {
+          if (!crystal.taken && crystal.cell && crystal.cell.y === floor) {
+            const x = x0 + (crystal.cell.x + 0.5) * cell, y = y0 + (crystal.cell.z + 0.5) * cell;
+            g.fillStyle = "#5af3df"; g.beginPath(); g.arc(x, y, Math.max(2, cell * 0.13), 0, Math.PI * 2); g.fill();
+          }
+        });
+        players.forEach((player) => {
+          if (player.y !== floor) return;
+          const x = x0 + (player.x + 0.5) * cell, y = y0 + (player.z + 0.5) * cell;
+          g.fillStyle = playerColors[player.index]; g.shadowColor = playerColors[player.index]; g.shadowBlur = 7;
+          g.beginPath(); g.arc(x, y, Math.max(3, cell * 0.18), 0, Math.PI * 2); g.fill();
+          g.shadowBlur = 0;
+        });
+        g.fillStyle = "#b8d2de"; g.font = "10px system-ui"; g.textAlign = "left"; g.textBaseline = "top";
+        g.fillText("КАРТА · ЭТАЖ " + (floor + 1), 7, 5);
       }
 
       function startMode(nextMode) {
@@ -1526,295 +2259,150 @@
         menu.hidden = true;
         menu.style.display = "none";
         const spawn1 = { x: ringCell.x, y: ringCell.y, z: ringCell.z };
-        const spawn2 = safeSecondSpawn();
-        const createPlayer = (index, spawn) => {
-          const crew = crewSelection[index] || {};
-          return {
-            index,
-            name: String(crew.name || crew.displayName || ("Crew " + (index + 1))),
-            x: spawn.x, y: spawn.y, z: spawn.z,
-            image: crewImages[index] || null,
-            lastMoveAt: 0,
-            tint: playerColors[index],
-            moves: 0
-          };
-        };
+        let spawn2 = null;
+        if (mode === "multi") {
+          const cell = getCell(ringCell.x, ringCell.y, ringCell.z);
+          const options = [
+            { flag: "zn", x: 0, z: -1 }, { flag: "xn", x: -1, z: 0 },
+            { flag: "zp", x: 0, z: 1 }, { flag: "xp", x: 1, z: 0 }
+          ];
+          const option = options.find((item) => cell && cell.open[item.flag] && getCell(ringCell.x + item.x, ringCell.y, ringCell.z + item.z));
+          spawn2 = option
+            ? { x: ringCell.x + option.x, y: ringCell.y, z: ringCell.z + option.z }
+            : { x: ringCell.x, y: ringCell.y, z: ringCell.z };
+        }
         players = [createPlayer(0, spawn1)];
-        if (mode === "multi") players.push(createPlayer(1, spawn2));
-        lastPadMove = [0, 0];
-        updateHud();
-        statusEl.textContent = mode === "multi"
-          ? "MULTI · P1 WASD/стрелки · P2 IJKL · Q/E этаж · найди вход"
-          : "SINGLE · WASD/стрелки · Q/E этаж · найди вход";
+        if (spawn2) players.push(createPlayer(1, spawn2));
+        syncCoreMeshes();
+        updateSplitState();
+        updateHud(mode === "multi"
+          ? "MULTI · P1 WASD/стрелки · P2 IJKL · Space/P прыжок · E/Q этаж"
+          : "SINGLE · WASD/стрелки · Space прыжок · E/Q лестницы");
+        resize2d();
         root2d.focus({ preventScroll: true });
       }
 
-      function updateHud() {
-        countEl.textContent = "ЯДРА " + Math.max(0, maze.count || 0) + "/3";
-        if (players.length) {
-          floorEl.textContent = "ЭТАЖ P1: " + (players[0].y + 1) +
-            (players[1] ? " · P2: " + (players[1].y + 1) : "") +
-            " · SEED " + seed;
+      function updateSplitState() {
+        if (mode !== "multi" || players.length < 2) { splitActive = false; return; }
+        const a = playerWorldPosition(players[0]);
+        const b = playerWorldPosition(players[1]);
+        const distance = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+        const samePlane = players[0].y === players[1].y &&
+          players[0].orientation === players[1].orientation &&
+          (players[0].orientation === 0 ? players[0].z === players[1].z : players[0].x === players[1].x);
+        if (!splitActive && (!samePlane || distance > cellSize * 1.62)) splitActive = true;
+        else if (splitActive && samePlane && distance < cellSize * 1.22) splitActive = false;
+      }
+
+      function updateViewportSize() {
+        width = Math.max(1, root.clientWidth);
+        height = Math.max(1, root.clientHeight);
+        cameraOne.aspect = width / height;
+        cameraTwo.aspect = width / height;
+        updateSplitState();
+        splitDivider.hidden = !splitActive;
+        const landscape = width >= height;
+        if (splitActive) {
+          splitDivider.style.border = "0";
+          splitDivider.style.borderLeft = landscape ? "2px solid rgba(115,203,225,.75)" : "0";
+          splitDivider.style.borderTop = landscape ? "0" : "2px solid rgba(115,203,225,.75)";
         } else {
-          floorEl.textContent = "ЭТАЖ " + (ringCell.y + 1) + " · SEED " + seed;
+          splitDivider.style.border = "0";
         }
-        if (lastHudCount !== Number(maze.count || 0)) {
-          lastHudCount = Number(maze.count || 0);
-          if (maze.count >= 3) statusEl.textContent = "ЯДРА СОБРАНЫ · НАЙДИ ВХОД В ЛАБИРИНТ";
-          else statusEl.textContent = "НАЙДИ ЯДРА И ВЕРНИСЬ К ВХОДУ · " + Math.max(0, 3 - maze.count) + " ОСТАЛОСЬ";
-        }
-      }
-
-      function collectAt(player) {
-        const crystal = (maze.crystals || []).find((item) =>
-          !item.taken && item.cell &&
-          item.cell.x === player.x && item.cell.y === player.y && item.cell.z === player.z
-        );
-        if (!crystal) return;
-        crystal.taken = true;
-        if (crystal.mesh) crystal.mesh.visible = false;
-        maze.count = Math.min(3, Number(maze.count || 0) + 1);
-        lastHudCount = -1;
-        updateHud();
-        statusEl.textContent = "ЯДРО СОБРАНО · " + maze.count + "/3";
-      }
-
-      function tryMove(index, direction) {
-        if (!gameStarted || done || !players[index]) return false;
-        const player = players[index];
-        const now = performance.now();
-        if (now - player.lastMoveAt < 95) return false;
-        player.lastMoveAt = now;
-        const cell = currentCell(player);
-        if (!cell) return false;
-        const steps = {
-          left: { flag: "xn", x: -1, y: 0, z: 0 },
-          right: { flag: "xp", x: 1, y: 0, z: 0 },
-          up: { flag: "zn", x: 0, y: 0, z: -1 },
-          down: { flag: "zp", x: 0, y: 0, z: 1 },
-          floorUp: { flag: "yp", x: 0, y: 1, z: 0 },
-          floorDown: { flag: "yn", x: 0, y: -1, z: 0 }
-        };
-        const step = steps[direction];
-        if (!step || !cell.open[step.flag]) return false;
-        const x = player.x + step.x, y = player.y + step.y, z = player.z + step.z;
-        if (!getCell(x, y, z)) return false;
-        player.x = x; player.y = y; player.z = z; player.moves += 1;
-        collectAt(player);
-        updateHud();
-        if (player.x === exitCell.x && player.y === exitCell.y && player.z === exitCell.z && maze.count >= 3) {
-          finishRingPlatformer(maze, true);
-          return true;
-        }
-        return true;
-      }
-
-      function keyboardMove(event) {
-        const down = event.type === "keydown";
-        if (!down || done) return;
-        if (event.code === "Escape") {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          finishRingPlatformer(maze, false);
-          return;
-        }
-        const p1Map = {
-          ArrowLeft: "left", KeyA: "left",
-          ArrowRight: "right", KeyD: "right",
-          ArrowUp: "up", KeyW: "up",
-          ArrowDown: "down", KeyS: "down",
-          KeyQ: "floorDown", KeyE: "floorUp"
-        };
-        const p2Map = {
-          KeyJ: "left", KeyL: "right", KeyI: "up", KeyK: "down",
-          KeyU: "floorDown", KeyO: "floorUp"
-        };
-        let index = 0, direction = p1Map[event.code];
-        if (!direction && mode === "multi" && p2Map[event.code]) {
-          index = 1; direction = p2Map[event.code];
-        }
-        if (!direction || !gameStarted) return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        tryMove(index, direction);
-      }
-
-      function gamepadDirection(pad) {
-        if (!pad) return null;
-        const threshold = 0.55;
-        const left = !!(pad.buttons?.[14]?.pressed || (pad.axes?.[0] ?? 0) < -threshold);
-        const right = !!(pad.buttons?.[15]?.pressed || (pad.axes?.[0] ?? 0) > threshold);
-        const up = !!(pad.buttons?.[12]?.pressed || (pad.axes?.[1] ?? 0) < -threshold);
-        const down = !!(pad.buttons?.[13]?.pressed || (pad.axes?.[1] ?? 0) > threshold);
-        if (left) return "left";
-        if (right) return "right";
-        if (up) return "up";
-        if (down) return "down";
-        return null;
-      }
-
-      function pollGamepads(now) {
-        if (!gameStarted || done || !navigator.getGamepads) return;
-        const connected = [...navigator.getGamepads()].filter((pad) => pad && pad.connected);
-        let assignment;
-        if (mode === "multi") {
-          assignment = connected.length > 1
-            ? [connected[0], connected[1]]
-            : [null, connected[0] || null];
-        } else {
-          assignment = [connected[0] || null];
-        }
-        assignment.forEach((pad, index) => {
-          if (!pad || !players[index]) return;
-          let direction = gamepadDirection(pad);
-          if (!direction && pad.buttons?.[4]?.pressed) direction = "floorDown";
-          else if (!direction && pad.buttons?.[5]?.pressed) direction = "floorUp";
-          if (direction && now - lastPadMove[index] >= 175) {
-            lastPadMove[index] = now;
-            tryMove(index, direction);
-          } else if (!direction) {
-            lastPadMove[index] = 0;
-          }
-        });
-      }
-
-      function drawMaze(now) {
-        if (done || !g) return;
-        g.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-        g.clearRect(0, 0, width, height);
-        const bg = g.createLinearGradient(0, 0, width, height);
-        bg.addColorStop(0, "#071422"); bg.addColorStop(1, "#01050b");
-        g.fillStyle = bg; g.fillRect(0, 0, width, height);
-        // Light starfield; deterministic from the same saved seed for this run.
-        for (let i = 0; i < 34; i++) {
-          const x = ((i * 97 + seed * 0.001) % Math.max(1, width) + width) % Math.max(1, width);
-          const y = ((i * 53 + Math.floor(seed % 307)) % Math.max(1, height) + height) % Math.max(1, height);
-          g.fillStyle = i % 5 === 0 ? "#4aa4b8" : "#1e3a4b";
-          g.fillRect(x, y, i % 4 === 0 ? 2 : 1, i % 4 === 0 ? 2 : 1);
-        }
-
-        const topHud = 78, bottomHud = 84;
-        const cellSize = Math.max(18, Math.min(72, Math.floor(Math.min(width - 28, height - topHud - bottomHud - 16) / Math.max(nx, nz))));
-        const gridWidth = cellSize * nx, gridHeight = cellSize * nz;
-        const x0 = Math.floor((width - gridWidth) / 2);
-        const usableHeight = Math.max(80, height - topHud - bottomHud);
-        const y0 = Math.floor(topHud + Math.max(0, (usableHeight - gridHeight) / 2));
-
-        const viewFloor = players.length ? players[0].y : ringCell.y;
-        const floorCells = maze.cells.filter((cell) => cell.y === viewFloor);
-        floorCells.forEach((cell) => {
-          const px = x0 + cell.x * cellSize, py = y0 + cell.z * cellSize;
-          g.fillStyle = ((cell.x + cell.z) & 1) ? "#0c1d2b" : "#0a1825";
-          g.fillRect(px + 1, py + 1, cellSize - 2, cellSize - 2);
-          g.strokeStyle = "#142c3b"; g.lineWidth = 1;
-          g.strokeRect(px + 2, py + 2, cellSize - 4, cellSize - 4);
-          if (cell.open.yp || cell.open.yn) {
-            g.fillStyle = "#b79b5c";
-            g.globalAlpha = 0.95;
-            g.beginPath(); g.arc(px + cellSize / 2, py + cellSize / 2, Math.max(3, cellSize * 0.11), 0, Math.PI * 2); g.fill();
-            g.globalAlpha = 1;
-            g.strokeStyle = "#f5d58a"; g.lineWidth = Math.max(1, cellSize * 0.035);
-            g.beginPath();
-            g.moveTo(px + cellSize * 0.34, py + cellSize * 0.42); g.lineTo(px + cellSize * 0.5, py + cellSize * 0.30); g.lineTo(px + cellSize * 0.66, py + cellSize * 0.42);
-            g.moveTo(px + cellSize * 0.34, py + cellSize * 0.58); g.lineTo(px + cellSize * 0.5, py + cellSize * 0.70); g.lineTo(px + cellSize * 0.66, py + cellSize * 0.58);
-            g.stroke();
-          }
-        });
-
-        g.lineWidth = Math.max(2, cellSize * 0.065);
-        g.lineCap = "round";
-        g.strokeStyle = "#4ca7bd";
-        floorCells.forEach((cell) => {
-          const px = x0 + cell.x * cellSize, py = y0 + cell.z * cellSize;
-          const rightWall = cell.x === nx - 1 || !cell.open.xp;
-          // Preserve the same two open boundary gates used by the 3D maze.
-          const bottomWall = (cell.z === nz - 1 && !(cell.x === nx - 1 && cell.y === 1)) || (cell.z < nz - 1 && !cell.open.zp);
-          const leftWall = cell.x === 0;
-          const topWall = (cell.z === 0 && !(cell.x === 0 && cell.y === 1)) || (cell.z > 0 && !cell.open.zn);
-          g.beginPath();
-          if (rightWall) { g.moveTo(px + cellSize, py); g.lineTo(px + cellSize, py + cellSize); }
-          if (bottomWall) { g.moveTo(px, py + cellSize); g.lineTo(px + cellSize, py + cellSize); }
-          if (leftWall) { g.moveTo(px, py); g.lineTo(px, py + cellSize); }
-          if (topWall) { g.moveTo(px, py); g.lineTo(px + cellSize, py); }
-          g.stroke();
-        });
-
-        const drawMarker = (x, z, y, color, label) => {
-          if (y !== viewFloor) return;
-          const cx = x0 + (x + 0.5) * cellSize, cy = y0 + (z + 0.5) * cellSize;
-          g.save();
-          g.shadowColor = color; g.shadowBlur = 10;
-          g.fillStyle = color; g.beginPath();
-          g.moveTo(cx, cy - cellSize * 0.22);
-          g.lineTo(cx + cellSize * 0.22, cy);
-          g.lineTo(cx, cy + cellSize * 0.22);
-          g.lineTo(cx - cellSize * 0.22, cy);
-          g.closePath(); g.fill();
-          g.shadowBlur = 0; g.fillStyle = "#06111a";
-          g.font = "bold " + Math.max(8, cellSize * 0.22) + "px system-ui";
-          g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(label, cx, cy);
-          g.restore();
-        };
-
-        (maze.crystals || []).forEach((crystal, index) => {
-          if (!crystal.taken && crystal.cell) drawMarker(crystal.cell.x, crystal.cell.z, crystal.cell.y, "#55f0db", "◆");
-        });
-        drawMarker(exitCell.x, exitCell.z, exitCell.y, maze.count >= 3 ? "#f2cd76" : "#6f8090", "⌂");
-        drawMarker(ringCell.x, ringCell.z, ringCell.y, "#d5b25f", "◎");
-
-        players.forEach((player) => {
-          if (player.y !== viewFloor) return;
-          const cx = x0 + (player.x + 0.5) * cellSize, cy = y0 + (player.z + 0.5) * cellSize;
-          g.save();
-          g.shadowColor = player.tint; g.shadowBlur = 12;
-          g.fillStyle = player.tint; g.beginPath(); g.arc(cx, cy, cellSize * 0.32, 0, Math.PI * 2); g.fill();
-          g.shadowBlur = 0;
-          const img = player.image;
-          if (img && img.complete && img.naturalWidth > 0) {
-            const ratio = Math.min((cellSize * 0.52) / img.naturalWidth, (cellSize * 0.72) / img.naturalHeight);
-            const iw = img.naturalWidth * ratio, ih = img.naturalHeight * ratio;
-            g.drawImage(img, cx - iw / 2, cy - ih / 2, iw, ih);
-          } else {
-            g.fillStyle = "#f1ddbd";
-            g.beginPath(); g.arc(cx, cy - cellSize * 0.12, cellSize * 0.12, 0, Math.PI * 2); g.fill();
-            g.fillStyle = player.tint;
-            g.fillRect(cx - cellSize * 0.15, cy + cellSize * 0.01, cellSize * 0.3, cellSize * 0.26);
-          }
-          g.fillStyle = "#e8f4f8"; g.font = "bold " + Math.max(8, cellSize * 0.17) + "px system-ui";
-          g.textAlign = "center"; g.textBaseline = "top"; g.fillText("P" + (player.index + 1), cx, cy + cellSize * 0.33);
-          g.restore();
-        });
-
-        // The second Crew can cross levels independently; the HUD always shows each floor.
-        g.fillStyle = "#95b7c7"; g.font = "12px system-ui"; g.textAlign = "center"; g.textBaseline = "bottom";
-        g.fillText("WASD / стрелки · Q/E этаж · Esc к кораблю", width / 2, height - 67);
       }
 
       function frame(now) {
         if (done) return;
-        pollGamepads(now);
-        drawMaze(now);
+        const dt = frameStamp ? Math.min(0.05, Math.max(0.001, (now - frameStamp) / 1000)) : 1 / 60;
+        frameStamp = now;
+        updatePlayers(dt);
+        updateSplitState();
+        worldState.coreMeshes.forEach((mesh) => { if (mesh) mesh.rotation.y += dt * 0.9; });
+        worldState.ringMarker.rotation.z += dt * 0.32;
+        drawMiniMap();
         raf = requestAnimationFrame(frame);
       }
 
-      function onResize() { resize2d(); }
+      function setActionFromPointer(button, action, down, event) {
+        const index = Number(button.getAttribute("data-ring-player") || 0);
+        if (!players[index]) return;
+        if (oneShotActions.has(action)) {
+          if (down) triggerAction(index, action);
+          return;
+        }
+        touchInputs[index][action] = down;
+        if (down && event && button.setPointerCapture) {
+          try { button.setPointerCapture(event.pointerId); } catch (e) {}
+        }
+      }
+
+      root2d.querySelectorAll("[data-ring-action]").forEach((button) => {
+        const action = button.getAttribute("data-ring-action");
+        button.style.cssText += ";border:1px solid #426779;border-radius:10px;background:rgba(16,35,45,.96);color:#e8fbff;font-weight:900;touch-action:none";
+        button.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          setActionFromPointer(button, action, true, event);
+        });
+        const stop = (event) => {
+          if (!oneShotActions.has(action)) setActionFromPointer(button, action, false, event);
+        };
+        ["pointerup", "pointercancel", "lostpointercapture"].forEach((name) => button.addEventListener(name, stop));
+      });
       const closeButton = root2d.querySelector("[data-ring-exit]");
+      closeButton.style.cssText += ";pointer-events:auto";
       closeButton.addEventListener("click", () => finishRingPlatformer(maze, false));
       root2d.querySelector("[data-ring-single]").addEventListener("click", () => startMode("single"));
       root2d.querySelector("[data-ring-multi]").addEventListener("click", () => startMode("multi"));
-      root2d.querySelectorAll("[data-ring-move]").forEach((button) => {
-        button.addEventListener("click", () => tryMove(0, button.getAttribute("data-ring-move")));
-      });
       window.addEventListener("keydown", keyboardMove, true);
-      window.addEventListener("resize", onResize);
+      window.addEventListener("keyup", keyboardMove, true);
+      window.addEventListener("blur", () => {
+        keyboardInputs.forEach((entry) => Object.keys(entry).forEach((key) => { entry[key] = false; }));
+        touchInputs.forEach((entry) => Object.keys(entry).forEach((key) => { entry[key] = false; }));
+      });
+      window.addEventListener("resize", resize2d);
       resize2d();
+
+      state.ringRenderState = {
+        worldState,
+        scene,
+        maze,
+        oldMazeVisible: worldSaved.oldMazeVisible,
+        oldShipVisible: worldSaved.oldShipVisible,
+        oldBackground,
+        runtime
+      };
+      window.BCMDeepSpaceWarpRender = renderRingViews;
+
       state.ringPlatformerCleanup = () => {
         done = true;
         if (raf) cancelAnimationFrame(raf);
         window.removeEventListener("keydown", keyboardMove, true);
-        window.removeEventListener("resize", onResize);
+        window.removeEventListener("keyup", keyboardMove, true);
+        window.removeEventListener("resize", resize2d);
+        worldState.group.parent?.remove(worldState.group);
+        worldState.group.traverse((object) => {
+          if (object.geometry && object.geometry !== worldState.boxGeometry) {
+            // Meshes share a small set of geometries; special crystal geometries are disposed below.
+          }
+        });
+        try { worldState.boxGeometry.dispose(); } catch (e) {}
+        worldState.specialGeometry.forEach((geometry) => { try { geometry.dispose(); } catch (e) {} });
+        worldState.materials.forEach((material) => { try { material.dispose(); } catch (e) {} });
+        players.forEach((player) => {
+          if (player.sprite) worldState.group.remove(player.sprite);
+          if (player.spriteMaterial) player.spriteMaterial.dispose();
+        });
+        maze.group.visible = worldSaved.oldMazeVisible;
+        if (runtime.ship.visual) runtime.ship.visual.visible = worldSaved.oldShipVisible;
+        scene.background = oldBackground;
+        state.ringRenderState = null;
+        window.BCMDeepSpaceWarpRender = null;
+        splitDivider.remove();
         root2d.remove();
+        syncHullButtonVisibility();
       };
+      state.ringLastUpdate = 0;
+      syncHullButtonVisibility();
       raf = requestAnimationFrame(frame);
       return true;
     }
@@ -1826,14 +2414,15 @@
       const cleanup = state.ringPlatformerCleanup;
       state.ringPlatformerCleanup = null;
       state.ringPlatformer = false;
+      state.ringTransitionActive = false;
       if (typeof cleanup === "function") cleanup();
       stopRingAudio(true);
       const engine = api();
       if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
-      hullEnterButton.hidden = !(state.ringDistance < 8);
+      syncHullButtonVisibility();
       setMazeStatus(success
-        ? "2D MAZE COMPLETE · BACK AT THE RING · U / R3 OR TAP THE HULL BUTTON"
-        : "BACK AT THE RING · 2D MAZE PAUSED · U / R3 OPENS THE HULL");
+        ? "2D IN 3D · ROUTE COMPLETE · BACK IN THE ASTEROID MAZE"
+        : "BACK IN THE ASTEROID MAZE · RING RUN PAUSED");
       return true;
     }
 
