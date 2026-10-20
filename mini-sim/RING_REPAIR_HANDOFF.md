@@ -1,41 +1,38 @@
-# Ring / Hull Repair — handoff
+# Ring / Hull Interior — Mini-Sim 0.9.105
 
-Date: 2026-10-20.
-Working branch: `feat/hull-ring-repair-loop`.
-Draft PR: https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/44
-Main soundtrack asset: `mini-sim/assets/ring.mp3`, added to main in commit `cb1f42ca0f789c26b9e3023bc3dab516068390c4`.
+Updated: 2026-10-20.
+Main branch: `main`.
+Entry point: `mini-sim/assets/js/deep-space-warp.js`.
+Shared renderer extension: `mini-sim/assets/js/mini-sim.js`.
+Tower Crew cutout texture helper: `mini-sim/tower/assets/js/tower.js`.
 
-## Implemented in this branch
+## Intended modes
 
-- Ring mode is a 2D top-down traversal of the exact active 3D maze: it reuses the same saved seed, cell graph, connected passages, entrance/exit and the same three crystal states. It does not generate a second maze or a separate side-scrolling platform course. Players choose Single or Multi (two Crew); selected Mini-Sim Crew images are reused when available. Movement respects the generated corridor links, including stairs between its three vertical layers. Finishing returns to the ship; the Hull Dive remains a separate interaction.
-- Ring entry first plays `ringgummy.mp4` as a muted full-screen transition. `ring.mp3` is preloaded without playback, then starts on `requestVideoFrameCallback` for the first presented video frame; the 2D view of the same maze opens when the clip ends. Older WebViews fall back to `loadeddata`. If the intro video is missing or cannot play, the level opens directly and the soundtrack starts there. Audio uses the shared exclusive OST/mute API.
-- Escape safely returns from an incomplete Ring attempt; the resize listener is properly removed when the level closes.
-- Ring attraction is range-limited and gentler.
-- Hull Dive uses transparent rendering so the existing 3D ring/ship scene remains visible through the cabin window; has a bounded pool of 60 smoke puffs and 84 water bubbles whose active density follows compartment levels; one gamepad is assigned to P2 to preserve keyboard P1, two pads can steer separate Crew; pointer dragging/holding supports Crew movement, pumping and seam repair.
-- Asteroid/tube collisions damage the compartment model through the existing Hull Repair state/hooks.
-- Tower gamepad polling and Tower OST are suppressed while its root is hidden or Hull Dive/Ring/Ring transition owns input.
-- Cache versions are Mini-Sim 0.9.104 and Tower 0.2.63.
+- **Ring** is no longer the top-down map as the main view or the old side-scrolling platform course. It builds a 3D cutaway/room view from the *existing active asteroid maze*: the same seed, cell graph, doors, floor links, entrance/exit and the same three crystal objects. Controls are 2D within each room. Edge transitions and door triggers move along the same graph; door turns rotate the view between axes; E/Q or the floor buttons use existing vertical links.
+- Players choose Single or Multi at Ring entry. Crew image sprites go through Tower's existing cached alpha-cleaned texture path when available. Multi shares one camera while both Crew occupy the same floor/facing and remain close; it switches to two viewports when the players are far apart or in different room orientations/floors, then merges again after they regroup.
+- The little top-right 2D map remains as a minimap; it is not the gameplay level.
+- `ringgummy.mp4` remains the intro. `ring.mp3` is prepared silently and starts on the first presented video frame. Ring audio uses the shared mute/exclusive-OST API.
+- **Hull Dive** is a separate ship-interior view. The button `ВНУТРЬ КОРАБЛЯ · U / R3` is intended to be available during ordinary first-person flight, not only beside the gold Ring. It preserves the ship's current pose rather than teleporting to the Ring. The visible button and U key call the same action; R3 is edge-triggered by the shared Mini-Sim frame loop. Hull Dive exits back to the flight and should not label itself as a Ring-only scene.
+- Tower input/audio should remain suppressed when the Ring, transition video, or Hull Dive owns the screen.
 
-## Verified code and browser smoke
+## Shared renderer and performance
 
-The Ring intro/audio timing and dense-bubble source-contract assertions passed on the current PR head, alongside Mini-Sim regression, Warp maze return, Warp course/portal first-frame and Tower top-cap checks. Browser smoke does not enter the Ring platformer or verify soundtrack timing, so live playback remains unverified.
+Ring uses the existing Mini-Sim Three.js renderer and scene; it does not create another WebGL renderer. Geometry is instanced/batched. When split, the shared renderer draws separate viewports sequentially with per-player camera orientation. The cutaway view hides the wall plane facing the camera. Keep this cheap on older Android devices.
 
-- Mini-Sim regression checks: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39395201677
-- Tower top-cap regression: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39395201840
-- Warp maze return regression: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39395201648
-- Warp course / portal first-frame regression: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39395201547
-- Browser QA: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39395201676
-- Browser QA screenshots/diagnostics artifact: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39395201676/artifacts/12250648913
+## Status / verification
 
-The browser smoke confirms the test page served the branch's Warp JavaScript/CSS, used only one audible Warp OST, and restored ship position plus ordinary flight OST after cancelling Tube. The video-enabled QA step was skipped. This smoke does **not** enter the Ring platformer or exercise Hull Dive interactions, so those remain source-contract/syntax tested but not browser-played yet.
+Version labels are Mini-Sim **0.9.105** and Tower **0.2.64** after the rendering and Crew-texture interface changes.
 
-## Before marking live verified
+Source-contract coverage checks:
+- same-seed maze metadata and shared crystal state;
+- 3D cutaway geometry, door turn and floor triggers;
+- Crew texture reuse and Single/Multi;
+- adaptive shared/split camera;
+- first-person Hull entry via on-screen button/U/R3;
+- Tower input/audio and shared renderer integration.
 
-1. Integrate PR #44 and deploy the updated plugin assets to WordPress; GitHub does not deploy them automatically.
-2. On the live page, reach the asteroid maze and enter the gold Ring. Confirm the same seeded maze opens in 2D, Single/Multi selection works, the selected Crew appear, `ring.mp3` starts on the first video frame, obeys global mute and stops on exit. Collect remaining core shards in 2D and return to the maze entrance.
-3. Separately test Hull Dive using U/R3 or its screen button; verify Escape returns safely from Ring, touch controls work, and gamepad input does not start Tower OST while the cabin/Ring/video overlays are open.
-4. Repeat on a physical gamepad/Android device before marking those controls `VERIFIED-LIVE`.
+Automated CI must pass on the current `main` commit before treating the update as regression-clean. The existing browser smoke covers main Mini-Sim/Warp navigation but does not yet play the Ring route end-to-end. Manual browser/gamepad and Android checks are still needed to validate physical traversal and camera merge/split feel.
 
-## Protected areas
+## Scope preserved
 
-No modifications to `wordpress/galia-desk`, the scanner, pricing tables, marketplace pricing or shared price assets. No change to planet coordinates or the SAGE navigation adapter. Ring movement remains local simulation, not on-chain movement.
+No changes to `wordpress/galia-desk`, its scanner, pricing tables, marketplace/pricing assets, planet coordinates or the SAGE navigation adapter. All Ring movement stays local simulation; no on-chain fleet state is changed.
