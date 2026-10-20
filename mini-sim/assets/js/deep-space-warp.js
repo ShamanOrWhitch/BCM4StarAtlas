@@ -53,6 +53,62 @@
       } catch (e) {}
     }
 
+    let ringAudio = null;
+    let ringAudioSource = "";
+    function findRingAudioSource() {
+      if (String(config.ringMusicUrl || "").trim()) return String(config.ringMusicUrl).trim();
+      const assets = Array.isArray(config.assets) ? config.assets : [];
+      const item = assets.find((asset) => {
+        const candidate = String(asset && (asset.name || asset.filename || asset.path || asset.url) || "")
+          .split(/[?#]/)[0].split("/").pop().toLowerCase();
+        return candidate === "ring.mp3";
+      });
+      return String(item && (item.url || item.src || item.path) || "");
+    }
+
+    function startRingAudio() {
+      const source = findRingAudioSource();
+      // The user will add ring.mp3. Missing media must not stop the level or
+      // silence Warp; load it only on actual entry to the ring platformer.
+      if (!source) return false;
+      if (!ringAudio) {
+        ringAudio = document.createElement("audio");
+        ringAudio.preload = "none";
+        ringAudio.loop = true;
+        ringAudio.volume = 0.68;
+        ringAudio.setAttribute("playsinline", "");
+        ringAudioSource = source;
+        ringAudio.src = source;
+        ringAudio.load();
+        if (window.BCMGameAudio?.register) window.BCMGameAudio.register(ringAudio, "ring");
+      } else if (ringAudioSource !== source) {
+        try { ringAudio.pause(); } catch (e) {}
+        ringAudioSource = source;
+        ringAudio.src = source;
+        ringAudio.load();
+      }
+      ringAudio.muted = !!window.BCMGameAudio?.isMuted?.();
+      if (!ringAudio.paused && !ringAudio.ended) return true;
+      const playing = window.BCMGameAudio?.playExclusive
+        ? window.BCMGameAudio.playExclusive(ringAudio, "ring")
+        : ringAudio.play();
+      if (playing && typeof playing.catch === "function") playing.catch(() => {});
+      return true;
+    }
+
+    function stopRingAudio(resumeWarp) {
+      if (ringAudio) {
+        try { ringAudio.pause(); ringAudio.currentTime = 0; } catch (e) {}
+      }
+      if (resumeWarp && state.mode === "maze" && !state.ringPlatformer) {
+        warpAudio.muted = !!window.BCMGameAudio?.isMuted?.();
+        const playing = window.BCMGameAudio?.playExclusive
+          ? window.BCMGameAudio.playExclusive(warpAudio, "warp")
+          : warpAudio.play();
+        if (playing && typeof playing.catch === "function") playing.catch(() => {});
+      }
+    }
+
     // Mutually exclusive soundtrack rule: one OST at a time.
     // Preserve the regular level OST's playback position while the map/Tube is active.
     function pauseLevelOst() {
@@ -75,7 +131,15 @@
 
     window.addEventListener("bcm:game-music-mute", (event) => {
       warpAudio.muted = !!event.detail?.muted;
+      if (ringAudio) ringAudio.muted = !!event.detail?.muted;
     });
+    window.addEventListener("keydown", (event) => {
+      if (event.code !== "KeyU" || event.repeat || state.mode !== "maze" ||
+          state.ringPlatformer || state.ringDistance > 8) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      openHullAtRing();
+    }, true);
 
     const state = {
       mode: "closed",
@@ -107,12 +171,25 @@
       animationRunning: false,
       layers: [],
       maze: null,
+      ringPlatformer: false,
+      ringDistance: Infinity,
+      rightStickWasDown: false,
       statusText: "",
       lastStatusAt: 0,
       keys: Object.create(null),
       touch: { left: false, right: false, up: false, down: false },
       tilt: { enabled: false, bound: false, permissionGranted: false, available: false, filterReady: false, filtered: 0, neutral: 0, calibrating: false, samples: 0, sum: 0, value: 0 }
     };
+
+    const hullEnterButton = document.createElement("button");
+    hullEnterButton.className = "bcm-warp-hull-enter";
+    hullEnterButton.type = "button";
+    hullEnterButton.textContent = "В ТРЮМ · U / R3";
+    hullEnterButton.setAttribute("aria-label", "Открыть трюм");
+    hullEnterButton.hidden = true;
+    hullEnterButton.style.cssText = "position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:1000500;min-height:44px;padding:8px 16px;border:1px solid #70d9ee;border-radius:10px;background:rgba(7,27,42,.94);color:#e8fbff;font:700 13px system-ui;letter-spacing:.07em;touch-action:manipulation;white-space:nowrap";
+    root.appendChild(hullEnterButton);
+    hullEnterButton.addEventListener("click", () => openHullAtRing());
 
     const launchButton = document.createElement("button");
     launchButton.className = "bcm-warp-launch";
@@ -783,7 +860,8 @@
       const NX = 7, NY = 3, NZ = 7, CELL = 5.4, WALL = 0.46;
       // Keep the test maze off-axis and away from the old negative-Z texture-preload trigger.
       const center = new THREE.Vector3(230, 0, 150);
-      const seed = hashSeed(state.nav.current.id + "->" + state.target.id + ":" + state.target.x + ":" + state.target.y);
+      const runNonce = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+      const seed = hashSeed(state.nav.current.id + "->" + state.target.id + ":" + state.target.x + ":" + state.target.y + ":" + runNonce);
       const rng = randomFrom(seed);
       const cells = [];
       function idx(x, y, z) { return (z * NY + y) * NX + x; }
@@ -965,7 +1043,7 @@
         mesh.position.y += 0.2;
         mesh.name = "core-shard-" + index;
         group.add(mesh);
-        crystals.push({ mesh, taken: false, phase: rng() * Math.PI * 2 });
+        crystals.push({ mesh, taken: false, phase: rng() * Math.PI * 2, cell: { x: cell.x, y: cell.y, z: cell.z } });
       });
       const beacon = new THREE.Mesh(beaconGeometry, beaconMaterial);
       beacon.position.copy(cellPosition(exitNode.x, exitNode.y, exitNode.z));
@@ -999,7 +1077,9 @@
         crystalMaterial,
         beaconGeometry,
         beaconMaterial,
-        lastPosition: null
+        lastPosition: null,
+        lastImpactAt: 0,
+        ringCompleted: false
       };
       state.savedSpeedMode = engine.getSpeedMode ? engine.getSpeedMode() : 1;
       if (engine.setSpeedMode) engine.setSpeedMode(2);
