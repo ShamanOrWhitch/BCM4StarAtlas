@@ -1740,10 +1740,11 @@
           const place = (axis, x, z, rotationY) => {
             turnTriggerItems.push({ cell, axis, x, y: triggerY, z, rotationY });
           };
-          if (cell.open.zn) place("z", p.x, p.z + roomHalf - 0.18, 0);
-          if (cell.open.zp) place("z", p.x, p.z - roomHalf + 0.18, 0);
-          if (cell.open.xp) place("x", p.x + roomHalf - 0.18, p.z, Math.PI / 2);
-          if (cell.open.xn) place("x", p.x - roomHalf + 0.18, p.z, Math.PI / 2);
+          // Offset the two depth-door markers laterally, so they are distinguishable in a 2D side view.
+          if (cell.open.zn) place("z", p.x + 0.64, p.z + roomHalf - 0.18, 0);
+          if (cell.open.zp) place("z", p.x - 0.64, p.z - roomHalf + 0.18, 0);
+          if (cell.open.xp) place("x", p.x + roomHalf - 0.18, p.z + 0.64, Math.PI / 2);
+          if (cell.open.xn) place("x", p.x - roomHalf + 0.18, p.z - 0.64, Math.PI / 2);
         });
         // One instanced batch for every room-door trigger: no per-door draw calls.
         const turnTriggerMesh = new THREE.InstancedMesh(turnTriggerGeometry, turnTriggerMaterial, turnTriggerItems.length);
