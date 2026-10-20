@@ -21,7 +21,7 @@ test("asteroid exit returns to Warp, Ring stays separate and Hull Dive is entera
   assert.match(warp, /exitButton\.textContent = "RETURN TO WARP MAP"/);
   assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
   assert.match(warp, /maze\.count === 3 \? "GOLD RING IS OPEN"/);
-  assert.match(warp, /if \(!state\.ringPlatformer && !maze\.ringCompleted && ringDistance < 2\.6\)\s*\{\s*openRingPlatformer\(maze\)/);
+  assert.match(warp, /if \(state\.ringApproachArmed && !state\.ringPlatformer && !maze\.ringCompleted && ringDistance < 2\.6\)\s*\{\s*openRingPlatformer\(maze\)/);
   const mazeFrame = section(warp, "function updateMazeFrame(frame)", "function openHullInterior");
   assert.match(mazeFrame, /const ringDistance = pos\.distanceTo\(maze\.beacon\.position\)/);
   assert.match(mazeFrame, /state\.ringDistance = ringDistance/);
@@ -238,12 +238,9 @@ test("Ring intro plays ringgummy.mp4 and starts ring.mp3 on the first rendered v
   assert.match(warp, /ringTransitionActive: false/);
 });
 
-test("Ring is a 2D-in-3D platform maze reusing the same seeded graph, Crew and adaptive cameras", () => {
+test("Ring Frontier is a continuous side-scrolling action level with three large boss arenas", () => {
   const ring = section(warp, "function openRingPlatformer(maze, afterTransition = false)", "function finishRingPlatformer");
-  assert.ok(warp.includes("dimensions: { nx: NX, ny: NY, nz: NZ }"));
-  assert.ok(warp.includes("startCell: { x: startNode.x, y: startNode.y, z: startNode.z }"));
-  assert.ok(warp.includes("exitCell: { x: exitNode.x, y: exitNode.y, z: exitNode.z }"));
-  assert.ok(ring.includes("const cellMap = new Map(maze.cells.map"));
+  assert.ok(ring.includes('world.name = "bcm-ring-frontier-side-scroll"'));
   assert.ok(ring.includes("function buildRingWorld()"));
   assert.ok(ring.includes("new THREE.OrthographicCamera"));
   assert.ok(ring.includes("window.BCMDeepSpaceWarpRender = renderRingViews"));
@@ -251,29 +248,26 @@ test("Ring is a 2D-in-3D platform maze reusing the same seeded graph, Crew and a
   assert.ok(ring.includes("data-ring-multi"));
   assert.ok(ring.includes("window.BCMMiniCrewSelection?.players"));
   assert.ok(ring.includes("makeCrewSpriteTexture"));
-  assert.ok(ring.includes("function triggerTurn(player, direction)"));
-  assert.ok(ring.includes("function triggerFloor(player, direction)"));
   assert.ok(ring.includes("function updateSplitState()"));
   assert.ok(ring.includes("function renderRingViews(frameContext)"));
   assert.ok(ring.includes("function drawMiniMap()"));
-  assert.ok(ring.includes('viewAxis: "z"'));
-  assert.ok(ring.includes('viewAxis: "x"'));
-  assert.ok(ring.includes("orientation: 0"));
-  assert.ok(ring.includes("orientation: 1"));
-  assert.ok(ring.includes("platform.orientation === player.orientation"));
-  assert.ok(ring.includes("viewAxisAllowed && itemLane === laneIndex"));
-  assert.ok(ring.includes("maze.crystals"));
-  assert.ok(ring.includes("maze.count >= 3"));
-  assert.doesNotMatch(ring, /corePickups|stageWidth|layoutPlatforms/);
+  assert.ok(ring.includes("function updateBosses(dt, now)"));
+  assert.ok(ring.includes("const bosses = ["));
+  assert.ok(ring.includes("СБОЙНЫЙ СТРАЖ"));
+  assert.ok(ring.includes("ПЛАЗМЕННЫЙ СЕРДЕЧНИК"));
+  assert.ok(ring.includes("СТАРШИЙ СИНГУЛЯРНОСТИ"));
+  assert.ok(ring.includes("defeatedBosses < barrier.unlockAfter"));
+  assert.doesNotMatch(ring, /maze\.cells|function triggerTurn\(|function triggerFloor\(/);
   assert.ok(warp.includes("maze.ringCompleted = success"));
   assert.match(warp, /ringApproachArmed: true/);
   assert.match(warp, /state\.ringApproachArmed = false/);
   assert.match(warp, /if \(ringDistance > 4\.2\) state\.ringApproachArmed = true/);
   assert.match(warp, /state\.ringApproachArmed && !state\.ringPlatformer && !maze\.ringCompleted/);
-  assert.ok(ring.includes("const triggerOffset = player.orientation === 0"));
-  assert.match(ring, /if \(Math\.abs\(player\.localX\) > 1\.05\)/);
-  assert.match(warp, /const ladderX = p\.x;/);
-  assert.ok(warp.includes("falloff * falloff * 1.8"));
+  assert.ok(ring.includes("function makeComicBackdrop(zone)"));
+  assert.ok(ring.includes("new THREE.CanvasTexture(canvas)"));
+  assert.ok(ring.includes("Each boss gets a framed arena"));
+  assert.ok(ring.includes("bossOutlineGeometry"));
+  assert.ok(ring.includes("worldTextures.push(texture)"));
 });
 test("Ring uses the shared WebGL renderer and exposes Tower's Crew alpha-cleaning helper", () => {
   assert.match(sim, /window\.BCMDeepSpaceWarpRender\(\{/);
@@ -281,10 +275,10 @@ test("Ring uses the shared WebGL renderer and exposes Tower's Crew alpha-cleanin
   assert.match(sim, /window\.BCMDeepSpaceWarpPoll\(\{/);
   assert.match(tower, /window\.BCMTowerAPI\.makeCrewSpriteTexture = \(url\)/);
   assert.match(tower, /assetTexture\(String\(url \|\| ""\), renderer, \{ cutout: true \}\)/);
-  assert.match(warp, /function setMeshLane\(mesh, axis, laneIndex, floorIndex\)/);
-  assert.match(warp, /function updateRoomSlice\(player\)/);
-  assert.match(warp, /setMeshLane\(worldState\.wallsX, axis, lane, player\.y\)/);
-  assert.match(warp, /setMeshLane\(worldState\.wallsZ, axis, lane, player\.y\)/);
+  assert.match(warp, /function renderRingViews\(frameContext\)/);
+  assert.match(warp, /renderer\.render\(activeScene, view\.camera\)/);
+  assert.doesNotMatch(warp, /new THREE\.WebGLRenderer/);
+  assert.match(warp, /function updateRoomSlice\(\)/);
 });
 
 test("Ring transition video asset is present in the Mini-Sim merge checkout", async () => {
