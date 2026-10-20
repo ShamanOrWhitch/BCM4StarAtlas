@@ -262,6 +262,16 @@ test("Ring is a 2D-in-3D platform maze reusing the same seeded graph, Crew and a
   assert.ok(warp.includes("maze.ringCompleted = success"));
   assert.ok(warp.includes("falloff * falloff * 1.8"));
 });
+test("Ring uses the shared WebGL renderer and exposes Tower's Crew alpha-cleaning helper", () => {
+  assert.match(sim, /window\.BCMDeepSpaceWarpRender\(\{/);
+  assert.match(sim, /deepSpaceCustomRendered = window\.BCMDeepSpaceWarpRender/);
+  assert.match(sim, /window\.BCMDeepSpaceWarpPoll\(\{/);
+  assert.match(tower, /window\.BCMTowerAPI\.makeCrewSpriteTexture = \(url\)/);
+  assert.match(tower, /assetTexture\(String\(url \|\| ""\), renderer, \{ cutout: true \}\)/);
+  assert.match(warp, /if \(worldState\.wallsX\) worldState\.wallsX\.visible = p\.orientation === 0/);
+  assert.match(warp, /if \(worldState\.wallsZ\) worldState\.wallsZ\.visible = p\.orientation === 1/);
+});
+
 test("Ring transition video asset is present in the Mini-Sim merge checkout", async () => {
   const info = await stat(new URL("../mini-sim/assets/ringgummy.mp4", import.meta.url));
   assert.equal(info.isFile(), true);
