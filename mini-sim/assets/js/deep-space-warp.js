@@ -241,11 +241,12 @@
       if (ringAudio) ringAudio.muted = !!event.detail?.muted;
     });
     window.addEventListener("keydown", (event) => {
-      if (event.code !== "KeyU" || event.repeat || state.mode !== "maze" ||
-          state.ringPlatformer || state.ringDistance > 8) return;
+      if (event.code !== "KeyU" || event.repeat ||
+          state.mode === "map" || state.mode === "tube" || state.mode === "result" ||
+          state.ringPlatformer || state.ringTransitionActive || state.hullOpen) return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      openHullAtRing();
+      openHullInterior();
     }, true);
 
     const state = {
@@ -280,6 +281,7 @@
       maze: null,
       ringPlatformer: false,
       ringTransitionActive: false,
+      ringRenderState: null,
       ringDistance: Infinity,
       rightStickWasDown: false,
       warpCollisionCount: 0,
@@ -293,12 +295,26 @@
     const hullEnterButton = document.createElement("button");
     hullEnterButton.className = "bcm-warp-hull-enter";
     hullEnterButton.type = "button";
-    hullEnterButton.textContent = "В ТРЮМ · U / R3";
-    hullEnterButton.setAttribute("aria-label", "Открыть трюм");
+    hullEnterButton.textContent = "ВНУТРЬ КОРАБЛЯ · U / R3";
+    hullEnterButton.setAttribute("aria-label", "Войти внутрь корабля");
     hullEnterButton.hidden = true;
-    hullEnterButton.style.cssText = "position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:1000500;min-height:44px;padding:8px 16px;border:1px solid #70d9ee;border-radius:10px;background:rgba(7,27,42,.94);color:#e8fbff;font:700 13px system-ui;letter-spacing:.07em;touch-action:manipulation;white-space:nowrap";
+    hullEnterButton.style.cssText = "position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:1000500;min-height:46px;padding:9px 16px;border:1px solid #70d9ee;border-radius:10px;background:rgba(7,27,42,.96);color:#e8fbff;font:700 13px system-ui;letter-spacing:.05em;touch-action:manipulation;white-space:nowrap;box-shadow:0 4px 22px rgba(0,0,0,.35)";
     root.appendChild(hullEnterButton);
-    hullEnterButton.addEventListener("click", () => openHullAtRing());
+    hullEnterButton.addEventListener("click", () => openHullInterior());
+
+    function syncHullButtonVisibility() {
+      const busy = state.mode === "map" || state.mode === "tube" || state.mode === "result" ||
+        state.ringPlatformer || state.ringTransitionActive || state.hullOpen ||
+        !!document.getElementById("bcm-hull-dive") ||
+        !!document.getElementById("bcm-ring-platformer") ||
+        !!document.getElementById("bcm-ring-transition");
+      hullEnterButton.hidden = !root.classList.contains("game-active") || busy;
+    }
+    if (typeof MutationObserver === "function") {
+      const hullButtonObserver = new MutationObserver(syncHullButtonVisibility);
+      hullButtonObserver.observe(root, { attributes: true, attributeFilter: ["class"] });
+    }
+    syncHullButtonVisibility();
 
     const launchButton = document.createElement("button");
     launchButton.className = "bcm-warp-launch";
@@ -1308,7 +1324,7 @@
       const rightStickDown = pads.some((pad) => pad && pad.connected && pad.buttons &&
         pad.buttons[11] && pad.buttons[11].pressed);
       if (!state.ringPlatformer && ringDistance < 8 && rightStickDown && !state.rightStickWasDown) {
-        openHullAtRing();
+        openHullInterior();
         state.rightStickWasDown = rightStickDown;
         return;
       }
@@ -1336,45 +1352,42 @@
       }
     }
 
-    function openHullAtRing() {
-      const maze = state.maze;
+    function openHullInterior() {
       const engine = api();
       const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
-      if (state.mode !== "maze" || !maze || state.hullOpen || state.ringPlatformer ||
-          !runtime || !runtime.ship || !window.BCMHullDive || typeof window.BCMHullDive.open !== "function") return false;
+      const maze = state.maze && state.maze.active && state.mode === "maze" ? state.maze : null;
+      if (state.hullOpen || state.ringPlatformer || state.ringTransitionActive ||
+          !root.classList.contains("game-active") || !runtime || !runtime.ship ||
+          !window.BCMHullDive || typeof window.BCMHullDive.open !== "function") return false;
 
-      const ship = runtime.ship;
+      // This is the ship's interior, not a teleport to the golden Ring.
+      // Preserve the current first-person flight pose and only pause the ship while
+      // the transparent compartment simulation owns the screen.
       state.hullOpen = true;
-      hullEnterButton.hidden = true;
+      syncHullButtonVisibility();
       if (engine.pauseForWarp) engine.pauseForWarp(true);
-      const away = ship.position.clone().sub(maze.beacon.position);
-      if (away.lengthSq() < 0.04) away.set(0, 0.4, 1);
-      away.setLength(5.2);
-      ship.position.copy(maze.beacon.position).add(away);
-      if (ship.quaternion && runtime.THREE?.Quaternion && runtime.THREE?.Vector3) {
-        const yaw = Math.atan2(-away.x, -away.z);
-        ship.quaternion.setFromAxisAngle(new runtime.THREE.Vector3(0, 1, 0), yaw);
-      }
-      if (ship.velocity) ship.velocity.set(0, 0, 0);
-      if (ship.angularVelocity) ship.angularVelocity.set(0, 0, 0);
 
-      window.BCMRingWindowState = {
+      const nearRing = !!(maze && maze.beacon && state.ringDistance < 18);
+      window.BCMRingWindowState = nearRing ? {
         visible: true,
-        ringDistance: 5.2,
+        ringDistance: state.ringDistance,
         target: maze.beacon.position.clone(),
         maze
-      };
+      } : null;
+
       window.BCMHullDive.open(() => {
         state.hullOpen = false;
         window.BCMRingWindowState = null;
         if (engine.pauseForWarp) engine.pauseForWarp(false);
         const freshRuntime = engine.getRuntime ? engine.getRuntime() : null;
-        if (freshRuntime?.ship?.position) {
+        if (maze && freshRuntime?.ship?.position) {
           state.ringDistance = freshRuntime.ship.position.distanceTo(maze.beacon.position);
+          setMazeStatus("BACK IN THE SHIP · RING WINDOW " +
+            (state.ringDistance < 18 ? "VISIBLE" : "OUT OF VIEW"));
         }
-        hullEnterButton.hidden = !(state.ringDistance < 8) || state.ringPlatformer;
-        setMazeStatus("BACK AT THE RING · U / R3 OR TAP THE HULL BUTTON");
+        syncHullButtonVisibility();
       });
+      syncHullButtonVisibility();
       return true;
     }
 
