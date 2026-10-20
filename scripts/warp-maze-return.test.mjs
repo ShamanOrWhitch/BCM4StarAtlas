@@ -268,8 +268,10 @@ test("Ring uses the shared WebGL renderer and exposes Tower's Crew alpha-cleanin
   assert.match(sim, /window\.BCMDeepSpaceWarpPoll\(\{/);
   assert.match(tower, /window\.BCMTowerAPI\.makeCrewSpriteTexture = \(url\)/);
   assert.match(tower, /assetTexture\(String\(url \|\| ""\), renderer, \{ cutout: true \}\)/);
-  assert.match(warp, /if \(worldState\.wallsX\) worldState\.wallsX\.visible = p\.orientation === 0/);
-  assert.match(warp, /if \(worldState\.wallsZ\) worldState\.wallsZ\.visible = p\.orientation === 1/);
+  assert.match(warp, /function setMeshLane\(mesh, axis, laneIndex, floorIndex\)/);
+  assert.match(warp, /function updateRoomSlice\(player\)/);
+  assert.match(warp, /setMeshLane\(worldState\.wallsX, axis, lane, player\.y\)/);
+  assert.match(warp, /setMeshLane\(worldState\.wallsZ, axis, lane, player\.y\)/);
 });
 
 test("Ring transition video asset is present in the Mini-Sim merge checkout", async () => {
