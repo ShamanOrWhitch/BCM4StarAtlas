@@ -2220,6 +2220,8 @@
         const renderer = frameContext && frameContext.renderer;
         const activeScene = frameContext && frameContext.scene;
         if (!renderer || !activeScene || !players.length) {
+          const previewPlayer = { x: ringCell.x, y: ringCell.y, z: ringCell.z, localX: 0, jumpHeight: 0, orientation: 0, index: 0 };
+          updateRoomSlice(previewPlayer);
           const defaultPos = cellWorld(ringCell);
           configureCamera(cameraOne, { w: Math.max(1, root.clientWidth), h: Math.max(1, root.clientHeight) }, {
             x: defaultPos.x, y: floorYForCell(ringCell.y) + 1, z: defaultPos.z
