@@ -66,15 +66,14 @@
       return String(item && (item.url || item.src || item.path) || "");
     }
 
-    function startRingAudio() {
+    // Warm the soundtrack while the transition clip is loading, but do not play
+    // it until the clip's first frame is actually presented.
+    function prepareRingAudio() {
       const source = findRingAudioSource();
-      // Resolve the existing ring.mp3 asset by its exact manifest filename.
-      // Load it only when the player enters this level; missing deployment media
-      // must not stop the level or interrupt the Warp soundtrack.
       if (!source) return false;
       if (!ringAudio) {
         ringAudio = document.createElement("audio");
-        ringAudio.preload = "none";
+        ringAudio.preload = "auto";
         ringAudio.loop = true;
         ringAudio.volume = 0.68;
         ringAudio.setAttribute("playsinline", "");
@@ -85,9 +84,16 @@
       } else if (ringAudioSource !== source) {
         try { ringAudio.pause(); } catch (e) {}
         ringAudioSource = source;
+        ringAudio.preload = "auto";
         ringAudio.src = source;
         ringAudio.load();
       }
+      ringAudio.muted = !!window.BCMGameAudio?.isMuted?.();
+      return true;
+    }
+
+    function startRingAudio() {
+      if (!prepareRingAudio()) return false;
       ringAudio.muted = !!window.BCMGameAudio?.isMuted?.();
       if (!ringAudio.paused && !ringAudio.ended) return true;
       const playing = window.BCMGameAudio?.playExclusive
@@ -101,10 +107,113 @@
       if (ringAudio) {
         try { ringAudio.pause(); ringAudio.currentTime = 0; } catch (e) {}
       }
-      if (resumeWarp && state.mode === "maze" && !state.ringPlatformer) {
+      if (resumeWarp && state.mode === "maze" && !state.ringPlatformer && !state.ringTransitionActive) {
         warpAudio.muted = !!window.BCMGameAudio?.isMuted?.();
         startWarpAudio(false);
       }
+    }
+
+    function findRingTransitionVideoSource() {
+      if (String(config.ringTransitionVideoUrl || "").trim()) return String(config.ringTransitionVideoUrl).trim();
+      const assets = Array.isArray(config.assets) ? config.assets : [];
+      const fileName = (asset) => String(asset && (asset.name || asset.filename || asset.path || asset.url) || "")
+        .split(/[?#]/)[0].split("/").pop().toLowerCase();
+      const preferred = assets.find((asset) => fileName(asset) === "ringgummy.mp4");
+      const item = preferred || assets.find((asset) => /^ring[^/]*\.mp4$/i.test(fileName(asset)));
+      return String(item && (item.url || item.src || item.path) || "");
+    }
+
+    function playRingTransition(maze, source, engine) {
+      if (state.ringTransitionActive || state.ringPlatformer) return false;
+      state.ringTransitionActive = true;
+      state.ringPlatformer = true;
+      hullEnterButton.hidden = true;
+      if (engine && engine.pauseForWarp) engine.pauseForWarp(true);
+
+      const audioPrepared = prepareRingAudio();
+      let audioReady = !audioPrepared || !ringAudio || ringAudio.readyState >= 3;
+      let videoReady = false;
+      let playbackRequested = false;
+      let finished = false;
+      let firstFrameCallback = 0;
+
+      const overlay = document.createElement("div");
+      overlay.id = "bcm-ring-transition";
+      overlay.setAttribute("aria-label", "Ring transition");
+      overlay.style.cssText = "position:fixed;inset:0;z-index:1000700;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;touch-action:none";
+      const video = document.createElement("video");
+      video.preload = "auto";
+      video.autoplay = true;
+      video.loop = false;
+      video.muted = true;
+      video.controls = false;
+      video.playsInline = true;
+      video.setAttribute("playsinline", "");
+      video.setAttribute("webkit-playsinline", "");
+      video.disablePictureInPicture = true;
+      video.style.cssText = "display:block;width:100%;height:100%;object-fit:contain;background:#000";
+      overlay.appendChild(video);
+      document.body.appendChild(overlay);
+
+      function enterLevel() {
+        if (finished) return;
+        finished = true;
+        try {
+          if (firstFrameCallback && typeof video.cancelVideoFrameCallback === "function") {
+            video.cancelVideoFrameCallback(firstFrameCallback);
+          }
+        } catch (e) {}
+        try { video.pause(); video.removeAttribute("src"); video.load(); } catch (e) {}
+        overlay.remove();
+        state.ringTransitionActive = false;
+        state.ringPlatformer = false;
+        if (!openRingPlatformer(maze, true)) {
+          state.ringPlatformer = false;
+          if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
+          stopRingAudio(true);
+        }
+      }
+
+      function maybeStartVideo() {
+        if (finished || playbackRequested || !videoReady || !audioReady) return;
+        playbackRequested = true;
+        const playing = video.play();
+        if (playing && typeof playing.catch === "function") playing.catch(() => enterLevel());
+      }
+
+      video.addEventListener("loadeddata", () => {
+        videoReady = true;
+        maybeStartVideo();
+      }, { once: true });
+      video.addEventListener("ended", enterLevel, { once: true });
+      video.addEventListener("error", enterLevel, { once: true });
+
+      if (audioPrepared && ringAudio && !audioReady) {
+        ringAudio.addEventListener("canplay", () => {
+          audioReady = true;
+          maybeStartVideo();
+        }, { once: true });
+        ringAudio.addEventListener("error", () => {
+          audioReady = true;
+          maybeStartVideo();
+        }, { once: true });
+      }
+
+      const startSoundOnFirstFrame = () => {
+        if (!finished) startRingAudio();
+      };
+      if (typeof video.requestVideoFrameCallback === "function") {
+        try { firstFrameCallback = video.requestVideoFrameCallback(startSoundOnFirstFrame); }
+        catch (e) { video.addEventListener("loadeddata", startSoundOnFirstFrame, { once: true }); }
+      } else {
+        // Older Safari/WebViews expose the decoded first frame via loadeddata.
+        video.addEventListener("loadeddata", startSoundOnFirstFrame, { once: true });
+      }
+
+      video.src = source;
+      video.load();
+      maybeStartVideo();
+      return true;
     }
 
     // Mutually exclusive soundtrack rule: one OST at a time.
@@ -170,6 +279,7 @@
       layers: [],
       maze: null,
       ringPlatformer: false,
+      ringTransitionActive: false,
       ringDistance: Infinity,
       rightStickWasDown: false,
       warpCollisionCount: 0,
@@ -1263,11 +1373,15 @@
       return true;
     }
 
-    function openRingPlatformer(maze) {
+    function openRingPlatformer(maze, afterTransition = false) {
       if (!maze || !maze.active || state.ringPlatformer || state.hullOpen || state.mode !== "maze") return false;
       const engine = api();
       const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
       if (!runtime?.ship || !runtime.THREE) return false;
+      if (!afterTransition) {
+        const transitionSource = findRingTransitionVideoSource();
+        if (transitionSource) return playRingTransition(maze, transitionSource, engine);
+      }
 
       state.ringPlatformer = true;
       hullEnterButton.hidden = true;
