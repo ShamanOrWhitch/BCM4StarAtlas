@@ -7,13 +7,13 @@ Main soundtrack asset: `mini-sim/assets/ring.mp3`, added to main in commit `cb1f
 
 ## Implemented in this branch
 
-- The side-scrolling 2D Ring level uses three local core collectibles and a randomized seven-stage deck/platform layout. Its objective no longer borrows already-collected shards from the 3D asteroid maze.
-- Ring entry first plays `ringgummy.mp4` as a muted full-screen transition. `ring.mp3` is preloaded without playback, then starts on `requestVideoFrameCallback` for the first presented video frame; the side-scrolling level opens when the clip ends. Older WebViews fall back to `loadeddata`. If the intro video is missing or cannot play, the level opens directly and the soundtrack starts there. Audio uses the shared exclusive OST/mute API.
+- Ring mode is a 2D top-down traversal of the exact active 3D maze: it reuses the same saved seed, cell graph, connected passages, entrance/exit and the same three crystal states. It does not generate a second maze or a separate side-scrolling platform course. Players choose Single or Multi (two Crew); selected Mini-Sim Crew images are reused when available. Movement respects the generated corridor links, including stairs between its three vertical layers. Finishing returns to the ship; the Hull Dive remains a separate interaction.
+- Ring entry first plays `ringgummy.mp4` as a muted full-screen transition. `ring.mp3` is preloaded without playback, then starts on `requestVideoFrameCallback` for the first presented video frame; the 2D view of the same maze opens when the clip ends. Older WebViews fall back to `loadeddata`. If the intro video is missing or cannot play, the level opens directly and the soundtrack starts there. Audio uses the shared exclusive OST/mute API.
 - Escape safely returns from an incomplete Ring attempt; the resize listener is properly removed when the level closes.
 - Ring attraction is range-limited and gentler.
 - Hull Dive uses transparent rendering so the existing 3D ring/ship scene remains visible through the cabin window; has a bounded pool of 60 smoke puffs and 84 water bubbles whose active density follows compartment levels; one gamepad is assigned to P2 to preserve keyboard P1, two pads can steer separate Crew; pointer dragging/holding supports Crew movement, pumping and seam repair.
 - Asteroid/tube collisions damage the compartment model through the existing Hull Repair state/hooks.
-- Tower gamepad polling and Tower OST are suppressed while its root is hidden or Hull Dive/Ring owns input.
+- Tower gamepad polling and Tower OST are suppressed while its root is hidden or Hull Dive/Ring/Ring transition owns input.
 - Cache versions are Mini-Sim 0.9.104 and Tower 0.2.63.
 
 ## Verified code and browser smoke
@@ -32,8 +32,8 @@ The browser smoke confirms the test page served the branch's Warp JavaScript/CSS
 ## Before marking live verified
 
 1. Integrate PR #44 and deploy the updated plugin assets to WordPress; GitHub does not deploy them automatically.
-2. On the live page, reach the asteroid maze and enter the gold Ring. Confirm `ring.mp3` starts only for that level, obeys the global mute button and stops on exit; gather all 3 Ring cores, return through the exit and confirm the 3D ring is visible through the Hull window.
-3. Verify Escape returns safely before finishing, pointer-drag and hold actions work in Hull Dive, and gamepad input does not start Tower OST while the cabin/Ring overlays are open.
+2. On the live page, reach the asteroid maze and enter the gold Ring. Confirm the same seeded maze opens in 2D, Single/Multi selection works, the selected Crew appear, `ring.mp3` starts on the first video frame, obeys global mute and stops on exit. Collect remaining core shards in 2D and return to the maze entrance.
+3. Separately test Hull Dive using U/R3 or its screen button; verify Escape returns safely from Ring, touch controls work, and gamepad input does not start Tower OST while the cabin/Ring/video overlays are open.
 4. Repeat on a physical gamepad/Android device before marking those controls `VERIFIED-LIVE`.
 
 ## Protected areas
