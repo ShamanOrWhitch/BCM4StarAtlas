@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import test from "node:test";
 import { Script } from "node:vm";
 
@@ -251,4 +251,11 @@ test("Changed Hull Dive, Warp and Tower scripts all parse before browser QA", ()
   assert.doesNotThrow(() => new Script(hull));
   assert.doesNotThrow(() => new Script(warp));
   assert.doesNotThrow(() => new Script(tower));
+});
+
+
+test("Ring soundtrack asset is present in the Mini-Sim merge checkout", async () => {
+  const info = await stat(new URL("../mini-sim/assets/ring.mp3", import.meta.url));
+  assert.equal(info.isFile(), true);
+  assert.ok(info.size > 0, "ring.mp3 must not be an empty placeholder");
 });
