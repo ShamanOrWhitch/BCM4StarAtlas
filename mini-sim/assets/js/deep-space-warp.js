@@ -1723,16 +1723,7 @@
       const cameraTwo = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
       const cameraFocus = cellWorld(ringCell);
       const savedPlayerVisualState = [];
-      let width = 1, height = 1, done = false, gameStarted = false, splitActive = false;
-      let mode = "single";
-      let players = [];
-      let lastHudCount = -1, raf = 0, frameStamp = 0;
-      const keyboardInputs = [{}, {}];
-      const touchInputs = [{}, {}];
-      const padInputs = [{}, {}];
-      const previousPad = [{}, {}];
-      const oneShotActions = new Set(["turnUp", "turnDown", "floorUp", "floorDown"]);
-      const playerColors = ["#65dcf0", "#f3c46c"];
+      let width = 1, height = 1;
 
       const textureLoader = new THREE.TextureLoader();
       function fallbackCrewTexture(index) {
@@ -2101,11 +2092,10 @@
         const a = playerWorldPosition(players[0]);
         const b = playerWorldPosition(players[1]);
         const distance = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+        // Room-adjacent Crew can still share one camera; different floors or
+        // different room facing require independent views.
         const samePlane = players[0].y === players[1].y &&
-          players[0].orientation === players[1].orientation &&
-          (players[0].orientation === 0
-            ? players[0].z === players[1].z
-            : players[0].x === players[1].x);
+          players[0].orientation === players[1].orientation;
         if (!splitActive && (!samePlane || distance > cellSize * 1.62)) splitActive = true;
         else if (splitActive && samePlane && distance < cellSize * 1.22) splitActive = false;
         const landscape = width >= height;
@@ -2193,6 +2183,10 @@
             target = cameraTargetFor(p);
           }
           configureCamera(view.camera, view, target, p.orientation);
+          // Hide the wall plane facing the camera to get Tower-like cutaway rooms;
+          // toggle synchronously per viewport so different orientations work in split-screen.
+          if (worldState.wallsX) worldState.wallsX.visible = p.orientation === 0;
+          if (worldState.wallsZ) worldState.wallsZ.visible = p.orientation === 1;
           renderer.setViewport(view.x, view.y, view.w, view.h);
           renderer.setScissor(view.x, view.y, view.w, view.h);
           renderer.clear(true, true, true);
@@ -2200,6 +2194,8 @@
         }
         renderer.setScissorTest(false);
         renderer.setViewport(0, 0, viewW, viewH);
+        if (worldState.wallsX) worldState.wallsX.visible = true;
+        if (worldState.wallsZ) worldState.wallsZ.visible = true;
         renderer.autoClear = oldAutoClear;
         return true;
       }
@@ -2338,7 +2334,7 @@
 
       root2d.querySelectorAll("[data-ring-action]").forEach((button) => {
         const action = button.getAttribute("data-ring-action");
-        button.style.cssText += ";border:1px solid #426779;border-radius:10px;background:rgba(16,35,45,.96);color:#e8fbff;font-weight:900;touch-action:none";
+        button.style.cssText += ";pointer-events:auto;border:1px solid #426779;border-radius:10px;background:rgba(16,35,45,.96);color:#e8fbff;font-weight:900;touch-action:none";
         button.addEventListener("pointerdown", (event) => {
           event.preventDefault();
           setActionFromPointer(button, action, true, event);
