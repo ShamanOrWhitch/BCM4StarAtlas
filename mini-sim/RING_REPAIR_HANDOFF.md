@@ -18,16 +18,16 @@ Main soundtrack asset: `mini-sim/assets/ring.mp3`, added to main in commit `cb1f
 
 ## Verified code and browser smoke
 
-All successful Action runs use runtime/test code at `e0add2edc6f6bf369c907b6f8aef9b35eff0c40f` (the following handoff-file commit is documentation-only):
+The gameplay-source code was verified at `e0add2edc6f6bf369c907b6f8aef9b35eff0c40f`; the current regression set and an extra `stat()` check that the uploaded `ring.mp3` exists in the PR merge checkout passed on head `abda2bedc4df24fb4ef4153816c77d22a28002dd`.
 
-- Mini-Sim regression checks: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39394732814
-- Tower top-cap regression: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39394732803
-- Warp maze return regression: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39394732796
-- Warp course / portal first-frame regression: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39394732899
-- Browser QA: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39394732800
-- Browser QA screenshots/diagnostics artifact: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39394732800/artifacts/12251321168
+- Mini-Sim regression checks: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39395201677
+- Tower top-cap regression: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39395201840
+- Warp maze return regression: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39395201648
+- Warp course / portal first-frame regression: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39395201547
+- Browser QA: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39395201676
+- Browser QA screenshots/diagnostics artifact: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39395201676/artifacts/12250648913
 
-The browser smoke confirms the test page served the branch's Warp JavaScript and CSS, used only one audible Warp OST, and restored ship position plus ordinary flight OST after cancelling Tube. The video-enabled QA step was skipped. This smoke does **not** enter the Ring platformer or exercise Hull Dive interactions, so those remain source-contract/syntax tested but not browser-played yet.
+The browser smoke confirms the test page served the branch's Warp JavaScript/CSS, used only one audible Warp OST, and restored ship position plus ordinary flight OST after cancelling Tube. The video-enabled QA step was skipped. This smoke does **not** enter the Ring platformer or exercise Hull Dive interactions, so those remain source-contract/syntax tested but not browser-played yet.
 
 ## Before marking live verified
 
