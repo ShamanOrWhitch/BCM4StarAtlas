@@ -291,8 +291,10 @@
           dy: Math.max(-1, Math.min(1, (keys.w ? 1 : 0) - (keys.s ? 1 : 0) - pad.y)),
           repair: !!(keys.f || pad.repair),
           pump: !!(keys.e || pad.pump),
-          shoot: !!(keys.space || pad.shoot),
-          reload: !!(keys.r || pad.reload),
+          // Keep the existing keyboard-only weapon/reload mapping; pads are
+          // assigned to independent Crew movement and repair/pump actions.
+          shoot: !!keys.space,
+          reload: !!keys.r,
           helm: !!(keys.v || pad.helm)
         };
       }
@@ -301,8 +303,8 @@
         dy: Math.max(-1, Math.min(1, (keys.arrowup ? 1 : 0) - (keys.arrowdown ? 1 : 0) - pad.y)),
         repair: !!(keys.period || pad.repair),
         pump: !!(keys.shift || pad.pump),
-        shoot: !!(keys.enter || pad.shoot),
-        reload: !!(keys.slash || pad.reload),
+        shoot: !!keys.enter,
+        reload: !!keys.slash,
         helm: !!pad.helm
       };
     }
