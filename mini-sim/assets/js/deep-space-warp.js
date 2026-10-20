@@ -1545,7 +1545,7 @@
       function buildRingWorld() {
         const world = new THREE.Group();
         world.name = "bcm-ring-cutaway-world";
-        const buckets = { floor: [], ceiling: [], wallsX: [], wallsZ: [], frames: [], platforms: [], ladders: [] };
+        const buckets = { floor: [], ceiling: [], wallsX: [], wallsZ: [], framesX: [], framesZ: [], platforms: [], ladders: [] };
         const platforms = [];
         const wallMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.72, metalness: 0.32 });
         const floorMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.82, metalness: 0.2 });
@@ -1562,14 +1562,14 @@
           buckets[bucket].push({ x, y, z, sx, sy, sz, color: color || 0x28414d });
         }
         function addFrameX(x, y, z, color) {
-          addBox("frames", x, y, z - doorWidth / 2, wallThickness * 0.8, doorHeight, 0.075, color || 0x59d7ea);
-          addBox("frames", x, y, z + doorWidth / 2, wallThickness * 0.8, doorHeight, 0.075, color || 0x59d7ea);
-          addBox("frames", x, y + doorHeight / 2, z, wallThickness * 0.8, 0.075, doorWidth, color || 0x59d7ea);
+          addBox("framesX", x, y, z - doorWidth / 2, wallThickness * 0.8, doorHeight, 0.075, color || 0x59d7ea);
+          addBox("framesX", x, y, z + doorWidth / 2, wallThickness * 0.8, doorHeight, 0.075, color || 0x59d7ea);
+          addBox("framesX", x, y + doorHeight / 2, z, wallThickness * 0.8, 0.075, doorWidth, color || 0x59d7ea);
         }
         function addFrameZ(x, y, z, color) {
-          addBox("frames", x - doorWidth / 2, y, z, 0.075, doorHeight, wallThickness * 0.8, color || 0x59d7ea);
-          addBox("frames", x + doorWidth / 2, y, z, 0.075, doorHeight, wallThickness * 0.8, color || 0x59d7ea);
-          addBox("frames", x, y + doorHeight / 2, z, doorWidth, 0.075, wallThickness * 0.8, color || 0x59d7ea);
+          addBox("framesZ", x - doorWidth / 2, y, z, 0.075, doorHeight, wallThickness * 0.8, color || 0x59d7ea);
+          addBox("framesZ", x + doorWidth / 2, y, z, 0.075, doorHeight, wallThickness * 0.8, color || 0x59d7ea);
+          addBox("framesZ", x, y + doorHeight / 2, z, doorWidth, 0.075, wallThickness * 0.8, color || 0x59d7ea);
         }
         function addFaceX(xFace, yCenter, zCenter, opening, color) {
           const baseColor = color || 0x263e4a;
@@ -1607,10 +1607,10 @@
           const floorY = p.y - roomHalf + wallThickness / 2;
           const ceilingY = p.y + roomHalf - wallThickness / 2;
           const floorColor = ((cell.x + cell.z + cell.y) & 1) ? 0x102632 : 0x142d39;
-          addBox("floor", p.x, floorY, p.z, cellSize - wallThickness, wallThickness, cellSize - wallThickness, floorColor);
+          if (cell.open.yn) addHatch("floor", p.x, floorY, p.z, floorColor);
+          else addBox("floor", p.x, floorY, p.z, cellSize - wallThickness, wallThickness, cellSize - wallThickness, floorColor);
           if (cell.open.yp) addHatch("ceiling", p.x, ceilingY, p.z, 0x1a3440);
           else addBox("ceiling", p.x, ceilingY, p.z, cellSize - wallThickness, wallThickness, cellSize - wallThickness, 0x152a34);
-          if (cell.open.yn) addHatch("floor", p.x, floorY, p.z, floorColor);
 
           const leftDoor = cell.x < nx - 1 && !!cell.open.xp;
           addFaceX(p.x + roomHalf, p.y, p.z, leftDoor, 0x263e4a);
@@ -1675,16 +1675,20 @@
           }
           mesh.instanceMatrix.needsUpdate = true;
           mesh.visible = visible;
+          mesh.userData = mesh.userData || {};
+          mesh.userData.bcmLaneItems = items;
+          mesh.userData.bcmLaneKey = "";
           world.add(mesh);
           return mesh;
         };
-        createBatch("ring-room-floors", buckets.floor, floorMat);
-        createBatch("ring-room-ceilings", buckets.ceiling, ceilingMat);
+        const floorsMesh = createBatch("ring-room-floors", buckets.floor, floorMat);
+        const ceilingsMesh = createBatch("ring-room-ceilings", buckets.ceiling, ceilingMat);
         const wallsX = createBatch("ring-room-side-walls-x", buckets.wallsX, wallMat);
         const wallsZ = createBatch("ring-room-side-walls-z", buckets.wallsZ, wallMat);
-        createBatch("ring-room-door-frames", buckets.frames, frameMat);
-        createBatch("ring-room-platforms", buckets.platforms, platformMat);
-        createBatch("ring-room-ladders", buckets.ladders, ladderMat);
+        const framesX = createBatch("ring-room-door-frames-x", buckets.framesX, frameMat);
+        const framesZ = createBatch("ring-room-door-frames-z", buckets.framesZ, frameMat);
+        const platformsMesh = createBatch("ring-room-platforms", buckets.platforms, platformMat);
+        const laddersMesh = createBatch("ring-room-ladders", buckets.ladders, ladderMat);
 
         const coreMeshes = [];
         const coreGeometry = new THREE.OctahedronGeometry(0.42, 0);
@@ -1724,7 +1728,8 @@
         scene.add(world);
 
         return {
-          group: world, wallsX, wallsZ, platforms, coreMeshes, boxGeometry,
+          group: world, floorsMesh, ceilingsMesh, wallsX, wallsZ, framesX, framesZ,
+          platformsMesh, laddersMesh, platforms, coreMeshes, boxGeometry,
           materials: [wallMat, floorMat, ceilingMat, frameMat, platformMat, ladderMat, coreMaterial, ringMaterial, exitMarker.material],
           specialGeometry: [coreGeometry, ringGeometry, exitMarker.geometry],
           ringMarker, exitMarker
@@ -1732,6 +1737,57 @@
       }
 
       const worldState = buildRingWorld();
+
+      function setMeshLane(mesh, axis, laneIndex, floorIndex) {
+        if (!mesh || !mesh.userData?.bcmLaneItems) return;
+        const laneKey = axis + ":" + laneIndex + ":floor:" + floorIndex;
+        if (mesh.userData.bcmLaneKey === laneKey) return;
+        const items = mesh.userData.bcmLaneItems;
+        const matrix = new THREE.Matrix4();
+        const position = new THREE.Vector3();
+        const scale = new THREE.Vector3();
+        const rotation = new THREE.Quaternion();
+        for (let i = 0; i < items.length; i += 1) {
+          const item = items[i];
+          const itemLane = axis === "z"
+            ? Math.round((nz - 1) / 2 - (item.z - maze.center.z) / cellSize)
+            : Math.round((item.x - maze.center.x) / cellSize + (nx - 1) / 2);
+          const itemFloor = Math.round((item.y - maze.center.y) / cellSize + (ny - 1) / 2);
+          const visible = itemLane === laneIndex && itemFloor === floorIndex;
+          position.set(item.x, item.y, item.z);
+          scale.set(visible ? item.sx : 0, visible ? item.sy : 0, visible ? item.sz : 0);
+          matrix.compose(position, rotation, scale);
+          mesh.setMatrixAt(i, matrix);
+        }
+        mesh.instanceMatrix.needsUpdate = true;
+        mesh.userData.bcmLaneKey = laneKey;
+      }
+
+      function updateRoomSlice(player) {
+        const axis = player.orientation === 0 ? "z" : "x";
+        const lane = player.orientation === 0 ? player.z : player.x;
+        setMeshLane(worldState.floorsMesh, axis, lane, player.y);
+        setMeshLane(worldState.ceilingsMesh, axis, lane, player.y);
+        setMeshLane(worldState.platformsMesh, axis, lane, player.y);
+        setMeshLane(worldState.laddersMesh, axis, lane, player.y);
+        setMeshLane(worldState.framesX, axis, lane, player.y);
+        setMeshLane(worldState.framesZ, axis, lane, player.y);
+        setMeshLane(worldState.wallsX, axis, lane, player.y);
+        setMeshLane(worldState.wallsZ, axis, lane, player.y);
+        if (worldState.wallsX) worldState.wallsX.visible = player.orientation === 0;
+        if (worldState.wallsZ) worldState.wallsZ.visible = player.orientation === 1;
+        if (worldState.framesX) worldState.framesX.visible = player.orientation === 0;
+        if (worldState.framesZ) worldState.framesZ.visible = player.orientation === 1;
+        for (let i = 0; i < worldState.coreMeshes.length; i += 1) {
+          const crystal = maze.crystals[i];
+          const sameSlice = !!crystal?.cell && crystal.cell.y === player.y &&
+            crystal.cell[axis] === lane;
+          if (worldState.coreMeshes[i]) worldState.coreMeshes[i].visible = sameSlice && !crystal.taken;
+        }
+        worldState.ringMarker.visible = ringCell.y === player.y && ringCell[axis] === lane;
+        worldState.exitMarker.visible = exitCell.y === player.y && exitCell[axis] === lane;
+      }
+
       maze.group.visible = false;
       if (runtime.ship.visual) runtime.ship.visual.visible = false;
       const oldBackground = scene.background;
@@ -1804,7 +1860,7 @@
           index,
           name: String(crew.name || crew.displayName || ("Crew " + (index + 1))),
           x: spawn.x, y: spawn.y, z: spawn.z,
-          localX: 0, jumpHeight: 0, vy: 0, grounded: true, supportPlatform: null,
+          localX: Number(spawn.localX) || 0, jumpHeight: 0, vy: 0, grounded: true, supportPlatform: null,
           orientation: 0, facing: 1, turnReadyAt: 0, lastActionAt: 0,
           wasJumpDown: false, padTurnUpWasDown: false, padTurnDownWasDown: false,
           padFloorUpWasDown: false, padFloorDownWasDown: false,
@@ -2116,7 +2172,10 @@
         // Room-adjacent Crew can still share one camera; different floors or
         // different room facing require independent views.
         const samePlane = players[0].y === players[1].y &&
-          players[0].orientation === players[1].orientation;
+          players[0].orientation === players[1].orientation &&
+          (players[0].orientation === 0
+            ? players[0].z === players[1].z
+            : players[0].x === players[1].x);
         if (!splitActive && (!samePlane || distance > cellSize * 1.62)) splitActive = true;
         else if (splitActive && samePlane && distance < cellSize * 1.22) splitActive = false;
         const landscape = width >= height;
@@ -2206,8 +2265,7 @@
           configureCamera(view.camera, view, target, p.orientation);
           // Hide the wall plane facing the camera to get Tower-like cutaway rooms;
           // toggle synchronously per viewport so different orientations work in split-screen.
-          if (worldState.wallsX) worldState.wallsX.visible = p.orientation === 0;
-          if (worldState.wallsZ) worldState.wallsZ.visible = p.orientation === 1;
+          updateRoomSlice(p);
           renderer.setViewport(view.x, view.y, view.w, view.h);
           renderer.setScissor(view.x, view.y, view.w, view.h);
           renderer.clear(true, true, true);
@@ -2217,6 +2275,8 @@
         renderer.setViewport(0, 0, viewW, viewH);
         if (worldState.wallsX) worldState.wallsX.visible = true;
         if (worldState.wallsZ) worldState.wallsZ.visible = true;
+        if (worldState.framesX) worldState.framesX.visible = true;
+        if (worldState.framesZ) worldState.framesZ.visible = true;
         renderer.autoClear = oldAutoClear;
         return true;
       }
@@ -2275,19 +2335,12 @@
         gameStarted = true;
         menu.hidden = true;
         menu.style.display = "none";
-        const spawn1 = { x: ringCell.x, y: ringCell.y, z: ringCell.z };
-        let spawn2 = null;
-        if (mode === "multi") {
-          const cell = getCell(ringCell.x, ringCell.y, ringCell.z);
-          const options = [
-            { flag: "zn", x: 0, z: -1 }, { flag: "xn", x: -1, z: 0 },
-            { flag: "zp", x: 0, z: 1 }, { flag: "xp", x: 1, z: 0 }
-          ];
-          const option = options.find((item) => cell && cell.open[item.flag] && getCell(ringCell.x + item.x, ringCell.y, ringCell.z + item.z));
-          spawn2 = option
-            ? { x: ringCell.x + option.x, y: ringCell.y, z: ringCell.z + option.z }
-            : { x: ringCell.x, y: ringCell.y, z: ringCell.z };
-        }
+        // Begin side by side in the same room. This lets Multi start with a
+        // shared camera; door turns/floor changes and distance decide when to split.
+        const spawn1 = { x: ringCell.x, y: ringCell.y, z: ringCell.z, localX: 1.1 };
+        const spawn2 = mode === "multi"
+          ? { x: ringCell.x, y: ringCell.y, z: ringCell.z, localX: -1.1 }
+          : null;
         players = [createPlayer(0, spawn1)];
         if (spawn2) players.push(createPlayer(1, spawn2));
         syncCoreMeshes();
