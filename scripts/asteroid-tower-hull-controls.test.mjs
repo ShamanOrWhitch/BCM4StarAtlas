@@ -4,6 +4,22 @@ import test from "node:test";
 
 const read = (path) => readFile(new URL("../" + path, import.meta.url), "utf8");
 
+test("First-person flight exposes Hull Interior with touch, U and edge-triggered R3", async () => {
+  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  const mini = await read("mini-sim/assets/js/mini-sim.js");
+  const hull = await read("mini-sim/assets/js/hull-dive.js");
+  assert.match(warp, /hullEnterButton\.textContent = "ВНУТРЬ КОРАБЛЯ · U \/ R3"/);
+  assert.match(warp, /hullEnterButton\.addEventListener\("click", \(\) => openHullInterior\(\)\)/);
+  assert.match(warp, /function openHullInterior\(\)/);
+  const interior = warp.slice(warp.indexOf("function openHullInterior()"), warp.indexOf("window.BCMDeepSpaceWarpPoll"));
+  assert.match(interior, /state\.hullOpen = true/);
+  assert.match(interior, /engine\.pauseForWarp\(true\)/);
+  assert.doesNotMatch(interior, /ship\.position\.copy\(maze\.beacon\.position\)/);
+  assert.match(mini, /window\.BCMDeepSpaceWarpPoll\(\{ dt, running, paused: externalPause, root \}\)/);
+  assert.match(warp, /const wasDown = hullEntryPadWasDown\.get\(pad\.index\) \|\| false/);
+  assert.match(hull, /data-hull-exit[^>]*>НАЗАД В ПОЛЁТ/);
+});
+
 test("Asteroid walls are resolved from the prepared asterwall asset family", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(warp, /function asteroidWallAssetPool\(\)/);
