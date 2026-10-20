@@ -286,6 +286,7 @@
       ringTransitionActive: false,
       ringRenderState: null,
       ringDistance: Infinity,
+      ringApproachArmed: true,
       hullOpen: false,
       rightStickWasDown: false,
       warpCollisionCount: 0,
@@ -1222,6 +1223,7 @@
       state.savedSpeedMode = engine.getSpeedMode ? engine.getSpeedMode() : 1;
       if (engine.setSpeedMode) engine.setSpeedMode(2);
       state.maze = maze;
+      state.ringApproachArmed = true;
       root.classList.add("bcm-warp-maze-active");
       exitButton.hidden = false;
       overlay.hidden = true;
@@ -1328,7 +1330,10 @@
       const ringDistance = pos.distanceTo(maze.beacon.position);
       state.ringDistance = ringDistance;
       syncHullButtonVisibility();
-      if (!state.ringPlatformer && !maze.ringCompleted && ringDistance < 2.6) {
+      // Require the ship to leave the beacon's capture radius after exiting Ring
+      // before accepting another approach; the same level can still be re-entered.
+      if (ringDistance > 4.2) state.ringApproachArmed = true;
+      if (state.ringApproachArmed && !state.ringPlatformer && !maze.ringCompleted && ringDistance < 2.6) {
         openRingPlatformer(maze);
         return;
       }
@@ -1417,6 +1422,9 @@
 
     function openRingPlatformer(maze, afterTransition = false) {
       if (!maze || !maze.active || state.ringPlatformer || state.hullOpen || state.mode !== "maze") return false;
+      // Disarm at the first approach (including the transition clip). Escape must
+      // not instantly retrigger the Ring while the ship is still at the beacon.
+      state.ringApproachArmed = false;
       const engine = api();
       const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
       if (!runtime?.ship || !runtime.THREE || !runtime.scene) return false;
