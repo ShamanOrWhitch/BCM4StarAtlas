@@ -225,25 +225,25 @@ test("Warp tube impacts progressively call the compartment damage contract", () 
 
 test("Ring platformer has independent randomized cores, a recoverable exit, and lazy ring.mp3 audio", () => {
   const ring = section(warp, "function openRingPlatformer(maze)", "function finishRingPlatformer");
-  assert.match(warp, /candidate === "ring\\.mp3"/);
-  assert.match(warp, /ringAudio\\.preload = "none"/);
-  assert.match(warp, /const ringTrackAvailable = startRingAudio\\(\\)/);
-  assert.match(ring, /const corePickups = \\[1, 3, 5\\]\\.map/);
+  assert.match(warp, /candidate === "ring\.mp3"/);
+  assert.match(warp, /ringAudio\.preload = "none"/);
+  assert.match(warp, /const ringTrackAvailable = startRingAudio\(\)/);
+  assert.match(ring, /const corePickups = \[1, 3, 5\]\.map/);
   assert.match(ring, /let ringCount = 0/);
-  assert.match(ring, /event\\.code === "Escape" && down/);
-  assert.match(ring, /const canExit = ringCount >= corePickups\\.length/);
-  assert.match(ring, /removeEventListener\\("resize", onResize\\)/);
-  assert.doesNotMatch(ring, /maze\\.count|maze\\.crystals|pickup\\.crystal/);
-  assert.match(warp, /maze\\.ringCoreCount = Math\\.max/);
-  assert.match(warp, /falloff \\* falloff \\* 1\\.8/);
+  assert.match(ring, /event\.code === "Escape" && down/);
+  assert.match(ring, /const canExit = ringCount >= corePickups\.length/);
+  assert.match(ring, /removeEventListener\("resize", onResize\)/);
+  assert.doesNotMatch(ring, /maze\.count|maze\.crystals|pickup\.crystal/);
+  assert.match(warp, /maze\.ringCoreCount = Math\.max/);
+  assert.match(warp, /falloff \* falloff \* 1\.8/);
 });
 
 test("Tower gamepad polling is suppressed while its root is hidden or Ring/Hull owns input", () => {
   const poll = section(tower, "function pollGamepads()", "restartButton.addEventListener");
-  assert.match(poll, /const inputSuppressed = \\!\\!root\\.hidden/);
-  assert.match(poll, /getElementById\\("bcm-hull-dive"\\)/);
-  assert.match(poll, /getElementById\\("bcm-ring-platformer"\\)/);
-  assert.match(poll, /if \(towerAudio && !towerAudio\\.paused\\) stopTowerAudio\\(\\)/);
+  assert.match(poll, /const inputSuppressed = !!root\.hidden/);
+  assert.match(poll, /getElementById\("bcm-hull-dive"\)/);
+  assert.match(poll, /getElementById\("bcm-ring-platformer"\)/);
+  assert.match(poll, /if \(towerAudio && !towerAudio\.paused\) stopTowerAudio\(\)/);
   assert.match(poll, /return;/);
 });
 
