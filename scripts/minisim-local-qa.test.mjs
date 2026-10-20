@@ -198,9 +198,9 @@ test("Mini-Sim and Tower displayed versions match their PHP asset-cache versions
   const miniPhp = await read("mini-sim/bcm-mini-sim.php");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   const tower = await read("mini-sim/tower/assets/js/tower.js");
-  assert.ok(miniPhp.includes("Version: 0.9.103"));
-  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.9.103'"));
-  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.9.103"));
+  assert.ok(miniPhp.includes("Version: 0.9.104"));
+  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.9.104'"));
+  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.9.104"));
   assert.ok(towerPhp.includes("BCM_TOWER_VERSION', '0.2.63'"));
   assert.ok(tower.includes('const TOWER_VERSION = "0.2.63"'));
 });
