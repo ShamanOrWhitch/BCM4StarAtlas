@@ -305,7 +305,7 @@
 
     function syncHullButtonVisibility() {
       const towerRoot = document.querySelector(".bcm-tower");
-      const towerOwnsScreen = !!(towerRoot && !towerRoot.hidden && towerRoot.style.pointerEvents !== "none");
+      const towerOwnsScreen = !!(towerRoot && !towerRoot.hidden);
       const busy = state.mode === "map" || state.mode === "tube" || state.mode === "result" ||
         state.ringPlatformer || state.ringTransitionActive || state.hullOpen || towerOwnsScreen ||
         !!document.getElementById("bcm-hull-dive") ||
@@ -1324,7 +1324,7 @@
       maze.beacon.rotation.z += Math.min(frame.dt || 0.016, 0.04) * 0.4;
       const ringDistance = pos.distanceTo(maze.beacon.position);
       state.ringDistance = ringDistance;
-      hullEnterButton.hidden = !(ringDistance < 8) || state.ringPlatformer;
+      syncHullButtonVisibility();
       if (!state.ringPlatformer && !maze.ringCompleted && ringDistance < 2.6) {
         openRingPlatformer(maze);
         return;
@@ -1408,7 +1408,7 @@
           document.getElementById("bcm-ring-platformer") ||
           document.getElementById("bcm-ring-transition")) return;
       const towerRoot = document.querySelector(".bcm-tower");
-      if (towerRoot && !towerRoot.hidden && towerRoot.style.pointerEvents !== "none") return;
+      if (towerRoot && !towerRoot.hidden) return;
       openHullInterior();
     };
 
