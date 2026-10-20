@@ -1166,6 +1166,11 @@
         active: true,
         group,
         center,
+        // The 2D Ring mode reuses this exact maze instance and topology, not a second RNG.
+        seed,
+        dimensions: { nx: NX, ny: NY, nz: NZ },
+        startCell: { x: startNode.x, y: startNode.y, z: startNode.z },
+        exitCell: { x: exitNode.x, y: exitNode.y, z: exitNode.z },
         cells,
         walls,
         wallMesh,
@@ -1382,402 +1387,427 @@
         const transitionSource = findRingTransitionVideoSource();
         if (transitionSource) return playRingTransition(maze, transitionSource, engine);
       }
+      // If the video is unavailable or could not play, keep the level usable and
+      // start its own soundtrack here. Normally this is already playing from frame 1.
+      startRingAudio();
 
       state.ringPlatformer = true;
       hullEnterButton.hidden = true;
       if (engine.pauseForWarp) engine.pauseForWarp(true);
-      const ship = runtime.ship;
-      const away = ship.position.clone().sub(maze.beacon.position);
-      if (away.lengthSq() < 0.04) away.set(0, 0.4, 1);
-      away.setLength(5.2);
-      ship.position.copy(maze.beacon.position).add(away);
-      if (ship.quaternion) {
-        const yaw = Math.atan2(-away.x, -away.z);
-        ship.quaternion.setFromAxisAngle(new runtime.THREE.Vector3(0, 1, 0), yaw);
-      }
-      ship.velocity?.set(0, 0, 0);
-      ship.angularVelocity?.set(0, 0, 0);
-      if (runtime.camera) {
-        runtime.camera.position.copy(ship.position);
-        runtime.camera.quaternion.copy(ship.quaternion);
-      }
 
-      const old = document.getElementById("bcm-ring-platformer");
-      if (old) old.remove();
+      const nx = Math.max(1, Number(maze.dimensions?.nx) || Math.max(...maze.cells.map((c) => c.x)) + 1);
+      const ny = Math.max(1, Number(maze.dimensions?.ny) || Math.max(...maze.cells.map((c) => c.y)) + 1);
+      const nz = Math.max(1, Number(maze.dimensions?.nz) || Math.max(...maze.cells.map((c) => c.z)) + 1);
+      const seed = Number(maze.seed) || 0;
+      const cellMap = new Map(maze.cells.map((cell) => [cell.x + ":" + cell.y + ":" + cell.z, cell]));
+      const getCell = (x, y, z) => cellMap.get(x + ":" + y + ":" + z) || null;
+      const entryCell = maze.startCell || { x: 0, y: 1, z: 0 };
+      const ringCell = maze.exitCell || { x: nx - 1, y: Math.min(1, ny - 1), z: nz - 1 };
+      const exitCell = { x: entryCell.x, y: entryCell.y, z: entryCell.z };
+
+      const previous = document.getElementById("bcm-ring-platformer");
+      if (previous) previous.remove();
       const root2d = document.createElement("div");
       root2d.id = "bcm-ring-platformer";
       root2d.tabIndex = 0;
-      root2d.style.cssText = "position:fixed;inset:0;z-index:1000600;background:#040912;color:#e8f4f8;font:14px system-ui,sans-serif;overflow:hidden;touch-action:none";
+      root2d.style.cssText = "position:fixed;inset:0;z-index:1000600;background:#030812;color:#e8f4f8;font:14px system-ui,sans-serif;overflow:hidden;touch-action:manipulation";
       root2d.innerHTML =
-        '<canvas data-ring-canvas style="position:absolute;inset:0;width:100%;height:100%;touch-action:none"></canvas>' +
-        '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;pointer-events:none">' +
-          '<div style="text-shadow:0 2px 8px #000"><div style="font-size:11px;letter-spacing:.18em;color:#60ddec">RING // COMIX-ZONE TEST</div>' +
-          '<div data-ring-status style="font-weight:700;margin-top:5px">Собери 3 ядра и вернись к кораблю</div>' +
-          '<div data-ring-count style="margin-top:5px;color:#b8cbd6">RING CORES 0/3</div></div>' +
-          '<button data-ring-exit disabled style="pointer-events:auto;min-height:42px;padding:7px 12px;border:1px solid #426779;border-radius:9px;background:#10232d;color:#79909d;font-weight:700">К КОРАБЛЮ · ЗАКРЫТО</button>' +
+        '<canvas data-ring-canvas aria-label="2D карта того же астероидного лабиринта" style="position:absolute;inset:0;width:100%;height:100%;touch-action:manipulation"></canvas>' +
+        '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;pointer-events:none;z-index:2">' +
+          '<div style="max-width:68%;text-shadow:0 2px 8px #000"><div style="font-size:11px;letter-spacing:.16em;color:#60ddec">RING // 2D ASTEROID MAZE</div>' +
+          '<div data-ring-status style="font-weight:700;margin-top:5px;line-height:1.3">Выбери режим и пройди тот же лабиринт</div>' +
+          '<div data-ring-floor style="margin-top:5px;color:#b8cbd6;font-size:12px"></div></div>' +
+          '<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:auto">' +
+            '<div data-ring-count style="padding:6px 9px;background:rgba(7,22,34,.88);border:1px solid #25485b;border-radius:8px;color:#d9f8ff;white-space:nowrap">ЯДРА 0/3</div>' +
+            '<button type="button" data-ring-exit style="min-height:42px;padding:7px 11px;border:1px solid #547083;border-radius:9px;background:#10232d;color:#e8fbff;font-weight:700">К КОРАБЛЮ · Esc</button>' +
+          '</div>' +
         '</div>' +
-        '<div style="position:absolute;left:12px;right:12px;bottom:12px;display:flex;justify-content:space-between;gap:8px;align-items:flex-end">' +
-          '<div style="display:flex;gap:8px"><button data-ring-left aria-label="Влево" style="min-width:54px;min-height:50px;border:1px solid #426779;border-radius:12px;background:#10232d;color:#e8f4f8;font-size:22px;touch-action:none">◀</button>' +
-          '<button data-ring-right aria-label="Вправо" style="min-width:54px;min-height:50px;border:1px solid #426779;border-radius:12px;background:#10232d;color:#e8f4f8;font-size:22px;touch-action:none">▶</button></div>' +
-          '<button data-ring-jump style="min-width:88px;min-height:50px;border:1px solid #68d9ec;border-radius:12px;background:#103340;color:#e8faff;font-weight:800;touch-action:none">JUMP</button>' +
+        '<div style="position:absolute;left:0;right:0;bottom:8px;display:flex;justify-content:center;align-items:flex-end;gap:9px;z-index:2;pointer-events:none">' +
+          '<div style="display:grid;grid-template-columns:repeat(3,42px);grid-template-rows:repeat(2,40px);gap:4px;pointer-events:auto">' +
+            '<span></span><button type="button" data-ring-move="up" aria-label="Вперёд" style="grid-column:2;grid-row:1;min-height:40px">▲</button><span></span>' +
+            '<button type="button" data-ring-move="left" aria-label="Влево" style="min-height:40px">◀</button><button type="button" data-ring-move="down" aria-label="Назад" style="min-height:40px">▼</button><button type="button" data-ring-move="right" aria-label="Вправо" style="min-height:40px">▶</button>' +
+          '</div>' +
+          '<div style="display:flex;flex-direction:column;gap:4px;pointer-events:auto">' +
+            '<button type="button" data-ring-move="floorUp" style="min-height:38px;padding:5px 9px;font-size:12px">ЭТАЖ +</button>' +
+            '<button type="button" data-ring-move="floorDown" style="min-height:38px;padding:5px 9px;font-size:12px">ЭТАЖ −</button>' +
+          '</div>' +
+        '</div>' +
+        '<div data-ring-mode-menu style="position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(1,5,12,.76)">' +
+          '<div style="width:min(440px,100%);padding:22px;border:1px solid #37677c;border-radius:16px;background:rgba(6,20,32,.98);box-shadow:0 12px 60px #0009;text-align:center">' +
+            '<div style="font-size:12px;letter-spacing:.18em;color:#60ddec">СОХРАНЁННЫЙ SEED ' + seed + '</div>' +
+            '<div style="font-size:23px;font-weight:800;margin:12px 0 7px">Тот же лабиринт · другой вид</div>' +
+            '<div style="color:#b7cbd6;line-height:1.45;margin-bottom:17px">Та же схема коридоров и те же ядра, что в 3D. Начало — у золотого кольца, цель — вход в лабиринт.</div>' +
+            '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">' +
+              '<button type="button" data-ring-single style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #69d7ea;border-radius:10px;background:#123c48;color:#e8fbff;font-weight:800">SINGLE</button>' +
+              '<button type="button" data-ring-multi style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #bb9a57;border-radius:10px;background:#3b301b;color:#fff0c7;font-weight:800">MULTI · 2 CREW</button>' +
+            '</div>' +
+          '</div>' +
         '</div>';
-      document.body.appendChild(root2d);
-      root2d.focus({ preventScroll: true });
-      const canvas2d = root2d.querySelector("[data-ring-canvas]");
+      const canvas = root2d.querySelector("[data-ring-canvas]");
+      const g = canvas.getContext("2d");
       const statusEl = root2d.querySelector("[data-ring-status]");
       const countEl = root2d.querySelector("[data-ring-count]");
-      const exit2d = root2d.querySelector("[data-ring-exit]");
-      const leftButton = root2d.querySelector("[data-ring-left]");
-      const rightButton = root2d.querySelector("[data-ring-right]");
-      const jumpButton = root2d.querySelector("[data-ring-jump]");
-      const g = canvas2d.getContext("2d");
-      if (!g) {
-        state.ringPlatformer = false;
-        root2d.remove();
-        if (engine.pauseForWarp) engine.pauseForWarp(false);
-        stopRingAudio(true);
-        return false;
-      }
+      const floorEl = root2d.querySelector("[data-ring-floor]");
+      const menu = root2d.querySelector("[data-ring-mode-menu]");
+      const styleText = "border:1px solid #426779;border-radius:9px;background:#10232d;color:#e8fbff;font-weight:800;touch-action:manipulation";
+      root2d.querySelectorAll("button").forEach((button) => {
+        if (!button.hasAttribute("data-ring-single") && !button.hasAttribute("data-ring-multi")) {
+          button.style.cssText += ";" + styleText;
+        }
+      });
+      document.body.appendChild(root2d);
 
-      const stageWidth = 300;
-      const stageCount = 7;
-      const worldWidth = stageWidth * stageCount + 80;
-      const rng = randomFrom(hashSeed(Date.now() + ":" + Math.random() + ":" + ringCount));
-      const held = { left: false, right: false, jump: false };
-      const pressedKeys = Object.create(null);
-      const platforms = [];
-      const stars = Array.from({ length: 110 }, () => ({
-        x: rng() * worldWidth, y: rng(), r: 0.35 + rng() * 1.3, a: 0.18 + rng() * 0.48
-      }));
-      let width = 1;
-      let height = 1;
-      let pixelRatio = 1;
-      let floorY = 500;
-      let player = { x: 34, y: 0, vx: 0, vy: 0, w: 18, h: 30, grounded: false, checkpoint: 34 };
-      let cameraX = 0;
-      let raf = 0;
-      let stopped = false;
-      let lastTick = performance.now();
-      let statusTimer = 0;
-      let jumpWasDown = false;
+      let width = 1, height = 1, pixelRatio = 1, raf = 0, done = false, gameStarted = false;
+      let mode = "single";
+      let players = [];
+      let lastPadMove = [0, 0];
+      let lastHudCount = -1;
+      const playerColors = ["#65dcf0", "#f3c46c"];
+      const crewSelection = Array.isArray(window.BCMMiniCrewSelection?.players)
+        ? window.BCMMiniCrewSelection.players : [];
+      const crewImages = [];
+      crewSelection.slice(0, 2).forEach((crew, index) => {
+        const imageUrl = String(crew?.image || "");
+        if (!imageUrl) { crewImages[index] = null; return; }
+        const img = new Image();
+        img.onload = () => {};
+        img.onerror = () => {};
+        img.src = imageUrl;
+        crewImages[index] = img;
+      });
 
       function resize2d() {
-        const rect = canvas2d.getBoundingClientRect();
-        width = Math.max(1, rect.width || window.innerWidth);
-        height = Math.max(1, rect.height || window.innerHeight);
+        const rect = root2d.getBoundingClientRect();
         pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
-        canvas2d.width = Math.floor(width * pixelRatio);
-        canvas2d.height = Math.floor(height * pixelRatio);
-        g.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-        floorY = height - (height < 520 ? 72 : 88);
-        if (player.y === 0) player.y = floorY - player.h;
-        return { width, height };
+        width = Math.max(1, rect.width);
+        height = Math.max(1, rect.height);
+        canvas.width = Math.round(width * pixelRatio);
+        canvas.height = Math.round(height * pixelRatio);
       }
-      resize2d();
 
-      // The platformer has its own three cores, independent from the 3D maze.
-      // Every run gets new positions while keeping all jumps reachable.
-      const corePickups = [1, 3, 5].map((stage, index) => ({
-        stage,
-        offset: 42 + rng() * 160,
-        lift: 58 + rng() * 26,
-        taken: false,
-        x: 0,
-        y: 0,
-        phase: rng() * Math.PI * 2,
-        index
-      }));
-      let ringCount = 0;
-      function layoutPlatforms() {
-        platforms.length = 0;
-        for (let stage = 0; stage < stageCount; stage += 1) {
-          // A broken floor and randomized side ledges form a lightweight,
-          // re-generated platforming maze that remains jump-reachable.
-          platforms.push({ x: stage * stageWidth, y: floorY, w: 222 + rng() * 24, h: 14 });
-          if (stage < stageCount - 1) {
-            platforms.push({ x: stage * stageWidth + 246, y: floorY, w: 25 + rng() * 12, h: 14 });
-          } else {
-            // Keep the final exit walkway continuous and reachable after the third core.
-            platforms.push({ x: stage * stageWidth + 220, y: floorY, w: worldWidth - (stage * stageWidth + 220), h: 14 });
-          }
-          for (let ledge = 0; ledge < 2; ledge += 1) {
-            platforms.push({
-              x: stage * stageWidth + 38 + rng() * 145,
-              y: floorY - (42 + rng() * Math.min(68, Math.max(42, height * 0.16))),
-              w: 72 + rng() * 66,
-              h: 12
-            });
-          }
+      function currentCell(player) {
+        return getCell(player.x, player.y, player.z);
+      }
+
+      function safeSecondSpawn() {
+        const cell = getCell(ringCell.x, ringCell.y, ringCell.z);
+        if (!cell) return { x: ringCell.x, y: ringCell.y, z: ringCell.z };
+        const options = [
+          { flag: "zn", x: 0, y: 0, z: -1 },
+          { flag: "xn", x: -1, y: 0, z: 0 },
+          { flag: "zp", x: 0, y: 0, z: 1 },
+          { flag: "xp", x: 1, y: 0, z: 0 }
+        ];
+        for (const option of options) {
+          if (!cell.open[option.flag]) continue;
+          const x = ringCell.x + option.x, y = ringCell.y + option.y, z = ringCell.z + option.z;
+          if (getCell(x, y, z)) return { x, y, z };
         }
-        corePickups.forEach((pickup) => {
-          pickup.x = pickup.stage * stageWidth + pickup.offset;
-          pickup.y = floorY - pickup.lift;
-          platforms.push({
-            x: Math.max(pickup.stage * stageWidth + 12, pickup.x - 42),
-            y: pickup.y + 24,
-            w: 84,
-            h: 11
-          });
-        });
+        return { x: ringCell.x, y: ringCell.y, z: ringCell.z };
       }
-      layoutPlatforms();
-      const exitX = worldWidth - 34;
 
-      // Default ring soundtrack starts only for this side-scrolling level.
-      const ringTrackAvailable = startRingAudio();
-      if (!ringTrackAvailable) {
-        statusEl.textContent = "Собери ядра и вернись к шлюзу · ring.mp3 пока не найден";
+      function startMode(nextMode) {
+        if (done) return;
+        mode = nextMode === "multi" ? "multi" : "single";
+        gameStarted = true;
+        menu.hidden = true;
+        const spawn1 = { x: ringCell.x, y: ringCell.y, z: ringCell.z };
+        const spawn2 = safeSecondSpawn();
+        const createPlayer = (index, spawn) => {
+          const crew = crewSelection[index] || {};
+          return {
+            index,
+            name: String(crew.name || crew.displayName || ("Crew " + (index + 1))),
+            x: spawn.x, y: spawn.y, z: spawn.z,
+            image: crewImages[index] || null,
+            lastMoveAt: 0,
+            tint: playerColors[index],
+            moves: 0
+          };
+        };
+        players = [createPlayer(0, spawn1)];
+        if (mode === "multi") players.push(createPlayer(1, spawn2));
+        lastPadMove = [0, 0];
+        statusEl.textContent = mode === "multi"
+          ? "MULTI · P1 WASD/стрелки · P2 IJKL или второй геймпад"
+          : "SINGLE · WASD/стрелки или геймпад";
+        updateHud();
+        root2d.focus({ preventScroll: true });
       }
-      const updateCoreHud = () => {
-        countEl.textContent = "RING CORES " + ringCount + "/3";
-        const canExit = ringCount >= corePickups.length;
-        exit2d.disabled = !canExit;
-        exit2d.textContent = canExit ? "К КОРАБЛЮ · U / R3" : "К КОРАБЛЮ · ЗАКРЫТО";
-        exit2d.style.color = canExit ? "#e8fbff" : "#79909d";
-        exit2d.style.borderColor = canExit ? "#68d9ec" : "#426779";
-        exit2d.style.background = canExit ? "#123c48" : "#10232d";
-      };
-      updateCoreHud();
 
-      function onPlatformKey(event) {
+      function updateHud() {
+        countEl.textContent = "ЯДРА " + Math.max(0, maze.count || 0) + "/3";
+        if (players.length) {
+          floorEl.textContent = "ЭТАЖ P1: " + (players[0].y + 1) +
+            (players[1] ? " · P2: " + (players[1].y + 1) : "") +
+            " · SEED " + seed;
+        } else {
+          floorEl.textContent = "ЭТАЖ " + (ringCell.y + 1) + " · SEED " + seed;
+        }
+        if (lastHudCount !== Number(maze.count || 0)) {
+          lastHudCount = Number(maze.count || 0);
+          if (maze.count >= 3) statusEl.textContent = "ЯДРА СОБРАНЫ · НАЙДИ ВХОД В ЛАБИРИНТ";
+          else statusEl.textContent = "НАЙДИ ЯДРА И ВЕРНИСЬ К ВХОДУ · " + Math.max(0, 3 - maze.count) + " ОСТАЛОСЬ";
+        }
+      }
+
+      function collectAt(player) {
+        const crystal = (maze.crystals || []).find((item) =>
+          !item.taken && item.cell &&
+          item.cell.x === player.x && item.cell.y === player.y && item.cell.z === player.z
+        );
+        if (!crystal) return;
+        crystal.taken = true;
+        if (crystal.mesh) crystal.mesh.visible = false;
+        maze.count = Math.min(3, Number(maze.count || 0) + 1);
+        lastHudCount = -1;
+        updateHud();
+        statusEl.textContent = "ЯДРО СОБРАНО · " + maze.count + "/3";
+      }
+
+      function tryMove(index, direction) {
+        if (!gameStarted || done || !players[index]) return false;
+        const player = players[index];
+        const now = performance.now();
+        if (now - player.lastMoveAt < 95) return false;
+        player.lastMoveAt = now;
+        const cell = currentCell(player);
+        if (!cell) return false;
+        const steps = {
+          left: { flag: "xn", x: -1, y: 0, z: 0 },
+          right: { flag: "xp", x: 1, y: 0, z: 0 },
+          up: { flag: "zn", x: 0, y: 0, z: -1 },
+          down: { flag: "zp", x: 0, y: 0, z: 1 },
+          floorUp: { flag: "yp", x: 0, y: 1, z: 0 },
+          floorDown: { flag: "yn", x: 0, y: -1, z: 0 }
+        };
+        const step = steps[direction];
+        if (!step || !cell.open[step.flag]) return false;
+        const x = player.x + step.x, y = player.y + step.y, z = player.z + step.z;
+        if (!getCell(x, y, z)) return false;
+        player.x = x; player.y = y; player.z = z; player.moves += 1;
+        collectAt(player);
+        updateHud();
+        if (player.x === exitCell.x && player.y === exitCell.y && player.z === exitCell.z && maze.count >= 3) {
+          finishRingPlatformer(maze, true);
+          return true;
+        }
+        return true;
+      }
+
+      function keyboardMove(event) {
         const down = event.type === "keydown";
-        if (event.code === "Escape" && down) {
+        if (!down || done) return;
+        if (event.code === "Escape") {
           event.preventDefault();
           event.stopImmediatePropagation();
-          finishRingPlatformer(maze, ringCount);
+          finishRingPlatformer(maze, false);
           return;
         }
-        if (event.code === "KeyU" && down && !event.repeat && ringCount >= corePickups.length) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          finishRingPlatformer(maze, ringCount);
-          return;
+        const p1Map = {
+          ArrowLeft: "left", KeyA: "left",
+          ArrowRight: "right", KeyD: "right",
+          ArrowUp: "up", KeyW: "up",
+          ArrowDown: "down", KeyS: "down",
+          KeyQ: "floorDown", KeyE: "floorUp"
+        };
+        const p2Map = {
+          KeyJ: "left", KeyL: "right", KeyI: "up", KeyK: "down",
+          KeyU: "floorDown", KeyO: "floorUp"
+        };
+        let index = 0, direction = p1Map[event.code];
+        if (!direction && mode === "multi" && p2Map[event.code]) {
+          index = 1; direction = p2Map[event.code];
         }
-        if (["ArrowLeft", "KeyA"].includes(event.code)) held.left = down;
-        else if (["ArrowRight", "KeyD"].includes(event.code)) held.right = down;
-        else if (["Space", "ArrowUp", "KeyW"].includes(event.code)) {
-          if (down && !event.repeat) held.jump = true;
-          if (!down) held.jump = false;
-        } else return;
-        pressedKeys[event.code] = down;
+        if (!direction || !gameStarted) return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        if (down && event.code === "KeyU" && ringCount >= corePickups.length) finishRingPlatformer(maze, ringCount);
-      }
-      const onBlur = () => {
-        held.left = held.right = held.jump = false;
-        Object.keys(pressedKeys).forEach((code) => { pressedKeys[code] = false; });
-      };
-      const bindHold = (button, key) => {
-        const down = (event) => { event.preventDefault(); held[key] = true; try { button.setPointerCapture(event.pointerId); } catch (e) {} };
-        const up = (event) => { event.preventDefault(); held[key] = false; };
-        button.addEventListener("pointerdown", down);
-        ["pointerup", "pointercancel", "lostpointercapture"].forEach((name) => button.addEventListener(name, up));
-      };
-      bindHold(leftButton, "left");
-      bindHold(rightButton, "right");
-      bindHold(jumpButton, "jump");
-      exit2d.addEventListener("click", () => {
-        if (ringCount >= corePickups.length) finishRingPlatformer(maze, ringCount);
-      });
-      window.addEventListener("keydown", onPlatformKey, true);
-      window.addEventListener("keyup", onPlatformKey, true);
-      window.addEventListener("blur", onBlur);
-      const onResize = () => {
-        resize2d();
-        layoutPlatforms();
-        player.y = Math.min(player.y, floorY - player.h);
-      };
-      window.addEventListener("resize", onResize);
-      player.y = floorY - player.h;
-      player.checkpoint = player.x;
-
-      function platformGamepad() {
-        try {
-          const pads = navigator.getGamepads ? [...navigator.getGamepads()] : [];
-          const pad = pads.find((p) => p && p.connected);
-          if (!pad) return { x: 0, jump: false };
-          const axes = pad.axes || [];
-          const leftX = Math.abs(Number(axes[0] || 0)) > 0.18 ? Number(axes[0]) : Number(axes[2] || 0);
-          const left = !!pad.buttons?.[14]?.pressed;
-          const right = !!pad.buttons?.[15]?.pressed;
-          return {
-            x: Math.max(-1, Math.min(1, leftX + (right ? 1 : 0) - (left ? 1 : 0))),
-            jump: !!pad.buttons?.[0]?.pressed
-          };
-        } catch (e) { return { x: 0, jump: false }; }
+        tryMove(index, direction);
       }
 
-      function paint2d(now) {
-        if (stopped) return;
-        const dt = Math.min(0.034, Math.max(0.001, (now - lastTick) / 1000));
-        lastTick = now;
-        const pad = platformGamepad();
-        const direction = Math.max(-1, Math.min(1,
-          (held.right ? 1 : 0) - (held.left ? 1 : 0) + pad.x));
-        player.vx = direction * (held.left || held.right || Math.abs(pad.x) > 0.18 ? 255 : 0);
-        const jumpDown = !!(held.jump || pad.jump);
-        if (jumpDown && !jumpWasDown && player.grounded) {
-          player.vy = -420;
-          player.grounded = false;
-        }
-        jumpWasDown = jumpDown;
-        player.vy = Math.min(620, player.vy + 1060 * dt);
-        const previousBottom = player.y + player.h;
-        player.x = Math.max(0, Math.min(worldWidth - player.w, player.x + player.vx * dt));
-        player.y += player.vy * dt;
-        player.grounded = false;
-        if (player.vy >= 0) {
-          for (const p of platforms) {
-            if (player.x + player.w <= p.x || player.x >= p.x + p.w) continue;
-            if (previousBottom <= p.y + 3 && player.y + player.h >= p.y && player.y < p.y) {
-              player.y = p.y - player.h;
-              player.vy = 0;
-              player.grounded = true;
-              player.checkpoint = Math.max(player.checkpoint, Math.min(player.x, worldWidth - 60));
-            }
-          }
-        }
-        if (player.y > height + 70) {
-          player.x = Math.max(0, player.checkpoint);
-          player.y = floorY - player.h - 2;
-          player.vx = 0;
-          player.vy = 0;
-          statusEl.textContent = "ОСТОРОЖНО · маршрут восстановлен от ближайшей палубы";
-          statusTimer = now + 1800;
-        }
+      function gamepadDirection(pad) {
+        if (!pad) return null;
+        const threshold = 0.55;
+        const left = !!(pad.buttons?.[14]?.pressed || (pad.axes?.[0] ?? 0) < -threshold);
+        const right = !!(pad.buttons?.[15]?.pressed || (pad.axes?.[0] ?? 0) > threshold);
+        const up = !!(pad.buttons?.[12]?.pressed || (pad.axes?.[1] ?? 0) < -threshold);
+        const down = !!(pad.buttons?.[13]?.pressed || (pad.axes?.[1] ?? 0) > threshold);
+        if (left) return "left";
+        if (right) return "right";
+        if (up) return "up";
+        if (down) return "down";
+        return null;
+      }
 
-        corePickups.forEach((pickup) => {
-          if (pickup.taken) return;
-          pickup.phase += dt * 2.5;
-          if (Math.abs(player.x + player.w * 0.5 - pickup.x) < 22 &&
-              Math.abs(player.y + player.h * 0.5 - pickup.y) < 28) {
-            pickup.taken = true;
-            ringCount += 1;
-            statusEl.textContent = "ЯДРО КОЛЬЦА · " + ringCount + "/3";
-            statusTimer = now + 2200;
-            updateCoreHud();
+      function pollGamepads(now) {
+        if (!gameStarted || done || !navigator.getGamepads) return;
+        const connected = [...navigator.getGamepads()].filter((pad) => pad && pad.connected);
+        let assignment;
+        if (mode === "multi") {
+          assignment = connected.length > 1
+            ? [connected[0], connected[1]]
+            : [null, connected[0] || null];
+        } else {
+          assignment = [connected[0] || null];
+        }
+        assignment.forEach((pad, index) => {
+          if (!pad || !players[index]) return;
+          let direction = gamepadDirection(pad);
+          if (!direction && pad.buttons?.[4]?.pressed) direction = "floorDown";
+          else if (!direction && pad.buttons?.[5]?.pressed) direction = "floorUp";
+          if (direction && now - lastPadMove[index] >= 175) {
+            lastPadMove[index] = now;
+            tryMove(index, direction);
+          } else if (!direction) {
+            lastPadMove[index] = 0;
           }
         });
+      }
 
-        if (ringCount >= corePickups.length && player.x >= exitX - 26) {
-          finishRingPlatformer(maze, ringCount);
-          return;
-        }
-
-        cameraX = Math.max(0, Math.min(worldWidth - width, player.x - width * 0.36));
+      function drawMaze(now) {
+        if (done || !g) return;
         g.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-        g.fillStyle = "#040912";
-        g.fillRect(0, 0, width, height);
-        const sky = g.createLinearGradient(0, 0, 0, height);
-        sky.addColorStop(0, "#081826");
-        sky.addColorStop(0.68, "#07111d");
-        sky.addColorStop(1, "#02050a");
-        g.fillStyle = sky;
-        g.fillRect(0, 0, width, height);
-        stars.forEach((star) => {
-          const x = (star.x - cameraX * 0.22 + worldWidth) % worldWidth;
-          g.globalAlpha = star.a;
-          g.fillStyle = "#c6f0ff";
-          g.fillRect(x, star.y * height, star.r, star.r);
-        });
-        g.globalAlpha = 1;
-        // A glowing route line visually groups the side-scroll chambers.
-        g.strokeStyle = "rgba(70,211,231,.17)";
-        g.lineWidth = 1;
-        g.beginPath();
-        g.moveTo(0, floorY - 10);
-        g.lineTo(width, floorY - 10);
-        g.stroke();
-        platforms.forEach((p, index) => {
-          const x = p.x - cameraX;
-          if (x + p.w < -5 || x > width + 5) return;
-          g.fillStyle = index % 3 === 0 ? "#254456" : "#183341";
-          g.fillRect(x, p.y, p.w, p.h);
-          g.fillStyle = "rgba(116,224,240,.8)";
-          g.fillRect(x, p.y, p.w, 2);
-          g.fillStyle = "rgba(3,8,13,.56)";
-          g.fillRect(x, p.y + p.h, p.w, 4);
-          // Panel seams give each ledge a readable sci-fi hull feel.
-          for (let seam = 18; seam < p.w; seam += 34) {
-            g.fillStyle = "rgba(105,168,192,.20)";
-            g.fillRect(x + seam, p.y + 3, 1, Math.max(3, p.h - 5));
+        g.clearRect(0, 0, width, height);
+        const bg = g.createLinearGradient(0, 0, width, height);
+        bg.addColorStop(0, "#071422"); bg.addColorStop(1, "#01050b");
+        g.fillStyle = bg; g.fillRect(0, 0, width, height);
+        // Light starfield; deterministic from the same saved seed for this run.
+        for (let i = 0; i < 34; i++) {
+          const x = ((i * 97 + seed * 0.001) % Math.max(1, width) + width) % Math.max(1, width);
+          const y = ((i * 53 + Math.floor(seed % 307)) % Math.max(1, height) + height) % Math.max(1, height);
+          g.fillStyle = i % 5 === 0 ? "#4aa4b8" : "#1e3a4b";
+          g.fillRect(x, y, i % 4 === 0 ? 2 : 1, i % 4 === 0 ? 2 : 1);
+        }
+
+        const topHud = 78, bottomHud = 84;
+        const cellSize = Math.max(18, Math.min(72, Math.floor(Math.min(width - 28, height - topHud - bottomHud - 16) / Math.max(nx, nz))));
+        const gridWidth = cellSize * nx, gridHeight = cellSize * nz;
+        const x0 = Math.floor((width - gridWidth) / 2);
+        const usableHeight = Math.max(80, height - topHud - bottomHud);
+        const y0 = Math.floor(topHud + Math.max(0, (usableHeight - gridHeight) / 2));
+
+        const viewFloor = players.length ? players[0].y : ringCell.y;
+        const floorCells = maze.cells.filter((cell) => cell.y === viewFloor);
+        floorCells.forEach((cell) => {
+          const px = x0 + cell.x * cellSize, py = y0 + cell.z * cellSize;
+          g.fillStyle = ((cell.x + cell.z) & 1) ? "#0c1d2b" : "#0a1825";
+          g.fillRect(px + 1, py + 1, cellSize - 2, cellSize - 2);
+          g.strokeStyle = "#142c3b"; g.lineWidth = 1;
+          g.strokeRect(px + 2, py + 2, cellSize - 4, cellSize - 4);
+          if (cell.open.yp || cell.open.yn) {
+            g.fillStyle = "#b79b5c";
+            g.globalAlpha = 0.95;
+            g.beginPath(); g.arc(px + cellSize / 2, py + cellSize / 2, Math.max(3, cellSize * 0.11), 0, Math.PI * 2); g.fill();
+            g.globalAlpha = 1;
+            g.strokeStyle = "#f5d58a"; g.lineWidth = Math.max(1, cellSize * 0.035);
+            g.beginPath();
+            g.moveTo(px + cellSize * 0.34, py + cellSize * 0.42); g.lineTo(px + cellSize * 0.5, py + cellSize * 0.30); g.lineTo(px + cellSize * 0.66, py + cellSize * 0.42);
+            g.moveTo(px + cellSize * 0.34, py + cellSize * 0.58); g.lineTo(px + cellSize * 0.5, py + cellSize * 0.70); g.lineTo(px + cellSize * 0.66, py + cellSize * 0.58);
+            g.stroke();
           }
         });
-        corePickups.forEach((pickup) => {
-          if (pickup.taken) return;
-          const x = pickup.x - cameraX;
-          if (x < -24 || x > width + 24) return;
-          const bob = Math.sin(pickup.phase) * 4;
+
+        g.lineWidth = Math.max(2, cellSize * 0.065);
+        g.lineCap = "round";
+        g.strokeStyle = "#4ca7bd";
+        floorCells.forEach((cell) => {
+          const px = x0 + cell.x * cellSize, py = y0 + cell.z * cellSize;
+          const rightWall = cell.x === nx - 1 || !cell.open.xp;
+          const bottomWall = cell.z === nz - 1 || !cell.open.zp;
+          const leftWall = cell.x === 0;
+          const topWall = cell.z === 0 || !cell.open.zn;
+          g.beginPath();
+          if (rightWall) { g.moveTo(px + cellSize, py); g.lineTo(px + cellSize, py + cellSize); }
+          if (bottomWall) { g.moveTo(px, py + cellSize); g.lineTo(px + cellSize, py + cellSize); }
+          if (leftWall) { g.moveTo(px, py); g.lineTo(px, py + cellSize); }
+          if (topWall) { g.moveTo(px, py); g.lineTo(px + cellSize, py); }
+          g.stroke();
+        });
+
+        const drawMarker = (x, z, y, color, label) => {
+          if (y !== viewFloor) return;
+          const cx = x0 + (x + 0.5) * cellSize, cy = y0 + (z + 0.5) * cellSize;
           g.save();
-          g.translate(x, pickup.y + bob);
-          g.rotate(Math.PI / 4 + Math.sin(pickup.phase) * 0.16);
-          g.fillStyle = "#68f2e3";
-          g.shadowColor = "#46f4dc";
-          g.shadowBlur = 14;
-          g.fillRect(-9, -9, 18, 18);
+          g.shadowColor = color; g.shadowBlur = 10;
+          g.fillStyle = color; g.beginPath();
+          g.moveTo(cx, cy - cellSize * 0.22);
+          g.lineTo(cx + cellSize * 0.22, cy);
+          g.lineTo(cx, cy + cellSize * 0.22);
+          g.lineTo(cx - cellSize * 0.22, cy);
+          g.closePath(); g.fill();
+          g.shadowBlur = 0; g.fillStyle = "#06111a";
+          g.font = "bold " + Math.max(8, cellSize * 0.22) + "px system-ui";
+          g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(label, cx, cy);
+          g.restore();
+        };
+
+        (maze.crystals || []).forEach((crystal, index) => {
+          if (!crystal.taken && crystal.cell) drawMarker(crystal.cell.x, crystal.cell.z, crystal.cell.y, "#55f0db", "◆");
+        });
+        drawMarker(exitCell.x, exitCell.z, exitCell.y, maze.count >= 3 ? "#f2cd76" : "#6f8090", "⌂");
+        drawMarker(ringCell.x, ringCell.z, ringCell.y, "#d5b25f", "◎");
+
+        players.forEach((player) => {
+          if (player.y !== viewFloor) return;
+          const cx = x0 + (player.x + 0.5) * cellSize, cy = y0 + (player.z + 0.5) * cellSize;
+          g.save();
+          g.shadowColor = player.tint; g.shadowBlur = 12;
+          g.fillStyle = player.tint; g.beginPath(); g.arc(cx, cy, cellSize * 0.32, 0, Math.PI * 2); g.fill();
           g.shadowBlur = 0;
-          g.strokeStyle = "#e6fffa";
-          g.lineWidth = 1.4;
-          g.strokeRect(-6, -6, 12, 12);
+          const img = player.image;
+          if (img && img.complete && img.naturalWidth > 0) {
+            const ratio = Math.min((cellSize * 0.52) / img.naturalWidth, (cellSize * 0.72) / img.naturalHeight);
+            const iw = img.naturalWidth * ratio, ih = img.naturalHeight * ratio;
+            g.drawImage(img, cx - iw / 2, cy - ih / 2, iw, ih);
+          } else {
+            g.fillStyle = "#f1ddbd";
+            g.beginPath(); g.arc(cx, cy - cellSize * 0.12, cellSize * 0.12, 0, Math.PI * 2); g.fill();
+            g.fillStyle = player.tint;
+            g.beginPath(); g.roundRect(cx - cellSize * 0.15, cy + cellSize * 0.01, cellSize * 0.3, cellSize * 0.26, cellSize * 0.07); g.fill();
+          }
+          g.fillStyle = "#e8f4f8"; g.font = "bold " + Math.max(8, cellSize * 0.17) + "px system-ui";
+          g.textAlign = "center"; g.textBaseline = "top"; g.fillText("P" + (player.index + 1), cx, cy + cellSize * 0.33);
           g.restore();
         });
-        const gateX = exitX - cameraX;
-        if (gateX > -30 && gateX < width + 30) {
-          g.strokeStyle = ringCount >= corePickups.length ? "#70f1dc" : "#d49e52";
-          g.lineWidth = 5;
-          g.beginPath();
-          g.ellipse(gateX, floorY - 43, 18, 42, 0, 0, Math.PI * 2);
-          g.stroke();
-          g.lineWidth = 1;
-          g.strokeStyle = "rgba(225,253,255,.6)";
-          g.beginPath();
-          g.ellipse(gateX, floorY - 43, 11, 34, 0, 0, Math.PI * 2);
-          g.stroke();
-          g.fillStyle = "#e8f4f8";
-          g.font = "11px system-ui";
-          g.textAlign = "center";
-          g.fillText(ringCount >= corePickups.length ? "SHIP" : "CORE " + ringCount + "/3", gateX, floorY - 95);
-        }
-        // Original mini-Crew/chibi placeholder: readable silhouette without a giant art dependency.
-        const px = player.x - cameraX;
-        const py = player.y;
-        g.fillStyle = "rgba(0,0,0,.35)";
-        g.beginPath(); g.ellipse(px + 9, py + 31, 12, 3, 0, 0, Math.PI * 2); g.fill();
-        g.fillStyle = "#18303d"; g.fillRect(px + 3, py + 15, 12, 11);
-        g.fillStyle = "#4bd4e8"; g.fillRect(px + 4, py + 16, 10, 7);
-        g.fillStyle = "#b5c9d6"; g.beginPath(); g.arc(px + 9, py + 8, 8, 0, Math.PI * 2); g.fill();
-        g.fillStyle = "#17445a"; g.beginPath(); g.ellipse(px + 9, py + 8, 6, 5, 0, 0, Math.PI * 2); g.fill();
-        g.fillStyle = "#eaffff"; g.fillRect(px + 6, py + 7, 2, 2); g.fillRect(px + 10, py + 7, 2, 2);
-        g.strokeStyle = "#d0e2eb"; g.lineWidth = 3;
-        g.beginPath(); g.moveTo(px + 5, py + 26); g.lineTo(px + 2, py + 29); g.moveTo(px + 13, py + 26); g.lineTo(px + 16, py + 29); g.stroke();
 
-        if (now > statusTimer && ringCount < corePickups.length) {
-          statusEl.textContent = "БЕГИ ПО ПАЛУБАМ · RING CORES " + ringCount + "/3";
-        } else if (now > statusTimer && ringCount >= corePickups.length) {
-          statusEl.textContent = "ВСЕ ЯДРА СОБРАНЫ · ДОБЕРИСЬ ДО ШЛЮЗА";
-        }
-        raf = requestAnimationFrame(paint2d);
+        // The second Crew can cross levels independently; the HUD always shows each floor.
+        g.fillStyle = "#95b7c7"; g.font = "12px system-ui"; g.textAlign = "center"; g.textBaseline = "bottom";
+        g.fillText("WASD / стрелки · Q/E этаж · Esc к кораблю", width / 2, height - 67);
       }
 
-      function cleanup() {
-        stopped = true;
+      function frame(now) {
+        if (done) return;
+        pollGamepads(now);
+        drawMaze(now);
+        raf = requestAnimationFrame(frame);
+      }
+
+      function onResize() { resize2d(); }
+      const closeButton = root2d.querySelector("[data-ring-exit]");
+      closeButton.addEventListener("click", () => finishRingPlatformer(maze, false));
+      root2d.querySelector("[data-ring-single]").addEventListener("click", () => startMode("single"));
+      root2d.querySelector("[data-ring-multi]").addEventListener("click", () => startMode("multi"));
+      root2d.querySelectorAll("[data-ring-move]").forEach((button) => {
+        button.addEventListener("click", () => tryMove(0, button.getAttribute("data-ring-move")));
+      });
+      window.addEventListener("keydown", keyboardMove, true);
+      window.addEventListener("resize", onResize);
+      resize2d();
+      state.ringPlatformerCleanup = () => {
+        done = true;
         if (raf) cancelAnimationFrame(raf);
-        window.removeEventListener("keydown", onPlatformKey, true);
-        window.removeEventListener("keyup", onPlatformKey, true);
-        window.removeEventListener("blur", onBlur);
+        window.removeEventListener("keydown", keyboardMove, true);
         window.removeEventListener("resize", onResize);
         root2d.remove();
-      }
-      state.ringPlatformerCleanup = cleanup;
-      raf = requestAnimationFrame(paint2d);
+      };
+      raf = requestAnimationFrame(frame);
       return true;
     }
 
-    function finishRingPlatformer(maze, collectedCount) {
+    function finishRingPlatformer(maze, completed) {
       if (!state.ringPlatformer || !maze) return false;
-      maze.ringCoreCount = Math.max(0, Math.min(3, Math.floor(Number(collectedCount) || 0)));
-      maze.ringCompleted = maze.ringCoreCount >= 3;
+      const success = completed === true;
+      maze.ringCompleted = success;
       const cleanup = state.ringPlatformerCleanup;
       state.ringPlatformerCleanup = null;
       state.ringPlatformer = false;
@@ -1785,16 +1815,13 @@
       stopRingAudio(true);
       const engine = api();
       if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
-      if (maze.ringCompleted) {
-        setMazeStatus("RING COMPLETE · RING CORES " + maze.ringCoreCount + "/3 · RETURNING TO SHIP");
-        // The collectible run is complete; the intended exit places the player
-        // back inside the cabin with the 3D ring visible through its window.
-        openHullAtRing();
-      } else {
-        setMazeStatus("RING EXIT LOCKED · COLLECT ALL 3 RING CORES");
-      }
+      hullEnterButton.hidden = !(state.ringDistance < 8);
+      setMazeStatus(success
+        ? "2D MAZE COMPLETE · BACK AT THE RING · U / R3 OR TAP THE HULL BUTTON"
+        : "BACK AT THE RING · 2D MAZE PAUSED · U / R3 OPENS THE HULL");
       return true;
     }
+
 
     function setMazeStatus(message) {
       const engine = api();
