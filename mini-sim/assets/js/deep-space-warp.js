@@ -1109,6 +1109,21 @@
       const pos = ship.position;
       const radius = 0.7;
 
+      // The external ship scene remains the transparent window's backdrop while either
+      // overlay is active; keep camera/visual transforms synced, but never move a paused ship.
+      if (state.ringPlatformer || state.hullOpen) {
+        if (frame.camera) {
+          frame.camera.position.copy(pos);
+          frame.camera.quaternion.copy(ship.quaternion);
+        }
+        if (ship.visual) {
+          ship.visual.position.copy(pos);
+          ship.visual.quaternion.copy(ship.quaternion);
+        }
+        maze.lastPosition.copy(pos);
+        return;
+      }
+
       // Only test wall panels close to the craft; distant cells cost almost nothing per frame.
       for (let pass = 0; pass < 2; pass += 1) {
         for (let i = 0; i < maze.walls.length; i += 1) {
@@ -1119,6 +1134,17 @@
           const py = hy - Math.abs(pos.y - w.y);
           const pz = hz - Math.abs(pos.z - w.z);
           if (px <= 0 || py <= 0 || pz <= 0) continue;
+          const impactSpeed = ship.velocity.length();
+          const impactNow = performance.now();
+          if (impactSpeed > 3.0 && impactNow - maze.lastImpactAt > 650) {
+            maze.lastImpactAt = impactNow;
+            const compartmentId = pos.x < maze.center.x - 5.4 ? 1 : (pos.x > maze.center.x + 5.4 ? 3 : 2);
+            const damage = Math.max(4, Math.min(24, Math.round((impactSpeed - 2.0) * 4.4)));
+            const damaged = window.BCMHullRepairState?.triggerExternalImpact?.(compartmentId, damage);
+            if (damaged) {
+              setMazeStatus("IMPACT · " + damaged.name + " · INTEGRITY " + Math.round(damaged.integrity) + "% · HIT " + damage);
+            }
+          }
           if (px <= py && px <= pz) {
             pos.x = w.x + (pos.x >= w.x ? 1 : -1) * (hx + 0.015);
             ship.velocity.x *= 0.15;
@@ -1139,6 +1165,16 @@
         ship.velocity.multiplyScalar(0.25);
       }
 
+      // Local artificial gravity activates near the gold ring, with a smooth falloff.
+      const ringVector = maze.beacon.position.clone().sub(pos);
+      const approachDistance = ringVector.length();
+      state.ringDistance = approachDistance;
+      if (approachDistance < 22 && approachDistance > 2.65) {
+        const falloff = Math.max(0, 1 - approachDistance / 22);
+        ringVector.normalize();
+        ship.velocity.addScaledVector(ringVector, (frame.dt || 0.016) * (0.4 + falloff * falloff * 7.2));
+      }
+
       maze.crystals.forEach((crystal) => {
         if (crystal.taken) return;
         crystal.mesh.rotation.y += Math.min(frame.dt || 0.016, 0.04) * 1.35;
@@ -1152,27 +1188,19 @@
       });
       maze.beacon.rotation.z += Math.min(frame.dt || 0.016, 0.04) * 0.4;
       const ringDistance = pos.distanceTo(maze.beacon.position);
-      if (!state.hullOpen && ringDistance < 2.6 && window.BCMHullDive && window.BCMHullDive.open) {
-        state.hullOpen = true;
-        const engine = api();
-        if (engine && engine.pauseForWarp) engine.pauseForWarp(true);
-        const away = pos.clone().sub(maze.beacon.position);
-        if (away.lengthSq() < 0.04) away.set(0, 0.4, 1);
-        away.setLength(5.2);
-        pos.copy(maze.beacon.position).add(away);
-        // Enter the hull and return to the maze upright, facing away from the ring.
-        // Discard pitch/roll accumulated while banking through the tunnel.
-        if (ship.quaternion && THREE?.Quaternion && THREE?.Vector3) {
-          const yaw = Math.atan2(-away.x, -away.z);
-          ship.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-        }
-        ship.velocity.set(0, 0, 0);
-        if (ship.angularVelocity) ship.angularVelocity.set(0, 0, 0);
-        window.BCMHullDive.open(function () {
-          state.hullOpen = false;
-          if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
-          setMazeStatus("BACK AT THE RING · FLY IN TO DIVE AGAIN");
-        });
+      state.ringDistance = ringDistance;
+      hullEnterButton.hidden = !(ringDistance < 8) || state.ringPlatformer;
+      const pads = navigator.getGamepads ? [...navigator.getGamepads()] : [];
+      const rightStickDown = pads.some((pad) => pad && pad.connected && pad.buttons &&
+        pad.buttons[11] && pad.buttons[11].pressed);
+      if (!state.ringPlatformer && ringDistance < 8 && rightStickDown && !state.rightStickWasDown) {
+        openHullAtRing();
+        state.rightStickWasDown = rightStickDown;
+        return;
+      }
+      state.rightStickWasDown = rightStickDown;
+      if (!state.ringPlatformer && !maze.ringCompleted && ringDistance < 2.6) {
+        openRingPlatformer(maze);
         return;
       }
 
@@ -1187,7 +1215,9 @@
       maze.lastPosition.copy(pos);
       if (performance.now() - maze.sinceStatus > 1300) {
         maze.sinceStatus = performance.now();
-        const message = "EXPEDITION · CORE SHARDS " + maze.count + "/3 · FLY INTO THE GOLD RING";
+        const message = state.ringDistance < 22
+          ? "RING GRAVITY ACTIVE · PRESS U / R3 OR TAP THE HULL BUTTON"
+          : "EXPEDITION · CORE SHARDS " + maze.count + "/3 · FOLLOW THE GOLD RING";
         setMazeStatus(message);
       }
     }
