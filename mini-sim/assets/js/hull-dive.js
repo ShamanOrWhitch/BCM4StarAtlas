@@ -60,7 +60,7 @@
       '<div><div style="letter-spacing:.18em;font-size:12px;color:#c4a35a">ОТСЕК · ПРОРЫВ</div>' +
       '<div data-hull-status style="font-size:14px;margin-top:4px">Управляй кораблём, стреляй, пополняй боезапас и чини корпус</div>' +
       '<div data-hull-roles style="margin-top:5px;color:#9bb5c3;font-size:11px;letter-spacing:.07em">ПИЛОТ · ОРУДИЕ / БОЕЗАПАС · ИНЖЕНЕР</div></div>' +
-      '<button type="button" data-hull-exit style="pointer-events:auto;height:44px;padding:0 14px;border:1px solid #355066;background:#10202c;color:#e7eef2;border-radius:8px">К КОЛЬЦУ</button></div>' +
+      '<button type="button" data-hull-exit style="pointer-events:auto;height:44px;padding:0 14px;border:1px solid #355066;background:#10202c;color:#e7eef2;border-radius:8px">НАЗАД В ПОЛЁТ</button></div>' +
       '<div data-hull-view style="position:absolute;inset:0"></div>' +
       '<div data-hull-controls style="position:absolute;left:10px;right:10px;bottom:54px;display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap;pointer-events:none">' +
       '<div style="display:flex;gap:5px;pointer-events:auto;flex-wrap:wrap;max-width:min(64vw,520px)">' +
