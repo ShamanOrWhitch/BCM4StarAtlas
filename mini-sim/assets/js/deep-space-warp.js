@@ -1492,7 +1492,7 @@
             '<button type="button" data-ring-action="left" aria-label="Влево" style="min-height:42px">◀</button><span style="display:block"></span><button type="button" data-ring-action="right" aria-label="Вправо" style="min-height:42px">▶</button>' +
           '</div>' +
           '<div style="display:flex;gap:6px;align-items:flex-end;pointer-events:auto">' +
-            '<button type="button" data-ring-action="attack" style="min-height:42px;padding:6px 10px;font-size:12px">ИМПУЛЬС</button>' +
+            '<button type="button" data-ring-action="activate" style="min-height:42px;padding:6px 10px;font-size:12px">АКТИВАЦИЯ</button>' +
             '<button type="button" data-ring-action="dash" style="min-height:42px;padding:6px 10px;font-size:12px">РЫВОК</button>' +
           '</div>' +
         '</div>' +
@@ -1501,7 +1501,7 @@
             '<div style="font-size:12px;letter-spacing:.18em;color:#60ddec">RING FRONTIER · SEED ' + seed + '</div>' +
             '<div style="font-size:24px;font-weight:900;margin:12px 0 7px">Большая локация</div>' +
             '<div style="color:#b7cbd6;line-height:1.5;margin-bottom:17px">Свободное движение по большим боковым аренам, прыжки между платформами и три босса в разных зонах. Мини-карта показывает только продвижение по локации.</div>' +
-            '<div style="color:#91b8c7;font-size:12px;line-height:1.5;margin-bottom:17px">P1: ← → / A D · прыжок: Space / W · импульс: X · рывок: Shift<br>P2: J L · прыжок: P · импульс: O · рывок: I · геймпады поддерживаются</div>' +
+            '<div style="color:#91b8c7;font-size:12px;line-height:1.5;margin-bottom:17px">P1: ← → / A D · прыжок: Space / W · действие: E · рывок: Shift<br>P2: J L · прыжок: P · действие: O · рывок: I · геймпады поддерживаются</div>' +
             '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">' +
               '<button type="button" data-ring-single style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #69d7ea;border-radius:10px;background:#123c48;color:#e8fbff;font-weight:900">SINGLE</button>' +
               '<button type="button" data-ring-multi style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #bb9a57;border-radius:10px;background:#3b301b;color:#fff0c7;font-weight:900">MULTI · 2 CREW</button>' +
@@ -1540,7 +1540,7 @@
       const touchInputs = [{}, {}];
       const padInputs = [{}, {}];
       const previousPad = [{}, {}];
-      const oneShotActions = new Set(["turnUp", "turnDown", "floorUp", "floorDown"]);
+      const oneShotActions = new Set(["activate", "dash"]);
       const worldSaved = {
         oldMazeVisible: maze.group ? maze.group.visible : true,
         oldShipVisible: runtime.ship.visual ? runtime.ship.visual.visible : true,
@@ -1620,15 +1620,14 @@
         const bossEyeGeometry = new THREE.SphereGeometry(0.18, 10, 8);
         const bossRingGeometry = new THREE.TorusGeometry(1.7, 0.075, 8, 28);
         const exitGeometry = new THREE.TorusGeometry(1.15, 0.13, 8, 32);
-        const pulseGeometry = new THREE.SphereGeometry(0.19, 8, 7);
+        const shockwaveGeometry = new THREE.TorusGeometry(0.82, 0.12, 8, 20);
         const pickupGeometry = new THREE.OctahedronGeometry(0.38, 0);
         const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xc9fbff });
         const bossRingMaterial = new THREE.MeshBasicMaterial({ color: 0x9cf5ff, transparent: true, opacity: 0.9 });
         const exitMaterial = new THREE.MeshBasicMaterial({ color: 0x72f0e2, transparent: true, opacity: 0.8 });
         const pickupMaterial = new THREE.MeshStandardMaterial({ color: 0x75f2e1, emissive: 0x117f79, emissiveIntensity: 1.25, roughness: 0.22, metalness: 0.2 });
-        const playerPulseMaterial = new THREE.MeshBasicMaterial({ color: 0x75f3ff });
-        const enemyPulseMaterial = new THREE.MeshBasicMaterial({ color: 0xff9e5e });
-        materials.push(eyeMaterial, bossRingMaterial, exitMaterial, pickupMaterial, playerPulseMaterial, enemyPulseMaterial);
+        const shockwaveMaterial = new THREE.MeshBasicMaterial({ color: 0xff9e5e, transparent: true, opacity: 0.94 });
+        materials.push(eyeMaterial, bossRingMaterial, exitMaterial, pickupMaterial, shockwaveMaterial);
 
         const bosses = [
           { name: "СБОЙНЫЙ СТРАЖ", x: -16, y: 0, maxHp: 5, color: 0xffa45f, zone: 0 },
@@ -1701,9 +1700,9 @@
 
         return {
           group: world, boxGeometry, materials,
-          specialGeometry: [bossBodyGeometry, bossEyeGeometry, bossRingGeometry, exitGeometry, pulseGeometry, pickupGeometry],
+          specialGeometry: [bossBodyGeometry, bossEyeGeometry, bossRingGeometry, exitGeometry, shockwaveGeometry, pickupGeometry],
           platforms, bosses, barriers, coreMeshes, exitMarker, exitX: 81, spawnX: -45,
-          playerShots: [], enemyShots: [], pulseGeometry, playerPulseMaterial, enemyPulseMaterial,
+          shockwaves: [], shockwaveGeometry, shockwaveMaterial,
           defeatedBosses: 0, pickupGeometry
         };
       }
@@ -1782,7 +1781,7 @@
           x: Number(spawn.x) || 0, y: Number(spawn.y) || 0, z: 0,
           localX: 0, jumpHeight: 0, vy: 0, grounded: true, supportPlatform: null,
           facing: 1, lastActionAt: 0, wasJumpDown: false,
-          attackReadyAt: 0, dashReadyAt: 0, dashUntil: 0,
+          actionReadyAt: 0, dashReadyAt: 0, dashUntil: 0,
           hp: 5, maxHp: 5, invulnerableUntil: 0,
           checkpointX: Number(spawn.x) || -45,
           image: crewImages[index] || null, tint: playerColors[index], moves: 0,
@@ -1854,16 +1853,31 @@
         return collected;
       }
 
-      function spawnPlayerPulse(player) {
+      function activateBossWeakpoint(player) {
         const now = performance.now();
-        if (!gameStarted || done || now < player.attackReadyAt) return false;
-        player.attackReadyAt = now + 320;
-        const mesh = new THREE.Mesh(worldState.pulseGeometry, worldState.playerPulseMaterial);
-        mesh.position.set(player.worldX + player.facing * 1.1, player.worldY + 1.1, 0.75);
-        worldState.group.add(mesh);
-        worldState.playerShots.push({
-          mesh, x: mesh.position.x, y: mesh.position.y, vx: player.facing * 18, owner: player.index
-        });
+        const boss = worldState.bosses.find((item) =>
+          item.alive && item.activated && Math.abs(player.worldX - item.x) < 5.8 &&
+          Math.abs(player.worldY - item.y) < 4.5
+        );
+        if (!boss) {
+          updateHud("ПОДОЙДИ К АРЕНЕ И НАЖМИ АКТИВАЦИЮ");
+          return false;
+        }
+        if (now < boss.nextDamageAt) return false;
+        boss.nextDamageAt = now + 620;
+        boss.hp = Math.max(0, boss.hp - 1);
+        boss.lastDamageAt = now;
+        if (boss.hp <= 0) {
+          boss.alive = false;
+          boss.group.visible = false;
+          worldState.defeatedBosses = Math.min(3, worldState.defeatedBosses + 1);
+          worldState.barriers.forEach((barrier) => {
+            barrier.group.visible = worldState.defeatedBosses < barrier.unlockAfter;
+          });
+          updateHud(boss.name + " · АРЕНА ОЧИЩЕНА");
+        } else {
+          updateHud("ТОЧКА БОССА ОТКЛИКНУЛАСЬ · " + boss.hp + " / " + boss.maxHp);
+        }
         return true;
       }
 
@@ -1871,11 +1885,7 @@
         const player = players[index];
         if (!player || !gameStarted || done) return false;
         const now = performance.now();
-        if (action === "attack") {
-          const fired = spawnPlayerPulse(player);
-          if (fired) updateHud("ЭНЕРГОИМПУЛЬС");
-          return fired;
-        }
+        if (action === "activate") return activateBossWeakpoint(player);
         if (action === "dash" && now >= player.dashReadyAt) {
           player.dashUntil = now + 210;
           player.dashReadyAt = now + 850;
@@ -1905,15 +1915,15 @@
           action = p2[event.code] || null;
           if (action) index = 1;
         }
-        const p1Attack = event.code === "KeyX";
+        const p1Activate = event.code === "KeyE";
         const p1Dash = event.code === "ShiftLeft" || event.code === "ShiftRight" || event.code === "KeyC";
-        const p2Attack = event.code === "KeyO";
+        const p2Activate = event.code === "KeyO";
         const p2Dash = event.code === "KeyI";
-        if (mode === "multi" && (p2Attack || p2Dash)) index = 1;
-        if (p1Attack || p2Attack) {
+        if (mode === "multi" && (p2Activate || p2Dash)) index = 1;
+        if (p1Activate || p2Activate) {
           event.preventDefault();
           event.stopImmediatePropagation();
-          if (down && !event.repeat) triggerAction(index, "attack");
+          if (down && !event.repeat) triggerAction(index, "activate");
           return;
         }
         if (p1Dash || p2Dash) {
@@ -1945,10 +1955,10 @@
           statePad.right = !!(button(15) || axisX > 0.42);
           statePad.jump = !!(button(0) || button(12) || axisY < -0.68);
           statePad.dash = !!button(1);
-          statePad.attack = !!button(2);
-          if (statePad.attack && !previousPad[i].attack) triggerAction(i, "attack");
+          statePad.activate = !!button(2);
+          if (statePad.activate && !previousPad[i].activate) triggerAction(i, "activate");
           if (statePad.dash && !previousPad[i].dash) triggerAction(i, "dash");
-          previousPad[i] = { attack: statePad.attack, dash: statePad.dash };
+          previousPad[i] = { activate: statePad.activate, dash: statePad.dash };
         }
       }
 
@@ -1982,21 +1992,18 @@
           if (!boss.activated) {
             boss.activated = true;
             boss.nextAttackAt = now + 900;
+            boss.nextDamageAt = 0;
             updateHud("АРЕНА ОТКРЫТА · " + boss.name);
           }
           if (now < boss.nextAttackAt) return;
           boss.nextAttackAt = now + Math.max(1350, 2350 - boss.zone * 220);
-          const startX = boss.x + (target.worldX < boss.x ? -1.8 : 1.8);
-          const startY = boss.y + 2.0;
-          const dx = target.worldX - startX;
-          const dy = (target.worldY + 0.9) - startY;
-          const length = Math.max(1, Math.hypot(dx, dy));
-          const mesh = new THREE.Mesh(worldState.pulseGeometry, worldState.enemyPulseMaterial);
-          mesh.position.set(startX, startY, 0.8);
+          const direction = target.worldX < boss.x ? -1 : 1;
+          const startX = boss.x + direction * 2.2;
+          const mesh = new THREE.Mesh(worldState.shockwaveGeometry, worldState.shockwaveMaterial);
+          mesh.position.set(startX, 0.95, 0.78);
+          mesh.scale.setScalar(0.78);
           worldState.group.add(mesh);
-          worldState.enemyShots.push({
-            mesh, x: startX, y: startY, vx: dx / length * 8.5, vy: dy / length * 4.0
-          });
+          worldState.shockwaves.push({ mesh, x: startX, direction, age: 0 });
         });
       }
 
@@ -2069,48 +2076,21 @@
           updatePlayerSprite(player);
         }
 
-        worldState.playerShots = worldState.playerShots.filter((shot) => {
-          shot.x += shot.vx * dt;
-          shot.mesh.position.x = shot.x;
-          const boss = worldState.bosses.find((item) => item.alive &&
-            Math.abs(item.x - shot.x) < 2.25 && Math.abs((item.y + 2.0) - shot.y) < 2.65);
-          if (boss) {
-            boss.hp -= 1;
-            boss.lastDamageAt = now;
-            shot.mesh.parent?.remove(shot.mesh);
-            if (boss.hp <= 0) {
-              boss.hp = 0;
-              boss.alive = false;
-              boss.group.visible = false;
-              worldState.defeatedBosses = Math.min(3, worldState.defeatedBosses + 1);
-              worldState.barriers.forEach((barrier) => {
-                barrier.group.visible = worldState.defeatedBosses < barrier.unlockAfter;
-              });
-              updateHud(boss.name + " · АРЕНА ОЧИЩЕНА");
-            }
-            return false;
-          }
-          if (shot.x < -51 || shot.x > worldState.exitX + 3) {
-            shot.mesh.parent?.remove(shot.mesh);
-            return false;
-          }
-          return true;
-        });
-
-        worldState.enemyShots = worldState.enemyShots.filter((shot) => {
-          shot.x += shot.vx * dt;
-          shot.y += shot.vy * dt;
-          shot.mesh.position.set(shot.x, shot.y, 0.8);
+        worldState.shockwaves = worldState.shockwaves.filter((wave) => {
+          wave.age += dt;
+          wave.x += wave.direction * 8.5 * dt;
+          wave.mesh.position.x = wave.x;
+          wave.mesh.scale.setScalar(0.72 + Math.min(0.45, wave.age * 0.22));
           const hitPlayer = players.find((player) =>
-            Math.abs(player.worldX - shot.x) < 0.95 &&
-            Math.abs((player.worldY + 0.95) - shot.y) < 1.25);
+            Math.abs(player.worldX - wave.x) < 1.0 && player.worldY < 1.15
+          );
           if (hitPlayer) {
             damagePlayer(hitPlayer, now);
-            shot.mesh.parent?.remove(shot.mesh);
+            wave.mesh.parent?.remove(wave.mesh);
             return false;
           }
-          if (shot.x < -53 || shot.x > worldState.exitX + 4 || shot.y < -5 || shot.y > 12) {
-            shot.mesh.parent?.remove(shot.mesh);
+          if (wave.x < -53 || wave.x > worldState.exitX + 4) {
+            wave.mesh.parent?.remove(wave.mesh);
             return false;
           }
           return true;
