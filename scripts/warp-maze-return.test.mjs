@@ -256,6 +256,12 @@ test("Ring is a 2D-in-3D platform maze reusing the same seeded graph, Crew and a
   assert.ok(ring.includes("function updateSplitState()"));
   assert.ok(ring.includes("function renderRingViews(frameContext)"));
   assert.ok(ring.includes("function drawMiniMap()"));
+  assert.ok(ring.includes('viewAxis: "z"'));
+  assert.ok(ring.includes('viewAxis: "x"'));
+  assert.ok(ring.includes("orientation: 0"));
+  assert.ok(ring.includes("orientation: 1"));
+  assert.ok(ring.includes("platform.orientation === player.orientation"));
+  assert.ok(ring.includes("viewAxisAllowed && itemLane === laneIndex"));
   assert.ok(ring.includes("maze.crystals"));
   assert.ok(ring.includes("maze.count >= 3"));
   assert.doesNotMatch(ring, /corePickups|stageWidth|layoutPlatforms/);
