@@ -1572,8 +1572,29 @@
         }
         const platforms = [];
         function addPlatform(x1, x2, topY, color) {
-          addBox(topY === 0 ? "floor" : "platforms", (x1 + x2) / 2, topY - 0.18, 0,
-            x2 - x1, 0.36, 3.8, color || (topY === 0 ? 0x182b38 : 0x486b7d));
+          const width = x2 - x1;
+          const center = (x1 + x2) / 2;
+          const floor = topY === 0;
+          addBox(floor ? "floor" : "platforms", center, topY - 0.18, 0,
+            width, 0.36, 3.8, color || (floor ? 0x182b38 : 0x486b7d));
+          if (floor) {
+            // Broken-up floor markings read as a traversable stage, not a flat map tile.
+            for (let mark = x1 + 2.5; mark < x2 - 1; mark += 7.5) {
+              addBox("trim", mark, 0.045, 0.08, 1.25, 0.055, 0.08,
+                ((Math.floor(mark) % 2) === 0) ? 0x61deef : 0x405e70);
+            }
+          } else {
+            // A bright lip and dark support braces give the ledges a comic-panel silhouette.
+            addBox("trim", center, topY + 0.055, 0.12, width + 0.12, 0.075, 3.92,
+              color || 0x64d9e8);
+            const braceY = topY * 0.48;
+            const braceHeight = Math.max(0.45, topY * 0.88);
+            [x1 + 0.35, x2 - 0.35].forEach((braceX) => {
+              addBox("backdrop", braceX, braceY, -0.34, 0.20, braceHeight, 0.20, 0x07121b);
+              addBox("trim", braceX, braceY, -0.20, 0.055, braceHeight * 0.94, 0.08,
+                color || 0x64d9e8);
+            });
+          }
           platforms.push({ minX: x1, maxX: x2, y: topY });
         }
         addPlatform(-51, 84, 0, 0x142936);
@@ -1585,18 +1606,204 @@
           [0x456b7b, 0x607786, 0x485f7c][i % 3]));
 
         const zones = [
-          { x1: -50, x2: -2, center: -26, color: 0x0a2639, trim: 0x37c5e7 },
-          { x1: -2, x2: 36, center: 17, color: 0x14263a, trim: 0x5fe0c4 },
-          { x1: 36, x2: 84, center: 60, color: 0x271a39, trim: 0xc08bff }
+          { x1: -50, x2: -2, center: -26, arenaX: -16, color: 0x0a2639, trim: 0x37c5e7, art: 0 },
+          { x1: -2, x2: 36, center: 17, arenaX: 18, color: 0x14263a, trim: 0x5fe0c4, art: 1 },
+          { x1: 36, x2: 84, center: 60, arenaX: 58, color: 0x271a39, trim: 0xc08bff, art: 2 }
         ];
+
+        function makeComicBackdrop(zone) {
+          const canvas = document.createElement("canvas");
+          canvas.width = 1024;
+          canvas.height = 512;
+          const ctx = canvas.getContext("2d");
+          const palettes = [
+            { top: "#06111d", bottom: "#173b4d", glow: "#1bbbdc", mid: "#122c3d", deep: "#07131f", metal: "#2d4b5a", accent: "#75edff" },
+            { top: "#061918", bottom: "#25494a", glow: "#31c9a4", mid: "#173834", deep: "#071b20", metal: "#355756", accent: "#7af8d8" },
+            { top: "#100d20", bottom: "#3b2450", glow: "#a45ce8", mid: "#291b3d", deep: "#100e20", metal: "#4b355c", accent: "#e2a7ff" }
+          ];
+          const p = palettes[zone.art];
+          const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
+          bg.addColorStop(0, p.top);
+          bg.addColorStop(0.52, p.bottom);
+          bg.addColorStop(1, "#050910");
+          ctx.fillStyle = bg;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          const glow = ctx.createRadialGradient(
+            canvas.width * (0.28 + zone.art * 0.20), canvas.height * 0.40, 4,
+            canvas.width * (0.28 + zone.art * 0.20), canvas.height * 0.40, 360
+          );
+          glow.addColorStop(0, p.glow + "88");
+          glow.addColorStop(1, p.glow + "00");
+          ctx.fillStyle = glow;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          // Distant silhouette: irregular machinery, towers and broken skyline, inked like a comic panel.
+          const randomAt = (n) => {
+            const raw = Math.sin((zone.art + 3) * 71.31 + n * 19.17) * 43758.5453;
+            return raw - Math.floor(raw);
+          };
+          for (let i = 0; i < 14; i += 1) {
+            const x = i * 78 - 18;
+            const bw = 38 + randomAt(i + 2) * 52;
+            const bh = 100 + randomAt(i + 23) * 245;
+            const top = 390 - bh;
+            ctx.beginPath();
+            ctx.moveTo(x, 432);
+            ctx.lineTo(x, top + 28);
+            ctx.lineTo(x + bw * 0.16, top + 8);
+            ctx.lineTo(x + bw * 0.30, top + 23);
+            ctx.lineTo(x + bw * 0.52, top);
+            ctx.lineTo(x + bw * 0.70, top + 18);
+            ctx.lineTo(x + bw, top + 34);
+            ctx.lineTo(x + bw, 432);
+            ctx.closePath();
+            ctx.fillStyle = i % 2 ? p.mid : p.deep;
+            ctx.strokeStyle = "#02060b";
+            ctx.lineWidth = 12;
+            ctx.lineJoin = "miter";
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.globalAlpha = 0.68;
+            ctx.fillStyle = p.accent;
+            for (let windowY = top + 47; windowY < 385; windowY += 34) {
+              if (randomAt(i * 13 + windowY) > 0.62) continue;
+              ctx.fillRect(x + 8, windowY, Math.max(4, bw * 0.14), 9);
+              ctx.fillRect(x + bw * 0.53, windowY + 8, Math.max(4, bw * 0.18), 5);
+            }
+            ctx.globalAlpha = 1;
+          }
+
+          // Monumental reactor rings and thick conduit lines create depth behind the arena.
+          const reactorX = canvas.width * (0.70 - zone.art * 0.06);
+          const reactorY = 220;
+          [150, 116, 83].forEach((radius, i) => {
+            ctx.beginPath();
+            ctx.arc(reactorX, reactorY, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = i === 0 ? "#02060b" : p.accent;
+            ctx.lineWidth = i === 0 ? 18 : (i === 1 ? 7 : 3);
+            ctx.globalAlpha = i === 0 ? 0.95 : (0.30 + i * 0.18);
+            ctx.stroke();
+          });
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = p.deep;
+          ctx.strokeStyle = "#02060b";
+          ctx.lineWidth = 14;
+          ctx.beginPath();
+          ctx.moveTo(reactorX - 34, reactorY - 70);
+          ctx.lineTo(reactorX + 58, reactorY - 24);
+          ctx.lineTo(reactorX + 40, reactorY + 76);
+          ctx.lineTo(reactorX - 62, reactorY + 40);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          for (let pipe = 0; pipe < 5; pipe += 1) {
+            const y = 65 + pipe * 68;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(128 + pipe * 23, y);
+            ctx.lineTo(155 + pipe * 23, y + 24);
+            ctx.lineTo(canvas.width, y + 24);
+            ctx.strokeStyle = "#02060b";
+            ctx.lineWidth = 17;
+            ctx.stroke();
+            ctx.strokeStyle = pipe % 2 ? p.metal : p.accent;
+            ctx.lineWidth = pipe % 2 ? 5 : 2;
+            ctx.globalAlpha = pipe % 2 ? 0.7 : 0.45;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+          }
+
+          // Halftone dots and panel hatching provide a hand-inked, comic-book finish.
+          ctx.globalAlpha = 0.17;
+          ctx.fillStyle = p.accent;
+          for (let y = 18; y < 496; y += 15) {
+            for (let x = 18 + ((Math.floor(y / 15) % 2) * 7); x < 1008; x += 15) {
+              const dx = (x - 512) / 512;
+              const dy = (y - 256) / 256;
+              if (dx * dx + dy * dy > 0.84 && randomAt(x + y) < 0.72) continue;
+              ctx.beginPath();
+              ctx.arc(x, y, 1.4 + randomAt(x * 2 + y) * 0.8, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+          ctx.globalAlpha = 1;
+          for (let i = 0; i < 10; i += 1) {
+            const x = i * 116 - 30;
+            ctx.beginPath();
+            ctx.moveTo(x, 512);
+            ctx.lineTo(x + 110, 390);
+            ctx.strokeStyle = "#02060b";
+            ctx.lineWidth = 9;
+            ctx.globalAlpha = 0.35;
+            ctx.stroke();
+          }
+          ctx.globalAlpha = 1;
+
+          // Heavy black frame and bright inset line make each zone read as a distinct large location.
+          ctx.strokeStyle = "#02060b";
+          ctx.lineWidth = 26;
+          ctx.strokeRect(9, 9, canvas.width - 18, canvas.height - 18);
+          ctx.strokeStyle = p.accent;
+          ctx.globalAlpha = 0.88;
+          ctx.lineWidth = 3;
+          ctx.strokeRect(25, 25, canvas.width - 50, canvas.height - 50);
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = p.accent;
+          for (let bolt = 0; bolt < 14; bolt += 1) {
+            const x = 43 + bolt * 71;
+            ctx.beginPath();
+            ctx.arc(x, 39, 3.4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x, 472, 3.4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          const texture = new THREE.CanvasTexture(canvas);
+          if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
+          return texture;
+        }
+
+        const parallaxPanels = [];
         zones.forEach((zone, index) => {
-          addBox("backdrop", zone.center, 4.9, -4.1, zone.x2 - zone.x1, 11.2, 0.6, zone.color);
+          const texture = makeComicBackdrop(zone);
+          const panelGeometry = new THREE.PlaneGeometry(zone.x2 - zone.x1, 11.2);
+          const panelMaterial = new THREE.MeshBasicMaterial({
+            map: texture, side: THREE.DoubleSide, depthWrite: false
+          });
+          const panel = new THREE.Mesh(panelGeometry, panelMaterial);
+          panel.name = "ring-comic-zone-backdrop-" + (index + 1);
+          panel.position.set(zone.center, 4.9, -5.15);
+          world.add(panel);
+          worldTextures.push(texture);
+          extraGeometries.push(panelGeometry);
+          materials.push(panelMaterial);
+          parallaxPanels.push({ mesh: panel, baseX: zone.center, factor: 0.48 });
+
+          // Layered silhouettes sit between the painted backdrop and the play plane.
           for (let x = zone.x1 + 3.2; x < zone.x2; x += 6.4) {
             addBox("trim", x, 4.0, -2.8, 0.24, 8.1, 0.24, zone.trim);
             addBox("trim", x + 1.25, 7.6, -2.7, 2.4, 0.14, 0.18, zone.trim);
             addBox("backdrop", x + 2.8, 2.8, -3.5, 3.0, 3.1, 0.24, index === 1 ? 0x183d46 : 0x172838);
           }
           addBox("trim", zone.center, 9.0, -2.5, zone.x2 - zone.x1 - 3.0, 0.12, 0.18, zone.trim);
+
+          // Each boss gets a framed arena with a heavy lintel, pylons and glowing edge strips.
+          const arenaX = zone.arenaX;
+          const arenaHalf = 8.6;
+          [-1, 1].forEach((side) => {
+            const pillarX = arenaX + side * arenaHalf;
+            addBox("backdrop", pillarX, 3.65, -2.95, 0.72, 7.25, 0.48, 0x050a12);
+            addBox("trim", pillarX, 3.65, -2.70, 0.13, 6.95, 0.17, zone.trim);
+            addBox("backdrop", pillarX, 0.34, -2.55, 1.45, 0.65, 0.52, 0x03070d);
+            addBox("trim", pillarX, 0.69, -2.45, 1.2, 0.11, 0.22, zone.trim);
+          });
+          addBox("backdrop", arenaX, 7.25, -3.0, arenaHalf * 2 + 1.1, 0.56, 0.46, 0x050a12);
+          addBox("trim", arenaX, 6.93, -2.71, arenaHalf * 2 - 0.6, 0.095, 0.16, zone.trim);
+          addBox("backdrop", arenaX, 0.18, -2.55, arenaHalf * 2 + 1.1, 0.35, 0.46, 0x03070d);
         });
 
         const barriers = [];
@@ -1617,17 +1824,27 @@
         });
 
         const bossBodyGeometry = new THREE.DodecahedronGeometry(1, 1);
+        const bossOutlineGeometry = new THREE.DodecahedronGeometry(1, 1);
+        const bossArmorGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const bossHornGeometry = new THREE.ConeGeometry(0.42, 1.35, 5);
+        const bossCoreGeometry = new THREE.SphereGeometry(0.40, 12, 10);
         const bossEyeGeometry = new THREE.SphereGeometry(0.18, 10, 8);
-        const bossRingGeometry = new THREE.TorusGeometry(1.7, 0.075, 8, 28);
+        const bossRingGeometry = new THREE.TorusGeometry(1.9, 0.10, 8, 28);
         const exitGeometry = new THREE.TorusGeometry(1.15, 0.13, 8, 32);
         const shockwaveGeometry = new THREE.TorusGeometry(0.82, 0.12, 8, 20);
         const pickupGeometry = new THREE.OctahedronGeometry(0.38, 0);
         const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xc9fbff });
+        const bossCoreMaterial = new THREE.MeshBasicMaterial({ color: 0xfff0b5 });
+        const bossOutlineMaterial = new THREE.MeshBasicMaterial({ color: 0x02060b });
+        const bossArmorMaterial = new THREE.MeshStandardMaterial({
+          color: 0x1b2935, roughness: 0.48, metalness: 0.62, emissive: 0x09121a, emissiveIntensity: 0.45
+        });
         const bossRingMaterial = new THREE.MeshBasicMaterial({ color: 0x9cf5ff, transparent: true, opacity: 0.9 });
         const exitMaterial = new THREE.MeshBasicMaterial({ color: 0x72f0e2, transparent: true, opacity: 0.8 });
         const pickupMaterial = new THREE.MeshStandardMaterial({ color: 0x75f2e1, emissive: 0x117f79, emissiveIntensity: 1.25, roughness: 0.22, metalness: 0.2 });
         const shockwaveMaterial = new THREE.MeshBasicMaterial({ color: 0xff9e5e, transparent: true, opacity: 0.94 });
-        materials.push(eyeMaterial, bossRingMaterial, exitMaterial, pickupMaterial, shockwaveMaterial);
+        materials.push(eyeMaterial, bossCoreMaterial, bossOutlineMaterial, bossArmorMaterial,
+          bossRingMaterial, exitMaterial, pickupMaterial, shockwaveMaterial);
 
         const bosses = [
           { name: "СБОЙНЫЙ СТРАЖ", x: -16, y: 0, maxHp: 5, color: 0xffa45f, zone: 0 },
@@ -1636,25 +1853,71 @@
         ];
         bosses.forEach((boss, index) => {
           const bossMaterial = new THREE.MeshStandardMaterial({
-            color: boss.color, emissive: boss.color, emissiveIntensity: 0.38,
+            color: boss.color, emissive: boss.color, emissiveIntensity: 0.48,
             roughness: 0.34, metalness: 0.52
           });
-          materials.push(bossMaterial);
+          const armorAccent = new THREE.MeshStandardMaterial({
+            color: boss.color, emissive: boss.color, emissiveIntensity: 0.20,
+            roughness: 0.42, metalness: 0.60
+          });
+          materials.push(bossMaterial, armorAccent);
           const group = new THREE.Group();
           group.name = "ring-boss-" + (index + 1);
           group.position.set(boss.x, boss.y, 0.1);
+
+          // Dark offset meshes create the thick inked silhouette of a comic-book boss.
+          const outline = new THREE.Mesh(bossOutlineGeometry, bossOutlineMaterial);
+          outline.position.set(0, 2.30, -0.20);
+          outline.scale.set(2.45 + index * 0.24, 2.20 + index * 0.23, 0.94);
+          group.add(outline);
+
+          [-1, 1].forEach((side) => {
+            const armOutline = new THREE.Mesh(bossArmorGeometry, bossOutlineMaterial);
+            armOutline.position.set(side * (1.63 + index * 0.12), 1.72, -0.16);
+            armOutline.rotation.z = side * -0.15;
+            armOutline.scale.set(1.82 + index * 0.12, 0.94 + index * 0.10, 0.92);
+            group.add(armOutline);
+
+            const arm = new THREE.Mesh(bossArmorGeometry, bossArmorMaterial);
+            arm.position.set(side * (1.63 + index * 0.12), 1.77, 0.02);
+            arm.rotation.z = side * -0.15;
+            arm.scale.set(1.62 + index * 0.12, 0.70 + index * 0.10, 0.72);
+            group.add(arm);
+
+            const hornOutline = new THREE.Mesh(bossHornGeometry, bossOutlineMaterial);
+            hornOutline.position.set(side * (0.94 + index * 0.08), 3.92 + index * 0.20, -0.15);
+            hornOutline.rotation.z = side * -0.37;
+            hornOutline.scale.set(1.14, 1.12, 0.86);
+            group.add(hornOutline);
+
+            const horn = new THREE.Mesh(bossHornGeometry, armorAccent);
+            horn.position.set(side * (0.94 + index * 0.08), 3.95 + index * 0.20, 0.02);
+            horn.rotation.z = side * -0.37;
+            horn.scale.set(0.96, 0.96, 0.76);
+            group.add(horn);
+          });
+
           const body = new THREE.Mesh(bossBodyGeometry, bossMaterial);
-          body.position.set(0, 2.05, 0);
-          body.scale.set(2.0 + index * 0.18, 1.8 + index * 0.18, 0.8);
+          body.position.set(0, 2.25, 0.02);
+          body.scale.set(2.08 + index * 0.24, 1.94 + index * 0.22, 0.78);
           group.add(body);
+
+          const core = new THREE.Mesh(bossCoreGeometry, bossCoreMaterial);
+          core.position.set(0, 2.20, 0.86);
+          core.scale.set(1.0 + index * 0.08, 1.10 + index * 0.10, 0.48);
+          group.add(core);
+
           const eyeLeft = new THREE.Mesh(bossEyeGeometry, eyeMaterial);
-          eyeLeft.position.set(-0.6, 2.2, 0.76);
+          eyeLeft.position.set(-0.74, 2.54, 0.82);
+          eyeLeft.scale.setScalar(1.12 + index * 0.08);
           const eyeRight = new THREE.Mesh(bossEyeGeometry, eyeMaterial);
-          eyeRight.position.set(0.6, 2.2, 0.76);
+          eyeRight.position.set(0.74, 2.54, 0.82);
+          eyeRight.scale.setScalar(1.12 + index * 0.08);
           group.add(eyeLeft, eyeRight);
+
           const ring = new THREE.Mesh(bossRingGeometry, bossRingMaterial);
-          ring.position.set(0, 2.05, -0.05);
-          ring.scale.set(1.18 + index * 0.12, 1.18 + index * 0.12, 1);
+          ring.position.set(0, 2.20, -0.05);
+          ring.scale.set(1.18 + index * 0.15, 1.18 + index * 0.15, 1);
           group.add(ring);
           world.add(group);
           Object.assign(boss, { group, hp: boss.maxHp, alive: true, activated: false, nextAttackAt: 0, lastDamageAt: 0 });
@@ -1699,8 +1962,9 @@
         scene.add(world);
 
         return {
-          group: world, boxGeometry, materials,
-          specialGeometry: [bossBodyGeometry, bossEyeGeometry, bossRingGeometry, exitGeometry, shockwaveGeometry, pickupGeometry],
+          group: world, boxGeometry, materials, textures: worldTextures, parallaxPanels,
+          specialGeometry: [...extraGeometries, bossBodyGeometry, bossOutlineGeometry, bossArmorGeometry,
+            bossHornGeometry, bossCoreGeometry, bossEyeGeometry, bossRingGeometry, exitGeometry, shockwaveGeometry, pickupGeometry],
           platforms, bosses, barriers, coreMeshes, exitMarker, exitX: 81, spawnX: -45,
           shockwaves: [], shockwaveGeometry, shockwaveMaterial,
           defeatedBosses: 0, pickupGeometry
@@ -2129,7 +2393,7 @@
 
       function configureCamera(camera, viewport, center) {
         const aspect = Math.max(0.3, viewport.w / Math.max(1, viewport.h));
-        const halfHeight = viewport.h > viewport.w ? 8.2 : 6.4;
+        const halfHeight = viewport.h > viewport.w ? 7.1 : 5.4;
         camera.left = -halfHeight * aspect;
         camera.right = halfHeight * aspect;
         camera.top = halfHeight;
@@ -2352,6 +2616,7 @@
         });
         try { worldState.boxGeometry.dispose(); } catch (e) {}
         worldState.specialGeometry.forEach((geometry) => { try { geometry.dispose(); } catch (e) {} });
+        worldState.textures.forEach((texture) => { try { texture.dispose(); } catch (e) {} });
         worldState.materials.forEach((material) => { try { material.dispose(); } catch (e) {} });
         players.forEach((player) => {
           if (player.sprite) worldState.group.remove(player.sprite);
