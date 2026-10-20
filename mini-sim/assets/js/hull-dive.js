@@ -54,7 +54,7 @@
     const THREE = window.THREE;
     const root = document.createElement("div");
     root.id = "bcm-hull-dive";
-    root.style.cssText = "position:fixed;inset:0;z-index:80;background:#041018;color:#e7eef2;font-family:Rajdhani,sans-serif;";
+    root.style.cssText = "position:fixed;inset:0;z-index:80;background:transparent;color:#e7eef2;font-family:Rajdhani,sans-serif;overflow:hidden;";
     root.innerHTML =
       '<div style="position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:12px;pointer-events:none;z-index:10">' +
       '<div><div style="letter-spacing:.18em;font-size:12px;color:#c4a35a">ОТСЕК · ПРОРЫВ</div>' +
@@ -81,7 +81,7 @@
       '<span data-hull-ammo>БОЕЗАПАС 6/6</span>' +
       '<span data-hull-flight>ТЯГА 0% · КУРС 0°</span>' +
       '<span data-hull-crew>CREW</span>' +
-      '<span data-hull-hint style="opacity:.75">P1 WASD · SPACE огонь · R зарядка · F/E ремонт/насос · геймпад: стик Crew, LB штурвал, A ремонт, B насос</span></div>' +
+      '<span data-hull-hint style="opacity:.9">P1 WASD · P2 стрелки · 1 геймпад = P2 · 2 = оба Crew · мышь/палец: тащи Crew, удерживай воду для насоса, шов для ремонта</span></div>' +
       '<style>#bcm-hull-dive [data-hull-controls] button{touch-action:none;min-height:38px;min-width:38px;padding:5px 9px;border:1px solid #46667b;border-radius:8px;background:rgba(16,32,44,.94);color:#e7eef2;font-weight:700}#bcm-hull-dive [data-hull-controls] button.is-active{background:#294b60;border-color:#7bd9ee}#bcm-hull-dive canvas{display:block;width:100%;height:100%}@media(max-width:620px){#bcm-hull-dive [data-hull-controls] button{font-size:10px;padding:4px 6px;min-height:34px;min-width:34px}}@media(min-width:1000px){#bcm-hull-dive [data-hull-controls]{left:50%;right:auto;transform:translateX(-50%);width:min(800px,94vw)}}</style>';
     document.body.appendChild(root);
 
@@ -108,6 +108,7 @@
     let renderer = null;
     let scene = null;
     let frame = 0;
+    let pointerInteraction = null;
 
     function finish() {
       if (closed) return;
@@ -252,29 +253,38 @@
       actionStatusUntil = performance.now() + (duration || 2200);
     }
 
-    function readGamepad() {
+    function readAssignedGamepads() {
       try {
-        const pads = navigator.getGamepads ? [...navigator.getGamepads()] : [];
-        const gp = pads.find((pad) => pad && pad.connected);
-        if (!gp) return { x: 0, y: 0, repair: false, pump: false, shoot: false, reload: false };
-        const axis = (value) => Math.abs(value) < 0.18 ? 0 : Math.sign(value) * (Math.abs(value) - 0.18) / 0.82;
-        const button = (index) => !!(gp.buttons && gp.buttons[index] && gp.buttons[index].pressed);
-        const axes = gp.axes || [];
-        return {
-          x: Math.max(-1, Math.min(1, axis(axes[0] || 0) + (button(15) ? 1 : 0) - (button(14) ? 1 : 0))),
-          y: Math.max(-1, Math.min(1, axis(axes[1] || 0) + (button(13) ? 1 : 0) - (button(12) ? 1 : 0))),
-          repair: button(0),
-          pump: button(1),
-          shoot: button(2),
-          reload: button(3),
-          helm: button(4)
-        };
+        const connected = navigator.getGamepads
+          ? [...navigator.getGamepads()].filter((pad) => pad && pad.connected)
+          : [];
+        // One pad is Player 2 so keyboard Player 1 remains independently usable.
+        // With two pads each Crew gets its own controller.
+        if (connected.length === 1) return [null, connected[0]];
+        return [connected[0] || null, connected[1] || null];
       } catch (e) {
-        return { x: 0, y: 0, repair: false, pump: false, shoot: false, reload: false };
+        return [null, null];
       }
     }
 
-    function playerInput(index, pad) {
+    function readGamepad(gp) {
+      if (!gp) return { x: 0, y: 0, repair: false, pump: false, shoot: false, reload: false, helm: false };
+      const axis = (value) => Math.abs(value) < 0.18 ? 0 : Math.sign(value) * (Math.abs(value) - 0.18) / 0.82;
+      const button = (index) => !!(gp.buttons && gp.buttons[index] && gp.buttons[index].pressed);
+      const axes = gp.axes || [];
+      return {
+        x: Math.max(-1, Math.min(1, axis(axes[0] || 0) + (button(15) ? 1 : 0) - (button(14) ? 1 : 0))),
+        y: Math.max(-1, Math.min(1, axis(axes[1] || 0) + (button(13) ? 1 : 0) - (button(12) ? 1 : 0))),
+        repair: button(0),
+        pump: button(1),
+        shoot: button(2),
+        reload: button(3),
+        helm: button(4)
+      };
+    }
+
+    function playerInput(index, gamepad) {
+      const pad = readGamepad(gamepad);
       if (index === 0) {
         return {
           dx: Math.max(-1, Math.min(1, (keys.d ? 1 : 0) - (keys.a ? 1 : 0) + pad.x)),
@@ -287,13 +297,13 @@
         };
       }
       return {
-        dx: (keys.arrowright ? 1 : 0) - (keys.arrowleft ? 1 : 0),
-        dy: (keys.arrowup ? 1 : 0) - (keys.arrowdown ? 1 : 0),
-        repair: !!keys.period,
-        pump: !!keys.shift,
-        shoot: !!keys.enter,
-        reload: !!keys.slash,
-        helm: false
+        dx: Math.max(-1, Math.min(1, (keys.arrowright ? 1 : 0) - (keys.arrowleft ? 1 : 0) + pad.x)),
+        dy: Math.max(-1, Math.min(1, (keys.arrowup ? 1 : 0) - (keys.arrowdown ? 1 : 0) - pad.y)),
+        repair: !!(keys.period || pad.repair),
+        pump: !!(keys.shift || pad.pump),
+        shoot: !!(keys.enter || pad.shoot),
+        reload: !!(keys.slash || pad.reload),
+        helm: !!pad.helm
       };
     }
 
@@ -628,25 +638,35 @@
 
     let waters = [];
     let smokeParticles = [];
+    let waterBubbles = [];
     let fireRing = null;
     let breach = null;
     let externalHoleMeshes = [];
     if (THREE && view) {
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x041018);
+      scene.background = null;
       const camera = new THREE.OrthographicCamera(-8, 8, 4.5, -4.5, 0.1, 20);
       camera.position.set(0, 0, 8);
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setClearColor(0x000000, 0);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       renderer.setSize(view.clientWidth || window.innerWidth, view.clientHeight || window.innerHeight);
       view.appendChild(renderer.domElement);
       scene.add(new THREE.AmbientLight(0xffffff, 0.85));
       const hullTexture = makeHullSideTexture(THREE);
-      const hull = new THREE.Mesh(
-        new THREE.BoxGeometry(12.8, 3.7, 0.4),
-        new THREE.MeshStandardMaterial({ map: hullTexture, color: 0xffffff, metalness: 0.42, roughness: 0.5 })
-      );
-      scene.add(hull);
+      const hullMaterial = new THREE.MeshStandardMaterial({ map: hullTexture, color: 0xffffff, metalness: 0.42, roughness: 0.5 });
+      // Leave a real gap in the outer shell as a viewport to the same 3D scene
+      // behind this translucent cabin overlay.
+      [
+        { w: 12.8, h: 1.16, x: 0, y: 1.27 },
+        { w: 12.8, h: 1.16, x: 0, y: -1.27 },
+        { w: 5.25, h: 1.38, x: -3.775, y: 0 },
+        { w: 5.25, h: 1.38, x: 3.775, y: 0 }
+      ].forEach((piece) => {
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(piece.w, piece.h, 0.4), hullMaterial);
+        panel.position.set(piece.x, piece.y, 0);
+        scene.add(panel);
+      });
 
       const hullMetal = new THREE.MeshStandardMaterial({ color: 0x426171, metalness: 0.62, roughness: 0.38 });
       const hullDark = new THREE.MeshStandardMaterial({ color: 0x101f2b, metalness: 0.34, roughness: 0.58 });
@@ -660,6 +680,15 @@
         scene.add(part);
         return part;
       };
+      const windowGlass = new THREE.MeshBasicMaterial({
+        color: 0x62dff5, transparent: true, opacity: 0.08, depthWrite: false, side: THREE.DoubleSide
+      });
+      addHullPart(new THREE.BoxGeometry(2.22, 1.18, 0.06), windowGlass, 0, 0, 0.28);
+      const windowFrame = new THREE.MeshStandardMaterial({ color: 0x426171, metalness: 0.62, roughness: 0.38 });
+      addHullPart(new THREE.BoxGeometry(2.38, 0.09, 0.1), windowFrame, 0, 0.64, 0.34);
+      addHullPart(new THREE.BoxGeometry(2.38, 0.09, 0.1), windowFrame, 0, -0.64, 0.34);
+      addHullPart(new THREE.BoxGeometry(0.09, 1.2, 0.1), windowFrame, -1.15, 0, 0.34);
+      addHullPart(new THREE.BoxGeometry(0.09, 1.2, 0.1), windowFrame, 1.15, 0, 0.34);
 
       // Pilot console and wheel.
       addHullPart(new THREE.BoxGeometry(1.1, 0.52, 0.2), hullMetal, -4.5, -0.85, 0.48);
@@ -727,20 +756,40 @@
       fireRing.position.set(0, floor + 0.15, 0.49);
       fireRing.visible = true;
       scene.add(fireRing);
-      // Lightweight compartment smoke: a handful of small 2D puffs per room,
-      // animated in place rather than spawning unbounded particles every frame.
+      // Dense but bounded smoke fields: 20 persistent puffs per compartment.
+      // Active count grows with smoke level; particles are reused, never spawned per frame.
       rooms.forEach((room, roomIndex) => {
-        for (let puff = 0; puff < 7; puff += 1) {
+        const puffCount = 20;
+        for (let puff = 0; puff < puffCount; puff += 1) {
           const phase = puff * 0.83 + roomIndex * 1.71;
-          const baseX = room.x0 + 0.22 + (puff + 0.5) / 7 * (room.x1 - room.x0 - 0.44);
+          const baseX = room.x0 + 0.22 + (puff + 0.5) / puffCount * (room.x1 - room.x0 - 0.44);
           const mesh = new THREE.Mesh(
-            new THREE.CircleGeometry(0.09 + (puff % 3) * 0.035, 9),
+            new THREE.CircleGeometry(0.075 + (puff % 4) * 0.027, 8),
             new THREE.MeshBasicMaterial({ color: 0x7b8a91, transparent: true, opacity: 0, depthWrite: false })
           );
           mesh.position.set(baseX, floor + 0.45 + ((puff * 3) % 6) * 0.29, 0.73);
           mesh.visible = false;
           scene.add(mesh);
-          smokeParticles.push({ mesh, roomIndex, phase, baseX });
+          smokeParticles.push({ mesh, roomIndex, phase, baseX, roomParticleIndex: puff, particleCount: puffCount });
+        }
+      });
+
+      // Water bubbles use a fixed pool (28 per compartment). A flooded room reveals
+      // a denser stream; the animation wraps back to the floor and stays lightweight.
+      rooms.forEach((room, roomIndex) => {
+        const bubbleCount = 28;
+        for (let bubble = 0; bubble < bubbleCount; bubble += 1) {
+          const phase = ((bubble * 0.61803398875) + roomIndex * 0.37) % 1;
+          const baseX = room.x0 + 0.18 + (bubble + 0.5) / bubbleCount * (room.x1 - room.x0 - 0.36);
+          const mesh = new THREE.Mesh(
+            new THREE.CircleGeometry(0.027 + (bubble % 4) * 0.009, 6),
+            new THREE.MeshBasicMaterial({ color: 0x80e9ff, transparent: true, opacity: 0.54, depthWrite: false })
+          );
+          mesh.position.set(baseX, floor + 0.05, 0.66);
+          mesh.scale.setScalar(0.7 + (bubble % 4) * 0.12);
+          mesh.visible = false;
+          scene.add(mesh);
+          waterBubbles.push({ mesh, roomIndex, phase, baseX, bubbleIndex: bubble, particleCount: bubbleCount });
         }
       });
       const addCrewSprite = (player, index, texture) => {
@@ -874,8 +923,8 @@
           fire[side] + dt * (smoke[side] > 0.72 ? 0.008 : -0.012)
         ));
       }
-      const pad = readGamepad();
-      const inputs = players.map((player, index) => playerInput(index, pad));
+      const assignedPads = readAssignedGamepads();
+      const inputs = players.map((player, index) => playerInput(index, assignedPads[index]));
       const submergedRooms = players.map((player) => water[roomAt(player.x)] > 0.42);
       const submergedCount = submergedRooms.filter(Boolean).length;
       players.forEach((player, index) => {
@@ -972,6 +1021,24 @@
           gunTargetRing.position.y = gunTarget.position.y;
         }
       }
+      if (pointerInteraction && pointerInteraction.action === "pump") {
+        const roomIndex = pointerInteraction.roomIndex;
+        if (Number.isInteger(roomIndex) && roomIndex >= 0 && roomIndex < water.length) {
+          water[roomIndex] = Math.max(0, water[roomIndex] - 0.42 * dt);
+          fire[roomIndex] = Math.max(0, fire[roomIndex] - 0.18 * dt);
+          smoke[roomIndex] = Math.max(0, smoke[roomIndex] - 0.12 * dt);
+        }
+      }
+      if (pointerInteraction && pointerInteraction.action === "repair") {
+        if (externalHole[1]) {
+          if (!pointerInteraction.blockedNotice) {
+            pointerInteraction.blockedNotice = true;
+            notifyStatus("Снаружи сначала установи заплату: внутренний шов пока заблокирован", 2600);
+          }
+        } else {
+          weld = Math.min(1, weld + dt * 0.42);
+        }
+      }
       const anyNearBreach = nearBreach.some(Boolean);
       if (weld >= 1 && water.every((level) => level < 0.12)) {
         won = true;
@@ -1006,11 +1073,24 @@
       smokeParticles.forEach((puff) => {
         const level = smoke[puff.roomIndex];
         const cycle = ((now * 0.00012 + puff.phase) % 1 + 1) % 1;
-        puff.mesh.visible = level > 0.025;
+        const activeCount = level > 0.025 ? Math.max(2, Math.ceil(level * puff.particleCount * 1.25)) : 0;
+        puff.mesh.visible = puff.roomParticleIndex < activeCount;
         puff.mesh.position.x = puff.baseX + Math.sin(now * 0.0011 + puff.phase) * (0.06 + level * 0.16);
         puff.mesh.position.y = floor + 0.25 + cycle * 2.55;
         puff.mesh.scale.setScalar(0.55 + level * 1.25);
-        puff.mesh.material.opacity = Math.min(0.36, level * 0.42) * (0.72 + Math.sin(now * 0.003 + puff.phase) * 0.18);
+        puff.mesh.material.opacity = Math.min(0.36, level * 0.48) * (0.72 + Math.sin(now * 0.003 + puff.phase) * 0.18);
+      });
+      waterBubbles.forEach((bubble) => {
+        const level = water[bubble.roomIndex];
+        const activeCount = level > 0.018 ? Math.max(2, Math.ceil(level * bubble.particleCount * 1.35)) : 0;
+        bubble.mesh.visible = bubble.bubbleIndex < activeCount;
+        if (!bubble.mesh.visible) return;
+        const surface = floor + Math.max(0.06, level * 3.15);
+        const height = Math.max(0.06, surface - floor - 0.035);
+        const cycle = ((now * (0.00038 + level * 0.00026) + bubble.phase) % 1 + 1) % 1;
+        bubble.mesh.position.x = bubble.baseX + Math.sin(now * 0.002 + bubble.phase * 7) * (0.035 + level * 0.08);
+        bubble.mesh.position.y = floor + 0.035 + cycle * height;
+        bubble.mesh.scale.setScalar(0.5 + level * 1.8 + (bubble.bubbleIndex % 4) * 0.12);
       });
       if (fireRing) {
         fireRing.visible = fire[1] > 0.015;
