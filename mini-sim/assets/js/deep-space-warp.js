@@ -1718,23 +1718,37 @@
           color: 0x6de7f1, emissive: 0x166b7b, emissiveIntensity: 0.9,
           roughness: 0.3, metalness: 0.38
         });
-        const turnTriggers = [];
+        const turnTriggerItems = [];
         maze.cells.forEach((cell) => {
           const p = cellWorld(cell);
           const triggerY = floorYForCell(cell.y) + 1.78;
-          const place = (axis, x, z, yaw) => {
-            const mesh = new THREE.Mesh(turnTriggerGeometry, turnTriggerMaterial);
-            mesh.name = "ring-door-trigger-" + axis + "-" + cell.x + "-" + cell.y + "-" + cell.z;
-            mesh.position.set(x, triggerY, z);
-            if (yaw) mesh.rotation.y = yaw;
-            world.add(mesh);
-            turnTriggers.push({ mesh, cell, axis });
+          const place = (axis, x, z, rotationY) => {
+            turnTriggerItems.push({ cell, axis, x, y: triggerY, z, rotationY });
           };
           if (cell.open.zn) place("z", p.x, p.z + roomHalf - 0.18, 0);
           if (cell.open.zp) place("z", p.x, p.z - roomHalf + 0.18, 0);
           if (cell.open.xp) place("x", p.x + roomHalf - 0.18, p.z, Math.PI / 2);
           if (cell.open.xn) place("x", p.x - roomHalf + 0.18, p.z, Math.PI / 2);
         });
+        // One instanced batch for every room-door trigger: no per-door draw calls.
+        const turnTriggerMesh = new THREE.InstancedMesh(turnTriggerGeometry, turnTriggerMaterial, turnTriggerItems.length);
+        turnTriggerMesh.name = "ring-room-door-triggers";
+        turnTriggerMesh.frustumCulled = false;
+        const triggerMatrix = new THREE.Matrix4();
+        const triggerPosition = new THREE.Vector3();
+        const triggerScale = new THREE.Vector3(1, 1, 1);
+        const triggerRotation = new THREE.Quaternion();
+        const triggerUp = new THREE.Vector3(0, 1, 0);
+        turnTriggerItems.forEach((trigger, index) => {
+          triggerPosition.set(trigger.x, trigger.y, trigger.z);
+          triggerRotation.setFromAxisAngle(triggerUp, trigger.rotationY);
+          triggerMatrix.compose(triggerPosition, triggerRotation, triggerScale);
+          turnTriggerMesh.setMatrixAt(index, triggerMatrix);
+        });
+        turnTriggerMesh.instanceMatrix.needsUpdate = true;
+        turnTriggerMesh.userData.bcmLaneKey = "";
+        turnTriggerMesh.userData.bcmLaneItems = turnTriggerItems;
+        world.add(turnTriggerMesh);
         const ringMarker = new THREE.Mesh(ringGeometry, ringMaterial);
         const ringPos = cellWorld(ringCell);
         ringMarker.position.set(ringPos.x, floorYForCell(ringCell.y) + 0.95, ringPos.z);
@@ -1756,7 +1770,7 @@
           platformsMesh, laddersMesh, platforms, coreMeshes, boxGeometry,
           materials: [wallMat, floorMat, ceilingMat, frameMat, platformMat, ladderMat, coreMaterial, ringMaterial, turnTriggerMaterial, exitMarker.material],
           specialGeometry: [coreGeometry, ringGeometry, turnTriggerGeometry, exitMarker.geometry],
-          ringMarker, exitMarker, turnTriggers
+          ringMarker, exitMarker, turnTriggerMesh, turnTriggerItems
         };
       }
 
@@ -1810,10 +1824,27 @@
         }
         worldState.ringMarker.visible = ringCell.y === player.y && ringCell[axis] === lane;
         worldState.exitMarker.visible = exitCell.y === player.y && exitCell[axis] === lane;
-        worldState.turnTriggers.forEach((trigger) => {
-          const matchesViewAxis = player.orientation === 0 ? trigger.axis === "z" : trigger.axis === "x";
-          trigger.mesh.visible = matchesViewAxis && trigger.cell.y === player.y && trigger.cell[axis] === lane;
-        });
+        const triggerMesh = worldState.turnTriggerMesh;
+        const triggerItems = worldState.turnTriggerItems;
+        const triggerLaneKey = axis + ":" + lane + ":floor:" + player.y;
+        if (triggerMesh.userData.bcmLaneKey !== triggerLaneKey) {
+          const matrix = new THREE.Matrix4();
+          const position = new THREE.Vector3();
+          const scale = new THREE.Vector3();
+          const rotation = new THREE.Quaternion();
+          const up = new THREE.Vector3(0, 1, 0);
+          for (let i = 0; i < triggerItems.length; i += 1) {
+            const trigger = triggerItems[i];
+            const visible = trigger.axis === axis && trigger.cell.y === player.y && trigger.cell[axis] === lane;
+            position.set(trigger.x, trigger.y, trigger.z);
+            rotation.setFromAxisAngle(up, trigger.rotationY);
+            scale.set(visible ? 1 : 0, visible ? 1 : 0, visible ? 1 : 0);
+            matrix.compose(position, rotation, scale);
+            triggerMesh.setMatrixAt(i, matrix);
+          }
+          triggerMesh.instanceMatrix.needsUpdate = true;
+          triggerMesh.userData.bcmLaneKey = triggerLaneKey;
+        }
       }
 
       maze.group.visible = false;
