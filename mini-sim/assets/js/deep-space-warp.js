@@ -68,8 +68,9 @@
 
     function startRingAudio() {
       const source = findRingAudioSource();
-      // The user will add ring.mp3. Missing media must not stop the level or
-      // silence Warp; load it only on actual entry to the ring platformer.
+      // Resolve the existing ring.mp3 asset by its exact manifest filename.
+      // Load it only when the player enters this level; missing deployment media
+      // must not stop the level or interrupt the Warp soundtrack.
       if (!source) return false;
       if (!ringAudio) {
         ringAudio = document.createElement("audio");
@@ -1170,7 +1171,7 @@
       if (approachDistance < 22 && approachDistance > 2.65) {
         const falloff = Math.max(0, 1 - approachDistance / 22);
         ringVector.normalize();
-        ship.velocity.addScaledVector(ringVector, (frame.dt || 0.016) * (0.4 + falloff * falloff * 7.2));
+        ship.velocity.addScaledVector(ringVector, (frame.dt || 0.016) * (0.25 + falloff * falloff * 1.8));
       }
 
       maze.crystals.forEach((crystal) => {
@@ -1298,7 +1299,7 @@
         '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;pointer-events:none">' +
           '<div style="text-shadow:0 2px 8px #000"><div style="font-size:11px;letter-spacing:.18em;color:#60ddec">RING // COMIX-ZONE TEST</div>' +
           '<div data-ring-status style="font-weight:700;margin-top:5px">Собери 3 ядра и вернись к кораблю</div>' +
-          '<div data-ring-count style="margin-top:5px;color:#b8cbd6">CORE SHARDS ' + maze.count + '/3</div></div>' +
+          '<div data-ring-count style="margin-top:5px;color:#b8cbd6">RING CORES 0/3</div></div>' +
           '<button data-ring-exit disabled style="pointer-events:auto;min-height:42px;padding:7px 12px;border:1px solid #426779;border-radius:9px;background:#10232d;color:#79909d;font-weight:700">К КОРАБЛЮ · ЗАКРЫТО</button>' +
         '</div>' +
         '<div style="position:absolute;left:12px;right:12px;bottom:12px;display:flex;justify-content:space-between;gap:8px;align-items:flex-end">' +
@@ -1327,7 +1328,7 @@
       const stageWidth = 300;
       const stageCount = 7;
       const worldWidth = stageWidth * stageCount + 80;
-      const rng = randomFrom(hashSeed(Date.now() + ":" + Math.random() + ":" + maze.count));
+      const rng = randomFrom(hashSeed(Date.now() + ":" + Math.random() + ":" + ringCount));
       const held = { left: false, right: false, jump: false };
       const pressedKeys = Object.create(null);
       const platforms = [];
@@ -1360,13 +1361,19 @@
       }
       resize2d();
 
-      const corePickups = maze.crystals.map((crystal, index) => {
-        const cell = crystal.cell || { x: index * 2, y: index % 3, z: index * 2 };
-        const stage = Math.max(0, Math.min(stageCount - 1, Number(cell.z) || 0));
-        const x = stage * stageWidth + 36 + Math.max(0, Math.min(6, Number(cell.x) || 0)) / 6 * 220;
-        const y = floorY - (58 + Math.max(0, Math.min(2, Number(cell.y) || 0)) * 45 + rng() * 12);
-        return { crystal, x, y, phase: rng() * Math.PI * 2, index };
-      });
+      // The platformer has its own three cores, independent from the 3D maze.
+      // Every run gets new positions while keeping all jumps reachable.
+      const corePickups = [1, 3, 5].map((stage, index) => ({
+        stage,
+        offset: 42 + rng() * 160,
+        lift: 58 + rng() * 26,
+        taken: false,
+        x: 0,
+        y: 0,
+        phase: rng() * Math.PI * 2,
+        index
+      }));
+      let ringCount = 0;
       function layoutPlatforms() {
         platforms.length = 0;
         for (let stage = 0; stage < stageCount; stage += 1) {
@@ -1376,7 +1383,7 @@
           if (stage < stageCount - 1) {
             platforms.push({ x: stage * stageWidth + 246, y: floorY, w: 25 + rng() * 12, h: 14 });
           } else {
-            // Keep the final exit walkway continuous and reachable after the third shard.
+            // Keep the final exit walkway continuous and reachable after the third core.
             platforms.push({ x: stage * stageWidth + 220, y: floorY, w: worldWidth - (stage * stageWidth + 220), h: 14 });
           }
           for (let ledge = 0; ledge < 2; ledge += 1) {
@@ -1389,11 +1396,14 @@
           }
         }
         corePickups.forEach((pickup) => {
-          const cell = pickup.crystal.cell || { x: pickup.index * 2, y: pickup.index % 3, z: pickup.index * 2 };
-          const stage = Math.max(0, Math.min(stageCount - 1, Number(cell.z) || 0));
-          pickup.x = stage * stageWidth + 36 + Math.max(0, Math.min(6, Number(cell.x) || 0)) / 6 * 220;
-          pickup.y = floorY - (58 + Math.max(0, Math.min(2, Number(cell.y) || 0)) * 45 + rng() * 12);
-          platforms.push({ x: Math.max(stage * stageWidth + 12, pickup.x - 42), y: pickup.y + 24, w: 84, h: 11 });
+          pickup.x = pickup.stage * stageWidth + pickup.offset;
+          pickup.y = floorY - pickup.lift;
+          platforms.push({
+            x: Math.max(pickup.stage * stageWidth + 12, pickup.x - 42),
+            y: pickup.y + 24,
+            w: 84,
+            h: 11
+          });
         });
       }
       layoutPlatforms();
@@ -1405,8 +1415,8 @@
         statusEl.textContent = "Собери ядра и вернись к шлюзу · ring.mp3 пока не найден";
       }
       const updateCoreHud = () => {
-        countEl.textContent = "CORE SHARDS " + maze.count + "/3";
-        const canExit = maze.count >= maze.crystals.length;
+        countEl.textContent = "RING CORES " + ringCount + "/3";
+        const canExit = ringCount >= corePickups.length;
         exit2d.disabled = !canExit;
         exit2d.textContent = canExit ? "К КОРАБЛЮ · U / R3" : "К КОРАБЛЮ · ЗАКРЫТО";
         exit2d.style.color = canExit ? "#e8fbff" : "#79909d";
@@ -1417,10 +1427,16 @@
 
       function onPlatformKey(event) {
         const down = event.type === "keydown";
-        if (event.code === "KeyU" && down && !event.repeat && maze.count >= maze.crystals.length) {
+        if (event.code === "Escape" && down) {
           event.preventDefault();
           event.stopImmediatePropagation();
-          finishRingPlatformer(maze);
+          finishRingPlatformer(maze, ringCount);
+          return;
+        }
+        if (event.code === "KeyU" && down && !event.repeat && ringCount >= corePickups.length) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          finishRingPlatformer(maze, ringCount);
           return;
         }
         if (["ArrowLeft", "KeyA"].includes(event.code)) held.left = down;
@@ -1432,7 +1448,7 @@
         pressedKeys[event.code] = down;
         event.preventDefault();
         event.stopImmediatePropagation();
-        if (down && event.code === "KeyU" && maze.count >= maze.crystals.length) finishRingPlatformer(maze);
+        if (down && event.code === "KeyU" && ringCount >= corePickups.length) finishRingPlatformer(maze, ringCount);
       }
       const onBlur = () => {
         held.left = held.right = held.jump = false;
@@ -1448,16 +1464,17 @@
       bindHold(rightButton, "right");
       bindHold(jumpButton, "jump");
       exit2d.addEventListener("click", () => {
-        if (maze.count >= maze.crystals.length) finishRingPlatformer(maze);
+        if (ringCount >= corePickups.length) finishRingPlatformer(maze, ringCount);
       });
       window.addEventListener("keydown", onPlatformKey, true);
       window.addEventListener("keyup", onPlatformKey, true);
       window.addEventListener("blur", onBlur);
-      window.addEventListener("resize", () => {
+      const onResize = () => {
         resize2d();
         layoutPlatforms();
         player.y = Math.min(player.y, floorY - player.h);
-      });
+      };
+      window.addEventListener("resize", onResize);
       player.y = floorY - player.h;
       player.checkpoint = player.x;
 
@@ -1517,21 +1534,20 @@
         }
 
         corePickups.forEach((pickup) => {
-          if (pickup.crystal.taken) return;
+          if (pickup.taken) return;
           pickup.phase += dt * 2.5;
           if (Math.abs(player.x + player.w * 0.5 - pickup.x) < 22 &&
               Math.abs(player.y + player.h * 0.5 - pickup.y) < 28) {
-            pickup.crystal.taken = true;
-            pickup.crystal.mesh.visible = false;
-            maze.count += 1;
-            statusEl.textContent = "ЯДРО СОБРАНО · " + maze.count + "/3";
+            pickup.taken = true;
+            ringCount += 1;
+            statusEl.textContent = "ЯДРО КОЛЬЦА · " + ringCount + "/3";
             statusTimer = now + 2200;
             updateCoreHud();
           }
         });
 
-        if (maze.count >= maze.crystals.length && player.x >= exitX - 26) {
-          finishRingPlatformer(maze);
+        if (ringCount >= corePickups.length && player.x >= exitX - 26) {
+          finishRingPlatformer(maze, ringCount);
           return;
         }
 
@@ -1575,7 +1591,7 @@
           }
         });
         corePickups.forEach((pickup) => {
-          if (pickup.crystal.taken) return;
+          if (pickup.taken) return;
           const x = pickup.x - cameraX;
           if (x < -24 || x > width + 24) return;
           const bob = Math.sin(pickup.phase) * 4;
@@ -1594,7 +1610,7 @@
         });
         const gateX = exitX - cameraX;
         if (gateX > -30 && gateX < width + 30) {
-          g.strokeStyle = maze.count >= maze.crystals.length ? "#70f1dc" : "#d49e52";
+          g.strokeStyle = ringCount >= corePickups.length ? "#70f1dc" : "#d49e52";
           g.lineWidth = 5;
           g.beginPath();
           g.ellipse(gateX, floorY - 43, 18, 42, 0, 0, Math.PI * 2);
@@ -1607,7 +1623,7 @@
           g.fillStyle = "#e8f4f8";
           g.font = "11px system-ui";
           g.textAlign = "center";
-          g.fillText(maze.count >= maze.crystals.length ? "SHIP" : "CORE " + maze.count + "/3", gateX, floorY - 95);
+          g.fillText(ringCount >= corePickups.length ? "SHIP" : "CORE " + ringCount + "/3", gateX, floorY - 95);
         }
         // Original mini-Crew/chibi placeholder: readable silhouette without a giant art dependency.
         const px = player.x - cameraX;
@@ -1622,9 +1638,9 @@
         g.strokeStyle = "#d0e2eb"; g.lineWidth = 3;
         g.beginPath(); g.moveTo(px + 5, py + 26); g.lineTo(px + 2, py + 29); g.moveTo(px + 13, py + 26); g.lineTo(px + 16, py + 29); g.stroke();
 
-        if (now > statusTimer && maze.count < maze.crystals.length) {
-          statusEl.textContent = "БЕГИ ПО ПАЛУБАМ · CORE SHARDS " + maze.count + "/3";
-        } else if (now > statusTimer && maze.count >= maze.crystals.length) {
+        if (now > statusTimer && ringCount < corePickups.length) {
+          statusEl.textContent = "БЕГИ ПО ПАЛУБАМ · RING CORES " + ringCount + "/3";
+        } else if (now > statusTimer && ringCount >= corePickups.length) {
           statusEl.textContent = "ВСЕ ЯДРА СОБРАНЫ · ДОБЕРИСЬ ДО ШЛЮЗА";
         }
         raf = requestAnimationFrame(paint2d);
@@ -1636,7 +1652,7 @@
         window.removeEventListener("keydown", onPlatformKey, true);
         window.removeEventListener("keyup", onPlatformKey, true);
         window.removeEventListener("blur", onBlur);
-        window.removeEventListener("resize", resize2d);
+        window.removeEventListener("resize", onResize);
         root2d.remove();
       }
       state.ringPlatformerCleanup = cleanup;
@@ -1644,9 +1660,10 @@
       return true;
     }
 
-    function finishRingPlatformer(maze) {
+    function finishRingPlatformer(maze, collectedCount) {
       if (!state.ringPlatformer || !maze) return false;
-      maze.ringCompleted = maze.count >= maze.crystals.length;
+      maze.ringCoreCount = Math.max(0, Math.min(3, Math.floor(Number(collectedCount) || 0)));
+      maze.ringCompleted = maze.ringCoreCount >= 3;
       const cleanup = state.ringPlatformerCleanup;
       state.ringPlatformerCleanup = null;
       state.ringPlatformer = false;
@@ -1655,12 +1672,12 @@
       const engine = api();
       if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
       if (maze.ringCompleted) {
-        setMazeStatus("RING COMPLETE · CORE SHARDS " + maze.count + "/3 · RETURNING TO SHIP");
+        setMazeStatus("RING COMPLETE · RING CORES " + maze.ringCoreCount + "/3 · RETURNING TO SHIP");
         // The collectible run is complete; the intended exit places the player
         // back inside the cabin with the 3D ring visible through its window.
         openHullAtRing();
       } else {
-        setMazeStatus("RING EXIT LOCKED · COLLECT ALL CORE SHARDS");
+        setMazeStatus("RING EXIT LOCKED · COLLECT ALL 3 RING CORES");
       }
       return true;
     }
