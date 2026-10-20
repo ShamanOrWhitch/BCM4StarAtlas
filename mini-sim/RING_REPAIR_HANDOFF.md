@@ -1,4 +1,4 @@
-# Ring Frontier — Mini-Sim 0.9.107
+# Ring Frontier — Mini-Sim 0.9.108
 
 Updated: 2026-10-20. Branch: `main`.
 
@@ -7,6 +7,13 @@ Updated: 2026-10-20. Branch: `main`.
 Ring gameplay is now designed as a **continuous 2D side-scrolling platform action location rendered inside the existing Three.js scene**, closer in structure to a platform-action game with large arenas than to a room-by-room map.
 
 The asteroid maze is only the story/entry trigger. Ring's actual game world does not read or traverse `maze.cells`; it builds its own wide side-scrolling course with three connected themed zones, large background structures, platforms at different heights, checkpoints and arena gates.
+
+## Visual update in 0.9.108
+
+- Zone backdrops are now generated as original comic-book industrial panels with halftone, reactor rings, inked silhouettes, pipes and high-contrast frames. The three backdrops use separate palettes and drift at a slower rate than the action plane.
+- Boss arenas have large entrance pylons, overhead frames and lit edges; platforms have edge accents and visible supports. Bosses have a heavy dark silhouette, wider armor arms, horns and a bright weak core.
+- The camera framing is tighter around the Crew and boss arena. The small upper-right strip remains progress telemetry only.
+- Art is generated at runtime with CanvasTexture and uses the existing Three.js renderer; textures and geometry are disposed on exit. No external image download or second WebGL renderer is used.
 
 ## Current prototype
 
@@ -36,7 +43,7 @@ Gamepad: left stick/D-pad to move, A/up to jump, B to dash, X to activate a near
 
 ## Verification status
 
-Mini-Sim is labelled **0.9.107**. Source checks now target the continuous side-scroll world, three boss arenas, adaptive shared/split camera, navigation-only minimap, and the existing renderer/Hull integration.
+Mini-Sim is labelled **0.9.108**. Source checks now target the continuous side-scroll world, three boss arenas, adaptive shared/split camera, navigation-only minimap, and the existing renderer/Hull integration.
 
 The new gameplay implementation still requires browser testing, especially jumps and platform landings, boss collision timing, gamepad mapping and mobile controls. Source-level assertions alone do not mean the Ring is fully play-tested. Legacy assertions in the earlier maze-specific test file may need to be migrated to the new design; do not report the full existing regression suite as green until it passes.
 
