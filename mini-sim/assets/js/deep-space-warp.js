@@ -102,10 +102,7 @@
       }
       if (resumeWarp && state.mode === "maze" && !state.ringPlatformer) {
         warpAudio.muted = !!window.BCMGameAudio?.isMuted?.();
-        const playing = window.BCMGameAudio?.playExclusive
-          ? window.BCMGameAudio.playExclusive(warpAudio, "warp")
-          : warpAudio.play();
-        if (playing && typeof playing.catch === "function") playing.catch(() => {});
+        startWarpAudio(false);
       }
     }
 
@@ -174,6 +171,7 @@
       ringPlatformer: false,
       ringDistance: Infinity,
       rightStickWasDown: false,
+      warpCollisionCount: 0,
       statusText: "",
       lastStatusAt: 0,
       keys: Object.create(null),
@@ -1222,6 +1220,426 @@
       }
     }
 
+    function openHullAtRing() {
+      const maze = state.maze;
+      const engine = api();
+      const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
+      if (state.mode !== "maze" || !maze || state.hullOpen || state.ringPlatformer ||
+          !runtime || !runtime.ship || !window.BCMHullDive || typeof window.BCMHullDive.open !== "function") return false;
+
+      const ship = runtime.ship;
+      state.hullOpen = true;
+      hullEnterButton.hidden = true;
+      if (engine.pauseForWarp) engine.pauseForWarp(true);
+      const away = ship.position.clone().sub(maze.beacon.position);
+      if (away.lengthSq() < 0.04) away.set(0, 0.4, 1);
+      away.setLength(5.2);
+      ship.position.copy(maze.beacon.position).add(away);
+      if (ship.quaternion && runtime.THREE?.Quaternion && runtime.THREE?.Vector3) {
+        const yaw = Math.atan2(-away.x, -away.z);
+        ship.quaternion.setFromAxisAngle(new runtime.THREE.Vector3(0, 1, 0), yaw);
+      }
+      if (ship.velocity) ship.velocity.set(0, 0, 0);
+      if (ship.angularVelocity) ship.angularVelocity.set(0, 0, 0);
+
+      window.BCMRingWindowState = {
+        visible: true,
+        ringDistance: 5.2,
+        target: maze.beacon.position.clone(),
+        maze
+      };
+      window.BCMHullDive.open(() => {
+        state.hullOpen = false;
+        window.BCMRingWindowState = null;
+        if (engine.pauseForWarp) engine.pauseForWarp(false);
+        const freshRuntime = engine.getRuntime ? engine.getRuntime() : null;
+        if (freshRuntime?.ship?.position) {
+          state.ringDistance = freshRuntime.ship.position.distanceTo(maze.beacon.position);
+        }
+        hullEnterButton.hidden = !(state.ringDistance < 8) || state.ringPlatformer;
+        setMazeStatus("BACK AT THE RING · U / R3 OR TAP THE HULL BUTTON");
+      });
+      return true;
+    }
+
+    function openRingPlatformer(maze) {
+      if (!maze || !maze.active || state.ringPlatformer || state.hullOpen || state.mode !== "maze") return false;
+      const engine = api();
+      const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
+      if (!runtime?.ship || !runtime.THREE) return false;
+
+      state.ringPlatformer = true;
+      hullEnterButton.hidden = true;
+      if (engine.pauseForWarp) engine.pauseForWarp(true);
+      const ship = runtime.ship;
+      const away = ship.position.clone().sub(maze.beacon.position);
+      if (away.lengthSq() < 0.04) away.set(0, 0.4, 1);
+      away.setLength(5.2);
+      ship.position.copy(maze.beacon.position).add(away);
+      if (ship.quaternion) {
+        const yaw = Math.atan2(-away.x, -away.z);
+        ship.quaternion.setFromAxisAngle(new runtime.THREE.Vector3(0, 1, 0), yaw);
+      }
+      ship.velocity?.set(0, 0, 0);
+      ship.angularVelocity?.set(0, 0, 0);
+      if (frame.camera) {
+        frame.camera.position.copy(ship.position);
+        frame.camera.quaternion.copy(ship.quaternion);
+      }
+
+      const old = document.getElementById("bcm-ring-platformer");
+      if (old) old.remove();
+      const root2d = document.createElement("div");
+      root2d.id = "bcm-ring-platformer";
+      root2d.tabIndex = 0;
+      root2d.style.cssText = "position:fixed;inset:0;z-index:1000600;background:#040912;color:#e8f4f8;font:14px system-ui,sans-serif;overflow:hidden;touch-action:none";
+      root2d.innerHTML =
+        '<canvas data-ring-canvas style="position:absolute;inset:0;width:100%;height:100%;touch-action:none"></canvas>' +
+        '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;pointer-events:none">' +
+          '<div style="text-shadow:0 2px 8px #000"><div style="font-size:11px;letter-spacing:.18em;color:#60ddec">RING // COMIX-ZONE TEST</div>' +
+          '<div data-ring-status style="font-weight:700;margin-top:5px">Собери 3 ядра и вернись к кораблю</div>' +
+          '<div data-ring-count style="margin-top:5px;color:#b8cbd6">CORE SHARDS ' + maze.count + '/3</div></div>' +
+          '<button data-ring-exit disabled style="pointer-events:auto;min-height:42px;padding:7px 12px;border:1px solid #426779;border-radius:9px;background:#10232d;color:#79909d;font-weight:700">К КОРАБЛЮ · ЗАКРЫТО</button>' +
+        '</div>' +
+        '<div style="position:absolute;left:12px;right:12px;bottom:12px;display:flex;justify-content:space-between;gap:8px;align-items:flex-end">' +
+          '<div style="display:flex;gap:8px"><button data-ring-left aria-label="Влево" style="min-width:54px;min-height:50px;border:1px solid #426779;border-radius:12px;background:#10232d;color:#e8f4f8;font-size:22px;touch-action:none">◀</button>' +
+          '<button data-ring-right aria-label="Вправо" style="min-width:54px;min-height:50px;border:1px solid #426779;border-radius:12px;background:#10232d;color:#e8f4f8;font-size:22px;touch-action:none">▶</button></div>' +
+          '<button data-ring-jump style="min-width:88px;min-height:50px;border:1px solid #68d9ec;border-radius:12px;background:#103340;color:#e8faff;font-weight:800;touch-action:none">JUMP</button>' +
+        '</div>';
+      document.body.appendChild(root2d);
+      root2d.focus({ preventScroll: true });
+      const canvas2d = root2d.querySelector("[data-ring-canvas]");
+      const statusEl = root2d.querySelector("[data-ring-status]");
+      const countEl = root2d.querySelector("[data-ring-count]");
+      const exit2d = root2d.querySelector("[data-ring-exit]");
+      const leftButton = root2d.querySelector("[data-ring-left]");
+      const rightButton = root2d.querySelector("[data-ring-right]");
+      const jumpButton = root2d.querySelector("[data-ring-jump]");
+      const g = canvas2d.getContext("2d");
+      if (!g) {
+        state.ringPlatformer = false;
+        root2d.remove();
+        if (engine.pauseForWarp) engine.pauseForWarp(false);
+        stopRingAudio(true);
+        return false;
+      }
+
+      const stageWidth = 300;
+      const stageCount = 7;
+      const worldWidth = stageWidth * stageCount + 80;
+      const rng = randomFrom(hashSeed(Date.now() + ":" + Math.random() + ":" + maze.count));
+      const held = { left: false, right: false, jump: false };
+      const pressedKeys = Object.create(null);
+      const platforms = [];
+      const stars = Array.from({ length: 110 }, () => ({
+        x: rng() * worldWidth, y: rng(), r: 0.35 + rng() * 1.3, a: 0.18 + rng() * 0.48
+      }));
+      let width = 1;
+      let height = 1;
+      let pixelRatio = 1;
+      let floorY = 500;
+      let player = { x: 34, y: 0, vx: 0, vy: 0, w: 18, h: 30, grounded: false, checkpoint: 34 };
+      let cameraX = 0;
+      let raf = 0;
+      let stopped = false;
+      let lastTick = performance.now();
+      let statusTimer = 0;
+
+      function resize2d() {
+        const rect = canvas2d.getBoundingClientRect();
+        width = Math.max(1, rect.width || window.innerWidth);
+        height = Math.max(1, rect.height || window.innerHeight);
+        pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+        canvas2d.width = Math.floor(width * pixelRatio);
+        canvas2d.height = Math.floor(height * pixelRatio);
+        g.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+        floorY = height - (height < 520 ? 72 : 88);
+        if (player.y === 0) player.y = floorY - player.h;
+        return { width, height };
+      }
+
+      for (let stage = 0; stage < stageCount; stage += 1) {
+        // A broken floor and randomized side ledges form a lightweight,
+        // re-generated platforming maze that remains jump-reachable.
+        platforms.push({ x: stage * stageWidth, y: floorY, w: 222 + rng() * 24, h: 14 });
+        platforms.push({ x: stage * stageWidth + 246, y: floorY, w: 25 + rng() * 12, h: 14 });
+        for (let ledge = 0; ledge < 2; ledge += 1) {
+          platforms.push({
+            x: stage * stageWidth + 38 + rng() * 145,
+            y: floorY - (42 + rng() * Math.min(68, Math.max(42, height * 0.16))),
+            w: 72 + rng() * 66,
+            h: 12
+          });
+        }
+      }
+      const corePickups = maze.crystals.map((crystal, index) => {
+        const cell = crystal.cell || { x: index * 2, y: index % 3, z: index * 2 };
+        const stage = Math.max(0, Math.min(stageCount - 1, Number(cell.z) || 0));
+        const x = stage * stageWidth + 36 + Math.max(0, Math.min(6, Number(cell.x) || 0)) / 6 * 220;
+        const y = floorY - (58 + Math.max(0, Math.min(2, Number(cell.y) || 0)) * 45 + rng() * 12);
+        // Guarantee a jumpable ledge below each shard at the corresponding maze location.
+        platforms.push({ x: Math.max(stage * stageWidth + 12, x - 42), y: y + 24, w: 84, h: 11 });
+        return { crystal, x, y, phase: rng() * Math.PI * 2, index };
+      });
+      const exitX = worldWidth - 34;
+
+      // Default ring soundtrack starts only for this side-scrolling level.
+      const ringTrackAvailable = startRingAudio();
+      if (!ringTrackAvailable) {
+        statusEl.textContent = "Собери ядра и вернись к шлюзу · ring.mp3 пока не найден";
+      }
+      const updateCoreHud = () => {
+        countEl.textContent = "CORE SHARDS " + maze.count + "/3";
+        const canExit = maze.count >= maze.crystals.length;
+        exit2d.disabled = !canExit;
+        exit2d.textContent = canExit ? "К КОРАБЛЮ · U / R3" : "К КОРАБЛЮ · ЗАКРЫТО";
+        exit2d.style.color = canExit ? "#e8fbff" : "#79909d";
+        exit2d.style.borderColor = canExit ? "#68d9ec" : "#426779";
+        exit2d.style.background = canExit ? "#123c48" : "#10232d";
+      };
+      updateCoreHud();
+
+      function onPlatformKey(event) {
+        const down = event.type === "keydown";
+        if (["ArrowLeft", "KeyA"].includes(event.code)) held.left = down;
+        else if (["ArrowRight", "KeyD"].includes(event.code)) held.right = down;
+        else if (["Space", "ArrowUp", "KeyW"].includes(event.code)) {
+          if (down && !event.repeat) held.jump = true;
+          if (!down) held.jump = false;
+        } else return;
+        pressedKeys[event.code] = down;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (down && event.code === "KeyU" && maze.count >= maze.crystals.length) finishRingPlatformer(maze);
+      }
+      const onBlur = () => {
+        held.left = held.right = held.jump = false;
+        Object.keys(pressedKeys).forEach((code) => { pressedKeys[code] = false; });
+      };
+      const bindHold = (button, key) => {
+        const down = (event) => { event.preventDefault(); held[key] = true; try { button.setPointerCapture(event.pointerId); } catch (e) {} };
+        const up = (event) => { event.preventDefault(); held[key] = false; };
+        button.addEventListener("pointerdown", down);
+        ["pointerup", "pointercancel", "lostpointercapture"].forEach((name) => button.addEventListener(name, up));
+      };
+      bindHold(leftButton, "left");
+      bindHold(rightButton, "right");
+      bindHold(jumpButton, "jump");
+      exit2d.addEventListener("click", () => {
+        if (maze.count >= maze.crystals.length) finishRingPlatformer(maze);
+      });
+      window.addEventListener("keydown", onPlatformKey, true);
+      window.addEventListener("keyup", onPlatformKey, true);
+      window.addEventListener("blur", onBlur);
+      window.addEventListener("resize", resize2d);
+      resize2d();
+      player.y = floorY - player.h;
+      player.checkpoint = player.x;
+
+      function platformGamepad() {
+        try {
+          const pads = navigator.getGamepads ? [...navigator.getGamepads()] : [];
+          const pad = pads.find((p) => p && p.connected);
+          if (!pad) return { x: 0, jump: false };
+          const axes = pad.axes || [];
+          const leftX = Math.abs(Number(axes[0] || 0)) > 0.18 ? Number(axes[0]) : Number(axes[2] || 0);
+          const left = !!pad.buttons?.[14]?.pressed;
+          const right = !!pad.buttons?.[15]?.pressed;
+          return {
+            x: Math.max(-1, Math.min(1, leftX + (right ? 1 : 0) - (left ? 1 : 0))),
+            jump: !!pad.buttons?.[0]?.pressed
+          };
+        } catch (e) { return { x: 0, jump: false }; }
+      }
+
+      function paint2d(now) {
+        if (stopped) return;
+        const dt = Math.min(0.034, Math.max(0.001, (now - lastTick) / 1000));
+        lastTick = now;
+        const pad = platformGamepad();
+        const direction = Math.max(-1, Math.min(1,
+          (held.right ? 1 : 0) - (held.left ? 1 : 0) + pad.x));
+        player.vx = direction * (held.left || held.right || Math.abs(pad.x) > 0.18 ? 255 : 0);
+        if (held.jump || pad.jump) {
+          if (player.grounded) {
+            player.vy = -420;
+            player.grounded = false;
+          }
+        }
+        player.vy = Math.min(620, player.vy + 1060 * dt);
+        const previousBottom = player.y + player.h;
+        player.x = Math.max(0, Math.min(worldWidth - player.w, player.x + player.vx * dt));
+        player.y += player.vy * dt;
+        player.grounded = false;
+        if (player.vy >= 0) {
+          for (const p of platforms) {
+            if (player.x + player.w <= p.x || player.x >= p.x + p.w) continue;
+            if (previousBottom <= p.y + 3 && player.y + player.h >= p.y && player.y < p.y) {
+              player.y = p.y - player.h;
+              player.vy = 0;
+              player.grounded = true;
+              player.checkpoint = Math.max(player.checkpoint, Math.min(player.x, worldWidth - 60));
+            }
+          }
+        }
+        if (player.y > height + 70) {
+          player.x = Math.max(0, player.checkpoint);
+          player.y = floorY - player.h - 2;
+          player.vx = 0;
+          player.vy = 0;
+          statusEl.textContent = "ОСТОРОЖНО · маршрут восстановлен от ближайшей палубы";
+          statusTimer = now + 1800;
+        }
+
+        corePickups.forEach((pickup) => {
+          if (pickup.crystal.taken) return;
+          pickup.phase += dt * 2.5;
+          if (Math.abs(player.x + player.w * 0.5 - pickup.x) < 22 &&
+              Math.abs(player.y + player.h * 0.5 - pickup.y) < 28) {
+            pickup.crystal.taken = true;
+            pickup.crystal.mesh.visible = false;
+            maze.count += 1;
+            statusEl.textContent = "ЯДРО СОБРАНО · " + maze.count + "/3";
+            statusTimer = now + 2200;
+            updateCoreHud();
+          }
+        });
+
+        if (maze.count >= maze.crystals.length && player.x >= exitX - 26) {
+          finishRingPlatformer(maze);
+          return;
+        }
+
+        cameraX = Math.max(0, Math.min(worldWidth - width, player.x - width * 0.36));
+        g.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+        g.fillStyle = "#040912";
+        g.fillRect(0, 0, width, height);
+        const sky = g.createLinearGradient(0, 0, 0, height);
+        sky.addColorStop(0, "#081826");
+        sky.addColorStop(0.68, "#07111d");
+        sky.addColorStop(1, "#02050a");
+        g.fillStyle = sky;
+        g.fillRect(0, 0, width, height);
+        stars.forEach((star) => {
+          const x = (star.x - cameraX * 0.22 + worldWidth) % worldWidth;
+          g.globalAlpha = star.a;
+          g.fillStyle = "#c6f0ff";
+          g.fillRect(x, star.y * height, star.r, star.r);
+        });
+        g.globalAlpha = 1;
+        // A glowing route line visually groups the side-scroll chambers.
+        g.strokeStyle = "rgba(70,211,231,.17)";
+        g.lineWidth = 1;
+        g.beginPath();
+        g.moveTo(0, floorY - 10);
+        g.lineTo(width, floorY - 10);
+        g.stroke();
+        platforms.forEach((p, index) => {
+          const x = p.x - cameraX;
+          if (x + p.w < -5 || x > width + 5) return;
+          g.fillStyle = index % 3 === 0 ? "#254456" : "#183341";
+          g.fillRect(x, p.y, p.w, p.h);
+          g.fillStyle = "rgba(116,224,240,.8)";
+          g.fillRect(x, p.y, p.w, 2);
+          g.fillStyle = "rgba(3,8,13,.56)";
+          g.fillRect(x, p.y + p.h, p.w, 4);
+          // Panel seams give each ledge a readable sci-fi hull feel.
+          for (let seam = 18; seam < p.w; seam += 34) {
+            g.fillStyle = "rgba(105,168,192,.20)";
+            g.fillRect(x + seam, p.y + 3, 1, Math.max(3, p.h - 5));
+          }
+        });
+        corePickups.forEach((pickup) => {
+          if (pickup.crystal.taken) return;
+          const x = pickup.x - cameraX;
+          if (x < -24 || x > width + 24) return;
+          const bob = Math.sin(pickup.phase) * 4;
+          g.save();
+          g.translate(x, pickup.y + bob);
+          g.rotate(Math.PI / 4 + Math.sin(pickup.phase) * 0.16);
+          g.fillStyle = "#68f2e3";
+          g.shadowColor = "#46f4dc";
+          g.shadowBlur = 14;
+          g.fillRect(-9, -9, 18, 18);
+          g.shadowBlur = 0;
+          g.strokeStyle = "#e6fffa";
+          g.lineWidth = 1.4;
+          g.strokeRect(-6, -6, 12, 12);
+          g.restore();
+        });
+        const gateX = exitX - cameraX;
+        if (gateX > -30 && gateX < width + 30) {
+          g.strokeStyle = maze.count >= maze.crystals.length ? "#70f1dc" : "#d49e52";
+          g.lineWidth = 5;
+          g.beginPath();
+          g.ellipse(gateX, floorY - 43, 18, 42, 0, 0, Math.PI * 2);
+          g.stroke();
+          g.lineWidth = 1;
+          g.strokeStyle = "rgba(225,253,255,.6)";
+          g.beginPath();
+          g.ellipse(gateX, floorY - 43, 11, 34, 0, 0, Math.PI * 2);
+          g.stroke();
+          g.fillStyle = "#e8f4f8";
+          g.font = "11px system-ui";
+          g.textAlign = "center";
+          g.fillText(maze.count >= maze.crystals.length ? "SHIP" : "CORE " + maze.count + "/3", gateX, floorY - 95);
+        }
+        // Original mini-Crew/chibi placeholder: readable silhouette without a giant art dependency.
+        const px = player.x - cameraX;
+        const py = player.y;
+        g.fillStyle = "rgba(0,0,0,.35)";
+        g.beginPath(); g.ellipse(px + 9, py + 31, 12, 3, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = "#18303d"; g.fillRect(px + 3, py + 15, 12, 11);
+        g.fillStyle = "#4bd4e8"; g.fillRect(px + 4, py + 16, 10, 7);
+        g.fillStyle = "#b5c9d6"; g.beginPath(); g.arc(px + 9, py + 8, 8, 0, Math.PI * 2); g.fill();
+        g.fillStyle = "#17445a"; g.beginPath(); g.ellipse(px + 9, py + 8, 6, 5, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = "#eaffff"; g.fillRect(px + 6, py + 7, 2, 2); g.fillRect(px + 10, py + 7, 2, 2);
+        g.strokeStyle = "#d0e2eb"; g.lineWidth = 3;
+        g.beginPath(); g.moveTo(px + 5, py + 26); g.lineTo(px + 2, py + 29); g.moveTo(px + 13, py + 26); g.lineTo(px + 16, py + 29); g.stroke();
+
+        if (now > statusTimer && maze.count < maze.crystals.length) {
+          statusEl.textContent = "БЕГИ ПО ПАЛУБАМ · CORE SHARDS " + maze.count + "/3";
+        } else if (now > statusTimer && maze.count >= maze.crystals.length) {
+          statusEl.textContent = "ВСЕ ЯДРА СОБРАНЫ · ДОБЕРИСЬ ДО ШЛЮЗА";
+        }
+        raf = requestAnimationFrame(paint2d);
+      }
+
+      function cleanup() {
+        stopped = true;
+        if (raf) cancelAnimationFrame(raf);
+        window.removeEventListener("keydown", onPlatformKey, true);
+        window.removeEventListener("keyup", onPlatformKey, true);
+        window.removeEventListener("blur", onBlur);
+        window.removeEventListener("resize", resize2d);
+        root2d.remove();
+      }
+      state.ringPlatformerCleanup = cleanup;
+      raf = requestAnimationFrame(paint2d);
+      return true;
+    }
+
+    function finishRingPlatformer(maze) {
+      if (!state.ringPlatformer || !maze) return false;
+      maze.ringCompleted = maze.count >= maze.crystals.length;
+      const cleanup = state.ringPlatformerCleanup;
+      state.ringPlatformerCleanup = null;
+      state.ringPlatformer = false;
+      if (typeof cleanup === "function") cleanup();
+      stopRingAudio(true);
+      const engine = api();
+      if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
+      if (maze.ringCompleted) {
+        setMazeStatus("RING COMPLETE · CORE SHARDS " + maze.count + "/3 · RETURNING TO SHIP");
+        // The collectible run is complete; the intended exit places the player
+        // back inside the cabin with the 3D ring visible through its window.
+        openHullAtRing();
+      } else {
+        setMazeStatus("RING EXIT LOCKED · COLLECT ALL CORE SHARDS");
+      }
+      return true;
+    }
+
     function setMazeStatus(message) {
       const engine = api();
       if (engine && engine.setExternalHUD) engine.setExternalHUD("ASTEROID COMPLEX · " + sectorText(state.target), message);
@@ -1799,8 +2217,17 @@ return axialRoll + ahead * 0.12 +
 
         if (hit) {
           state.shields = Math.max(0, state.shields - 25);
+          // Each obstacle is resolved exactly once; repeated hits progressively
+          // damage a different compartment and can open an external breach.
+          state.warpCollisionCount = Math.min(99, Number(state.warpCollisionCount || 0) + 1);
+          const damage = Math.min(24, 4 + state.warpCollisionCount * 1.6);
+          const compartmentId = ((state.warpCollisionCount - 1) % 3) + 1;
+          const repair = window.BCMHullRepairState;
+          if (repair && typeof repair.triggerExternalImpact === "function") {
+            repair.triggerExternalImpact(compartmentId, damage);
+          }
           tubeShield.style.width = state.shields + "%";
-          tubeMeta.textContent = "SHIELDS " + state.shields + "% · FOLLOW THE OPEN ARC";
+          tubeMeta.textContent = "SHIELDS " + state.shields + "% · HULL HITS " + state.warpCollisionCount;
           if (state.shields <= 0) {
             finishTube(false);
             return;
