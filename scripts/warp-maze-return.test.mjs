@@ -266,6 +266,13 @@ test("Ring is a 2D-in-3D platform maze reusing the same seeded graph, Crew and a
   assert.ok(ring.includes("maze.count >= 3"));
   assert.doesNotMatch(ring, /corePickups|stageWidth|layoutPlatforms/);
   assert.ok(warp.includes("maze.ringCompleted = success"));
+  assert.match(warp, /ringApproachArmed: true/);
+  assert.match(warp, /state\.ringApproachArmed = false/);
+  assert.match(warp, /if \(ringDistance > 4\.2\) state\.ringApproachArmed = true/);
+  assert.match(warp, /state\.ringApproachArmed && !state\.ringPlatformer && !maze\.ringCompleted/);
+  assert.ok(ring.includes("const triggerOffset = player.orientation === 0"));
+  assert.ok(ring.includes("player.orientation === 0 ? 1.55 : 0"));
+  assert.match(warp, /const ladderX = p\.x;/);
   assert.ok(warp.includes("falloff * falloff * 1.8"));
 });
 test("Ring uses the shared WebGL renderer and exposes Tower's Crew alpha-cleaning helper", () => {
