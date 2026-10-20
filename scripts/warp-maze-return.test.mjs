@@ -271,7 +271,7 @@ test("Ring is a 2D-in-3D platform maze reusing the same seeded graph, Crew and a
   assert.match(warp, /if \(ringDistance > 4\.2\) state\.ringApproachArmed = true/);
   assert.match(warp, /state\.ringApproachArmed && !state\.ringPlatformer && !maze\.ringCompleted/);
   assert.ok(ring.includes("const triggerOffset = player.orientation === 0"));
-  assert.ok(ring.includes("player.orientation === 0 ? 1.55 : 0"));
+  assert.match(ring, /if \(Math\.abs\(player\.localX\) > 1\.05\)/);
   assert.match(warp, /const ladderX = p\.x;/);
   assert.ok(warp.includes("falloff * falloff * 1.8"));
 });
