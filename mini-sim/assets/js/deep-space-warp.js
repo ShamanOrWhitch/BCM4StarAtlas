@@ -1016,523 +1016,48 @@
       const runtime = engine.getRuntime();
       const THREE = runtime.THREE;
       const scene = runtime.scene;
-      if (!THREE || !scene || !runtime.ship) return;
-
-      const NX = 7, NY = 3, NZ = 7, CELL = 5.4, WALL = 0.46;
-      // Keep the test maze off-axis and away from the old negative-Z texture-preload trigger.
-      const center = new THREE.Vector3(230, 0, 150);
-      const runNonce = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
-      const seed = hashSeed(state.nav.current.id + "->" + state.target.id + ":" + state.target.x + ":" + state.target.y + ":" + runNonce);
-      const rng = randomFrom(seed);
-      const cells = [];
-      function idx(x, y, z) { return (z * NY + y) * NX + x; }
-      function at(x, y, z) { return cells[idx(x, y, z)]; }
-      function cellX(x) { return center.x + (x - (NX - 1) / 2) * CELL; }
-      function cellY(y) { return center.y + (y - (NY - 1) / 2) * CELL; }
-      function cellZ(z) { return center.z + ((NZ - 1) / 2 - z) * CELL; }
-      function cellPosition(x, y, z) { return new THREE.Vector3(cellX(x), cellY(y), cellZ(z)); }
-      const dirs = [
-        { x: 1, y: 0, z: 0, key: "xp", opposite: "xn" },
-        { x: -1, y: 0, z: 0, key: "xn", opposite: "xp" },
-        { x: 0, y: 1, z: 0, key: "yp", opposite: "yn" },
-        { x: 0, y: -1, z: 0, key: "yn", opposite: "yp" },
-        { x: 0, y: 0, z: 1, key: "zp", opposite: "zn" },
-        { x: 0, y: 0, z: -1, key: "zn", opposite: "zp" }
-      ];
-      for (let z = 0; z < NZ; z += 1) {
-        for (let y = 0; y < NY; y += 1) {
-          for (let x = 0; x < NX; x += 1) {
-            cells.push({ x, y, z, visited: false, open: { xp: false, xn: false, yp: false, yn: false, zp: false, zn: false } });
-          }
-        }
-      }
-
-      // Seeded depth-first carve guarantees a connected route through every level of the maze.
-      const start = at(0, 1, 0);
-      const stack = [start];
-      start.visited = true;
-      while (stack.length) {
-        const here = stack[stack.length - 1];
-        const possible = [];
-        dirs.forEach((d) => {
-          const x = here.x + d.x, y = here.y + d.y, z = here.z + d.z;
-          if (x < 0 || x >= NX || y < 0 || y >= NY || z < 0 || z >= NZ) return;
-          const next = at(x, y, z);
-          if (!next.visited) possible.push({ d, next });
-        });
-        if (!possible.length) {
-          stack.pop();
-        } else {
-          const pick = possible[Math.floor(rng() * possible.length)];
-          here.open[pick.d.key] = true;
-          pick.next.open[pick.d.opposite] = true;
-          pick.next.visited = true;
-          stack.push(pick.next);
-        }
-      }
-
-      // Add a few extra links so routes can loop rather than forcing one long chain.
-      cells.forEach((cell) => {
-        if (cell.x < NX - 1 && !cell.open.xp && rng() < 0.14) {
-          cell.open.xp = true; at(cell.x + 1, cell.y, cell.z).open.xn = true;
-        }
-        if (cell.y < NY - 1 && !cell.open.yp && rng() < 0.12) {
-          cell.open.yp = true; at(cell.x, cell.y + 1, cell.z).open.yn = true;
-        }
-        if (cell.z < NZ - 1 && !cell.open.zp && rng() < 0.16) {
-          cell.open.zp = true; at(cell.x, cell.y, cell.z + 1).open.zn = true;
-        }
-      });
-
-      const group = new THREE.Group();
-      group.name = "bcm-procedural-asteroid-maze";
-      const walls = [];
-      function addWall(x, y, z, sx, sy, sz) {
-        walls.push({ x, y, z, sx, sy, sz });
-      }
-      cells.forEach((cell) => {
-        const x = cellX(cell.x), y = cellY(cell.y), z = cellZ(cell.z);
-        if (cell.x === 0) addWall(x - CELL / 2, y, z, WALL, CELL, CELL);
-        if (cell.x === NX - 1) addWall(x + CELL / 2, y, z, WALL, CELL, CELL);
-        else if (!cell.open.xp) addWall(x + CELL / 2, y, z, WALL, CELL, CELL);
-        if (cell.y === 0) addWall(x, y - CELL / 2, z, CELL, WALL, CELL);
-        if (cell.y === NY - 1) addWall(x, y + CELL / 2, z, CELL, WALL, CELL);
-        else if (!cell.open.yp) addWall(x, y + CELL / 2, z, CELL, WALL, CELL);
-        if (cell.z === 0) {
-          // Leave one clean entrance into the first central cell.
-          if (!(cell.x === 0 && cell.y === 1)) addWall(x, y, z + CELL / 2, CELL, CELL, WALL);
-        } else if (!cell.open.zn) {
-          addWall(x, y, z + CELL / 2, CELL, CELL, WALL);
-        }
-        if (cell.z === NZ - 1) {
-          // Far exit is opened only at the last cell. Internal Z-planes are emitted once
-          // from the adjacent cell's positive face, avoiding overlapping double walls.
-          if (!(cell.x === NX - 1 && cell.y === 1)) addWall(x, y, z - CELL / 2, CELL, CELL, WALL);
-        }
-      });
-
-      // Use every prepared asterwall variant. The files are small, and a full
-      // shuffle means the entire asteroid run can display the whole texture family.
-      const fallbackTexture = makeMazeTexture(THREE);
-      const availableWallAssets = asteroidWallAssetPool();
-      for (let i = availableWallAssets.length - 1; i > 0; i -= 1) {
-        const j = Math.floor(rng() * (i + 1));
-        [availableWallAssets[i], availableWallAssets[j]] = [availableWallAssets[j], availableWallAssets[i]];
-      }
-      const chosenWallAssets = availableWallAssets;
-      const wallMaterials = [];
-      const wallTextures = [];
-      if (chosenWallAssets.length) {
-        const loader = new THREE.TextureLoader();
-        chosenWallAssets.forEach((asset, index) => {
-          const texture = loader.load(asset.url, undefined, undefined, () => {
-            if (wallMaterials[index]) {
-              wallMaterials[index].map = fallbackTexture;
-              wallMaterials[index].needsUpdate = true;
-            }
-          });
-          texture.generateMipmaps = false;
-          texture.minFilter = THREE.LinearFilter;
-          texture.magFilter = THREE.LinearFilter;
-          texture.wrapS = THREE.RepeatWrapping;
-          texture.wrapT = THREE.RepeatWrapping;
-          texture.repeat.set(1, 1);
-          if (THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
-          else if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
-          const maxAnisotropy = runtime.renderer?.capabilities?.getMaxAnisotropy?.() || 1;
-          texture.anisotropy = Math.min(4, maxAnisotropy);
-          wallTextures.push(texture);
-          wallMaterials.push(new THREE.MeshStandardMaterial({
-            map: texture, color: 0xffffff, roughness: 0.82, metalness: 0.24, emissive: 0x07121a
-          }));
-        });
-      } else {
-        wallTextures.push(fallbackTexture);
-        wallMaterials.push(new THREE.MeshStandardMaterial({
-          map: fallbackTexture, color: 0xa9bec8, roughness: 0.82, metalness: 0.24, emissive: 0x07121a
-        }));
-      }
-      const unit = new THREE.BoxGeometry(1, 1, 1);
-      const wallBatches = Array.from({ length: wallMaterials.length }, () => []);
-      walls.forEach((wall, index) => wallBatches[index % wallBatches.length].push(wall));
-      const wallMeshes = wallBatches.map((batch, index) => {
-        const wallMesh = new THREE.InstancedMesh(unit, wallMaterials[index], batch.length);
-        wallMesh.name = "asteroid-maze-wall-panels-" + index;
-        wallMesh.frustumCulled = false;
-        const matrix = new THREE.Matrix4();
-        const rotation = new THREE.Quaternion();
-        batch.forEach((wall, instanceIndex) => {
-          matrix.compose(
-            new THREE.Vector3(wall.x, wall.y, wall.z),
-            rotation,
-            new THREE.Vector3(wall.sx, wall.sy, wall.sz)
-          );
-          wallMesh.setMatrixAt(instanceIndex, matrix);
-        });
-        wallMesh.instanceMatrix.needsUpdate = true;
-        group.add(wallMesh);
-        return wallMesh;
-      });
-      const wallMesh = wallMeshes[0];
-      const material = wallMaterials[0];
-      const texture = wallTextures[0];
-
-      const shell = new THREE.Mesh(
-        new THREE.SphereGeometry(31, 18, 14),
-        new THREE.MeshBasicMaterial({ color: 0x254050, transparent: true, opacity: 0.11, side: THREE.BackSide, depthWrite: false })
-      );
-      shell.name = "asteroid-inner-shell";
-      shell.position.copy(center);
-      group.add(shell);
-
-      const crystalMaterial = new THREE.MeshBasicMaterial({ color: 0x52f0dc });
-      const crystalGeometry = new THREE.OctahedronGeometry(0.54, 0);
-      const beaconMaterial = new THREE.MeshBasicMaterial({ color: 0xdbc17a });
-      const beaconGeometry = new THREE.TorusGeometry(1.1, 0.12, 6, 20);
-      const startNode = at(0, 1, 0);
-      const exitNode = at(NX - 1, 1, NZ - 1);
-      const candidates = cells.filter((cell) => !(cell.x === startNode.x && cell.y === startNode.y && cell.z === startNode.z) &&
-        !(cell.x === exitNode.x && cell.y === exitNode.y && cell.z === exitNode.z));
-      for (let i = candidates.length - 1; i > 0; i -= 1) {
-        const j = Math.floor(rng() * (i + 1));
-        const temp = candidates[i]; candidates[i] = candidates[j]; candidates[j] = temp;
-      }
-      const crystals = [];
-      candidates.slice(0, 3).forEach((cell, index) => {
-        const mesh = new THREE.Mesh(crystalGeometry, crystalMaterial);
-        mesh.position.copy(cellPosition(cell.x, cell.y, cell.z));
-        mesh.position.y += 0.2;
-        mesh.name = "core-shard-" + index;
-        group.add(mesh);
-        crystals.push({ mesh, taken: false, phase: rng() * Math.PI * 2, cell: { x: cell.x, y: cell.y, z: cell.z } });
-      });
-      const beacon = new THREE.Mesh(beaconGeometry, beaconMaterial);
-      beacon.position.copy(cellPosition(exitNode.x, exitNode.y, exitNode.z));
-      beacon.rotation.x = Math.PI / 2;
-      beacon.scale.set(1.65, 1.65, 1.65);
-      beacon.name = "return-warp-beacon";
-      group.add(beacon);
-
-      scene.add(group);
-      const maze = {
-        active: true,
-        group,
-        center,
-        // The 2D Ring mode reuses this exact maze instance and topology, not a second RNG.
-        seed,
-        dimensions: { nx: NX, ny: NY, nz: NZ },
-        startCell: { x: startNode.x, y: startNode.y, z: startNode.z },
-        exitCell: { x: exitNode.x, y: exitNode.y, z: exitNode.z },
-        cells,
-        walls,
-        wallMesh,
-        wallMeshes,
-        shell,
-        crystals,
-        beacon,
-        start: cellPosition(startNode.x, startNode.y, startNode.z),
-        exit: cellPosition(exitNode.x, exitNode.y, exitNode.z),
-        count: 0,
-        sinceStatus: 0,
-        texture,
-        textures: wallTextures.concat(fallbackTexture === texture ? [] : [fallbackTexture]),
-        material,
-        materials: wallMaterials,
-        geometry: unit,
-        crystalGeometry,
-        crystalMaterial,
-        beaconGeometry,
-        beaconMaterial,
-        lastPosition: null,
-        lastImpactAt: 0,
-        ringCompleted: false
-      };
-      state.savedSpeedMode = engine.getSpeedMode ? engine.getSpeedMode() : 1;
-      if (engine.setSpeedMode) engine.setSpeedMode(2);
-      state.maze = maze;
-      state.ringApproachArmed = true;
-      root.classList.add("bcm-warp-maze-active");
-      exitButton.hidden = false;
-      overlay.hidden = true;
-      root.classList.remove("bcm-warp-open");
-      launchButton.classList.remove("is-active");
-
-      // The main physics resumes in this scene. The seeded maze uses a small number of
-      // instanced wall batches and up to four asterwall textures, with a tiny procedural fallback.
-      // Default Mini-Sim forward is -Z; face inward from the asteroid entrance.
-      engine.teleport({ x: maze.start.x, y: maze.start.y, z: maze.start.z, yaw: 0 }, null);
-      engine.pauseForWarp(false);
-      engine.setExternalHUD("ASTEROID COMPLEX · " + sectorText(state.target), "EXPEDITION · CORE SHARDS 0/3 · GOLD RING OPENS THE HULL");
-      maze.lastPosition = runtime.ship.position.clone();
-      state.mode = "maze";
-      state.lastStatusAt = 0;
-      window.BCMDeepSpaceWarpFrame = updateMazeFrame;
-    }
-
-    function updateMazeFrame(frame) {
-      const maze = state.maze;
-      if (!maze || !maze.active || !frame || !frame.ship) return;
-      const ship = frame.ship;
-      const pos = ship.position;
-      const radius = 0.7;
-
-      // The external ship scene remains the transparent window's backdrop while either
-      // overlay is active; keep camera/visual transforms synced, but never move a paused ship.
-      if (state.ringPlatformer || state.hullOpen) {
-        if (frame.camera) {
-          frame.camera.position.copy(pos);
-          frame.camera.quaternion.copy(ship.quaternion);
-        }
-        if (ship.visual) {
-          ship.visual.position.copy(pos);
-          ship.visual.quaternion.copy(ship.quaternion);
-        }
-        maze.lastPosition.copy(pos);
-        return;
-      }
-
-      // Only test wall panels close to the craft; distant cells cost almost nothing per frame.
-      for (let pass = 0; pass < 2; pass += 1) {
-        for (let i = 0; i < maze.walls.length; i += 1) {
-          const w = maze.walls[i];
-          const hx = w.sx / 2 + radius, hy = w.sy / 2 + radius, hz = w.sz / 2 + radius;
-          if (Math.abs(pos.x - w.x) > hx + 1.2 || Math.abs(pos.y - w.y) > hy + 1.2 || Math.abs(pos.z - w.z) > hz + 1.2) continue;
-          const px = hx - Math.abs(pos.x - w.x);
-          const py = hy - Math.abs(pos.y - w.y);
-          const pz = hz - Math.abs(pos.z - w.z);
-          if (px <= 0 || py <= 0 || pz <= 0) continue;
-          const impactSpeed = ship.velocity.length();
-          const impactNow = performance.now();
-          if (impactSpeed > 3.0 && impactNow - maze.lastImpactAt > 650) {
-            maze.lastImpactAt = impactNow;
-            const compartmentId = pos.x < maze.center.x - 5.4 ? 1 : (pos.x > maze.center.x + 5.4 ? 3 : 2);
-            const damage = Math.max(4, Math.min(24, Math.round((impactSpeed - 2.0) * 4.4)));
-            const damaged = window.BCMHullRepairState?.triggerExternalImpact?.(compartmentId, damage);
-            if (damaged) {
-              setMazeStatus("IMPACT · " + damaged.name + " · INTEGRITY " + Math.round(damaged.integrity) + "% · HIT " + damage);
-            }
-          }
-          if (px <= py && px <= pz) {
-            pos.x = w.x + (pos.x >= w.x ? 1 : -1) * (hx + 0.015);
-            ship.velocity.x *= 0.15;
-          } else if (py <= pz) {
-            pos.y = w.y + (pos.y >= w.y ? 1 : -1) * (hy + 0.015);
-            ship.velocity.y *= 0.15;
-          } else {
-            pos.z = w.z + (pos.z >= w.z ? 1 : -1) * (hz + 0.015);
-            ship.velocity.z *= 0.15;
-          }
-        }
-      }
-
-      const fromCenter = pos.clone().sub(maze.center);
-      if (fromCenter.length() > 29.4) {
-        fromCenter.setLength(29.4);
-        pos.copy(maze.center).add(fromCenter);
-        ship.velocity.multiplyScalar(0.25);
-      }
-
-      // Local artificial gravity activates near the gold ring, with a smooth falloff.
-      const ringVector = maze.beacon.position.clone().sub(pos);
-      const approachDistance = ringVector.length();
-      state.ringDistance = approachDistance;
-      if (approachDistance < 22 && approachDistance > 2.65) {
-        const falloff = Math.max(0, 1 - approachDistance / 22);
-        ringVector.normalize();
-        ship.velocity.addScaledVector(ringVector, (frame.dt || 0.016) * (0.25 + falloff * falloff * 1.8));
-      }
-
-      maze.crystals.forEach((crystal) => {
-        if (crystal.taken) return;
-        crystal.mesh.rotation.y += Math.min(frame.dt || 0.016, 0.04) * 1.35;
-        crystal.mesh.position.y += Math.sin(performance.now() * 0.002 + crystal.phase) * 0.001;
-        if (pos.distanceTo(crystal.mesh.position) < 1.55) {
-          crystal.taken = true;
-          crystal.mesh.visible = false;
-          maze.count += 1;
-          setMazeStatus("CORE SHARDS " + maze.count + "/3 · " + (maze.count === 3 ? "GOLD RING IS OPEN" : "SEARCH THE CONNECTED CORRIDORS"));
-        }
-      });
-      maze.beacon.rotation.z += Math.min(frame.dt || 0.016, 0.04) * 0.4;
-      const ringDistance = pos.distanceTo(maze.beacon.position);
-      state.ringDistance = ringDistance;
-      syncHullButtonVisibility();
-      // Require the ship to leave the beacon's capture radius after exiting Ring
-      // before accepting another approach; the same level can still be re-entered.
-      if (ringDistance > 4.2) state.ringApproachArmed = true;
-      if (state.ringApproachArmed && !state.ringPlatformer && !maze.ringCompleted && ringDistance < 2.6) {
-        openRingPlatformer(maze);
-        return;
-      }
-
-      if (frame.camera) {
-        frame.camera.position.copy(pos);
-        frame.camera.quaternion.copy(ship.quaternion);
-      }
-      if (ship.visual) {
-        ship.visual.position.copy(pos);
-        ship.visual.quaternion.copy(ship.quaternion);
-      }
-      maze.lastPosition.copy(pos);
-      if (performance.now() - maze.sinceStatus > 1300) {
-        maze.sinceStatus = performance.now();
-        const message = state.ringDistance < 22
-          ? "RING GRAVITY ACTIVE · PRESS U / R3 OR TAP THE HULL BUTTON"
-          : "EXPEDITION · CORE SHARDS " + maze.count + "/3 · FOLLOW THE GOLD RING";
-        setMazeStatus(message);
-      }
-    }
-
-    function openHullInterior() {
-      const engine = api();
-      const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
-      const maze = state.maze && state.maze.active && state.mode === "maze" ? state.maze : null;
-      if (state.hullOpen || state.ringPlatformer || state.ringTransitionActive ||
-          !root.classList.contains("game-active") || !runtime || !runtime.ship ||
-          !window.BCMHullDive || typeof window.BCMHullDive.open !== "function") return false;
-
-      // This is the ship's interior, not a teleport to the golden Ring.
-      // Preserve the current first-person flight pose and only pause the ship while
-      // the transparent compartment simulation owns the screen.
-      state.hullOpen = true;
-      syncHullButtonVisibility();
-      if (engine.pauseForWarp) engine.pauseForWarp(true);
-
-      const nearRing = !!(maze && maze.beacon && state.ringDistance < 18);
-      window.BCMRingWindowState = nearRing ? {
-        visible: true,
-        ringDistance: state.ringDistance,
-        target: maze.beacon.position.clone(),
-        maze
-      } : null;
-
-      window.BCMHullDive.open(() => {
-        state.hullOpen = false;
-        window.BCMRingWindowState = null;
-        if (engine.pauseForWarp) engine.pauseForWarp(false);
-        const freshRuntime = engine.getRuntime ? engine.getRuntime() : null;
-        if (maze && freshRuntime?.ship?.position) {
-          state.ringDistance = freshRuntime.ship.position.distanceTo(maze.beacon.position);
-          setMazeStatus("BACK IN THE SHIP · RING WINDOW " +
-            (state.ringDistance < 18 ? "VISIBLE" : "OUT OF VIEW"));
-        }
-        syncHullButtonVisibility();
-      });
-      syncHullButtonVisibility();
-      return true;
-    }
-
-    const hullEntryPadWasDown = new Map();
-    window.BCMDeepSpaceWarpPoll = () => {
-      syncHullButtonVisibility();
-      const pads = navigator.getGamepads ? [...navigator.getGamepads()] : [];
-      let pressed = false;
-      for (const pad of pads) {
-        if (!pad || !pad.connected) continue;
-        const down = !!pad.buttons?.[11]?.pressed;
-        const wasDown = hullEntryPadWasDown.get(pad.index) || false;
-        hullEntryPadWasDown.set(pad.index, down);
-        if (down && !wasDown) pressed = true;
-      }
-      for (const index of [...hullEntryPadWasDown.keys()]) {
-        if (!pads.some((pad) => pad && pad.connected && pad.index === index)) hullEntryPadWasDown.delete(index);
-      }
-      if (!pressed || state.mode === "map" || state.mode === "tube" || state.mode === "result" ||
-          state.ringPlatformer || state.ringTransitionActive || state.hullOpen ||
-          document.getElementById("bcm-hull-dive") ||
-          document.getElementById("bcm-ring-platformer") ||
-          document.getElementById("bcm-ring-transition")) return;
-      const towerRoot = document.querySelector(".bcm-tower");
-      if (towerRoot && !towerRoot.hidden) return;
-      openHullInterior();
-    };
-
-    function openRingPlatformer(maze, afterTransition = false) {
-      if (!maze || !maze.active || state.ringPlatformer || state.hullOpen || state.mode !== "maze") return false;
-      // Disarm at the first approach (including the transition clip). Escape must
-      // not instantly retrigger the Ring while the ship is still at the beacon.
-      state.ringApproachArmed = false;
-      const engine = api();
-      const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
-      if (!runtime?.ship || !runtime.THREE || !runtime.scene) return false;
-      if (!afterTransition) {
-        const transitionSource = findRingTransitionVideoSource();
-        if (transitionSource) return playRingTransition(maze, transitionSource, engine);
-      }
-
-      startRingAudio();
-      state.ringPlatformer = true;
-      hullEnterButton.hidden = true;
-      if (engine.pauseForWarp) engine.pauseForWarp(true);
-
-      const THREE = runtime.THREE;
-      const scene = runtime.scene;
-      const nx = Math.max(1, Number(maze.dimensions?.nx) || Math.max(...maze.cells.map((c) => c.x)) + 1);
-      const ny = Math.max(1, Number(maze.dimensions?.ny) || Math.max(...maze.cells.map((c) => c.y)) + 1);
-      const nz = Math.max(1, Number(maze.dimensions?.nz) || Math.max(...maze.cells.map((c) => c.z)) + 1);
       const seed = Number(maze.seed) || 0;
-      const cellSize = Number(maze.cellSize) || 5.4;
-      const wallThickness = 0.24;
-      const doorWidth = 2.5;
-      const doorHeight = 3.35;
-      const roomHalf = cellSize / 2;
-      const floorYForCell = (cellY) => cellWorld({ x: 0, y: cellY, z: 0 }).y - roomHalf + 0.16;
-      const cellMap = new Map(maze.cells.map((cell) => [cell.x + ":" + cell.y + ":" + cell.z, cell]));
-      const getCell = (x, y, z) => cellMap.get(x + ":" + y + ":" + z) || null;
-      const entryCell = maze.startCell || { x: 0, y: 1, z: 0 };
-      const ringCell = maze.exitCell || { x: nx - 1, y: Math.min(1, ny - 1), z: nz - 1 };
-      const exitCell = { x: entryCell.x, y: entryCell.y, z: entryCell.z };
-
-      function cellWorld(cell) {
-        return {
-          x: maze.center.x + (cell.x - (nx - 1) / 2) * cellSize,
-          y: maze.center.y + (cell.y - (ny - 1) / 2) * cellSize,
-          z: maze.center.z + ((nz - 1) / 2 - cell.z) * cellSize
-        };
-      }
 
       const root2d = document.createElement("div");
       root2d.id = "bcm-ring-platformer";
       root2d.tabIndex = 0;
       root2d.style.cssText = "position:fixed;inset:0;z-index:1000600;background:transparent;color:#e8f4f8;font:14px system-ui,sans-serif;overflow:hidden;touch-action:none;pointer-events:none";
       root2d.innerHTML =
-        '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;pointer-events:none;z-index:3">' +
-          '<div style="max-width:62%;text-shadow:0 2px 8px #000"><div style="font-size:11px;letter-spacing:.16em;color:#60ddec">RING // 2D IN 3D</div>' +
-          '<div data-ring-status style="font-weight:800;margin-top:5px;line-height:1.3">Выбери режим</div>' +
-          '<div data-ring-floor style="margin-top:5px;color:#b8cbd6;font-size:12px"></div></div>' +
+        '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;pointer-events:none;z-index:3">' +
+          '<div style="max-width:62%;text-shadow:0 2px 8px #000"><div style="font-size:11px;letter-spacing:.16em;color:#60ddec">RING // FRONTIER</div>' +
+          '<div data-ring-status style="font-weight:900;margin-top:5px;line-height:1.3">ВЫСАДКА</div>' +
+          '<div data-ring-floor style="margin-top:5px;color:#b8cbd6;font-size:12px"></div>' +
+          '<div data-ring-boss-meter style="display:none;width:min(48vw,300px);height:7px;margin-top:8px;border:1px solid rgba(211,235,248,.6);border-radius:9px;background:rgba(4,10,18,.8);overflow:hidden"><div data-ring-boss-fill style="width:100%;height:100%;background:linear-gradient(90deg,#55e6ef,#f6b55e);transition:width .12s linear"></div></div></div>' +
           '<div style="display:flex;flex-direction:column;gap:7px;align-items:flex-end;pointer-events:auto">' +
-            '<div data-ring-count style="padding:6px 9px;background:rgba(7,22,34,.94);border:1px solid #25485b;border-radius:8px;color:#d9f8ff;white-space:nowrap">ЯДРА 0/3</div>' +
+            '<div data-ring-count style="padding:6px 9px;background:rgba(7,22,34,.94);border:1px solid #25485b;border-radius:8px;color:#d9f8ff;white-space:nowrap">БОССЫ 0/3</div>' +
             '<button type="button" data-ring-exit style="min-height:42px;padding:7px 11px;border:1px solid #547083;border-radius:9px;background:rgba(16,35,45,.96);color:#e8fbff;font-weight:800">В КОРАБЛЬ · Esc</button>' +
           '</div>' +
         '</div>' +
-        '<canvas data-ring-canvas aria-label="Карта текущего лабиринта" style="position:absolute;right:12px;top:100px;width:min(34vw,240px);height:min(30vh,190px);min-width:124px;min-height:116px;border:1px solid rgba(88,173,198,.55);border-radius:10px;background:rgba(3,10,18,.83);z-index:2;pointer-events:none"></canvas>' +
+        '<canvas data-ring-canvas aria-label="Индикатор прохождения больших зон" style="position:absolute;right:12px;top:96px;width:min(30vw,190px);height:56px;min-width:96px;min-height:42px;border:1px solid rgba(88,173,198,.55);border-radius:9px;background:rgba(3,10,18,.83);z-index:2;pointer-events:none"></canvas>' +
         '<div data-ring-split-divider hidden style="position:absolute;inset:0;z-index:1;pointer-events:none;border:0"></div>' +
         '<div style="position:absolute;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:flex-end;gap:12px;z-index:4;pointer-events:none">' +
           '<div style="display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(2,42px);gap:4px;pointer-events:auto">' +
-            '<span></span><button type="button" data-ring-action="turnUp" aria-label="Повернуть вглубь" style="grid-column:2;grid-row:1;min-height:42px">▲</button><span></span>' +
-            '<button type="button" data-ring-action="left" aria-label="Влево" style="min-height:42px">◀</button><button type="button" data-ring-action="jump" aria-label="Прыжок" style="min-height:42px">↑</button><button type="button" data-ring-action="right" aria-label="Вправо" style="min-height:42px">▶</button>' +
-            '<button type="button" data-ring-action="turnDown" aria-label="Повернуть назад" style="grid-column:2;grid-row:3;min-height:38px">▼</button>' +
+            '<span></span><button type="button" data-ring-action="jump" aria-label="Прыжок" style="grid-column:2;grid-row:1;min-height:42px">ПРЫЖОК</button><span></span>' +
+            '<button type="button" data-ring-action="left" aria-label="Влево" style="min-height:42px">◀</button><span style="display:block"></span><button type="button" data-ring-action="right" aria-label="Вправо" style="min-height:42px">▶</button>' +
           '</div>' +
-          '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;pointer-events:auto">' +
-            '<div style="color:#b9d3df;background:rgba(4,13,23,.82);border:1px solid rgba(76,139,163,.35);border-radius:8px;padding:5px 8px;font-size:11px;text-align:right">ТРИГГЕРЫ · ПОВОРОТЫ · ЛЕСТНИЦЫ</div>' +
-            '<div style="display:flex;gap:5px">' +
-              '<button type="button" data-ring-action="floorUp" style="min-height:38px;padding:5px 9px;font-size:12px">ЭТАЖ +</button>' +
-              '<button type="button" data-ring-action="floorDown" style="min-height:38px;padding:5px 9px;font-size:12px">ЭТАЖ −</button>' +
-            '</div>' +
+          '<div style="display:flex;gap:6px;align-items:flex-end;pointer-events:auto">' +
+            '<button type="button" data-ring-action="attack" style="min-height:42px;padding:6px 10px;font-size:12px">ИМПУЛЬС</button>' +
+            '<button type="button" data-ring-action="dash" style="min-height:42px;padding:6px 10px;font-size:12px">РЫВОК</button>' +
           '</div>' +
         '</div>' +
         '<div data-ring-mode-menu style="position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(1,5,12,.74);pointer-events:auto">' +
-          '<div style="width:min(460px,100%);padding:22px;border:1px solid #37677c;border-radius:16px;background:rgba(6,20,32,.97);box-shadow:0 12px 60px #0009;text-align:center">' +
-            '<div style="font-size:12px;letter-spacing:.18em;color:#60ddec">SEED ' + seed + ' · ТОТ ЖЕ ЛАБИРИНТ</div>' +
-            '<div style="font-size:23px;font-weight:900;margin:12px 0 7px">Внутри лабиринта</div>' +
-            '<div style="color:#b7cbd6;line-height:1.45;margin-bottom:17px">2D-управление в трёхмерных комнатах. Двери меняют направление камеры, лестницы ведут на другие этажи. Открой те же коридоры и собери оставшиеся ядра.</div>' +
+          '<div style="width:min(480px,100%);padding:22px;border:1px solid #37677c;border-radius:16px;background:rgba(6,20,32,.97);box-shadow:0 12px 60px #0009;text-align:center">' +
+            '<div style="font-size:12px;letter-spacing:.18em;color:#60ddec">RING FRONTIER · SEED ' + seed + '</div>' +
+            '<div style="font-size:24px;font-weight:900;margin:12px 0 7px">Большая локация</div>' +
+            '<div style="color:#b7cbd6;line-height:1.5;margin-bottom:17px">Свободное движение по большим боковым аренам, прыжки между платформами и три босса в разных зонах. Мини-карта показывает только продвижение по локации.</div>' +
+            '<div style="color:#91b8c7;font-size:12px;line-height:1.5;margin-bottom:17px">P1: ← → / A D · прыжок: Space / W · импульс: X · рывок: Shift<br>P2: J L · прыжок: P · импульс: O · рывок: I · геймпады поддерживаются</div>' +
             '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">' +
               '<button type="button" data-ring-single style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #69d7ea;border-radius:10px;background:#123c48;color:#e8fbff;font-weight:900">SINGLE</button>' +
               '<button type="button" data-ring-multi style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #bb9a57;border-radius:10px;background:#3b301b;color:#fff0c7;font-weight:900">MULTI · 2 CREW</button>' +
             '</div>' +
           '</div>' +
         '</div>';
-      document.body.appendChild(root2d);
+      document.body.appendChild(root2d);      document.body.appendChild(root2d);
       const canvas = root2d.querySelector("[data-ring-canvas]");
       const g = canvas.getContext("2d");
       const statusEl = root2d.querySelector("[data-ring-status]");
@@ -1564,7 +1089,7 @@
       const touchInputs = [{}, {}];
       const padInputs = [{}, {}];
       const previousPad = [{}, {}];
-      const oneShotActions = new Set(["turnUp", "turnDown", "floorUp", "floorDown"]);
+      const oneShotActions = new Set(["attack", "dash"]);
       const worldSaved = {
         oldMazeVisible: maze.group ? maze.group.visible : true,
         oldShipVisible: runtime.ship.visual ? runtime.ship.visual.visible : true,
@@ -1578,142 +1103,157 @@
         mapHeight = Math.max(1, rect.height);
         canvas.width = Math.round(mapWidth * pixelRatio);
         canvas.height = Math.round(mapHeight * pixelRatio);
+        width = Math.max(1, root2d.clientWidth);
+        height = Math.max(1, root2d.clientHeight);
+        updateSplitState();
       }
 
       function buildRingWorld() {
         const world = new THREE.Group();
-        world.name = "bcm-ring-cutaway-world";
-        const buckets = { floor: [], ceiling: [], wallsX: [], wallsZ: [], framesX: [], framesZ: [], platforms: [], ladders: [] };
-        const platforms = [];
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.72, metalness: 0.32 });
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.82, metalness: 0.2 });
-        const ceilingMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.86, metalness: 0.16 });
-        const frameMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45, metalness: 0.45, emissive: 0x06202a });
-        const platformMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0.34, emissive: 0x07171d });
-        const ladderMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.42, metalness: 0.42, emissive: 0x0a2630 });
+        world.name = "bcm-ring-frontier-side-scroll";
+        const buckets = { floor: [], platforms: [], backdrop: [], trim: [], barriers: [] };
         const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
-        const doorSide = (cellSize - doorWidth) / 2;
-        const headerHeight = (cellSize - doorHeight) / 2;
-        const hatchSize = 1.18;
-
-        function addBox(bucket, x, y, z, sx, sy, sz, color, metadata) {
-          buckets[bucket].push({
-            x, y, z, sx, sy, sz,
-            color: color || 0x28414d,
-            ...(metadata && typeof metadata === "object" ? metadata : {})
-          });
+        const materials = [
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0.22 }),
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.35, emissive: 0x06121b }),
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0.04, emissive: 0x030a13 }),
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45, metalness: 0.45, emissive: 0x0b2630 }),
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, metalness: 0.35, emissive: 0x16363f })
+        ];
+        const floorMat = materials[0];
+        const platformMat = materials[1];
+        const backdropMat = materials[2];
+        const trimMat = materials[3];
+        const barrierMat = materials[4];
+        function addBox(bucket, x, y, z, sx, sy, sz, color) {
+          buckets[bucket].push({ x, y, z, sx, sy, sz, color: color || 0x28414d });
         }
-        function addFrameX(x, y, z, color) {
-          addBox("framesX", x, y, z - doorWidth / 2, wallThickness * 0.8, doorHeight, 0.075, color || 0x59d7ea);
-          addBox("framesX", x, y, z + doorWidth / 2, wallThickness * 0.8, doorHeight, 0.075, color || 0x59d7ea);
-          addBox("framesX", x, y + doorHeight / 2, z, wallThickness * 0.8, 0.075, doorWidth, color || 0x59d7ea);
+        const platforms = [];
+        function addPlatform(x1, x2, topY, color) {
+          const length = x2 - x1;
+          addBox(topY === 0 ? "floor" : "platforms", (x1 + x2) / 2, topY - 0.18, 0,
+            length, 0.36, 3.8, color || (topY === 0 ? 0x182b38 : 0x486b7d));
+          platforms.push({ minX: x1, maxX: x2, y: topY });
         }
-        function addFrameZ(x, y, z, color) {
-          addBox("framesZ", x - doorWidth / 2, y, z, 0.075, doorHeight, wallThickness * 0.8, color || 0x59d7ea);
-          addBox("framesZ", x + doorWidth / 2, y, z, 0.075, doorHeight, wallThickness * 0.8, color || 0x59d7ea);
-          addBox("framesZ", x, y + doorHeight / 2, z, doorWidth, 0.075, wallThickness * 0.8, color || 0x59d7ea);
-        }
-        function addFaceX(xFace, yCenter, zCenter, opening, color) {
-          const baseColor = color || 0x263e4a;
-          if (!opening) {
-            addBox("wallsX", xFace, yCenter, zCenter, wallThickness, cellSize, cellSize, baseColor);
-            return;
-          }
-          addBox("wallsX", xFace, yCenter, zCenter - (doorWidth + cellSize) / 4, wallThickness, cellSize, doorSide, baseColor);
-          addBox("wallsX", xFace, yCenter, zCenter + (doorWidth + cellSize) / 4, wallThickness, cellSize, doorSide, baseColor);
-          addBox("wallsX", xFace, yCenter + (doorHeight + cellSize) / 4, zCenter, wallThickness, headerHeight, doorWidth, baseColor);
-          addFrameX(xFace, yCenter - cellSize / 2 + doorHeight / 2, zCenter, 0x50cce0);
-        }
-        function addFaceZ(xCenter, yCenter, zFace, opening, color) {
-          const baseColor = color || 0x263e4a;
-          if (!opening) {
-            addBox("wallsZ", xCenter, yCenter, zFace, cellSize, cellSize, wallThickness, baseColor);
-            return;
-          }
-          addBox("wallsZ", xCenter - (doorWidth + cellSize) / 4, yCenter, zFace, doorSide, cellSize, wallThickness, baseColor);
-          addBox("wallsZ", xCenter + (doorWidth + cellSize) / 4, yCenter, zFace, doorSide, cellSize, wallThickness, baseColor);
-          addBox("wallsZ", xCenter, yCenter + (doorHeight + cellSize) / 4, zFace, doorWidth, headerHeight, wallThickness, baseColor);
-          addFrameZ(xCenter, yCenter - cellSize / 2 + doorHeight / 2, zFace, 0x50cce0);
-        }
-        function addHatch(bucket, x, y, z, color) {
-          const span = cellSize - wallThickness;
-          const side = (span - hatchSize) / 2;
-          addBox(bucket, x - (hatchSize + span) / 4, y, z, side, wallThickness, span, color);
-          addBox(bucket, x + (hatchSize + span) / 4, y, z, side, wallThickness, span, color);
-          addBox(bucket, x, y, z - (hatchSize + span) / 4, hatchSize, wallThickness, side, color);
-          addBox(bucket, x, y, z + (hatchSize + span) / 4, hatchSize, wallThickness, side, color);
-        }
+        addPlatform(-51, 84, 0, 0x142936);
 
-        maze.cells.forEach((cell) => {
-          const p = cellWorld(cell);
-          const floorY = p.y - roomHalf + wallThickness / 2;
-          const ceilingY = p.y + roomHalf - wallThickness / 2;
-          const floorColor = ((cell.x + cell.z + cell.y) & 1) ? 0x102632 : 0x142d39;
-          if (cell.open.yn) addHatch("floor", p.x, floorY, p.z, floorColor);
-          else addBox("floor", p.x, floorY, p.z, cellSize - wallThickness, wallThickness, cellSize - wallThickness, floorColor);
-          if (cell.open.yp) addHatch("ceiling", p.x, ceilingY, p.z, 0x1a3440);
-          else addBox("ceiling", p.x, ceilingY, p.z, cellSize - wallThickness, wallThickness, cellSize - wallThickness, 0x152a34);
-
-          const leftDoor = cell.x < nx - 1 && !!cell.open.xp;
-          addFaceX(p.x + roomHalf, p.y, p.z, leftDoor, 0x263e4a);
-          if (cell.x === 0) addFaceX(p.x - roomHalf, p.y, p.z, false, 0x263e4a);
-
-          // The two map boundaries use the same openings as the 3D asteroid maze:
-          // entrance at the initial cell and the gold Ring at the far exit cell.
-          if (cell.z === 0) {
-            const entranceDoor = cell.x === 0 && cell.y === 1;
-            addFaceZ(p.x, p.y, p.z + roomHalf, entranceDoor, 0x263e4a);
-            if (entranceDoor) addFrameZ(p.x, p.y - roomHalf + doorHeight / 2, p.z + roomHalf, 0xf1c66e);
-          }
-          if (cell.z < nz - 1) {
-            const open = !!cell.open.zp;
-            addFaceZ(p.x, p.y, p.z - roomHalf, open, 0x263e4a);
-          } else {
-            const ringGate = cell.x === nx - 1 && cell.y === 1;
-            addFaceZ(p.x, p.y, p.z - roomHalf, ringGate, 0x263e4a);
-            if (ringGate) addFrameZ(p.x, p.y - roomHalf + doorHeight / 2, p.z - roomHalf, 0xf1c66e);
-          }
-
-          if (cell.open.yp || cell.open.yn) {
-            const ladderX = p.x;
-            addBox("ladders", ladderX - 0.35, p.y, p.z, 0.08, cellSize * 0.58, 0.08, 0x69d9e8);
-            addBox("ladders", ladderX + 0.35, p.y, p.z, 0.08, cellSize * 0.58, 0.08, 0x69d9e8);
-            for (let rung = 0; rung < 5; rung += 1) {
-              addBox("ladders", ladderX, p.y - 1.1 + rung * 0.55, p.z, 0.72, 0.07, 0.08, 0xd4b66e);
-            }
-          }
-
-          // Stable seed-derived platforms make the room a small parkour stage without
-          // altering the actual graph links or the existing crystal locations.
-          const roomRng = randomFrom(hashSeed(String(seed) + ":ring-platform:" + cell.x + ":" + cell.y + ":" + cell.z));
-          if (roomRng() < 0.32) {
-            const dx = roomRng() < 0.5 ? -1.18 : 1.18;
-            const dz = roomRng() < 0.5 ? -0.72 : 0.72;
-            const platformHeight = 1.18 + roomRng() * 0.42;
-            // Each view direction gets a ledge aligned to its 2D movement plane.
-            addBox("platforms", p.x + dx, floorY + platformHeight - 0.08, p.z + 0.72,
-              1.7, 0.16, 1.1, 0x7898a4, { viewAxis: "z" });
-            platforms.push({
-              x: cell.x, y: cell.y, z: cell.z, orientation: 0,
-              worldX: p.x + dx, worldZ: p.z + 0.72,
-              topHeight: platformHeight, halfX: 0.85, halfZ: 0.55
-            });
-            addBox("platforms", p.x + 0.72, floorY + platformHeight - 0.08, p.z + dz,
-              1.1, 0.16, 1.9, 0x7898a4, { viewAxis: "x" });
-            platforms.push({
-              x: cell.x, y: cell.y, z: cell.z, orientation: 1,
-              worldX: p.x + 0.72, worldZ: p.z + dz,
-              topHeight: platformHeight, halfX: 0.55, halfZ: 0.95
-            });
-          }
+        // Three broad locations, not a room/cell graph. The ledges are hand-authored
+        // for readable jumps and are independent of the ship's asteroid maze.
+        [
+          [-39, -33, 2.2], [-31, -26, 4.25], [-24, -19, 2.3], [-16, -9, 3.75],
+          [1, 6, 2.1], [8, 13, 4.1], [15, 21, 2.35], [24, 31, 4.0],
+          [39, 45, 2.15], [47, 52, 4.35], [55, 61, 2.5], [64, 71, 4.0]
+        ].forEach((ledge, i) => {
+          const colors = [0x456b7b, 0x607786, 0x485f7c];
+          addPlatform(ledge[0], ledge[1], ledge[2], colors[i % colors.length]);
         });
 
-        const box = new THREE.Object3D();
-        const createBatch = (name, items, material, visible = true) => {
+        const zones = [
+          { x1: -50, x2: -2, center: -26, color: 0x0a2639, trim: 0x37c5e7 },
+          { x1: -2, x2: 36, center: 17, color: 0x14263a, trim: 0x5fe0c4 },
+          { x1: 36, x2: 84, center: 60, color: 0x271a39, trim: 0xc08bff }
+        ];
+        zones.forEach((zone, index) => {
+          addBox("backdrop", zone.center, 4.9, -4.1, zone.x2 - zone.x1, 11.2, 0.6, zone.color);
+          // Large sci-fi ribs and window columns give each zone a distinct silhouette.
+          for (let x = zone.x1 + 3.2; x < zone.x2; x += 6.4) {
+            addBox("trim", x, 4.0, -2.8, 0.24, 8.1, 0.24, zone.trim);
+            addBox("trim", x + 1.25, 7.6, -2.7, 2.4, 0.14, 0.18, zone.trim);
+            addBox("backdrop", x + 2.8, 2.8, -3.5, 3.0, 3.1, 0.24, index === 1 ? 0x183d46 : 0x172838);
+          }
+          addBox("trim", zone.center, 9.0, -2.5, zone.x2 - zone.x1 - 3.0, 0.12, 0.18, zone.trim);
+        });
+
+        const barriers = [];
+        [
+          { x: -2, unlockAfter: 1, color: 0xffbd63 },
+          { x: 36, unlockAfter: 2, color: 0xa97cff }
+        ].forEach((item) => {
+          const barrierGroup = new THREE.Group();
+          barrierGroup.position.set(item.x, 3.3, 0.15);
+          const mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(0.32, 6.6, 0.45),
+            new THREE.MeshStandardMaterial({
+              color: item.color, emissive: item.color, emissiveIntensity: 1.1,
+              transparent: true, opacity: 0.72, roughness: 0.24, metalness: 0.28
+            })
+          );
+          barrierGroup.add(mesh);
+          world.add(barrierGroup);
+          materials.push(mesh.material);
+          barriers.push({ x: item.x, unlockAfter: item.unlockAfter, group: barrierGroup });
+        });
+
+        const bossBodyGeometry = new THREE.DodecahedronGeometry(1, 1);
+        const bossEyeGeometry = new THREE.SphereGeometry(0.18, 10, 8);
+        const bossRingGeometry = new THREE.TorusGeometry(1.7, 0.075, 8, 28);
+        const exitGeometry = new THREE.TorusGeometry(1.15, 0.13, 8, 32);
+        const pulseGeometry = new THREE.SphereGeometry(0.19, 8, 7);
+        const pickupGeometry = new THREE.OctahedronGeometry(0.38, 0);
+        const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xc9fbff });
+        const bossRingMaterial = new THREE.MeshBasicMaterial({ color: 0x9cf5ff, transparent: true, opacity: 0.9 });
+        const exitMaterial = new THREE.MeshBasicMaterial({ color: 0x72f0e2, transparent: true, opacity: 0.8 });
+        const pickupMaterial = new THREE.MeshStandardMaterial({ color: 0x75f2e1, emissive: 0x117f79, emissiveIntensity: 1.25, roughness: 0.22, metalness: 0.2 });
+        const playerPulseMaterial = new THREE.MeshBasicMaterial({ color: 0x75f3ff });
+        const enemyPulseMaterial = new THREE.MeshBasicMaterial({ color: 0xff9e5e });
+        materials.push(eyeMaterial, bossRingMaterial, exitMaterial, pickupMaterial, playerPulseMaterial, enemyPulseMaterial);
+
+        const bosses = [
+          { name: "СБОЙНЫЙ СТРАЖ", x: -16, y: 0, maxHp: 5, color: 0xffa45f, zone: 0 },
+          { name: "ПЛАЗМЕННЫЙ СЕРДЕЧНИК", x: 18, y: 0, maxHp: 7, color: 0x5fe6cf, zone: 1 },
+          { name: "СТАРШИЙ СИНГУЛЯРНОСТИ", x: 58, y: 0, maxHp: 9, color: 0xc28aff, zone: 2 }
+        ];
+        bosses.forEach((boss, index) => {
+          const bossMaterial = new THREE.MeshStandardMaterial({
+            color: boss.color, emissive: boss.color, emissiveIntensity: 0.38,
+            roughness: 0.34, metalness: 0.52
+          });
+          materials.push(bossMaterial);
+          const group = new THREE.Group();
+          group.name = "ring-boss-" + (index + 1);
+          group.position.set(boss.x, boss.y, 0.1);
+          const body = new THREE.Mesh(bossBodyGeometry, bossMaterial);
+          body.position.set(0, 2.05, 0);
+          body.scale.set(2.0 + index * 0.18, 1.8 + index * 0.18, 0.8);
+          group.add(body);
+          const eyeLeft = new THREE.Mesh(bossEyeGeometry, eyeMaterial);
+          eyeLeft.position.set(-0.6, 2.2, 0.76);
+          const eyeRight = new THREE.Mesh(bossEyeGeometry, eyeMaterial);
+          eyeRight.position.set(0.6, 2.2, 0.76);
+          group.add(eyeLeft, eyeRight);
+          const ring = new THREE.Mesh(bossRingGeometry, bossRingMaterial);
+          ring.position.set(0, 2.05, -0.05);
+          ring.scale.set(1.18 + index * 0.12, 1.18 + index * 0.12, 1);
+          group.add(ring);
+          world.add(group);
+          boss.group = group;
+          boss.hp = boss.maxHp;
+          boss.alive = true;
+          boss.activated = false;
+          boss.nextAttackAt = 0;
+          boss.lastDamageAt = 0;
+        });
+
+        const exitMarker = new THREE.Mesh(exitGeometry, exitMaterial);
+        exitMarker.name = "ring-frontier-exit";
+        exitMarker.position.set(81, 2.0, 0.45);
+        world.add(exitMarker);
+
+        const coreMeshes = [];
+        [-30, 8, 49].forEach((x, index) => {
+          const mesh = new THREE.Mesh(pickupGeometry, pickupMaterial);
+          mesh.name = "ring-frontier-repair-core-" + index;
+          mesh.position.set(x, index === 1 ? 2.9 : 1.3, 0.25);
+          world.add(mesh);
+          coreMeshes.push({ mesh, x, y: mesh.position.y, taken: false });
+        });
+
+        const meshBatch = (name, items, material) => {
           if (!items.length) return null;
           const mesh = new THREE.InstancedMesh(boxGeometry, material, items.length);
           mesh.name = name;
           mesh.frustumCulled = false;
+          const box = new THREE.Object3D();
           for (let i = 0; i < items.length; i += 1) {
             const item = items[i];
             box.position.set(item.x, item.y, item.z);
@@ -1724,179 +1264,26 @@
             if (mesh.setColorAt) mesh.setColorAt(i, new THREE.Color(item.color));
           }
           mesh.instanceMatrix.needsUpdate = true;
-          mesh.visible = visible;
-          mesh.userData = mesh.userData || {};
-          mesh.userData.bcmLaneItems = items;
-          mesh.userData.bcmLaneKey = "";
           world.add(mesh);
           return mesh;
         };
-        const floorsMesh = createBatch("ring-room-floors", buckets.floor, floorMat);
-        const ceilingsMesh = createBatch("ring-room-ceilings", buckets.ceiling, ceilingMat);
-        const wallsX = createBatch("ring-room-side-walls-x", buckets.wallsX, wallMat);
-        const wallsZ = createBatch("ring-room-side-walls-z", buckets.wallsZ, wallMat);
-        const framesX = createBatch("ring-room-door-frames-x", buckets.framesX, frameMat);
-        const framesZ = createBatch("ring-room-door-frames-z", buckets.framesZ, frameMat);
-        const platformsMesh = createBatch("ring-room-platforms", buckets.platforms, platformMat);
-        const laddersMesh = createBatch("ring-room-ladders", buckets.ladders, ladderMat);
-
-        const coreMeshes = [];
-        const coreGeometry = new THREE.OctahedronGeometry(0.42, 0);
-        const coreMaterial = new THREE.MeshStandardMaterial({
-          color: 0x62f0df, emissive: 0x0e6d6b, emissiveIntensity: 0.75,
-          roughness: 0.26, metalness: 0.4
-        });
-        (maze.crystals || []).forEach((crystal, index) => {
-          if (!crystal.cell) { coreMeshes[index] = null; return; }
-          const p = cellWorld(crystal.cell);
-          const mesh = new THREE.Mesh(coreGeometry, coreMaterial);
-          mesh.name = "ring-2d-core-" + index;
-          mesh.position.set(p.x, floorYForCell(crystal.cell.y) + 1.05, p.z);
-          mesh.visible = !crystal.taken;
-          world.add(mesh);
-          coreMeshes[index] = mesh;
-        });
-        const ringGeometry = new THREE.TorusGeometry(0.88, 0.13, 8, 26);
-        const ringMaterial = new THREE.MeshStandardMaterial({
-          color: 0xeac56f, emissive: 0x83531a, emissiveIntensity: 0.8,
-          roughness: 0.24, metalness: 0.65
-        });
-        // Doorway triggers are physical-looking neon hoops: turn triggers lie in
-        // the room's depth walls, while vertical links remain marked by ladders.
-        const turnTriggerGeometry = new THREE.TorusGeometry(0.72, 0.095, 7, 20);
-        const turnTriggerMaterial = new THREE.MeshStandardMaterial({
-          color: 0x6de7f1, emissive: 0x166b7b, emissiveIntensity: 0.9,
-          roughness: 0.3, metalness: 0.38
-        });
-        const turnTriggerItems = [];
-        maze.cells.forEach((cell) => {
-          const p = cellWorld(cell);
-          const triggerY = floorYForCell(cell.y) + 1.78;
-          const place = (axis, x, z, rotationY) => {
-            turnTriggerItems.push({ cell, axis, x, y: triggerY, z, rotationY });
-          };
-          // Offset the two depth-door markers laterally, so they are distinguishable in a 2D side view.
-          if (cell.open.zn) place("z", p.x + 0.64, p.z + roomHalf - 0.18, 0);
-          if (cell.open.zp) place("z", p.x - 0.64, p.z - roomHalf + 0.18, 0);
-          if (cell.open.xp) place("x", p.x + roomHalf - 0.18, p.z + 0.64, Math.PI / 2);
-          if (cell.open.xn) place("x", p.x - roomHalf + 0.18, p.z - 0.64, Math.PI / 2);
-        });
-        // One instanced batch for every room-door trigger: no per-door draw calls.
-        const turnTriggerMesh = new THREE.InstancedMesh(turnTriggerGeometry, turnTriggerMaterial, turnTriggerItems.length);
-        turnTriggerMesh.name = "ring-room-door-triggers";
-        turnTriggerMesh.frustumCulled = false;
-        const triggerMatrix = new THREE.Matrix4();
-        const triggerPosition = new THREE.Vector3();
-        const triggerScale = new THREE.Vector3(1, 1, 1);
-        const triggerRotation = new THREE.Quaternion();
-        const triggerUp = new THREE.Vector3(0, 1, 0);
-        turnTriggerItems.forEach((trigger, index) => {
-          triggerPosition.set(trigger.x, trigger.y, trigger.z);
-          triggerRotation.setFromAxisAngle(triggerUp, trigger.rotationY);
-          triggerMatrix.compose(triggerPosition, triggerRotation, triggerScale);
-          turnTriggerMesh.setMatrixAt(index, triggerMatrix);
-        });
-        turnTriggerMesh.instanceMatrix.needsUpdate = true;
-        turnTriggerMesh.userData.bcmLaneKey = "";
-        turnTriggerMesh.userData.bcmLaneItems = turnTriggerItems;
-        world.add(turnTriggerMesh);
-        const ringMarker = new THREE.Mesh(ringGeometry, ringMaterial);
-        const ringPos = cellWorld(ringCell);
-        ringMarker.position.set(ringPos.x, floorYForCell(ringCell.y) + 0.95, ringPos.z);
-        ringMarker.rotation.x = Math.PI / 2;
-        world.add(ringMarker);
-
-        const exitMarker = new THREE.Mesh(
-          new THREE.TorusGeometry(0.7, 0.1, 7, 24),
-          new THREE.MeshStandardMaterial({ color: 0x75e6ed, emissive: 0x1b6b78, emissiveIntensity: 0.9 })
-        );
-        const exitPos = cellWorld(exitCell);
-        exitMarker.position.set(exitPos.x, floorYForCell(exitCell.y) + 0.9, exitPos.z);
-        exitMarker.rotation.x = Math.PI / 2;
-        world.add(exitMarker);
+        meshBatch("ring-frontier-floor", buckets.floor, floorMat);
+        meshBatch("ring-frontier-platforms", buckets.platforms, platformMat);
+        meshBatch("ring-frontier-backdrop", buckets.backdrop, backdropMat);
+        meshBatch("ring-frontier-ribs", buckets.trim, trimMat);
         scene.add(world);
 
         return {
-          group: world, floorsMesh, ceilingsMesh, wallsX, wallsZ, framesX, framesZ,
-          platformsMesh, laddersMesh, platforms, coreMeshes, boxGeometry,
-          materials: [wallMat, floorMat, ceilingMat, frameMat, platformMat, ladderMat, coreMaterial, ringMaterial, turnTriggerMaterial, exitMarker.material],
-          specialGeometry: [coreGeometry, ringGeometry, turnTriggerGeometry, exitMarker.geometry],
-          ringMarker, exitMarker, turnTriggerMesh, turnTriggerItems
+          group: world, boxGeometry, materials,
+          specialGeometry: [bossBodyGeometry, bossEyeGeometry, bossRingGeometry, exitGeometry, pulseGeometry, pickupGeometry],
+          platforms, bosses, barriers, coreMeshes, exitMarker, exitX: 81, spawnX: -45,
+          playerShots: [], enemyShots: [], pulseGeometry, playerPulseMaterial, enemyPulseMaterial,
+          defeatedBosses: 0, pickupGeometry
         };
       }
 
-      const worldState = buildRingWorld();
-
-      function setMeshLane(mesh, axis, laneIndex, floorIndex) {
-        if (!mesh || !mesh.userData?.bcmLaneItems) return;
-        const laneKey = axis + ":" + laneIndex + ":floor:" + floorIndex;
-        if (mesh.userData.bcmLaneKey === laneKey) return;
-        const items = mesh.userData.bcmLaneItems;
-        const matrix = new THREE.Matrix4();
-        const position = new THREE.Vector3();
-        const scale = new THREE.Vector3();
-        const rotation = new THREE.Quaternion();
-        for (let i = 0; i < items.length; i += 1) {
-          const item = items[i];
-          const itemLane = axis === "z"
-            ? Math.round((nz - 1) / 2 - (item.z - maze.center.z) / cellSize)
-            : Math.round((item.x - maze.center.x) / cellSize + (nx - 1) / 2);
-          const itemFloor = Math.round((item.y - maze.center.y) / cellSize + (ny - 1) / 2);
-          const viewAxisAllowed = !item.viewAxis || item.viewAxis === axis;
-          const visible = viewAxisAllowed && itemLane === laneIndex && itemFloor === floorIndex;
-          position.set(item.x, item.y, item.z);
-          scale.set(visible ? item.sx : 0, visible ? item.sy : 0, visible ? item.sz : 0);
-          matrix.compose(position, rotation, scale);
-          mesh.setMatrixAt(i, matrix);
-        }
-        mesh.instanceMatrix.needsUpdate = true;
-        mesh.userData.bcmLaneKey = laneKey;
-      }
-
-      function updateRoomSlice(player) {
-        const axis = player.orientation === 0 ? "z" : "x";
-        const lane = player.orientation === 0 ? player.z : player.x;
-        setMeshLane(worldState.floorsMesh, axis, lane, player.y);
-        setMeshLane(worldState.ceilingsMesh, axis, lane, player.y);
-        setMeshLane(worldState.platformsMesh, axis, lane, player.y);
-        setMeshLane(worldState.laddersMesh, axis, lane, player.y);
-        setMeshLane(worldState.framesX, axis, lane, player.y);
-        setMeshLane(worldState.framesZ, axis, lane, player.y);
-        setMeshLane(worldState.wallsX, axis, lane, player.y);
-        setMeshLane(worldState.wallsZ, axis, lane, player.y);
-        if (worldState.wallsX) worldState.wallsX.visible = player.orientation === 0;
-        if (worldState.wallsZ) worldState.wallsZ.visible = player.orientation === 1;
-        if (worldState.framesX) worldState.framesX.visible = player.orientation === 0;
-        if (worldState.framesZ) worldState.framesZ.visible = player.orientation === 1;
-        for (let i = 0; i < worldState.coreMeshes.length; i += 1) {
-          const crystal = maze.crystals[i];
-          const sameSlice = !!crystal?.cell && crystal.cell.y === player.y &&
-            crystal.cell[axis] === lane;
-          if (worldState.coreMeshes[i]) worldState.coreMeshes[i].visible = sameSlice && !crystal.taken;
-        }
-        worldState.ringMarker.visible = ringCell.y === player.y && ringCell[axis] === lane;
-        worldState.exitMarker.visible = exitCell.y === player.y && exitCell[axis] === lane;
-        const triggerMesh = worldState.turnTriggerMesh;
-        const triggerItems = worldState.turnTriggerItems;
-        const triggerLaneKey = axis + ":" + lane + ":floor:" + player.y;
-        if (triggerMesh.userData.bcmLaneKey !== triggerLaneKey) {
-          const matrix = new THREE.Matrix4();
-          const position = new THREE.Vector3();
-          const scale = new THREE.Vector3();
-          const rotation = new THREE.Quaternion();
-          const up = new THREE.Vector3(0, 1, 0);
-          for (let i = 0; i < triggerItems.length; i += 1) {
-            const trigger = triggerItems[i];
-            const visible = trigger.axis === axis && trigger.cell.y === player.y && trigger.cell[axis] === lane;
-            position.set(trigger.x, trigger.y, trigger.z);
-            rotation.setFromAxisAngle(up, trigger.rotationY);
-            scale.set(visible ? 1 : 0, visible ? 1 : 0, visible ? 1 : 0);
-            matrix.compose(position, rotation, scale);
-            triggerMesh.setMatrixAt(i, matrix);
-          }
-          triggerMesh.instanceMatrix.needsUpdate = true;
-          triggerMesh.userData.bcmLaneKey = triggerLaneKey;
-        }
+      function updateRoomSlice() {
+        // The side-scrolling frontier is a continuous scene; no maze-room slicing is used.
       }
 
       maze.group.visible = false;
@@ -1909,7 +1296,7 @@
 
       const cameraOne = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
       const cameraTwo = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
-      const cameraFocus = cellWorld(ringCell);
+      const cameraFocus = { x: worldState.spawnX, y: 1.6, z: 0 };
       const savedPlayerVisualState = [];
       let width = 1, height = 1;
 
@@ -1948,20 +1335,14 @@
         player.spriteMaterial = material;
       }
 
-      function cellPositionOf(player) { return cellWorld({ x: player.x, y: player.y, z: player.z }); }
       function playerWorldPosition(player) {
-        const p = cellPositionOf(player);
-        const floorY = floorYForCell(player.y);
-        if (player.orientation === 0) {
-          return { x: p.x + player.localX, y: floorY + 0.98 + player.jumpHeight, z: p.z + 0.72 };
-        }
-        return { x: p.x + 0.72, y: floorY + 0.98 + player.jumpHeight, z: p.z - player.localX };
+        return { x: player.worldX, y: player.worldY + 0.98, z: 0.45 };
       }
       function updatePlayerSprite(player) {
         if (!player.sprite) return;
         const p = playerWorldPosition(player);
         player.sprite.position.set(p.x, p.y, p.z);
-        player.sprite.scale.x = player.facing < 0 ? -1.18 : 1.18;
+        player.sprite.scale.x = player.facing < 0 ? -1.45 : 1.45;
         player.sprite.visible = true;
       }
 
@@ -1970,11 +1351,13 @@
         const player = {
           index,
           name: String(crew.name || crew.displayName || ("Crew " + (index + 1))),
-          x: spawn.x, y: spawn.y, z: spawn.z,
-          localX: Number(spawn.localX) || 0, jumpHeight: 0, vy: 0, grounded: true, supportPlatform: null,
-          orientation: 0, facing: 1, turnReadyAt: 0, lastActionAt: 0,
-          wasJumpDown: false, padTurnUpWasDown: false, padTurnDownWasDown: false,
-          padFloorUpWasDown: false, padFloorDownWasDown: false,
+          worldX: Number(spawn.x) || 0, worldY: Number(spawn.y) || 0,
+          x: Number(spawn.x) || 0, y: Number(spawn.y) || 0, z: 0,
+          localX: 0, jumpHeight: 0, vy: 0, grounded: true, supportPlatform: null,
+          facing: 1, lastActionAt: 0, wasJumpDown: false,
+          attackReadyAt: 0, dashReadyAt: 0, dashUntil: 0,
+          hp: 5, maxHp: 5, invulnerableUntil: 0,
+          checkpointX: Number(spawn.x) || -45,
           image: crewImages[index] || null, tint: playerColors[index], moves: 0,
           sprite: null, spriteMaterial: null
         };
@@ -1994,127 +1377,84 @@
         };
       }
 
+      const bossMeter = root2d.querySelector("[data-ring-boss-meter]");
+      const bossFill = root2d.querySelector("[data-ring-boss-fill]");
+
       function updateHud(message) {
-        countEl.textContent = "ЯДРА " + Math.max(0, maze.count || 0) + "/3";
+        countEl.textContent = "БОССЫ " + worldState.defeatedBosses + "/3";
         const p1 = players[0];
         const p2 = players[1];
         if (p1) {
-          floorEl.textContent = "P1: ЭТАЖ " + (p1.y + 1) +
-            (p2 ? " · P2: ЭТАЖ " + (p2.y + 1) : "") +
-            " · SEED " + seed + (splitActive ? " · SPLIT" : " · SHARED");
+          const zone = p1.worldX < -2 ? 1 : p1.worldX < 36 ? 2 : 3;
+          floorEl.textContent = "ЗОНА " + zone + "/3 · P1 HP " + p1.hp +
+            (p2 ? " · P2 HP " + p2.hp : "") + (splitActive ? " · SPLIT" : " · SHARED");
         } else {
-          floorEl.textContent = "ЭТАЖ " + (ringCell.y + 1) + " · SEED " + seed;
+          floorEl.textContent = "RING FRONTIER · 3 ЗОНЫ";
         }
+        const focusPlayer = p1 || p2;
+        const activeBoss = worldState.bosses.find((boss) =>
+          boss.alive && focusPlayer && Math.abs(focusPlayer.worldX - boss.x) < 15
+        );
+        if (bossMeter) bossMeter.style.display = activeBoss ? "block" : "none";
+        if (bossFill) bossFill.style.width = activeBoss ? Math.max(0, activeBoss.hp / activeBoss.maxHp * 100) + "%" : "100%";
         if (message) {
           statusEl.textContent = message;
           return;
         }
-        if (lastHudCount !== Number(maze.count || 0)) {
-          lastHudCount = Number(maze.count || 0);
-          statusEl.textContent = maze.count >= 3
-            ? "ЯДРА СОБРАНЫ · ВЕРНИСЬ ЧЕРЕЗ ТРИГГЕРЫ К ВХОДУ"
-            : "ИССЛЕДУЙ КОМНАТЫ · ЯДЕР ОСТАЛОСЬ " + Math.max(0, 3 - maze.count);
+        if (worldState.defeatedBosses >= 3) {
+          statusEl.textContent = (p1 && p1.worldX >= worldState.exitX - 2)
+            ? "ВЫХОД ОТКРЫТ · ВОЗВРАЩАЙСЯ К КОЛЬЦУ"
+            : "АРЕНЫ ОЧИЩЕНЫ · ИДИ К ВЫХОДУ";
+        } else if (activeBoss) {
+          statusEl.textContent = activeBoss.name + " · " + activeBoss.hp + "/" + activeBoss.maxHp;
+        } else {
+          statusEl.textContent = "ЗОНА " + (p1 ? (p1.worldX < -2 ? 1 : p1.worldX < 36 ? 2 : 3) : 1) +
+            " · НАЙДИ АРЕНУ БОССА";
         }
-      }
-
-      function syncCoreMeshes() {
-        (maze.crystals || []).forEach((crystal, index) => {
-          if (worldState.coreMeshes[index]) worldState.coreMeshes[index].visible = !crystal.taken;
-        });
       }
 
       function collectAt(player) {
-        if (Math.abs(player.localX) > 0.74 || player.jumpHeight > 0.6) return false;
-        const crystal = (maze.crystals || []).find((item) =>
-          !item.taken && item.cell &&
-          item.cell.x === player.x && item.cell.y === player.y && item.cell.z === player.z
-        );
-        if (!crystal) return false;
-        crystal.taken = true;
-        if (crystal.mesh) crystal.mesh.visible = false;
-        maze.count = Math.min(3, Number(maze.count || 0) + 1);
-        syncCoreMeshes();
-        updateHud("ЯДРО СОБРАНО · " + maze.count + "/3");
-        return true;
+        let collected = false;
+        worldState.coreMeshes.forEach((core) => {
+          if (core.taken || Math.abs(player.worldX - core.x) > 1.0 ||
+              Math.abs((player.worldY + 0.8) - core.y) > 1.5) return;
+          core.taken = true;
+          core.mesh.visible = false;
+          player.hp = Math.min(player.maxHp, player.hp + 1);
+          collected = true;
+        });
+        if (collected) updateHud("ЭНЕРГОЯДРО · СИСТЕМЫ ВОССТАНОВЛЕНЫ");
+        return collected;
       }
 
-      function triggerTurn(player, direction) {
+      function spawnPlayerPulse(player) {
         const now = performance.now();
-        if (!gameStarted || done || now < player.turnReadyAt) return false;
-        const triggerOffset = player.orientation === 0
-          ? (direction === "turnUp" ? 0.64 : -0.64)
-          : (direction === "turnUp" ? -0.64 : 0.64);
-        if (Math.abs(player.localX - triggerOffset) > 0.78) {
-          updateHud("ПОВОРОТ · ПОДОЙДИ К СВЕТЯЩЕМУСЯ ТРИГГЕРУ");
-          return false;
-        }
-        const cell = getCell(player.x, player.y, player.z);
-        if (!cell) return false;
-        let flag, dx = 0, dz = 0;
-        if (player.orientation === 0) {
-          flag = direction === "turnUp" ? "zn" : "zp";
-          dz = direction === "turnUp" ? -1 : 1;
-        } else {
-          flag = direction === "turnUp" ? "xp" : "xn";
-          dx = direction === "turnUp" ? 1 : -1;
-        }
-        if (!cell.open[flag] || !getCell(player.x + dx, player.y, player.z + dz)) {
-          updateHud("СТЕНА · ИЩИ ДРУГОЙ ДВЕРНОЙ ТРИГГЕР");
-          return false;
-        }
-        player.x += dx;
-        player.z += dz;
-        player.orientation = player.orientation === 0 ? 1 : 0;
-        player.localX = 0;
-        player.supportPlatform = null;
-        player.turnReadyAt = now + 260;
-        player.moves += 1;
-        collectAt(player);
-        updateHud("РАЗВОРОТ · КАМЕРА ПЕРЕШЛА В СОСЕДНЮЮ СЕКЦИЮ");
-        checkFinish(player);
-        return true;
-      }
-
-      function triggerFloor(player, direction) {
-        const now = performance.now();
-        if (!gameStarted || done || now < player.turnReadyAt) return false;
-        if (Math.abs(player.localX) > 1.05) {
-          updateHud("ЛЕСТНИЦА · ПОДОЙДИ К ВЕРТИКАЛЬНОМУ ТРИГГЕРУ");
-          return false;
-        }
-        const cell = getCell(player.x, player.y, player.z);
-        const flag = direction === "floorUp" ? "yp" : "yn";
-        const dy = direction === "floorUp" ? 1 : -1;
-        if (!cell || !cell.open[flag] || !getCell(player.x, player.y + dy, player.z)) {
-          updateHud("ЗДЕСЬ НЕТ ЛЕСТНИЦЫ · ПРОВЕРЬ КАРТУ");
-          return false;
-        }
-        player.y += dy;
-        player.localX = 0;
-        player.jumpHeight = 0;
-        player.vy = 0;
-        player.grounded = true;
-        player.supportPlatform = null;
-        player.turnReadyAt = now + 340;
-        player.moves += 1;
-        collectAt(player);
-        updateHud("ЭТАЖ " + (player.y + 1) + " · ПЕРЕХОД ПО ЛЕСТНИЦЕ");
-        checkFinish(player);
-        return true;
-      }
-
-      function checkFinish(player) {
-        if (maze.count < 3 || player.x !== exitCell.x || player.y !== exitCell.y ||
-            player.z !== exitCell.z || Math.abs(player.localX) > 0.72 || player.jumpHeight > 0.45) return false;
-        finishRingPlatformer(maze, true);
+        if (!gameStarted || done || now < player.attackReadyAt) return false;
+        player.attackReadyAt = now + 320;
+        const mesh = new THREE.Mesh(worldState.pulseGeometry, worldState.playerPulseMaterial);
+        mesh.position.set(player.worldX + player.facing * 1.1, player.worldY + 1.1, 0.75);
+        worldState.group.add(mesh);
+        worldState.playerShots.push({
+          mesh, x: mesh.position.x, y: mesh.position.y, vx: player.facing * 18, owner: player.index
+        });
         return true;
       }
 
       function triggerAction(index, action) {
         const player = players[index];
         if (!player || !gameStarted || done) return false;
-        if (action === "turnUp" || action === "turnDown") return triggerTurn(player, action);
-        if (action === "floorUp" || action === "floorDown") return triggerFloor(player, action);
+        const now = performance.now();
+        if (action === "attack") {
+          const fired = spawnPlayerPulse(player);
+          if (fired) updateHud("ЭНЕРГОИМПУЛЬС");
+          return fired;
+        }
+        if (action === "dash" && now >= player.dashReadyAt) {
+          player.dashUntil = now + 210;
+          player.dashReadyAt = now + 850;
+          player.invulnerableUntil = Math.max(player.invulnerableUntil, now + 210);
+          return true;
+        }
         return false;
       }
 
@@ -2129,7 +1469,7 @@
         }
         const p1 = {
           ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
-          Space: "jump"
+          Space: "jump", ArrowUp: "jump", KeyW: "jump"
         };
         const p2 = {
           KeyJ: "left", KeyL: "right", KeyP: "jump"
@@ -2140,23 +1480,21 @@
           action = p2[event.code] || null;
           if (action) index = 1;
         }
-        const isP1TurnUp = event.code === "ArrowUp" || event.code === "KeyW";
-        const isP1TurnDown = event.code === "ArrowDown" || event.code === "KeyS";
-        const isP2TurnUp = event.code === "KeyI";
-        const isP2TurnDown = event.code === "KeyK";
-        const floorUp = event.code === "KeyE" || (mode === "multi" && event.code === "KeyO");
-        const floorDown = event.code === "KeyQ" || (mode === "multi" && event.code === "KeyU");
-        if (!action && (isP1TurnUp || isP1TurnDown || isP2TurnUp || isP2TurnDown || floorUp || floorDown)) {
-          if (mode === "multi" && (isP2TurnUp || isP2TurnDown || (event.code === "KeyO" || event.code === "KeyU"))) index = 1;
-          if (isP1TurnUp || isP2TurnUp) action = "turnUp";
-          else if (isP1TurnDown || isP2TurnDown) action = "turnDown";
-          else if (floorUp) action = "floorUp";
-          else if (floorDown) action = "floorDown";
-          if (down && !event.repeat) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            triggerAction(index, action);
-          }
+        const p1Attack = event.code === "KeyX";
+        const p1Dash = event.code === "ShiftLeft" || event.code === "ShiftRight" || event.code === "KeyC";
+        const p2Attack = event.code === "KeyO";
+        const p2Dash = event.code === "KeyI";
+        if (mode === "multi" && (p2Attack || p2Dash)) index = 1;
+        if (p1Attack || p2Attack) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          if (down && !event.repeat) triggerAction(index, "attack");
+          return;
+        }
+        if (p1Dash || p2Dash) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          if (down && !event.repeat) triggerAction(index, "dash");
           return;
         }
         if (!action || index >= (mode === "multi" ? 2 : 1)) return;
@@ -2177,122 +1515,201 @@
           if (!pad || !players[i]) continue;
           const axisX = Number(pad.axes?.[0] || 0);
           const axisY = Number(pad.axes?.[1] || 0);
-          statePad.left = !!(pad.buttons?.[14]?.pressed || axisX < -0.42);
-          statePad.right = !!(pad.buttons?.[15]?.pressed || axisX > 0.42);
-          statePad.turnUp = !!(pad.buttons?.[12]?.pressed || axisY < -0.58);
-          statePad.turnDown = !!(pad.buttons?.[13]?.pressed || axisY > 0.58);
-          statePad.floorUp = !!pad.buttons?.[5]?.pressed;
-          statePad.floorDown = !!pad.buttons?.[4]?.pressed;
-          statePad.jump = !!pad.buttons?.[0]?.pressed;
-          if (statePad.turnUp && !previousPad[i].turnUp) triggerAction(i, "turnUp");
-          if (statePad.turnDown && !previousPad[i].turnDown) triggerAction(i, "turnDown");
-          if (statePad.floorUp && !previousPad[i].floorUp) triggerAction(i, "floorUp");
-          if (statePad.floorDown && !previousPad[i].floorDown) triggerAction(i, "floorDown");
-          previousPad[i] = {
-            turnUp: statePad.turnUp, turnDown: statePad.turnDown,
-            floorUp: statePad.floorUp, floorDown: statePad.floorDown
-          };
+          const button = (n) => !!(pad.buttons && pad.buttons[n] && pad.buttons[n].pressed);
+          statePad.left = !!(button(14) || axisX < -0.42);
+          statePad.right = !!(button(15) || axisX > 0.42);
+          statePad.jump = !!(button(0) || button(12) || axisY < -0.68);
+          statePad.dash = !!button(1);
+          statePad.attack = !!button(2);
+          if (statePad.attack && !previousPad[i].attack) triggerAction(i, "attack");
+          if (statePad.dash && !previousPad[i].dash) triggerAction(i, "dash");
+          previousPad[i] = { attack: statePad.attack, dash: statePad.dash };
         }
+      }
+
+      function damagePlayer(player, now) {
+        if (now < player.invulnerableUntil) return;
+        player.hp -= 1;
+        player.invulnerableUntil = now + 1000;
+        if (player.hp <= 0) {
+          player.hp = player.maxHp;
+          player.worldX = player.checkpointX;
+          player.worldY = 0;
+          player.vy = 0;
+          player.grounded = true;
+          player.supportPlatform = null;
+          player.invulnerableUntil = now + 1500;
+          updateHud(player.name + " · ВОЗВРАТ НА КОНТРОЛЬНУЮ ТОЧКУ");
+        } else {
+          updateHud(player.name + " · ПОВРЕЖДЕНИЕ " + player.hp + " HP");
+        }
+      }
+
+      function updateBosses(dt, now) {
+        const living = players.filter(Boolean);
+        worldState.bosses.forEach((boss) => {
+          if (!boss.alive) return;
+          if (boss.group.children[2]) boss.group.children[2].rotation.z += dt * 0.8;
+          const target = living.reduce((best, player) =>
+            !best || Math.abs(player.worldX - boss.x) < Math.abs(best.worldX - boss.x) ? player : best, null);
+          if (!target || Math.abs(target.worldX - boss.x) > 14) return;
+          if (!boss.activated) {
+            boss.activated = true;
+            boss.nextAttackAt = now + 900;
+            updateHud("АРЕНА ОТКРЫТА · " + boss.name);
+          }
+          if (now < boss.nextAttackAt) return;
+          boss.nextAttackAt = now + Math.max(1350, 2350 - boss.zone * 220);
+          const startX = boss.x + (target.worldX < boss.x ? -1.8 : 1.8);
+          const startY = boss.y + 2.0;
+          const dx = target.worldX - startX;
+          const dy = (target.worldY + 0.9) - startY;
+          const length = Math.max(1, Math.hypot(dx, dy));
+          const mesh = new THREE.Mesh(worldState.pulseGeometry, worldState.enemyPulseMaterial);
+          mesh.position.set(startX, startY, 0.8);
+          worldState.group.add(mesh);
+          worldState.enemyShots.push({
+            mesh, x: startX, y: startY, vx: dx / length * 8.5, vy: dy / length * 4.0
+          });
+        });
       }
 
       function updatePlayers(dt) {
         pollGamepads();
+        const now = performance.now();
         for (const player of players) {
           const input = getInput(player);
           const direction = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-          if (direction !== 0) {
-            player.localX += direction * 4.15 * dt;
+          if (direction) {
             player.facing = direction;
-            player.moves += Math.abs(direction) * dt;
+            player.moves += dt;
           }
+          const dashing = now < player.dashUntil;
+          const previousX = player.worldX;
+          if (dashing) player.worldX += player.facing * 12.5 * dt;
+          else player.worldX += direction * 7.2 * dt;
+          player.worldX = Math.max(-49, Math.min(worldState.exitX + 1.5, player.worldX));
 
-          const edge = roomHalf;
-          if (player.localX > edge || player.localX < -edge) {
-            const side = player.localX > 0 ? 1 : -1;
-            const cell = getCell(player.x, player.y, player.z);
-            const flag = player.orientation === 0
-              ? (side > 0 ? "xp" : "xn")
-              : (side > 0 ? "zp" : "zn");
-            let dx = 0, dz = 0;
-            if (player.orientation === 0) dx = side;
-            else dz = side;
-            if (cell && cell.open[flag] && getCell(player.x + dx, player.y, player.z + dz)) {
-              player.x += dx;
-              player.z += dz;
-              player.localX -= side * cellSize;
-              player.turnReadyAt = performance.now() + 120;
-              player.supportPlatform = null;
-              collectAt(player);
-              checkFinish(player);
-            } else {
-              player.localX = side * (roomHalf - 0.55);
+          worldState.barriers.forEach((barrier) => {
+            if (worldState.defeatedBosses < barrier.unlockAfter &&
+                previousX <= barrier.x + 0.12 && player.worldX > barrier.x - 0.72) {
+              player.worldX = barrier.x - 0.72;
             }
-          }
+          });
 
-          const pWorld = playerWorldPosition(player);
-          const previousHeight = player.jumpHeight;
+          const previousY = player.worldY;
           if (input.jump && !player.wasJumpDown && player.grounded) {
-            player.vy = 5.1;
+            player.vy = 8.8;
             player.grounded = false;
             player.supportPlatform = null;
           }
           player.wasJumpDown = input.jump;
+          player.vy -= 21 * dt;
+          player.worldY += player.vy * dt;
 
-          if (!player.grounded) {
-            player.vy -= 12.5 * dt;
-            player.jumpHeight = Math.max(-0.3, player.jumpHeight + player.vy * dt);
-            const floorY = floorYForCell(player.y);
-            const currentWorld = playerWorldPosition(player);
-            const landed = worldState.platforms.find((platform) =>
-              platform.orientation === player.orientation &&
-              platform.x === player.x && platform.y === player.y && platform.z === player.z &&
-              player.vy <= 0 &&
-              previousHeight > platform.topHeight && player.jumpHeight <= platform.topHeight &&
-              Math.abs(currentWorld.x - platform.worldX) <= platform.halfX &&
-              Math.abs(currentWorld.z - platform.worldZ) <= platform.halfZ
-            );
-            if (landed) {
-              player.jumpHeight = landed.topHeight;
+          if (player.vy <= 0) {
+            const landing = worldState.platforms
+              .filter((platform) => player.worldX >= platform.minX && player.worldX <= platform.maxX &&
+                previousY >= platform.y && player.worldY <= platform.y)
+              .sort((a, b) => b.y - a.y)[0];
+            if (landing) {
+              player.worldY = landing.y;
               player.vy = 0;
               player.grounded = true;
-              player.supportPlatform = landed;
-            } else if (player.jumpHeight <= 0) {
-              player.jumpHeight = 0;
-              player.vy = 0;
-              player.grounded = true;
-              player.supportPlatform = null;
-            }
-          } else if (player.supportPlatform) {
-            const platform = player.supportPlatform;
-            const currentWorld = playerWorldPosition(player);
-            if (Math.abs(currentWorld.x - platform.worldX) > platform.halfX ||
-                Math.abs(currentWorld.z - platform.worldZ) > platform.halfZ) {
+              player.supportPlatform = landing;
+              if (landing.y === 0) player.checkpointX = player.worldX < -2 ? -43 : (player.worldX < 36 ? 3 : 40);
+            } else {
               player.grounded = false;
-              player.vy = 0;
-              player.supportPlatform = null;
             }
           }
+          if (player.worldY < -7) {
+            player.worldY = 0;
+            player.vy = 0;
+            player.grounded = true;
+            player.supportPlatform = null;
+            player.worldX = player.checkpointX;
+            damagePlayer(player, now);
+          }
+          if (player.grounded && player.supportPlatform && player.supportPlatform.y > 0 &&
+              (player.worldX < player.supportPlatform.minX || player.worldX > player.supportPlatform.maxX)) {
+            player.grounded = false;
+            player.vy = -0.2;
+            player.supportPlatform = null;
+          }
 
-          if (player.grounded && player.jumpHeight < 0.05) player.jumpHeight = 0;
           collectAt(player);
+          const blinking = now < player.invulnerableUntil && Math.floor(now / 90) % 2 === 0;
+          if (player.sprite) player.sprite.visible = !blinking;
           updatePlayerSprite(player);
         }
+
+        worldState.playerShots = worldState.playerShots.filter((shot) => {
+          shot.x += shot.vx * dt;
+          shot.mesh.position.x = shot.x;
+          const boss = worldState.bosses.find((item) => item.alive &&
+            Math.abs(item.x - shot.x) < 2.25 && Math.abs((item.y + 2.0) - shot.y) < 2.65);
+          if (boss) {
+            boss.hp -= 1;
+            boss.lastDamageAt = now;
+            shot.mesh.parent?.remove(shot.mesh);
+            if (boss.hp <= 0) {
+              boss.hp = 0;
+              boss.alive = false;
+              boss.group.visible = false;
+              worldState.defeatedBosses = Math.min(3, worldState.defeatedBosses + 1);
+              worldState.barriers.forEach((barrier) => {
+                barrier.group.visible = worldState.defeatedBosses < barrier.unlockAfter;
+              });
+              updateHud(boss.name + " · АРЕНА ОЧИЩЕНА");
+            }
+            return false;
+          }
+          if (shot.x < -51 || shot.x > worldState.exitX + 3) {
+            shot.mesh.parent?.remove(shot.mesh);
+            return false;
+          }
+          return true;
+        });
+
+        worldState.enemyShots = worldState.enemyShots.filter((shot) => {
+          shot.x += shot.vx * dt;
+          shot.y += shot.vy * dt;
+          shot.mesh.position.set(shot.x, shot.y, 0.8);
+          const hitPlayer = players.find((player) =>
+            Math.abs(player.worldX - shot.x) < 0.95 &&
+            Math.abs((player.worldY + 0.95) - shot.y) < 1.25);
+          if (hitPlayer) {
+            damagePlayer(hitPlayer, now);
+            shot.mesh.parent?.remove(shot.mesh);
+            return false;
+          }
+          if (shot.x < -53 || shot.x > worldState.exitX + 4 || shot.y < -5 || shot.y > 12) {
+            shot.mesh.parent?.remove(shot.mesh);
+            return false;
+          }
+          return true;
+        });
+
+        updateBosses(dt, now);
+        worldState.coreMeshes.forEach((core, index) => {
+          if (!core.taken) core.mesh.rotation.y += dt * (1.0 + index * 0.2);
+        });
+        worldState.exitMarker.rotation.z += dt * 0.42;
+
+        if (worldState.defeatedBosses >= 3 && players.some((player) => player.worldX >= worldState.exitX - 1.3)) {
+          finishRingPlatformer(maze, true);
+          return;
+        }
+        updateSplitState();
+        updateHud();
       }
 
       function updateSplitState() {
         if (mode !== "multi" || players.length < 2) { splitActive = false; return; }
-        const a = playerWorldPosition(players[0]);
-        const b = playerWorldPosition(players[1]);
-        const distance = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
-        // Room-adjacent Crew can still share one camera; different floors or
-        // different room facing require independent views.
-        const samePlane = players[0].y === players[1].y &&
-          players[0].orientation === players[1].orientation &&
-          (players[0].orientation === 0
-            ? players[0].z === players[1].z
-            : players[0].x === players[1].x);
-        if (!splitActive && (!samePlane || distance > cellSize * 1.62)) splitActive = true;
-        else if (splitActive && samePlane && distance < cellSize * 1.22) splitActive = false;
+        const dx = Math.abs(players[0].worldX - players[1].worldX);
+        const dy = Math.abs(players[0].worldY - players[1].worldY);
+        if (!splitActive && (dx > 20 || dy > 7)) splitActive = true;
+        else if (splitActive && dx < 14 && dy < 4.5) splitActive = false;
         const landscape = width >= height;
         splitDivider.hidden = !splitActive;
         splitDivider.style.border = splitActive ? "1px solid rgba(115,203,225,.45)" : "0";
@@ -2305,9 +1722,9 @@
         }
       }
 
-      function configureCamera(camera, viewport, center, orientation) {
-        const halfHeight = Math.max(3.7, Math.min(4.7, cellSize * 0.82));
+      function configureCamera(camera, viewport, center) {
         const aspect = Math.max(0.3, viewport.w / Math.max(1, viewport.h));
+        const halfHeight = viewport.h > viewport.w ? 8.2 : 6.4;
         camera.left = -halfHeight * aspect;
         camera.right = halfHeight * aspect;
         camera.top = halfHeight;
@@ -2316,36 +1733,26 @@
         camera.far = 500;
         camera.updateProjectionMatrix();
         camera.up.set(0, 1, 0);
-        if (orientation === 0) {
-          camera.position.set(center.x, center.y + 0.55, center.z + cellSize * 2.05);
-          camera.lookAt(center.x, center.y, center.z);
-        } else {
-          camera.position.set(center.x + cellSize * 2.05, center.y + 0.55, center.z);
-          camera.lookAt(center.x, center.y, center.z);
-        }
+        camera.position.set(center.x, center.y + 0.65, 42);
+        camera.lookAt(center.x, center.y + 0.65, 0);
       }
 
       function cameraTargetFor(player) {
-        const p = playerWorldPosition(player);
-        return { x: p.x, y: p.y - 0.1, z: p.z };
+        return { x: player.worldX, y: player.worldY + 2.2, z: 0 };
       }
 
       function renderRingViews(frameContext) {
         if (!state.ringPlatformer || !state.ringRenderState || done) return false;
         const renderer = frameContext && frameContext.renderer;
         const activeScene = frameContext && frameContext.scene;
-        if (!renderer || !activeScene || !players.length) {
-          const previewPlayer = { x: ringCell.x, y: ringCell.y, z: ringCell.z, localX: 0, jumpHeight: 0, orientation: 0, index: 0 };
-          updateRoomSlice(previewPlayer);
-          const defaultPos = cellWorld(ringCell);
-          configureCamera(cameraOne, { w: Math.max(1, root.clientWidth), h: Math.max(1, root.clientHeight) }, {
-            x: defaultPos.x, y: floorYForCell(ringCell.y) + 1, z: defaultPos.z
-          }, 0);
-          if (renderer && activeScene) renderer.render(activeScene, cameraOne);
+        if (!renderer || !activeScene) return false;
+        const viewW = Math.max(1, root2d.clientWidth);
+        const viewH = Math.max(1, root2d.clientHeight);
+        if (!players.length) {
+          configureCamera(cameraOne, { w: viewW, h: viewH }, cameraFocus);
+          renderer.render(activeScene, cameraOne);
           return true;
         }
-        const viewW = Math.max(1, root.clientWidth);
-        const viewH = Math.max(1, root.clientHeight);
         const oldAutoClear = renderer.autoClear;
         renderer.autoClear = false;
         renderer.setScissorTest(true);
@@ -2366,23 +1773,18 @@
           let target = cameraTargetFor(players[0]);
           if (mode === "multi" && players[1]) {
             const other = cameraTargetFor(players[1]);
-            target = { x: (target.x + other.x) * 0.5, y: (target.y + other.y) * 0.5, z: (target.z + other.z) * 0.5 };
+            target = {
+              x: (target.x + other.x) * 0.5,
+              y: (target.y + other.y) * 0.5,
+              z: 0
+            };
           }
-          views = [{ x: 0, y: 0, w: viewW, h: viewH, player: players[0], camera: cameraOne, shared: true, target }];
+          views = [{ x: 0, y: 0, w: viewW, h: viewH, player: players[0], camera: cameraOne, target }];
         }
 
         for (const view of views) {
-          const p = view.player;
-          let target;
-          if (view.shared) {
-            target = view.target;
-          } else {
-            target = cameraTargetFor(p);
-          }
-          configureCamera(view.camera, view, target, p.orientation);
-          // Hide the wall plane facing the camera to get Tower-like cutaway rooms;
-          // toggle synchronously per viewport so different orientations work in split-screen.
-          updateRoomSlice(p);
+          const target = view.target || cameraTargetFor(view.player);
+          configureCamera(view.camera, view, target);
           renderer.setViewport(view.x, view.y, view.w, view.h);
           renderer.setScissor(view.x, view.y, view.w, view.h);
           renderer.clear(true, true, true);
@@ -2390,10 +1792,6 @@
         }
         renderer.setScissorTest(false);
         renderer.setViewport(0, 0, viewW, viewH);
-        if (worldState.wallsX) worldState.wallsX.visible = true;
-        if (worldState.wallsZ) worldState.wallsZ.visible = true;
-        if (worldState.framesX) worldState.framesX.visible = true;
-        if (worldState.framesZ) worldState.framesZ.visible = true;
         renderer.autoClear = oldAutoClear;
         return true;
       }
@@ -2403,47 +1801,51 @@
         g.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
         g.clearRect(0, 0, mapWidth, mapHeight);
         const bg = g.createLinearGradient(0, 0, mapWidth, mapHeight);
-        bg.addColorStop(0, "#081826"); bg.addColorStop(1, "#02070d");
-        g.fillStyle = bg; g.fillRect(0, 0, mapWidth, mapHeight);
-        const floor = players.length ? players[0].y : ringCell.y;
-        const pad = 7;
-        const cell = Math.max(8, Math.min(24, Math.floor(Math.min(mapWidth - pad * 2, mapHeight - pad * 2) / Math.max(nx, nz))));
-        const x0 = Math.floor((mapWidth - cell * nx) / 2);
-        const y0 = Math.floor((mapHeight - cell * nz) / 2);
-        const floorCells = maze.cells.filter((c) => c.y === floor);
-        floorCells.forEach((c) => {
-          const x = x0 + c.x * cell, y = y0 + c.z * cell;
-          g.fillStyle = ((c.x + c.z) & 1) ? "#102532" : "#0c1e29";
-          g.fillRect(x + 1, y + 1, cell - 2, cell - 2);
+        bg.addColorStop(0, "#081826");
+        bg.addColorStop(1, "#02070d");
+        g.fillStyle = bg;
+        g.fillRect(0, 0, mapWidth, mapHeight);
+        const x1 = 9, x2 = mapWidth - 9, y = Math.max(20, mapHeight * 0.52);
+        const trackW = Math.max(1, x2 - x1);
+        const zones = [
+          { a: -50, b: -2, c: "#194359" },
+          { a: -2, b: 36, c: "#1f4c4a" },
+          { a: 36, b: 84, c: "#3c2852" }
+        ];
+        zones.forEach((zone) => {
+          const left = x1 + (zone.a + 50) / 134 * trackW;
+          const right = x1 + (zone.b + 50) / 134 * trackW;
+          g.fillStyle = zone.c;
+          g.fillRect(left, y - 5, right - left, 10);
+          g.strokeStyle = "rgba(191,226,239,.26)";
+          g.strokeRect(left, y - 5, right - left, 10);
         });
-        g.lineWidth = Math.max(1.2, cell * 0.095);
-        g.lineCap = "square";
-        g.strokeStyle = "#4fa9be";
-        floorCells.forEach((c) => {
-          const x = x0 + c.x * cell, y = y0 + c.z * cell;
+        worldState.bosses.forEach((boss, index) => {
+          const x = x1 + (boss.x + 50) / 134 * trackW;
+          g.fillStyle = boss.alive ? "#ffba75" : "#67e6cf";
           g.beginPath();
-          if (c.x === 0) { g.moveTo(x, y); g.lineTo(x, y + cell); }
-          if (c.x === nx - 1 || !c.open.xp) { g.moveTo(x + cell, y); g.lineTo(x + cell, y + cell); }
-          if (c.z === 0 && !(c.x === 0 && c.y === 1)) { g.moveTo(x, y); g.lineTo(x + cell, y); }
-          if (c.z === nz - 1 && !(c.x === nx - 1 && c.y === 1)) { g.moveTo(x, y + cell); g.lineTo(x + cell, y + cell); }
-          if (c.z < nz - 1 && !c.open.zp) { g.moveTo(x, y + cell); g.lineTo(x + cell, y + cell); }
-          g.stroke();
-        });
-        (maze.crystals || []).forEach((crystal) => {
-          if (!crystal.taken && crystal.cell && crystal.cell.y === floor) {
-            const x = x0 + (crystal.cell.x + 0.5) * cell, y = y0 + (crystal.cell.z + 0.5) * cell;
-            g.fillStyle = "#5af3df"; g.beginPath(); g.arc(x, y, Math.max(2, cell * 0.13), 0, Math.PI * 2); g.fill();
-          }
+          g.arc(x, y, boss.alive ? 4.3 : 3.2, 0, Math.PI * 2);
+          g.fill();
+          g.fillStyle = "#d1e7ef";
+          g.font = "9px system-ui";
+          g.textAlign = "center";
+          g.fillText(String(index + 1), x, y - 10);
         });
         players.forEach((player) => {
-          if (player.y !== floor) return;
-          const x = x0 + (player.x + 0.5) * cell, y = y0 + (player.z + 0.5) * cell;
-          g.fillStyle = playerColors[player.index]; g.shadowColor = playerColors[player.index]; g.shadowBlur = 7;
-          g.beginPath(); g.arc(x, y, Math.max(3, cell * 0.18), 0, Math.PI * 2); g.fill();
+          const x = x1 + (player.worldX + 50) / 134 * trackW;
+          g.fillStyle = playerColors[player.index];
+          g.shadowColor = playerColors[player.index];
+          g.shadowBlur = 6;
+          g.beginPath();
+          g.arc(x, y + (player.index ? 4 : -4), 3, 0, Math.PI * 2);
+          g.fill();
           g.shadowBlur = 0;
         });
-        g.fillStyle = "#b8d2de"; g.font = "10px system-ui"; g.textAlign = "left"; g.textBaseline = "top";
-        g.fillText("КАРТА · ЭТАЖ " + (floor + 1), 7, 5);
+        g.fillStyle = "#b8d2de";
+        g.font = "9px system-ui";
+        g.textAlign = "left";
+        g.textBaseline = "top";
+        g.fillText("ПРОГРЕСС ПО ЗОНАМ", 8, 5);
       }
 
       function startMode(nextMode) {
@@ -2452,33 +1854,16 @@
         gameStarted = true;
         menu.hidden = true;
         menu.style.display = "none";
-        // Begin side by side in the same room. This lets Multi start with a
-        // shared camera; door turns/floor changes and distance decide when to split.
-        const spawn1 = { x: ringCell.x, y: ringCell.y, z: ringCell.z, localX: 1.1 };
-        const spawn2 = mode === "multi"
-          ? { x: ringCell.x, y: ringCell.y, z: ringCell.z, localX: -1.1 }
-          : null;
+        const spawn1 = { x: worldState.spawnX, y: 0 };
+        const spawn2 = mode === "multi" ? { x: worldState.spawnX - 2, y: 0 } : null;
         players = [createPlayer(0, spawn1)];
         if (spawn2) players.push(createPlayer(1, spawn2));
-        syncCoreMeshes();
         updateSplitState();
         updateHud(mode === "multi"
-          ? "MULTI · P1 WASD/стрелки · P2 IJKL · Space/P прыжок · E/Q этаж"
-          : "SINGLE · WASD/стрелки · Space прыжок · E/Q лестницы");
+          ? "MULTI · ИССЛЕДУЙТЕ ЗОНЫ ВМЕСТЕ"
+          : "SINGLE · ДОБЕРИСЬ ДО ПЕРВОЙ АРЕНЫ");
         resize2d();
         root2d.focus({ preventScroll: true });
-      }
-
-      function updateSplitState() {
-        if (mode !== "multi" || players.length < 2) { splitActive = false; return; }
-        const a = playerWorldPosition(players[0]);
-        const b = playerWorldPosition(players[1]);
-        const distance = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
-        const samePlane = players[0].y === players[1].y &&
-          players[0].orientation === players[1].orientation &&
-          (players[0].orientation === 0 ? players[0].z === players[1].z : players[0].x === players[1].x);
-        if (!splitActive && (!samePlane || distance > cellSize * 1.62)) splitActive = true;
-        else if (splitActive && samePlane && distance < cellSize * 1.22) splitActive = false;
       }
 
       function updateViewportSize() {
@@ -2487,15 +1872,6 @@
         cameraOne.aspect = width / height;
         cameraTwo.aspect = width / height;
         updateSplitState();
-        splitDivider.hidden = !splitActive;
-        const landscape = width >= height;
-        if (splitActive) {
-          splitDivider.style.border = "0";
-          splitDivider.style.borderLeft = landscape ? "2px solid rgba(115,203,225,.75)" : "0";
-          splitDivider.style.borderTop = landscape ? "0" : "2px solid rgba(115,203,225,.75)";
-        } else {
-          splitDivider.style.border = "0";
-        }
       }
 
       function frame(now) {
@@ -2503,9 +1879,8 @@
         const dt = frameStamp ? Math.min(0.05, Math.max(0.001, (now - frameStamp) / 1000)) : 1 / 60;
         frameStamp = now;
         updatePlayers(dt);
+        if (done) return;
         updateSplitState();
-        worldState.coreMeshes.forEach((mesh) => { if (mesh) mesh.rotation.y += dt * 0.9; });
-        worldState.ringMarker.rotation.z += dt * 0.32;
         drawMiniMap();
         raf = requestAnimationFrame(frame);
       }
@@ -2608,8 +1983,8 @@
       if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
       syncHullButtonVisibility();
       setMazeStatus(success
-        ? "2D IN 3D · ROUTE COMPLETE · BACK IN THE ASTEROID MAZE"
-        : "BACK IN THE ASTEROID MAZE · RING RUN PAUSED");
+        ? "RING FRONTIER COMPLETE · BACK IN THE ASTEROID FIELD"
+        : "RING FRONTIER PAUSED · BACK IN THE ASTEROID FIELD");
       return true;
     }
 
