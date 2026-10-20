@@ -236,19 +236,20 @@ test("Ring intro plays ringgummy.mp4 and starts ring.mp3 on the first rendered v
 
 test("Ring 2D mode reuses the exact seeded maze topology and selected Crew", () => {
   const ring = section(warp, "function openRingPlatformer(maze, afterTransition = false)", "function finishRingPlatformer");
-  assert.match(warp, /seed,\\s*dimensions: \\{ nx: NX, ny: NY, nz: NZ \},\\s*startCell:/);
-  assert.match(warp, /exitCell: \\{ x: exitNode\\.x, y: exitNode\\.y, z: exitNode\\.z \}/);
-  assert.match(ring, /const cellMap = new Map\\(maze\\.cells\\.map/);
-  assert.match(ring, /maze\\.cells\\.filter\\(\\(cell\\) => cell\\.y === viewFloor\\)/);
-  assert.match(ring, /data-ring-single/);
-  assert.match(ring, /data-ring-multi/);
-  assert.match(ring, /window\\.BCMMiniCrewSelection\\?\\.players/);
-  assert.match(ring, /const p2Map/);
-  assert.match(ring, /maze\\.crystals/);
-  assert.match(ring, /maze\\.count >= 3/);
+  assert.ok(warp.includes("dimensions: { nx: NX, ny: NY, nz: NZ }"));
+  assert.ok(warp.includes("startCell: { x: startNode.x, y: startNode.y, z: startNode.z }"));
+  assert.ok(warp.includes("exitCell: { x: exitNode.x, y: exitNode.y, z: exitNode.z }"));
+  assert.ok(ring.includes("const cellMap = new Map(maze.cells.map"));
+  assert.ok(ring.includes("maze.cells.filter((cell) => cell.y === viewFloor)"));
+  assert.ok(ring.includes("data-ring-single"));
+  assert.ok(ring.includes("data-ring-multi"));
+  assert.ok(ring.includes("window.BCMMiniCrewSelection?.players"));
+  assert.ok(ring.includes("const p2Map"));
+  assert.ok(ring.includes("maze.crystals"));
+  assert.ok(ring.includes("maze.count >= 3"));
   assert.doesNotMatch(ring, /corePickups|stageWidth|layoutPlatforms/);
-  assert.match(warp, /maze\\.ringCompleted = success/);
-  assert.match(warp, /falloff \\* falloff \* 1\\.8/);
+  assert.ok(warp.includes("maze.ringCompleted = success"));
+  assert.ok(warp.includes("falloff * falloff * 1.8"));
 });
 
 
