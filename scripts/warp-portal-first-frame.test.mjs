@@ -36,11 +36,11 @@ test("Tube rendering is a rotating cylinder, not a fixed trapezoid", () => {
 });
 
 test("Tube displays multiple obstacle types and tests collisions against their visible open angles", () => {
-  const create = section(warp, "const gateCount = 15", "tubeTitle.textContent");
+  const create = section(warp, "const gateCount = 22", "tubeTitle.textContent");
   const update = section(warp, "function updateTube(dt, now)", "window.BCMDeepSpaceWarpToggle");
   const draw = section(warp, "function drawTubeTunnel", "function drawBackdrop");
   assert.match(create, /\? "boost"/);
-  assert.match(create, /\? "launcher"/);
+  assert.match(create, /: "launcher"/);
   assert.match(create, /type === "spikes"/);
   assert.match(create, /type === "sweeper"/);
   assert.match(draw, /layer\.type === "gate"/);
@@ -51,7 +51,7 @@ test("Tube displays multiple obstacle types and tests collisions against their v
   assert.match(update, /angleDifference\(playerAngle, layer\.safeAngle\)/);
   assert.match(update, /layer\.blockedAngles\.some/);
   assert.match(update, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
-  assert.match(update, /state\.playerAngle = Number\(state\.playerAngle \|\| 0\) - steer \* dt \* 1\.85/);
+  assert.match(update, /state\.playerAngle = Number\(state\.playerAngle \|\| 0\) - steer \* dt \* 2\.2/);
 });
 
 test("a successful Warp to (-40,30) returns home only after the continue button", () => {

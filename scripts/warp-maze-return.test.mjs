@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import test from "node:test";
+import { Script } from "node:vm";
 
 const warp = await readFile(new URL("../mini-sim/assets/js/deep-space-warp.js", import.meta.url), "utf8");
 const sim = await readFile(new URL("../mini-sim/assets/js/mini-sim.js", import.meta.url), "utf8");
+const hull = await readFile(new URL("../mini-sim/assets/js/hull-dive.js", import.meta.url), "utf8");
+const tower = await readFile(new URL("../mini-sim/tower/assets/js/tower.js", import.meta.url), "utf8");
 const css = await readFile(new URL("../mini-sim/assets/css/mini-sim.css", import.meta.url), "utf8");
 
 function section(source, startMarker, endMarker) {
@@ -18,10 +21,14 @@ test("asteroid exit and return beacon both return to the Warp map", () => {
   assert.match(warp, /exitButton\.textContent = "RETURN TO WARP MAP"/);
   assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
   assert.match(warp, /maze\.count === 3 \? "GOLD RING IS OPEN"/);
-  assert.match(warp, /if \(!state\.hullOpen && ringDistance < 2\.6 && window\.BCMHullDive/);
+  assert.match(warp, /if \(!state\.ringPlatformer && !maze\.ringCompleted && ringDistance < 2\.6\)\s*\{\s*openRingPlatformer\(maze\)/);
   const ring = section(warp, "function updateMazeFrame(frame)", "function setMazeStatus");
   assert.match(ring, /ship\.quaternion\.setFromAxisAngle/);
   assert.match(ring, /ship\.angularVelocity\) ship\.angularVelocity\.set\(0, 0, 0\)/);
+  assert.match(ring, /state\.ringDistance = approachDistance/);
+  assert.match(ring, /function openHullAtRing\(\)/);
+  assert.match(warp, /function openRingPlatformer\(maze, afterTransition = false\)/);
+  assert.match(warp, /maze\.ringCompleted = success/);
   assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
 });
 
@@ -189,4 +196,71 @@ test("a new Tube attempt snapshots the currently selected sector as its own orig
   const tube = section(warp, "function showTube()", "function finishTube");
   assert.match(tube, /state\.launchNav = state\.nav/);
   assert.match(tube, /state\.launchSectorProgressed = state\.sectorProgressed/);
+});
+
+
+test("Hull Dive has dense bounded smoke, water-dependent bubbles and independent Crew gamepads", () => {
+  assert.match(hull, /const puffCount = 36/);
+  assert.match(hull, /const bubbleCount = 84/);
+  assert.match(hull, /activeCount = level > 0\.018 \? Math\.min\(bubble\.particleCount, Math\.max\(4, Math\.ceil\(level \* bubble\.particleCount \* 1\.65\)\)\)/);
+  assert.match(hull, /function readAssignedGamepads\(\)/);
+  assert.match(hull, /if \(connected\.length === 1\) return \[null, connected\[0\]\]/);
+  assert.match(hull, /return \[connected\[0\] \|\| null, connected\[1\] \|\| null\]/);
+  assert.match(hull, /canvas\.addEventListener\("pointerdown"/);
+  assert.match(hull, /pointerInteraction\.action === "pump"/);
+  assert.match(hull, /pointerInteraction\.action === "repair"/);
+  assert.match(hull, /root\.style\.cssText = "position:fixed;inset:0;z-index:80;background:transparent/);
+});
+
+test("Warp tube impacts progressively call the compartment damage contract", () => {
+  assert.match(warp, /state\.warpCollisionCount = Math\.min\(99, Number\(state\.warpCollisionCount \|\| 0\) \+ 1\)/);
+  assert.match(warp, /const damage = Math\.min\(24, 4 \+ state\.warpCollisionCount \* 1\.6\)/);
+  assert.match(warp, /repair\.triggerExternalImpact\(compartmentId, damage\)/);
+  assert.match(warp, /if \(approachDistance < 22 && approachDistance > 2\.65\)/);
+  assert.match(warp, /state\.ringPlatformer \|\| state\.hullOpen/);
+  assert.match(warp, /findRingAudioSource\(\)/);
+  assert.match(warp, /candidate === "ring\.mp3"/);
+});
+
+
+test("Ring intro plays ringgummy.mp4 and starts ring.mp3 on the first rendered video frame", () => {
+  assert.match(warp, /function findRingTransitionVideoSource\(\)/);
+  assert.match(warp, /fileName\(asset\) === "ringgummy\.mp4"/);
+  const transition = section(warp, "function playRingTransition", "function openRingPlatformer");
+  assert.match(transition, /prepareRingAudio\(\)/);
+  assert.match(transition, /video\.requestVideoFrameCallback\(startSoundOnFirstFrame\)/);
+  assert.match(transition, /video\.addEventListener\("ended", enterLevel/);
+  assert.match(transition, /openRingPlatformer\(maze, true\)/);
+  assert.match(warp, /ringTransitionActive: false/);
+});
+
+test("Ring 2D mode reuses the exact seeded maze topology and selected Crew", () => {
+  const ring = section(warp, "function openRingPlatformer(maze, afterTransition = false)", "function finishRingPlatformer");
+  assert.ok(warp.includes("dimensions: { nx: NX, ny: NY, nz: NZ }"));
+  assert.ok(warp.includes("startCell: { x: startNode.x, y: startNode.y, z: startNode.z }"));
+  assert.ok(warp.includes("exitCell: { x: exitNode.x, y: exitNode.y, z: exitNode.z }"));
+  assert.ok(ring.includes("const cellMap = new Map(maze.cells.map"));
+  assert.ok(ring.includes("maze.cells.filter((cell) => cell.y === viewFloor)"));
+  assert.ok(ring.includes("data-ring-single"));
+  assert.ok(ring.includes("data-ring-multi"));
+  assert.ok(ring.includes("window.BCMMiniCrewSelection?.players"));
+  assert.ok(ring.includes("const p2Map"));
+  assert.ok(ring.includes("maze.crystals"));
+  assert.ok(ring.includes("maze.count >= 3"));
+  assert.doesNotMatch(ring, /corePickups|stageWidth|layoutPlatforms/);
+  assert.ok(warp.includes("maze.ringCompleted = success"));
+  assert.ok(warp.includes("falloff * falloff * 1.8"));
+});
+
+
+test("Ring transition video asset is present in the Mini-Sim merge checkout", async () => {
+  const info = await stat(new URL("../mini-sim/assets/ringgummy.mp4", import.meta.url));
+  assert.equal(info.isFile(), true);
+  assert.ok(info.size > 0, "ringgummy.mp4 must not be an empty placeholder");
+});
+
+test("Ring soundtrack asset is present in the Mini-Sim merge checkout", async () => {
+  const info = await stat(new URL("../mini-sim/assets/ring.mp3", import.meta.url));
+  assert.equal(info.isFile(), true);
+  assert.ok(info.size > 0, "ring.mp3 must not be an empty placeholder");
 });

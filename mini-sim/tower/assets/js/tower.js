@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.62";
+  const TOWER_VERSION = "0.2.63";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -3266,6 +3266,32 @@
     });
 
     function pollGamepads() {
+      // An embedded/hidden Tower must never consume a controller's held A button
+      // as a menu confirmation. Hull Dive and the Ring platformer own input while
+      // their overlays are open, so suppress Tower polling until they close.
+      const inputSuppressed = !!root.hidden || !!root.closest("[hidden]") ||
+        !!document.getElementById("bcm-hull-dive") ||
+        !!document.getElementById("bcm-ring-platformer") ||
+        !!document.getElementById("bcm-ring-transition");
+      if (inputSuppressed) {
+        if (towerAudio && !towerAudio.paused) stopTowerAudio();
+        for (let i = 0; i < 2; i += 1) {
+          if (gamepadPresent[i]) {
+            clearControls(i);
+            gamepadPresent[i] = false;
+          }
+          if (edgeState[i]) {
+            edgeState[i].jump = false;
+            edgeState[i].interact = false;
+            edgeState[i].restart = false;
+            edgeState[i].menuUp = false;
+            edgeState[i].menuDown = false;
+            edgeState[i].menuLeft = false;
+            edgeState[i].menuRight = false;
+          }
+        }
+        return;
+      }
       const pads = navigator.getGamepads ? [...navigator.getGamepads()] : [];
       const connectedPads = pads.filter(Boolean);
 

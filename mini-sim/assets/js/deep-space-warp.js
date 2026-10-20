@@ -53,6 +53,169 @@
       } catch (e) {}
     }
 
+    let ringAudio = null;
+    let ringAudioSource = "";
+    function findRingAudioSource() {
+      if (String(config.ringMusicUrl || "").trim()) return String(config.ringMusicUrl).trim();
+      const assets = Array.isArray(config.assets) ? config.assets : [];
+      const item = assets.find((asset) => {
+        const candidate = String(asset && (asset.name || asset.filename || asset.path || asset.url) || "")
+          .split(/[?#]/)[0].split("/").pop().toLowerCase();
+        return candidate === "ring.mp3";
+      });
+      return String(item && (item.url || item.src || item.path) || "");
+    }
+
+    // Warm the soundtrack while the transition clip is loading, but do not play
+    // it until the clip's first frame is actually presented.
+    function prepareRingAudio() {
+      const source = findRingAudioSource();
+      if (!source) return false;
+      if (!ringAudio) {
+        ringAudio = document.createElement("audio");
+        ringAudio.preload = "auto";
+        ringAudio.loop = true;
+        ringAudio.volume = 0.68;
+        ringAudio.setAttribute("playsinline", "");
+        ringAudioSource = source;
+        ringAudio.src = source;
+        ringAudio.load();
+        if (window.BCMGameAudio?.register) window.BCMGameAudio.register(ringAudio, "ring");
+      } else if (ringAudioSource !== source) {
+        try { ringAudio.pause(); } catch (e) {}
+        ringAudioSource = source;
+        ringAudio.preload = "auto";
+        ringAudio.src = source;
+        ringAudio.load();
+      }
+      ringAudio.muted = !!window.BCMGameAudio?.isMuted?.();
+      return true;
+    }
+
+    function startRingAudio() {
+      if (!prepareRingAudio()) return false;
+      ringAudio.muted = !!window.BCMGameAudio?.isMuted?.();
+      if (!ringAudio.paused && !ringAudio.ended) return true;
+      const playing = window.BCMGameAudio?.playExclusive
+        ? window.BCMGameAudio.playExclusive(ringAudio, "ring")
+        : ringAudio.play();
+      if (playing && typeof playing.catch === "function") playing.catch(() => {});
+      return true;
+    }
+
+    function stopRingAudio(resumeWarp) {
+      if (ringAudio) {
+        try { ringAudio.pause(); ringAudio.currentTime = 0; } catch (e) {}
+      }
+      if (resumeWarp && state.mode === "maze" && !state.ringPlatformer && !state.ringTransitionActive) {
+        warpAudio.muted = !!window.BCMGameAudio?.isMuted?.();
+        startWarpAudio(false);
+      }
+    }
+
+    function findRingTransitionVideoSource() {
+      if (String(config.ringTransitionVideoUrl || "").trim()) return String(config.ringTransitionVideoUrl).trim();
+      const assets = Array.isArray(config.assets) ? config.assets : [];
+      const fileName = (asset) => String(asset && (asset.name || asset.filename || asset.path || asset.url) || "")
+        .split(/[?#]/)[0].split("/").pop().toLowerCase();
+      const preferred = assets.find((asset) => fileName(asset) === "ringgummy.mp4");
+      const item = preferred || assets.find((asset) => /^ring[^/]*\.mp4$/i.test(fileName(asset)));
+      return String(item && (item.url || item.src || item.path) || "");
+    }
+
+    function playRingTransition(maze, source, engine) {
+      if (state.ringTransitionActive || state.ringPlatformer) return false;
+      state.ringTransitionActive = true;
+      state.ringPlatformer = true;
+      hullEnterButton.hidden = true;
+      if (engine && engine.pauseForWarp) engine.pauseForWarp(true);
+
+      const audioPrepared = prepareRingAudio();
+      let audioReady = !audioPrepared || !ringAudio || ringAudio.readyState >= 3;
+      let videoReady = false;
+      let playbackRequested = false;
+      let finished = false;
+      let firstFrameCallback = 0;
+
+      const overlay = document.createElement("div");
+      overlay.id = "bcm-ring-transition";
+      overlay.setAttribute("aria-label", "Ring transition");
+      overlay.style.cssText = "position:fixed;inset:0;z-index:1000700;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;touch-action:none";
+      const video = document.createElement("video");
+      video.preload = "auto";
+      video.autoplay = true;
+      video.loop = false;
+      video.muted = true;
+      video.controls = false;
+      video.playsInline = true;
+      video.setAttribute("playsinline", "");
+      video.setAttribute("webkit-playsinline", "");
+      video.disablePictureInPicture = true;
+      video.style.cssText = "display:block;width:100%;height:100%;object-fit:contain;background:#000";
+      overlay.appendChild(video);
+      document.body.appendChild(overlay);
+
+      function enterLevel() {
+        if (finished) return;
+        finished = true;
+        try {
+          if (firstFrameCallback && typeof video.cancelVideoFrameCallback === "function") {
+            video.cancelVideoFrameCallback(firstFrameCallback);
+          }
+        } catch (e) {}
+        try { video.pause(); video.removeAttribute("src"); video.load(); } catch (e) {}
+        overlay.remove();
+        state.ringTransitionActive = false;
+        state.ringPlatformer = false;
+        if (!openRingPlatformer(maze, true)) {
+          state.ringPlatformer = false;
+          if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
+          stopRingAudio(true);
+        }
+      }
+
+      function maybeStartVideo() {
+        if (finished || playbackRequested || !videoReady || !audioReady) return;
+        playbackRequested = true;
+        const playing = video.play();
+        if (playing && typeof playing.catch === "function") playing.catch(() => enterLevel());
+      }
+
+      video.addEventListener("loadeddata", () => {
+        videoReady = true;
+        maybeStartVideo();
+      }, { once: true });
+      video.addEventListener("ended", enterLevel, { once: true });
+      video.addEventListener("error", enterLevel, { once: true });
+
+      if (audioPrepared && ringAudio && !audioReady) {
+        ringAudio.addEventListener("canplay", () => {
+          audioReady = true;
+          maybeStartVideo();
+        }, { once: true });
+        ringAudio.addEventListener("error", () => {
+          audioReady = true;
+          maybeStartVideo();
+        }, { once: true });
+      }
+
+      const startSoundOnFirstFrame = () => {
+        if (!finished) startRingAudio();
+      };
+      if (typeof video.requestVideoFrameCallback === "function") {
+        try { firstFrameCallback = video.requestVideoFrameCallback(startSoundOnFirstFrame); }
+        catch (e) { video.addEventListener("loadeddata", startSoundOnFirstFrame, { once: true }); }
+      } else {
+        // Older Safari/WebViews expose the decoded first frame via loadeddata.
+        video.addEventListener("loadeddata", startSoundOnFirstFrame, { once: true });
+      }
+
+      video.src = source;
+      video.load();
+      maybeStartVideo();
+      return true;
+    }
+
     // Mutually exclusive soundtrack rule: one OST at a time.
     // Preserve the regular level OST's playback position while the map/Tube is active.
     function pauseLevelOst() {
@@ -75,7 +238,15 @@
 
     window.addEventListener("bcm:game-music-mute", (event) => {
       warpAudio.muted = !!event.detail?.muted;
+      if (ringAudio) ringAudio.muted = !!event.detail?.muted;
     });
+    window.addEventListener("keydown", (event) => {
+      if (event.code !== "KeyU" || event.repeat || state.mode !== "maze" ||
+          state.ringPlatformer || state.ringDistance > 8) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      openHullAtRing();
+    }, true);
 
     const state = {
       mode: "closed",
@@ -107,12 +278,27 @@
       animationRunning: false,
       layers: [],
       maze: null,
+      ringPlatformer: false,
+      ringTransitionActive: false,
+      ringDistance: Infinity,
+      rightStickWasDown: false,
+      warpCollisionCount: 0,
       statusText: "",
       lastStatusAt: 0,
       keys: Object.create(null),
       touch: { left: false, right: false, up: false, down: false },
       tilt: { enabled: false, bound: false, permissionGranted: false, available: false, filterReady: false, filtered: 0, neutral: 0, calibrating: false, samples: 0, sum: 0, value: 0 }
     };
+
+    const hullEnterButton = document.createElement("button");
+    hullEnterButton.className = "bcm-warp-hull-enter";
+    hullEnterButton.type = "button";
+    hullEnterButton.textContent = "В ТРЮМ · U / R3";
+    hullEnterButton.setAttribute("aria-label", "Открыть трюм");
+    hullEnterButton.hidden = true;
+    hullEnterButton.style.cssText = "position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:1000500;min-height:44px;padding:8px 16px;border:1px solid #70d9ee;border-radius:10px;background:rgba(7,27,42,.94);color:#e8fbff;font:700 13px system-ui;letter-spacing:.07em;touch-action:manipulation;white-space:nowrap";
+    root.appendChild(hullEnterButton);
+    hullEnterButton.addEventListener("click", () => openHullAtRing());
 
     const launchButton = document.createElement("button");
     launchButton.className = "bcm-warp-launch";
@@ -783,7 +969,8 @@
       const NX = 7, NY = 3, NZ = 7, CELL = 5.4, WALL = 0.46;
       // Keep the test maze off-axis and away from the old negative-Z texture-preload trigger.
       const center = new THREE.Vector3(230, 0, 150);
-      const seed = hashSeed(state.nav.current.id + "->" + state.target.id + ":" + state.target.x + ":" + state.target.y);
+      const runNonce = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+      const seed = hashSeed(state.nav.current.id + "->" + state.target.id + ":" + state.target.x + ":" + state.target.y + ":" + runNonce);
       const rng = randomFrom(seed);
       const cells = [];
       function idx(x, y, z) { return (z * NY + y) * NX + x; }
@@ -965,7 +1152,7 @@
         mesh.position.y += 0.2;
         mesh.name = "core-shard-" + index;
         group.add(mesh);
-        crystals.push({ mesh, taken: false, phase: rng() * Math.PI * 2 });
+        crystals.push({ mesh, taken: false, phase: rng() * Math.PI * 2, cell: { x: cell.x, y: cell.y, z: cell.z } });
       });
       const beacon = new THREE.Mesh(beaconGeometry, beaconMaterial);
       beacon.position.copy(cellPosition(exitNode.x, exitNode.y, exitNode.z));
@@ -979,6 +1166,11 @@
         active: true,
         group,
         center,
+        // The 2D Ring mode reuses this exact maze instance and topology, not a second RNG.
+        seed,
+        dimensions: { nx: NX, ny: NY, nz: NZ },
+        startCell: { x: startNode.x, y: startNode.y, z: startNode.z },
+        exitCell: { x: exitNode.x, y: exitNode.y, z: exitNode.z },
         cells,
         walls,
         wallMesh,
@@ -999,7 +1191,9 @@
         crystalMaterial,
         beaconGeometry,
         beaconMaterial,
-        lastPosition: null
+        lastPosition: null,
+        lastImpactAt: 0,
+        ringCompleted: false
       };
       state.savedSpeedMode = engine.getSpeedMode ? engine.getSpeedMode() : 1;
       if (engine.setSpeedMode) engine.setSpeedMode(2);
@@ -1029,6 +1223,21 @@
       const pos = ship.position;
       const radius = 0.7;
 
+      // The external ship scene remains the transparent window's backdrop while either
+      // overlay is active; keep camera/visual transforms synced, but never move a paused ship.
+      if (state.ringPlatformer || state.hullOpen) {
+        if (frame.camera) {
+          frame.camera.position.copy(pos);
+          frame.camera.quaternion.copy(ship.quaternion);
+        }
+        if (ship.visual) {
+          ship.visual.position.copy(pos);
+          ship.visual.quaternion.copy(ship.quaternion);
+        }
+        maze.lastPosition.copy(pos);
+        return;
+      }
+
       // Only test wall panels close to the craft; distant cells cost almost nothing per frame.
       for (let pass = 0; pass < 2; pass += 1) {
         for (let i = 0; i < maze.walls.length; i += 1) {
@@ -1039,6 +1248,17 @@
           const py = hy - Math.abs(pos.y - w.y);
           const pz = hz - Math.abs(pos.z - w.z);
           if (px <= 0 || py <= 0 || pz <= 0) continue;
+          const impactSpeed = ship.velocity.length();
+          const impactNow = performance.now();
+          if (impactSpeed > 3.0 && impactNow - maze.lastImpactAt > 650) {
+            maze.lastImpactAt = impactNow;
+            const compartmentId = pos.x < maze.center.x - 5.4 ? 1 : (pos.x > maze.center.x + 5.4 ? 3 : 2);
+            const damage = Math.max(4, Math.min(24, Math.round((impactSpeed - 2.0) * 4.4)));
+            const damaged = window.BCMHullRepairState?.triggerExternalImpact?.(compartmentId, damage);
+            if (damaged) {
+              setMazeStatus("IMPACT · " + damaged.name + " · INTEGRITY " + Math.round(damaged.integrity) + "% · HIT " + damage);
+            }
+          }
           if (px <= py && px <= pz) {
             pos.x = w.x + (pos.x >= w.x ? 1 : -1) * (hx + 0.015);
             ship.velocity.x *= 0.15;
@@ -1059,6 +1279,16 @@
         ship.velocity.multiplyScalar(0.25);
       }
 
+      // Local artificial gravity activates near the gold ring, with a smooth falloff.
+      const ringVector = maze.beacon.position.clone().sub(pos);
+      const approachDistance = ringVector.length();
+      state.ringDistance = approachDistance;
+      if (approachDistance < 22 && approachDistance > 2.65) {
+        const falloff = Math.max(0, 1 - approachDistance / 22);
+        ringVector.normalize();
+        ship.velocity.addScaledVector(ringVector, (frame.dt || 0.016) * (0.25 + falloff * falloff * 1.8));
+      }
+
       maze.crystals.forEach((crystal) => {
         if (crystal.taken) return;
         crystal.mesh.rotation.y += Math.min(frame.dt || 0.016, 0.04) * 1.35;
@@ -1072,27 +1302,19 @@
       });
       maze.beacon.rotation.z += Math.min(frame.dt || 0.016, 0.04) * 0.4;
       const ringDistance = pos.distanceTo(maze.beacon.position);
-      if (!state.hullOpen && ringDistance < 2.6 && window.BCMHullDive && window.BCMHullDive.open) {
-        state.hullOpen = true;
-        const engine = api();
-        if (engine && engine.pauseForWarp) engine.pauseForWarp(true);
-        const away = pos.clone().sub(maze.beacon.position);
-        if (away.lengthSq() < 0.04) away.set(0, 0.4, 1);
-        away.setLength(5.2);
-        pos.copy(maze.beacon.position).add(away);
-        // Enter the hull and return to the maze upright, facing away from the ring.
-        // Discard pitch/roll accumulated while banking through the tunnel.
-        if (ship.quaternion && THREE?.Quaternion && THREE?.Vector3) {
-          const yaw = Math.atan2(-away.x, -away.z);
-          ship.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-        }
-        ship.velocity.set(0, 0, 0);
-        if (ship.angularVelocity) ship.angularVelocity.set(0, 0, 0);
-        window.BCMHullDive.open(function () {
-          state.hullOpen = false;
-          if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
-          setMazeStatus("BACK AT THE RING · FLY IN TO DIVE AGAIN");
-        });
+      state.ringDistance = ringDistance;
+      hullEnterButton.hidden = !(ringDistance < 8) || state.ringPlatformer;
+      const pads = navigator.getGamepads ? [...navigator.getGamepads()] : [];
+      const rightStickDown = pads.some((pad) => pad && pad.connected && pad.buttons &&
+        pad.buttons[11] && pad.buttons[11].pressed);
+      if (!state.ringPlatformer && ringDistance < 8 && rightStickDown && !state.rightStickWasDown) {
+        openHullAtRing();
+        state.rightStickWasDown = rightStickDown;
+        return;
+      }
+      state.rightStickWasDown = rightStickDown;
+      if (!state.ringPlatformer && !maze.ringCompleted && ringDistance < 2.6) {
+        openRingPlatformer(maze);
         return;
       }
 
@@ -1107,10 +1329,501 @@
       maze.lastPosition.copy(pos);
       if (performance.now() - maze.sinceStatus > 1300) {
         maze.sinceStatus = performance.now();
-        const message = "EXPEDITION · CORE SHARDS " + maze.count + "/3 · FLY INTO THE GOLD RING";
+        const message = state.ringDistance < 22
+          ? "RING GRAVITY ACTIVE · PRESS U / R3 OR TAP THE HULL BUTTON"
+          : "EXPEDITION · CORE SHARDS " + maze.count + "/3 · FOLLOW THE GOLD RING";
         setMazeStatus(message);
       }
     }
+
+    function openHullAtRing() {
+      const maze = state.maze;
+      const engine = api();
+      const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
+      if (state.mode !== "maze" || !maze || state.hullOpen || state.ringPlatformer ||
+          !runtime || !runtime.ship || !window.BCMHullDive || typeof window.BCMHullDive.open !== "function") return false;
+
+      const ship = runtime.ship;
+      state.hullOpen = true;
+      hullEnterButton.hidden = true;
+      if (engine.pauseForWarp) engine.pauseForWarp(true);
+      const away = ship.position.clone().sub(maze.beacon.position);
+      if (away.lengthSq() < 0.04) away.set(0, 0.4, 1);
+      away.setLength(5.2);
+      ship.position.copy(maze.beacon.position).add(away);
+      if (ship.quaternion && runtime.THREE?.Quaternion && runtime.THREE?.Vector3) {
+        const yaw = Math.atan2(-away.x, -away.z);
+        ship.quaternion.setFromAxisAngle(new runtime.THREE.Vector3(0, 1, 0), yaw);
+      }
+      if (ship.velocity) ship.velocity.set(0, 0, 0);
+      if (ship.angularVelocity) ship.angularVelocity.set(0, 0, 0);
+
+      window.BCMRingWindowState = {
+        visible: true,
+        ringDistance: 5.2,
+        target: maze.beacon.position.clone(),
+        maze
+      };
+      window.BCMHullDive.open(() => {
+        state.hullOpen = false;
+        window.BCMRingWindowState = null;
+        if (engine.pauseForWarp) engine.pauseForWarp(false);
+        const freshRuntime = engine.getRuntime ? engine.getRuntime() : null;
+        if (freshRuntime?.ship?.position) {
+          state.ringDistance = freshRuntime.ship.position.distanceTo(maze.beacon.position);
+        }
+        hullEnterButton.hidden = !(state.ringDistance < 8) || state.ringPlatformer;
+        setMazeStatus("BACK AT THE RING · U / R3 OR TAP THE HULL BUTTON");
+      });
+      return true;
+    }
+
+    function openRingPlatformer(maze, afterTransition = false) {
+      if (!maze || !maze.active || state.ringPlatformer || state.hullOpen || state.mode !== "maze") return false;
+      const engine = api();
+      const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
+      if (!runtime?.ship || !runtime.THREE) return false;
+      if (!afterTransition) {
+        const transitionSource = findRingTransitionVideoSource();
+        if (transitionSource) return playRingTransition(maze, transitionSource, engine);
+      }
+      // If the video is unavailable or could not play, keep the level usable and
+      // start its own soundtrack here. Normally this is already playing from frame 1.
+      startRingAudio();
+
+      state.ringPlatformer = true;
+      hullEnterButton.hidden = true;
+      if (engine.pauseForWarp) engine.pauseForWarp(true);
+
+      const nx = Math.max(1, Number(maze.dimensions?.nx) || Math.max(...maze.cells.map((c) => c.x)) + 1);
+      const ny = Math.max(1, Number(maze.dimensions?.ny) || Math.max(...maze.cells.map((c) => c.y)) + 1);
+      const nz = Math.max(1, Number(maze.dimensions?.nz) || Math.max(...maze.cells.map((c) => c.z)) + 1);
+      const seed = Number(maze.seed) || 0;
+      const cellMap = new Map(maze.cells.map((cell) => [cell.x + ":" + cell.y + ":" + cell.z, cell]));
+      const getCell = (x, y, z) => cellMap.get(x + ":" + y + ":" + z) || null;
+      const entryCell = maze.startCell || { x: 0, y: 1, z: 0 };
+      const ringCell = maze.exitCell || { x: nx - 1, y: Math.min(1, ny - 1), z: nz - 1 };
+      const exitCell = { x: entryCell.x, y: entryCell.y, z: entryCell.z };
+
+      const previous = document.getElementById("bcm-ring-platformer");
+      if (previous) previous.remove();
+      const root2d = document.createElement("div");
+      root2d.id = "bcm-ring-platformer";
+      root2d.tabIndex = 0;
+      root2d.style.cssText = "position:fixed;inset:0;z-index:1000600;background:#030812;color:#e8f4f8;font:14px system-ui,sans-serif;overflow:hidden;touch-action:manipulation";
+      root2d.innerHTML =
+        '<canvas data-ring-canvas aria-label="2D карта того же астероидного лабиринта" style="position:absolute;inset:0;width:100%;height:100%;touch-action:manipulation"></canvas>' +
+        '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;pointer-events:none;z-index:2">' +
+          '<div style="max-width:68%;text-shadow:0 2px 8px #000"><div style="font-size:11px;letter-spacing:.16em;color:#60ddec">RING // 2D ASTEROID MAZE</div>' +
+          '<div data-ring-status style="font-weight:700;margin-top:5px;line-height:1.3">Выбери режим и пройди тот же лабиринт</div>' +
+          '<div data-ring-floor style="margin-top:5px;color:#b8cbd6;font-size:12px"></div></div>' +
+          '<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:auto">' +
+            '<div data-ring-count style="padding:6px 9px;background:rgba(7,22,34,.88);border:1px solid #25485b;border-radius:8px;color:#d9f8ff;white-space:nowrap">ЯДРА 0/3</div>' +
+            '<button type="button" data-ring-exit style="min-height:42px;padding:7px 11px;border:1px solid #547083;border-radius:9px;background:#10232d;color:#e8fbff;font-weight:700">К КОРАБЛЮ · Esc</button>' +
+          '</div>' +
+        '</div>' +
+        '<div style="position:absolute;left:0;right:0;bottom:8px;display:flex;justify-content:center;align-items:flex-end;gap:9px;z-index:2;pointer-events:none">' +
+          '<div style="display:grid;grid-template-columns:repeat(3,42px);grid-template-rows:repeat(2,40px);gap:4px;pointer-events:auto">' +
+            '<span></span><button type="button" data-ring-move="up" aria-label="Вперёд" style="grid-column:2;grid-row:1;min-height:40px">▲</button><span></span>' +
+            '<button type="button" data-ring-move="left" aria-label="Влево" style="min-height:40px">◀</button><button type="button" data-ring-move="down" aria-label="Назад" style="min-height:40px">▼</button><button type="button" data-ring-move="right" aria-label="Вправо" style="min-height:40px">▶</button>' +
+          '</div>' +
+          '<div style="display:flex;flex-direction:column;gap:4px;pointer-events:auto">' +
+            '<button type="button" data-ring-move="floorUp" style="min-height:38px;padding:5px 9px;font-size:12px">ЭТАЖ +</button>' +
+            '<button type="button" data-ring-move="floorDown" style="min-height:38px;padding:5px 9px;font-size:12px">ЭТАЖ −</button>' +
+          '</div>' +
+        '</div>' +
+        '<div data-ring-mode-menu style="position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(1,5,12,.76)">' +
+          '<div style="width:min(440px,100%);padding:22px;border:1px solid #37677c;border-radius:16px;background:rgba(6,20,32,.98);box-shadow:0 12px 60px #0009;text-align:center">' +
+            '<div style="font-size:12px;letter-spacing:.18em;color:#60ddec">СОХРАНЁННЫЙ SEED ' + seed + '</div>' +
+            '<div style="font-size:23px;font-weight:800;margin:12px 0 7px">Тот же лабиринт · другой вид</div>' +
+            '<div style="color:#b7cbd6;line-height:1.45;margin-bottom:17px">Та же схема коридоров и те же ядра, что в 3D. Начало — у золотого кольца, цель — вход в лабиринт.</div>' +
+            '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">' +
+              '<button type="button" data-ring-single style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #69d7ea;border-radius:10px;background:#123c48;color:#e8fbff;font-weight:800">SINGLE</button>' +
+              '<button type="button" data-ring-multi style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #bb9a57;border-radius:10px;background:#3b301b;color:#fff0c7;font-weight:800">MULTI · 2 CREW</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      const canvas = root2d.querySelector("[data-ring-canvas]");
+      const g = canvas.getContext("2d");
+      const statusEl = root2d.querySelector("[data-ring-status]");
+      const countEl = root2d.querySelector("[data-ring-count]");
+      const floorEl = root2d.querySelector("[data-ring-floor]");
+      const menu = root2d.querySelector("[data-ring-mode-menu]");
+      const styleText = "border:1px solid #426779;border-radius:9px;background:#10232d;color:#e8fbff;font-weight:800;touch-action:manipulation";
+      root2d.querySelectorAll("button").forEach((button) => {
+        if (!button.hasAttribute("data-ring-single") && !button.hasAttribute("data-ring-multi")) {
+          button.style.cssText += ";" + styleText;
+        }
+      });
+      document.body.appendChild(root2d);
+
+      let width = 1, height = 1, pixelRatio = 1, raf = 0, done = false, gameStarted = false;
+      let mode = "single";
+      let players = [];
+      let lastPadMove = [0, 0];
+      let lastHudCount = -1;
+      const playerColors = ["#65dcf0", "#f3c46c"];
+      const crewSelection = Array.isArray(window.BCMMiniCrewSelection?.players)
+        ? window.BCMMiniCrewSelection.players : [];
+      const crewImages = [];
+      crewSelection.slice(0, 2).forEach((crew, index) => {
+        const imageUrl = String(crew?.image || "");
+        if (!imageUrl) { crewImages[index] = null; return; }
+        const img = new Image();
+        img.onload = () => {};
+        img.onerror = () => {};
+        img.src = imageUrl;
+        crewImages[index] = img;
+      });
+
+      function resize2d() {
+        const rect = root2d.getBoundingClientRect();
+        pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+        width = Math.max(1, rect.width);
+        height = Math.max(1, rect.height);
+        canvas.width = Math.round(width * pixelRatio);
+        canvas.height = Math.round(height * pixelRatio);
+      }
+
+      function currentCell(player) {
+        return getCell(player.x, player.y, player.z);
+      }
+
+      function safeSecondSpawn() {
+        const cell = getCell(ringCell.x, ringCell.y, ringCell.z);
+        if (!cell) return { x: ringCell.x, y: ringCell.y, z: ringCell.z };
+        const options = [
+          { flag: "zn", x: 0, y: 0, z: -1 },
+          { flag: "xn", x: -1, y: 0, z: 0 },
+          { flag: "zp", x: 0, y: 0, z: 1 },
+          { flag: "xp", x: 1, y: 0, z: 0 }
+        ];
+        for (const option of options) {
+          if (!cell.open[option.flag]) continue;
+          const x = ringCell.x + option.x, y = ringCell.y + option.y, z = ringCell.z + option.z;
+          if (getCell(x, y, z)) return { x, y, z };
+        }
+        return { x: ringCell.x, y: ringCell.y, z: ringCell.z };
+      }
+
+      function startMode(nextMode) {
+        if (done) return;
+        mode = nextMode === "multi" ? "multi" : "single";
+        gameStarted = true;
+        menu.hidden = true;
+        menu.style.display = "none";
+        const spawn1 = { x: ringCell.x, y: ringCell.y, z: ringCell.z };
+        const spawn2 = safeSecondSpawn();
+        const createPlayer = (index, spawn) => {
+          const crew = crewSelection[index] || {};
+          return {
+            index,
+            name: String(crew.name || crew.displayName || ("Crew " + (index + 1))),
+            x: spawn.x, y: spawn.y, z: spawn.z,
+            image: crewImages[index] || null,
+            lastMoveAt: 0,
+            tint: playerColors[index],
+            moves: 0
+          };
+        };
+        players = [createPlayer(0, spawn1)];
+        if (mode === "multi") players.push(createPlayer(1, spawn2));
+        lastPadMove = [0, 0];
+        updateHud();
+        statusEl.textContent = mode === "multi"
+          ? "MULTI · P1 WASD/стрелки · P2 IJKL или геймпад"
+          : "SINGLE · WASD/стрелки или геймпад";
+        root2d.focus({ preventScroll: true });
+      }
+
+      function updateHud() {
+        countEl.textContent = "ЯДРА " + Math.max(0, maze.count || 0) + "/3";
+        if (players.length) {
+          floorEl.textContent = "ЭТАЖ P1: " + (players[0].y + 1) +
+            (players[1] ? " · P2: " + (players[1].y + 1) : "") +
+            " · SEED " + seed;
+        } else {
+          floorEl.textContent = "ЭТАЖ " + (ringCell.y + 1) + " · SEED " + seed;
+        }
+        if (lastHudCount !== Number(maze.count || 0)) {
+          lastHudCount = Number(maze.count || 0);
+          if (maze.count >= 3) statusEl.textContent = "ЯДРА СОБРАНЫ · НАЙДИ ВХОД В ЛАБИРИНТ";
+          else statusEl.textContent = "НАЙДИ ЯДРА И ВЕРНИСЬ К ВХОДУ · " + Math.max(0, 3 - maze.count) + " ОСТАЛОСЬ";
+        }
+      }
+
+      function collectAt(player) {
+        const crystal = (maze.crystals || []).find((item) =>
+          !item.taken && item.cell &&
+          item.cell.x === player.x && item.cell.y === player.y && item.cell.z === player.z
+        );
+        if (!crystal) return;
+        crystal.taken = true;
+        if (crystal.mesh) crystal.mesh.visible = false;
+        maze.count = Math.min(3, Number(maze.count || 0) + 1);
+        lastHudCount = -1;
+        updateHud();
+        statusEl.textContent = "ЯДРО СОБРАНО · " + maze.count + "/3";
+      }
+
+      function tryMove(index, direction) {
+        if (!gameStarted || done || !players[index]) return false;
+        const player = players[index];
+        const now = performance.now();
+        if (now - player.lastMoveAt < 95) return false;
+        player.lastMoveAt = now;
+        const cell = currentCell(player);
+        if (!cell) return false;
+        const steps = {
+          left: { flag: "xn", x: -1, y: 0, z: 0 },
+          right: { flag: "xp", x: 1, y: 0, z: 0 },
+          up: { flag: "zn", x: 0, y: 0, z: -1 },
+          down: { flag: "zp", x: 0, y: 0, z: 1 },
+          floorUp: { flag: "yp", x: 0, y: 1, z: 0 },
+          floorDown: { flag: "yn", x: 0, y: -1, z: 0 }
+        };
+        const step = steps[direction];
+        if (!step || !cell.open[step.flag]) return false;
+        const x = player.x + step.x, y = player.y + step.y, z = player.z + step.z;
+        if (!getCell(x, y, z)) return false;
+        player.x = x; player.y = y; player.z = z; player.moves += 1;
+        collectAt(player);
+        updateHud();
+        if (player.x === exitCell.x && player.y === exitCell.y && player.z === exitCell.z && maze.count >= 3) {
+          finishRingPlatformer(maze, true);
+          return true;
+        }
+        return true;
+      }
+
+      function keyboardMove(event) {
+        const down = event.type === "keydown";
+        if (!down || done) return;
+        if (event.code === "Escape") {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          finishRingPlatformer(maze, false);
+          return;
+        }
+        const p1Map = {
+          ArrowLeft: "left", KeyA: "left",
+          ArrowRight: "right", KeyD: "right",
+          ArrowUp: "up", KeyW: "up",
+          ArrowDown: "down", KeyS: "down",
+          KeyQ: "floorDown", KeyE: "floorUp"
+        };
+        const p2Map = {
+          KeyJ: "left", KeyL: "right", KeyI: "up", KeyK: "down",
+          KeyU: "floorDown", KeyO: "floorUp"
+        };
+        let index = 0, direction = p1Map[event.code];
+        if (!direction && mode === "multi" && p2Map[event.code]) {
+          index = 1; direction = p2Map[event.code];
+        }
+        if (!direction || !gameStarted) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        tryMove(index, direction);
+      }
+
+      function gamepadDirection(pad) {
+        if (!pad) return null;
+        const threshold = 0.55;
+        const left = !!(pad.buttons?.[14]?.pressed || (pad.axes?.[0] ?? 0) < -threshold);
+        const right = !!(pad.buttons?.[15]?.pressed || (pad.axes?.[0] ?? 0) > threshold);
+        const up = !!(pad.buttons?.[12]?.pressed || (pad.axes?.[1] ?? 0) < -threshold);
+        const down = !!(pad.buttons?.[13]?.pressed || (pad.axes?.[1] ?? 0) > threshold);
+        if (left) return "left";
+        if (right) return "right";
+        if (up) return "up";
+        if (down) return "down";
+        return null;
+      }
+
+      function pollGamepads(now) {
+        if (!gameStarted || done || !navigator.getGamepads) return;
+        const connected = [...navigator.getGamepads()].filter((pad) => pad && pad.connected);
+        let assignment;
+        if (mode === "multi") {
+          assignment = connected.length > 1
+            ? [connected[0], connected[1]]
+            : [null, connected[0] || null];
+        } else {
+          assignment = [connected[0] || null];
+        }
+        assignment.forEach((pad, index) => {
+          if (!pad || !players[index]) return;
+          let direction = gamepadDirection(pad);
+          if (!direction && pad.buttons?.[4]?.pressed) direction = "floorDown";
+          else if (!direction && pad.buttons?.[5]?.pressed) direction = "floorUp";
+          if (direction && now - lastPadMove[index] >= 175) {
+            lastPadMove[index] = now;
+            tryMove(index, direction);
+          } else if (!direction) {
+            lastPadMove[index] = 0;
+          }
+        });
+      }
+
+      function drawMaze(now) {
+        if (done || !g) return;
+        g.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+        g.clearRect(0, 0, width, height);
+        const bg = g.createLinearGradient(0, 0, width, height);
+        bg.addColorStop(0, "#071422"); bg.addColorStop(1, "#01050b");
+        g.fillStyle = bg; g.fillRect(0, 0, width, height);
+        // Light starfield; deterministic from the same saved seed for this run.
+        for (let i = 0; i < 34; i++) {
+          const x = ((i * 97 + seed * 0.001) % Math.max(1, width) + width) % Math.max(1, width);
+          const y = ((i * 53 + Math.floor(seed % 307)) % Math.max(1, height) + height) % Math.max(1, height);
+          g.fillStyle = i % 5 === 0 ? "#4aa4b8" : "#1e3a4b";
+          g.fillRect(x, y, i % 4 === 0 ? 2 : 1, i % 4 === 0 ? 2 : 1);
+        }
+
+        const topHud = 78, bottomHud = 84;
+        const cellSize = Math.max(18, Math.min(72, Math.floor(Math.min(width - 28, height - topHud - bottomHud - 16) / Math.max(nx, nz))));
+        const gridWidth = cellSize * nx, gridHeight = cellSize * nz;
+        const x0 = Math.floor((width - gridWidth) / 2);
+        const usableHeight = Math.max(80, height - topHud - bottomHud);
+        const y0 = Math.floor(topHud + Math.max(0, (usableHeight - gridHeight) / 2));
+
+        const viewFloor = players.length ? players[0].y : ringCell.y;
+        const floorCells = maze.cells.filter((cell) => cell.y === viewFloor);
+        floorCells.forEach((cell) => {
+          const px = x0 + cell.x * cellSize, py = y0 + cell.z * cellSize;
+          g.fillStyle = ((cell.x + cell.z) & 1) ? "#0c1d2b" : "#0a1825";
+          g.fillRect(px + 1, py + 1, cellSize - 2, cellSize - 2);
+          g.strokeStyle = "#142c3b"; g.lineWidth = 1;
+          g.strokeRect(px + 2, py + 2, cellSize - 4, cellSize - 4);
+          if (cell.open.yp || cell.open.yn) {
+            g.fillStyle = "#b79b5c";
+            g.globalAlpha = 0.95;
+            g.beginPath(); g.arc(px + cellSize / 2, py + cellSize / 2, Math.max(3, cellSize * 0.11), 0, Math.PI * 2); g.fill();
+            g.globalAlpha = 1;
+            g.strokeStyle = "#f5d58a"; g.lineWidth = Math.max(1, cellSize * 0.035);
+            g.beginPath();
+            g.moveTo(px + cellSize * 0.34, py + cellSize * 0.42); g.lineTo(px + cellSize * 0.5, py + cellSize * 0.30); g.lineTo(px + cellSize * 0.66, py + cellSize * 0.42);
+            g.moveTo(px + cellSize * 0.34, py + cellSize * 0.58); g.lineTo(px + cellSize * 0.5, py + cellSize * 0.70); g.lineTo(px + cellSize * 0.66, py + cellSize * 0.58);
+            g.stroke();
+          }
+        });
+
+        g.lineWidth = Math.max(2, cellSize * 0.065);
+        g.lineCap = "round";
+        g.strokeStyle = "#4ca7bd";
+        floorCells.forEach((cell) => {
+          const px = x0 + cell.x * cellSize, py = y0 + cell.z * cellSize;
+          const rightWall = cell.x === nx - 1 || !cell.open.xp;
+          // Preserve the same two open boundary gates used by the 3D maze.
+          const bottomWall = (cell.z === nz - 1 && !(cell.x === nx - 1 && cell.y === 1)) || (cell.z < nz - 1 && !cell.open.zp);
+          const leftWall = cell.x === 0;
+          const topWall = (cell.z === 0 && !(cell.x === 0 && cell.y === 1)) || (cell.z > 0 && !cell.open.zn);
+          g.beginPath();
+          if (rightWall) { g.moveTo(px + cellSize, py); g.lineTo(px + cellSize, py + cellSize); }
+          if (bottomWall) { g.moveTo(px, py + cellSize); g.lineTo(px + cellSize, py + cellSize); }
+          if (leftWall) { g.moveTo(px, py); g.lineTo(px, py + cellSize); }
+          if (topWall) { g.moveTo(px, py); g.lineTo(px + cellSize, py); }
+          g.stroke();
+        });
+
+        const drawMarker = (x, z, y, color, label) => {
+          if (y !== viewFloor) return;
+          const cx = x0 + (x + 0.5) * cellSize, cy = y0 + (z + 0.5) * cellSize;
+          g.save();
+          g.shadowColor = color; g.shadowBlur = 10;
+          g.fillStyle = color; g.beginPath();
+          g.moveTo(cx, cy - cellSize * 0.22);
+          g.lineTo(cx + cellSize * 0.22, cy);
+          g.lineTo(cx, cy + cellSize * 0.22);
+          g.lineTo(cx - cellSize * 0.22, cy);
+          g.closePath(); g.fill();
+          g.shadowBlur = 0; g.fillStyle = "#06111a";
+          g.font = "bold " + Math.max(8, cellSize * 0.22) + "px system-ui";
+          g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(label, cx, cy);
+          g.restore();
+        };
+
+        (maze.crystals || []).forEach((crystal, index) => {
+          if (!crystal.taken && crystal.cell) drawMarker(crystal.cell.x, crystal.cell.z, crystal.cell.y, "#55f0db", "◆");
+        });
+        drawMarker(exitCell.x, exitCell.z, exitCell.y, maze.count >= 3 ? "#f2cd76" : "#6f8090", "⌂");
+        drawMarker(ringCell.x, ringCell.z, ringCell.y, "#d5b25f", "◎");
+
+        players.forEach((player) => {
+          if (player.y !== viewFloor) return;
+          const cx = x0 + (player.x + 0.5) * cellSize, cy = y0 + (player.z + 0.5) * cellSize;
+          g.save();
+          g.shadowColor = player.tint; g.shadowBlur = 12;
+          g.fillStyle = player.tint; g.beginPath(); g.arc(cx, cy, cellSize * 0.32, 0, Math.PI * 2); g.fill();
+          g.shadowBlur = 0;
+          const img = player.image;
+          if (img && img.complete && img.naturalWidth > 0) {
+            const ratio = Math.min((cellSize * 0.52) / img.naturalWidth, (cellSize * 0.72) / img.naturalHeight);
+            const iw = img.naturalWidth * ratio, ih = img.naturalHeight * ratio;
+            g.drawImage(img, cx - iw / 2, cy - ih / 2, iw, ih);
+          } else {
+            g.fillStyle = "#f1ddbd";
+            g.beginPath(); g.arc(cx, cy - cellSize * 0.12, cellSize * 0.12, 0, Math.PI * 2); g.fill();
+            g.fillStyle = player.tint;
+            g.beginPath(); g.roundRect(cx - cellSize * 0.15, cy + cellSize * 0.01, cellSize * 0.3, cellSize * 0.26, cellSize * 0.07); g.fill();
+          }
+          g.fillStyle = "#e8f4f8"; g.font = "bold " + Math.max(8, cellSize * 0.17) + "px system-ui";
+          g.textAlign = "center"; g.textBaseline = "top"; g.fillText("P" + (player.index + 1), cx, cy + cellSize * 0.33);
+          g.restore();
+        });
+
+        // The second Crew can cross levels independently; the HUD always shows each floor.
+        g.fillStyle = "#95b7c7"; g.font = "12px system-ui"; g.textAlign = "center"; g.textBaseline = "bottom";
+        g.fillText("WASD / стрелки · Q/E этаж · Esc к кораблю", width / 2, height - 67);
+      }
+
+      function frame(now) {
+        if (done) return;
+        pollGamepads(now);
+        drawMaze(now);
+        raf = requestAnimationFrame(frame);
+      }
+
+      function onResize() { resize2d(); }
+      const closeButton = root2d.querySelector("[data-ring-exit]");
+      closeButton.addEventListener("click", () => finishRingPlatformer(maze, false));
+      root2d.querySelector("[data-ring-single]").addEventListener("click", () => startMode("single"));
+      root2d.querySelector("[data-ring-multi]").addEventListener("click", () => startMode("multi"));
+      root2d.querySelectorAll("[data-ring-move]").forEach((button) => {
+        button.addEventListener("click", () => tryMove(0, button.getAttribute("data-ring-move")));
+      });
+      window.addEventListener("keydown", keyboardMove, true);
+      window.addEventListener("resize", onResize);
+      resize2d();
+      state.ringPlatformerCleanup = () => {
+        done = true;
+        if (raf) cancelAnimationFrame(raf);
+        window.removeEventListener("keydown", keyboardMove, true);
+        window.removeEventListener("resize", onResize);
+        root2d.remove();
+      };
+      raf = requestAnimationFrame(frame);
+      return true;
+    }
+
+    function finishRingPlatformer(maze, completed) {
+      if (!state.ringPlatformer || !maze) return false;
+      const success = completed === true;
+      maze.ringCompleted = success;
+      const cleanup = state.ringPlatformerCleanup;
+      state.ringPlatformerCleanup = null;
+      state.ringPlatformer = false;
+      if (typeof cleanup === "function") cleanup();
+      stopRingAudio(true);
+      const engine = api();
+      if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
+      hullEnterButton.hidden = !(state.ringDistance < 8);
+      setMazeStatus(success
+        ? "2D MAZE COMPLETE · BACK AT THE RING · U / R3 OR TAP THE HULL BUTTON"
+        : "BACK AT THE RING · 2D MAZE PAUSED · U / R3 OPENS THE HULL");
+      return true;
+    }
+
 
     function setMazeStatus(message) {
       const engine = api();
@@ -1689,8 +2402,17 @@ return axialRoll + ahead * 0.12 +
 
         if (hit) {
           state.shields = Math.max(0, state.shields - 25);
+          // Each obstacle is resolved exactly once; repeated hits progressively
+          // damage a different compartment and can open an external breach.
+          state.warpCollisionCount = Math.min(99, Number(state.warpCollisionCount || 0) + 1);
+          const damage = Math.min(24, 4 + state.warpCollisionCount * 1.6);
+          const compartmentId = ((state.warpCollisionCount - 1) % 3) + 1;
+          const repair = window.BCMHullRepairState;
+          if (repair && typeof repair.triggerExternalImpact === "function") {
+            repair.triggerExternalImpact(compartmentId, damage);
+          }
           tubeShield.style.width = state.shields + "%";
-          tubeMeta.textContent = "SHIELDS " + state.shields + "% · FOLLOW THE OPEN ARC";
+          tubeMeta.textContent = "SHIELDS " + state.shields + "% · HULL HITS " + state.warpCollisionCount;
           if (state.shields <= 0) {
             finishTube(false);
             return;
