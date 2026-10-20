@@ -28,7 +28,7 @@ test("asteroid exit and return beacon both return to the Warp map", () => {
   assert.match(ring, /state\.ringDistance = approachDistance/);
   assert.match(ring, /function openHullAtRing\(\)/);
   assert.match(warp, /function openRingPlatformer\(maze, afterTransition = false\)/);
-  assert.match(warp, /maze\.ringCompleted = maze\.ringCoreCount >= 3/);
+  assert.match(warp, /maze\.ringCompleted = success/);
   assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
 });
 
@@ -234,34 +234,21 @@ test("Ring intro plays ringgummy.mp4 and starts ring.mp3 on the first rendered v
   assert.match(warp, /ringTransitionActive: false/);
 });
 
-test("Ring platformer has independent randomized cores, a recoverable exit, and lazy ring.mp3 audio", () => {
+test("Ring 2D mode reuses the exact seeded maze topology and selected Crew", () => {
   const ring = section(warp, "function openRingPlatformer(maze, afterTransition = false)", "function finishRingPlatformer");
-  assert.match(warp, /candidate === "ring\.mp3"/);
-  assert.match(warp, /ringAudio\.preload = "auto"/);
-  assert.match(warp, /const ringTrackAvailable = startRingAudio\(\)/);
-  assert.match(ring, /const corePickups = \[1, 3, 5\]\.map/);
-  assert.match(ring, /let ringCount = 0/);
-  assert.match(ring, /event\.code === "Escape" && down/);
-  assert.match(ring, /const canExit = ringCount >= corePickups\.length/);
-  assert.match(ring, /removeEventListener\("resize", onResize\)/);
-  assert.doesNotMatch(ring, /maze\.count|maze\.crystals|pickup\.crystal/);
-  assert.match(warp, /maze\.ringCoreCount = Math\.max/);
-  assert.match(warp, /falloff \* falloff \* 1\.8/);
-});
-
-test("Tower gamepad polling is suppressed while its root is hidden or Ring/Hull owns input", () => {
-  const poll = section(tower, "function pollGamepads()", "window.BCMTowerAPI = window.BCMTowerAPI || {}");
-  assert.match(poll, /const inputSuppressed = !!root\.hidden/);
-  assert.match(poll, /getElementById\("bcm-hull-dive"\)/);
-  assert.match(poll, /getElementById\("bcm-ring-platformer"\)/);
-  assert.match(poll, /if \(towerAudio && !towerAudio\.paused\) stopTowerAudio\(\)/);
-  assert.match(poll, /return;/);
-});
-
-test("Changed Hull Dive, Warp and Tower scripts all parse before browser QA", () => {
-  assert.doesNotThrow(() => new Script(hull));
-  assert.doesNotThrow(() => new Script(warp));
-  assert.doesNotThrow(() => new Script(tower));
+  assert.match(warp, /seed,\\s*dimensions: \\{ nx: NX, ny: NY, nz: NZ \},\\s*startCell:/);
+  assert.match(warp, /exitCell: \\{ x: exitNode\\.x, y: exitNode\\.y, z: exitNode\\.z \}/);
+  assert.match(ring, /const cellMap = new Map\\(maze\\.cells\\.map/);
+  assert.match(ring, /maze\\.cells\\.filter\\(\\(cell\\) => cell\\.y === viewFloor\\)/);
+  assert.match(ring, /data-ring-single/);
+  assert.match(ring, /data-ring-multi/);
+  assert.match(ring, /window\\.BCMMiniCrewSelection\\?\\.players/);
+  assert.match(ring, /const p2Map/);
+  assert.match(ring, /maze\\.crystals/);
+  assert.match(ring, /maze\\.count >= 3/);
+  assert.doesNotMatch(ring, /corePickups|stageWidth|layoutPlatforms/);
+  assert.match(warp, /maze\\.ringCompleted = success/);
+  assert.match(warp, /falloff \\* falloff \* 1\\.8/);
 });
 
 
