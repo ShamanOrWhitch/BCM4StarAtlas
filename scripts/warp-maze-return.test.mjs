@@ -200,9 +200,9 @@ test("a new Tube attempt snapshots the currently selected sector as its own orig
 
 
 test("Hull Dive has dense bounded smoke, water-dependent bubbles and independent Crew gamepads", () => {
-  assert.match(hull, /const puffCount = 20/);
-  assert.match(hull, /const bubbleCount = 28/);
-  assert.match(hull, /activeCount = level > 0\.018 \? Math\.max\(2, Math\.ceil\(level \* bubble\.particleCount \* 1\.35\)\)/);
+  assert.match(hull, /const puffCount = 36/);
+  assert.match(hull, /const bubbleCount = 84/);
+  assert.match(hull, /activeCount = level > 0\.018 \? Math\.min\(bubble\.particleCount, Math\.max\(4, Math\.ceil\(level \* bubble\.particleCount \* 1\.65\)\)\)/);
   assert.match(hull, /function readAssignedGamepads\(\)/);
   assert.match(hull, /if \(connected\.length === 1\) return \[null, connected\[0\]\]/);
   assert.match(hull, /return \[connected\[0\] \|\| null, connected\[1\] \|\| null\]/);
@@ -223,10 +223,21 @@ test("Warp tube impacts progressively call the compartment damage contract", () 
 });
 
 
+test("Ring intro plays ringgummy.mp4 and starts ring.mp3 on the first rendered video frame", () => {
+  assert.match(warp, /function findRingTransitionVideoSource\(\)/);
+  assert.match(warp, /fileName\(asset\) === "ringgummy\.mp4"/);
+  const transition = section(warp, "function playRingTransition", "function openRingPlatformer");
+  assert.match(transition, /prepareRingAudio\(\)/);
+  assert.match(transition, /video\.requestVideoFrameCallback\(startSoundOnFirstFrame\)/);
+  assert.match(transition, /video\.addEventListener\("ended", enterLevel/);
+  assert.match(transition, /openRingPlatformer\(maze, true\)/);
+  assert.match(warp, /ringTransitionActive: false/);
+});
+
 test("Ring platformer has independent randomized cores, a recoverable exit, and lazy ring.mp3 audio", () => {
   const ring = section(warp, "function openRingPlatformer(maze)", "function finishRingPlatformer");
   assert.match(warp, /candidate === "ring\.mp3"/);
-  assert.match(warp, /ringAudio\.preload = "none"/);
+  assert.match(warp, /ringAudio\.preload = "auto"/);
   assert.match(warp, /const ringTrackAvailable = startRingAudio\(\)/);
   assert.match(ring, /const corePickups = \[1, 3, 5\]\.map/);
   assert.match(ring, /let ringCount = 0/);
@@ -253,6 +264,12 @@ test("Changed Hull Dive, Warp and Tower scripts all parse before browser QA", ()
   assert.doesNotThrow(() => new Script(tower));
 });
 
+
+test("Ring transition video asset is present in the Mini-Sim merge checkout", async () => {
+  const info = await stat(new URL("../mini-sim/assets/ringgummy.mp4", import.meta.url));
+  assert.equal(info.isFile(), true);
+  assert.ok(info.size > 0, "ringgummy.mp4 must not be an empty placeholder");
+});
 
 test("Ring soundtrack asset is present in the Mini-Sim merge checkout", async () => {
   const info = await stat(new URL("../mini-sim/assets/ring.mp3", import.meta.url));
