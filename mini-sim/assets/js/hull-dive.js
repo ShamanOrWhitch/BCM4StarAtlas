@@ -758,10 +758,10 @@
       fireRing.position.set(0, floor + 0.15, 0.49);
       fireRing.visible = true;
       scene.add(fireRing);
-      // Dense but bounded smoke fields: 20 persistent puffs per compartment.
+      // Dense but bounded smoke fields: 36 persistent puffs per compartment.
       // Active count grows with smoke level; particles are reused, never spawned per frame.
       rooms.forEach((room, roomIndex) => {
-        const puffCount = 20;
+        const puffCount = 36;
         for (let puff = 0; puff < puffCount; puff += 1) {
           const phase = puff * 0.83 + roomIndex * 1.71;
           const baseX = room.x0 + 0.22 + (puff + 0.5) / puffCount * (room.x1 - room.x0 - 0.44);
@@ -776,10 +776,10 @@
         }
       });
 
-      // Water bubbles use a fixed pool (28 per compartment). A flooded room reveals
+      // Water bubbles use a fixed pool (84 per compartment). A flooded room reveals
       // a denser stream; the animation wraps back to the floor and stays lightweight.
       rooms.forEach((room, roomIndex) => {
-        const bubbleCount = 28;
+        const bubbleCount = 84;
         for (let bubble = 0; bubble < bubbleCount; bubble += 1) {
           const phase = ((bubble * 0.61803398875) + roomIndex * 0.37) % 1;
           const baseX = room.x0 + 0.18 + (bubble + 0.5) / bubbleCount * (room.x1 - room.x0 - 0.36);
@@ -1153,7 +1153,7 @@
       });
       waterBubbles.forEach((bubble) => {
         const level = water[bubble.roomIndex];
-        const activeCount = level > 0.018 ? Math.max(2, Math.ceil(level * bubble.particleCount * 1.35)) : 0;
+        const activeCount = level > 0.018 ? Math.min(bubble.particleCount, Math.max(4, Math.ceil(level * bubble.particleCount * 1.65))) : 0;
         bubble.mesh.visible = bubble.bubbleIndex < activeCount;
         if (!bubble.mesh.visible) return;
         const surface = floor + Math.max(0.06, level * 3.15);
