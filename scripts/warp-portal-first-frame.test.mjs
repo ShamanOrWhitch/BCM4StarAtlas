@@ -40,7 +40,7 @@ test("Tube displays multiple obstacle types and tests collisions against their v
   const update = section(warp, "function updateTube(dt, now)", "window.BCMDeepSpaceWarpToggle");
   const draw = section(warp, "function drawTubeTunnel", "function drawBackdrop");
   assert.match(create, /\? "boost"/);
-  assert.match(create, /\? "launcher"/);
+  assert.match(create, /: "launcher"/);
   assert.match(create, /type === "spikes"/);
   assert.match(create, /type === "sweeper"/);
   assert.match(draw, /layer\.type === "gate"/);
