@@ -1,38 +1,48 @@
-# Ring / Hull Interior — Mini-Sim 0.9.105
+# Ring Frontier — Mini-Sim 0.9.107
 
-Updated: 2026-10-20.
-Main branch: `main`.
-Entry point: `mini-sim/assets/js/deep-space-warp.js`.
-Shared renderer extension: `mini-sim/assets/js/mini-sim.js`.
-Tower Crew cutout texture helper: `mini-sim/tower/assets/js/tower.js`.
+Updated: 2026-10-20. Branch: `main`.
 
-## Intended modes
+## Direction
 
-- **Ring** is no longer the top-down map as the main view or the old side-scrolling platform course. It builds a 3D cutaway/room view from the *existing active asteroid maze*: the same seed, cell graph, doors, floor links, entrance/exit and the same three crystal objects. Controls are 2D within each room. Edge transitions and door triggers move along the same graph; door turns rotate the view between axes; E/Q or the floor buttons use existing vertical links.
-- Players choose Single or Multi at Ring entry. Crew image sprites go through Tower's existing cached alpha-cleaned texture path when available. Multi shares one camera while both Crew occupy the same floor/facing and remain close; it switches to two viewports when the players are far apart or in different room orientations/floors, then merges again after they regroup.
-- The little top-right 2D map remains as a minimap; it is not the gameplay level.
-- `ringgummy.mp4` remains the intro. `ring.mp3` is prepared silently and starts on the first presented video frame. Ring audio uses the shared mute/exclusive-OST API.
-- **Hull Dive** is a separate ship-interior view. The button `ВНУТРЬ КОРАБЛЯ · U / R3` is intended to be available during ordinary first-person flight, not only beside the gold Ring. It preserves the ship's current pose rather than teleporting to the Ring. The visible button and U key call the same action; R3 is edge-triggered by the shared Mini-Sim frame loop. Hull Dive exits back to the flight and should not label itself as a Ring-only scene.
-- Tower input/audio should remain suppressed when the Ring, transition video, or Hull Dive owns the screen.
+Ring gameplay is now designed as a **continuous 2D side-scrolling platform action location rendered inside the existing Three.js scene**, closer in structure to a platform-action game with large arenas than to a room-by-room map.
 
-## Shared renderer and performance
+The asteroid maze is only the story/entry trigger. Ring's actual game world does not read or traverse `maze.cells`; it builds its own wide side-scrolling course with three connected themed zones, large background structures, platforms at different heights, checkpoints and arena gates.
 
-Ring uses the existing Mini-Sim Three.js renderer and scene; it does not create another WebGL renderer. Geometry is instanced/batched. When split, the shared renderer draws separate viewports sequentially with per-player camera orientation. The cutaway view hides the wall plane facing the camera. Keep this cheap on older Android devices.
+## Current prototype
 
-## Status / verification
+- **Three continuous zones** across one long side-scrolling level.
+- **Three bosses** with separate health totals. The first and second energy barriers open after the previous boss is cleared.
+- **Platform movement and jumping** on a continuous X/Y side plane; the camera follows the active player.
+- **Boss interaction** uses a close-range weakpoint activation rather than a player projectile. Bosses produce low energy shockwaves that can be avoided by jumping or using the dash.
+- **Energy pickups** restore one point of Crew health. Damage and falling return the Crew to the last zone checkpoint.
+- **Mini-map** is a small progress strip with the three boss markers and player position; it is navigation feedback, not the gameplay level.
+- **Single / Multi** remains. The two players share a camera while near each other, and split screen when sufficiently far apart.
+- The active Crew images are still obtained from the existing Crew selection and Tower's cutout texture helper.
 
-Version labels are Mini-Sim **0.9.105** and Tower **0.2.64** after the rendering and Crew-texture interface changes.
+## Controls in the current prototype
 
-Source-contract coverage checks:
-- same-seed maze metadata and shared crystal state;
-- 3D cutaway geometry, door turn and floor triggers;
-- Crew texture reuse and Single/Multi;
-- adaptive shared/split camera;
-- first-person Hull entry via on-screen button/U/R3;
-- Tower input/audio and shared renderer integration.
+Player 1: Left/Right or A/D to run, Space/W/Up to jump, E to activate a nearby boss weakpoint, Shift/C to dash.
 
-Automated CI must pass on the current `main` commit before treating the update as regression-clean. The existing browser smoke covers main Mini-Sim/Warp navigation but does not yet play the Ring route end-to-end. Manual browser/gamepad and Android checks are still needed to validate physical traversal and camera merge/split feel.
+Player 2 in Multi: J/L to run, P to jump, O to activate, I to dash.
 
-## Scope preserved
+Gamepad: left stick/D-pad to move, A/up to jump, B to dash, X to activate a nearby weakpoint. Mobile touch controls expose direction, jump, activation and dash buttons.
 
-No changes to `wordpress/galia-desk`, its scanner, pricing tables, marketplace/pricing assets, planet coordinates or the SAGE navigation adapter. All Ring movement stays local simulation; no on-chain fleet state is changed.
+## Rendering and scope
+
+- Ring uses the existing Mini-Sim renderer through `window.BCMDeepSpaceWarpRender`; it does not create a second WebGL renderer.
+- The ordinary Warp navigation, Tube collision/steering, soundtrack system, Hull Dive entry/exit, asteroid-maze movement and planet/SAGE coordinate handling are outside this redesign.
+- Ring still starts from the existing ring-approach trigger and intro video/music. Exiting Ring returns to the asteroid field as before.
+- No wallet writes or on-chain state are involved.
+
+## Verification status
+
+Mini-Sim is labelled **0.9.107**. Source checks now target the continuous side-scroll world, three boss arenas, adaptive shared/split camera, navigation-only minimap, and the existing renderer/Hull integration.
+
+The new gameplay implementation still requires browser testing, especially jumps and platform landings, boss collision timing, gamepad mapping and mobile controls. Source-level assertions alone do not mean the Ring is fully play-tested. Legacy assertions in the earlier maze-specific test file may need to be migrated to the new design; do not report the full existing regression suite as green until it passes.
+
+## Next iterations
+
+1. Run and adjust the first zone on desktop and mobile.
+2. Improve boss patterns and animation once movement/landing is verified.
+3. Add richer zone art only after the basic route is playable.
+4. Expand the shared/split co-op test pass, then polish the larger boss arenas.
