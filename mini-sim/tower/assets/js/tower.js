@@ -3400,6 +3400,10 @@
     window.BCMTowerAPI.getCrewMatrix = () => window.BCMTowerCrewMatrix || null;
     window.BCMTowerAPI.getWallet = () => window.BCMiniCrewWallet || null;
     window.BCMTowerAPI.stopAudio = () => stopTowerAudio();
+    // Ring reuses Tower's cached, alpha-cleaned Crew texture pipeline for its
+    // 2D characters; it falls back to the source image if this texture is unavailable.
+    window.BCMTowerAPI.makeCrewSpriteTexture = (url) =>
+      assetTexture(String(url || ""), renderer, { cutout: true });
     // Called by Mini-Sim only when the ship approaches ONICSS. Do not fetch
     // tower.mp4 during the initial Starbase load.
     window.BCMTowerAPI.preloadLanding = () => primeTransitionVideo();
