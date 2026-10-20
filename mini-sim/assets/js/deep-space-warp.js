@@ -283,6 +283,7 @@
       ringTransitionActive: false,
       ringRenderState: null,
       ringDistance: Infinity,
+      hullOpen: false,
       rightStickWasDown: false,
       warpCollisionCount: 0,
       statusText: "",
@@ -303,12 +304,16 @@
     hullEnterButton.addEventListener("click", () => openHullInterior());
 
     function syncHullButtonVisibility() {
+      const towerRoot = document.querySelector(".bcm-tower");
+      const towerOwnsScreen = !!(towerRoot && !towerRoot.hidden && towerRoot.style.pointerEvents !== "none");
       const busy = state.mode === "map" || state.mode === "tube" || state.mode === "result" ||
-        state.ringPlatformer || state.ringTransitionActive || state.hullOpen ||
+        state.ringPlatformer || state.ringTransitionActive || state.hullOpen || towerOwnsScreen ||
         !!document.getElementById("bcm-hull-dive") ||
         !!document.getElementById("bcm-ring-platformer") ||
         !!document.getElementById("bcm-ring-transition");
-      hullEnterButton.hidden = !root.classList.contains("game-active") || busy;
+      const hidden = !root.classList.contains("game-active") || busy;
+      if (hullEnterButton.hidden !== hidden) hullEnterButton.hidden = hidden;
+      return !hidden;
     }
     if (typeof MutationObserver === "function") {
       const hullButtonObserver = new MutationObserver(syncHullButtonVisibility);
@@ -1320,15 +1325,6 @@
       const ringDistance = pos.distanceTo(maze.beacon.position);
       state.ringDistance = ringDistance;
       hullEnterButton.hidden = !(ringDistance < 8) || state.ringPlatformer;
-      const pads = navigator.getGamepads ? [...navigator.getGamepads()] : [];
-      const rightStickDown = pads.some((pad) => pad && pad.connected && pad.buttons &&
-        pad.buttons[11] && pad.buttons[11].pressed);
-      if (!state.ringPlatformer && ringDistance < 8 && rightStickDown && !state.rightStickWasDown) {
-        openHullInterior();
-        state.rightStickWasDown = rightStickDown;
-        return;
-      }
-      state.rightStickWasDown = rightStickDown;
       if (!state.ringPlatformer && !maze.ringCompleted && ringDistance < 2.6) {
         openRingPlatformer(maze);
         return;
@@ -1390,6 +1386,31 @@
       syncHullButtonVisibility();
       return true;
     }
+
+    const hullEntryPadWasDown = new Map();
+    window.BCMDeepSpaceWarpPoll = () => {
+      syncHullButtonVisibility();
+      const pads = navigator.getGamepads ? [...navigator.getGamepads()] : [];
+      let pressed = false;
+      for (const pad of pads) {
+        if (!pad || !pad.connected) continue;
+        const down = !!pad.buttons?.[11]?.pressed;
+        const wasDown = hullEntryPadWasDown.get(pad.index) || false;
+        hullEntryPadWasDown.set(pad.index, down);
+        if (down && !wasDown) pressed = true;
+      }
+      for (const index of [...hullEntryPadWasDown.keys()]) {
+        if (!pads.some((pad) => pad && pad.connected && pad.index === index)) hullEntryPadWasDown.delete(index);
+      }
+      if (!pressed || state.mode === "map" || state.mode === "tube" || state.mode === "result" ||
+          state.ringPlatformer || state.ringTransitionActive || state.hullOpen ||
+          document.getElementById("bcm-hull-dive") ||
+          document.getElementById("bcm-ring-platformer") ||
+          document.getElementById("bcm-ring-transition")) return;
+      const towerRoot = document.querySelector(".bcm-tower");
+      if (towerRoot && !towerRoot.hidden && towerRoot.style.pointerEvents !== "none") return;
+      openHullInterior();
+    };
 
     function openRingPlatformer(maze, afterTransition = false) {
       if (!maze || !maze.active || state.ringPlatformer || state.hullOpen || state.mode !== "maze") return false;
