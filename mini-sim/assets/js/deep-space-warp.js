@@ -1511,6 +1511,7 @@
         mode = nextMode === "multi" ? "multi" : "single";
         gameStarted = true;
         menu.hidden = true;
+        menu.style.display = "none";
         const spawn1 = { x: ringCell.x, y: ringCell.y, z: ringCell.z };
         const spawn2 = safeSecondSpawn();
         const createPlayer = (index, spawn) => {
@@ -1528,10 +1529,10 @@
         players = [createPlayer(0, spawn1)];
         if (mode === "multi") players.push(createPlayer(1, spawn2));
         lastPadMove = [0, 0];
-        statusEl.textContent = mode === "multi"
-          ? "MULTI · P1 WASD/стрелки · P2 IJKL или второй геймпад"
-          : "SINGLE · WASD/стрелки или геймпад";
         updateHud();
+        statusEl.textContent = mode === "multi"
+          ? "MULTI · P1 WASD/стрелки · P2 IJKL или геймпад"
+          : "SINGLE · WASD/стрелки или геймпад";
         root2d.focus({ preventScroll: true });
       }
 
@@ -1713,9 +1714,10 @@
         floorCells.forEach((cell) => {
           const px = x0 + cell.x * cellSize, py = y0 + cell.z * cellSize;
           const rightWall = cell.x === nx - 1 || !cell.open.xp;
-          const bottomWall = cell.z === nz - 1 || !cell.open.zp;
+          // Preserve the same two open boundary gates used by the 3D maze.
+          const bottomWall = (cell.z === nz - 1 && !(cell.x === nx - 1 && cell.y === 1)) || (cell.z < nz - 1 && !cell.open.zp);
           const leftWall = cell.x === 0;
-          const topWall = cell.z === 0 || !cell.open.zn;
+          const topWall = (cell.z === 0 && !(cell.x === 0 && cell.y === 1)) || (cell.z > 0 && !cell.open.zn);
           g.beginPath();
           if (rightWall) { g.moveTo(px + cellSize, py); g.lineTo(px + cellSize, py + cellSize); }
           if (bottomWall) { g.moveTo(px, py + cellSize); g.lineTo(px + cellSize, py + cellSize); }
