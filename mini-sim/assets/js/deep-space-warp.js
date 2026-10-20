@@ -1531,8 +1531,8 @@
         lastPadMove = [0, 0];
         updateHud();
         statusEl.textContent = mode === "multi"
-          ? "MULTI · P1 WASD/стрелки · P2 IJKL или геймпад"
-          : "SINGLE · WASD/стрелки или геймпад";
+          ? "MULTI · P1 WASD/стрелки · P2 IJKL · Q/E этаж · найди вход"
+          : "SINGLE · WASD/стрелки · Q/E этаж · найди вход";
         root2d.focus({ preventScroll: true });
       }
 
@@ -1765,7 +1765,7 @@
             g.fillStyle = "#f1ddbd";
             g.beginPath(); g.arc(cx, cy - cellSize * 0.12, cellSize * 0.12, 0, Math.PI * 2); g.fill();
             g.fillStyle = player.tint;
-            g.beginPath(); g.roundRect(cx - cellSize * 0.15, cy + cellSize * 0.01, cellSize * 0.3, cellSize * 0.26, cellSize * 0.07); g.fill();
+            g.fillRect(cx - cellSize * 0.15, cy + cellSize * 0.01, cellSize * 0.3, cellSize * 0.26);
           }
           g.fillStyle = "#e8f4f8"; g.font = "bold " + Math.max(8, cellSize * 0.17) + "px system-ui";
           g.textAlign = "center"; g.textBaseline = "top"; g.fillText("P" + (player.index + 1), cx, cy + cellSize * 0.33);
