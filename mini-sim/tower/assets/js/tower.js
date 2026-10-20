@@ -3271,7 +3271,8 @@
       // their overlays are open, so suppress Tower polling until they close.
       const inputSuppressed = !!root.hidden || !!root.closest("[hidden]") ||
         !!document.getElementById("bcm-hull-dive") ||
-        !!document.getElementById("bcm-ring-platformer");
+        !!document.getElementById("bcm-ring-platformer") ||
+        !!document.getElementById("bcm-ring-transition");
       if (inputSuppressed) {
         if (towerAudio && !towerAudio.paused) stopTowerAudio();
         for (let i = 0; i < 2; i += 1) {
