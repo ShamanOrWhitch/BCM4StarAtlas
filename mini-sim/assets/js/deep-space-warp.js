@@ -2227,6 +2227,124 @@
         return collected;
       }
 
+      function currentWeaponProfile(player) {
+        const type = String(player?.weaponType || weaponProgress.type || "pointer");
+        const tier = Math.max(1, Number(player?.weaponTier || weaponProgress.tier) || 1);
+        if (type === "pulse") return { cooldown: Math.max(360, 720 - tier * 45), damage: 2 + Math.floor((tier - 1) / 2), color: 0xffb960, range: 16 };
+        if (type === "spectrum") return { cooldown: Math.max(190, 390 - tier * 30), damage: 1 + Math.floor(tier / 3), color: weaponPalette[weaponShotIndex % weaponPalette.length], range: 17 };
+        return { cooldown: Math.max(75, 150 - tier * 14), damage: 1, color: 0x75eaff, range: 15 };
+      }
+
+      function firePlayerWeapon(player, now) {
+        if (!player || !gameStarted || done || now < player.weaponReadyAt) return false;
+        const profile = currentWeaponProfile(player);
+        player.weaponReadyAt = now + profile.cooldown;
+        const start = new THREE.Vector3(player.worldX, player.worldY + 0.9, 0.92);
+        const end = start.clone().add(new THREE.Vector3(player.facing * profile.range, 0, 0));
+        let target = null;
+        let nearest = Infinity;
+        for (const boss of worldState.bosses) {
+          if (!boss.alive) continue;
+          const forwardDistance = (boss.x - player.worldX) * player.facing;
+          if (forwardDistance <= 0 || forwardDistance > profile.range) continue;
+          if (Math.abs(player.worldY - boss.y) > 4.4) continue;
+          if (forwardDistance < nearest) { target = boss; nearest = forwardDistance; }
+        }
+        if (target) end.set(target.x, target.y + 0.2, 0.94);
+        const points = [start, end];
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const material = new THREE.LineBasicMaterial({
+          color: profile.color, transparent: true, opacity: 0.96, depthTest: false, depthWrite: false
+        });
+        const beam = new THREE.Line(geometry, material);
+        beam.renderOrder = 999;
+        scene.add(beam);
+        const glowGeometry = new THREE.BufferGeometry().setFromPoints(points);
+        const glowMaterial = new THREE.LineBasicMaterial({
+          color: profile.color, transparent: true, opacity: 0.28, depthTest: false, depthWrite: false
+        });
+        const glow = new THREE.Line(glowGeometry, glowMaterial);
+        glow.renderOrder = 998;
+        scene.add(glow);
+        weaponShots.push({ mesh: beam, life: 0.105, geometry, material, glow, glowGeometry, glowMaterial });
+
+        if (player.weaponType === "spectrum") weaponShotIndex += 1;
+        if (target && target.activated && now >= target.nextDamageAt) {
+          target.nextDamageAt = now + Math.max(110, profile.cooldown * 0.7);
+          target.hp = Math.max(0, target.hp - profile.damage);
+          target.lastDamageAt = now;
+          if (target.hp <= 0) {
+            target.alive = false;
+            target.group.visible = false;
+            worldState.defeatedBosses = Math.min(3, worldState.defeatedBosses + 1);
+            worldState.barriers.forEach((barrier) => {
+              barrier.group.visible = worldState.defeatedBosses < barrier.unlockAfter;
+            });
+            updateHud(target.name + " · ОРУЖИЕ " + String(player.weaponType).toUpperCase());
+            if (worldState.defeatedBosses === 1 && !masterOfferedThisRun) {
+              masterOfferedThisRun = true;
+              window.setTimeout(() => offerWeaponChoice(false), 120);
+            }
+          } else {
+            updateHud("ПОПАДАНИЕ · " + target.name + " · " + target.hp + "/" + target.maxHp);
+          }
+        } else if (target && !target.activated) {
+          updateHud("АРЕНА ЕЩЁ НЕ ОТКРЫТА");
+        }
+        return true;
+      }
+
+      function updateWeaponShots(dt) {
+        for (let i = weaponShots.length - 1; i >= 0; i -= 1) {
+          const shot = weaponShots[i];
+          shot.life -= dt;
+          const opacity = Math.max(0, shot.life / 0.105);
+          shot.mesh.material.opacity = opacity;
+          shot.glow.material.opacity = opacity * 0.3;
+          if (shot.life > 0) continue;
+          scene.remove(shot.mesh);
+          scene.remove(shot.glow);
+          try { shot.geometry.dispose(); } catch (e) {}
+          try { shot.material.dispose(); } catch (e) {}
+          try { shot.glowGeometry.dispose(); } catch (e) {}
+          try { shot.glowMaterial.dispose(); } catch (e) {}
+          weaponShots.splice(i, 1);
+        }
+      }
+
+      function applyTeamWeapon(type, tier) {
+        const validType = ["pointer", "pulse", "spectrum"].includes(type) ? type : "pointer";
+        weaponProgress.type = validType;
+        weaponProgress.tier = Math.max(1, Math.min(5, Math.floor(Number(tier) || 1)));
+        players.forEach((player) => {
+          player.weaponType = weaponProgress.type;
+          player.weaponTier = weaponProgress.tier;
+          player.weaponReadyAt = 0;
+        });
+        const names = window.BCMDialogue?.language === "en"
+          ? { pointer: "Laser pointer", pulse: "Pulse beam", spectrum: "Spectrum beam" }
+          : { pointer: "Лазер-указка", pulse: "Импульсный луч", spectrum: "Спектральный луч" };
+        updateHud("ОРУЖИЕ · " + names[validType] + " · T" + weaponProgress.tier);
+      }
+
+      function offerWeaponChoice(upgradeTest) {
+        const lang = window.BCMDialogue?.language || "ru";
+        const message = upgradeTest
+          ? (lang === "en" ? "A stronger weapon test is ready. Upgrade your current weapon or keep the proven setting." : "Мастер подготовил усиленный тест. Улучшить оружие или оставить проверенный вариант?")
+          : (lang === "en" ? "Choose a main weapon. Each option has its own firing rhythm and beam colour." : "Выбери основное оружие. У каждого свой ритм выстрела и цвет луча.");
+        const choices = upgradeTest
+          ? [
+              { label: lang === "en" ? "TEST UPGRADE" : "ПРОБНЫЙ АПГРЕЙД", onSelect: () => { applyTeamWeapon(weaponProgress.type || "pointer", (weaponProgress.tier || 1) + 1); weaponProgress.pendingUpgrade = false; } },
+              { label: lang === "en" ? "KEEP CURRENT" : "ОСТАВИТЬ", onSelect: () => { weaponProgress.lastUpgradePromptRun = weaponProgress.completedRuns; } }
+            ]
+          : [
+              { label: lang === "en" ? "Laser pointer · fast" : "Лазер-указка · быстро", onSelect: () => applyTeamWeapon("pointer", 1) },
+              { label: lang === "en" ? "Pulse · heavy" : "Импульс · мощно", onSelect: () => applyTeamWeapon("pulse", 1) },
+              { label: lang === "en" ? "Spectrum · rainbow" : "Спектр · радуга", onSelect: () => applyTeamWeapon("spectrum", 1) }
+            ];
+        window.BCMDialogue?.showOperator(lang === "en" ? "WEAPON MASTER" : "МАСТЕР ОРУЖИЯ", message, choices);
+      }
+
       function activateBossWeakpoint(player) {
         const now = performance.now();
         const boss = worldState.bosses.find((item) =>
