@@ -2384,6 +2384,10 @@
             barrier.group.visible = worldState.defeatedBosses < barrier.unlockAfter;
           });
           updateHud(boss.name + " · АРЕНА ОЧИЩЕНА");
+          if (worldState.defeatedBosses === 1 && !masterOfferedThisRun) {
+            masterOfferedThisRun = true;
+            window.setTimeout(() => offerWeaponChoice(false), 120);
+          }
         } else {
           updateHud("ТОЧКА БОССА ОТКЛИКНУЛАСЬ · " + boss.hp + " / " + boss.maxHp);
         }
