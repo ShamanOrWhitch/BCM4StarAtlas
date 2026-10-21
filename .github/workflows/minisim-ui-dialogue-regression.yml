@@ -34,7 +34,7 @@ permissions:
 jobs:
   ui-weapons-cabin:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -47,5 +47,5 @@ jobs:
           node --check mini-sim/assets/js/deep-space-warp.js
           node --check mini-sim/assets/js/hull-dive.js
       - name: Run UI, weapons, cabin and existing regressions
-        timeout-minutes: 15
+        timeout-minutes: 6
         run: node --test scripts/minisim-ui-dialogue.test.mjs scripts/minisim-local-qa.test.mjs scripts/minisim-input-scope.test.mjs scripts/warp-maze-return.test.mjs

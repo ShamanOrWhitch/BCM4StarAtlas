@@ -30,7 +30,7 @@ permissions:
 jobs:
   hull-copy:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -40,5 +40,5 @@ jobs:
         timeout-minutes: 5
         run: node --check mini-sim/assets/js/hull-dive.js
       - name: Run bilingual copy and Mini-Sim regression tests
-        timeout-minutes: 15
+        timeout-minutes: 6
         run: node --test scripts/hull-english-copy.test.mjs scripts/asteroid-tower-hull-controls.test.mjs scripts/minisim-ui-dialogue.test.mjs scripts/minisim-local-qa.test.mjs scripts/minisim-input-scope.test.mjs scripts/warp-maze-return.test.mjs

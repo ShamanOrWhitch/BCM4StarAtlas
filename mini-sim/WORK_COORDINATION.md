@@ -78,10 +78,16 @@ Latest commit / PR:
 Handoff / close reason:
 ```
 
+## Предел ожидания — 8 минут
+
+Агент не ждёт чужой ответ, зависший critic или прогон GitHub дольше 8 минут. Если за это время нет коммита или зелёного/красного результата, статус ожидания — `TIMEOUT_EXPIRED`. Дальше читать последний известный коммит и продолжать свою задачу. Не сидеть часами.
+
+Это не игровой таймаут. Circuit breaker, журнал в `localStorage`, IndexedDB, Emscripten и C# `Task.Wait` к BCM4StarAtlas не относятся и в код не добавляются. Стол Galia Desk уже ограничил серверные вызовы 20–45 секундами; браузерный запрос стола обрывается через 50 секунд, чтобы вкладка не висела.
+
 ## Состояние после 21 октября 2026 — reconciled
 
 - Current main SHA: `51553e78bec6c7ecfb20cc69610c89d9225222c7`; Mini-Sim **0.9.111**, Tower 0.2.64.
-- Merged: #46 Ring menu activation; #49 Warp visual tiers; #51 RU/EN dialogs, Ring weapons, inset Hull Dive and long QA budgets; #52 bounded network room registry/design; #55 Hull Dive RU/EN copy completion/cache bump.
+- Merged: #46 Ring menu activation; #49 Warp visual tiers; #51 RU/EN dialogs, Ring weapons, inset Hull Dive; #52 bounded network room registry/design; #55 Hull Dive RU/EN copy completion/cache bump. Прежние длинные бюджеты QA (до 45 минут) заменены пределом 8 минут.
 - PR #55 CI: Mini-Sim regression [39567055498](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055498) PASS; Tower [39567055392](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055392) PASS; Warp [39567055312](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055312) PASS; UI/weapons/cabin [39567055331](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055331) PASS; Hull RU/EN [39567055354](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055354) PASS; browser smoke [39567055334](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055334) PASS. Video media step was skipped. Physical Android/gamepad playtest and production WordPress plugin confirmation remain unverified.
 - Network co-op is still only `mini-sim/network/room-registry.mjs`, a tested in-memory registry. No live WebSocket/session auth/authoritative scheduler/RTT/reconnect. Next work remains Issue #48.
 - Full SAGE map is Issue #28; do not represent local Warp navigation as real SAGE topology or fleet movement.

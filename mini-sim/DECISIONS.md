@@ -1,3 +1,13 @@
+## D-022 — Предел ожидания тестов и стола Galia Desk: 8 минут для агентов
+
+**Статус: IMPLEMENTED. TESTED-CODE нет, это лимит GitHub Actions и обрыв fetch. VERIFIED-LIVE нет.**
+
+Чужое предложение про Circuit Breaker, `localStorage`, Barotrauma и IndexedDB отклонено: в репозитории этого нет, и оно не останавливает многочасовое ожидание. Зависали задания GitHub на 25–45 минут.
+
+Все workflow jobs теперь `timeout-minutes: 8`. Браузерный запрос цен и кошелька в `wordpress/galia-desk/galia-desk.php` обрывается через 50 секунд (`AbortSignal.timeout`), версия плагина 0.8.19. Восемь минут на сам запрос стола не ставятся: страница не должна молчать так долго. Серверные 20–45 секунд не увеличены.
+
+---
+
 ## D-021 — Mini-Sim 0.9.111: complete bilingual Hull Dive UI
 
 **Status:** merged in PR [#55](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/55). Main SHA `51553e78bec6c7ecfb20cc69610c89d9225222c7`, Mini-Sim 0.9.111 / Tower 0.2.64. Hull RU/EN source test [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055354), Mini-Sim regression [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055498), UI/weapons/cabin [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055331), Warp tier [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055312), Tower top cap [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055392), browser smoke [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055334). Video-enabled QA step was skipped; no physical Android/gamepad or production deployment claim.

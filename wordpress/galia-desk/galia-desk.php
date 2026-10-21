@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.8.18
+ * Version: 0.8.19
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -1180,7 +1180,7 @@ function galia_desk_shortcode() {
           var body = new URLSearchParams(extra || {});
           body.set("action", action);
           body.set("nonce", nonce);
-          return fetch(ajax, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: body });
+          return fetch(ajax, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: body, signal: AbortSignal.timeout(50000) });
         }
         function num(n) {
           if (n == null) return "—";
@@ -1294,7 +1294,8 @@ function galia_desk_shortcode() {
           fetch("https://bcm4staratlas.onrender.com/api/wallet-scan", {
             method: "POST",
             headers: { "Content-Type": "application/json", "Accept": "application/json" },
-            body: JSON.stringify({ owner: owner })
+            body: JSON.stringify({ owner: owner }),
+            signal: AbortSignal.timeout(50000)
           }).then(function (res) {
             return res.json().then(function (json) {
               if (!res.ok) throw new Error((json && json.error) || "Render wallet API HTTP " + res.status);
@@ -1502,7 +1503,7 @@ function galia_desk_shortcode() {
             window.GALIA_WALLET_SCAN = data;
             document.dispatchEvent(new CustomEvent("galia-holdings", { detail: items }));
             document.dispatchEvent(new CustomEvent("galia-wallet-scan", { detail: data }));
-          }).catch(function (err) { hold.textContent = err.message || "Кошелёк не прочитался."; });
+          }).catch(function (err) { hold.textContent = err && err.name === "TimeoutError" ? "Кошелёк не ответил за 50 секунд." : (err.message || "Кошелёк не прочитался."); });
         });
         root.querySelector("[data-galia-phantom]").addEventListener("click", function () {
           var provider = window.phantom && window.phantom.solana ? window.phantom.solana : (window.solana && window.solana.isPhantom ? window.solana : null);
