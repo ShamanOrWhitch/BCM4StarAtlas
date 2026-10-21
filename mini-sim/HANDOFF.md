@@ -4,38 +4,39 @@
 
 ## Источник истины
 
-- Main: Mini-Sim 0.9.110, Tower 0.2.64.
-- Сборочный SHA: 9b4e7b8a2fe842de9418772c33499b63a79c1e18.
-- Ключевые изменения: PR #46 Ring menu input; PR #49 Warp visual classes; PR #51 RU/EN dialogs, Ring weapons and inset cabin; PR #52 bounded network room prototype.
-- Не путать: CI PASS подтверждает код/автоматизированный сценарий, но не ручную игру на физическом Android/gamepad и не deploy плагина на WordPress.
+- Main: Mini-Sim **0.9.111**, Tower **0.2.64**.
+- Main SHA: `51553e78bec6c7ecfb20cc69610c89d9225222c7`.
+- Ключевые изменения: PR #46 — Ring menu activation; PR #49 — Warp visual classes; PR #51 — RU/EN dialog UI, Ring weapons, inset cabin and longer QA budgets; PR #52 — bounded network-room prototype; PR #55 — полный RU/EN copy в Hull Dive.
+- **Не путать:** CI PASS — это проверка кода/Playwright сценария, не подтверждение ручной игры на физическом Android/gamepad и не доказательство deploy плагина на WordPress.
 
-## Что есть в 0.9.110
+## Что есть в 0.9.111
 
 - Стартовый переключатель RU/EN сохраняется в localStorage; Enter переключает язык до вылета.
-- Два полупрозрачных диалога-комикса: оператор/сюжет и устройство-зависимые controls. В полёте постоянный HUD-инструктаж скрыт; Ring убирает мелкие угловые подписи во время игры.
-- В меню Crew портреты увеличены, карточки шире и изображение показывается целиком.
-- Hull Dive — отдельное окно справа снизу, а пилотский вид остаётся сверху. Пулы частиц ограничены: по 54 smoke puffs и 96 bubbles на отсек; плотность зависит от уровней опасности. Для пробоин и энергии используются холодные космические цвета, не flame-эффекты.
-- Ring имеет три экспериментальных профиля оружия: тонкая/частая laser pointer, более толстый pulse и меняющий цвет spectrum. Мастер оружия предлагает выбор после первого побеждённого босса. Следующий тест улучшения выдаётся после двух успешных завершённых пробегов с предыдущего предложения. Прогресс живёт в памяти вкладки, но не сохраняется после перезагрузки.
+- Два прозрачных диалога-комикса: оператор/сюжет и подсказка controls по устройству/уровню. Постоянный HUD-инструктаж скрыт в полёте; Ring убирает мелкие угловые подписи во время игры.
+- В выборе Crew портреты крупнее, карточки шире, изображения показываются целиком.
+- Hull Dive — нижнее правое окно; пилотский вид остаётся сверху. Все подписи кабины, текст станций на процедурной текстуре, телеметрия и основные уведомления ремонта/боезапаса/кислорода учитывают текущий RU/EN язык.
+- Smoke/bubble эффекты используют ограниченные пулы: 54 пuffs и 96 bubbles на отсек; плотность реагирует на состояние опасности. Видимые пробоины/энергия оформлены холодными космическими цветами.
+- Ring: laser pointer (тонкий/частый), pulse (толще/мощнее), spectrum (смена цвета). Мастер предлагает выбор после первого побеждённого босса, затем тест улучшения после двух успешных завершённых пробегов между предложениями. Прогресс хранится в памяти вкладки, не сохраняется после перезагрузки.
 - Split-screen Ring: P1/pilot сверху, P2 снизу. Одиночный режим сохраняется.
-- Warp: X-Small получает спокойный стандартный туннель; XX-Small — сильные спиральные рельсы; доступны просмотры визуальных классов I–IV. Истинный размер компонента Warp Drive ещё не берётся из Galaxy API.
-- Сетевые location rooms представлены только registry-прототипом в памяти процесса; настоящего WebSocket endpoint, auth, scheduled simulation, measured RTT или reconnect нет. Не называть это работающим online co-op.
+- Warp: X-Small — стандартный туннель, XX-Small — сильные спиральные рельсы; I/II/III/IV можно просматривать в Tube. Реальное значение Warp Drive slot не берётся из Galaxy API.
+- Network co-op пока представлен только in-memory room registry. Нет живого WebSocket endpoint, auth, authoritative scheduled simulation, измерения RTT или reconnect. Не заявлять, что online co-op уже включён.
 
-## Проверки
+## Проверки PR #55
 
-- Mini-Sim regression после merge: PASS — https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565685006
-- UI/dialog/weapons/Hull suite: PASS — https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565526244
-- Warp visual tiers: PASS — https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565526252
-- Tower top cap: PASS — https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565684968
-- Browser smoke with branch assets: PASS — https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565526302. Это smoke-тест сценария Warp map → Tube → cancel, а не полный playtest Ring-оружия и Hull на телефоне.
-- Long operations: browser QA job 45 min; media/load steps 20–25 min; source regression jobs 25–30 min; navigation wait до 60 s.
+- Mini-Sim regression: PASS — https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055498
+- Hull RU/EN copy: PASS — https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055354
+- Warp visual tiers: PASS — https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055312
+- UI/weapons/cabin: PASS — https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055331
+- Tower top cap: PASS — https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055392
+- Browser smoke: PASS — https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055334. Video-enabled QA step was skipped; browser smoke does not cover physical phone/gamepad controls or all Ring/Hull playability.
 
-## Следующие шаги
+## Осталось проверить вручную
 
-1. После обновления WordPress plugin assets вручную проверить Ring-вход через keyboard/gamepad/touch, RU/EN, четыре Warp вида, видимость дыма/воды и размеры Hull inset на Android.
-2. Проверить реальное ощущение оружия, попадания луча и cadence; при необходимости изменить баланс по игровому тесту.
-3. Продолжить Issue #48: WebSocket server entry, authentication, authoritative ticking, snapshots, RTT/ping, reconnect/rejoin и два клиента в разных локациях.
-4. Полная лёгкая SAGE map остаётся отдельным долгосрочным Issue #28.
+1. После обновления WordPress plugin assets проверить Ring entry на keyboard/gamepad/touch, RU/EN переключение, четыре Warp вида, видимость дыма/воды и размеры Hull inset на Android.
+2. Проверить feel оружия, beam hits/cadence и появление Master; изменить баланс по результату игры.
+3. Продолжить Issue #48: WebSocket/server entry, auth, authoritative tick/snapshots, RTT/ping UI, reconnect/rejoin и тест двух клиентов в разных локациях.
+4. Полная лёгкая SAGE map остаётся отдельным направлением Issue #28.
 
 ## Не затрагивать
 
-wordpress/galia-desk, scanner, marketplace/pricing/shared assets; размещение планеты и SAGE navigation adapter; global OST mixer; Tower physics. Не откатывать исправления без воспроизводимого теста.
+`wordpress/galia-desk`, scanner, marketplace/pricing/shared assets, planet placement, SAGE navigation adapter, global OST mixer и Tower physics. Не откатывать исправления без воспроизводимого теста.
