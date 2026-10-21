@@ -616,7 +616,7 @@
 }
 
 .bcm-mini-sim-crew-preflight-card {
-  width: min(92vw, 680px);
+  width: min(94vw, 900px);
   box-sizing: border-box;
   padding: 22px;
   border: 1px solid rgba(255,255,255,.16);
@@ -686,11 +686,13 @@
 .bcm-mini-sim-crew-slot-card.rarity-uncommon{border-color:rgba(61,186,122,.68)}
 .bcm-mini-sim-crew-slot-card.rarity-common{border-color:rgba(107,114,128,.55)}
 .bcm-mini-sim-crew-slot-image{
-  width:58px;
-  height:58px;
+  width:70px;
+  height:70px;
   border-radius:9px;
-  object-fit:cover;
-  background:#080c12;
+  object-fit:contain;
+  box-sizing:border-box;
+  padding:2px;
+  background:rgba(5,12,20,.78);
 }
 .bcm-mini-sim-crew-slot-empty{
   display:flex;
