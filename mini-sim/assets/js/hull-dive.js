@@ -581,7 +581,7 @@
       return setCrewTextureColorSpace(THREE, new THREE.CanvasTexture(cutout));
     }
 
-    function makeHullSideTexture(THREE) {
+    function makeHullSideTexture(THREE, english = false) {
       const canvas = document.createElement("canvas");
       canvas.width = 1536;
       canvas.height = 384;
@@ -617,7 +617,10 @@
         ctx.lineWidth = 3; ctx.strokeRect(x + 65, 73, 360, 58);
         ctx.fillStyle = "#e5f2f7";
         ctx.font = "bold 28px Arial, sans-serif";
-        ctx.fillText(i === 0 ? "ПИЛОТ / НАВИГАЦИЯ" : i === 1 ? "ОРУДИЕ / БОЕЗАПАС" : "ИНЖЕНЕР / РЕМОНТ", x + 82, 109);
+        const stationLabel = english
+          ? (i === 0 ? "PILOT / NAVIGATION" : i === 1 ? "GUN / AMMO" : "ENGINEERING / REPAIR")
+          : (i === 0 ? "ПИЛОТ / НАВИГАЦИЯ" : i === 1 ? "ОРУДИЕ / БОЕЗАПАС" : "ИНЖЕНЕР / РЕМОНТ");
+        ctx.fillText(stationLabel, x + 82, 109);
         ctx.fillStyle = "#507181";
         for (let j = 0; j < 7; j += 1) {
           ctx.beginPath(); ctx.arc(x + 88 + j * 48, 161, 5, 0, Math.PI * 2); ctx.fill();
@@ -677,7 +680,7 @@
       }
       view.appendChild(renderer.domElement);
       scene.add(new THREE.AmbientLight(0xffffff, 0.85));
-      const hullTexture = makeHullSideTexture(THREE);
+      const hullTexture = makeHullSideTexture(THREE, en);
       const hullMaterial = new THREE.MeshStandardMaterial({ map: hullTexture, color: 0xffffff, metalness: 0.42, roughness: 0.5 });
       // Leave a real gap in the outer shell as a viewport to the same 3D scene
       // behind this translucent cabin overlay.
