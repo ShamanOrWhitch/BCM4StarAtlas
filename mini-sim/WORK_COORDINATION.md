@@ -80,11 +80,11 @@ Handoff / close reason:
 
 ## Состояние после 21 октября 2026 — reconciled
 
-- Current main SHA: 9b4e7b8a2fe842de9418772c33499b63a79c1e18; Mini-Sim 0.9.110, Tower 0.2.64.
-- Merged: #46 (Ring menu activation), #49 (Warp visual tiers), #51 (RU/EN dialogs, Ring weapons, inset Hull Dive, longer QA budgets), #52 (bounded network room registry/design).
-- Main Mini-Sim regression [39565685006](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565685006) PASS; Tower top cap [39565684968](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565684968) PASS; browser smoke on code-identical PR assets [39565526302](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565526302) PASS. Physical Android/gamepad playtest and production WordPress plugin update remain unverified.
-- Network co-op: mini-sim/network/room-registry.mjs is only a tested in-memory room registry; no active WebSocket/server transport yet. The next milestone is Issue #48 (WebSocket/auth/authoritative tick/RTT/reconnect/two-client tests).
-- Full SAGE map remains Issue #28. Local Warp grid is not a real SAGE sector graph or actual fleet movement.
-- Next user playtest areas: Ring keyboard/gamepad/touch entry; RU/EN language toggle; all four Warp visual previews on phone; laser/pulse/spectrum feel and Master choices; smoke/bubbles visibility and inset Hull size.
-- Strict exclusion remains: do not edit wordpress/galia-desk, scanner, pricing/marketplace data/shared assets, planet placement, SAGE navigation adapter or global soundtrack mixer.
+- Current main SHA: `51553e78bec6c7ecfb20cc69610c89d9225222c7`; Mini-Sim **0.9.111**, Tower 0.2.64.
+- Merged: #46 Ring menu activation; #49 Warp visual tiers; #51 RU/EN dialogs, Ring weapons, inset Hull Dive and long QA budgets; #52 bounded network room registry/design; #55 Hull Dive RU/EN copy completion/cache bump.
+- PR #55 CI: Mini-Sim regression [39567055498](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055498) PASS; Tower [39567055392](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055392) PASS; Warp [39567055312](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055312) PASS; UI/weapons/cabin [39567055331](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055331) PASS; Hull RU/EN [39567055354](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055354) PASS; browser smoke [39567055334](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055334) PASS. Video media step was skipped. Physical Android/gamepad playtest and production WordPress plugin confirmation remain unverified.
+- Network co-op is still only `mini-sim/network/room-registry.mjs`, a tested in-memory registry. No live WebSocket/session auth/authoritative scheduler/RTT/reconnect. Next work remains Issue #48.
+- Full SAGE map is Issue #28; do not represent local Warp navigation as real SAGE topology or fleet movement.
+- Remaining hands-on checks: Ring menu on real keyboard/gamepad/touch, RU/EN selector, Warp I–IV at phone width, Hull visibility and controls, weapon feel/damage/cadence, live plugin asset cache update.
+- Strict exclusion: no edits to `wordpress/galia-desk`, scanner, pricing/marketplace shared assets, planet placement, SAGE navigation adapter, global OST mixer or Tower physics.
 
