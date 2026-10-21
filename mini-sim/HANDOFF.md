@@ -1,30 +1,41 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
-Дата: 2026-10-20.
+Дата: 21 октября 2026.
 
 ## Источник истины
 
-- Main: Mini-Sim **0.9.102**, Tower **0.2.62**. Активный WORK LOCK [#43](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/43).
-- Текущая задача в коде 0.9.102: Crew starts in visibly controllable movement mode (left stick), LB/V switches between movement and helm; cached Crew art uses one upload/orientation path. E pumps and extinguishes visible smoke/fire. Compartments persist integrity/external-hole/water/smoke/fire state and expose impact/patch hooks; a real exterior EVA scene is still future work. Warp Tube geometry is +12% while a separate shimmer clock keeps its previous tempo; hazards are faster, 22 layers are randomized per run and adjacent safe-lane changes are bounded. Cancel after asteroid comeback keeps the ship at that asteroid anchor but rolls the simulated sector back to this Tube trip's origin; a new trip snapshots a fresh origin. Regression + browser smoke passed; physical gamepad and production site still need confirmation.
-- Current source/regression checks passed on `1a4f78f3`: [Mini-Sim regression](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39329898587), [Tower regression](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39329898516). Browser smoke passed on the immediately preceding code commit `8d602f3c`: [browser smoke](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39329892540). These do not replace a physical gamepad/Android test or production deploy.
-- Ранее подтверждено пользователем: возврат из астероидного лабиринта к карте текущего сектора работает. Не менять навигацию/сектор/путь возврата.
-- Полная карта SAGE/галактики — [Issue #28](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/28). Локальная Warp-сцена не является реальным перемещением флота или on-chain интеграцией.
+- Main: Mini-Sim 0.9.110, Tower 0.2.64.
+- Сборочный SHA: 9b4e7b8a2fe842de9418772c33499b63a79c1e18.
+- Ключевые изменения: PR #46 Ring menu input; PR #49 Warp visual classes; PR #51 RU/EN dialogs, Ring weapons and inset cabin; PR #52 bounded network room prototype.
+- Не путать: CI PASS подтверждает код/автоматизированный сценарий, но не ручную игру на физическом Android/gamepad и не deploy плагина на WordPress.
 
-## Последние изменения
+## Что есть в 0.9.110
 
-1. `deep-space-warp.js`: весь pool `asterwall*` используется по стеновым batches; asset pool остаётся ограниченным фильтром имени/типа картинки, но больше не ограничивается четырьмя текстурами. На ошибку загрузки предусмотрен fallback.
-2. `tower.js`: count птиц — 38; ширина обычных платформ 3.23, глубина 1.9. Допуск контакта ноги сохранён; добавлены эффект двойного прыжка и три типа коробок-бустов.
-3. Версии/кэш: Mini-Sim 0.9.102, Tower 0.2.62; source-contract expectations sync with the Crew/Warp changes.
-4. Warp remains 8×→64×; tube geometry advances 12% faster while the independent shimmer clock preserves its prior tempo. Hazards use a faster curve, 22 layers and a fresh per-run seed; sweeper rotation formula itself is unchanged.
+- Стартовый переключатель RU/EN сохраняется в localStorage; Enter переключает язык до вылета.
+- Два полупрозрачных диалога-комикса: оператор/сюжет и устройство-зависимые controls. В полёте постоянный HUD-инструктаж скрыт; Ring убирает мелкие угловые подписи во время игры.
+- В меню Crew портреты увеличены, карточки шире и изображение показывается целиком.
+- Hull Dive — отдельное окно справа снизу, а пилотский вид остаётся сверху. Пулы частиц ограничены: по 54 smoke puffs и 96 bubbles на отсек; плотность зависит от уровней опасности. Для пробоин и энергии используются холодные космические цвета, не flame-эффекты.
+- Ring имеет три экспериментальных профиля оружия: тонкая/частая laser pointer, более толстый pulse и меняющий цвет spectrum. Мастер оружия предлагает выбор после первого побеждённого босса. Следующий тест улучшения выдаётся после двух успешных завершённых пробегов с предыдущего предложения. Прогресс живёт в памяти вкладки, но не сохраняется после перезагрузки.
+- Split-screen Ring: P1/pilot сверху, P2 снизу. Одиночный режим сохраняется.
+- Warp: X-Small получает спокойный стандартный туннель; XX-Small — сильные спиральные рельсы; доступны просмотры визуальных классов I–IV. Истинный размер компонента Warp Drive ещё не берётся из Galaxy API.
+- Сетевые location rooms представлены только registry-прототипом в памяти процесса; настоящего WebSocket endpoint, auth, scheduled simulation, measured RTT или reconnect нет. Не называть это работающим online co-op.
+
+## Проверки
+
+- Mini-Sim regression после merge: PASS — https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565685006
+- UI/dialog/weapons/Hull suite: PASS — https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565526244
+- Warp visual tiers: PASS — https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565526252
+- Tower top cap: PASS — https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565684968
+- Browser smoke with branch assets: PASS — https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565526302. Это smoke-тест сценария Warp map → Tube → cancel, а не полный playtest Ring-оружия и Hull на телефоне.
+- Long operations: browser QA job 45 min; media/load steps 20–25 min; source regression jobs 25–30 min; navigation wait до 60 s.
+
+## Следующие шаги
+
+1. После обновления WordPress plugin assets вручную проверить Ring-вход через keyboard/gamepad/touch, RU/EN, четыре Warp вида, видимость дыма/воды и размеры Hull inset на Android.
+2. Проверить реальное ощущение оружия, попадания луча и cadence; при необходимости изменить баланс по игровому тесту.
+3. Продолжить Issue #48: WebSocket server entry, authentication, authoritative ticking, snapshots, RTT/ping, reconnect/rejoin и два клиента в разных локациях.
+4. Полная лёгкая SAGE map остаётся отдельным долгосрочным Issue #28.
 
 ## Не затрагивать
 
-- Не менять адаптер навигации вне тестируемой local-return anchor correction. `galia-desk`, сканер и таблицы цен полностью вне области изменений.
-- Не менять планету и её координаты (радиус 11, (-26, 9, -190)).
-- Не возвращать случайную смену текстуры левой стены Room1.
-- Не переписывать глобальный музыкальный микшер без нового воспроизводимого отказа.
-- Не выдавать локальный Warp grid за полную SAGE карту или настоящий переход флота.
-
-## Проверка и развёртывание
-
-Regression workflow проверяет синтаксис Tower и source contracts. Browser QA может подменять JS/CSS выбранного коммита, но это не deploy на WordPress, не полная проверка видео и не тест на физическом Android. После merge отдельно проверить версию сайта и управление на телефоне.
+wordpress/galia-desk, scanner, marketplace/pricing/shared assets; размещение планеты и SAGE navigation adapter; global OST mixer; Tower physics. Не откатывать исправления без воспроизводимого теста.

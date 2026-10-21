@@ -78,10 +78,13 @@ Latest commit / PR:
 Handoff / close reason:
 ```
 
-## Состояние при подготовке протокола
+## Состояние после 21 октября 2026 — reconciled
 
-- Основная ветка: `main`; исходный HEAD `b9d031295f7baeac387b71cbaa9e74984c66a410`.
-- Текущая бронь документального изменения: [Issue #15](https://github.com/ShamanOrWitch/BCM4StarAtlas/issues/15), ветка `docs/shared-agent-coordination`.
-- В открытых PR на момент сверки есть PR #13 и #14 по Crew segmentation/cutout. До правки связанных файлов нужно проверить их diff/ветки; эти PR не блокируют непересекающиеся задачи автоматически.
-- Результаты последнего проверенного Actions SHA `dc8a08e`: regression [38369594418](https://github.com/ShamanOrWitch/BCM4StarAtlas/actions/runs/38369594418) PASS; browser QA [38369594467](https://github.com/ShamanOrWitch/BCM4StarAtlas/actions/runs/38369594467) PASS с артефактом до 20 октября 2026. Browser тест покрывает существующий Warp map → Tube → cancel сценарий, а не Room0 → B и mute.
-- Ближайшая игровая задача: расширить удалённый QA тестом Room0 → gamepad B → старт Room1, проверить Starbase OST и глобальный mute. Не переписывать микшер, пока именно эта проверка не выявит конкретную ошибку.
+- Current main SHA: 9b4e7b8a2fe842de9418772c33499b63a79c1e18; Mini-Sim 0.9.110, Tower 0.2.64.
+- Merged: #46 (Ring menu activation), #49 (Warp visual tiers), #51 (RU/EN dialogs, Ring weapons, inset Hull Dive, longer QA budgets), #52 (bounded network room registry/design).
+- Main Mini-Sim regression [39565685006](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565685006) PASS; Tower top cap [39565684968](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565684968) PASS; browser smoke on code-identical PR assets [39565526302](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565526302) PASS. Physical Android/gamepad playtest and production WordPress plugin update remain unverified.
+- Network co-op: mini-sim/network/room-registry.mjs is only a tested in-memory room registry; no active WebSocket/server transport yet. The next milestone is Issue #48 (WebSocket/auth/authoritative tick/RTT/reconnect/two-client tests).
+- Full SAGE map remains Issue #28. Local Warp grid is not a real SAGE sector graph or actual fleet movement.
+- Next user playtest areas: Ring keyboard/gamepad/touch entry; RU/EN language toggle; all four Warp visual previews on phone; laser/pulse/spectrum feel and Master choices; smoke/bubbles visibility and inset Hull size.
+- Strict exclusion remains: do not edit wordpress/galia-desk, scanner, pricing/marketplace data/shared assets, planet placement, SAGE navigation adapter or global soundtrack mixer.
+

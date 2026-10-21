@@ -1,3 +1,18 @@
+## D-020 — Mini-Sim 0.9.110 dialogs/weapons/inset cabin and network room prototype
+
+**Status:** merged. Main SHA 9b4e7b8a2fe842de9418772c33499b63a79c1e18, Mini-Sim 0.9.110 / Tower 0.2.64. PR [#51](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/51); source/UI suite [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565526244), Warp tier [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565526252), Mini-Sim regression [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565685006), Tower top cap [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565684968), browser smoke on the code-identical PR assets [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565526302). These checks are not a physical Android/controller playtest or a production WordPress deployment.
+
+- Enter toggles RU/EN in the start menu. Two body-level translucent dialog bubbles own operator text and controls by device/level so the main HUD's permanent instructional copy can be hidden.
+- Crew cards display larger complete portrait thumbnails. Hull Dive opens in the lower-right as a compact inset while the main pilot canvas uses the upper region. Smoke/bubble pools are bounded and more visible with rising hazard levels; breach/energy colors are cool sci-fi cyan/blue rather than fire-like graphics.
+- Ring weapon profiles: laser pointer (thin and fast), pulse (thicker/heavier), spectrum (cycles colors). Master offers the initial choice after the first defeated boss; an upgrade test is offered after two successful completed runs between offers. This is a prototype for player balance feedback. Progress is only stored in tab memory, not across reloads.
+- Ring split screen is top/bottom (P1 above, P2 below) after players separate sufficiently. Local multiplayer remains independent of the remote network prototype.
+- Asset-cache version is 0.9.110 to avoid stale 0.9.109 script URLs.
+- Long QA jobs have increased limits: browser job 45 min; media/load steps 20–25 min; regression jobs 25–30 min; Playwright navigation wait 60 s.
+- PR #52 merged the bounded in-memory SimRoomRegistry and network design. It does not add a WebSocket endpoint, authentication, scheduled authoritative ticking, RTT exchange or persistent reconnect. Keep Issue #48 open for the next phase; don't label network mode available yet.
+- Strict exclusion maintained: no galia-desk, scanner, pricing/marketplace/shared assets, planet placement, SAGE adapter or global OST mixer changes.
+
+---
+
 ## D-019 — fix Crew/gamepad controls, preserve return anchors and enrich Warp/repair feedback
 
 **Статус:** committed directly to main; current syntax/source-contract/regression checks passed on `1a4f78f3`: [Mini-Sim regression](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39329898587), [Tower regression](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39329898516). Browser smoke passed on code commit `8d602f3c`: [browser smoke](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39329892540). Physical gamepad/Android and production site testing are still pending. Mini-Sim 0.9.102 / Tower 0.2.62. WORK LOCK [Issue #43](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/43).
