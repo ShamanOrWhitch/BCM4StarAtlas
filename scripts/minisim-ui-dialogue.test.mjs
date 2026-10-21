@@ -71,7 +71,8 @@ test("Ring weapon prototypes include laser pointer, pulse and spectrum, with ope
   assert.match(warp, /window\.BCMDialogue\?\.showOperator\(lang === "en" \? "WEAPON MASTER" : "МАСТЕР ОРУЖИЯ"/);
   assert.match(warp, /"Spectrum · rainbow"/);
   assert.match(warp, /"Спектр · радуга"/);
-  assert.match(warp, /progress\.completedRuns >= 2/);
+  assert.match(warp, /progress\.completedRuns >= progress\.nextUpgradeAt/);
+  assert.match(warp, /weaponProgress\.nextUpgradeAt = weaponProgress\.completedRuns \+ 2/);
   assert.match(warp, /offerWeaponChoice\(true\)/);
   assert.match(warp, /if \(worldState\.defeatedBosses === 1 && !masterOfferedThisRun\)/);
 });
