@@ -1,3 +1,20 @@
+## D-022 — Mini-Sim 0.9.112: reliable Ring entry, UI hit-testing and live pilot view
+
+**Status:** merged in PR [#57](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/57). Main merge SHA 443cd4f1cd388d020f1811908f1d31ad53809334; Mini-Sim 0.9.112 / Tower 0.2.64.
+
+- Fixed the Hull Dive render gate so the outside-space scene continues drawing behind the inset while the compartment simulation owns input.
+- Hull Dive begins with Crew 1 at the active pilot helm. A single gamepad is assigned to P2 so keyboard P1 remains usable; two controllers are assigned separately in stable index order.
+- The lower-right inset is slightly enlarged and remains responsive on small viewports.
+- Attached the ship-interior button to document.body so its z-index is not trapped in the Mini-Sim stacking context. Added an explicit high-layer Ring entry button near the beacon. Mouse/touch and gamepad A can start Ring; keyboard arrows + Enter/Space select SINGLE/MULTI.
+- Raised Ring overlay hit-test priority, removed the duplicate root append, and added a 15-second media watchdog for stalled Ring transitions.
+- Added mini-sim/assets/js/ui-layer-audit.js: Ctrl+Alt+U scans visible controls using elementFromPoint, reports full/partial occlusion and names the blocking element. This validates hit-testing, not the semantic outcome of every click.
+- Asset/cache version and PHP fallback title are synchronized to 0.9.112.
+- CI PASS: Mini-Sim regression [39602967437](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39602967437), Ring menu [39602967350](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39602967350), UI layer [39602967364](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39602967364), Hull RU/EN [39602967454](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39602967454), Warp visuals [39602967418](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39602967418), Warp return [39602967560](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39602967560), browser smoke [39602967382](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39602967382).
+- CI/browser smoke is not physical Android/gamepad verification and does not deploy files to production WordPress.
+- No changes to Galia Desk, scanner, marketplace/pricing, planet placement, SAGE adapter, global OST mixer or Tower physics.
+- PRs #14/#18 remain open but are not mergeable with the latest main; do not merge those stale branches wholesale. Reconcile only independently useful diff on current main.
+
+---
 ## D-021 — Mini-Sim 0.9.111: complete bilingual Hull Dive UI
 
 **Status:** merged in PR [#55](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/55). Main SHA `51553e78bec6c7ecfb20cc69610c89d9225222c7`, Mini-Sim 0.9.111 / Tower 0.2.64. Hull RU/EN source test [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055354), Mini-Sim regression [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055498), UI/weapons/cabin [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055331), Warp tier [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055312), Tower top cap [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055392), browser smoke [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055334). Video-enabled QA step was skipped; no physical Android/gamepad or production deployment claim.
