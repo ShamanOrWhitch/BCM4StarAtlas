@@ -136,6 +136,7 @@
       let playbackRequested = false;
       let finished = false;
       let firstFrameCallback = 0;
+      let transitionWatchdog = 0;
 
       const overlay = document.createElement("div");
       overlay.id = "bcm-ring-transition";
@@ -158,6 +159,8 @@
       function enterLevel() {
         if (finished) return;
         finished = true;
+        if (transitionWatchdog) window.clearTimeout(transitionWatchdog);
+        transitionWatchdog = 0;
         try {
           if (firstFrameCallback && typeof video.cancelVideoFrameCallback === "function") {
             video.cancelVideoFrameCallback(firstFrameCallback);
@@ -213,6 +216,10 @@
       video.src = source;
       video.load();
       maybeStartVideo();
+      // Do not leave the player locked out if a mobile browser stalls media readiness.
+      transitionWatchdog = window.setTimeout(() => {
+        if (!finished) enterLevel();
+      }, 15000);
       return true;
     }
 
@@ -336,8 +343,8 @@
     hullEnterButton.textContent = "ВНУТРЬ КОРАБЛЯ · U / R3";
     hullEnterButton.setAttribute("aria-label", "Войти внутрь корабля");
     hullEnterButton.hidden = true;
-    hullEnterButton.style.cssText = "position:fixed;left:auto;right:14px;top:62px;bottom:auto;transform:none;z-index:1000500;min-height:36px;padding:6px 10px;border:1px solid #70d9ee;border-radius:9px;background:rgba(7,27,42,.92);color:#e8fbff;font:700 11px system-ui;letter-spacing:.03em;touch-action:manipulation;white-space:nowrap;box-shadow:0 4px 18px rgba(0,0,0,.28)";
-    root.appendChild(hullEnterButton);
+    hullEnterButton.style.cssText = "position:fixed;left:auto;right:14px;top:62px;bottom:auto;transform:none;z-index:1001100;min-height:40px;padding:7px 11px;border:1px solid #70d9ee;border-radius:9px;background:rgba(7,27,42,.96);color:#e8fbff;font:700 11px system-ui;letter-spacing:.03em;touch-action:manipulation;white-space:nowrap;box-shadow:0 4px 18px rgba(0,0,0,.38);pointer-events:auto;cursor:pointer";
+    document.body.appendChild(hullEnterButton);
     hullEnterButton.addEventListener("click", () => openHullInterior());
 
     function syncHullButtonVisibility() {
@@ -352,6 +359,41 @@
       if (hullEnterButton.hidden !== hidden) hullEnterButton.hidden = hidden;
       return !hidden;
     }
+
+    const ringEnterButton = document.createElement("button");
+    ringEnterButton.className = "bcm-warp-ring-enter";
+    ringEnterButton.type = "button";
+    ringEnterButton.textContent = "ВХОД В ЛАБИРИНТ RING";
+    ringEnterButton.setAttribute("aria-label", "Войти в большой лабиринт Ring Frontier");
+    ringEnterButton.hidden = true;
+    ringEnterButton.style.cssText = "position:fixed;left:auto;right:14px;top:108px;bottom:auto;transform:none;z-index:1001101;min-height:40px;max-width:calc(100vw - 28px);padding:7px 11px;border:1px solid #d5bd73;border-radius:9px;background:rgba(31,25,10,.96);color:#fff0bd;font:800 11px system-ui;letter-spacing:.04em;touch-action:manipulation;white-space:nowrap;box-shadow:0 4px 18px rgba(0,0,0,.38);pointer-events:auto;cursor:pointer";
+    document.body.appendChild(ringEnterButton);
+    ringEnterButton.addEventListener("click", () => {
+      const maze = state.maze;
+      if (!maze || !maze.active || state.mode !== "maze") return;
+      if (openRingPlatformer(maze)) ringEnterButton.hidden = true;
+      syncHullButtonVisibility();
+      syncRingButtonVisibility();
+    });
+
+    function syncRingButtonVisibility() {
+      const maze = state.maze;
+      const towerRoot = document.querySelector(".bcm-tower");
+      const towerOwnsScreen = !!(towerRoot && !towerRoot.hidden);
+      const blocked = state.mode !== "maze" || !maze || !maze.active || maze.ringCompleted ||
+        !state.ringApproachArmed || state.ringDistance >= 18 || state.ringPlatformer ||
+        state.ringTransitionActive || state.hullOpen || towerOwnsScreen ||
+        !!document.getElementById("bcm-hull-dive") ||
+        !!document.getElementById("bcm-ring-platformer") ||
+        !!document.getElementById("bcm-ring-transition");
+      const visible = root.classList.contains("game-active") && !blocked;
+      ringEnterButton.hidden = !visible;
+      const english = window.BCMDialogue?.language === "en";
+      ringEnterButton.textContent = english ? "ENTER RING LABYRINTH" : "ВХОД В ЛАБИРИНТ RING";
+      ringEnterButton.setAttribute("aria-label", english ? "Enter the large Ring Frontier level" : "Войти в большой лабиринт Ring Frontier");
+      return visible;
+    }
+
     if (typeof MutationObserver === "function") {
       const hullButtonObserver = new MutationObserver(syncHullButtonVisibility);
       hullButtonObserver.observe(root, { attributes: true, attributeFilter: ["class"] });
@@ -1403,6 +1445,7 @@
       const ringDistance = pos.distanceTo(maze.beacon.position);
       state.ringDistance = ringDistance;
       syncHullButtonVisibility();
+      syncRingButtonVisibility();
       // Require the ship to leave the beacon's capture radius after exiting Ring
       // before accepting another approach; the same level can still be re-entered.
       if (ringDistance > 4.2) state.ringApproachArmed = true;
@@ -1474,19 +1517,35 @@
     }
 
     const hullEntryPadWasDown = new Map();
+    const ringEntryPadWasDown = new Map();
     window.BCMDeepSpaceWarpPoll = () => {
       syncHullButtonVisibility();
+      syncRingButtonVisibility();
       const pads = navigator.getGamepads ? [...navigator.getGamepads()] : [];
       let pressed = false;
+      let ringPressed = false;
       for (const pad of pads) {
         if (!pad || !pad.connected) continue;
         const down = !!pad.buttons?.[11]?.pressed;
         const wasDown = hullEntryPadWasDown.get(pad.index) || false;
         hullEntryPadWasDown.set(pad.index, down);
         if (down && !wasDown) pressed = true;
+        const ringDown = !!pad.buttons?.[0]?.pressed;
+        const ringWasDown = ringEntryPadWasDown.get(pad.index) || false;
+        ringEntryPadWasDown.set(pad.index, ringDown);
+        if (ringDown && !ringWasDown) ringPressed = true;
       }
       for (const index of [...hullEntryPadWasDown.keys()]) {
         if (!pads.some((pad) => pad && pad.connected && pad.index === index)) hullEntryPadWasDown.delete(index);
+      }
+      for (const index of [...ringEntryPadWasDown.keys()]) {
+        if (!pads.some((pad) => pad && pad.connected && pad.index === index)) ringEntryPadWasDown.delete(index);
+      }
+      if (ringPressed && state.mode === "maze" && state.maze && state.maze.active &&
+          state.ringApproachArmed && state.ringDistance < 18 && !state.ringPlatformer &&
+          !state.ringTransitionActive && !state.hullOpen) {
+        openRingPlatformer(state.maze);
+        return;
       }
       if (!pressed || state.mode === "map" || state.mode === "tube" || state.mode === "result" ||
           state.ringPlatformer || state.ringTransitionActive || state.hullOpen ||
@@ -1514,6 +1573,7 @@
       startRingAudio();
       state.ringPlatformer = true;
       hullEnterButton.hidden = true;
+      ringEnterButton.hidden = true;
       if (engine.pauseForWarp) engine.pauseForWarp(true);
 
       const THREE = runtime.THREE;
@@ -1523,7 +1583,7 @@
       const root2d = document.createElement("div");
       root2d.id = "bcm-ring-platformer";
       root2d.tabIndex = 0;
-      root2d.style.cssText = "position:fixed;inset:0;z-index:1000600;background:transparent;color:#e8f4f8;font:14px system-ui,sans-serif;overflow:hidden;touch-action:none;pointer-events:none";
+      root2d.style.cssText = "position:fixed;inset:0;z-index:1001200;background:transparent;color:#e8f4f8;font:14px system-ui,sans-serif;overflow:hidden;touch-action:none;pointer-events:auto";
       const en = window.BCMDialogue?.language === "en";
       const copy = en ? {
         landing: "LANDING", bosses: "BOSSES", back: "Return to ship", canvas: "Large arena progress",
@@ -1574,7 +1634,7 @@
             '</div>' +
           '</div>' +
         '</div>';
-      document.body.appendChild(root2d);      document.body.appendChild(root2d);
+      document.body.appendChild(root2d);
       const canvas = root2d.querySelector("[data-ring-canvas]");
       const g = canvas.getContext("2d");
       const statusEl = root2d.querySelector("[data-ring-status]");
@@ -2898,6 +2958,10 @@
       focusModeMenu(0);
       modeButtons.forEach((button, index) => {
         if (!button) return;
+        button.style.pointerEvents = "auto";
+        button.style.position = "relative";
+        button.style.zIndex = "7";
+        button.style.cursor = "pointer";
         const activate = () => {
           focusModeMenu(index);
           startMode(index === 1 ? "multi" : "single");
@@ -2912,6 +2976,22 @@
         });
         button.addEventListener("focus", () => focusModeMenu(index));
         button.addEventListener("click", activate);
+      });
+      root2d.addEventListener("keydown", (event) => {
+        if (gameStarted || done) return;
+        if (event.code === "ArrowLeft" || event.code === "ArrowUp") {
+          event.preventDefault();
+          event.stopPropagation();
+          focusModeMenu(menuFocusIndex - 1);
+        } else if (event.code === "ArrowRight" || event.code === "ArrowDown") {
+          event.preventDefault();
+          event.stopPropagation();
+          focusModeMenu(menuFocusIndex + 1);
+        } else if (event.code === "Enter" || event.code === "Space") {
+          event.preventDefault();
+          event.stopPropagation();
+          confirmModeMenu();
+        }
       });
       menu.addEventListener("pointerdown", (event) => {
         if (gameStarted || done || event.target.closest("button")) return;
