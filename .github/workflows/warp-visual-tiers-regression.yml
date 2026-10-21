@@ -1,0 +1,38 @@
+name: Warp visual tiers regression
+
+on:
+  push:
+    branches:
+      - feat/warp-visual-tier-previews-20261021
+    paths:
+      - "mini-sim/assets/js/deep-space-warp.js"
+      - "mini-sim/WARP_VISUAL_TIERS.md"
+      - "mini-sim/bcm-mini-sim.php"
+      - "scripts/minisim-local-qa.test.mjs"
+      - "scripts/warp-visual-tiers.test.mjs"
+      - ".github/workflows/warp-visual-tiers-regression.yml"
+  pull_request:
+    paths:
+      - "mini-sim/assets/js/deep-space-warp.js"
+      - "mini-sim/WARP_VISUAL_TIERS.md"
+      - "mini-sim/bcm-mini-sim.php"
+      - "scripts/minisim-local-qa.test.mjs"
+      - "scripts/warp-visual-tiers.test.mjs"
+      - ".github/workflows/warp-visual-tiers-regression.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  warp-visual-tiers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check JavaScript syntax
+        run: node --check mini-sim/assets/js/deep-space-warp.js
+      - name: Run Warp tier and Mini-Sim source contracts
+        run: node --test scripts/warp-visual-tiers.test.mjs scripts/minisim-local-qa.test.mjs scripts/minisim-input-scope.test.mjs scripts/warp-maze-return.test.mjs
