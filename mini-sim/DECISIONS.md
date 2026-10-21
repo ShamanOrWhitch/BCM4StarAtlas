@@ -1,3 +1,13 @@
+## D-021 — Mini-Sim 0.9.111: complete bilingual Hull Dive UI
+
+**Status:** merged in PR [#55](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/55). Main SHA `51553e78bec6c7ecfb20cc69610c89d9225222c7`, Mini-Sim 0.9.111 / Tower 0.2.64. Hull RU/EN source test [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055354), Mini-Sim regression [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055498), UI/weapons/cabin [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055331), Warp tier [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055312), Tower top cap [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055392), browser smoke [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39567055334). Video-enabled QA step was skipped; no physical Android/gamepad or production deployment claim.
+
+- The inset Hull Dive derives language from `window.BCMDialogue.language` and localizes its fixed labels, controls, texture-rendered station captions, telemetry, and repair/ammo/oxygen status. Cache version is bumped to 0.9.111.
+- Preserves the lower-right inset, top pilot view and bounded particle pools; no new renderer or per-frame particle allocation.
+- No changes to Galia Desk, scanner, marketplace/pricing, planet placement, navigation adapter or global OST mixer.
+
+---
+
 ## D-020 — Mini-Sim 0.9.110 dialogs/weapons/inset cabin and network room prototype
 
 **Status:** merged. Main SHA 9b4e7b8a2fe842de9418772c33499b63a79c1e18, Mini-Sim 0.9.110 / Tower 0.2.64. PR [#51](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/51); source/UI suite [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565526244), Warp tier [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565526252), Mini-Sim regression [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565685006), Tower top cap [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565684968), browser smoke on the code-identical PR assets [PASS](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39565526302). These checks are not a physical Android/controller playtest or a production WordPress deployment.
