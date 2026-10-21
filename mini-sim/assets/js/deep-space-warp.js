@@ -2416,6 +2416,13 @@
         };
         const p2 = { KeyJ: "left", KeyL: "right", KeyP: "jump" };
         let index = 0;
+        if (event.code === "KeyQ" || (mode === "multi" && event.code === "KeyK")) {
+          index = event.code === "KeyK" ? 1 : 0;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          keyboardInputs[index].fire = down;
+          return;
+        }
         let action = p1[event.code] || null;
         if (!action && mode === "multi") {
           action = p2[event.code] || null;
@@ -2528,6 +2535,7 @@
             player.facing = direction;
             player.moves += dt;
           }
+          if (input.fire) firePlayerWeapon(player, now);
           const dashing = now < player.dashUntil;
           const previousX = player.worldX;
           if (dashing) player.worldX += player.facing * 12.5 * dt;
@@ -2769,7 +2777,7 @@
         g.font = "9px system-ui";
         g.textAlign = "left";
         g.textBaseline = "top";
-        g.fillText("ПРОГРЕСС ПО ЗОНАМ", 8, 5);
+        // Progress is shown by the strip and markers; avoid tiny permanent caption text.
       }
 
       function startMode(nextMode) {
@@ -2783,7 +2791,14 @@
         players = [createPlayer(0, spawn1)];
         if (spawn2) players.push(createPlayer(1, spawn2));
         updateSplitState();
-        updateHud(mode === "multi" ? "MULTI · ИССЛЕДУЙТЕ ЗОНЫ ВМЕСТЕ" : "SINGLE · ДОБЕРИСЬ ДО ПЕРВОЙ АРЕНЫ");
+        updateHud(mode === "multi" ? "MULTI" : "SINGLE");
+        statusEl.style.display = "none";
+        floorEl.style.display = "none";
+        window.BCMDialogue?.showControls("ring");
+        if (Number(weaponProgress.completedRuns) >= 2 && weaponProgress.pendingUpgrade &&
+            Number(weaponProgress.lastUpgradePromptRun) !== Number(weaponProgress.completedRuns)) {
+          window.setTimeout(() => offerWeaponChoice(true), 250);
+        }
         resize2d();
         root2d.focus({ preventScroll: true });
       }
@@ -2801,6 +2816,7 @@
         const dt = frameStamp ? Math.min(0.05, Math.max(0.001, (now - frameStamp) / 1000)) : 1 / 60;
         frameStamp = now;
         updatePlayers(dt);
+        updateWeaponShots(dt);
         if (done) return;
         updateSplitState();
         drawMiniMap();
@@ -2900,6 +2916,15 @@
           if (player.sprite) worldState.group.remove(player.sprite);
           if (player.spriteMaterial) player.spriteMaterial.dispose();
         });
+        weaponShots.forEach((shot) => {
+          scene.remove(shot.mesh);
+          scene.remove(shot.glow);
+          try { shot.geometry.dispose(); } catch (e) {}
+          try { shot.material.dispose(); } catch (e) {}
+          try { shot.glowGeometry.dispose(); } catch (e) {}
+          try { shot.glowMaterial.dispose(); } catch (e) {}
+        });
+        weaponShots.length = 0;
         maze.group.visible = worldSaved.oldMazeVisible;
         if (runtime.ship.visual) runtime.ship.visual.visible = worldSaved.oldShipVisible;
         scene.background = oldBackground;
@@ -2919,6 +2944,13 @@
       if (!state.ringPlatformer || !maze) return false;
       const success = completed === true;
       maze.ringCompleted = success;
+      if (success) {
+        const progress = window.BCMRingWeaponProgress || (window.BCMRingWeaponProgress = {
+          type: "pointer", tier: 1, completedRuns: 0, pendingUpgrade: false, lastUpgradePromptRun: -1
+        });
+        progress.completedRuns = (Number(progress.completedRuns) || 0) + 1;
+        if (progress.completedRuns >= 2 && Number(progress.tier) < 5) progress.pendingUpgrade = true;
+      }
       const cleanup = state.ringPlatformerCleanup;
       state.ringPlatformerCleanup = null;
       state.ringPlatformer = false;
