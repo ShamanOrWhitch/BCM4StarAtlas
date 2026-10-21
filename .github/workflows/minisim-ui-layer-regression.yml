@@ -1,0 +1,41 @@
+name: Mini-Sim UI Layer Regression
+on:
+  push:
+    paths:
+      - 'mini-sim/assets/js/mini-sim.js'
+      - 'mini-sim/assets/js/hull-dive.js'
+      - 'mini-sim/assets/js/deep-space-warp.js'
+      - 'mini-sim/assets/js/ui-layer-audit.js'
+      - 'mini-sim/bcm-mini-sim.php'
+      - 'scripts/minisim-ui-layer-regression.mjs'
+      - '.github/workflows/minisim-ui-layer-regression.yml'
+  pull_request:
+    paths:
+      - 'mini-sim/assets/js/mini-sim.js'
+      - 'mini-sim/assets/js/hull-dive.js'
+      - 'mini-sim/assets/js/deep-space-warp.js'
+      - 'mini-sim/assets/js/ui-layer-audit.js'
+      - 'mini-sim/bcm-mini-sim.php'
+      - 'scripts/minisim-ui-layer-regression.mjs'
+      - '.github/workflows/minisim-ui-layer-regression.yml'
+permissions:
+  contents: read
+jobs:
+  ui-layer-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Parse runtime modules
+        run: |
+          node --check mini-sim/assets/js/mini-sim.js
+          node --check mini-sim/assets/js/hull-dive.js
+          node --check mini-sim/assets/js/deep-space-warp.js
+          node --check mini-sim/assets/js/ui-layer-audit.js
+      - name: Assert UI layer and control contracts
+        run: node scripts/minisim-ui-layer-regression.mjs
