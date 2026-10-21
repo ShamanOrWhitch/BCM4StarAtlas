@@ -4769,8 +4769,9 @@
 
   function resize() {
     if (!renderer || !camera) return;
-    const w = root.clientWidth || 800;
-    const h = root.clientHeight || 600;
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width || root.clientWidth || 800;
+    const h = rect.height || root.clientHeight || 600;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
