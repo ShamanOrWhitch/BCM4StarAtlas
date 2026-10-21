@@ -1524,36 +1524,50 @@
       root2d.id = "bcm-ring-platformer";
       root2d.tabIndex = 0;
       root2d.style.cssText = "position:fixed;inset:0;z-index:1000600;background:transparent;color:#e8f4f8;font:14px system-ui,sans-serif;overflow:hidden;touch-action:none;pointer-events:none";
+      const en = window.BCMDialogue?.language === "en";
+      const copy = en ? {
+        landing: "LANDING", bosses: "BOSSES", back: "Return to ship", canvas: "Large arena progress",
+        jump: "JUMP", action: "ACTION", laser: "LASER", dash: "DASH",
+        title: "Large location",
+        description: "Run across large side arenas, jump between platforms and defeat three bosses. The small map only marks your progress.",
+        controls: "P1: ← → / A D · jump: Space / W · action: E · fire: Q\nP2: J L · jump: P · action: O · fire: K · gamepads supported"
+      } : {
+        landing: "ВЫСАДКА", bosses: "БОССЫ", back: "В корабль", canvas: "Прогресс по аренам",
+        jump: "ПРЫЖОК", action: "ДЕЙСТВИЕ", laser: "ЛАЗЕР", dash: "РЫВОК",
+        title: "Большая локация",
+        description: "Свободное движение по большим боковым аренам, прыжки между платформами и три босса в разных зонах. Мини-карта показывает только продвижение по локации.",
+        controls: "P1: ← → / A D · прыжок: Space / W · действие: E · лазер: Q\nP2: J L · прыжок: P · действие: O · лазер: K · геймпады поддерживаются"
+      };
       root2d.innerHTML =
         '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;pointer-events:none;z-index:3">' +
           '<div style="max-width:62%;text-shadow:0 2px 8px #000"><div style="font-size:11px;letter-spacing:.16em;color:#60ddec">RING // FRONTIER</div>' +
-          '<div data-ring-status style="font-weight:900;margin-top:5px;line-height:1.3">ВЫСАДКА</div>' +
+          '<div data-ring-status style="font-weight:900;margin-top:5px;line-height:1.3">' + copy.landing + '</div>' +
           '<div data-ring-floor style="margin-top:5px;color:#b8cbd6;font-size:12px"></div>' +
           '<div data-ring-boss-meter style="display:none;width:min(48vw,300px);height:7px;margin-top:8px;border:1px solid rgba(211,235,248,.6);border-radius:9px;background:rgba(4,10,18,.8);overflow:hidden"><div data-ring-boss-fill style="width:100%;height:100%;background:linear-gradient(90deg,#55e6ef,#f6b55e);transition:width .12s linear"></div></div></div>' +
           '<div style="display:flex;flex-direction:column;gap:7px;align-items:flex-end;pointer-events:auto">' +
-            '<div data-ring-count style="padding:6px 9px;background:rgba(7,22,34,.94);border:1px solid #25485b;border-radius:8px;color:#d9f8ff;white-space:nowrap">БОССЫ 0/3</div>' +
-            '<button type="button" data-ring-exit style="min-height:42px;padding:7px 11px;border:1px solid #547083;border-radius:9px;background:rgba(16,35,45,.96);color:#e8fbff;font-weight:800">В КОРАБЛЬ · Esc</button>' +
+            '<div data-ring-count style="padding:6px 9px;background:rgba(7,22,34,.94);border:1px solid #25485b;border-radius:8px;color:#d9f8ff;white-space:nowrap">' + copy.bosses + ' 0/3</div>' +
+            '<button type="button" data-ring-exit title="' + copy.back + '" aria-label="' + copy.back + '" style="min-width:42px;min-height:42px;padding:7px 11px;border:1px solid #547083;border-radius:9px;background:rgba(16,35,45,.96);color:#e8fbff;font-size:20px;font-weight:800">↩</button>' +
           '</div>' +
         '</div>' +
-        '<canvas data-ring-canvas aria-label="Индикатор прохождения больших зон" style="position:absolute;right:12px;top:96px;width:min(30vw,190px);height:56px;min-width:96px;min-height:42px;border:1px solid rgba(88,173,198,.55);border-radius:9px;background:rgba(3,10,18,.83);z-index:2;pointer-events:none"></canvas>' +
+        '<canvas data-ring-canvas aria-label="' + copy.canvas + '" style="position:absolute;right:12px;top:96px;width:min(30vw,190px);height:56px;min-width:96px;min-height:42px;border:1px solid rgba(88,173,198,.55);border-radius:9px;background:rgba(3,10,18,.83);z-index:2;pointer-events:none"></canvas>' +
         '<div data-ring-split-divider hidden style="position:absolute;inset:0;z-index:1;pointer-events:none;border:0"></div>' +
         '<div style="position:absolute;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:flex-end;gap:12px;z-index:4;pointer-events:none">' +
           '<div style="display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(2,42px);gap:4px;pointer-events:auto">' +
-            '<span></span><button type="button" data-ring-action="jump" aria-label="Прыжок" style="grid-column:2;grid-row:1;min-height:42px">ПРЫЖОК</button><span></span>' +
-            '<button type="button" data-ring-action="left" aria-label="Влево" style="min-height:42px">◀</button><span style="display:block"></span><button type="button" data-ring-action="right" aria-label="Вправо" style="min-height:42px">▶</button>' +
+            '<span></span><button type="button" data-ring-action="jump" aria-label="' + copy.jump + '" style="grid-column:2;grid-row:1;min-height:42px">' + copy.jump + '</button><span></span>' +
+            '<button type="button" data-ring-action="left" aria-label="' + (en ? "Left" : "Влево") + '" style="min-height:42px">◀</button><span style="display:block"></span><button type="button" data-ring-action="right" aria-label="' + (en ? "Right" : "Вправо") + '" style="min-height:42px">▶</button>' +
           '</div>' +
           '<div style="display:flex;gap:6px;align-items:flex-end;pointer-events:auto">' +
-            '<button type="button" data-ring-action="activate" style="min-height:42px;padding:6px 10px;font-size:12px">ДЕЙСТВИЕ</button>' +
-            '<button type="button" data-ring-action="fire" aria-label="Лазер" style="min-height:42px;padding:6px 10px;font-size:12px">ЛАЗЕР</button>' +
-            '<button type="button" data-ring-action="dash" style="min-height:42px;padding:6px 10px;font-size:12px">РЫВОК</button>' +
+            '<button type="button" data-ring-action="activate" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.action + '</button>' +
+            '<button type="button" data-ring-action="fire" aria-label="' + copy.laser + '" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.laser + '</button>' +
+            '<button type="button" data-ring-action="dash" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.dash + '</button>' +
           '</div>' +
         '</div>' +
         '<div data-ring-mode-menu style="position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(1,5,12,.74);pointer-events:auto">' +
           '<div style="width:min(480px,100%);padding:22px;border:1px solid #37677c;border-radius:16px;background:rgba(6,20,32,.97);box-shadow:0 12px 60px #0009;text-align:center">' +
             '<div style="font-size:12px;letter-spacing:.18em;color:#60ddec">RING FRONTIER · SEED ' + seed + '</div>' +
-            '<div style="font-size:24px;font-weight:900;margin:12px 0 7px">Большая локация</div>' +
-            '<div style="color:#b7cbd6;line-height:1.5;margin-bottom:17px">Свободное движение по большим боковым аренам, прыжки между платформами и три босса в разных зонах. Мини-карта показывает только продвижение по локации.</div>' +
-            '<div style="color:#91b8c7;font-size:12px;line-height:1.5;margin-bottom:17px">P1: ← → / A D · прыжок: Space / W · действие: E · рывок: Shift<br>P2: J L · прыжок: P · действие: O · рывок: I · геймпады поддерживаются</div>' +
+            '<div style="font-size:24px;font-weight:900;margin:12px 0 7px">' + copy.title + '</div>' +
+            '<div style="color:#b7cbd6;line-height:1.5;margin-bottom:17px">' + copy.description + '</div>' +
+            '<div style="color:#91b8c7;font-size:12px;line-height:1.5;margin-bottom:17px;white-space:pre-line">' + copy.controls + '</div>' +
             '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">' +
               '<button type="button" data-ring-single style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #69d7ea;border-radius:10px;background:#123c48;color:#e8fbff;font-weight:900">SINGLE</button>' +
               '<button type="button" data-ring-multi style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #bb9a57;border-radius:10px;background:#3b301b;color:#fff0c7;font-weight:900">MULTI · 2 CREW</button>' +
@@ -2812,6 +2826,7 @@
         updateHud(mode === "multi" ? "MULTI" : "SINGLE");
         statusEl.style.display = "none";
         floorEl.style.display = "none";
+        countEl.style.display = "none";
         window.BCMDialogue?.showControls("ring");
         if (Number(weaponProgress.completedRuns) >= 2 && weaponProgress.pendingUpgrade &&
             Number(weaponProgress.lastUpgradePromptRun) !== Number(weaponProgress.completedRuns)) {
