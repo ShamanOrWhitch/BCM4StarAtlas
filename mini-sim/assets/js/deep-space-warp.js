@@ -1542,7 +1542,8 @@
             '<button type="button" data-ring-action="left" aria-label="Влево" style="min-height:42px">◀</button><span style="display:block"></span><button type="button" data-ring-action="right" aria-label="Вправо" style="min-height:42px">▶</button>' +
           '</div>' +
           '<div style="display:flex;gap:6px;align-items:flex-end;pointer-events:auto">' +
-            '<button type="button" data-ring-action="activate" style="min-height:42px;padding:6px 10px;font-size:12px">АКТИВАЦИЯ</button>' +
+            '<button type="button" data-ring-action="activate" style="min-height:42px;padding:6px 10px;font-size:12px">ДЕЙСТВИЕ</button>' +
+            '<button type="button" data-ring-action="fire" aria-label="Лазер" style="min-height:42px;padding:6px 10px;font-size:12px">ЛАЗЕР</button>' +
             '<button type="button" data-ring-action="dash" style="min-height:42px;padding:6px 10px;font-size:12px">РЫВОК</button>' +
           '</div>' +
         '</div>' +
@@ -1596,6 +1597,13 @@
       const previousPad = [{}, {}];
       let menuFocusIndex = 0;
       let menuPadPrevious = { left: false, right: false, confirm: false };
+      const weaponProgress = window.BCMRingWeaponProgress || (window.BCMRingWeaponProgress = {
+        type: "pointer", tier: 1, completedRuns: 0, pendingUpgrade: false, lastUpgradePromptRun: -1
+      });
+      const weaponPalette = [0xff426f, 0xffab48, 0xffed57, 0x56f0a0, 0x58c9ff, 0xc884ff];
+      const weaponShots = [];
+      let weaponShotIndex = 0;
+      let masterOfferedThisRun = false;
       const oneShotActions = new Set(["activate", "dash"]);
       const worldSaved = {
         oldMazeVisible: maze.group ? maze.group.visible : true,
@@ -2144,6 +2152,9 @@
           localX: 0, jumpHeight: 0, vy: 0, grounded: true, supportPlatform: null,
           facing: 1, lastActionAt: 0, wasJumpDown: false,
           actionReadyAt: 0, dashReadyAt: 0, dashUntil: 0,
+          weaponType: weaponProgress.type || "pointer",
+          weaponTier: Math.max(1, Number(weaponProgress.tier) || 1),
+          weaponReadyAt: 0,
           hp: 5, maxHp: 5, invulnerableUntil: 0,
           checkpointX: Number(spawn.x) || -45,
           image: crewImages[index] || null, tint: playerColors[index], moves: 0,
@@ -2161,7 +2172,8 @@
         return {
           left: !!(keys.left || touch.left || pad.left),
           right: !!(keys.right || touch.right || pad.right),
-          jump: !!(keys.jump || touch.jump || pad.jump)
+          jump: !!(keys.jump || touch.jump || pad.jump),
+          fire: !!(keys.fire || touch.fire || pad.fire)
         };
       }
 
@@ -2336,6 +2348,7 @@
           statePad.jump = !!(button(0) || button(12) || axisY < -0.68);
           statePad.dash = !!button(1);
           statePad.activate = !!button(2);
+          statePad.fire = !!button(3);
           if (statePad.activate && !previousPad[i].activate) triggerAction(i, "activate");
           if (statePad.dash && !previousPad[i].dash) triggerAction(i, "dash");
           previousPad[i] = { activate: statePad.activate, dash: statePad.dash };
