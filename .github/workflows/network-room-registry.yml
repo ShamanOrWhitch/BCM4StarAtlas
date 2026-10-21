@@ -1,0 +1,32 @@
+name: Network co-op registry tests
+
+on:
+  push:
+    branches:
+      - docs/networked-coop-instance-design-20261021
+    paths:
+      - "mini-sim/network/**"
+      - "scripts/network-room-registry.test.mjs"
+      - ".github/workflows/network-room-registry.yml"
+  pull_request:
+    paths:
+      - "mini-sim/network/**"
+      - "scripts/network-room-registry.test.mjs"
+      - ".github/workflows/network-room-registry.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  room-registry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check prototype syntax
+        run: node --check mini-sim/network/room-registry.mjs
+      - name: Test multiple room instances and bounded state
+        run: node --test scripts/network-room-registry.test.mjs
