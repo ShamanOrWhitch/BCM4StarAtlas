@@ -1440,6 +1440,9 @@
       // Preserve the current first-person flight pose and only pause the ship while
       // the transparent compartment simulation owns the screen.
       state.hullOpen = true;
+      root.classList.add("bcm-hull-interior-active");
+      window.dispatchEvent(new Event("resize"));
+      window.BCMDialogue?.showControls("hull");
       syncHullButtonVisibility();
       if (engine.pauseForWarp) engine.pauseForWarp(true);
 
@@ -1453,6 +1456,8 @@
 
       window.BCMHullDive.open(() => {
         state.hullOpen = false;
+        root.classList.remove("bcm-hull-interior-active");
+        window.dispatchEvent(new Event("resize"));
         window.BCMRingWindowState = null;
         if (engine.pauseForWarp) engine.pauseForWarp(false);
         const freshRuntime = engine.getRuntime ? engine.getRuntime() : null;
