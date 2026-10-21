@@ -757,14 +757,14 @@
       });
       breach = new THREE.Mesh(
         new THREE.CircleGeometry(0.28, 16),
-        new THREE.MeshBasicMaterial({ color: 0xffb15a })
+        new THREE.MeshBasicMaterial({ color: 0x72dcf7 })
       );
       breach.position.set(0, floor + 0.15, 0.45);
       scene.add(breach);
       externalHoleMeshes = rooms.map((room) => {
         const mesh = new THREE.Mesh(
           new THREE.CircleGeometry(0.23, 14),
-          new THREE.MeshBasicMaterial({ color: 0xff6b55, transparent: true, opacity: 0.9, depthWrite: false })
+          new THREE.MeshBasicMaterial({ color: 0x68bfff, transparent: true, opacity: 0.9, depthWrite: false })
         );
         mesh.position.set((room.x0 + room.x1) / 2, floor + 0.15, 0.47);
         mesh.visible = false;
@@ -1196,7 +1196,7 @@
       if (breach) {
         const left = Math.max(0.08, 1 - weld);
         breach.scale.set(left, left, 1);
-        breach.material.color.set(weld >= 1 ? 0x7dcea0 : 0xffb15a);
+        breach.material.color.set(weld >= 1 ? 0x7dcea0 : 0x72dcf7);
       }
       if (now < actionStatusUntil && actionStatus) status.textContent = actionStatus;
       if (root._paint) root._paint();
