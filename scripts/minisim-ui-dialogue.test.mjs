@@ -47,8 +47,8 @@ test("Crew chooser displays the selected image and uses wider cards with visible
 });
 
 test("Hull Dive is an inset cabin, leaves pilot screen space, and keeps bounded visible smoke/bubbles", () => {
-  assert.match(hull, /width:min\(430px,42vw\)/);
-  assert.match(hull, /height:min\(330px,38vh\)/);
+  assert.match(hull, /width:min\(450px,44vw\)/);
+  assert.match(hull, /height:min\(345px,40vh\)/);
   assert.match(hull, /new ResizeObserver\(resizeCabinView\)/);
   assert.match(hull, /if \(viewResizeObserver\)\s*\{\s*try \{ viewResizeObserver\.disconnect\(\)/);
   assert.match(hull, /const puffCount = 54/);
@@ -84,13 +84,13 @@ test("Ring two-player split is top/bottom; caption clutter is removed", () => {
   assert.doesNotMatch(warp, /fillText\("ПРОГРЕСС ПО ЗОНАМ"/);
 });
 
-test("0.9.110 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
-  assert.match(php, /Version: 0\.9\.111/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.9\.111'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.9\.111/);
-  assert.match(qa, /Version: 0\.9\.111/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.9\.111'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.9\.111/);
+test("0.9.112 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
+  assert.match(php, /Version: 0\.9\.112/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.9\.112'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.9\.112/);
+  assert.match(qa, /Version: 0\.9\.112/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.9\.112'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.9\.112/);
   assert.match(browserWorkflow, /timeout-minutes: 45/);
   assert.match(browserWorkflow, /timeout-minutes: 20/);
   assert.match(browserWorkflow, /timeout-minutes: 25/);
