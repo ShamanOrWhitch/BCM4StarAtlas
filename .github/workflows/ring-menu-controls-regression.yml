@@ -1,0 +1,32 @@
+name: Ring menu controls regression
+
+on:
+  push:
+    branches:
+      - fix/ring-menu-activation-20261021
+    paths:
+      - "mini-sim/assets/js/deep-space-warp.js"
+      - "scripts/ring-menu-controls.test.mjs"
+      - ".github/workflows/ring-menu-controls-regression.yml"
+  pull_request:
+    paths:
+      - "mini-sim/assets/js/deep-space-warp.js"
+      - "scripts/ring-menu-controls.test.mjs"
+      - ".github/workflows/ring-menu-controls-regression.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ring-menu-controls:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check JavaScript syntax
+        run: node --check mini-sim/assets/js/deep-space-warp.js
+      - name: Run Ring menu controls regression tests
+        run: node --test scripts/ring-menu-controls.test.mjs
