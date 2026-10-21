@@ -2269,7 +2269,7 @@
         weaponShots.push({ mesh: beam, life: 0.105, geometry, material, glow, glowGeometry, glowMaterial });
 
         if (player.weaponType === "spectrum") weaponShotIndex += 1;
-        if (target && target.activated && now >= target.nextDamageAt) {
+        if (target && target.activated && now >= (Number(target.nextDamageAt) || 0)) {
           target.nextDamageAt = now + Math.max(110, profile.cooldown * 0.7);
           target.hp = Math.max(0, target.hp - profile.damage);
           target.lastDamageAt = now;
@@ -2321,6 +2321,13 @@
           player.weaponTier = weaponProgress.tier;
           player.weaponReadyAt = 0;
         });
+        const fireButton = root2d.querySelector('[data-ring-action="fire"]');
+        if (fireButton) {
+          const labels = window.BCMDialogue?.language === "en"
+            ? { pointer: "LASER", pulse: "PULSE", spectrum: "SPECTRUM" }
+            : { pointer: "ЛАЗЕР", pulse: "ИМПУЛЬС", spectrum: "СПЕКТР" };
+          fireButton.textContent = labels[validType];
+        }
         const names = window.BCMDialogue?.language === "en"
           ? { pointer: "Laser pointer", pulse: "Pulse beam", spectrum: "Spectrum beam" }
           : { pointer: "Лазер-указка", pulse: "Импульсный луч", spectrum: "Спектральный луч" };
