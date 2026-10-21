@@ -336,7 +336,7 @@
     hullEnterButton.textContent = "ВНУТРЬ КОРАБЛЯ · U / R3";
     hullEnterButton.setAttribute("aria-label", "Войти внутрь корабля");
     hullEnterButton.hidden = true;
-    hullEnterButton.style.cssText = "position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:1000500;min-height:46px;padding:9px 16px;border:1px solid #70d9ee;border-radius:10px;background:rgba(7,27,42,.96);color:#e8fbff;font:700 13px system-ui;letter-spacing:.05em;touch-action:manipulation;white-space:nowrap;box-shadow:0 4px 22px rgba(0,0,0,.35)";
+    hullEnterButton.style.cssText = "position:fixed;left:auto;right:14px;top:62px;bottom:auto;transform:none;z-index:1000500;min-height:36px;padding:6px 10px;border:1px solid #70d9ee;border-radius:9px;background:rgba(7,27,42,.92);color:#e8fbff;font:700 11px system-ui;letter-spacing:.03em;touch-action:manipulation;white-space:nowrap;box-shadow:0 4px 18px rgba(0,0,0,.28)";
     root.appendChild(hullEnterButton);
     hullEnterButton.addEventListener("click", () => openHullInterior());
 
