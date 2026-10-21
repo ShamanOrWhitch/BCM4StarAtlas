@@ -241,15 +241,17 @@
     // metadata is wired in, pass its slots.componentSlots Warp Drive size here.
     function warpVisualClassForSlotSize(slotSize) {
       const size = String(slotSize || "").trim().toLowerCase().replace(/[ _]+/g, "-");
-      if (/^(xx-small|x-small|xxs|xs|extra-small)$/.test(size)) return 1;
-      if (/^(small|s)$/.test(size)) return 2;
+      // Deliberately map the intense rail look to XX-Small; X-Small / Opal Jetjet
+      // stays on the previously preferred standard shell until live slot data is wired.
+      if (/^(xx-small|xxs)$/.test(size)) return 2;
+      if (/^(x-small|xs|extra-small|small|s)$/.test(size)) return 1;
       if (/^(medium|m)$/.test(size)) return 3;
       if (/^(large|x-large|xx-large|capital|class-8|xl|xxl)$/.test(size)) return 4;
-      return 2;
+      return 1;
     }
 
     function currentWarpDriveSlotSize() {
-      return String(config.warpDriveSlotSize || root.dataset.warpDriveSlotSize || "small").trim();
+      return String(config.warpDriveSlotSize || root.dataset.warpDriveSlotSize || "x-small").trim();
     }
 
     window.addEventListener("bcm:game-music-mute", (event) => {
@@ -288,6 +290,7 @@
       tubeShimmerTime: 0,
       warpDriveSlotSize: currentWarpDriveSlotSize(),
       warpVisualClass: warpVisualClassForSlotSize(currentWarpDriveSlotSize()),
+      warpPreviewClass: null,
       startedAt: 0,
       shields: 100,
       playerX: 0,
@@ -320,9 +323,12 @@
     window.BCMDeepSpaceWarpSetDriveSlot = (slotSize) => {
       state.warpDriveSlotSize = String(slotSize || "").trim();
       state.warpVisualClass = warpVisualClassForSlotSize(state.warpDriveSlotSize);
+      state.warpPreviewClass = null;
+      if (typeof updateWarpTierPreviewButtons === "function") updateWarpTierPreviewButtons();
       return state.warpVisualClass;
     };
     window.BCMDeepSpaceWarpGetVisualClass = () => state.warpVisualClass;
+    window.BCMDeepSpaceWarpGetPreviewClass = () => Number(state.warpPreviewClass) || null;
 
     const hullEnterButton = document.createElement("button");
     hullEnterButton.className = "bcm-warp-hull-enter";
@@ -387,6 +393,13 @@
       '</section>' +
       '<section class="bcm-warp-view bcm-warp-tube-view" data-warp-view="tube" hidden>' +
         '<div class="bcm-warp-tube-hud"><div class="bcm-warp-kicker">SUBSPACE TUNNEL</div><h2 data-tube-title>WARP IN PROGRESS</h2><div class="bcm-warp-tube-meta" data-tube-meta></div><div class="bcm-warp-shield"><span data-tube-shield></span></div><div class="bcm-warp-tube-help" data-tube-help>Влево и вправо двигают корабль по кольцу. Препятствие остаётся на своём кольце и не растягивается.</div></div>' +
+        '<div data-warp-tier-preview aria-label="Временно посмотреть визуальный класс Warp" style="position:absolute;top:12px;right:12px;z-index:8;display:flex;align-items:center;gap:3px;padding:4px;border:1px solid rgba(102,190,210,.45);border-radius:9px;background:rgba(2,12,21,.74);pointer-events:auto;max-width:calc(100vw - 24px)">' +
+          '<span style="font:700 9px system-ui,sans-serif;color:#a9cbd7;letter-spacing:.04em;margin-right:2px">ВИД</span>' +
+          '<button type="button" data-warp-tier="1" aria-pressed="false" title="Class I — стандарт" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">I</button>' +
+          '<button type="button" data-warp-tier="2" aria-pressed="false" title="Class II — спиральные рельсы" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">II</button>' +
+          '<button type="button" data-warp-tier="3" aria-pressed="false" title="Class III — энергетические дуги" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">III</button>' +
+          '<button type="button" data-warp-tier="4" aria-pressed="false" title="Class IV — тяжёлые врата" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">IV</button>' +
+        '</div>' +
         '<div class="bcm-warp-touch-controls"><button type="button" data-warp-control="left" aria-label="Рулить влево">◀</button><button type="button" data-warp-control="tilt" aria-label="Включить или откалибровать управление наклоном">↻ TILT</button><button type="button" data-warp-control="right" aria-label="Рулить вправо">▶</button></div>' +
         '<div class="bcm-warp-result" data-tube-result hidden><h2 data-tube-result-title></h2><p data-tube-result-text></p><div class="bcm-warp-actions"><button type="button" data-tube-continue hidden>ПРОДОЛЖИТЬ</button><button type="button" data-tube-retry>ПОВТОРИТЬ WARP</button><button type="button" data-tube-abort class="bcm-warp-secondary">ОТМЕНА</button></div></div>' +
       '</section>';
@@ -417,6 +430,36 @@
     const tubeAbort = overlay.querySelector("[data-tube-abort]");
     const touchControls = overlay.querySelector(".bcm-warp-touch-controls");
     const tiltButton = overlay.querySelector('[data-warp-control="tilt"]');
+    const warpTierButtons = [...overlay.querySelectorAll("[data-warp-tier]")];
+
+    function activeWarpVisualClass() {
+      return Number(state.warpPreviewClass) || Number(state.warpVisualClass) || 1;
+    }
+
+    function updateWarpTierPreviewButtons() {
+      const active = activeWarpVisualClass();
+      warpTierButtons.forEach((button) => {
+        const selected = Number(button.getAttribute("data-warp-tier")) === active;
+        button.setAttribute("aria-pressed", selected ? "true" : "false");
+        button.style.background = selected ? "rgba(28,92,113,.98)" : "rgba(16,35,45,.96)";
+        button.style.borderColor = selected ? "#7be4f4" : "#426779";
+        button.style.boxShadow = selected ? "0 0 0 1px rgba(123,228,244,.3)" : "none";
+      });
+    }
+
+    function setWarpVisualPreviewClass(value) {
+      const selected = Math.trunc(Number(value));
+      if (![1, 2, 3, 4].includes(selected)) return activeWarpVisualClass();
+      state.warpPreviewClass = selected;
+      updateWarpTierPreviewButtons();
+      return selected;
+    }
+
+    warpTierButtons.forEach((button) => {
+      button.addEventListener("click", () => setWarpVisualPreviewClass(button.getAttribute("data-warp-tier")));
+    });
+    window.BCMDeepSpaceWarpPreviewClass = setWarpVisualPreviewClass;
+    updateWarpTierPreviewButtons();
 
     function hashSeed(value) {
       let h = 2166136261 >>> 0;
@@ -878,6 +921,8 @@
         });
       }
       tubeTitle.textContent = "WARP IN PROGRESS";
+      state.warpPreviewClass = null;
+      updateWarpTierPreviewButtons();
       tubeResult.hidden = true;
       touchControls.hidden = false;
       tubeView.hidden = false;
@@ -3057,9 +3102,11 @@ return axialRoll + ahead * 0.12 +
         g.stroke();
       }
 
-      // Class 2 upgrade: flowing race-engine ion rails laid over the existing curved shell.
+      const visualClass = activeWarpVisualClass();
+
+      // Class II: flowing race-engine ion rails laid over the existing curved shell.
       // This is Canvas-only (no new renderer, textures, geometry, or collision surfaces).
-      if (state.warpVisualClass >= 2) {
+      if (visualClass >= 2) {
         const railCount = 4;
         const railSpin = state.tubeTravel * 0.012;
         const railTravel = ((state.tubeTravel * 0.0013) % 1 + 1) % 1;
@@ -3089,6 +3136,47 @@ return axialRoll + ahead * 0.12 +
           g.arc(pulse.x, pulse.y, 1.2 + pulseDepth * 2.2, 0, Math.PI * 2);
           g.fillStyle = rail % 2 === 0 ? "rgba(167,248,255,0.96)" : "rgba(255,225,172,0.94)";
           g.fill();
+        }
+        g.restore();
+      }
+
+      // Class III adds several shifting energy arcs. They are visual-only and stay
+      // behind collision obstacles, so the displayed class cannot change difficulty.
+      if (visualClass >= 3) {
+        g.save();
+        g.globalCompositeOperation = "lighter";
+        for (let hoop = 0; hoop < 4; hoop += 1) {
+          const depth = 0.18 + hoop * 0.19;
+          const phase = shimmerTime * 0.18 + t * 0.004 + hoop * 1.27;
+          const span = Math.PI * (1.16 + (hoop % 2) * 0.18);
+          const start = phase + hoop * 0.46;
+          drawArc(depth, start, start + span, hoop % 2
+            ? "rgba(255,190,116,0.68)" : "rgba(84,232,255,0.76)",
+            Math.max(1.1, maxRadius * (0.0035 + depth * 0.003)));
+          drawArc(depth, start + Math.PI, start + Math.PI + span * 0.38,
+            "rgba(192,252,255,0.42)", Math.max(0.9, maxRadius * 0.002));
+        }
+        g.restore();
+      }
+
+      // Class IV adds heavier twin stargate hoops and pulsing junctions over Class III.
+      if (visualClass >= 4) {
+        g.save();
+        g.globalCompositeOperation = "lighter";
+        for (let gate = 0; gate < 3; gate += 1) {
+          const depth = 0.22 + gate * 0.28;
+          const spin = shimmerTime * (gate % 2 ? -0.07 : 0.09) + t * 0.003 + gate * 0.82;
+          drawArc(depth, spin, spin + Math.PI * 2, "rgba(86,225,255,0.76)",
+            Math.max(1.8, maxRadius * 0.008));
+          drawArc(depth, spin + Math.PI * 0.12, spin + Math.PI * 1.12,
+            "rgba(255,179,105,0.86)", Math.max(1.3, maxRadius * 0.005));
+          for (let node = 0; node < 4; node += 1) {
+            const p = point(depth, spin + node * Math.PI / 2, -2.9);
+            g.beginPath();
+            g.arc(p.x, p.y, 1.8 + depth * 1.8, 0, Math.PI * 2);
+            g.fillStyle = node % 2 ? "rgba(255,226,171,0.96)" : "rgba(174,250,255,0.98)";
+            g.fill();
+          }
         }
         g.restore();
       }
