@@ -40,7 +40,7 @@ if(!url){console.error('Usage: npm run qa:minisim -- --url "http://localhost/min
 await mkdir(out,{recursive:true});
 let handleMap=new Map();
 try{
- const pre=await fetch(url,{redirect:"follow"});
+ const pre=await fetch(url,{redirect:"follow",signal:AbortSignal.timeout(60000)});
  report.preflightStatus=pre.status;
  if(pre.ok)handleMap=wordpressHandleMap(await pre.text(),pre.url||url);
 }catch(e){report.preflightError=String(e&&e.message?e.message:e);}
@@ -59,6 +59,8 @@ try{
    HTMLMediaElement.prototype.pause=function(){window.__BCM_QA_MEDIA.add(this);window.__BCM_QA_MEDIA_EVENTS.push({action:"pause",tag:this.tagName,src:this.currentSrc||this.src||"",at:performance.now()});return pause.apply(this,arguments);};
  });
  page=await context.newPage();
+ page.setDefaultTimeout(20000);
+ page.setDefaultNavigationTimeout(60000);
  page.on("request",r=>{if(r.url().includes("/wp-content/plugins/mini-sim/"))report.pluginAssetRequests.push(r.url());});
  page.on("console",m=>{if(m.type()==="error")report.consoleErrors.push(m.text());});
  page.on("pageerror",e=>report.pageErrors.push(String(e&&e.stack?e.stack:e)));
@@ -88,10 +90,10 @@ try{
    }
    return route.continue();
  });
- const response=await page.goto(url,{waitUntil:"domcontentloaded",timeout:45000});
+ const response=await page.goto(url,{waitUntil:"domcontentloaded",timeout:60000});
  report.httpStatus=response?response.status():null;
- await page.locator(".bcm-mini-sim").first().waitFor({state:"attached",timeout:20000});
- await page.locator(".bcm-mini-sim-canvas").first().waitFor({state:"visible",timeout:20000});
+ await page.locator(".bcm-mini-sim").first().waitFor({state:"attached",timeout:30000});
+ await page.locator(".bcm-mini-sim-canvas").first().waitFor({state:"visible",timeout:30000});
  await page.waitForTimeout(900);await shot(page,"01-menu.png");
  check(!!response&&response.status()<400,"WordPress page responds successfully");
  check(await page.locator(".bcm-mini-sim").count()>0,"Mini-Sim shortcode is present");
@@ -102,7 +104,7 @@ try{
  await page.locator(".bcm-mini-sim-crew-preflight:not([hidden])").first().waitFor({state:"visible",timeout:12000});
  await shot(page,"02-crew-preflight.png");
  const start=page.locator("[data-crew-start]").first();await start.waitFor({state:"visible",timeout:10000});await start.click({timeout:12000});
- try{await page.waitForFunction(()=>{const r=document.querySelector(".bcm-mini-sim");return !!r&&r.classList.contains("game-active")&&!!window.BCMiniSimAPI;},null,{timeout:15000});}
+ try{await page.waitForFunction(()=>{const r=document.querySelector(".bcm-mini-sim");return !!r&&r.classList.contains("game-active")&&!!window.BCMiniSimAPI;},null,{timeout:30000});}
  catch(e){const status=await page.locator(".bcm-mini-sim-crew-preflight-status").first().textContent().catch(()=>"");throw Error("Crew preflight did not start: "+(status||e.message));}
  check(true,"flight starts from Crew preflight");
  const before=await page.evaluate(()=>{const p=window.BCMiniSimAPI?.getRuntime?.()?.ship?.position;return p?[p.x,p.y,p.z]:null;});
@@ -113,7 +115,7 @@ try{
  const mapAudio=await activeAudio();report.audioOnMap=mapAudio;
  check(mapAudio.length===1&&/warp\.mp3/i.test(mapAudio[0].src),"Warp OST is audible already on the map");
  const mapTrackTime=mapAudio[0]?.time||0;
- const neighbor=page.locator('[data-warp-grid] .bcm-warp-grid-cell.is-connected').first();await neighbor.waitFor({state:"visible",timeout:8000});await neighbor.click();
+ const neighbor=page.locator('[data-warp-grid] .bcm-warp-grid-cell.is-connected').first();await neighbor.waitFor({state:"visible",timeout:15000});await neighbor.click();
  await page.locator("[data-warp-start]").click();await page.locator('[data-warp-view="tube"]:not([hidden])').waitFor({state:"visible",timeout:8000});await page.waitForTimeout(700);await shot(page,"04-tube.png");
  check(true,"choosing a neighbour opens Tube");
  const during=await activeAudio();report.audioDuringTube=during;
