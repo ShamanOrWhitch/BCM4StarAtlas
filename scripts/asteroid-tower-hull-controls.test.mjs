@@ -143,7 +143,7 @@ test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, amm
   assert.match(hull, /pump: !!\(keys\.shift \|\| pad\.pump\)/);
   assert.match(hull, /submergedRooms/);
   assert.match(hull, /const repairers = nearBreach\.reduce/);
-  assert.match(hull, /let pilotMode = false/);
+  assert.match(hull, /let pilotMode = true/);
   assert.match(hull, /texture\.flipY = true/);
   assert.doesNotMatch(hull, /createImageBitmap\(cached\)/);
   assert.match(hull, /window\.BCMHullRepairState/);

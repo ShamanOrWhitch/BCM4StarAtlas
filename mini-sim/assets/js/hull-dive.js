@@ -56,7 +56,7 @@
     const say = (ru, english) => en ? english : ru;
     const root = document.createElement("div");
     root.id = "bcm-hull-dive";
-    root.style.cssText = "position:fixed;left:auto;top:auto;right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));width:min(430px,42vw);height:min(330px,38vh);min-width:280px;min-height:230px;z-index:1000850;background:rgba(3,12,21,.91);border:1px solid rgba(103,201,225,.62);border-radius:15px;box-shadow:0 10px 36px rgba(0,0,0,.5);color:#e7eef2;font-family:Rajdhani,sans-serif;overflow:hidden;";
+    root.style.cssText = "position:fixed;left:auto;top:auto;right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));width:min(450px,44vw);height:min(345px,40vh);min-width:min(280px,calc(100vw - 20px));min-height:min(230px,calc(100vh - 20px));z-index:1000850;background:rgba(3,12,21,.91);border:1px solid rgba(103,201,225,.62);border-radius:15px;box-shadow:0 10px 36px rgba(0,0,0,.5);color:#e7eef2;font-family:Rajdhani,sans-serif;overflow:hidden;";
     root.innerHTML =
       '<div style="position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:12px;pointer-events:none;z-index:10">' +
       '<div><div style="letter-spacing:.14em;font-size:10px;color:#c4a35a">' + say("ОТСЕК · РЕМОНТ", "COMPARTMENT · REPAIR") + '</div>' +
@@ -246,9 +246,9 @@
     let gunTargetRing = null;
     let actionStatus = "";
     let actionStatusUntil = 0;
-    // Begin in visible Crew-movement mode so a connected stick immediately moves
-    // a character. V / gamepad LB switches into helm controls.
-    let pilotMode = false;
+    // Crew 1 starts seated at the pilot station, so the main helm is active immediately.
+    // V / gamepad LB leaves the helm for on-foot Crew control.
+    let pilotMode = true;
     let helmToggleWasDown = false;
     let enginePower = 0;
     let flightHeading = 0;
@@ -262,7 +262,7 @@
     function readAssignedGamepads() {
       try {
         const connected = navigator.getGamepads
-          ? [...navigator.getGamepads()].filter((pad) => pad && pad.connected)
+          ? [...navigator.getGamepads()].filter((pad) => pad && pad.connected).sort((a, b) => a.index - b.index)
           : [];
         // One pad is Player 2 so keyboard Player 1 remains independently usable.
         // With two pads each Crew gets its own controller.

@@ -53,8 +53,8 @@ test("Cabin runtime feedback also follows the selected language", () => {
 });
 
 test("The cabin remains compact and sci-fi visuals use cool energy colors", () => {
-  assert.match(hull, /width:min\(430px,42vw\)/);
-  assert.match(hull, /height:min\(330px,38vh\)/);
+  assert.match(hull, /width:min\(450px,44vw\)/);
+  assert.match(hull, /height:min\(345px,40vh\)/);
   assert.match(hull, /const puffCount = 54/);
   assert.match(hull, /const bubbleCount = 96/);
   assert.match(hull, /new THREE\.MeshBasicMaterial\(\{ color: 0x72dcf7 \}\)/);
@@ -62,14 +62,14 @@ test("The cabin remains compact and sci-fi visuals use cool energy colors", () =
   assert.doesNotMatch(hull, /0xffb15a|0xff6b55/);
 });
 
-test("Mini-Sim 0.9.111 cache and all source-contract tests use the same version", () => {
-  assert.match(php, /Version: 0\.9\.111/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.9\.111'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.9\.111/);
-  assert.match(qa, /Version: 0\.9\.111/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.9\.111'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.9\.111/);
-  assert.ok(uiTests.includes("Version: 0\\.9\\.111"));
-  assert.ok(uiTests.includes("BCM_MINI_SIM_VERSION', '0\\.9\\.111'"));
-  assert.ok(uiTests.includes("SPACE LABYRINTH — 0\\.9\\.111"));
+test("Mini-Sim 0.9.112 cache and all source-contract tests use the same version", () => {
+  assert.match(php, /Version: 0\.9\.112/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.9\.112'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.9\.112/);
+  assert.match(qa, /Version: 0\.9\.112/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.9\.112'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.9\.112/);
+  assert.ok(uiTests.includes("Version: 0\\.9\\.112"));
+  assert.ok(uiTests.includes("BCM_MINI_SIM_VERSION', '0\\.9\\.112'"));
+  assert.ok(uiTests.includes("SPACE LABYRINTH — 0\\.9\\.112"));
 });

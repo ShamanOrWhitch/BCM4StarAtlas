@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.9.110",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.9.112",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.9.110",
+      title: "SPACE LABYRINTH — 0.9.112",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -4646,7 +4646,7 @@
     }
     // The Warp map/Tube overlays hide the scene. Ring handles its own views through
     // the same renderer; all other states keep the ordinary single-camera render.
-    const showUnderlyingScene = !externalPause || root.classList.contains("bcm-warp-maze-active");
+    const showUnderlyingScene = !externalPause || root.classList.contains("bcm-warp-maze-active") || root.classList.contains("bcm-hull-interior-active");
     if (!deepSpaceCustomRendered && renderer && scene && camera && showUnderlyingScene) {
       renderer.render(scene, camera);
     }
