@@ -8,6 +8,13 @@ Git — память выполненной работы; журнал реше�
 
 Разные модели могут работать в разных лабораториях и не видеть незакоммиченный код друг друга. Изменение становится доступным другим агентам только после публикации коммита/ветки или обновления общего Issue. Сообщение «сейчас исправляю» не заменяет общую запись, а незакоммиченный код не может считаться частью синхронизированного контекста.
 
+## Синхронизированный runtime baseline — 2026-10-21
+
+- Mini-Sim 0.9.112 / Tower 0.2.64 is on main at merge commit 443cd4f1cd388d020f1811908f1d31ad53809334 (PR #57).
+- PR #57 keeps the pilot view alive during Hull Dive; starts at active helm; stabilizes controller assignment; adds a high-layer Ring entry control and Ctrl+Alt+U UI hit-test auditor.
+- Verification is recorded in PROJECT_STATE.md, HANDOFF.md and decision D-022. Passing CI/synthetic browser QA is not hardware verification and does not deploy assets to WordPress.
+- PR #14 and #18 remain open but GitHub reports both unmergeable with current main. Both touch mini-sim/assets/js/mini-sim.js; #14 also touches PHP/Tower files and #18 adds QA runner/tests plus a runtime lookYaw fragment. Do not merge either stale branch wholesale. Reconcile only independent useful changes on the newest main and rerun regressions.
+
 ## Обязательный стартовый reconcile
 
 1. Прочитай `AGENTS.md`, `PROJECT_STATE.md`, `DECISIONS.md` и этот файл.
