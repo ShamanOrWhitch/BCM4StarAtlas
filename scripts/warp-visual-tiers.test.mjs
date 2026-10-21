@@ -47,7 +47,7 @@ test("Visual Classes II–IV have distinct decorative effects only", () => {
   assert.match(warp, /window\.BCMDeepSpaceWarpSetDriveSlot = \(slotSize\) =>/);
 });
 
-test("Mini-Sim 0.9.109 cache/version contracts are synchronized", () => {
+test("Mini-Sim 0.9.110 cache/version contracts are synchronized", () => {
   assert.match(plugin, /Version: 0\.9\.109/);
   assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.9\.109'\)/);
   assert.match(plugin, /SPACE LABYRINTH — 0\.9\.109/);
