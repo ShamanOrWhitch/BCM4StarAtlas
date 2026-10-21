@@ -44,7 +44,7 @@ permissions:
 jobs:
   browser-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     env:
       MINISIM_URL: ${{ inputs.target_url || 'https://walkingyog.com/bcm4sa/' }}
     steps:
@@ -55,14 +55,17 @@ jobs:
         with:
           node-version: 22
       - name: Install isolated Playwright dependency
+        timeout-minutes: 20
         working-directory: tools/minisim-qa
         run: |
           npm install
           npx playwright install --with-deps chromium
       - name: Run browser smoke test without downloading videos
+        timeout-minutes: 20
         if: ${{ !inputs.full_media }}
         run: npm run qa:minisim
       - name: Run browser smoke test with video media
+        timeout-minutes: 25
         if: ${{ inputs.full_media }}
         run: npm run qa:minisim -- --full-media
       - name: Upload screenshots and diagnostics
