@@ -67,6 +67,237 @@
 
   if (!canvas || !startButton || !status) return;
 
+  const uiText = {
+    ru: {
+      play: "ИГРАТЬ",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.9.110",
+      mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
+      crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
+      crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
+      address: "Публичный адрес",
+      scan: "СКАН",
+      connect: "PHANTOM",
+      crewStart: "ВЫЛЕТ",
+      language: "ЯЗЫК",
+      languageHint: "Enter — сменить язык",
+      volume: "Громкость",
+      close: "Закрыть",
+      welcome: "Корабль готов. Оператор будет подсказывать только важное.",
+      controlsKeyboard: "ПК: клавиатура + мышь. WASD — полёт, Space/C — вверх/вниз, V — Warp, Enter — меню и язык.",
+      controlsTouch: "Телефон: кнопки по краям — движение, свайп — обзор, TILT — управление наклоном.",
+      controlsGamepad: "Gamepad: левый стик — движение, правый — обзор, Y — Warp, Start — меню.",
+      operator: "ОПЕРАТОР"
+    },
+    en: {
+      play: "PLAY",
+      title: "SPACE LABYRINTH — 0.9.110",
+      mission: "MISSION: REACH ONICSS",
+      crewTitle: "CREW CHECK",
+      crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
+      address: "Public address",
+      scan: "SCAN",
+      connect: "PHANTOM",
+      crewStart: "LAUNCH",
+      language: "LANGUAGE",
+      languageHint: "Enter — switch language",
+      volume: "Volume",
+      close: "Close",
+      welcome: "Ship systems are ready. The operator will only interrupt with useful information.",
+      controlsKeyboard: "PC: keyboard + mouse. WASD to fly, Space/C up/down, V for Warp, Enter for menu/language.",
+      controlsTouch: "Phone: edge buttons move, swipe to look around, TILT enables motion controls.",
+      controlsGamepad: "Gamepad: left stick moves, right stick looks, Y opens Warp, Start opens the menu.",
+      operator: "OPERATOR"
+    }
+  };
+
+  let interfaceLanguage = "ru";
+  try {
+    const savedLanguage = localStorage.getItem("bcm-mini-sim-language");
+    if (savedLanguage === "ru" || savedLanguage === "en") interfaceLanguage = savedLanguage;
+  } catch (e) {}
+
+  const languageBox = document.createElement("div");
+  languageBox.className = "bcm-mini-sim-language";
+  languageBox.setAttribute("aria-label", "Language");
+  languageBox.innerHTML =
+    '<span data-language-label>ЯЗЫК</span>' +
+    '<button type="button" data-language-option="ru" aria-label="Русский">RU</button>' +
+    '<button type="button" data-language-option="en" aria-label="English">EN</button>' +
+    '<span class="bcm-mini-sim-language-hint" data-language-hint>Enter — сменить язык</span>';
+  root.appendChild(languageBox);
+
+  let dialogueRoot = document.getElementById("bcm-comic-dialogs");
+  if (dialogueRoot) dialogueRoot.remove();
+  dialogueRoot = document.createElement("div");
+  dialogueRoot.id = "bcm-comic-dialogs";
+  dialogueRoot.className = "bcm-comic-dialogs";
+  dialogueRoot.innerHTML =
+    '<section class="bcm-comic-dialog bcm-comic-dialog-operator" data-dialog-box="operator" hidden aria-live="polite">' +
+      '<div class="bcm-comic-dialog-avatar" aria-hidden="true">✦</div>' +
+      '<div class="bcm-comic-dialog-copy"><strong data-dialog-speaker>ОПЕРАТОР</strong><p data-dialog-message></p><div class="bcm-comic-dialog-choices" data-dialog-choices></div></div>' +
+      '<button type="button" class="bcm-comic-dialog-close" data-dialog-close="operator" aria-label="Close">×</button>' +
+    '</section>' +
+    '<section class="bcm-comic-dialog bcm-comic-dialog-controls" data-dialog-box="controls" hidden aria-live="polite">' +
+      '<div class="bcm-comic-dialog-avatar" aria-hidden="true">⌘</div>' +
+      '<div class="bcm-comic-dialog-copy"><strong data-dialog-controls-title>УПРАВЛЕНИЕ</strong><p data-dialog-controls-message></p></div>' +
+      '<button type="button" class="bcm-comic-dialog-close" data-dialog-close="controls" aria-label="Close">×</button>' +
+    '</section>';
+  document.body.appendChild(dialogueRoot);
+
+  const operatorDialog = dialogueRoot.querySelector('[data-dialog-box="operator"]');
+  const operatorSpeaker = dialogueRoot.querySelector("[data-dialog-speaker]");
+  const operatorMessage = dialogueRoot.querySelector("[data-dialog-message]");
+  const operatorChoices = dialogueRoot.querySelector("[data-dialog-choices]");
+  const controlsDialog = dialogueRoot.querySelector('[data-dialog-box="controls"]');
+  const controlsMessage = dialogueRoot.querySelector("[data-dialog-controls-message]");
+  let operatorDialogTimer = 0;
+  let controlsDialogTimer = 0;
+
+  function textForLanguage(key) {
+    return uiText[interfaceLanguage]?.[key] || uiText.ru[key] || key;
+  }
+
+  function applyLanguage() {
+    startButton.textContent = textForLanguage("play");
+    const title = root.querySelector(".bcm-mini-sim-title");
+    const mission = root.querySelector(".bcm-mini-sim-mission");
+    if (title) title.textContent = textForLanguage("title");
+    if (mission) mission.textContent = textForLanguage("mission");
+    const crewTitle = root.querySelector(".bcm-mini-sim-crew-preflight-card h2");
+    const crewNote = root.querySelector(".bcm-mini-sim-crew-preflight-note");
+    if (crewTitle) crewTitle.textContent = textForLanguage("crewTitle");
+    if (crewNote) crewNote.textContent = textForLanguage("crewNote");
+    const address = root.querySelector(".bcm-mini-sim-crew-address");
+    if (address && address.firstChild && address.firstChild.nodeType === Node.TEXT_NODE) {
+      address.firstChild.nodeValue = textForLanguage("address") + " ";
+    }
+    const scanButton = root.querySelector("[data-crew-scan]");
+    const connectButton = root.querySelector("[data-crew-connect]");
+    const crewStart = root.querySelector("[data-crew-start]");
+    if (scanButton) scanButton.textContent = textForLanguage("scan");
+    if (connectButton) connectButton.textContent = textForLanguage("connect");
+    if (crewStart) crewStart.textContent = textForLanguage("crewStart");
+    const volumeLabel = root.querySelector('[data-setting="volume"]')?.parentElement;
+    if (volumeLabel && volumeLabel.firstChild?.nodeType === Node.TEXT_NODE) {
+      volumeLabel.firstChild.nodeValue = textForLanguage("volume") + " ";
+    }
+    const settingsTitle = settingsRoot?.querySelector("h2");
+    if (settingsTitle) settingsTitle.textContent = interfaceLanguage === "ru" ? "НАСТРОЙКИ" : "SETTINGS";
+    const settingsClose = settingsRoot?.querySelector('[data-setting="close"]');
+    if (settingsClose) settingsClose.textContent = textForLanguage("close");
+    languageBox.querySelector("[data-language-label]").textContent = textForLanguage("language");
+    languageBox.querySelector("[data-language-hint]").textContent = textForLanguage("languageHint");
+    languageBox.querySelectorAll("[data-language-option]").forEach((button) => {
+      const selected = button.getAttribute("data-language-option") === interfaceLanguage;
+      button.setAttribute("aria-pressed", selected ? "true" : "false");
+      button.classList.toggle("is-selected", selected);
+    });
+    if (operatorDialog && !operatorDialog.hidden && operatorSpeaker.dataset.autoSpeaker === "1") {
+      operatorSpeaker.textContent = textForLanguage("operator");
+    }
+  }
+
+  function setInterfaceLanguage(language) {
+    if (language !== "ru" && language !== "en") return interfaceLanguage;
+    interfaceLanguage = language;
+    try { localStorage.setItem("bcm-mini-sim-language", language); } catch (e) {}
+    applyLanguage();
+    if (operatorDialog && !operatorDialog.hidden) {
+      const key = operatorMessage.dataset.textKey;
+      if (key && textForLanguage(key)) operatorMessage.textContent = textForLanguage(key);
+    }
+    return interfaceLanguage;
+  }
+
+  function hideOperatorDialog() {
+    if (operatorDialogTimer) window.clearTimeout(operatorDialogTimer);
+    operatorDialogTimer = 0;
+    if (operatorDialog) operatorDialog.hidden = true;
+  }
+
+  function hideControlsDialog() {
+    if (controlsDialogTimer) window.clearTimeout(controlsDialogTimer);
+    controlsDialogTimer = 0;
+    if (controlsDialog) controlsDialog.hidden = true;
+  }
+
+  function showOperatorDialog(speaker, message, choices) {
+    if (!operatorDialog) return;
+    hideOperatorDialog();
+    operatorSpeaker.textContent = String(speaker || textForLanguage("operator"));
+    operatorSpeaker.dataset.autoSpeaker = speaker ? "0" : "1";
+    operatorMessage.textContent = String(message || "");
+    operatorMessage.dataset.textKey = typeof message === "string" && uiText[interfaceLanguage]?.[message] ? message : "";
+    operatorChoices.replaceChildren();
+    (Array.isArray(choices) ? choices : []).forEach((choice) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "bcm-comic-dialog-choice";
+      button.textContent = String(choice?.label || "");
+      button.addEventListener("click", () => {
+        try { if (typeof choice?.onSelect === "function") choice.onSelect(); }
+        finally { if (choice?.keepOpen !== true) hideOperatorDialog(); }
+      });
+      operatorChoices.appendChild(button);
+    });
+    operatorDialog.hidden = false;
+    if (!choices || !choices.length) operatorDialogTimer = window.setTimeout(hideOperatorDialog, 9500);
+  }
+
+  function showControlsDialog(level) {
+    if (!controlsDialog) return;
+    hideControlsDialog();
+    let key = "controlsKeyboard";
+    const touch = !!(("ontouchstart" in window) || navigator.maxTouchPoints > 0);
+    let padConnected = false;
+    try { padConnected = [...(navigator.getGamepads ? navigator.getGamepads() : [])].some((pad) => pad && pad.connected); } catch (e) {}
+    if (touch) key = "controlsTouch";
+    else if (padConnected) key = "controlsGamepad";
+    const levelText = {
+      warp: {
+        ru: {controlsKeyboard:"Warp: мышь/стик — курс, Enter — меню.",controlsTouch:"Warp: наклон телефона или кнопки ◀ ▶; уклоняйся от колец.",controlsGamepad:"Warp: стик рулит по кольцу; A подтверждает, B отменяет."},
+        en: {controlsKeyboard:"Warp: mouse/stick steers. Enter opens menu.",controlsTouch:"Warp: tilt or use ◀ ▶; dodge the rings.",controlsGamepad:"Warp: stick steers around the tunnel; A confirms, B cancels."}
+      },
+      ring: {
+        ru: {controlsKeyboard:"Ring: ← → или A/D — бег; Space — прыжок; E — цель; Q — лазер.",controlsTouch:"Ring: ◀ ▶ — бег, ПРЫЖОК — прыжок, ЛАЗЕР — выстрел, действие — цель.",controlsGamepad:"Ring: стик — бег; A — прыжок; X — цель; Y — оружие."},
+        en: {controlsKeyboard:"Ring: ← → or A/D move; Space jumps; E targets; Q fires.",controlsTouch:"Ring: ◀ ▶ move, JUMP jumps, FIRE shoots, action targets.",controlsGamepad:"Ring: stick moves; A jumps; X targets; Y fires."}
+      },
+      hull: {
+        ru: {controlsKeyboard:"Кабина: мышь/палец — тащи Crew; удерживай воду для насоса, пробоину — для ремонта.",controlsTouch:"Кабина: тащи Crew; держи палец на воде для насоса и на шве для ремонта.",controlsGamepad:"Кабина: стик двигает Crew; A ремонт, B насос, LB/V — штурвал."},
+        en: {controlsKeyboard:"Cabin: drag Crew; hold on water to pump or on a seam to repair.",controlsTouch:"Cabin: drag Crew; hold on water to pump and on the seam to repair.",controlsGamepad:"Cabin: stick moves Crew; A repairs, B pumps, LB/V toggles helm."}
+      },
+      tower: {
+        ru: {controlsKeyboard:"Tower: двигайся клавишами или стиком. Esc — выйти.",controlsTouch:"Tower: касайся направлений и прыжка. Esc — выйти.",controlsGamepad:"Tower: левый стик двигает, A — прыжок. Esc — выйти."},
+        en: {controlsKeyboard:"Tower: move with keys or stick. Esc exits.",controlsTouch:"Tower: use direction and jump buttons. Esc exits.",controlsGamepad:"Tower: left stick moves, A jumps. Esc exits."}
+      }
+    };
+    const specific = levelText[String(level || "").toLowerCase()]?.[interfaceLanguage]?.[key];
+    controlsMessage.textContent = specific || textForLanguage(key);
+    controlsDialog.querySelector("[data-dialog-controls-title]").textContent = interfaceLanguage === "ru" ? "УПРАВЛЕНИЕ" : "CONTROLS";
+    controlsDialog.hidden = false;
+    controlsDialogTimer = window.setTimeout(hideControlsDialog, 14000);
+  }
+
+  dialogueRoot.querySelectorAll("[data-dialog-close]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.getAttribute("data-dialog-close") === "operator") hideOperatorDialog();
+      else hideControlsDialog();
+    });
+  });
+  languageBox.querySelectorAll("[data-language-option]").forEach((button) => {
+    button.addEventListener("click", () => setInterfaceLanguage(button.getAttribute("data-language-option")));
+  });
+
+  window.BCMDialogue = {
+    get language() { return interfaceLanguage; },
+    setLanguage: setInterfaceLanguage,
+    showOperator: showOperatorDialog,
+    hideOperator: hideOperatorDialog,
+    showControls: showControlsDialog,
+    hideControls: hideControlsDialog
+  };
+  applyLanguage();
+
   const assets = Array.isArray(config.assets) ? config.assets : [];
   let crewRoster = [];
   let crewRosterPromise = null;
@@ -628,7 +859,10 @@
     updateLiveWall();
     root.classList.add("game-active");
     startButton.classList.add("hidden");
+    languageBox.hidden = true;
     canvas.focus();
+    window.BCMDialogue?.showOperator("", textForLanguage("welcome"));
+    window.BCMDialogue?.showControls("flight");
 
     if (canvas.requestPointerLock && !("ontouchstart" in window)) {
       canvas.requestPointerLock();
@@ -2949,6 +3183,8 @@
       return;
     }
 
+    // Show device-specific controls as a dismissible comic bubble, never as a wall of HUD text.
+    window.BCMDialogue?.showControls("tower");
     // Keep the live scene, controls, onicss video and renderer untouched while
     // Tower.js initializes and tower.mp4 gets its first playable frame.
     preloadTowerApproach();
@@ -4535,8 +4771,9 @@
 
   function resize() {
     if (!renderer || !camera) return;
-    const w = root.clientWidth || 800;
-    const h = root.clientHeight || 600;
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width || root.clientWidth || 800;
+    const h = rect.height || root.clientHeight || 600;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
@@ -4567,7 +4804,12 @@
       }
       if (e.code === "Enter") {
         e.preventDefault();
-        toggleSettings();
+        if (!running) {
+          setInterfaceLanguage(interfaceLanguage === "ru" ? "en" : "ru");
+          showOperatorDialog("", interfaceLanguage === "ru" ? "Язык: русский." : "Language: English.");
+        } else {
+          toggleSettings();
+        }
         return;
       }
       if (settings.open) return;
@@ -4746,6 +4988,9 @@
     startButton.addEventListener("click", () => {
       openCrewPreflight();
     });
+    // The on-screen language choices are part of the menu; Enter cycles RU/EN
+    // before flight and continues to open Settings once flight has started.
+    languageBox.hidden = false;
     if (menuBackdrop && config.menuBackgroundUrl) {
       menuBackdrop.style.backgroundImage = 'url("' + config.menuBackgroundUrl.replace(/"/g, "") + '")';
     }

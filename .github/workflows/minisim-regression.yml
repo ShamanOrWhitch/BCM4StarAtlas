@@ -13,6 +13,7 @@ permissions:
 jobs:
   mini-sim:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,6 +23,7 @@ jobs:
         run: |
           node --check mini-sim/assets/js/mini-sim.js
           node --check mini-sim/assets/js/deep-space-warp.js
+          node --check mini-sim/assets/js/hull-dive.js
           node --check mini-sim/tower/assets/js/tower.js
       - name: Run Mini-Sim regression checks
-        run: node --test scripts/minisim-local-qa.test.mjs scripts/minisim-input-scope.test.mjs scripts/warp-maze-return.test.mjs
+        run: node --test scripts/minisim-ui-dialogue.test.mjs scripts/minisim-local-qa.test.mjs scripts/minisim-input-scope.test.mjs scripts/warp-maze-return.test.mjs

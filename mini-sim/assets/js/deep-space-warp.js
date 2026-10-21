@@ -336,7 +336,7 @@
     hullEnterButton.textContent = "ВНУТРЬ КОРАБЛЯ · U / R3";
     hullEnterButton.setAttribute("aria-label", "Войти внутрь корабля");
     hullEnterButton.hidden = true;
-    hullEnterButton.style.cssText = "position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:1000500;min-height:46px;padding:9px 16px;border:1px solid #70d9ee;border-radius:10px;background:rgba(7,27,42,.96);color:#e8fbff;font:700 13px system-ui;letter-spacing:.05em;touch-action:manipulation;white-space:nowrap;box-shadow:0 4px 22px rgba(0,0,0,.35)";
+    hullEnterButton.style.cssText = "position:fixed;left:auto;right:14px;top:62px;bottom:auto;transform:none;z-index:1000500;min-height:36px;padding:6px 10px;border:1px solid #70d9ee;border-radius:9px;background:rgba(7,27,42,.92);color:#e8fbff;font:700 11px system-ui;letter-spacing:.03em;touch-action:manipulation;white-space:nowrap;box-shadow:0 4px 18px rgba(0,0,0,.28)";
     root.appendChild(hullEnterButton);
     hullEnterButton.addEventListener("click", () => openHullInterior());
 
@@ -775,6 +775,7 @@
       state.nav = readNavigation();
       state.target = null;
       state.mode = "map";
+      window.BCMDialogue?.showControls("warp");
       state.openedAt = performance.now();
       state.elapsed = 0;
       state.savedPosition = engine.getRuntime().ship.position.clone();
@@ -1440,6 +1441,9 @@
       // Preserve the current first-person flight pose and only pause the ship while
       // the transparent compartment simulation owns the screen.
       state.hullOpen = true;
+      root.classList.add("bcm-hull-interior-active");
+      window.dispatchEvent(new Event("resize"));
+      window.BCMDialogue?.showControls("hull");
       syncHullButtonVisibility();
       if (engine.pauseForWarp) engine.pauseForWarp(true);
 
@@ -1453,6 +1457,8 @@
 
       window.BCMHullDive.open(() => {
         state.hullOpen = false;
+        root.classList.remove("bcm-hull-interior-active");
+        window.dispatchEvent(new Event("resize"));
         window.BCMRingWindowState = null;
         if (engine.pauseForWarp) engine.pauseForWarp(false);
         const freshRuntime = engine.getRuntime ? engine.getRuntime() : null;
@@ -1518,35 +1524,50 @@
       root2d.id = "bcm-ring-platformer";
       root2d.tabIndex = 0;
       root2d.style.cssText = "position:fixed;inset:0;z-index:1000600;background:transparent;color:#e8f4f8;font:14px system-ui,sans-serif;overflow:hidden;touch-action:none;pointer-events:none";
+      const en = window.BCMDialogue?.language === "en";
+      const copy = en ? {
+        landing: "LANDING", bosses: "BOSSES", back: "Return to ship", canvas: "Large arena progress",
+        jump: "JUMP", action: "ACTION", laser: "LASER", dash: "DASH",
+        title: "Large location",
+        description: "Run across large side arenas, jump between platforms and defeat three bosses. The small map only marks your progress.",
+        controls: "P1: ← → / A D · jump: Space / W · action: E · fire: Q\nP2: J L · jump: P · action: O · fire: K · gamepads supported"
+      } : {
+        landing: "ВЫСАДКА", bosses: "БОССЫ", back: "В корабль", canvas: "Прогресс по аренам",
+        jump: "ПРЫЖОК", action: "ДЕЙСТВИЕ", laser: "ЛАЗЕР", dash: "РЫВОК",
+        title: "Большая локация",
+        description: "Свободное движение по большим боковым аренам, прыжки между платформами и три босса в разных зонах. Мини-карта показывает только продвижение по локации.",
+        controls: "P1: ← → / A D · прыжок: Space / W · действие: E · лазер: Q\nP2: J L · прыжок: P · действие: O · лазер: K · геймпады поддерживаются"
+      };
       root2d.innerHTML =
         '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;pointer-events:none;z-index:3">' +
           '<div style="max-width:62%;text-shadow:0 2px 8px #000"><div style="font-size:11px;letter-spacing:.16em;color:#60ddec">RING // FRONTIER</div>' +
-          '<div data-ring-status style="font-weight:900;margin-top:5px;line-height:1.3">ВЫСАДКА</div>' +
+          '<div data-ring-status style="font-weight:900;margin-top:5px;line-height:1.3">' + copy.landing + '</div>' +
           '<div data-ring-floor style="margin-top:5px;color:#b8cbd6;font-size:12px"></div>' +
           '<div data-ring-boss-meter style="display:none;width:min(48vw,300px);height:7px;margin-top:8px;border:1px solid rgba(211,235,248,.6);border-radius:9px;background:rgba(4,10,18,.8);overflow:hidden"><div data-ring-boss-fill style="width:100%;height:100%;background:linear-gradient(90deg,#55e6ef,#f6b55e);transition:width .12s linear"></div></div></div>' +
           '<div style="display:flex;flex-direction:column;gap:7px;align-items:flex-end;pointer-events:auto">' +
-            '<div data-ring-count style="padding:6px 9px;background:rgba(7,22,34,.94);border:1px solid #25485b;border-radius:8px;color:#d9f8ff;white-space:nowrap">БОССЫ 0/3</div>' +
-            '<button type="button" data-ring-exit style="min-height:42px;padding:7px 11px;border:1px solid #547083;border-radius:9px;background:rgba(16,35,45,.96);color:#e8fbff;font-weight:800">В КОРАБЛЬ · Esc</button>' +
+            '<div data-ring-count style="padding:6px 9px;background:rgba(7,22,34,.94);border:1px solid #25485b;border-radius:8px;color:#d9f8ff;white-space:nowrap">' + copy.bosses + ' 0/3</div>' +
+            '<button type="button" data-ring-exit title="' + copy.back + '" aria-label="' + copy.back + '" style="min-width:42px;min-height:42px;padding:7px 11px;border:1px solid #547083;border-radius:9px;background:rgba(16,35,45,.96);color:#e8fbff;font-size:20px;font-weight:800">↩</button>' +
           '</div>' +
         '</div>' +
-        '<canvas data-ring-canvas aria-label="Индикатор прохождения больших зон" style="position:absolute;right:12px;top:96px;width:min(30vw,190px);height:56px;min-width:96px;min-height:42px;border:1px solid rgba(88,173,198,.55);border-radius:9px;background:rgba(3,10,18,.83);z-index:2;pointer-events:none"></canvas>' +
+        '<canvas data-ring-canvas aria-label="' + copy.canvas + '" style="position:absolute;right:12px;top:96px;width:min(30vw,190px);height:56px;min-width:96px;min-height:42px;border:1px solid rgba(88,173,198,.55);border-radius:9px;background:rgba(3,10,18,.83);z-index:2;pointer-events:none"></canvas>' +
         '<div data-ring-split-divider hidden style="position:absolute;inset:0;z-index:1;pointer-events:none;border:0"></div>' +
         '<div style="position:absolute;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:flex-end;gap:12px;z-index:4;pointer-events:none">' +
           '<div style="display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(2,42px);gap:4px;pointer-events:auto">' +
-            '<span></span><button type="button" data-ring-action="jump" aria-label="Прыжок" style="grid-column:2;grid-row:1;min-height:42px">ПРЫЖОК</button><span></span>' +
-            '<button type="button" data-ring-action="left" aria-label="Влево" style="min-height:42px">◀</button><span style="display:block"></span><button type="button" data-ring-action="right" aria-label="Вправо" style="min-height:42px">▶</button>' +
+            '<span></span><button type="button" data-ring-action="jump" aria-label="' + copy.jump + '" style="grid-column:2;grid-row:1;min-height:42px">' + copy.jump + '</button><span></span>' +
+            '<button type="button" data-ring-action="left" aria-label="' + (en ? "Left" : "Влево") + '" style="min-height:42px">◀</button><span style="display:block"></span><button type="button" data-ring-action="right" aria-label="' + (en ? "Right" : "Вправо") + '" style="min-height:42px">▶</button>' +
           '</div>' +
           '<div style="display:flex;gap:6px;align-items:flex-end;pointer-events:auto">' +
-            '<button type="button" data-ring-action="activate" style="min-height:42px;padding:6px 10px;font-size:12px">АКТИВАЦИЯ</button>' +
-            '<button type="button" data-ring-action="dash" style="min-height:42px;padding:6px 10px;font-size:12px">РЫВОК</button>' +
+            '<button type="button" data-ring-action="activate" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.action + '</button>' +
+            '<button type="button" data-ring-action="fire" aria-label="' + copy.laser + '" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.laser + '</button>' +
+            '<button type="button" data-ring-action="dash" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.dash + '</button>' +
           '</div>' +
         '</div>' +
         '<div data-ring-mode-menu style="position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(1,5,12,.74);pointer-events:auto">' +
           '<div style="width:min(480px,100%);padding:22px;border:1px solid #37677c;border-radius:16px;background:rgba(6,20,32,.97);box-shadow:0 12px 60px #0009;text-align:center">' +
             '<div style="font-size:12px;letter-spacing:.18em;color:#60ddec">RING FRONTIER · SEED ' + seed + '</div>' +
-            '<div style="font-size:24px;font-weight:900;margin:12px 0 7px">Большая локация</div>' +
-            '<div style="color:#b7cbd6;line-height:1.5;margin-bottom:17px">Свободное движение по большим боковым аренам, прыжки между платформами и три босса в разных зонах. Мини-карта показывает только продвижение по локации.</div>' +
-            '<div style="color:#91b8c7;font-size:12px;line-height:1.5;margin-bottom:17px">P1: ← → / A D · прыжок: Space / W · действие: E · рывок: Shift<br>P2: J L · прыжок: P · действие: O · рывок: I · геймпады поддерживаются</div>' +
+            '<div style="font-size:24px;font-weight:900;margin:12px 0 7px">' + copy.title + '</div>' +
+            '<div style="color:#b7cbd6;line-height:1.5;margin-bottom:17px">' + copy.description + '</div>' +
+            '<div style="color:#91b8c7;font-size:12px;line-height:1.5;margin-bottom:17px;white-space:pre-line">' + copy.controls + '</div>' +
             '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">' +
               '<button type="button" data-ring-single style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #69d7ea;border-radius:10px;background:#123c48;color:#e8fbff;font-weight:900">SINGLE</button>' +
               '<button type="button" data-ring-multi style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #bb9a57;border-radius:10px;background:#3b301b;color:#fff0c7;font-weight:900">MULTI · 2 CREW</button>' +
@@ -1591,6 +1612,14 @@
       const previousPad = [{}, {}];
       let menuFocusIndex = 0;
       let menuPadPrevious = { left: false, right: false, confirm: false };
+      const weaponProgress = window.BCMRingWeaponProgress || (window.BCMRingWeaponProgress = {
+        type: "pointer", tier: 1, completedRuns: 0, pendingUpgrade: false, lastUpgradePromptRun: -1, nextUpgradeAt: 2
+      });
+      weaponProgress.nextUpgradeAt = Math.max(2, Math.floor(Number(weaponProgress.nextUpgradeAt) || 2));
+      const weaponPalette = [0xff426f, 0xffab48, 0xffed57, 0x56f0a0, 0x58c9ff, 0xc884ff];
+      const weaponShots = [];
+      let weaponShotIndex = 0;
+      let masterOfferedThisRun = false;
       const oneShotActions = new Set(["activate", "dash"]);
       const worldSaved = {
         oldMazeVisible: maze.group ? maze.group.visible : true,
@@ -2139,6 +2168,9 @@
           localX: 0, jumpHeight: 0, vy: 0, grounded: true, supportPlatform: null,
           facing: 1, lastActionAt: 0, wasJumpDown: false,
           actionReadyAt: 0, dashReadyAt: 0, dashUntil: 0,
+          weaponType: weaponProgress.type || "pointer",
+          weaponTier: Math.max(1, Number(weaponProgress.tier) || 1),
+          weaponReadyAt: 0,
           hp: 5, maxHp: 5, invulnerableUntil: 0,
           checkpointX: Number(spawn.x) || -45,
           image: crewImages[index] || null, tint: playerColors[index], moves: 0,
@@ -2156,7 +2188,8 @@
         return {
           left: !!(keys.left || touch.left || pad.left),
           right: !!(keys.right || touch.right || pad.right),
-          jump: !!(keys.jump || touch.jump || pad.jump)
+          jump: !!(keys.jump || touch.jump || pad.jump),
+          fire: !!(keys.fire || touch.fire || pad.fire)
         };
       }
 
@@ -2210,6 +2243,149 @@
         return collected;
       }
 
+      function currentWeaponProfile(player) {
+        const type = String(player?.weaponType || weaponProgress.type || "pointer");
+        const tier = Math.max(1, Number(player?.weaponTier || weaponProgress.tier) || 1);
+        if (type === "pulse") return { cooldown: Math.max(360, 720 - tier * 45), damage: 2 + Math.floor((tier - 1) / 2), color: 0xffb960, range: 16 };
+        if (type === "spectrum") return { cooldown: Math.max(190, 390 - tier * 30), damage: 1 + Math.floor(tier / 3), color: weaponPalette[weaponShotIndex % weaponPalette.length], range: 17 };
+        return { cooldown: Math.max(75, 150 - tier * 14), damage: 1, color: 0x75eaff, range: 15 };
+      }
+
+      function firePlayerWeapon(player, now) {
+        if (!player || !gameStarted || done || now < player.weaponReadyAt) return false;
+        const profile = currentWeaponProfile(player);
+        player.weaponReadyAt = now + profile.cooldown;
+        const start = new THREE.Vector3(player.worldX, player.worldY + 0.9, 0.92);
+        const end = start.clone().add(new THREE.Vector3(player.facing * profile.range, 0, 0));
+        let target = null;
+        let nearest = Infinity;
+        for (const boss of worldState.bosses) {
+          if (!boss.alive) continue;
+          const forwardDistance = (boss.x - player.worldX) * player.facing;
+          if (forwardDistance <= 0 || forwardDistance > profile.range) continue;
+          if (Math.abs(player.worldY - boss.y) > 4.4) continue;
+          if (forwardDistance < nearest) { target = boss; nearest = forwardDistance; }
+        }
+        if (target) end.set(target.x, target.y + 0.2, 0.94);
+        const beamDirection = end.clone().sub(start);
+        const beamLength = Math.max(0.01, beamDirection.length());
+        const beamRotation = new THREE.Quaternion().setFromUnitVectors(
+          new THREE.Vector3(0, 1, 0), beamDirection.clone().normalize()
+        );
+        const geometry = new THREE.CylinderGeometry(profile.width, profile.width, beamLength, 6, 1, true);
+        const material = new THREE.MeshBasicMaterial({
+          color: profile.color, transparent: true, opacity: 0.94, depthTest: false, depthWrite: false
+        });
+        const beam = new THREE.Mesh(geometry, material);
+        beam.position.copy(start).add(end).multiplyScalar(0.5);
+        beam.quaternion.copy(beamRotation);
+        beam.renderOrder = 999;
+        scene.add(beam);
+        const glowWidth = profile.width * (player.weaponType === "pointer" ? 2.2 : 3.2);
+        const glowGeometry = new THREE.CylinderGeometry(glowWidth, glowWidth, beamLength, 6, 1, true);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: profile.color, transparent: true, opacity: 0.23, depthTest: false, depthWrite: false
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        glow.position.copy(beam.position);
+        glow.quaternion.copy(beamRotation);
+        glow.renderOrder = 998;
+        scene.add(glow);
+        weaponShots.push({ mesh: beam, life: 0.105, geometry, material, glow, glowGeometry, glowMaterial });
+
+        if (player.weaponType === "spectrum") weaponShotIndex += 1;
+        if (target && target.activated && now >= (Number(target.nextDamageAt) || 0)) {
+          target.nextDamageAt = now + Math.max(110, profile.cooldown * 0.7);
+          target.hp = Math.max(0, target.hp - profile.damage);
+          target.lastDamageAt = now;
+          if (target.hp <= 0) {
+            target.alive = false;
+            target.group.visible = false;
+            worldState.defeatedBosses = Math.min(3, worldState.defeatedBosses + 1);
+            worldState.barriers.forEach((barrier) => {
+              barrier.group.visible = worldState.defeatedBosses < barrier.unlockAfter;
+            });
+            updateHud(target.name + " · ОРУЖИЕ " + String(player.weaponType).toUpperCase());
+            if (worldState.defeatedBosses === 1 && !masterOfferedThisRun) {
+              masterOfferedThisRun = true;
+              window.setTimeout(() => offerWeaponChoice(false), 120);
+            }
+          } else {
+            updateHud("ПОПАДАНИЕ · " + target.name + " · " + target.hp + "/" + target.maxHp);
+          }
+        } else if (target && !target.activated) {
+          updateHud("АРЕНА ЕЩЁ НЕ ОТКРЫТА");
+        }
+        return true;
+      }
+
+      function updateWeaponShots(dt) {
+        for (let i = weaponShots.length - 1; i >= 0; i -= 1) {
+          const shot = weaponShots[i];
+          shot.life -= dt;
+          const opacity = Math.max(0, shot.life / 0.105);
+          shot.mesh.material.opacity = opacity;
+          shot.glow.material.opacity = opacity * 0.3;
+          if (shot.life > 0) continue;
+          scene.remove(shot.mesh);
+          scene.remove(shot.glow);
+          try { shot.geometry.dispose(); } catch (e) {}
+          try { shot.material.dispose(); } catch (e) {}
+          try { shot.glowGeometry.dispose(); } catch (e) {}
+          try { shot.glowMaterial.dispose(); } catch (e) {}
+          weaponShots.splice(i, 1);
+        }
+      }
+
+      function applyTeamWeapon(type, tier) {
+        const validType = ["pointer", "pulse", "spectrum"].includes(type) ? type : "pointer";
+        weaponProgress.type = validType;
+        weaponProgress.tier = Math.max(1, Math.min(5, Math.floor(Number(tier) || 1)));
+        players.forEach((player) => {
+          player.weaponType = weaponProgress.type;
+          player.weaponTier = weaponProgress.tier;
+          player.weaponReadyAt = 0;
+        });
+        const fireButton = root2d.querySelector('[data-ring-action="fire"]');
+        if (fireButton) {
+          const labels = window.BCMDialogue?.language === "en"
+            ? { pointer: "LASER", pulse: "PULSE", spectrum: "SPECTRUM" }
+            : { pointer: "ЛАЗЕР", pulse: "ИМПУЛЬС", spectrum: "СПЕКТР" };
+          fireButton.textContent = labels[validType];
+        }
+        const names = window.BCMDialogue?.language === "en"
+          ? { pointer: "Laser pointer", pulse: "Pulse beam", spectrum: "Spectrum beam" }
+          : { pointer: "Лазер-указка", pulse: "Импульсный луч", spectrum: "Спектральный луч" };
+        updateHud("ОРУЖИЕ · " + names[validType] + " · T" + weaponProgress.tier);
+      }
+
+      function offerWeaponChoice(upgradeTest) {
+        const lang = window.BCMDialogue?.language || "ru";
+        const message = upgradeTest
+          ? (lang === "en" ? "A stronger weapon test is ready. Upgrade your current weapon or keep the proven setting." : "Мастер подготовил усиленный тест. Улучшить оружие или оставить проверенный вариант?")
+          : (lang === "en" ? "Choose a main weapon. Each option has its own firing rhythm and beam colour." : "Выбери основное оружие. У каждого свой ритм выстрела и цвет луча.");
+        const choices = upgradeTest
+          ? [
+              { label: lang === "en" ? "TEST UPGRADE" : "ПРОБНЫЙ АПГРЕЙД", onSelect: () => {
+                applyTeamWeapon(weaponProgress.type || "pointer", (weaponProgress.tier || 1) + 1);
+                weaponProgress.pendingUpgrade = false;
+                weaponProgress.lastUpgradePromptRun = weaponProgress.completedRuns;
+                weaponProgress.nextUpgradeAt = weaponProgress.completedRuns + 2;
+              } },
+              { label: lang === "en" ? "KEEP CURRENT" : "ОСТАВИТЬ", onSelect: () => {
+                weaponProgress.pendingUpgrade = false;
+                weaponProgress.lastUpgradePromptRun = weaponProgress.completedRuns;
+                weaponProgress.nextUpgradeAt = weaponProgress.completedRuns + 2;
+              } }
+            ]
+          : [
+              { label: lang === "en" ? "Laser pointer · fast" : "Лазер-указка · быстро", onSelect: () => applyTeamWeapon("pointer", 1) },
+              { label: lang === "en" ? "Pulse · heavy" : "Импульс · мощно", onSelect: () => applyTeamWeapon("pulse", 1) },
+              { label: lang === "en" ? "Spectrum · rainbow" : "Спектр · радуга", onSelect: () => applyTeamWeapon("spectrum", 1) }
+            ];
+        window.BCMDialogue?.showOperator(lang === "en" ? "WEAPON MASTER" : "МАСТЕР ОРУЖИЯ", message, choices);
+      }
+
       function activateBossWeakpoint(player) {
         const now = performance.now();
         const boss = worldState.bosses.find((item) =>
@@ -2232,6 +2408,10 @@
             barrier.group.visible = worldState.defeatedBosses < barrier.unlockAfter;
           });
           updateHud(boss.name + " · АРЕНА ОЧИЩЕНА");
+          if (worldState.defeatedBosses === 1 && !masterOfferedThisRun) {
+            masterOfferedThisRun = true;
+            window.setTimeout(() => offerWeaponChoice(false), 120);
+          }
         } else {
           updateHud("ТОЧКА БОССА ОТКЛИКНУЛАСЬ · " + boss.hp + " / " + boss.maxHp);
         }
@@ -2281,6 +2461,13 @@
         };
         const p2 = { KeyJ: "left", KeyL: "right", KeyP: "jump" };
         let index = 0;
+        if (event.code === "KeyQ" || (mode === "multi" && event.code === "KeyK")) {
+          index = event.code === "KeyK" ? 1 : 0;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          keyboardInputs[index].fire = down;
+          return;
+        }
         let action = p1[event.code] || null;
         if (!action && mode === "multi") {
           action = p2[event.code] || null;
@@ -2331,6 +2518,7 @@
           statePad.jump = !!(button(0) || button(12) || axisY < -0.68);
           statePad.dash = !!button(1);
           statePad.activate = !!button(2);
+          statePad.fire = !!button(3);
           if (statePad.activate && !previousPad[i].activate) triggerAction(i, "activate");
           if (statePad.dash && !previousPad[i].dash) triggerAction(i, "dash");
           previousPad[i] = { activate: statePad.activate, dash: statePad.dash };
@@ -2392,6 +2580,7 @@
             player.facing = direction;
             player.moves += dt;
           }
+          if (input.fire) firePlayerWeapon(player, now);
           const dashing = now < player.dashUntil;
           const previousX = player.worldX;
           if (dashing) player.worldX += player.facing * 12.5 * dt;
@@ -2485,21 +2674,21 @@
       }
 
       function updateSplitState() {
-        if (mode !== "multi" || players.length < 2) { splitActive = false; return; }
+        if (mode !== "multi" || players.length < 2) {
+          splitActive = false;
+          splitDivider.hidden = true;
+          return;
+        }
         const dx = Math.abs(players[0].worldX - players[1].worldX);
         const dy = Math.abs(players[0].worldY - players[1].worldY);
         if (!splitActive && (dx > 20 || dy > 7)) splitActive = true;
         else if (splitActive && dx < 14 && dy < 4.5) splitActive = false;
-        const landscape = width >= height;
         splitDivider.hidden = !splitActive;
-        splitDivider.style.border = splitActive ? "1px solid rgba(115,203,225,.45)" : "0";
-        splitDivider.style.background = "transparent";
-        if (splitActive) {
-          splitDivider.style.borderTop = landscape ? "0" : "2px solid rgba(115,203,225,.75)";
-          splitDivider.style.borderLeft = landscape ? "2px solid rgba(115,203,225,.75)" : "0";
-        } else {
-          splitDivider.style.border = "0";
-        }
+        splitDivider.style.border = "0";
+        splitDivider.style.borderLeft = "0";
+        splitDivider.style.background = splitActive
+          ? "linear-gradient(to bottom, transparent calc(50% - 1px), rgba(115,203,225,.82) calc(50% - 1px), rgba(115,203,225,.82) calc(50% + 1px), transparent calc(50% + 1px))"
+          : "transparent";
       }
 
       function configureCamera(camera, viewport, center) {
@@ -2547,16 +2736,13 @@
         const landscape = viewW >= viewH;
         let views;
         if (splitActive && mode === "multi" && players.length > 1) {
-          const half = Math.floor((landscape ? viewW : viewH) / 2);
-          views = landscape
-            ? [
-                { x: 0, y: 0, w: half, h: viewH, player: players[0], camera: cameraOne },
-                { x: half, y: 0, w: viewW - half, h: viewH, player: players[1], camera: cameraTwo }
-              ]
-            : [
-                { x: 0, y: Math.floor(viewH / 2), w: viewW, h: viewH - Math.floor(viewH / 2), player: players[0], camera: cameraOne },
-                { x: 0, y: 0, w: viewW, h: Math.floor(viewH / 2), player: players[1], camera: cameraTwo }
-              ];
+          // P1/pilot always owns the upper horizontal half; P2's lower view is
+          // independent so players can explore different zones comfortably.
+          const half = Math.floor(viewH / 2);
+          views = [
+            { x: 0, y: half, w: viewW, h: viewH - half, player: players[0], camera: cameraOne },
+            { x: 0, y: 0, w: viewW, h: half, player: players[1], camera: cameraTwo }
+          ];
         } else {
           let target = cameraTargetFor(players[0]);
           if (mode === "multi" && players[1]) {
@@ -2633,7 +2819,7 @@
         g.font = "9px system-ui";
         g.textAlign = "left";
         g.textBaseline = "top";
-        g.fillText("ПРОГРЕСС ПО ЗОНАМ", 8, 5);
+        // Progress is shown by the strip and markers; avoid tiny permanent caption text.
       }
 
       function startMode(nextMode) {
@@ -2647,7 +2833,16 @@
         players = [createPlayer(0, spawn1)];
         if (spawn2) players.push(createPlayer(1, spawn2));
         updateSplitState();
-        updateHud(mode === "multi" ? "MULTI · ИССЛЕДУЙТЕ ЗОНЫ ВМЕСТЕ" : "SINGLE · ДОБЕРИСЬ ДО ПЕРВОЙ АРЕНЫ");
+        updateHud(mode === "multi" ? "MULTI" : "SINGLE");
+        statusEl.style.display = "none";
+        floorEl.style.display = "none";
+        countEl.style.display = "none";
+        window.BCMDialogue?.showControls("ring");
+        if (Number(weaponProgress.completedRuns) >= Number(weaponProgress.nextUpgradeAt || 2) &&
+            weaponProgress.pendingUpgrade &&
+            Number(weaponProgress.lastUpgradePromptRun) !== Number(weaponProgress.completedRuns)) {
+          window.setTimeout(() => offerWeaponChoice(true), 250);
+        }
         resize2d();
         root2d.focus({ preventScroll: true });
       }
@@ -2665,6 +2860,7 @@
         const dt = frameStamp ? Math.min(0.05, Math.max(0.001, (now - frameStamp) / 1000)) : 1 / 60;
         frameStamp = now;
         updatePlayers(dt);
+        updateWeaponShots(dt);
         if (done) return;
         updateSplitState();
         drawMiniMap();
@@ -2764,6 +2960,15 @@
           if (player.sprite) worldState.group.remove(player.sprite);
           if (player.spriteMaterial) player.spriteMaterial.dispose();
         });
+        weaponShots.forEach((shot) => {
+          scene.remove(shot.mesh);
+          scene.remove(shot.glow);
+          try { shot.geometry.dispose(); } catch (e) {}
+          try { shot.material.dispose(); } catch (e) {}
+          try { shot.glowGeometry.dispose(); } catch (e) {}
+          try { shot.glowMaterial.dispose(); } catch (e) {}
+        });
+        weaponShots.length = 0;
         maze.group.visible = worldSaved.oldMazeVisible;
         if (runtime.ship.visual) runtime.ship.visual.visible = worldSaved.oldShipVisible;
         scene.background = oldBackground;
@@ -2783,6 +2988,14 @@
       if (!state.ringPlatformer || !maze) return false;
       const success = completed === true;
       maze.ringCompleted = success;
+      if (success) {
+        const progress = window.BCMRingWeaponProgress || (window.BCMRingWeaponProgress = {
+          type: "pointer", tier: 1, completedRuns: 0, pendingUpgrade: false, lastUpgradePromptRun: -1
+        });
+        progress.completedRuns = (Number(progress.completedRuns) || 0) + 1;
+        progress.nextUpgradeAt = Math.max(2, Number(progress.nextUpgradeAt) || 2);
+        if (progress.completedRuns >= progress.nextUpgradeAt && Number(progress.tier) < 5) progress.pendingUpgrade = true;
+      }
       const cleanup = state.ringPlatformerCleanup;
       state.ringPlatformerCleanup = null;
       state.ringPlatformer = false;

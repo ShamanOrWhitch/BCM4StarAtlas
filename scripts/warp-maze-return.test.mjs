@@ -204,16 +204,16 @@ test("a new Tube attempt snapshots the currently selected sector as its own orig
 
 
 test("Hull Dive has dense bounded smoke, water-dependent bubbles and independent Crew gamepads", () => {
-  assert.match(hull, /const puffCount = 36/);
-  assert.match(hull, /const bubbleCount = 84/);
-  assert.match(hull, /activeCount = level > 0\.018 \? Math\.min\(bubble\.particleCount, Math\.max\(4, Math\.ceil\(level \* bubble\.particleCount \* 1\.65\)\)\)/);
+  assert.match(hull, /const puffCount = 54/);
+  assert.match(hull, /const bubbleCount = 96/);
+  assert.match(hull, /activeCount = level > 0\.01 \? Math\.min\(bubble\.particleCount, Math\.max\(6, Math\.ceil\(level \* bubble\.particleCount \* 2\.2\)\)\)/);
   assert.match(hull, /function readAssignedGamepads\(\)/);
   assert.match(hull, /if \(connected\.length === 1\) return \[null, connected\[0\]\]/);
   assert.match(hull, /return \[connected\[0\] \|\| null, connected\[1\] \|\| null\]/);
   assert.match(hull, /canvas\.addEventListener\("pointerdown"/);
   assert.match(hull, /pointerInteraction\.action === "pump"/);
   assert.match(hull, /pointerInteraction\.action === "repair"/);
-  assert.match(hull, /root\.style\.cssText = "position:fixed;inset:0;z-index:80;background:transparent/);
+  assert.match(hull, /root\.style\.cssText = "position:fixed;left:auto;top:auto;right:max\(10px,env\(safe-area-inset-right\)\)/);
 });
 
 test("Warp tube impacts progressively call the compartment damage contract", () => {

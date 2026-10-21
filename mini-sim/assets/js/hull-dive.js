@@ -54,12 +54,11 @@
     const THREE = window.THREE;
     const root = document.createElement("div");
     root.id = "bcm-hull-dive";
-    root.style.cssText = "position:fixed;inset:0;z-index:80;background:transparent;color:#e7eef2;font-family:Rajdhani,sans-serif;overflow:hidden;";
+    root.style.cssText = "position:fixed;left:auto;top:auto;right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));width:min(430px,42vw);height:min(330px,38vh);min-width:280px;min-height:230px;z-index:1000850;background:rgba(3,12,21,.91);border:1px solid rgba(103,201,225,.62);border-radius:15px;box-shadow:0 10px 36px rgba(0,0,0,.5);color:#e7eef2;font-family:Rajdhani,sans-serif;overflow:hidden;";
     root.innerHTML =
       '<div style="position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:12px;pointer-events:none;z-index:10">' +
-      '<div><div style="letter-spacing:.18em;font-size:12px;color:#c4a35a">ОТСЕК · ПРОРЫВ</div>' +
-      '<div data-hull-status style="font-size:14px;margin-top:4px">Управляй кораблём, стреляй, пополняй боезапас и чини корпус</div>' +
-      '<div data-hull-roles style="margin-top:5px;color:#9bb5c3;font-size:11px;letter-spacing:.07em">ПИЛОТ · ОРУДИЕ / БОЕЗАПАС · ИНЖЕНЕР</div></div>' +
+      '<div><div style="letter-spacing:.14em;font-size:10px;color:#c4a35a">ОТСЕК · РЕМОНТ</div>' +
+      '<div data-hull-status style="font-size:11px;margin-top:3px">ПРОВЕРЬ ВОДУ И КОРПУС</div></div>' +
       '<button type="button" data-hull-exit style="pointer-events:auto;height:44px;padding:0 14px;border:1px solid #355066;background:#10202c;color:#e7eef2;border-radius:8px">НАЗАД В ПОЛЁТ</button></div>' +
       '<div data-hull-view style="position:absolute;inset:0"></div>' +
       '<div data-hull-controls style="position:absolute;left:10px;right:10px;bottom:54px;display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap;pointer-events:none">' +
@@ -77,12 +76,12 @@
       '<div style="position:absolute;left:12px;right:12px;bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px">' +
       '<span data-hull-ox style="font-variant-numeric:tabular-nums">O2 100</span>' +
       '<span data-hull-weld>шов 0%</span>' +
-      '<span data-hull-hazards style="font-variant-numeric:tabular-nums">ВОДА 12% · ДЫМ 9% · ОГОНЬ 6%</span>' +
+      '<span data-hull-hazards style="font-variant-numeric:tabular-nums">ВОДА 12% · ДЫМ 9% · ПЕРЕГРЕВ 6%</span>' +
       '<span data-hull-ammo>БОЕЗАПАС 6/6</span>' +
       '<span data-hull-flight>ТЯГА 0% · КУРС 0°</span>' +
       '<span data-hull-crew>CREW</span>' +
-      '<span data-hull-hint style="opacity:.9">P1 WASD · P2 стрелки · 1 геймпад = P2 · 2 = оба Crew · мышь/палец: тащи Crew, удерживай воду для насоса, шов для ремонта</span></div>' +
-      '<style>#bcm-hull-dive [data-hull-controls] button{touch-action:none;min-height:38px;min-width:38px;padding:5px 9px;border:1px solid #46667b;border-radius:8px;background:rgba(16,32,44,.94);color:#e7eef2;font-weight:700}#bcm-hull-dive [data-hull-controls] button.is-active{background:#294b60;border-color:#7bd9ee}#bcm-hull-dive canvas{display:block;width:100%;height:100%;touch-action:none}@media(max-width:620px){#bcm-hull-dive [data-hull-controls] button{font-size:10px;padding:4px 6px;min-height:34px;min-width:34px}}@media(min-width:1000px){#bcm-hull-dive [data-hull-controls]{left:50%;right:auto;transform:translateX(-50%);width:min(800px,94vw)}}</style>';
+      '<span data-hull-hint style="opacity:.9">CREW · НАСОС · РЕМОНТ</span></div>' +
+      '<style>#bcm-hull-dive [data-hull-controls] button{touch-action:none;min-height:38px;min-width:38px;padding:5px 9px;border:1px solid #46667b;border-radius:8px;background:rgba(16,32,44,.94);color:#e7eef2;font-weight:700}#bcm-hull-dive [data-hull-controls] button.is-active{background:#294b60;border-color:#7bd9ee}#bcm-hull-dive canvas{display:block;width:100%;height:100%;touch-action:none}@media(max-width:620px){#bcm-hull-dive{width:min(58vw,320px)!important;height:min(48vh,280px)!important;min-width:220px!important;min-height:210px!important;right:6px!important;bottom:6px!important}#bcm-hull-dive [data-hull-controls]{left:4px;right:4px;bottom:38px;gap:3px}#bcm-hull-dive [data-hull-controls] button{font-size:10px;padding:4px 6px;min-height:32px;min-width:30px}}@media(min-width:1000px){#bcm-hull-dive [data-hull-controls]{left:50%;right:auto;transform:translateX(-50%);width:min(800px,94vw)}}</style>';
     document.body.appendChild(root);
 
     const view = root.querySelector("[data-hull-view]");
@@ -109,12 +108,17 @@
     let scene = null;
     let frame = 0;
     let pointerInteraction = null;
+    let viewResizeObserver = null;
 
     function finish() {
       if (closed) return;
       closed = true;
       if (document.exitPointerLock && document.pointerLockElement) document.exitPointerLock();
       cancelAnimationFrame(frame);
+      if (viewResizeObserver) {
+        try { viewResizeObserver.disconnect(); } catch (e) {}
+        viewResizeObserver = null;
+      }
       window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("keyup", onKey, true);
       window.removeEventListener("blur", clearHeldKeys);
@@ -652,7 +656,23 @@
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setClearColor(0x000000, 0);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
-      renderer.setSize(view.clientWidth || window.innerWidth, view.clientHeight || window.innerHeight);
+      const resizeCabinView = () => {
+        const width = Math.max(1, view.clientWidth || 430);
+        const height = Math.max(1, view.clientHeight || 330);
+        const halfHeight = 4.5;
+        const halfWidth = halfHeight * width / height;
+        camera.left = -halfWidth;
+        camera.right = halfWidth;
+        camera.top = halfHeight;
+        camera.bottom = -halfHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height, false);
+      };
+      resizeCabinView();
+      if (typeof ResizeObserver === "function") {
+        viewResizeObserver = new ResizeObserver(resizeCabinView);
+        viewResizeObserver.observe(view);
+      }
       view.appendChild(renderer.domElement);
       scene.add(new THREE.AmbientLight(0xffffff, 0.85));
       const hullTexture = makeHullSideTexture(THREE);
@@ -673,7 +693,7 @@
       const hullMetal = new THREE.MeshStandardMaterial({ color: 0x426171, metalness: 0.62, roughness: 0.38 });
       const hullDark = new THREE.MeshStandardMaterial({ color: 0x101f2b, metalness: 0.34, roughness: 0.58 });
       const hullScreen = new THREE.MeshStandardMaterial({ color: 0x48c7dc, emissive: 0x125268, emissiveIntensity: 0.8, metalness: 0.15, roughness: 0.28 });
-      const hullAmber = new THREE.MeshStandardMaterial({ color: 0xe6a44d, emissive: 0x4a2607, emissiveIntensity: 0.32 });
+      const hullAmber = new THREE.MeshStandardMaterial({ color: 0x92eaff, emissive: 0x125b78, emissiveIntensity: 0.42 });
       const hullGreen = new THREE.MeshStandardMaterial({ color: 0x69d39a, emissive: 0x113e28, emissiveIntensity: 0.3 });
       const addHullPart = (geometry, material, x, y, z, rz) => {
         const part = new THREE.Mesh(geometry, material);
@@ -737,14 +757,14 @@
       });
       breach = new THREE.Mesh(
         new THREE.CircleGeometry(0.28, 16),
-        new THREE.MeshBasicMaterial({ color: 0xffb15a })
+        new THREE.MeshBasicMaterial({ color: 0x72dcf7 })
       );
       breach.position.set(0, floor + 0.15, 0.45);
       scene.add(breach);
       externalHoleMeshes = rooms.map((room) => {
         const mesh = new THREE.Mesh(
           new THREE.CircleGeometry(0.23, 14),
-          new THREE.MeshBasicMaterial({ color: 0xff6b55, transparent: true, opacity: 0.9, depthWrite: false })
+          new THREE.MeshBasicMaterial({ color: 0x68bfff, transparent: true, opacity: 0.9, depthWrite: false })
         );
         mesh.position.set((room.x0 + room.x1) / 2, floor + 0.15, 0.47);
         mesh.visible = false;
@@ -752,22 +772,21 @@
         return mesh;
       });
       fireRing = new THREE.Mesh(
-        new THREE.TorusGeometry(0.34, 0.035, 6, 18),
-        new THREE.MeshBasicMaterial({ color: 0xff9955, transparent: true, opacity: 0.18, depthWrite: false })
+        new THREE.TorusGeometry(0.34, 0.022, 6, 18),
+        new THREE.MeshBasicMaterial({ color: 0x7cecff, transparent: true, opacity: 0.18, depthWrite: false })
       );
       fireRing.position.set(0, floor + 0.15, 0.49);
       fireRing.visible = true;
       scene.add(fireRing);
-      // Dense but bounded smoke fields: 36 persistent puffs per compartment.
-      // Active count grows with smoke level; particles are reused, never spawned per frame.
+      // Dense but bounded smoke fields: particles are reused, not created during frames.
       rooms.forEach((room, roomIndex) => {
-        const puffCount = 36;
+        const puffCount = 54;
         for (let puff = 0; puff < puffCount; puff += 1) {
           const phase = puff * 0.83 + roomIndex * 1.71;
           const baseX = room.x0 + 0.22 + (puff + 0.5) / puffCount * (room.x1 - room.x0 - 0.44);
           const mesh = new THREE.Mesh(
-            new THREE.CircleGeometry(0.075 + (puff % 4) * 0.027, 8),
-            new THREE.MeshBasicMaterial({ color: 0x7b8a91, transparent: true, opacity: 0, depthWrite: false })
+            new THREE.CircleGeometry(0.095 + (puff % 4) * 0.035, 8),
+            new THREE.MeshBasicMaterial({ color: 0x9eafb8, transparent: true, opacity: 0, depthWrite: false })
           );
           mesh.position.set(baseX, floor + 0.45 + ((puff * 3) % 6) * 0.29, 0.73);
           mesh.visible = false;
@@ -776,16 +795,15 @@
         }
       });
 
-      // Water bubbles use a fixed pool (84 per compartment). A flooded room reveals
-      // a denser stream; the animation wraps back to the floor and stays lightweight.
+      // Water bubbles use a fixed pool with a density curve tied to water level.
       rooms.forEach((room, roomIndex) => {
-        const bubbleCount = 84;
+        const bubbleCount = 96;
         for (let bubble = 0; bubble < bubbleCount; bubble += 1) {
           const phase = ((bubble * 0.61803398875) + roomIndex * 0.37) % 1;
           const baseX = room.x0 + 0.18 + (bubble + 0.5) / bubbleCount * (room.x1 - room.x0 - 0.36);
           const mesh = new THREE.Mesh(
-            new THREE.CircleGeometry(0.027 + (bubble % 4) * 0.009, 6),
-            new THREE.MeshBasicMaterial({ color: 0x80e9ff, transparent: true, opacity: 0.54, depthWrite: false })
+            new THREE.CircleGeometry(0.032 + (bubble % 4) * 0.011, 6),
+            new THREE.MeshBasicMaterial({ color: 0x9cefff, transparent: true, opacity: 0.66, depthWrite: false })
           );
           mesh.position.set(baseX, floor + 0.05, 0.66);
           mesh.scale.setScalar(0.7 + (bubble % 4) * 0.12);
@@ -1144,16 +1162,16 @@
       smokeParticles.forEach((puff) => {
         const level = smoke[puff.roomIndex];
         const cycle = ((now * 0.00012 + puff.phase) % 1 + 1) % 1;
-        const activeCount = level > 0.025 ? Math.max(2, Math.ceil(level * puff.particleCount * 1.25)) : 0;
+        const activeCount = level > 0.012 ? Math.min(puff.particleCount, Math.max(7, Math.ceil(level * puff.particleCount * 2.1))) : 0;
         puff.mesh.visible = puff.roomParticleIndex < activeCount;
-        puff.mesh.position.x = puff.baseX + Math.sin(now * 0.0011 + puff.phase) * (0.06 + level * 0.16);
-        puff.mesh.position.y = floor + 0.25 + cycle * 2.55;
-        puff.mesh.scale.setScalar(0.55 + level * 1.25);
-        puff.mesh.material.opacity = Math.min(0.36, level * 0.48) * (0.72 + Math.sin(now * 0.003 + puff.phase) * 0.18);
+        puff.mesh.position.x = puff.baseX + Math.sin(now * 0.0011 + puff.phase) * (0.07 + level * 0.2);
+        puff.mesh.position.y = floor + 0.18 + cycle * 2.65;
+        puff.mesh.scale.setScalar(0.8 + level * 1.7);
+        puff.mesh.material.opacity = Math.min(0.48, 0.13 + level * 0.58) * (0.78 + Math.sin(now * 0.003 + puff.phase) * 0.16);
       });
       waterBubbles.forEach((bubble) => {
         const level = water[bubble.roomIndex];
-        const activeCount = level > 0.018 ? Math.min(bubble.particleCount, Math.max(4, Math.ceil(level * bubble.particleCount * 1.65))) : 0;
+        const activeCount = level > 0.01 ? Math.min(bubble.particleCount, Math.max(6, Math.ceil(level * bubble.particleCount * 2.2))) : 0;
         bubble.mesh.visible = bubble.bubbleIndex < activeCount;
         if (!bubble.mesh.visible) return;
         const surface = floor + Math.max(0.06, level * 3.15);
@@ -1170,14 +1188,15 @@
         fireRing.scale.setScalar(0.8 + fire[1] * 0.55);
       }
       if (hazardsEl) {
-        hazardsEl.textContent = "ВОДА " + Math.round(water[1] * 100) + "% · ДЫМ " +
-          Math.round(smoke[1] * 100) + "% · ОГОНЬ " + Math.round(fire[1] * 100) + "%";
+        hazardsEl.textContent = (window.BCMDialogue?.language === "en" ? "WATER " : "ВОДА ") + Math.round(water[1] * 100) + "% · " +
+          (window.BCMDialogue?.language === "en" ? "SMOKE " : "ДЫМ ") + Math.round(smoke[1] * 100) + "% · " +
+          (window.BCMDialogue?.language === "en" ? "OVERHEAT " : "ПЕРЕГРЕВ ") + Math.round(fire[1] * 100) + "%";
         hazardsEl.style.color = fire[1] > 0.45 || smoke[1] > 0.65 ? "#ffad83" : "#c4d2d9";
       }
       if (breach) {
         const left = Math.max(0.08, 1 - weld);
         breach.scale.set(left, left, 1);
-        breach.material.color.set(weld >= 1 ? 0x7dcea0 : 0xffb15a);
+        breach.material.color.set(weld >= 1 ? 0x7dcea0 : 0x72dcf7);
       }
       if (now < actionStatusUntil && actionStatus) status.textContent = actionStatus;
       if (root._paint) root._paint();
