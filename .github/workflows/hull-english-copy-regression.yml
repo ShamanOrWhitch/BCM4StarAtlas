@@ -1,0 +1,42 @@
+name: Hull Dive RU/EN copy regression
+
+on:
+  push:
+    branches:
+      - fix/hull-english-copy-20261021
+    paths:
+      - "mini-sim/assets/js/hull-dive.js"
+      - "mini-sim/bcm-mini-sim.php"
+      - "scripts/hull-english-copy.test.mjs"
+      - "scripts/minisim-local-qa.test.mjs"
+      - "scripts/minisim-ui-dialogue.test.mjs"
+      - ".github/workflows/hull-english-copy-regression.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "mini-sim/assets/js/hull-dive.js"
+      - "mini-sim/bcm-mini-sim.php"
+      - "scripts/hull-english-copy.test.mjs"
+      - "scripts/minisim-local-qa.test.mjs"
+      - "scripts/minisim-ui-dialogue.test.mjs"
+      - ".github/workflows/hull-english-copy-regression.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hull-copy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check cabin JavaScript syntax
+        timeout-minutes: 5
+        run: node --check mini-sim/assets/js/hull-dive.js
+      - name: Run bilingual copy and Mini-Sim regression tests
+        timeout-minutes: 15
+        run: node --test scripts/hull-english-copy.test.mjs scripts/minisim-ui-dialogue.test.mjs scripts/minisim-local-qa.test.mjs scripts/minisim-input-scope.test.mjs scripts/warp-maze-return.test.mjs
