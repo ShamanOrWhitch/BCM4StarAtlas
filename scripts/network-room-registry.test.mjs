@@ -71,5 +71,6 @@ test("invalid dt, oversized state and client movement between locations are reje
   assert.throws(() => rooms.stepRoom(room.roomId, 0.2, (state) => state), /dtSeconds/);
   assert.throws(() => rooms.stepRoom(room.roomId, 0.05, () => ({ data: "x".repeat(1100) })), /byte limit/);
   assert.throws(() => rooms.join({ sessionId: "s", locationId: "l2", clientId: "c", seed: 2 }), /CLIENT_ALREADY_JOINED_ANOTHER_LOCATION/);
-  assert.throws(() => rooms.heartbeat({ roomId: room.roomId, clientId: "c" }), /ROOM/ === "x");
+  assert.equal(rooms.heartbeat({ roomId: room.roomId, clientId: "c" }).tick, 0);
+  assert.throws(() => rooms.heartbeat({ roomId: room.roomId, clientId: "missing" }), /CLIENT_NOT_IN_ROOM/);
 });
