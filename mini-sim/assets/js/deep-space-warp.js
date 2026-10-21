@@ -1613,8 +1613,9 @@
       let menuFocusIndex = 0;
       let menuPadPrevious = { left: false, right: false, confirm: false };
       const weaponProgress = window.BCMRingWeaponProgress || (window.BCMRingWeaponProgress = {
-        type: "pointer", tier: 1, completedRuns: 0, pendingUpgrade: false, lastUpgradePromptRun: -1
+        type: "pointer", tier: 1, completedRuns: 0, pendingUpgrade: false, lastUpgradePromptRun: -1, nextUpgradeAt: 2
       });
+      weaponProgress.nextUpgradeAt = Math.max(2, Math.floor(Number(weaponProgress.nextUpgradeAt) || 2));
       const weaponPalette = [0xff426f, 0xffab48, 0xffed57, 0x56f0a0, 0x58c9ff, 0xc884ff];
       const weaponShots = [];
       let weaponShotIndex = 0;
@@ -2365,8 +2366,17 @@
           : (lang === "en" ? "Choose a main weapon. Each option has its own firing rhythm and beam colour." : "Выбери основное оружие. У каждого свой ритм выстрела и цвет луча.");
         const choices = upgradeTest
           ? [
-              { label: lang === "en" ? "TEST UPGRADE" : "ПРОБНЫЙ АПГРЕЙД", onSelect: () => { applyTeamWeapon(weaponProgress.type || "pointer", (weaponProgress.tier || 1) + 1); weaponProgress.pendingUpgrade = false; } },
-              { label: lang === "en" ? "KEEP CURRENT" : "ОСТАВИТЬ", onSelect: () => { weaponProgress.lastUpgradePromptRun = weaponProgress.completedRuns; } }
+              { label: lang === "en" ? "TEST UPGRADE" : "ПРОБНЫЙ АПГРЕЙД", onSelect: () => {
+                applyTeamWeapon(weaponProgress.type || "pointer", (weaponProgress.tier || 1) + 1);
+                weaponProgress.pendingUpgrade = false;
+                weaponProgress.lastUpgradePromptRun = weaponProgress.completedRuns;
+                weaponProgress.nextUpgradeAt = weaponProgress.completedRuns + 2;
+              } },
+              { label: lang === "en" ? "KEEP CURRENT" : "ОСТАВИТЬ", onSelect: () => {
+                weaponProgress.pendingUpgrade = false;
+                weaponProgress.lastUpgradePromptRun = weaponProgress.completedRuns;
+                weaponProgress.nextUpgradeAt = weaponProgress.completedRuns + 2;
+              } }
             ]
           : [
               { label: lang === "en" ? "Laser pointer · fast" : "Лазер-указка · быстро", onSelect: () => applyTeamWeapon("pointer", 1) },
@@ -2828,7 +2838,8 @@
         floorEl.style.display = "none";
         countEl.style.display = "none";
         window.BCMDialogue?.showControls("ring");
-        if (Number(weaponProgress.completedRuns) >= 2 && weaponProgress.pendingUpgrade &&
+        if (Number(weaponProgress.completedRuns) >= Number(weaponProgress.nextUpgradeAt || 2) &&
+            weaponProgress.pendingUpgrade &&
             Number(weaponProgress.lastUpgradePromptRun) !== Number(weaponProgress.completedRuns)) {
           window.setTimeout(() => offerWeaponChoice(true), 250);
         }
@@ -2982,7 +2993,8 @@
           type: "pointer", tier: 1, completedRuns: 0, pendingUpgrade: false, lastUpgradePromptRun: -1
         });
         progress.completedRuns = (Number(progress.completedRuns) || 0) + 1;
-        if (progress.completedRuns >= 2 && Number(progress.tier) < 5) progress.pendingUpgrade = true;
+        progress.nextUpgradeAt = Math.max(2, Number(progress.nextUpgradeAt) || 2);
+        if (progress.completedRuns >= progress.nextUpgradeAt && Number(progress.tier) < 5) progress.pendingUpgrade = true;
       }
       const cleanup = state.ringPlatformerCleanup;
       state.ringPlatformerCleanup = null;
