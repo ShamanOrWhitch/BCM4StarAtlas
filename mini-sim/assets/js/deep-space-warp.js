@@ -2252,19 +2252,28 @@
           if (forwardDistance < nearest) { target = boss; nearest = forwardDistance; }
         }
         if (target) end.set(target.x, target.y + 0.2, 0.94);
-        const points = [start, end];
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        const material = new THREE.LineBasicMaterial({
-          color: profile.color, transparent: true, opacity: 0.96, depthTest: false, depthWrite: false
+        const beamDirection = end.clone().sub(start);
+        const beamLength = Math.max(0.01, beamDirection.length());
+        const beamRotation = new THREE.Quaternion().setFromUnitVectors(
+          new THREE.Vector3(0, 1, 0), beamDirection.clone().normalize()
+        );
+        const geometry = new THREE.CylinderGeometry(profile.width, profile.width, beamLength, 6, 1, true);
+        const material = new THREE.MeshBasicMaterial({
+          color: profile.color, transparent: true, opacity: 0.94, depthTest: false, depthWrite: false
         });
-        const beam = new THREE.Line(geometry, material);
+        const beam = new THREE.Mesh(geometry, material);
+        beam.position.copy(start).add(end).multiplyScalar(0.5);
+        beam.quaternion.copy(beamRotation);
         beam.renderOrder = 999;
         scene.add(beam);
-        const glowGeometry = new THREE.BufferGeometry().setFromPoints(points);
-        const glowMaterial = new THREE.LineBasicMaterial({
-          color: profile.color, transparent: true, opacity: 0.28, depthTest: false, depthWrite: false
+        const glowWidth = profile.width * (player.weaponType === "pointer" ? 2.2 : 3.2);
+        const glowGeometry = new THREE.CylinderGeometry(glowWidth, glowWidth, beamLength, 6, 1, true);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: profile.color, transparent: true, opacity: 0.23, depthTest: false, depthWrite: false
         });
-        const glow = new THREE.Line(glowGeometry, glowMaterial);
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        glow.position.copy(beam.position);
+        glow.quaternion.copy(beamRotation);
         glow.renderOrder = 998;
         scene.add(glow);
         weaponShots.push({ mesh: beam, life: 0.105, geometry, material, glow, glowGeometry, glowMaterial });
@@ -2642,13 +2651,12 @@
         const dy = Math.abs(players[0].worldY - players[1].worldY);
         if (!splitActive && (dx > 20 || dy > 7)) splitActive = true;
         else if (splitActive && dx < 14 && dy < 4.5) splitActive = false;
-        const landscape = width >= height;
         splitDivider.hidden = !splitActive;
         splitDivider.style.border = splitActive ? "1px solid rgba(115,203,225,.45)" : "0";
         splitDivider.style.background = "transparent";
         if (splitActive) {
-          splitDivider.style.borderTop = landscape ? "0" : "2px solid rgba(115,203,225,.75)";
-          splitDivider.style.borderLeft = landscape ? "2px solid rgba(115,203,225,.75)" : "0";
+          splitDivider.style.borderTop = "2px solid rgba(115,203,225,.75)";
+          splitDivider.style.borderLeft = "0";
         } else {
           splitDivider.style.border = "0";
         }
@@ -2699,16 +2707,13 @@
         const landscape = viewW >= viewH;
         let views;
         if (splitActive && mode === "multi" && players.length > 1) {
-          const half = Math.floor((landscape ? viewW : viewH) / 2);
-          views = landscape
-            ? [
-                { x: 0, y: 0, w: half, h: viewH, player: players[0], camera: cameraOne },
-                { x: half, y: 0, w: viewW - half, h: viewH, player: players[1], camera: cameraTwo }
-              ]
-            : [
-                { x: 0, y: Math.floor(viewH / 2), w: viewW, h: viewH - Math.floor(viewH / 2), player: players[0], camera: cameraOne },
-                { x: 0, y: 0, w: viewW, h: Math.floor(viewH / 2), player: players[1], camera: cameraTwo }
-              ];
+          // P1/pilot always owns the upper horizontal half; P2's lower view is
+          // independent so players can explore different zones comfortably.
+          const half = Math.floor(viewH / 2);
+          views = [
+            { x: 0, y: half, w: viewW, h: viewH - half, player: players[0], camera: cameraOne },
+            { x: 0, y: 0, w: viewW, h: half, player: players[1], camera: cameraTwo }
+          ];
         } else {
           let target = cameraTargetFor(players[0]);
           if (mode === "multi" && players[1]) {
