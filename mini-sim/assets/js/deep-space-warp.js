@@ -1516,6 +1516,10 @@
       const floorEl = root2d.querySelector("[data-ring-floor]");
       const menu = root2d.querySelector("[data-ring-mode-menu]");
       const splitDivider = root2d.querySelector("[data-ring-split-divider]");
+      const modeButtons = [
+        root2d.querySelector("[data-ring-single]"),
+        root2d.querySelector("[data-ring-multi]")
+      ];
       const playerColors = ["#65dcf0", "#f3c46c"];
       const crewSelection = Array.isArray(window.BCMMiniCrewSelection?.players)
         ? window.BCMMiniCrewSelection.players : [];
@@ -1540,12 +1544,54 @@
       const touchInputs = [{}, {}];
       const padInputs = [{}, {}];
       const previousPad = [{}, {}];
+      let menuFocusIndex = 0;
+      let menuPadPrevious = { left: false, right: false, confirm: false };
       const oneShotActions = new Set(["activate", "dash"]);
       const worldSaved = {
         oldMazeVisible: maze.group ? maze.group.visible : true,
         oldShipVisible: runtime.ship.visual ? runtime.ship.visual.visible : true,
         oldBackground: scene.background
       };
+
+      function focusModeMenu(index) {
+        if (gameStarted || done || !modeButtons.length) return;
+        menuFocusIndex = ((Number(index) || 0) % modeButtons.length + modeButtons.length) % modeButtons.length;
+        modeButtons.forEach((button, buttonIndex) => {
+          if (!button) return;
+          const focused = buttonIndex === menuFocusIndex;
+          button.style.outline = focused ? "3px solid #f4fbff" : "none";
+          button.style.outlineOffset = "3px";
+          button.style.boxShadow = focused
+            ? "0 0 0 5px rgba(83,213,235,.25), 0 8px 24px #0008"
+            : "none";
+          button.setAttribute("aria-pressed", focused ? "true" : "false");
+        });
+      }
+
+      function confirmModeMenu() {
+        if (gameStarted || done) return false;
+        startMode(menuFocusIndex === 1 ? "multi" : "single");
+        return true;
+      }
+
+      function pollModeMenuGamepad() {
+        const connected = [...navigator.getGamepads()].filter((pad) => pad && pad.connected);
+        const pad = connected[0];
+        if (!pad) {
+          menuPadPrevious = { left: false, right: false, confirm: false };
+          return;
+        }
+        const axisX = Number(pad.axes?.[0] || 0);
+        const button = (number) => !!(pad.buttons && pad.buttons[number] && pad.buttons[number].pressed);
+        const left = button(14) || axisX < -0.55;
+        const right = button(15) || axisX > 0.55;
+        // Standard gamepad A confirms a menu choice; Start is a convenient fallback.
+        const confirm = button(0) || button(9);
+        if (left && !menuPadPrevious.left) focusModeMenu(menuFocusIndex - 1);
+        if (right && !menuPadPrevious.right) focusModeMenu(menuFocusIndex + 1);
+        if (confirm && !menuPadPrevious.confirm) confirmModeMenu();
+        menuPadPrevious = { left, right, confirm };
+      }
 
       function resize2d() {
         const rect = canvas.getBoundingClientRect();
@@ -2170,6 +2216,20 @@
           finishRingPlatformer(maze, false);
           return;
         }
+        if (!gameStarted) {
+          const previousFocus = event.code === "ArrowLeft" || event.code === "KeyA" || event.code === "Tab" && event.shiftKey;
+          const nextFocus = event.code === "ArrowRight" || event.code === "KeyD" || event.code === "Tab" && !event.shiftKey;
+          const confirm = event.code === "KeyE" || event.code === "Enter" || event.code === "NumpadEnter" || event.code === "Space";
+          if (previousFocus || nextFocus || confirm) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            if (!down || event.repeat) return;
+            if (previousFocus) focusModeMenu(menuFocusIndex - 1);
+            else if (nextFocus) focusModeMenu(menuFocusIndex + 1);
+            else confirmModeMenu();
+          }
+          return;
+        }
         const p1 = {
           ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
           Space: "jump", ArrowUp: "jump", KeyW: "jump"
@@ -2205,7 +2265,11 @@
       }
 
       function pollGamepads() {
-        if (!gameStarted || done || !navigator.getGamepads) return;
+        if (done || !navigator.getGamepads) return;
+        if (!gameStarted) {
+          pollModeMenuGamepad();
+          return;
+        }
         const connected = [...navigator.getGamepads()].filter((pad) => pad && pad.connected);
         const assignment = mode === "multi"
           ? (connected.length > 1 ? [connected[0], connected[1]] : [null, connected[0] || null])
@@ -2528,7 +2592,7 @@
       }
 
       function startMode(nextMode) {
-        if (done) return;
+        if (done || gameStarted) return;
         mode = nextMode === "multi" ? "multi" : "single";
         gameStarted = true;
         menu.hidden = true;
@@ -2590,8 +2654,31 @@
       const closeButton = root2d.querySelector("[data-ring-exit]");
       closeButton.style.cssText += ";pointer-events:auto";
       closeButton.addEventListener("click", () => finishRingPlatformer(maze, false));
-      root2d.querySelector("[data-ring-single]").addEventListener("click", () => startMode("single"));
-      root2d.querySelector("[data-ring-multi]").addEventListener("click", () => startMode("multi"));
+      focusModeMenu(0);
+      modeButtons.forEach((button, index) => {
+        if (!button) return;
+        const activate = () => {
+          focusModeMenu(index);
+          startMode(index === 1 ? "multi" : "single");
+        };
+        // pointerdown gives mobile taps an immediate activation path; the click
+        // handler remains for keyboard and assistive-technology activation.
+        button.addEventListener("pointerdown", (event) => {
+          if (event.button !== 0 || gameStarted || done) return;
+          event.preventDefault();
+          event.stopPropagation();
+          activate();
+        });
+        button.addEventListener("focus", () => focusModeMenu(index));
+        button.addEventListener("click", activate);
+      });
+      menu.addEventListener("pointerdown", (event) => {
+        if (gameStarted || done || event.target.closest("button")) return;
+        if (event.target === menu || event.target.closest("[data-ring-mode-menu]")) {
+          event.preventDefault();
+          confirmModeMenu();
+        }
+      });
       window.addEventListener("keydown", keyboardMove, true);
       window.addEventListener("keyup", keyboardMove, true);
       window.addEventListener("blur", () => {
