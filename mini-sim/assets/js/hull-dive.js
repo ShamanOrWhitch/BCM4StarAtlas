@@ -52,35 +52,37 @@
   function open(onClose) {
     if (document.getElementById("bcm-hull-dive")) return;
     const THREE = window.THREE;
+    const en = window.BCMDialogue?.language === "en";
+    const say = (ru, english) => en ? english : ru;
     const root = document.createElement("div");
     root.id = "bcm-hull-dive";
     root.style.cssText = "position:fixed;left:auto;top:auto;right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));width:min(430px,42vw);height:min(330px,38vh);min-width:280px;min-height:230px;z-index:1000850;background:rgba(3,12,21,.91);border:1px solid rgba(103,201,225,.62);border-radius:15px;box-shadow:0 10px 36px rgba(0,0,0,.5);color:#e7eef2;font-family:Rajdhani,sans-serif;overflow:hidden;";
     root.innerHTML =
       '<div style="position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:12px;pointer-events:none;z-index:10">' +
-      '<div><div style="letter-spacing:.14em;font-size:10px;color:#c4a35a">ОТСЕК · РЕМОНТ</div>' +
-      '<div data-hull-status style="font-size:11px;margin-top:3px">ПРОВЕРЬ ВОДУ И КОРПУС</div></div>' +
-      '<button type="button" data-hull-exit style="pointer-events:auto;height:44px;padding:0 14px;border:1px solid #355066;background:#10202c;color:#e7eef2;border-radius:8px">НАЗАД В ПОЛЁТ</button></div>' +
+      '<div><div style="letter-spacing:.14em;font-size:10px;color:#c4a35a">' + say("ОТСЕК · РЕМОНТ", "COMPARTMENT · REPAIR") + '</div>' +
+      '<div data-hull-status style="font-size:11px;margin-top:3px">' + say("ПРОВЕРЬ ВОДУ И КОРПУС", "CHECK WATER AND HULL") + '</div></div>' +
+      '<button type="button" data-hull-exit style="pointer-events:auto;height:44px;padding:0 14px;border:1px solid #355066;background:#10202c;color:#e7eef2;border-radius:8px">' + say("НАЗАД В ПОЛЁТ", "BACK TO FLIGHT") + '</button></div>' +
       '<div data-hull-view style="position:absolute;inset:0"></div>' +
       '<div data-hull-controls style="position:absolute;left:10px;right:10px;bottom:54px;display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap;pointer-events:none">' +
       '<div style="display:flex;gap:5px;pointer-events:auto;flex-wrap:wrap;max-width:min(64vw,520px)">' +
-      '<button type="button" data-hull-control="left" aria-label="Идти влево">◀</button>' +
-      '<button type="button" data-hull-control="right" aria-label="Идти вправо">▶</button>' +
-      '<button type="button" data-hull-control="up" aria-label="Плыть вверх">▲</button>' +
-      '<button type="button" data-hull-control="down" aria-label="Плыть вниз">▼</button></div>' +
+      '<button type="button" data-hull-control="left" aria-label="' + say("Идти влево", "Move left") + '">◀</button>' +
+      '<button type="button" data-hull-control="right" aria-label="' + say("Идти вправо", "Move right") + '">▶</button>' +
+      '<button type="button" data-hull-control="up" aria-label="' + say("Плыть вверх", "Move up") + '">▲</button>' +
+      '<button type="button" data-hull-control="down" aria-label="' + say("Плыть вниз", "Move down") + '">▼</button></div>' +
       '<div style="display:flex;gap:5px;pointer-events:auto;flex-wrap:wrap;max-width:min(72vw,560px);justify-content:flex-end">' +
-      '<button type="button" data-hull-control="helm">V · ШТУРВАЛ</button>' +
-      '<button type="button" data-hull-control="shoot">SPACE · ОРУДИЕ</button>' +
-      '<button type="button" data-hull-control="reload">R · БОЕЗАПАС</button>' +
-      '<button type="button" data-hull-control="repair">F · РЕМОНТ</button>' +
-      '<button type="button" data-hull-control="pump">E · НАСОС</button></div></div>' +
+      '<button type="button" data-hull-control="helm">' + say("V · ШТУРВАЛ", "V · HELM") + '</button>' +
+      '<button type="button" data-hull-control="shoot">' + say("SPACE · ОРУДИЕ", "SPACE · GUN") + '</button>' +
+      '<button type="button" data-hull-control="reload">' + say("R · БОЕЗАПАС", "R · AMMO") + '</button>' +
+      '<button type="button" data-hull-control="repair">' + say("F · РЕМОНТ", "F · REPAIR") + '</button>' +
+      '<button type="button" data-hull-control="pump">' + say("E · НАСОС", "E · PUMP") + '</button></div></div>' +
       '<div style="position:absolute;left:12px;right:12px;bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px">' +
       '<span data-hull-ox style="font-variant-numeric:tabular-nums">O2 100</span>' +
-      '<span data-hull-weld>шов 0%</span>' +
-      '<span data-hull-hazards style="font-variant-numeric:tabular-nums">ВОДА 12% · ДЫМ 9% · ПЕРЕГРЕВ 6%</span>' +
-      '<span data-hull-ammo>БОЕЗАПАС 6/6</span>' +
-      '<span data-hull-flight>ТЯГА 0% · КУРС 0°</span>' +
+      '<span data-hull-weld>' + say("шов 0%", "SEAM 0%") + '</span>' +
+      '<span data-hull-hazards style="font-variant-numeric:tabular-nums">' + say("ВОДА 12% · ДЫМ 9% · ПЕРЕГРЕВ 6%", "WATER 12% · SMOKE 9% · OVERHEAT 6%") + '</span>' +
+      '<span data-hull-ammo>' + say("БОЕЗАПАС 6/6", "AMMO 6/6") + '</span>' +
+      '<span data-hull-flight>' + say("ТЯГА 0% · КУРС 0°", "THRUST 0% · HEADING 0°") + '</span>' +
       '<span data-hull-crew>CREW</span>' +
-      '<span data-hull-hint style="opacity:.9">CREW · НАСОС · РЕМОНТ</span></div>' +
+      '<span data-hull-hint style="opacity:.9">' + say("CREW · НАСОС · РЕМОНТ", "CREW · PUMP · REPAIR") + '</span></div>' +
       '<style>#bcm-hull-dive [data-hull-controls] button{touch-action:none;min-height:38px;min-width:38px;padding:5px 9px;border:1px solid #46667b;border-radius:8px;background:rgba(16,32,44,.94);color:#e7eef2;font-weight:700}#bcm-hull-dive [data-hull-controls] button.is-active{background:#294b60;border-color:#7bd9ee}#bcm-hull-dive canvas{display:block;width:100%;height:100%;touch-action:none}@media(max-width:620px){#bcm-hull-dive{width:min(58vw,320px)!important;height:min(48vh,280px)!important;min-width:220px!important;min-height:210px!important;right:6px!important;bottom:6px!important}#bcm-hull-dive [data-hull-controls]{left:4px;right:4px;bottom:38px;gap:3px}#bcm-hull-dive [data-hull-controls] button{font-size:10px;padding:4px 6px;min-height:32px;min-width:30px}}@media(min-width:1000px){#bcm-hull-dive [data-hull-controls]{left:50%;right:auto;transform:translateX(-50%);width:min(800px,94vw)}}</style>';
     document.body.appendChild(root);
 
@@ -579,7 +581,7 @@
       return setCrewTextureColorSpace(THREE, new THREE.CanvasTexture(cutout));
     }
 
-    function makeHullSideTexture(THREE) {
+    function makeHullSideTexture(THREE, english = false) {
       const canvas = document.createElement("canvas");
       canvas.width = 1536;
       canvas.height = 384;
@@ -615,7 +617,10 @@
         ctx.lineWidth = 3; ctx.strokeRect(x + 65, 73, 360, 58);
         ctx.fillStyle = "#e5f2f7";
         ctx.font = "bold 28px Arial, sans-serif";
-        ctx.fillText(i === 0 ? "ПИЛОТ / НАВИГАЦИЯ" : i === 1 ? "ОРУДИЕ / БОЕЗАПАС" : "ИНЖЕНЕР / РЕМОНТ", x + 82, 109);
+        const stationLabel = english
+          ? (i === 0 ? "PILOT / NAVIGATION" : i === 1 ? "GUN / AMMO" : "ENGINEERING / REPAIR")
+          : (i === 0 ? "ПИЛОТ / НАВИГАЦИЯ" : i === 1 ? "ОРУДИЕ / БОЕЗАПАС" : "ИНЖЕНЕР / РЕМОНТ");
+        ctx.fillText(stationLabel, x + 82, 109);
         ctx.fillStyle = "#507181";
         for (let j = 0; j < 7; j += 1) {
           ctx.beginPath(); ctx.arc(x + 88 + j * 48, 161, 5, 0, Math.PI * 2); ctx.fill();
@@ -675,7 +680,7 @@
       }
       view.appendChild(renderer.domElement);
       scene.add(new THREE.AmbientLight(0xffffff, 0.85));
-      const hullTexture = makeHullSideTexture(THREE);
+      const hullTexture = makeHullSideTexture(THREE, en);
       const hullMaterial = new THREE.MeshStandardMaterial({ map: hullTexture, color: 0xffffff, metalness: 0.42, roughness: 0.5 });
       // Leave a real gap in the outer shell as a viewport to the same 3D scene
       // behind this translucent cabin overlay.
@@ -837,7 +842,7 @@
             .then((texture) => addCrewSprite(player, index, texture))
             .catch((error) => {
               console.warn("Hull Dive Crew cut-out unavailable; selected Crew was not replaced by a substitute", error);
-              notifyStatus("Не удалось подготовить изображение выбранного Crew", 3500);
+              notifyStatus(say("Не удалось подготовить изображение выбранного Crew", "Could not prepare the selected Crew portrait"), 3500);
             });
         } else {
           const fallback = makeFallbackChibiTexture(THREE, index === 0 ? "#62b9d8" : "#d7a65a", index === 0 ? "#d9f6ff" : "#fff0bd");
@@ -925,16 +930,16 @@
 
     function fireWeapon(player) {
       if (Math.abs(player.x) > 1.35) {
-        notifyStatus("Орудие и боезапас — в центральном отсеке", 1800);
+        notifyStatus(say("Орудие и боезапас — в центральном отсеке", "The gun and ammo rack are in the central compartment"), 1800);
         return;
       }
       if (!gunTarget) return;
       if (ammo <= 0) {
-        notifyStatus("Боезапас пуст. У стойки нажми R и удерживай для зарядки", 2300);
+        notifyStatus(say("Боезапас пуст. У стойки нажми R и удерживай для зарядки", "Out of ammo. Hold R at the rack to reload"), 2300);
         return;
       }
       if (!gunTarget.visible) {
-        notifyStatus("Цель уже уничтожена. Пополни боезапас для следующего астероида", 2200);
+        notifyStatus(say("Цель уже уничтожена. Пополни боезапас для следующего астероида", "Target destroyed. Reload to engage the next asteroid"), 2200);
         return;
       }
       ammo -= 1;
@@ -951,9 +956,9 @@
       if (targetArmor <= 0) {
         gunTarget.visible = false;
         if (gunTargetRing) gunTargetRing.visible = false;
-        notifyStatus("Астероид сбит! Перезарядись, чтобы продолжить", 2500);
+        notifyStatus(say("Астероид сбит! Перезарядись, чтобы продолжить", "Asteroid destroyed. Reload to continue"), 2500);
       } else {
-        notifyStatus("Попадание · броня астероида " + targetArmor + "/3 · боезапас " + (ammo) + "/" + maxAmmo, 1600);
+        notifyStatus(say("Попадание · броня астероида ", "Hit · asteroid armor ") + targetArmor + "/3 · " + say("боезапас ", "ammo ") + ammo + "/" + maxAmmo, 1600);
       }
     }
 
@@ -1024,12 +1029,12 @@
             // Leaving the helm must always be possible, even if drift put the
             // Crew sprite just outside the narrow physical station radius.
             pilotMode = false;
-            notifyStatus("Экипаж: A/D и W/S — перемещение. V — вернуться к штурвалу", 2800);
+            notifyStatus(say("Экипаж: A/D и W/S — перемещение. V — вернуться к штурвалу", "Crew movement: A/D and W/S. Press V to return to the helm"), 2800);
           } else if (atHelm) {
             pilotMode = true;
-            notifyStatus("Штурвал: W/S — тяга, A/D — курс. V — покинуть пост", 2800);
+            notifyStatus(say("Штурвал: W/S — тяга, A/D — курс. V — покинуть пост", "Helm: W/S controls thrust, A/D heading. Press V to leave the helm"), 2800);
           } else {
-            notifyStatus("Чтобы сесть за штурвал, вернись в носовой отсек", 2200);
+            notifyStatus(say("Чтобы сесть за штурвал, вернись в носовой отсек", "Return to the forward compartment to use the helm"), 2200);
           }
         }
         if (index === 0) helmToggleWasDown = input.helm;
@@ -1068,7 +1073,7 @@
                 gunTarget.visible = true;
                 if (gunTargetRing) gunTargetRing.visible = true;
               }
-              notifyStatus("Боезапас пополнен " + ammo + "/" + maxAmmo, 2000);
+              notifyStatus(say("Боезапас пополнен ", "Ammo reloaded: ") + ammo + "/" + maxAmmo, 2000);
             }
           } else {
             reloadProgress[index] = 0;
@@ -1077,7 +1082,7 @@
           reloadProgress[index] = 0;
         }
         if (input.reload && !reloadHeld[index] && Math.abs(player.x) >= 1.35) {
-          notifyStatus("Подойди к центральной стойке боезапаса и удерживай R", 2200);
+          notifyStatus(say("Подойди к центральной стойке боезапаса и удерживай R", "Move to the central ammo rack and hold R"), 2200);
         }
         reloadHeld[index] = input.reload;
         if (player.sprite) player.sprite.position.set(player.x, player.y + 0.16, 0.82 + index * 0.015);
@@ -1091,7 +1096,7 @@
         count + (near && inputs[index].repair && !externalHole[1] ? 1 : 0), 0);
       if (repairers && weld < 1) weld = Math.min(1, weld + dt * 0.42 * Math.min(2, repairers));
       if (nearBreach.some((near, index) => near && inputs[index].repair) && externalHole[1]) {
-        notifyStatus("Снаружи пробоина ещё открыта: сначала требуется наружная заплата", 2500);
+        notifyStatus(say("Снаружи пробоина ещё открыта: сначала требуется наружная заплата", "The exterior breach is still open; patch it from outside first"), 2500);
       }
       if (submergedCount) oxygen = Math.max(0, oxygen - 9 * dt);
       else oxygen = Math.min(100, oxygen + 7 * dt);
@@ -1099,7 +1104,7 @@
         oxygen = 100;
         water[0] *= 0.5;
         water[1] = Math.min(1, water[1] + 0.2);
-        status.textContent = "Воздух кончился. Насос E (или gamepad B), пока голова над водой.";
+        status.textContent = say("Воздух кончился. Насос E (или gamepad B), пока голова над водой.", "Oxygen depleted. Use E (or gamepad B) to pump while your head is above water.");
       }
       if (gunTarget && gunTarget.visible) {
         const lateral = Math.sin(flightTime * 0.62 + flightHeading * 2.1) * (0.34 + enginePower * 1.25);
@@ -1122,7 +1127,7 @@
         if (externalHole[1]) {
           if (!pointerInteraction.blockedNotice) {
             pointerInteraction.blockedNotice = true;
-            notifyStatus("Снаружи сначала установи заплату: внутренний шов пока заблокирован", 2600);
+            notifyStatus(say("Снаружи сначала установи заплату: внутренний шов пока заблокирован", "Patch the exterior breach first; the inner seam is still locked"), 2600);
           }
         } else {
           weld = Math.min(1, weld + dt * 0.42);
@@ -1131,17 +1136,17 @@
       const anyNearBreach = nearBreach.some(Boolean);
       if (weld >= 1 && water.every((level) => level < 0.12)) {
         won = true;
-        status.textContent = "Отсек сухой. Можно обратно к кольцу.";
+        status.textContent = say("Отсек сухой. Можно обратно к кольцу.", "Compartment dry. You can return to the Ring.");
       } else if (!won && anyNearBreach && weld < 1) {
-        status.textContent = "Ремонт: F / Enter или gamepad A. Давление " + pressure.toFixed(1);
+        status.textContent = say("Ремонт: F / Enter или gamepad A. Давление ", "Repair: F / Enter or gamepad A. Pressure ") + pressure.toFixed(1);
       }
       oxEl.textContent = "O2 " + Math.round(oxygen);
-      weldEl.textContent = "шов " + Math.round(weld * 100) + "%";
+      weldEl.textContent = say("шов ", "SEAM ") + Math.round(weld * 100) + "%";
       const activeReload = Math.max(reloadProgress[0], reloadProgress[1]);
-      if (ammoEl) ammoEl.textContent = "БОЕЗАПАС " + ammo + "/" + maxAmmo + (activeReload > 0 ? " · ЗАРЯДКА " + Math.round(activeReload / 1.05 * 100) + "%" : "");
+      if (ammoEl) ammoEl.textContent = say("БОЕЗАПАС ", "AMMO ") + ammo + "/" + maxAmmo + (activeReload > 0 ? " · " + say("ЗАРЯДКА ", "RELOADING ") + Math.round(activeReload / 1.05 * 100) + "%" : "");
       const flightEl = root.querySelector("[data-hull-flight]");
-      if (flightEl) flightEl.textContent = (pilotMode ? "ШТУРВАЛ · LB/V ВЫХОД" : "CREW · LB/V ШТУРВАЛ") +
-        " · ТЯГА " + Math.round(enginePower * 100) + "% · КУРС " + Math.round(flightHeading * 45) + "°";
+      if (flightEl) flightEl.textContent = (pilotMode ? say("ШТУРВАЛ · LB/V ВЫХОД", "HELM · LB/V EXIT") : say("CREW · LB/V ШТУРВАЛ", "CREW · LB/V HELM")) +
+        " · " + say("ТЯГА ", "THRUST ") + Math.round(enginePower * 100) + "% · " + say("КУРС ", "HEADING ") + Math.round(flightHeading * 45) + "°";
       waters.forEach((mesh, index) => {
         const depth = Math.max(0.04, water[index] * 3.15);
         mesh.scale.y = depth;

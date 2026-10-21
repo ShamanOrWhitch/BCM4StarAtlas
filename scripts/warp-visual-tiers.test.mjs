@@ -48,10 +48,10 @@ test("Visual Classes II–IV have distinct decorative effects only", () => {
 });
 
 test("Mini-Sim 0.9.110 cache/version contracts are synchronized", () => {
-  assert.match(plugin, /Version: 0\.9\.110/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.9\.110'\)/);
-  assert.match(plugin, /SPACE LABYRINTH — 0\.9\.110/);
-  assert.match(qa, /Version: 0\.9\.110/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.9\.110'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.9\.110/);
+  assert.match(plugin, /Version: 0\.9\.111/);
+  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.9\.111'\)/);
+  assert.match(plugin, /SPACE LABYRINTH — 0\.9\.111/);
+  assert.match(qa, /Version: 0\.9\.111/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.9\.111'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.9\.111/);
 });
