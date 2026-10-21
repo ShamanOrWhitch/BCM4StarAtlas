@@ -1390,3 +1390,208 @@
   border-color: rgba(86,240,208,.95) !important;
   box-shadow: 0 0 0 4px rgba(86,240,208,.12);
 }
+
+
+/* 0.9.110 — compact language selector and translucent comic dialogue windows */
+.bcm-mini-sim-language{
+  position:absolute;
+  left:50%;
+  top:calc(50% + 50px);
+  transform:translateX(-50%);
+  z-index:46;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  flex-wrap:wrap;
+  width:max-content;
+  max-width:calc(100% - 18px);
+  padding:7px 9px;
+  border:1px solid rgba(148,213,231,.26);
+  border-radius:11px;
+  background:rgba(3,10,18,.76);
+  color:#d8eaf1;
+  font:700 10px/1.2 Arial,sans-serif;
+  letter-spacing:.08em;
+  box-shadow:0 5px 22px rgba(0,0,0,.25);
+}
+.bcm-mini-sim-language[hidden]{display:none!important}
+.bcm-mini-sim-language button{
+  min-width:35px;
+  min-height:27px;
+  padding:4px 8px;
+  border:1px solid rgba(165,212,226,.25);
+  border-radius:7px;
+  background:rgba(12,29,42,.9);
+  color:#d7edf5;
+  font:800 10px Arial,sans-serif;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.bcm-mini-sim-language button.is-selected{
+  border-color:#7de4f2;
+  background:rgba(25,95,113,.9);
+  color:#fff;
+}
+.bcm-mini-sim-language-hint{
+  flex-basis:100%;
+  text-align:center;
+  font-size:9px;
+  font-weight:400;
+  letter-spacing:0;
+  opacity:.72;
+}
+.bcm-mini-sim.game-active .bcm-mini-sim-language{display:none!important}
+
+/* The HUD no longer keeps a wall of tiny mission/control copy over the playfield. */
+.bcm-mini-sim.game-active .bcm-mini-sim-hud,
+.bcm-mini-sim.game-active .bcm-mini-sim-asset-status,
+.bcm-mini-sim.game-active .bcm-mini-sim-asset-bar{
+  visibility:hidden;
+  opacity:0;
+  pointer-events:none;
+}
+.bcm-comic-dialogs{
+  position:fixed;
+  inset:0;
+  z-index:1000900;
+  pointer-events:none;
+  font-family:Arial,sans-serif;
+}
+.bcm-comic-dialog[hidden]{display:none!important}
+.bcm-comic-dialog{
+  position:absolute;
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  box-sizing:border-box;
+  width:min(360px,calc(43vw - 18px));
+  min-width:235px;
+  padding:12px 34px 12px 12px;
+  border:1px solid rgba(139,213,232,.55);
+  border-radius:20px 20px 20px 7px;
+  background:rgba(5,17,28,.79);
+  color:#edfaff;
+  box-shadow:0 7px 30px rgba(0,0,0,.22),inset 0 0 18px rgba(55,154,180,.07);
+  backdrop-filter:blur(5px);
+  -webkit-backdrop-filter:blur(5px);
+  pointer-events:none;
+  overflow-wrap:anywhere;
+}
+.bcm-comic-dialog::after{
+  content:"";
+  position:absolute;
+  left:22px;
+  bottom:-7px;
+  width:13px;
+  height:13px;
+  border-right:1px solid rgba(139,213,232,.45);
+  border-bottom:1px solid rgba(139,213,232,.45);
+  background:rgba(5,17,28,.82);
+  transform:skew(-18deg) rotate(28deg);
+}
+.bcm-comic-dialog-operator{
+  left:18px;
+  bottom:22px;
+  border-color:rgba(237,193,120,.57);
+  border-radius:20px 20px 7px 20px;
+}
+.bcm-comic-dialog-controls{
+  top:74px;
+  right:18px;
+  border-radius:20px 20px 7px 20px;
+}
+.bcm-comic-dialog-avatar{
+  flex:0 0 32px;
+  width:32px;
+  height:32px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid rgba(129,211,231,.42);
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 25%,rgba(129,211,231,.26),rgba(7,21,34,.86));
+  color:#9be9f6;
+  font-size:18px;
+  line-height:1;
+}
+.bcm-comic-dialog-operator .bcm-comic-dialog-avatar{
+  border-color:rgba(237,193,120,.45);
+  color:#ffd79e;
+}
+.bcm-comic-dialog-copy{min-width:0;flex:1}
+.bcm-comic-dialog-copy strong{
+  display:block;
+  margin:1px 0 4px;
+  color:#a8e7f3;
+  font-size:9px;
+  line-height:1.2;
+  letter-spacing:.14em;
+}
+.bcm-comic-dialog-operator .bcm-comic-dialog-copy strong{color:#ffd79e}
+.bcm-comic-dialog-copy p{
+  margin:0;
+  color:#e7f3f8;
+  font-size:12px;
+  line-height:1.38;
+  letter-spacing:0;
+  text-shadow:none;
+}
+.bcm-comic-dialog-close{
+  position:absolute;
+  top:5px;
+  right:7px;
+  width:23px;
+  height:23px;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  background:rgba(255,255,255,.08);
+  color:#c4d9e0;
+  font:18px/23px Arial,sans-serif;
+  cursor:pointer;
+  pointer-events:auto;
+}
+.bcm-comic-dialog-choices{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:9px;
+  pointer-events:auto;
+}
+.bcm-comic-dialog-choice{
+  min-height:32px;
+  padding:6px 9px;
+  border:1px solid rgba(129,211,231,.48);
+  border-radius:9px;
+  background:rgba(12,47,62,.9);
+  color:#ecfbff;
+  font:700 11px/1.2 Arial,sans-serif;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.bcm-comic-dialog-choice:hover{background:rgba(22,78,94,.96);border-color:#9cecf6}
+@media (max-width:760px){
+  .bcm-mini-sim-language{top:calc(50% + 44px);padding:6px 7px}
+  .bcm-mini-sim-language-hint{display:none}
+  .bcm-comic-dialog{width:min(330px,calc(48vw - 8px));min-width:0;gap:6px;padding:9px 28px 9px 8px;border-radius:15px 15px 15px 5px}
+  .bcm-comic-dialog-operator{left:8px;bottom:calc(92px + env(safe-area-inset-bottom))}
+  .bcm-comic-dialog-controls{right:8px;top:58px}
+  .bcm-comic-dialog-avatar{flex-basis:24px;width:24px;height:24px;font-size:14px}
+  .bcm-comic-dialog-copy strong{font-size:8px;margin-bottom:3px}
+  .bcm-comic-dialog-copy p{font-size:10px;line-height:1.3}
+  .bcm-comic-dialog-choice{min-height:30px;padding:5px 7px;font-size:10px}
+  .bcm-comic-dialog-close{top:3px;right:3px;width:20px;height:20px;font-size:16px;line-height:20px}
+  .bcm-mini-sim-crew-preflight-grid{grid-template-columns:1fr}
+  .bcm-mini-sim-crew-slot-card{grid-template-columns:64px minmax(0,1fr);gap:9px;padding:9px;min-height:94px}
+  .bcm-mini-sim-crew-slot-image{width:64px;height:64px;object-fit:contain;padding:3px;box-sizing:border-box}
+  .bcm-mini-sim-crew-slot-main strong{font-size:14px}
+  .bcm-mini-sim-crew-slot-main > span:not(.bcm-mini-sim-crew-slot-player){font-size:11px}
+}
+@media (max-width:420px){
+  .bcm-comic-dialog{width:calc(50vw - 13px);padding:8px 24px 8px 7px}
+  .bcm-comic-dialog-avatar{display:none}
+  .bcm-comic-dialog-copy p{font-size:9px}
+  .bcm-mini-sim-crew-slot-card{grid-template-columns:58px minmax(0,1fr);min-height:84px}
+  .bcm-mini-sim-crew-slot-image{width:58px;height:58px}
+}
