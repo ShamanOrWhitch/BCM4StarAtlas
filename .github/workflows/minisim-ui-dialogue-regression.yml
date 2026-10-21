@@ -1,0 +1,49 @@
+name: Mini-Sim 0.9.110 UI, weapons and cabin regression
+
+on:
+  push:
+    branches:
+      - feat/minisim-comic-dialogs-weapons-ru-en-20261021
+    paths:
+      - "mini-sim/assets/js/mini-sim.js"
+      - "mini-sim/assets/js/deep-space-warp.js"
+      - "mini-sim/assets/js/hull-dive.js"
+      - "mini-sim/assets/css/mini-sim.css"
+      - "mini-sim/bcm-mini-sim.php"
+      - "scripts/minisim-local-qa.test.mjs"
+      - "scripts/minisim-ui-dialogue.test.mjs"
+      - ".github/workflows/minisim-ui-dialogue-regression.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "mini-sim/assets/js/mini-sim.js"
+      - "mini-sim/assets/js/deep-space-warp.js"
+      - "mini-sim/assets/js/hull-dive.js"
+      - "mini-sim/assets/css/mini-sim.css"
+      - "mini-sim/bcm-mini-sim.php"
+      - "scripts/minisim-local-qa.test.mjs"
+      - "scripts/minisim-ui-dialogue.test.mjs"
+      - ".github/workflows/minisim-ui-dialogue-regression.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ui-weapons-cabin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check every modified JavaScript module
+        timeout-minutes: 5
+        run: |
+          node --check mini-sim/assets/js/mini-sim.js
+          node --check mini-sim/assets/js/deep-space-warp.js
+          node --check mini-sim/assets/js/hull-dive.js
+      - name: Run UI, weapons, cabin and existing regressions
+        timeout-minutes: 15
+        run: node --test scripts/minisim-ui-dialogue.test.mjs scripts/minisim-local-qa.test.mjs scripts/minisim-input-scope.test.mjs scripts/warp-maze-return.test.mjs
