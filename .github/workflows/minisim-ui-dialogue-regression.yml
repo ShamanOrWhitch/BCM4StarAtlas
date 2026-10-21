@@ -11,6 +11,7 @@ on:
       - "mini-sim/assets/css/mini-sim.css"
       - "mini-sim/bcm-mini-sim.php"
       - "scripts/minisim-local-qa.test.mjs"
+      - "scripts/warp-maze-return.test.mjs"
       - "scripts/minisim-ui-dialogue.test.mjs"
       - ".github/workflows/minisim-ui-dialogue-regression.yml"
   pull_request:
@@ -22,6 +23,7 @@ on:
       - "mini-sim/assets/css/mini-sim.css"
       - "mini-sim/bcm-mini-sim.php"
       - "scripts/minisim-local-qa.test.mjs"
+      - "scripts/warp-maze-return.test.mjs"
       - "scripts/minisim-ui-dialogue.test.mjs"
       - ".github/workflows/minisim-ui-dialogue-regression.yml"
   workflow_dispatch:
