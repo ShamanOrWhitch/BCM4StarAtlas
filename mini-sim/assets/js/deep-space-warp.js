@@ -775,6 +775,7 @@
       state.nav = readNavigation();
       state.target = null;
       state.mode = "map";
+      window.BCMDialogue?.showControls("warp");
       state.openedAt = performance.now();
       state.elapsed = 0;
       state.savedPosition = engine.getRuntime().ship.position.clone();
