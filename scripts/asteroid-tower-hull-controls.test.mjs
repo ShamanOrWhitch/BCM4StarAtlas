@@ -17,7 +17,8 @@ test("First-person flight exposes Hull Interior with touch, U and edge-triggered
   assert.doesNotMatch(interior, /ship\.position\.copy\(maze\.beacon\.position\)/);
   assert.match(mini, /window\.BCMDeepSpaceWarpPoll\(\{ dt, running, paused: externalPause, root \}\)/);
   assert.match(warp, /const wasDown = hullEntryPadWasDown\.get\(pad\.index\) \|\| false/);
-  assert.match(hull, /data-hull-exit[^>]*>НАЗАД В ПОЛЁТ/);
+  assert.match(hull, /data-hull-exit/);
+  assert.match(hull, /say\("НАЗАД В ПОЛЁТ", "BACK TO FLIGHT"\)/);
 });
 
 test("Asteroid walls are resolved from the prepared asterwall asset family", async () => {
@@ -125,9 +126,11 @@ test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, amm
   const mini = await read("mini-sim/assets/js/mini-sim.js");
   assert.match(mini, /document\.getElementById\(\"bcm-hull-dive\"\)/);
   assert.match(hull, /enginePower = Math\.max\(0, Math\.min\(1, enginePower \+ input\.dy \* dt \* 0\.7\)\)/);
-  assert.match(hull, /function makeHullSideTexture\(THREE\)/);
-  assert.match(hull, /PИЛОТ \/ НАВИГАЦИЯ|ПИЛОТ \/ НАВИГАЦИЯ/);
-  assert.match(hull, /ОРУДИЕ \/ БОЕЗАПАС/);
+  assert.match(hull, /function makeHullSideTexture\(THREE, english = false\)/);
+  assert.match(hull, /"PILOT \/ NAVIGATION"/);
+  assert.match(hull, /"ПИЛОТ \/ НАВИГАЦИЯ"/);
+  assert.match(hull, /"GUN \/ AMMO"/);
+  assert.match(hull, /"ОРУДИЕ \/ БОЕЗАПАС"/);
   assert.match(hull, /function fireWeapon\(player\)/);
   assert.match(hull, /const maxAmmo = 6/);
   assert.match(hull, /reloadProgress\[index\] >= 1\.05/);
