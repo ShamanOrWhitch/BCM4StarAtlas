@@ -30,9 +30,9 @@ test("Two dismissible comic bubbles replace the persistent in-game HUD/control w
   assert.match(mini, /data-dialog-box="controls"/);
   assert.match(mini, /window\.BCMDialogue = \{/);
   assert.match(mini, /showControls\("flight"\)/);
-  assert.match(mini, /showControls\("ring"\)/);
-  assert.match(mini, /showControls\("hull"\)/);
   assert.match(mini, /showControls\("tower"\)/);
+  assert.match(warp, /showControls\("ring"\)/);
+  assert.match(warp, /showControls\("hull"\)/);
   assert.match(warp, /showControls\("warp"\)/);
   assert.match(css, /\.bcm-comic-dialog-operator/);
   assert.match(css, /\.bcm-comic-dialog-controls/);
