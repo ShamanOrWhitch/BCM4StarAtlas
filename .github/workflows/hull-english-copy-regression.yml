@@ -8,6 +8,7 @@ on:
       - "mini-sim/assets/js/hull-dive.js"
       - "mini-sim/bcm-mini-sim.php"
       - "scripts/hull-english-copy.test.mjs"
+      - "scripts/asteroid-tower-hull-controls.test.mjs"
       - "scripts/minisim-local-qa.test.mjs"
       - "scripts/minisim-ui-dialogue.test.mjs"
       - ".github/workflows/hull-english-copy-regression.yml"
@@ -17,6 +18,7 @@ on:
       - "mini-sim/assets/js/hull-dive.js"
       - "mini-sim/bcm-mini-sim.php"
       - "scripts/hull-english-copy.test.mjs"
+      - "scripts/asteroid-tower-hull-controls.test.mjs"
       - "scripts/minisim-local-qa.test.mjs"
       - "scripts/minisim-ui-dialogue.test.mjs"
       - ".github/workflows/hull-english-copy-regression.yml"
@@ -39,4 +41,4 @@ jobs:
         run: node --check mini-sim/assets/js/hull-dive.js
       - name: Run bilingual copy and Mini-Sim regression tests
         timeout-minutes: 15
-        run: node --test scripts/hull-english-copy.test.mjs scripts/minisim-ui-dialogue.test.mjs scripts/minisim-local-qa.test.mjs scripts/minisim-input-scope.test.mjs scripts/warp-maze-return.test.mjs
+        run: node --test scripts/hull-english-copy.test.mjs scripts/asteroid-tower-hull-controls.test.mjs scripts/minisim-ui-dialogue.test.mjs scripts/minisim-local-qa.test.mjs scripts/minisim-input-scope.test.mjs scripts/warp-maze-return.test.mjs
