@@ -2650,20 +2650,21 @@
       }
 
       function updateSplitState() {
-        if (mode !== "multi" || players.length < 2) { splitActive = false; return; }
+        if (mode !== "multi" || players.length < 2) {
+          splitActive = false;
+          splitDivider.hidden = true;
+          return;
+        }
         const dx = Math.abs(players[0].worldX - players[1].worldX);
         const dy = Math.abs(players[0].worldY - players[1].worldY);
         if (!splitActive && (dx > 20 || dy > 7)) splitActive = true;
         else if (splitActive && dx < 14 && dy < 4.5) splitActive = false;
         splitDivider.hidden = !splitActive;
-        splitDivider.style.border = splitActive ? "1px solid rgba(115,203,225,.45)" : "0";
-        splitDivider.style.background = "transparent";
-        if (splitActive) {
-          splitDivider.style.borderTop = "2px solid rgba(115,203,225,.75)";
-          splitDivider.style.borderLeft = "0";
-        } else {
-          splitDivider.style.border = "0";
-        }
+        splitDivider.style.border = "0";
+        splitDivider.style.borderLeft = "0";
+        splitDivider.style.background = splitActive
+          ? "linear-gradient(to bottom, transparent calc(50% - 1px), rgba(115,203,225,.82) calc(50% - 1px), rgba(115,203,225,.82) calc(50% + 1px), transparent calc(50% + 1px))"
+          : "transparent";
       }
 
       function configureCamera(camera, viewport, center) {
