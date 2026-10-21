@@ -3183,6 +3183,8 @@
       return;
     }
 
+    // Show device-specific controls as a dismissible comic bubble, never as a wall of HUD text.
+    window.BCMDialogue?.showControls("tower");
     // Keep the live scene, controls, onicss video and renderer untouched while
     // Tower.js initializes and tower.mp4 gets its first playable frame.
     preloadTowerApproach();
