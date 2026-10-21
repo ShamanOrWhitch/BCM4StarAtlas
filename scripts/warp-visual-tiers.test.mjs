@@ -39,8 +39,8 @@ test("Visual Classes II–IV have distinct decorative effects only", () => {
   const draw = warp.slice(start, end);
 
   assert.match(draw, /if \(visualClass >= 2\)[\s\S]*?const railCount = 4/);
-  assert.match(draw, /if \(visualClass >= 3\)[\s\S]*?Class III adds several shifting energy arcs/);
-  assert.match(draw, /if \(visualClass >= 4\)[\s\S]*?Class IV adds heavier twin stargate hoops/);
+  assert.match(draw, /Class III adds several shifting energy arcs[\s\S]*?if \(visualClass >= 3\)/);
+  assert.match(draw, /Class IV adds heavier twin stargate hoops[\s\S]*?if \(visualClass >= 4\)/);
   assert.match(draw, /const routeProgress = warpObstacleProgress\(state\.elapsed\)/);
   assert.doesNotMatch(draw, /new THREE\.WebGLRenderer/);
   assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
