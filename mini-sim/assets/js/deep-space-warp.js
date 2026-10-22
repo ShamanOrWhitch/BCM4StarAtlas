@@ -1980,7 +1980,7 @@
       const cameraTwo = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
       const cameraFocus = cellWorld(ringCell);
       const savedPlayerVisualState = [];
-      let width = 1, height = 1, done = false, gameStarted = false, splitActive = false;
+      let width = 1, height = 1;
       let mode = "single";
       let players = [];
       let lastHudCount = -1, raf = 0, frameStamp = 0;
