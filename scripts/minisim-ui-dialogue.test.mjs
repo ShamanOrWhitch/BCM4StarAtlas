@@ -84,12 +84,12 @@ test("Ring two-player split is always top/bottom; caption clutter is removed", (
 });
 
 test("0.9.114 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
-  assert.match(php, /Version: 0\.9\.113/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.9\.113'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.9\.113/);
-  assert.match(qa, /Version: 0\.9\.113/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.9\.113'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.9\.113/);
+  assert.match(php, /Version: 0\.9\.114/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.9\.114'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.9\.114/);
+  assert.match(qa, /Version: 0\.9\.114/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.9\.114'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.9\.114/);
   assert.match(browserWorkflow, /timeout-minutes: 45/);
   assert.match(browserWorkflow, /timeout-minutes: 20/);
   assert.match(browserWorkflow, /timeout-minutes: 25/);
