@@ -1,3 +1,9 @@
+## Candidate work — Mini-Sim 0.9.114
+- Main baseline: 0.9.113 / Tower 0.2.64. Branch: fix/minisim-0.9.114-ring-cutaway-controls.
+- Scope: restore same-maze Ring cutaway with original asteroid textures, keep collect-three-and-return objective, add minor mobs, move fire to X, move full return to Back, restore mouse access in Hull Dive.
+- Shared changes require branch commits and a PR; GitHub merge does not deploy WordPress.
+- Preserve SAGE navigation and wordpress/galia-desk. Do not merge stale PR #14 or #18 wholesale.
+
 # Параллельная работа агентов — BCM4StarAtlas / Mini-Sim
 
 > Это постоянный протокол координации, а не журнал игровых багов. Прочитать **до любой правки** вместе с `AGENTS.md`, `PROJECT_STATE.md` и `DECISIONS.md`.
