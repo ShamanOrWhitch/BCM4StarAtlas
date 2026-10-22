@@ -5,42 +5,55 @@ import { readFile } from "node:fs/promises";
 const source = await readFile(new URL("../mini-sim/assets/js/deep-space-warp.js", import.meta.url), "utf8");
 const ringStart = source.indexOf("function openRingPlatformer(");
 const ringEnd = source.indexOf("function finishRingPlatformer(", ringStart);
-assert.ok(ringStart >= 0 && ringEnd > ringStart, "Ring Frontier source block exists");
+assert.ok(ringStart >= 0 && ringEnd > ringStart, "Ring cutaway source block exists");
 const ring = source.slice(ringStart, ringEnd);
 
-test("Ring menu can be confirmed before a player is spawned", () => {
-  const polling = ring.slice(ring.indexOf("function pollGamepads()"), ring.indexOf("function damagePlayer("));
-  assert.match(polling, /if \(!gameStarted\)\s*\{\s*pollModeMenuGamepad\(\);\s*return;\s*\}/);
-  assert.match(ring, /function confirmModeMenu\(\)[\s\S]*?startMode\(menuFocusIndex === 1 \? "multi" : "single"\)/);
+test("Ring mode menu launches the same-maze cutaway only after a mode is chosen", () => {
+  assert.match(ring, /function startMode\(nextMode\)/);
+  assert.match(ring, /if \(done \|\| gameStarted\) return/);
+  assert.match(ring, /root2d\.querySelector\("\[data-ring-single\]"\)\.addEventListener\("click", \(\) => startMode\("single"\)\)/);
+  assert.match(ring, /root2d\.querySelector\("\[data-ring-multi\]"\)\.addEventListener\("click", \(\) => startMode\("multi"\)\)/);
+  assert.match(ring, /world\.name = "bcm-ring-cutaway-world"/);
+  assert.match(ring, /maze\.cells\.forEach\(\(cell\) =>/);
 });
 
-test("Keyboard E/Enter/Space confirm; left/right chooses SINGLE or MULTI", () => {
+test("Keyboard can cycle SINGLE/MULTI and confirm before a player is spawned", () => {
   const keyboard = ring.slice(ring.indexOf("function keyboardMove("), ring.indexOf("function pollGamepads("));
-  assert.match(keyboard, /event\.code === "KeyE" \|\| event\.code === "Enter" \|\| event\.code === "NumpadEnter" \|\| event\.code === "Space"/);
-  assert.match(keyboard, /ArrowLeft/);
-  assert.match(keyboard, /ArrowRight/);
-  assert.match(keyboard, /focusModeMenu\(menuFocusIndex \+ 1\)/);
-  assert.match(keyboard, /focusModeMenu\(menuFocusIndex - 1\)/);
-  assert.match(keyboard, /if \(p1Activate \|\| p2Activate\)/, "E must remain the in-game weakpoint activation key after start");
+  assert.match(keyboard, /if \(!gameStarted\)\s*\{/);
+  assert.match(keyboard, /event\.code === "ArrowLeft" \|\| event\.code === "KeyA"/);
+  assert.match(keyboard, /event\.code === "ArrowRight" \|\| event\.code === "KeyD"/);
+  assert.match(keyboard, /event\.code === "Enter" \|\| event\.code === "NumpadEnter"[\s\S]*?event\.code === "KeyE"/);
+  assert.match(keyboard, /startMode\(menuFocusIndex === 1 \? "multi" : "single"\)/);
+  assert.match(ring, /function focusModeMenu\(nextIndex\)/);
 });
 
-test("Gamepad A confirms the focused menu option and D-pad/stick changes selection", () => {
-  const menuPad = ring.slice(ring.indexOf("function pollModeMenuGamepad("), ring.indexOf("function resize2d("));
-  assert.match(menuPad, /button\(0\) \|\| button\(9\)/);
-  assert.match(menuPad, /button\(14\) \|\| axisX < -0\.55/);
-  assert.match(menuPad, /button\(15\) \|\| axisX > 0\.55/);
-  assert.match(menuPad, /confirm && !menuPadPrevious\.confirm/);
+test("Gamepad D-pad/stick selects a mode; A/Start confirms; Back exits", () => {
+  const polling = ring.slice(ring.indexOf("function pollGamepads("), ring.indexOf("function mobWorldPosition("));
+  const preStart = polling.slice(0, polling.indexOf("const assignment = mode === \"multi\""));
+  assert.match(preStart, /if \(!gameStarted\)/);
+  assert.match(preStart, /button\(14\) \|\| axisX < -0\.55/);
+  assert.match(preStart, /button\(15\) \|\| axisX > 0\.55/);
+  assert.match(preStart, /button\(0\) \|\| button\(9\)/);
+  assert.match(preStart, /button\(8\)/);
+  assert.match(preStart, /startMode\(menuFocusIndex === 1 \? "multi" : "single"\)/);
+  assert.match(polling, /statePad\.fire = !!\(pad\.buttons\?\.\[2\]\?\.pressed\)/);
+  assert.match(polling, /finishRingPlatformer\(maze, false\)/);
 });
 
-test("Touch/pointer and accessible click activate either visible mode button", () => {
-  assert.match(ring, /button\.addEventListener\("pointerdown"/);
-  assert.match(ring, /button\.addEventListener\("click", activate\)/);
-  assert.match(ring, /menu\.addEventListener\("pointerdown"/);
-  assert.match(ring, /const modeButtons = \[[\s\S]*data-ring-single[\s\S]*data-ring-multi/);
+test("Crew uses X to fire; Y is not fire and the three-crystal return remains the objective", () => {
+  assert.match(ring, /KeyX: "fire"/);
+  assert.match(ring, /data-ring-action="fire" aria-label="Огонь · X"/);
+  assert.match(ring, /function fireAtMob\(player\)/);
+  assert.match(ring, /maze\.count < 3/);
+  assert.match(ring, /if \(target\) \{\s*target\.alive = false;/);
+  assert.doesNotMatch(ring, /data-ring-action="attack"|defeatedBosses|barrier\.unlockAfter|function updateBosses\(/);
 });
 
-test("Mode confirmation is idempotent and does not disturb gameplay controls", () => {
-  assert.match(ring, /function startMode\(nextMode\)\s*\{\s*if \(done \|\| gameStarted\) return;/);
-  assert.match(ring, /statePad\.jump = !!\(button\(0\) \|\| button\(12\) \|\| axisY < -0\.68\)/);
-  assert.match(ring, /statePad\.activate = !!button\(2\)/);
+test("Two-player cutaway keeps P1 above P2 on every screen orientation", () => {
+  assert.match(source, /P1\/pilot always owns the upper horizontal half; P2 stays below on every aspect ratio/);
+  assert.match(source, /const half = Math\.floor\(viewH \/ 2\)/);
+  assert.match(source, /player: players\[0\], camera: cameraOne/);
+  assert.match(source, /player: players\[1\], camera: cameraTwo/);
+  assert.match(source, /splitDivider\.style\.borderTop = splitActive/);
+  assert.match(source, /splitDivider\.style\.borderLeft = "0"/);
 });
