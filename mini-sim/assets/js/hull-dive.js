@@ -56,7 +56,7 @@
     const say = (ru, english) => en ? english : ru;
     const root = document.createElement("div");
     root.id = "bcm-hull-dive";
-    root.style.cssText = "position:fixed;left:auto;top:auto;right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));width:min(450px,44vw);height:min(345px,40vh);min-width:min(280px,calc(100vw - 20px));min-height:min(230px,calc(100vh - 20px));z-index:1000850;background:rgba(3,12,21,.91);border:1px solid rgba(103,201,225,.62);border-radius:15px;box-shadow:0 10px 36px rgba(0,0,0,.5);color:#e7eef2;font-family:Rajdhani,sans-serif;overflow:hidden;";
+    root.style.cssText = "position:fixed;left:auto;top:auto;right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));width:min(450px,44vw);height:min(345px,40vh);min-width:min(280px,calc(100vw - 20px));min-height:min(230px,calc(100vh - 20px));z-index:1000850;background:#07131c;border:1px solid rgba(103,201,225,.62);border-radius:15px;box-shadow:0 10px 36px rgba(0,0,0,.5);color:#e7eef2;font-family:Rajdhani,sans-serif;overflow:hidden;";
     root.innerHTML =
       '<div style="position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:12px;pointer-events:none;z-index:10">' +
       '<div><div style="letter-spacing:.14em;font-size:10px;color:#c4a35a">' + say("ОТСЕК · РЕМОНТ", "COMPARTMENT · REPAIR") + '</div>' +
@@ -149,6 +149,7 @@
         if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       }
       root.remove();
+      window.BCMHullHelmState = { engaged: false, thrust: 0, yaw: 0 };
       if (typeof onClose === "function") onClose();
     }
     root.querySelector("[data-hull-exit]").addEventListener("click", finish);
@@ -655,11 +656,11 @@
     let externalHoleMeshes = [];
     if (THREE && view) {
       scene = new THREE.Scene();
-      scene.background = null;
+      scene.background = new THREE.Color(0x07131c);
       const camera = new THREE.OrthographicCamera(-8, 8, 4.5, -4.5, 0.1, 20);
       camera.position.set(0, 0, 8);
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setClearColor(0x000000, 0);
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      renderer.setClearColor(0x07131c, 1);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       const resizeCabinView = () => {
         const width = Math.max(1, view.clientWidth || 430);
@@ -682,12 +683,13 @@
       scene.add(new THREE.AmbientLight(0xffffff, 0.85));
       const hullTexture = makeHullSideTexture(THREE, en);
       const hullMaterial = new THREE.MeshStandardMaterial({ map: hullTexture, color: 0xffffff, metalness: 0.42, roughness: 0.5 });
-      // Leave a real gap in the outer shell as a viewport to the same 3D scene
-      // behind this translucent cabin overlay.
+      // Solid cabin. The ship is not necessarily beside the Ring, so the hold
+      // must not be a window onto it.
       [
         { w: 12.8, h: 1.16, x: 0, y: 1.27 },
         { w: 12.8, h: 1.16, x: 0, y: -1.27 },
         { w: 5.25, h: 1.38, x: -3.775, y: 0 },
+        { w: 2.35, h: 1.38, x: 0, y: 0 },
         { w: 5.25, h: 1.38, x: 3.775, y: 0 }
       ].forEach((piece) => {
         const panel = new THREE.Mesh(new THREE.BoxGeometry(piece.w, piece.h, 0.4), hullMaterial);
@@ -707,10 +709,6 @@
         scene.add(part);
         return part;
       };
-      const windowGlass = new THREE.MeshBasicMaterial({
-        color: 0x62dff5, transparent: true, opacity: 0.08, depthWrite: false, side: THREE.DoubleSide
-      });
-      addHullPart(new THREE.BoxGeometry(2.22, 1.18, 0.06), windowGlass, 0, 0, 0.28);
       const windowFrame = new THREE.MeshStandardMaterial({ color: 0x426171, metalness: 0.62, roughness: 0.38 });
       addHullPart(new THREE.BoxGeometry(2.38, 0.09, 0.1), windowFrame, 0, 0.64, 0.34);
       addHullPart(new THREE.BoxGeometry(2.38, 0.09, 0.1), windowFrame, 0, -0.64, 0.34);
@@ -739,9 +737,8 @@
       addHullPart(new THREE.BoxGeometry(0.55, 0.07, 0.08), hullAmber, 4.45, -0.15, 0.64, 0.62);
       addHullPart(new THREE.BoxGeometry(0.55, 0.07, 0.08), hullMetal, 4.45, -0.15, 0.65, -0.62);
 
-      // A visible asteroid marks the forward gun lane.
+      // A visible asteroid marks the forward gun lane. No ring is drawn in the hold.
       gunTarget = addHullPart(new THREE.DodecahedronGeometry(0.28, 0), hullMetal, 0.7, 2.62, 0.78);
-      gunTargetRing = addHullPart(new THREE.TorusGeometry(0.4, 0.025, 6, 20), hullAmber, 0.7, 2.62, 0.79);
       rooms.forEach((room, index) => {
         if (index === 0) return;
         const wall = new THREE.Mesh(
@@ -1051,6 +1048,13 @@
           } else {
             player.y += (floor + 0.42 - player.y) * Math.min(1, dt * 8);
           }
+        }
+        if (index === 0) {
+          window.BCMHullHelmState = {
+            engaged: usingHelm,
+            thrust: usingHelm ? input.dy : 0,
+            yaw: usingHelm ? input.dx : 0
+          };
         }
         player.x = Math.max(-6, Math.min(6, player.x));
         player.y = Math.max(floor + 0.3, Math.min(ceil - 0.2, player.y));

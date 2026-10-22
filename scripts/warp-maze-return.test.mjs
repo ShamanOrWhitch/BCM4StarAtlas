@@ -30,7 +30,8 @@ test("asteroid exit returns to Warp, Ring stays separate and Hull Dive is entera
   assert.match(warp, /hullEnterButton\.addEventListener\("click", \(\) => openHullInterior\(\)\)/);
   const hull = section(warp, "function openHullInterior()", "function openRingPlatformer");
   assert.match(hull, /state\.hullOpen = true/);
-  assert.match(hull, /engine\.pauseForWarp\(true\)/);
+  assert.doesNotMatch(hull, /engine\.pauseForWarp\(true\)/);
+  assert.match(hull, /BCMHullHelmState/);
   assert.doesNotMatch(hull, /ship\.position\.copy\(maze\.beacon\.position\)/);
   assert.match(warp, /function openRingPlatformer\(maze, afterTransition = false\)/);
   assert.match(warp, /maze\.ringCompleted = success/);
