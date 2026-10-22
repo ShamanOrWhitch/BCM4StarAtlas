@@ -864,14 +864,6 @@
     window.BCMDialogue?.showOperator("", textForLanguage("welcome"));
     window.BCMDialogue?.showControls("flight");
 
-    // The ship is already on the built asteroid. Show that full screen.
-    // The hold stays a station you can climb into; it is not the way in.
-    try {
-      if (typeof window.BCMDeepSpaceWarpEnterAsteroid === "function") {
-        window.BCMDeepSpaceWarpEnterAsteroid();
-      }
-    } catch (e) {}
-
     if (canvas.requestPointerLock && !("ontouchstart" in window)) {
       canvas.requestPointerLock();
     }
@@ -3568,19 +3560,25 @@
     const btn = (n) => !!(gp.buttons && gp.buttons[n] && (gp.buttons[n].pressed || gp.buttons[n].value > 0.5));
     pad.roll = (btn(5) ? 1 : 0) - (btn(4) ? 1 : 0);
     pad.vert = (btn(7) ? 1 : 0) - (btn(6) ? 1 : 0);
+    const overlayOwnsPadActions = !!(
+      document.getElementById("bcm-hull-dive") ||
+      document.getElementById("bcm-ring-platformer") ||
+      document.getElementById("bcm-ring-transition")
+    );
     const edge = (n, fn) => {
       const on = btn(n);
-      if (on && !pad.prev[n] && running) fn();
+      if (on && !pad.prev[n] && running && !overlayOwnsPadActions) fn();
       pad.prev[n] = on;
     };
-    // B remains full-home; the separate Back/Select button restarts the current area.
+    // B remains available for in-level/Hull Dive actions; outside overlays it resets the current room.
+    // Back/Select performs full return-to-start.
     edge(0, () => openDoor("REMOTE"));
-    edge(1, returnToStart);
+    edge(1, resetCurrentRoom);
     edge(2, toggleCinemaFocus);
     edge(3, () => { if (typeof window.BCMDeepSpaceWarpToggle === "function") window.BCMDeepSpaceWarpToggle(); else tryPortal(); });
     edge(10, tryPortal);
     edge(9, toggleSettings);
-    edge(8, resetCurrentRoom);
+    edge(8, returnToStart);
   }
 
   function tiltLook() {
