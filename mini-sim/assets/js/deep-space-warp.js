@@ -351,7 +351,7 @@
     const hullEnterButton = document.createElement("button");
     hullEnterButton.className = "bcm-warp-hull-enter";
     hullEnterButton.type = "button";
-    hullEnterButton.textContent = "ВНУТРЬ КОРАБЛЯ · U / R3";
+    hullEnterButton.textContent = "ВНУТРЬ КОРАБЛЯ";
     hullEnterButton.setAttribute("aria-label", "Войти внутрь корабля");
     hullEnterButton.hidden = true;
     hullEnterButton.style.cssText = "position:fixed;left:auto;right:14px;top:62px;bottom:auto;transform:none;z-index:1001100;min-height:40px;padding:7px 11px;border:1px solid #70d9ee;border-radius:9px;background:rgba(7,27,42,.96);color:#e8fbff;font:700 11px system-ui;letter-spacing:.03em;touch-action:manipulation;white-space:nowrap;box-shadow:0 4px 18px rgba(0,0,0,.38);pointer-events:auto;cursor:pointer";
