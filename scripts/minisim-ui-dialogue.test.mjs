@@ -60,27 +60,26 @@ test("Hull Dive is an inset cabin, leaves pilot screen space, and keeps bounded 
   assert.match(css, /\.bcm-mini-sim\.bcm-hull-interior-active \.bcm-mini-sim-canvas[\s\S]*?height:68%/);
 });
 
-test("Ring weapon prototypes include laser pointer, pulse and spectrum, with operator choices and test upgrades", () => {
-  assert.match(warp, /data-ring-action="fire"/);
-  assert.match(warp, /statePad\.fire = !!button\(3\)/);
-  assert.match(warp, /event\.code === "KeyQ" \|\| \(mode === "multi" && event\.code === "KeyK"\)/);
-  assert.match(warp, /function currentWeaponProfile\(player\)/);
-  assert.match(warp, /if \(type === "pulse"\)/);
-  assert.match(warp, /if \(type === "spectrum"\)/);
-  assert.match(warp, /new THREE\.CylinderGeometry\(profile\.width/);
-  assert.match(warp, /window\.BCMDialogue\?\.showOperator\(lang === "en" \? "WEAPON MASTER" : "МАСТЕР ОРУЖИЯ"/);
-  assert.match(warp, /"Spectrum · rainbow"/);
-  assert.match(warp, /"Спектр · радуга"/);
-  assert.match(warp, /progress\.completedRuns >= progress\.nextUpgradeAt/);
-  assert.match(warp, /weaponProgress\.nextUpgradeAt = weaponProgress\.completedRuns \+ 2/);
-  assert.match(warp, /offerWeaponChoice\(true\)/);
-  assert.match(warp, /if \(worldState\.defeatedBosses === 1 && !masterOfferedThisRun\)/);
+test("Ring optional mobs use X-button laser; collecting crystals, not boss kills, completes the route", () => {
+  assert.match(warp, /data-ring-action="fire" aria-label="Огонь · X"/);
+  assert.match(warp, /statePad\.fire = !!\(pad\.buttons\?\.\[2\]\?\.pressed\)/);
+  assert.doesNotMatch(warp, /statePad\.fire = .*buttons\?\.\[3\]/);
+  assert.match(warp, /KeyX: "fire"/);
+  assert.match(warp, /function fireAtMob\(player\)/);
+  assert.match(warp, /function updateMobPatrol\(dt\)/);
+  assert.match(warp, /maze\.count < 3/);
+  assert.match(warp, /if \(target\) \{\s*target\.alive = false;/);
+  const ring = warp.slice(warp.indexOf("function openRingPlatformer("), warp.indexOf("function finishRingPlatformer("));
+  assert.doesNotMatch(ring, /defeatedBosses|barrier\.unlockAfter|function updateBosses\(|offerWeaponChoice\(/);
 });
 
-test("Ring two-player split is top/bottom; caption clutter is removed", () => {
-  assert.match(warp, /P1\/pilot always owns the upper horizontal half/);
+test("Ring two-player split is always top/bottom; caption clutter is removed", () => {
+  assert.match(warp, /P1\/pilot always owns the upper horizontal half; P2 stays below on every aspect ratio/);
   assert.match(warp, /const half = Math\.floor\(viewH \/ 2\)/);
-  assert.match(warp, /splitDivider\.style\.background = splitActive[\s\S]*?linear-gradient\(to bottom/);
+  assert.match(warp, /player: players\[0\], camera: cameraOne/);
+  assert.match(warp, /player: players\[1\], camera: cameraTwo/);
+  assert.match(warp, /splitDivider\.style\.borderTop = splitActive/);
+  assert.match(warp, /splitDivider\.style\.borderLeft = "0"/);
   assert.doesNotMatch(warp, /fillText\("ПРОГРЕСС ПО ЗОНАМ"/);
 });
 
