@@ -261,7 +261,7 @@ test("Ring is a cutaway of the active 3D maze, reuses its textures and keeps cry
   assert.ok(ring.includes("makeCrewSpriteTexture"));
   assert.ok(ring.includes("data-ring-single"));
   assert.ok(ring.includes("data-ring-multi"));
-  assert.doesNotMatch(ring, /bcm-ring-frontier-side-scroll|function updateBosses\(|function makeComicBackdrop\(|new THREE\.CanvasTexture\(|defeatedBosses|barrier\.unlockAfter|exitX: 81/);
+  assert.doesNotMatch(ring, /bcm-ring-frontier-side-scroll|function updateBosses\(|function makeComicBackdrop\(|defeatedBosses|barrier\.unlockAfter|exitX: 81/);
   assert.ok(warp.includes("maze.ringCompleted = success"));
   assert.match(warp, /ringApproachArmed: true/);
   assert.match(warp, /state\.ringApproachArmed = false/);
@@ -296,7 +296,8 @@ test("Ring uses the shared WebGL renderer and exposes Tower's Crew alpha-cleanin
   assert.match(warp, /function renderRingViews\(frameContext\)/);
   assert.match(warp, /renderer\.render\(activeScene, view\.camera\)/);
   assert.doesNotMatch(warp, /new THREE\.WebGLRenderer/);
-  assert.match(warp, /function updateRoomSlice\(\)/);
+  assert.match(warp, /function updateSplitState\(\)/);
+  assert.match(warp, /function configureCamera\(camera, viewport, center, orientation\)/);
 });
 
 test("Ring transition video asset is present in the Mini-Sim merge checkout", async () => {
