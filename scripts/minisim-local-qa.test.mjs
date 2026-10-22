@@ -222,20 +222,20 @@ test("Ring cutaway owns each runtime state declaration exactly once", async () =
   const end = warp.indexOf("function finishRingPlatformer(", start);
   assert.ok(start >= 0 && end > start, "Ring cutaway function block exists");
   const ring = warp.slice(start, end);
-  const declarationCount = (name) => ring.split("\\n").filter((line) =>
-    /^\\s*(?:let|const|var)\\s+/.test(line) && new RegExp("\\\\b" + name + "\\\\s*=").test(line)
+  const declarationCount = (name) => ring.split("\n").filter((line) =>
+    /^\s*(?:let|const|var)\s+/.test(line) && new RegExp("\\b" + name + "\\s*=").test(line)
   ).length;
   for (const name of ["done", "gameStarted", "splitActive"]) {
     assert.equal(declarationCount(name), 1, name + " should be declared once in Ring scope");
   }
   assert.match(ring, /let width = 1, height = 1;/, "split-screen camera dimensions remain declared");
-  assert.match(ring, /world\\.name = "bcm-ring-cutaway-world"/);
+  assert.match(ring, /world\.name = "bcm-ring-cutaway-world"/);
   assert.match(ring, /sourceWallMaterials/);
-  assert.match(ring, /source\\.clone\\(\\)/, "original asteroid surface materials are cloned");
-  assert.match(ring, /maze\\.cells\\.forEach/);
-  assert.match(ring, /cell\\.open\\.yp \\|\\| cell\\.open\\.yn/, "vertical links remain navigable");
-  assert.match(ring, /maze\\.crystals/);
-  assert.match(ring, /maze\\.count < 3/, "completion requires all three crystals");
+  assert.match(ring, /source\.clone\(\)/, "original asteroid surface materials are cloned");
+  assert.match(ring, /maze\.cells\.forEach/);
+  assert.match(ring, /cell\.open\.yp \|\| cell\.open\.yn/, "vertical links remain navigable");
+  assert.match(ring, /maze\.crystals/);
+  assert.match(ring, /maze\.count < 3/, "completion requires all three crystals");
   assert.match(ring, /KeyX: "fire"/);
-  assert.match(ring, /pad\\.buttons\\?\\.\\[2\\]\\?\\.pressed/, "gamepad X button fires");
+  assert.match(ring, /pad\.buttons\?\.\[2\]\?\.pressed/, "gamepad X button fires");
 });
