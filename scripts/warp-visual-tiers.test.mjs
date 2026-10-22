@@ -47,11 +47,11 @@ test("Visual Classes II–IV have distinct decorative effects only", () => {
   assert.match(warp, /window\.BCMDeepSpaceWarpSetDriveSlot = \(slotSize\) =>/);
 });
 
-test("Mini-Sim 0.9.113 cache/version contracts are synchronized", () => {
-  assert.match(plugin, /Version: 0\.9\.113/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.9\.113'\)/);
-  assert.match(plugin, /SPACE LABYRINTH — 0\.9\.113/);
-  assert.match(qa, /Version: 0\.9\.113/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.9\.113'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.9\.113/);
+test("Mini-Sim 0.9.115 cache/version contracts are synchronized", () => {
+  assert.match(plugin, /Version: 0\.9\.115/);
+  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.9\.115'\)/);
+  assert.match(plugin, /SPACE LABYRINTH — 0\.9\.115/);
+  assert.match(qa, /Version: 0\.9\.115/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.9\.115'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.9\.115/);
 });
