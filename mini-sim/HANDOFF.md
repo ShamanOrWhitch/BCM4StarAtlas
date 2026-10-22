@@ -77,3 +77,7 @@
 ## Не затрагивать
 
 `wordpress/galia-desk`, scanner, marketplace/pricing/shared assets, planet placement, SAGE navigation adapter, global OST mixer и Tower physics. Не откатывать исправления без воспроизводимого теста.
+
+## PR and test tracking
+- Candidate PR: https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/60
+- Check source-contract tests and browser QA before merge; afterward test entry to Ring, each perpendicular/floor turn, crystal pickup, X fire, Back exit, mouse interaction in Hull Dive, and return to normal flight.
