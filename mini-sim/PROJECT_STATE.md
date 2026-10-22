@@ -121,3 +121,7 @@
 Добавь/обнови проверку, сделай минимальный патч, выполни доступные тесты.
 После теста обнови PROJECT_STATE.md: результат, SHA, что проверено и что нет.
 ```
+
+## PR and test tracking
+- PR #60: https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/60
+- CI results are pending; do not label 0.9.114 live-verified until the required Actions and a manual WordPress/device test complete.
