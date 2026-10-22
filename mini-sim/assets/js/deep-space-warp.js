@@ -1705,6 +1705,8 @@
       let splitActive = false;
       let frameStamp = 0;
       let lastHudCount = -1;
+      let menuFocusIndex = 0;
+      let menuPadPrevious = { left: false, right: false, confirm: false, back: false };
       const keyboardInputs = [{}, {}];
       const touchInputs = [{}, {}];
       const padInputs = [{}, {}];
@@ -2195,6 +2197,29 @@
           finishRingPlatformer(maze, false);
           return;
         }
+        if (!gameStarted) {
+          if (!down) return;
+          if (event.code === "ArrowLeft" || event.code === "KeyA") {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            focusModeMenu(menuFocusIndex - 1);
+            return;
+          }
+          if (event.code === "ArrowRight" || event.code === "KeyD") {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            focusModeMenu(menuFocusIndex + 1);
+            return;
+          }
+          if (event.code === "Enter" || event.code === "NumpadEnter" ||
+              event.code === "Space" || event.code === "KeyE") {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            startMode(menuFocusIndex === 1 ? "multi" : "single");
+            return;
+          }
+          return;
+        }
         const p1 = {
           ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
           Space: "jump", KeyX: "fire"
@@ -2234,8 +2259,32 @@
       }
 
       function pollGamepads() {
-        if (!gameStarted || done || !navigator.getGamepads) return;
+        if (done || !navigator.getGamepads) return;
         const connected = [...navigator.getGamepads()].filter((pad) => pad && pad.connected);
+        if (!gameStarted) {
+          const pad = connected[0];
+          if (!pad) {
+            menuPadPrevious = { left: false, right: false, confirm: false, back: false };
+            return;
+          }
+          const button = (index) => !!(pad.buttons && pad.buttons[index] && pad.buttons[index].pressed);
+          const axisX = Number(pad.axes?.[0] || 0);
+          const left = !!(button(14) || axisX < -0.55);
+          const right = !!(button(15) || axisX > 0.55);
+          const confirm = !!(button(0) || button(9));
+          const back = button(8);
+          if (left && !menuPadPrevious.left) focusModeMenu(menuFocusIndex - 1);
+          if (right && !menuPadPrevious.right) focusModeMenu(menuFocusIndex + 1);
+          if (confirm && !menuPadPrevious.confirm) {
+            startMode(menuFocusIndex === 1 ? "multi" : "single");
+          }
+          if (back && !menuPadPrevious.back) {
+            finishRingPlatformer(maze, false);
+            return;
+          }
+          menuPadPrevious = { left, right, confirm, back };
+          return;
+        }
         const assignment = mode === "multi"
           ? (connected.length > 1 ? [connected[0], connected[1]] : [null, connected[0] || null])
           : [connected[0] || null];
@@ -2451,16 +2500,11 @@
             : players[0].x === players[1].x);
         if (!splitActive && (!samePlane || distance > cellSize * 1.62)) splitActive = true;
         else if (splitActive && samePlane && distance < cellSize * 1.22) splitActive = false;
-        const landscape = width >= height;
         splitDivider.hidden = !splitActive;
-        splitDivider.style.border = splitActive ? "1px solid rgba(115,203,225,.45)" : "0";
         splitDivider.style.background = "transparent";
-        if (splitActive) {
-          splitDivider.style.borderTop = landscape ? "0" : "2px solid rgba(115,203,225,.75)";
-          splitDivider.style.borderLeft = landscape ? "2px solid rgba(115,203,225,.75)" : "0";
-        } else {
-          splitDivider.style.border = "0";
-        }
+        splitDivider.style.border = splitActive ? "0" : "0";
+        splitDivider.style.borderTop = splitActive ? "2px solid rgba(115,203,225,.75)" : "0";
+        splitDivider.style.borderLeft = "0";
       }
 
       function configureCamera(camera, viewport, center, orientation) {
@@ -2505,19 +2549,14 @@
         const oldAutoClear = renderer.autoClear;
         renderer.autoClear = false;
         renderer.setScissorTest(true);
-        const landscape = viewW >= viewH;
         let views;
         if (splitActive && mode === "multi" && players.length > 1) {
-          const half = Math.floor((landscape ? viewW : viewH) / 2);
-          views = landscape
-            ? [
-                { x: 0, y: 0, w: half, h: viewH, player: players[0], camera: cameraOne },
-                { x: half, y: 0, w: viewW - half, h: viewH, player: players[1], camera: cameraTwo }
-              ]
-            : [
-                { x: 0, y: Math.floor(viewH / 2), w: viewW, h: viewH - Math.floor(viewH / 2), player: players[0], camera: cameraOne },
-                { x: 0, y: 0, w: viewW, h: Math.floor(viewH / 2), player: players[1], camera: cameraTwo }
-              ];
+          // P1/pilot always owns the upper horizontal half; P2 stays below on every aspect ratio.
+          const half = Math.floor(viewH / 2);
+          views = [
+            { x: 0, y: half, w: viewW, h: viewH - half, player: players[0], camera: cameraOne },
+            { x: 0, y: 0, w: viewW, h: half, player: players[1], camera: cameraTwo }
+          ];
         } else {
           let target = cameraTargetFor(players[0]);
           if (mode === "multi" && players[1]) {
@@ -2607,8 +2646,23 @@
         g.fillText("КАРТА · ЭТАЖ " + (floor + 1), 7, 5);
       }
 
+      function focusModeMenu(nextIndex) {
+        if (gameStarted || done) return;
+        const modeButtons = [
+          root2d.querySelector("[data-ring-single]"),
+          root2d.querySelector("[data-ring-multi]")
+        ];
+        menuFocusIndex = ((Number(nextIndex) || 0) % modeButtons.length + modeButtons.length) % modeButtons.length;
+        modeButtons.forEach((button, index) => {
+          const selected = index === menuFocusIndex;
+          button.setAttribute("aria-pressed", selected ? "true" : "false");
+          button.style.outline = selected ? "2px solid #eafcff" : "none";
+          button.style.outlineOffset = "3px";
+        });
+      }
+
       function startMode(nextMode) {
-        if (done) return;
+        if (done || gameStarted) return;
         mode = nextMode === "multi" ? "multi" : "single";
         gameStarted = true;
         menu.hidden = true;
@@ -2708,6 +2762,7 @@
       closeButton.addEventListener("click", () => finishRingPlatformer(maze, false));
       root2d.querySelector("[data-ring-single]").addEventListener("click", () => startMode("single"));
       root2d.querySelector("[data-ring-multi]").addEventListener("click", () => startMode("multi"));
+      focusModeMenu(0);
       window.addEventListener("keydown", keyboardMove, true);
       window.addEventListener("keyup", keyboardMove, true);
       window.addEventListener("blur", () => {
