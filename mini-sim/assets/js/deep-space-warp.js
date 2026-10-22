@@ -2277,6 +2277,7 @@
           if (right && !menuPadPrevious.right) focusModeMenu(menuFocusIndex + 1);
           if (confirm && !menuPadPrevious.confirm) {
             startMode(menuFocusIndex === 1 ? "multi" : "single");
+            if (players[0]) players[0].wasJumpDown = button(0);
           }
           if (back && !menuPadPrevious.back) {
             finishRingPlatformer(maze, false);
