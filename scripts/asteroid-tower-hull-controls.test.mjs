@@ -4,11 +4,11 @@ import test from "node:test";
 
 const read = (path) => readFile(new URL("../" + path, import.meta.url), "utf8");
 
-test("First-person flight exposes Hull Interior with touch, U and edge-triggered R3", async () => {
+test("Asteroid flight exposes Hull Interior without keyboard legends", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   const mini = await read("mini-sim/assets/js/mini-sim.js");
   const hull = await read("mini-sim/assets/js/hull-dive.js");
-  assert.match(warp, /hullEnterButton\.textContent = "ВНУТРЬ КОРАБЛЯ · U \/ R3"/);
+  assert.match(warp, /hullEnterButton\.textContent = "ВНУТРЬ КОРАБЛЯ"/);
   assert.match(warp, /hullEnterButton\.addEventListener\("click", \(\) => openHullInterior\(\)\)/);
   assert.match(warp, /function openHullInterior\(\)/);
   const interior = warp.slice(warp.indexOf("function openHullInterior()"), warp.indexOf("window.BCMDeepSpaceWarpPoll"));
@@ -21,6 +21,11 @@ test("First-person flight exposes Hull Interior with touch, U and edge-triggered
   assert.match(warp, /const wasDown = hullEntryPadWasDown\.get\(pad\.index\) \|\| false/);
   assert.match(hull, /data-hull-exit/);
   assert.match(hull, /say\("НАЗАД В ПОЛЁТ", "BACK TO FLIGHT"\)/);
+  assert.match(hull, /if \(event\.code === "KeyX" && down && !event\.repeat\) helmTogglePending = true/);
+  assert.match(hull, /const toggleRequester = inputs\.findIndex/);
+  assert.match(hull, /index === helmOwner && atHelm/);
+  assert.match(hull, /const activeHelmInput = helmOwner >= 0/);
+  assert.doesNotMatch(hull, /V · ШТУРВАЛ|SPACE · ОРУДИЕ|R · БОЕЗАПАС|F · РЕМОНТ|E · НАСОС|LB\/V|A\/D и W\/S/);
 });
 
 test("Asteroid walls are resolved from the prepared asterwall asset family", async () => {
@@ -123,7 +128,7 @@ test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, amm
   assert.match(hull, /\"KeyV\"/);
   assert.match(hull, /event\.stopImmediatePropagation\(\)/);
   assert.match(hull, /let helmTogglePending = false/);
-  assert.match(hull, /Leaving the helm must always be possible/);
+  assert.match(hull, /let helmOwner = 0/);
   assert.match(hull, /window\.addEventListener\(\"blur\", clearHeldKeys\)/);
   const mini = await read("mini-sim/assets/js/mini-sim.js");
   assert.match(mini, /document\.getElementById\(\"bcm-hull-dive\"\)/);
