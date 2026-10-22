@@ -1,21 +1,28 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
+## Рабочая версия 0.9.114
+- Main baseline: 0.9.113 / Tower 0.2.64. Candidate branch: fix/minisim-0.9.114-ring-cutaway-controls.
+- Ring is a cutaway of the same maze, not a linear side-scroll level. Existing connections, floors, crystals, entrance and exit are reused. Surface materials take textures from the active maze.
+- The objective is three crystals and return to entry; minor mobs are hazards/targets, not boss gates.
+- Gamepad X fires; Y does not. Back/Select exits Ring or returns home outside overlays. B no longer takes the player home. Hull Dive releases Pointer Lock for mouse input.
+- GitHub checks do not establish physical device behavior. WordPress deployment is separate from merging the PR.
+
 Дата: 22 октября 2026.
 
 ## Правило для агентов
 
 После любой правки механик мини-сима сразу коммитить и пушить в репозиторий `ShamanOrWhitch/BCM4StarAtlas` отдельной веткой и открывать PR. Не оставлять дифф только в локальном превью: следующий агент и WordPress его не увидят. Чужие зависшие PR #14 и #18 не сливать.
 
-## Что только что поменялось — 0.9.113
+## История PR #59 — Mini-Sim 0.9.113
 
 - Старт полёта сразу открывает уже построенный астероидный комплекс на весь экран. Вход в трюм больше не является дверью на астероид, и кольцо для этого не нужно.
 - Трюм не ставит корабль на паузу. Кораблём управляет тот, кто стоит за штурвалом: W/S — тяга, A/D — курс. Сошёл со штурвала — корабль больше не слушает шаг экипажа.
 - Из трюма убрано отображение кольца: кабина непрозрачная, иллюминатор наружу закрыт, прицельное кольцо у орудия снято.
 - Уровень внутри кольца не стартовал, потому что мир строился в функции, которую никто не вызывал. Меню SINGLE/MULTI успевало появиться, а обработчики клика — нет. Теперь мир создаётся до кнопок. На ролике перехода есть кнопка «СТАРТ УРОВНЯ».
 
-## Источник истины
+## Историческая запись источника истины
 
-- Рабочая версия симулятора: Mini-Sim **0.9.113**. Main на GitHub на момент правки всё ещё **0.9.112**, SHA 443cd4f1cd388d020f1811908f1d31ad53809334.
+- Рабочая версия симулятора: Mini-Sim **0.9.113**. На момент написания PR #59 main на GitHub ещё был **0.9.112**, SHA 443cd4f1cd388d020f1811908f1d31ad53809334.
 - **Не путать:** проверка исходников — не подтверждение ручной игры на телефоне и не деплой WordPress.
 
 ## Что есть в 0.9.112
