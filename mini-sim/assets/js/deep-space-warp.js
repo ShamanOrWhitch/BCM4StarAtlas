@@ -1981,15 +1981,6 @@
       const cameraFocus = cellWorld(ringCell);
       const savedPlayerVisualState = [];
       let width = 1, height = 1;
-      let mode = "single";
-      let players = [];
-      let lastHudCount = -1, raf = 0, frameStamp = 0;
-      const keyboardInputs = [{}, {}];
-      const touchInputs = [{}, {}];
-      const padInputs = [{}, {}];
-      const previousPad = [{}, {}];
-      const oneShotActions = new Set(["turnUp", "turnDown", "floorUp", "floorDown"]);
-      const playerColors = ["#65dcf0", "#f3c46c"];
 
       const textureLoader = new THREE.TextureLoader();
       function fallbackCrewTexture(index) {
