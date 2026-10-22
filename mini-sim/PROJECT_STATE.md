@@ -1,13 +1,12 @@
-## Правило агентам — 22 октября 2026
+## Текущий этап — Mini-Sim 0.9.114
+- Main baseline: Mini-Sim 0.9.113 / Tower 0.2.64 (PR #59). Candidate branch: fix/minisim-0.9.114-ring-cutaway-controls. Flight start remains normal; the ship is not auto-teleported into the asteroid maze.
+- Ring Maze is restored from the active 3D maze graph: cells/open passages/stairs, the same seed, entry/exit and three crystals. Linear boss arenas and generated comic backdrops are removed.
+- Ring surfaces clone existing maze materials and reuse their texture maps. Cleanup may dispose cloned materials but not textures owned by the active asteroid maze.
+- Objective: collect the three crystals and return to the entry. Small seeded mobs patrol cells and can be shot; they do not block completion.
+- Controller: X/button 2 fires, Y/button 3 does not. Back/Select exits Ring and returns home outside gameplay overlays. B does not return home; it resets the current room outside overlays, and its Hull Dive action remains available inside.
+- Hull Dive releases Pointer Lock on open so mouse interactions work; exterior ship physics continue. CI and code checks are not a physical controller or WordPress test.
 
-После правки механик сразу пушить ветку в этот репозиторий и открывать PR. Локальный превью-дифф другим агентам недоступен. Не сливать зависшие PR #14 и #18.
-
-## Текущая передача — Mini-Sim 0.9.113
-
-- Ветка `minisim-0.9.113-asteroid-helm-ring`: вылет сразу в уже построенный астероид. Трюм не ставит корабль на паузу — им управляет тот, кто стоит у штурвала (W/S тяга, A/D курс, V — сойти). Кольцо из кабины убрано. Уровень Ring строится до меню SINGLE/MULTI, на ролике есть «СТАРТ УРОВНЯ».
-- Это TESTED-CODE по исходникам и превью, не физический тест телефона и не деплой WordPress.
-
-## Текущее состояние — 21 октября 2026
+## История состояния — 21 октября 2026
 
 - **Актуальный main:** Mini-Sim **0.9.112**, Tower **0.2.64**. Merge commit PR [#57](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/57): 443cd4f1cd388d020f1811908f1d31ad53809334. Asset/cache version и стартовые заголовки синхронизированы на 0.9.112. Hull Dive оставляет внешний космический вид работающим под inset, стартует с активным штурвалом; кнопка входа в кабину вынесена на верхний слой документа. Отдельная кнопка Ring доступна рядом с маяком, меню уровня принимает мышь/касание, клавиатуру и gamepad A. Добавлен hit-test аудитор: Ctrl+Alt+U.
 - **Проверки PR #57 — PASS:** Mini-Sim regression [39602967437](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39602967437), Ring menu [39602967350](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39602967350), UI layer audit [39602967364](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39602967364), Hull RU/EN [39602967454](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39602967454), Warp visuals [39602967418](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39602967418), Warp return [39602967560](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39602967560), browser smoke [39602967382](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/39602967382). Это TESTED-CODE, не физический тест телефона/gamepad и не подтверждение WordPress deploy.
@@ -122,3 +121,7 @@
 Добавь/обнови проверку, сделай минимальный патч, выполни доступные тесты.
 После теста обнови PROJECT_STATE.md: результат, SHA, что проверено и что нет.
 ```
+
+## PR and test tracking
+- PR #60: https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/60
+- CI results are pending; do not label 0.9.114 live-verified until the required Actions and a manual WordPress/device test complete.

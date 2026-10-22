@@ -239,37 +239,54 @@ test("Ring intro plays ringgummy.mp4 and starts ring.mp3 on the first rendered v
   assert.match(warp, /ringTransitionActive: false/);
 });
 
-test("Ring Frontier is a continuous side-scrolling action level with three large boss arenas", () => {
+test("Ring is a cutaway of the active 3D maze, reuses its textures and keeps crystal return as the objective", () => {
   const ring = section(warp, "function openRingPlatformer(maze, afterTransition = false)", "function finishRingPlatformer");
-  assert.ok(ring.includes('world.name = "bcm-ring-frontier-side-scroll"'));
-  assert.ok(ring.includes("function buildRingWorld()"));
-  assert.ok(ring.includes("new THREE.OrthographicCamera"));
-  assert.ok(ring.includes("window.BCMDeepSpaceWarpRender = renderRingViews"));
+  assert.ok(ring.includes('world.name = "bcm-ring-cutaway-world"'));
+  assert.ok(ring.includes("maze.cells.forEach((cell) =>"));
+  assert.ok(ring.includes("const cellMap = new Map(maze.cells.map"));
+  assert.ok(ring.includes("cell.open.xp"));
+  assert.ok(ring.includes("function triggerTurn(player, direction)"));
+  assert.ok(ring.includes("function triggerFloor(player, direction)"));
+  assert.ok(ring.includes("function collectAt(player)"));
+  assert.ok(ring.includes("maze.crystals"));
+  assert.ok(ring.includes("function checkFinish(player)"));
+  assert.ok(ring.includes("maze.count < 3"));
+  assert.ok(ring.includes("function drawMiniMap()"));
+  assert.ok(ring.includes("const sourceWallMaterials = (Array.isArray(maze.materials)"));
+  assert.ok(ring.includes("source.clone()"));
+  assert.ok(ring.includes("material.map"));
+  assert.ok(ring.includes("function fireAtMob(player)"));
+  assert.ok(ring.includes("function updateMobPatrol(dt)"));
+  assert.ok(ring.includes("worldState.mobs"));
+  assert.ok(ring.includes("makeCrewSpriteTexture"));
   assert.ok(ring.includes("data-ring-single"));
   assert.ok(ring.includes("data-ring-multi"));
-  assert.ok(ring.includes("window.BCMMiniCrewSelection?.players"));
-  assert.ok(ring.includes("makeCrewSpriteTexture"));
-  assert.ok(ring.includes("function updateSplitState()"));
-  assert.ok(ring.includes("function renderRingViews(frameContext)"));
-  assert.ok(ring.includes("function drawMiniMap()"));
-  assert.ok(ring.includes("function updateBosses(dt, now)"));
-  assert.ok(ring.includes("const bosses = ["));
-  assert.ok(ring.includes("СБОЙНЫЙ СТРАЖ"));
-  assert.ok(ring.includes("ПЛАЗМЕННЫЙ СЕРДЕЧНИК"));
-  assert.ok(ring.includes("СТАРШИЙ СИНГУЛЯРНОСТИ"));
-  assert.ok(ring.includes("defeatedBosses < barrier.unlockAfter"));
-  assert.doesNotMatch(ring, /maze\.cells|function triggerTurn\(|function triggerFloor\(/);
+  assert.doesNotMatch(ring, /bcm-ring-frontier-side-scroll|function updateBosses\(|function makeComicBackdrop\(|new THREE\.CanvasTexture\(|defeatedBosses|barrier\.unlockAfter|exitX: 81/);
   assert.ok(warp.includes("maze.ringCompleted = success"));
   assert.match(warp, /ringApproachArmed: true/);
   assert.match(warp, /state\.ringApproachArmed = false/);
   assert.match(warp, /if \(ringDistance > 4\.2\) state\.ringApproachArmed = true/);
   assert.match(warp, /state\.ringApproachArmed && !state\.ringPlatformer && !maze\.ringCompleted/);
-  assert.ok(ring.includes("function makeComicBackdrop(zone)"));
-  assert.ok(ring.includes("new THREE.CanvasTexture(canvas)"));
-  assert.ok(ring.includes("Each boss gets a framed arena"));
-  assert.ok(ring.includes("bossOutlineGeometry"));
-  assert.ok(ring.includes("worldTextures.push(texture)"));
 });
+
+test("Ring gamepad X fires and Back returns to the ship; Y is not mapped to fire", () => {
+  const ring = section(warp, "function openRingPlatformer(maze, afterTransition = false)", "function finishRingPlatformer");
+  assert.match(ring, /statePad\.fire = !!pad\.buttons\?\.\[2\]\?\.pressed/);
+  assert.doesNotMatch(ring, /statePad\.fire = !!pad\.buttons\?\.\[3\]\?\.pressed/);
+  assert.match(ring, /const back = !!pad\.buttons\?\.\[8\]\?\.pressed/);
+  assert.match(ring, /finishRingPlatformer\(maze, false\)/);
+  const flightInputs = section(sim, "function readPad()", "function tiltLook()");
+  assert.match(flightInputs, /edge\(1, resetCurrentRoom\)/);
+  assert.match(flightInputs, /edge\(8, returnToStart\)/);
+  assert.match(flightInputs, /overlayOwnsPadActions/);
+});
+
+test("Hull Dive exits flight Pointer Lock so mouse controls can reach its UI", () => {
+  const open = section(hull, "function open(onClose)", "const THREE = window.THREE");
+  assert.match(open, /document\.pointerLockElement && document\.exitPointerLock/);
+  assert.match(hull, /canvas\.addEventListener\("pointerdown"/);
+});
+
 test("Ring uses the shared WebGL renderer and exposes Tower's Crew alpha-cleaning helper", () => {
   assert.match(sim, /window\.BCMDeepSpaceWarpRender\(\{/);
   assert.match(sim, /deepSpaceCustomRendered = window\.BCMDeepSpaceWarpRender/);

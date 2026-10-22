@@ -1594,12 +1594,10 @@
 
     function openRingPlatformer(maze, afterTransition = false) {
       if (!maze || !maze.active || state.ringPlatformer || state.hullOpen || state.mode !== "maze") return false;
-      // Disarm at the first approach (including the transition clip). Escape must
-      // not instantly retrigger the Ring while the ship is still at the beacon.
-      state.ringApproachArmed = false;
       const engine = api();
       const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
       if (!runtime?.ship || !runtime.THREE || !runtime.scene) return false;
+      state.ringApproachArmed = false;
       if (!afterTransition) {
         const transitionSource = findRingTransitionVideoSource();
         if (transitionSource) return playRingTransition(maze, transitionSource, engine);
@@ -1613,56 +1611,66 @@
 
       const THREE = runtime.THREE;
       const scene = runtime.scene;
+      const nx = Math.max(1, Number(maze.dimensions?.nx) || Math.max(...maze.cells.map((c) => c.x)) + 1);
+      const ny = Math.max(1, Number(maze.dimensions?.ny) || Math.max(...maze.cells.map((c) => c.y)) + 1);
+      const nz = Math.max(1, Number(maze.dimensions?.nz) || Math.max(...maze.cells.map((c) => c.z)) + 1);
       const seed = Number(maze.seed) || 0;
+      const cellSize = Number(maze.cellSize) || 5.4;
+      const wallThickness = 0.24;
+      const doorWidth = 2.5;
+      const doorHeight = 3.35;
+      const roomHalf = cellSize / 2;
+      const floorYForCell = (cellY) => cellWorld({ x: 0, y: cellY, z: 0 }).y - roomHalf + 0.16;
+      const cellMap = new Map(maze.cells.map((cell) => [cell.x + ":" + cell.y + ":" + cell.z, cell]));
+      const getCell = (x, y, z) => cellMap.get(x + ":" + y + ":" + z) || null;
+      const entryCell = maze.startCell || { x: 0, y: 1, z: 0 };
+      const ringCell = maze.exitCell || { x: nx - 1, y: Math.min(1, ny - 1), z: nz - 1 };
+      const exitCell = { x: entryCell.x, y: entryCell.y, z: entryCell.z };
+
+      function cellWorld(cell) {
+        return {
+          x: maze.center.x + (cell.x - (nx - 1) / 2) * cellSize,
+          y: maze.center.y + (cell.y - (ny - 1) / 2) * cellSize,
+          z: maze.center.z + ((nz - 1) / 2 - cell.z) * cellSize
+        };
+      }
 
       const root2d = document.createElement("div");
       root2d.id = "bcm-ring-platformer";
       root2d.tabIndex = 0;
-      root2d.style.cssText = "position:fixed;inset:0;z-index:1001200;background:transparent;color:#e8f4f8;font:14px system-ui,sans-serif;overflow:hidden;touch-action:none;pointer-events:auto";
-      const en = window.BCMDialogue?.language === "en";
-      const copy = en ? {
-        landing: "LANDING", bosses: "BOSSES", back: "Return to ship", canvas: "Large arena progress",
-        jump: "JUMP", action: "ACTION", laser: "LASER", dash: "DASH",
-        title: "Large location",
-        description: "Run across large side arenas, jump between platforms and defeat three bosses. The small map only marks your progress.",
-        controls: "P1: ← → / A D · jump: Space / W · action: E · fire: Q\nP2: J L · jump: P · action: O · fire: K · gamepads supported"
-      } : {
-        landing: "ВЫСАДКА", bosses: "БОССЫ", back: "В корабль", canvas: "Прогресс по аренам",
-        jump: "ПРЫЖОК", action: "ДЕЙСТВИЕ", laser: "ЛАЗЕР", dash: "РЫВОК",
-        title: "Большая локация",
-        description: "Свободное движение по большим боковым аренам, прыжки между платформами и три босса в разных зонах. Мини-карта показывает только продвижение по локации.",
-        controls: "P1: ← → / A D · прыжок: Space / W · действие: E · лазер: Q\nP2: J L · прыжок: P · действие: O · лазер: K · геймпады поддерживаются"
-      };
+      root2d.style.cssText = "position:fixed;inset:0;z-index:1001200;background:transparent;color:#e8f4f8;font:14px system-ui,sans-serif;overflow:hidden;touch-action:none;;pointer-events:auto";
       root2d.innerHTML =
-        '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;pointer-events:none;z-index:3">' +
-          '<div style="max-width:62%;text-shadow:0 2px 8px #000"><div style="font-size:11px;letter-spacing:.16em;color:#60ddec">RING // FRONTIER</div>' +
-          '<div data-ring-status style="font-weight:900;margin-top:5px;line-height:1.3">' + copy.landing + '</div>' +
-          '<div data-ring-floor style="margin-top:5px;color:#b8cbd6;font-size:12px"></div>' +
-          '<div data-ring-boss-meter style="display:none;width:min(48vw,300px);height:7px;margin-top:8px;border:1px solid rgba(211,235,248,.6);border-radius:9px;background:rgba(4,10,18,.8);overflow:hidden"><div data-ring-boss-fill style="width:100%;height:100%;background:linear-gradient(90deg,#55e6ef,#f6b55e);transition:width .12s linear"></div></div></div>' +
+        '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;pointer-events:none;z-index:3">' +
+          '<div style="max-width:62%;text-shadow:0 2px 8px #000"><div style="font-size:11px;letter-spacing:.16em;color:#60ddec">RING // 2D IN 3D</div>' +
+          '<div data-ring-status style="font-weight:800;margin-top:5px;line-height:1.3">Выбери режим</div>' +
+          '<div data-ring-floor style="margin-top:5px;color:#b8cbd6;font-size:12px"></div></div>' +
           '<div style="display:flex;flex-direction:column;gap:7px;align-items:flex-end;pointer-events:auto">' +
-            '<div data-ring-count style="padding:6px 9px;background:rgba(7,22,34,.94);border:1px solid #25485b;border-radius:8px;color:#d9f8ff;white-space:nowrap">' + copy.bosses + ' 0/3</div>' +
-            '<button type="button" data-ring-exit title="' + copy.back + '" aria-label="' + copy.back + '" style="min-width:42px;min-height:42px;padding:7px 11px;border:1px solid #547083;border-radius:9px;background:rgba(16,35,45,.96);color:#e8fbff;font-size:20px;font-weight:800">↩</button>' +
+            '<div data-ring-count style="padding:6px 9px;background:rgba(7,22,34,.94);border:1px solid #25485b;border-radius:8px;color:#d9f8ff;white-space:nowrap">ЯДРА 0/3</div>' +
+            '<button type="button" data-ring-exit style="min-height:42px;padding:7px 11px;border:1px solid #547083;border-radius:9px;background:rgba(16,35,45,.96);color:#e8fbff;font-weight:800">В КОРАБЛЬ · Esc</button>' +
           '</div>' +
         '</div>' +
-        '<canvas data-ring-canvas aria-label="' + copy.canvas + '" style="position:absolute;right:12px;top:96px;width:min(30vw,190px);height:56px;min-width:96px;min-height:42px;border:1px solid rgba(88,173,198,.55);border-radius:9px;background:rgba(3,10,18,.83);z-index:2;pointer-events:none"></canvas>' +
+        '<canvas data-ring-canvas aria-label="Карта текущего лабиринта" style="position:absolute;right:12px;top:100px;width:min(34vw,240px);height:min(30vh,190px);min-width:124px;min-height:116px;border:1px solid rgba(88,173,198,.55);border-radius:10px;background:rgba(3,10,18,.83);z-index:2;pointer-events:none"></canvas>' +
         '<div data-ring-split-divider hidden style="position:absolute;inset:0;z-index:1;pointer-events:none;border:0"></div>' +
         '<div style="position:absolute;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:flex-end;gap:12px;z-index:4;pointer-events:none">' +
           '<div style="display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(2,42px);gap:4px;pointer-events:auto">' +
-            '<span></span><button type="button" data-ring-action="jump" aria-label="' + copy.jump + '" style="grid-column:2;grid-row:1;min-height:42px">' + copy.jump + '</button><span></span>' +
-            '<button type="button" data-ring-action="left" aria-label="' + (en ? "Left" : "Влево") + '" style="min-height:42px">◀</button><span style="display:block"></span><button type="button" data-ring-action="right" aria-label="' + (en ? "Right" : "Вправо") + '" style="min-height:42px">▶</button>' +
+            '<span></span><button type="button" data-ring-action="turnUp" aria-label="Повернуть вглубь" style="grid-column:2;grid-row:1;min-height:42px">▲</button><span></span>' +
+            '<button type="button" data-ring-action="left" aria-label="Влево" style="min-height:42px">◀</button><button type="button" data-ring-action="jump" aria-label="Прыжок" style="min-height:42px">↑</button><button type="button" data-ring-action="right" aria-label="Вправо" style="min-height:42px">▶</button>' +
+            '<button type="button" data-ring-action="turnDown" aria-label="Повернуть назад" style="grid-column:2;grid-row:3;min-height:38px">▼</button>' +
           '</div>' +
-          '<div style="display:flex;gap:6px;align-items:flex-end;pointer-events:auto">' +
-            '<button type="button" data-ring-action="activate" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.action + '</button>' +
-            '<button type="button" data-ring-action="fire" aria-label="' + copy.laser + '" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.laser + '</button>' +
-            '<button type="button" data-ring-action="dash" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.dash + '</button>' +
+          '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;pointer-events:auto">' +
+            '<div style="color:#b9d3df;background:rgba(4,13,23,.82);border:1px solid rgba(76,139,163,.35);border-radius:8px;padding:5px 8px;font-size:11px;text-align:right">ТРИГГЕРЫ · ПОВОРОТЫ · ЛЕСТНИЦЫ</div>' +
+            '<div style="display:flex;gap:5px">' +
+              '<button type="button" data-ring-action="floorUp" style="min-height:38px;padding:5px 9px;font-size:12px">ЭТАЖ +</button>' +
+              '<button type="button" data-ring-action="floorDown" style="min-height:38px;padding:5px 9px;font-size:12px">ЭТАЖ −</button>' +
+              '<button type="button" data-ring-action="fire" aria-label="Огонь · X" style="min-height:38px;padding:5px 10px;font-size:12px">X · ОГОНЬ</button>' +
+            '</div>' +
           '</div>' +
         '</div>' +
-        '<div data-ring-mode-menu style="position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(1,5,12,.74);pointer-events:auto">' +
-          '<div style="width:min(480px,100%);padding:22px;border:1px solid #37677c;border-radius:16px;background:rgba(6,20,32,.97);box-shadow:0 12px 60px #0009;text-align:center">' +
-            '<div style="font-size:12px;letter-spacing:.18em;color:#60ddec">RING FRONTIER · SEED ' + seed + '</div>' +
-            '<div style="font-size:24px;font-weight:900;margin:12px 0 7px">' + copy.title + '</div>' +
-            '<div style="color:#b7cbd6;line-height:1.5;margin-bottom:17px">' + copy.description + '</div>' +
-            '<div style="color:#91b8c7;font-size:12px;line-height:1.5;margin-bottom:17px;white-space:pre-line">' + copy.controls + '</div>' +
+        '<div data-ring-mode-menu style="position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(1,5,12,.74);pointer-events:auto">' +
+          '<div style="width:min(460px,100%);padding:22px;border:1px solid #37677c;border-radius:16px;background:rgba(6,20,32,.97);box-shadow:0 12px 60px #0009;text-align:center">' +
+            '<div style="font-size:12px;letter-spacing:.18em;color:#60ddec">SEED ' + seed + ' · ТОТ ЖЕ ЛАБИРИНТ</div>' +
+            '<div style="font-size:23px;font-weight:900;margin:12px 0 7px">Внутри лабиринта</div>' +
+            '<div style="color:#b7cbd6;line-height:1.45;margin-bottom:17px">2D-управление в трёхмерных комнатах. Двери меняют направление камеры, лестницы ведут на другие этажи. Открой те же коридоры и собери оставшиеся ядра.</div>' +
             '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">' +
               '<button type="button" data-ring-single style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #69d7ea;border-radius:10px;background:#123c48;color:#e8fbff;font-weight:900">SINGLE</button>' +
               '<button type="button" data-ring-multi style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #bb9a57;border-radius:10px;background:#3b301b;color:#fff0c7;font-weight:900">MULTI · 2 CREW</button>' +
@@ -1677,10 +1685,6 @@
       const floorEl = root2d.querySelector("[data-ring-floor]");
       const menu = root2d.querySelector("[data-ring-mode-menu]");
       const splitDivider = root2d.querySelector("[data-ring-split-divider]");
-      const modeButtons = [
-        root2d.querySelector("[data-ring-single]"),
-        root2d.querySelector("[data-ring-multi]")
-      ];
       const playerColors = ["#65dcf0", "#f3c46c"];
       const crewSelection = Array.isArray(window.BCMMiniCrewSelection?.players)
         ? window.BCMMiniCrewSelection.players : [];
@@ -1705,62 +1709,12 @@
       const touchInputs = [{}, {}];
       const padInputs = [{}, {}];
       const previousPad = [{}, {}];
-      let menuFocusIndex = 0;
-      let menuPadPrevious = { left: false, right: false, confirm: false };
-      const weaponProgress = window.BCMRingWeaponProgress || (window.BCMRingWeaponProgress = {
-        type: "pointer", tier: 1, completedRuns: 0, pendingUpgrade: false, lastUpgradePromptRun: -1, nextUpgradeAt: 2
-      });
-      weaponProgress.nextUpgradeAt = Math.max(2, Math.floor(Number(weaponProgress.nextUpgradeAt) || 2));
-      const weaponPalette = [0xff426f, 0xffab48, 0xffed57, 0x56f0a0, 0x58c9ff, 0xc884ff];
-      const weaponShots = [];
-      let weaponShotIndex = 0;
-      let masterOfferedThisRun = false;
-      const oneShotActions = new Set(["activate", "dash"]);
+      const oneShotActions = new Set(["turnUp", "turnDown", "floorUp", "floorDown"]);
       const worldSaved = {
         oldMazeVisible: maze.group ? maze.group.visible : true,
         oldShipVisible: runtime.ship.visual ? runtime.ship.visual.visible : true,
         oldBackground: scene.background
       };
-
-      function focusModeMenu(index) {
-        if (gameStarted || done || !modeButtons.length) return;
-        menuFocusIndex = ((Number(index) || 0) % modeButtons.length + modeButtons.length) % modeButtons.length;
-        modeButtons.forEach((button, buttonIndex) => {
-          if (!button) return;
-          const focused = buttonIndex === menuFocusIndex;
-          button.style.outline = focused ? "3px solid #f4fbff" : "none";
-          button.style.outlineOffset = "3px";
-          button.style.boxShadow = focused
-            ? "0 0 0 5px rgba(83,213,235,.25), 0 8px 24px #0008"
-            : "none";
-          button.setAttribute("aria-pressed", focused ? "true" : "false");
-        });
-      }
-
-      function confirmModeMenu() {
-        if (gameStarted || done) return false;
-        startMode(menuFocusIndex === 1 ? "multi" : "single");
-        return true;
-      }
-
-      function pollModeMenuGamepad() {
-        const connected = [...navigator.getGamepads()].filter((pad) => pad && pad.connected);
-        const pad = connected[0];
-        if (!pad) {
-          menuPadPrevious = { left: false, right: false, confirm: false };
-          return;
-        }
-        const axisX = Number(pad.axes?.[0] || 0);
-        const button = (number) => !!(pad.buttons && pad.buttons[number] && pad.buttons[number].pressed);
-        const left = button(14) || axisX < -0.55;
-        const right = button(15) || axisX > 0.55;
-        // Standard gamepad A confirms a menu choice; Start is a convenient fallback.
-        const confirm = button(0) || button(9);
-        if (left && !menuPadPrevious.left) focusModeMenu(menuFocusIndex - 1);
-        if (right && !menuPadPrevious.right) focusModeMenu(menuFocusIndex + 1);
-        if (confirm && !menuPadPrevious.confirm) confirmModeMenu();
-        menuPadPrevious = { left, right, confirm };
-      }
 
       function resize2d() {
         const rect = canvas.getBoundingClientRect();
@@ -1773,393 +1727,139 @@
 
       function buildRingWorld() {
         const world = new THREE.Group();
-        world.name = "bcm-ring-frontier-side-scroll";
-        const buckets = { floor: [], platforms: [], backdrop: [], trim: [] };
+        world.name = "bcm-ring-cutaway-world";
+        const buckets = { floor: [], ceiling: [], wallsX: [], wallsZ: [], frames: [], platforms: [], ladders: [] };
+        const platforms = [];
+        const sourceWallMaterials = (Array.isArray(maze.materials) ? maze.materials : []).filter((material) => material && material.map);
+        function cloneMazeSurface(sourceIndex, fallbackColor, roughness, metalness, emissive) {
+          const source = sourceWallMaterials.length ? sourceWallMaterials[sourceIndex % sourceWallMaterials.length] : null;
+          const material = source && typeof source.clone === "function"
+            ? source.clone()
+            : new THREE.MeshStandardMaterial({ color: fallbackColor, roughness, metalness });
+          if (material.color && material.color.set) material.color.set(0xffffff);
+          material.roughness = roughness;
+          material.metalness = metalness;
+          if (material.emissive && material.emissive.setHex) material.emissive.setHex(emissive || 0x000000);
+          material.emissiveIntensity = emissive ? 0.22 : 0;
+          return material;
+        }
+        const wallMat = cloneMazeSurface(0, 0x263e4a, 0.72, 0.32, 0x06121a);
+        const floorMat = cloneMazeSurface(1, 0x142d39, 0.82, 0.2, 0x030a10);
+        const ceilingMat = cloneMazeSurface(2, 0x152a34, 0.86, 0.16, 0x030a10);
+        const frameMat = cloneMazeSurface(3, 0x50cce0, 0.45, 0.45, 0x06202a);
+        const platformMat = cloneMazeSurface(1, 0x3a626d, 0.6, 0.34, 0x07171d);
+        const ladderMat = cloneMazeSurface(2, 0x69d9e8, 0.42, 0.42, 0x0a2630);
         const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
-        const materials = [
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0.22 }),
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.35, emissive: 0x06121b }),
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0.04, emissive: 0x030a13 }),
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45, metalness: 0.45, emissive: 0x0b2630 })
-        ];
-        const worldTextures = [];
-        const extraGeometries = [];
+        const doorSide = (cellSize - doorWidth) / 2;
+        const headerHeight = (cellSize - doorHeight) / 2;
+        const hatchSize = 1.18;
+
         function addBox(bucket, x, y, z, sx, sy, sz, color) {
           buckets[bucket].push({ x, y, z, sx, sy, sz, color: color || 0x28414d });
         }
-        const platforms = [];
-        function addPlatform(x1, x2, topY, color) {
-          const width = x2 - x1;
-          const center = (x1 + x2) / 2;
-          const floor = topY === 0;
-          addBox(floor ? "floor" : "platforms", center, topY - 0.18, 0,
-            width, 0.36, 3.8, color || (floor ? 0x182b38 : 0x486b7d));
-          if (floor) {
-            // Broken-up floor markings read as a traversable stage, not a flat map tile.
-            for (let mark = x1 + 2.5; mark < x2 - 1; mark += 7.5) {
-              addBox("trim", mark, 0.045, 0.08, 1.25, 0.055, 0.08,
-                ((Math.floor(mark) % 2) === 0) ? 0x61deef : 0x405e70);
-            }
+        function addFrameX(x, y, z, color) {
+          addBox("frames", x, y, z - doorWidth / 2, wallThickness * 0.8, doorHeight, 0.075, color || 0x59d7ea);
+          addBox("frames", x, y, z + doorWidth / 2, wallThickness * 0.8, doorHeight, 0.075, color || 0x59d7ea);
+          addBox("frames", x, y + doorHeight / 2, z, wallThickness * 0.8, 0.075, doorWidth, color || 0x59d7ea);
+        }
+        function addFrameZ(x, y, z, color) {
+          addBox("frames", x - doorWidth / 2, y, z, 0.075, doorHeight, wallThickness * 0.8, color || 0x59d7ea);
+          addBox("frames", x + doorWidth / 2, y, z, 0.075, doorHeight, wallThickness * 0.8, color || 0x59d7ea);
+          addBox("frames", x, y + doorHeight / 2, z, doorWidth, 0.075, wallThickness * 0.8, color || 0x59d7ea);
+        }
+        function addFaceX(xFace, yCenter, zCenter, opening, color) {
+          const baseColor = color || 0x263e4a;
+          if (!opening) {
+            addBox("wallsX", xFace, yCenter, zCenter, wallThickness, cellSize, cellSize, baseColor);
+            return;
+          }
+          addBox("wallsX", xFace, yCenter, zCenter - (doorWidth + cellSize) / 4, wallThickness, cellSize, doorSide, baseColor);
+          addBox("wallsX", xFace, yCenter, zCenter + (doorWidth + cellSize) / 4, wallThickness, cellSize, doorSide, baseColor);
+          addBox("wallsX", xFace, yCenter + (doorHeight + cellSize) / 4, zCenter, wallThickness, headerHeight, doorWidth, baseColor);
+          addFrameX(xFace, yCenter - cellSize / 2 + doorHeight / 2, zCenter, 0x50cce0);
+        }
+        function addFaceZ(xCenter, yCenter, zFace, opening, color) {
+          const baseColor = color || 0x263e4a;
+          if (!opening) {
+            addBox("wallsZ", xCenter, yCenter, zFace, cellSize, cellSize, wallThickness, baseColor);
+            return;
+          }
+          addBox("wallsZ", xCenter - (doorWidth + cellSize) / 4, yCenter, zFace, doorSide, cellSize, wallThickness, baseColor);
+          addBox("wallsZ", xCenter + (doorWidth + cellSize) / 4, yCenter, zFace, doorSide, cellSize, wallThickness, baseColor);
+          addBox("wallsZ", xCenter, yCenter + (doorHeight + cellSize) / 4, zFace, doorWidth, headerHeight, wallThickness, baseColor);
+          addFrameZ(xCenter, yCenter - cellSize / 2 + doorHeight / 2, zFace, 0x50cce0);
+        }
+        function addHatch(bucket, x, y, z, color) {
+          const span = cellSize - wallThickness;
+          const side = (span - hatchSize) / 2;
+          addBox(bucket, x - (hatchSize + span) / 4, y, z, side, wallThickness, span, color);
+          addBox(bucket, x + (hatchSize + span) / 4, y, z, side, wallThickness, span, color);
+          addBox(bucket, x, y, z - (hatchSize + span) / 4, hatchSize, wallThickness, side, color);
+          addBox(bucket, x, y, z + (hatchSize + span) / 4, hatchSize, wallThickness, side, color);
+        }
+
+        maze.cells.forEach((cell) => {
+          const p = cellWorld(cell);
+          const floorY = p.y - roomHalf + wallThickness / 2;
+          const ceilingY = p.y + roomHalf - wallThickness / 2;
+          const floorColor = ((cell.x + cell.z + cell.y) & 1) ? 0x102632 : 0x142d39;
+          addBox("floor", p.x, floorY, p.z, cellSize - wallThickness, wallThickness, cellSize - wallThickness, floorColor);
+          if (cell.open.yp) addHatch("ceiling", p.x, ceilingY, p.z, 0x1a3440);
+          else addBox("ceiling", p.x, ceilingY, p.z, cellSize - wallThickness, wallThickness, cellSize - wallThickness, 0x152a34);
+          if (cell.open.yn) addHatch("floor", p.x, floorY, p.z, floorColor);
+
+          const leftDoor = cell.x < nx - 1 && !!cell.open.xp;
+          addFaceX(p.x + roomHalf, p.y, p.z, leftDoor, 0x263e4a);
+          if (cell.x === 0) addFaceX(p.x - roomHalf, p.y, p.z, false, 0x263e4a);
+
+          // The two map boundaries use the same openings as the 3D asteroid maze:
+          // entrance at the initial cell and the gold Ring at the far exit cell.
+          if (cell.z === 0) {
+            const entranceDoor = cell.x === 0 && cell.y === 1;
+            addFaceZ(p.x, p.y, p.z + roomHalf, entranceDoor, 0x263e4a);
+            if (entranceDoor) addFrameZ(p.x, p.y - roomHalf + doorHeight / 2, p.z + roomHalf, 0xf1c66e);
+          }
+          if (cell.z < nz - 1) {
+            const open = !!cell.open.zp;
+            addFaceZ(p.x, p.y, p.z - roomHalf, open, 0x263e4a);
           } else {
-            // A bright lip and dark support braces give the ledges a comic-panel silhouette.
-            addBox("trim", center, topY + 0.055, 0.12, width + 0.12, 0.075, 3.92,
-              color || 0x64d9e8);
-            const braceY = topY * 0.48;
-            const braceHeight = Math.max(0.45, topY * 0.88);
-            [x1 + 0.35, x2 - 0.35].forEach((braceX) => {
-              addBox("backdrop", braceX, braceY, -0.34, 0.20, braceHeight, 0.20, 0x07121b);
-              addBox("trim", braceX, braceY, -0.20, 0.055, braceHeight * 0.94, 0.08,
-                color || 0x64d9e8);
+            const ringGate = cell.x === nx - 1 && cell.y === 1;
+            addFaceZ(p.x, p.y, p.z - roomHalf, ringGate, 0x263e4a);
+            if (ringGate) addFrameZ(p.x, p.y - roomHalf + doorHeight / 2, p.z - roomHalf, 0xf1c66e);
+          }
+
+          if (cell.open.yp || cell.open.yn) {
+            const ladderX = p.x + 1.55;
+            addBox("ladders", ladderX - 0.35, p.y, p.z, 0.08, cellSize * 0.58, 0.08, 0x69d9e8);
+            addBox("ladders", ladderX + 0.35, p.y, p.z, 0.08, cellSize * 0.58, 0.08, 0x69d9e8);
+            for (let rung = 0; rung < 5; rung += 1) {
+              addBox("ladders", ladderX, p.y - 1.1 + rung * 0.55, p.z, 0.72, 0.07, 0.08, 0xd4b66e);
+            }
+          }
+
+          // Stable seed-derived platforms make the room a small parkour stage without
+          // altering the actual graph links or the existing crystal locations.
+          const roomRng = randomFrom(hashSeed(String(seed) + ":ring-platform:" + cell.x + ":" + cell.y + ":" + cell.z));
+          if (roomRng() < 0.32) {
+            const dx = roomRng() < 0.5 ? -1.18 : 1.18;
+            const dz = roomRng() < 0.5 ? -0.72 : 0.72;
+            const platformHeight = 1.18 + roomRng() * 0.42;
+            addBox("platforms", p.x + dx, floorY + platformHeight - 0.08, p.z + dz, 1.7, 0.16, 1.9, 0x3a626d);
+            platforms.push({
+              x: cell.x, y: cell.y, z: cell.z,
+              worldX: p.x + dx, worldZ: p.z + dz,
+              topHeight: platformHeight,
+              halfX: 0.85, halfZ: 0.95
             });
           }
-          platforms.push({ minX: x1, maxX: x2, y: topY });
-        }
-        addPlatform(-51, 84, 0, 0x142936);
-        [
-          [-39, -33, 2.2], [-31, -26, 4.25], [-24, -19, 2.3], [-16, -9, 3.75],
-          [1, 6, 2.1], [8, 13, 4.1], [15, 21, 2.35], [24, 31, 4.0],
-          [39, 45, 2.15], [47, 52, 4.35], [55, 61, 2.5], [64, 71, 4.0]
-        ].forEach((ledge, i) => addPlatform(ledge[0], ledge[1], ledge[2],
-          [0x456b7b, 0x607786, 0x485f7c][i % 3]));
-
-        const zones = [
-          { x1: -50, x2: -2, center: -26, arenaX: -16, color: 0x0a2639, trim: 0x37c5e7, art: 0 },
-          { x1: -2, x2: 36, center: 17, arenaX: 18, color: 0x14263a, trim: 0x5fe0c4, art: 1 },
-          { x1: 36, x2: 84, center: 60, arenaX: 58, color: 0x271a39, trim: 0xc08bff, art: 2 }
-        ];
-
-        function makeComicBackdrop(zone) {
-          const canvas = document.createElement("canvas");
-          canvas.width = 1024;
-          canvas.height = 512;
-          const ctx = canvas.getContext("2d");
-          const palettes = [
-            { top: "#06111d", bottom: "#173b4d", glow: "#1bbbdc", mid: "#122c3d", deep: "#07131f", metal: "#2d4b5a", accent: "#75edff" },
-            { top: "#061918", bottom: "#25494a", glow: "#31c9a4", mid: "#173834", deep: "#071b20", metal: "#355756", accent: "#7af8d8" },
-            { top: "#100d20", bottom: "#3b2450", glow: "#a45ce8", mid: "#291b3d", deep: "#100e20", metal: "#4b355c", accent: "#e2a7ff" }
-          ];
-          const p = palettes[zone.art];
-          const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
-          bg.addColorStop(0, p.top);
-          bg.addColorStop(0.52, p.bottom);
-          bg.addColorStop(1, "#050910");
-          ctx.fillStyle = bg;
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-          const glow = ctx.createRadialGradient(
-            canvas.width * (0.28 + zone.art * 0.20), canvas.height * 0.40, 4,
-            canvas.width * (0.28 + zone.art * 0.20), canvas.height * 0.40, 360
-          );
-          glow.addColorStop(0, p.glow + "88");
-          glow.addColorStop(1, p.glow + "00");
-          ctx.fillStyle = glow;
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-          // Distant silhouette: irregular machinery, towers and broken skyline, inked like a comic panel.
-          const randomAt = (n) => {
-            const raw = Math.sin((zone.art + 3) * 71.31 + n * 19.17) * 43758.5453;
-            return raw - Math.floor(raw);
-          };
-          for (let i = 0; i < 14; i += 1) {
-            const x = i * 78 - 18;
-            const bw = 38 + randomAt(i + 2) * 52;
-            const bh = 100 + randomAt(i + 23) * 245;
-            const top = 390 - bh;
-            ctx.beginPath();
-            ctx.moveTo(x, 432);
-            ctx.lineTo(x, top + 28);
-            ctx.lineTo(x + bw * 0.16, top + 8);
-            ctx.lineTo(x + bw * 0.30, top + 23);
-            ctx.lineTo(x + bw * 0.52, top);
-            ctx.lineTo(x + bw * 0.70, top + 18);
-            ctx.lineTo(x + bw, top + 34);
-            ctx.lineTo(x + bw, 432);
-            ctx.closePath();
-            ctx.fillStyle = i % 2 ? p.mid : p.deep;
-            ctx.strokeStyle = "#02060b";
-            ctx.lineWidth = 12;
-            ctx.lineJoin = "miter";
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.globalAlpha = 0.68;
-            ctx.fillStyle = p.accent;
-            for (let windowY = top + 47; windowY < 385; windowY += 34) {
-              if (randomAt(i * 13 + windowY) > 0.62) continue;
-              ctx.fillRect(x + 8, windowY, Math.max(4, bw * 0.14), 9);
-              ctx.fillRect(x + bw * 0.53, windowY + 8, Math.max(4, bw * 0.18), 5);
-            }
-            ctx.globalAlpha = 1;
-          }
-
-          // Monumental reactor rings and thick conduit lines create depth behind the arena.
-          const reactorX = canvas.width * (0.70 - zone.art * 0.06);
-          const reactorY = 220;
-          [150, 116, 83].forEach((radius, i) => {
-            ctx.beginPath();
-            ctx.arc(reactorX, reactorY, radius, 0, Math.PI * 2);
-            ctx.strokeStyle = i === 0 ? "#02060b" : p.accent;
-            ctx.lineWidth = i === 0 ? 18 : (i === 1 ? 7 : 3);
-            ctx.globalAlpha = i === 0 ? 0.95 : (0.30 + i * 0.18);
-            ctx.stroke();
-          });
-          ctx.globalAlpha = 1;
-          ctx.fillStyle = p.deep;
-          ctx.strokeStyle = "#02060b";
-          ctx.lineWidth = 14;
-          ctx.beginPath();
-          ctx.moveTo(reactorX - 34, reactorY - 70);
-          ctx.lineTo(reactorX + 58, reactorY - 24);
-          ctx.lineTo(reactorX + 40, reactorY + 76);
-          ctx.lineTo(reactorX - 62, reactorY + 40);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-
-          for (let pipe = 0; pipe < 5; pipe += 1) {
-            const y = 65 + pipe * 68;
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(128 + pipe * 23, y);
-            ctx.lineTo(155 + pipe * 23, y + 24);
-            ctx.lineTo(canvas.width, y + 24);
-            ctx.strokeStyle = "#02060b";
-            ctx.lineWidth = 17;
-            ctx.stroke();
-            ctx.strokeStyle = pipe % 2 ? p.metal : p.accent;
-            ctx.lineWidth = pipe % 2 ? 5 : 2;
-            ctx.globalAlpha = pipe % 2 ? 0.7 : 0.45;
-            ctx.stroke();
-            ctx.globalAlpha = 1;
-          }
-
-          // Halftone dots and panel hatching provide a hand-inked, comic-book finish.
-          ctx.globalAlpha = 0.17;
-          ctx.fillStyle = p.accent;
-          for (let y = 18; y < 496; y += 15) {
-            for (let x = 18 + ((Math.floor(y / 15) % 2) * 7); x < 1008; x += 15) {
-              const dx = (x - 512) / 512;
-              const dy = (y - 256) / 256;
-              if (dx * dx + dy * dy > 0.84 && randomAt(x + y) < 0.72) continue;
-              ctx.beginPath();
-              ctx.arc(x, y, 1.4 + randomAt(x * 2 + y) * 0.8, 0, Math.PI * 2);
-              ctx.fill();
-            }
-          }
-          ctx.globalAlpha = 1;
-          for (let i = 0; i < 10; i += 1) {
-            const x = i * 116 - 30;
-            ctx.beginPath();
-            ctx.moveTo(x, 512);
-            ctx.lineTo(x + 110, 390);
-            ctx.strokeStyle = "#02060b";
-            ctx.lineWidth = 9;
-            ctx.globalAlpha = 0.35;
-            ctx.stroke();
-          }
-          ctx.globalAlpha = 1;
-
-          // Heavy black frame and bright inset line make each zone read as a distinct large location.
-          ctx.strokeStyle = "#02060b";
-          ctx.lineWidth = 26;
-          ctx.strokeRect(9, 9, canvas.width - 18, canvas.height - 18);
-          ctx.strokeStyle = p.accent;
-          ctx.globalAlpha = 0.88;
-          ctx.lineWidth = 3;
-          ctx.strokeRect(25, 25, canvas.width - 50, canvas.height - 50);
-          ctx.globalAlpha = 1;
-          ctx.fillStyle = p.accent;
-          for (let bolt = 0; bolt < 14; bolt += 1) {
-            const x = 43 + bolt * 71;
-            ctx.beginPath();
-            ctx.arc(x, 39, 3.4, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(x, 472, 3.4, 0, Math.PI * 2);
-            ctx.fill();
-          }
-
-          const texture = new THREE.CanvasTexture(canvas);
-          if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
-          return texture;
-        }
-
-        const parallaxPanels = [];
-        zones.forEach((zone, index) => {
-          const texture = makeComicBackdrop(zone);
-          const panelGeometry = new THREE.PlaneGeometry(zone.x2 - zone.x1, 11.2);
-          const panelMaterial = new THREE.MeshBasicMaterial({
-            map: texture, side: THREE.DoubleSide, depthWrite: false
-          });
-          const panel = new THREE.Mesh(panelGeometry, panelMaterial);
-          panel.name = "ring-comic-zone-backdrop-" + (index + 1);
-          panel.position.set(zone.center, 4.9, -5.15);
-          world.add(panel);
-          worldTextures.push(texture);
-          extraGeometries.push(panelGeometry);
-          materials.push(panelMaterial);
-          parallaxPanels.push({ mesh: panel, baseX: zone.center, factor: 0.48 });
-
-          // Layered silhouettes sit between the painted backdrop and the play plane.
-          for (let x = zone.x1 + 3.2; x < zone.x2; x += 6.4) {
-            addBox("trim", x, 4.0, -2.8, 0.24, 8.1, 0.24, zone.trim);
-            addBox("trim", x + 1.25, 7.6, -2.7, 2.4, 0.14, 0.18, zone.trim);
-            addBox("backdrop", x + 2.8, 2.8, -3.5, 3.0, 3.1, 0.24, index === 1 ? 0x183d46 : 0x172838);
-          }
-          addBox("trim", zone.center, 9.0, -2.5, zone.x2 - zone.x1 - 3.0, 0.12, 0.18, zone.trim);
-
-          // Each boss gets a framed arena with a heavy lintel, pylons and glowing edge strips.
-          const arenaX = zone.arenaX;
-          const arenaHalf = 8.6;
-          [-1, 1].forEach((side) => {
-            const pillarX = arenaX + side * arenaHalf;
-            addBox("backdrop", pillarX, 3.65, -2.95, 0.72, 7.25, 0.48, 0x050a12);
-            addBox("trim", pillarX, 3.65, -2.70, 0.13, 6.95, 0.17, zone.trim);
-            addBox("backdrop", pillarX, 0.34, -2.55, 1.45, 0.65, 0.52, 0x03070d);
-            addBox("trim", pillarX, 0.69, -2.45, 1.2, 0.11, 0.22, zone.trim);
-          });
-          addBox("backdrop", arenaX, 7.25, -3.0, arenaHalf * 2 + 1.1, 0.56, 0.46, 0x050a12);
-          addBox("trim", arenaX, 6.93, -2.71, arenaHalf * 2 - 0.6, 0.095, 0.16, zone.trim);
-          addBox("backdrop", arenaX, 0.18, -2.55, arenaHalf * 2 + 1.1, 0.35, 0.46, 0x03070d);
         });
 
-        const barriers = [];
-        [
-          { x: -2, unlockAfter: 1, color: 0xffbd63 },
-          { x: 36, unlockAfter: 2, color: 0xa97cff }
-        ].forEach((item) => {
-          const barrierGroup = new THREE.Group();
-          barrierGroup.position.set(item.x, 3.3, 0.15);
-          const material = new THREE.MeshStandardMaterial({
-            color: item.color, emissive: item.color, emissiveIntensity: 1.1,
-            transparent: true, opacity: 0.72, roughness: 0.24, metalness: 0.28
-          });
-          barrierGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.32, 6.6, 0.45), material));
-          world.add(barrierGroup);
-          materials.push(material);
-          barriers.push({ x: item.x, unlockAfter: item.unlockAfter, group: barrierGroup });
-        });
-
-        const bossBodyGeometry = new THREE.DodecahedronGeometry(1, 1);
-        const bossOutlineGeometry = new THREE.DodecahedronGeometry(1, 1);
-        const bossArmorGeometry = new THREE.BoxGeometry(1, 1, 1);
-        const bossHornGeometry = new THREE.ConeGeometry(0.42, 1.35, 5);
-        const bossCoreGeometry = new THREE.SphereGeometry(0.40, 12, 10);
-        const bossEyeGeometry = new THREE.SphereGeometry(0.18, 10, 8);
-        const bossRingGeometry = new THREE.TorusGeometry(1.9, 0.10, 8, 28);
-        const exitGeometry = new THREE.TorusGeometry(1.15, 0.13, 8, 32);
-        const shockwaveGeometry = new THREE.TorusGeometry(0.82, 0.12, 8, 20);
-        const pickupGeometry = new THREE.OctahedronGeometry(0.38, 0);
-        const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xc9fbff });
-        const bossCoreMaterial = new THREE.MeshBasicMaterial({ color: 0xfff0b5 });
-        const bossOutlineMaterial = new THREE.MeshBasicMaterial({ color: 0x02060b });
-        const bossArmorMaterial = new THREE.MeshStandardMaterial({
-          color: 0x1b2935, roughness: 0.48, metalness: 0.62, emissive: 0x09121a, emissiveIntensity: 0.45
-        });
-        const bossRingMaterial = new THREE.MeshBasicMaterial({ color: 0x9cf5ff, transparent: true, opacity: 0.9 });
-        const exitMaterial = new THREE.MeshBasicMaterial({ color: 0x72f0e2, transparent: true, opacity: 0.8 });
-        const pickupMaterial = new THREE.MeshStandardMaterial({ color: 0x75f2e1, emissive: 0x117f79, emissiveIntensity: 1.25, roughness: 0.22, metalness: 0.2 });
-        const shockwaveMaterial = new THREE.MeshBasicMaterial({ color: 0xff9e5e, transparent: true, opacity: 0.94 });
-        materials.push(eyeMaterial, bossCoreMaterial, bossOutlineMaterial, bossArmorMaterial,
-          bossRingMaterial, exitMaterial, pickupMaterial, shockwaveMaterial);
-
-        const bosses = [
-          { name: "СБОЙНЫЙ СТРАЖ", x: -16, y: 0, maxHp: 5, color: 0xffa45f, zone: 0 },
-          { name: "ПЛАЗМЕННЫЙ СЕРДЕЧНИК", x: 18, y: 0, maxHp: 7, color: 0x5fe6cf, zone: 1 },
-          { name: "СТАРШИЙ СИНГУЛЯРНОСТИ", x: 58, y: 0, maxHp: 9, color: 0xc28aff, zone: 2 }
-        ];
-        bosses.forEach((boss, index) => {
-          const bossMaterial = new THREE.MeshStandardMaterial({
-            color: boss.color, emissive: boss.color, emissiveIntensity: 0.48,
-            roughness: 0.34, metalness: 0.52
-          });
-          const armorAccent = new THREE.MeshStandardMaterial({
-            color: boss.color, emissive: boss.color, emissiveIntensity: 0.20,
-            roughness: 0.42, metalness: 0.60
-          });
-          materials.push(bossMaterial, armorAccent);
-          const group = new THREE.Group();
-          group.name = "ring-boss-" + (index + 1);
-          group.position.set(boss.x, boss.y, 0.1);
-
-          // Dark offset meshes create the thick inked silhouette of a comic-book boss.
-          const outline = new THREE.Mesh(bossOutlineGeometry, bossOutlineMaterial);
-          outline.position.set(0, 2.30, -0.20);
-          outline.scale.set(2.45 + index * 0.24, 2.20 + index * 0.23, 0.94);
-          group.add(outline);
-
-          [-1, 1].forEach((side) => {
-            const armOutline = new THREE.Mesh(bossArmorGeometry, bossOutlineMaterial);
-            armOutline.position.set(side * (1.63 + index * 0.12), 1.72, -0.16);
-            armOutline.rotation.z = side * -0.15;
-            armOutline.scale.set(1.82 + index * 0.12, 0.94 + index * 0.10, 0.92);
-            group.add(armOutline);
-
-            const arm = new THREE.Mesh(bossArmorGeometry, bossArmorMaterial);
-            arm.position.set(side * (1.63 + index * 0.12), 1.77, 0.02);
-            arm.rotation.z = side * -0.15;
-            arm.scale.set(1.62 + index * 0.12, 0.70 + index * 0.10, 0.72);
-            group.add(arm);
-
-            const hornOutline = new THREE.Mesh(bossHornGeometry, bossOutlineMaterial);
-            hornOutline.position.set(side * (0.94 + index * 0.08), 3.92 + index * 0.20, -0.15);
-            hornOutline.rotation.z = side * -0.37;
-            hornOutline.scale.set(1.14, 1.12, 0.86);
-            group.add(hornOutline);
-
-            const horn = new THREE.Mesh(bossHornGeometry, armorAccent);
-            horn.position.set(side * (0.94 + index * 0.08), 3.95 + index * 0.20, 0.02);
-            horn.rotation.z = side * -0.37;
-            horn.scale.set(0.96, 0.96, 0.76);
-            group.add(horn);
-          });
-
-          const body = new THREE.Mesh(bossBodyGeometry, bossMaterial);
-          body.position.set(0, 2.25, 0.02);
-          body.scale.set(2.08 + index * 0.24, 1.94 + index * 0.22, 0.78);
-          group.add(body);
-
-          const core = new THREE.Mesh(bossCoreGeometry, bossCoreMaterial);
-          core.position.set(0, 2.20, 0.86);
-          core.scale.set(1.0 + index * 0.08, 1.10 + index * 0.10, 0.48);
-          group.add(core);
-
-          const eyeLeft = new THREE.Mesh(bossEyeGeometry, eyeMaterial);
-          eyeLeft.position.set(-0.74, 2.54, 0.82);
-          eyeLeft.scale.setScalar(1.12 + index * 0.08);
-          const eyeRight = new THREE.Mesh(bossEyeGeometry, eyeMaterial);
-          eyeRight.position.set(0.74, 2.54, 0.82);
-          eyeRight.scale.setScalar(1.12 + index * 0.08);
-          group.add(eyeLeft, eyeRight);
-
-          const ring = new THREE.Mesh(bossRingGeometry, bossRingMaterial);
-          ring.position.set(0, 2.20, -0.05);
-          ring.scale.set(1.18 + index * 0.15, 1.18 + index * 0.15, 1);
-          group.add(ring);
-          world.add(group);
-          Object.assign(boss, { group, hp: boss.maxHp, alive: true, activated: false, nextAttackAt: 0, lastDamageAt: 0 });
-        });
-
-        const exitMarker = new THREE.Mesh(exitGeometry, exitMaterial);
-        exitMarker.name = "ring-frontier-exit";
-        exitMarker.position.set(81, 2.0, 0.45);
-        world.add(exitMarker);
-
-        const coreMeshes = [];
-        [-30, 8, 49].forEach((x, index) => {
-          const mesh = new THREE.Mesh(pickupGeometry, pickupMaterial);
-          mesh.name = "ring-frontier-repair-core-" + index;
-          mesh.position.set(x, index === 1 ? 2.9 : 1.3, 0.25);
-          world.add(mesh);
-          coreMeshes.push({ mesh, x, y: mesh.position.y, taken: false });
-        });
-
-        const meshBatch = (name, items, material) => {
+        const box = new THREE.Object3D();
+        const createBatch = (name, items, material, visible = true) => {
           if (!items.length) return null;
           const mesh = new THREE.InstancedMesh(boxGeometry, material, items.length);
           mesh.name = name;
           mesh.frustumCulled = false;
-          const box = new THREE.Object3D();
           for (let i = 0; i < items.length; i += 1) {
             const item = items[i];
             box.position.set(item.x, item.y, item.z);
@@ -2167,31 +1867,107 @@
             box.scale.set(item.sx, item.sy, item.sz);
             box.updateMatrix();
             mesh.setMatrixAt(i, box.matrix);
-            if (mesh.setColorAt) mesh.setColorAt(i, new THREE.Color(item.color));
+            if (mesh.setColorAt) mesh.setColorAt(i, new THREE.Color(material && material.map ? 0xffffff : item.color));
           }
           mesh.instanceMatrix.needsUpdate = true;
+          mesh.visible = visible;
           world.add(mesh);
+          return mesh;
         };
-        meshBatch("ring-frontier-floor", buckets.floor, materials[0]);
-        meshBatch("ring-frontier-platforms", buckets.platforms, materials[1]);
-        meshBatch("ring-frontier-backdrop", buckets.backdrop, materials[2]);
-        meshBatch("ring-frontier-ribs", buckets.trim, materials[3]);
+        createBatch("ring-room-floors", buckets.floor, floorMat);
+        createBatch("ring-room-ceilings", buckets.ceiling, ceilingMat);
+        const wallsX = createBatch("ring-room-side-walls-x", buckets.wallsX, wallMat);
+        const wallsZ = createBatch("ring-room-side-walls-z", buckets.wallsZ, wallMat);
+        createBatch("ring-room-door-frames", buckets.frames, frameMat);
+        createBatch("ring-room-platforms", buckets.platforms, platformMat);
+        createBatch("ring-room-ladders", buckets.ladders, ladderMat);
+
+        const coreMeshes = [];
+        const coreGeometry = new THREE.OctahedronGeometry(0.42, 0);
+        const coreMaterial = new THREE.MeshStandardMaterial({
+          color: 0x62f0df, emissive: 0x0e6d6b, emissiveIntensity: 0.75,
+          roughness: 0.26, metalness: 0.4
+        });
+        (maze.crystals || []).forEach((crystal, index) => {
+          if (!crystal.cell) { coreMeshes[index] = null; return; }
+          const p = cellWorld(crystal.cell);
+          const mesh = new THREE.Mesh(coreGeometry, coreMaterial);
+          mesh.name = "ring-2d-core-" + index;
+          mesh.position.set(p.x, floorYForCell(crystal.cell.y) + 1.05, p.z);
+          mesh.visible = !crystal.taken;
+          world.add(mesh);
+          coreMeshes[index] = mesh;
+        });
+        const ringGeometry = new THREE.TorusGeometry(0.88, 0.13, 8, 26);
+        const ringMaterial = new THREE.MeshStandardMaterial({
+          color: 0xeac56f, emissive: 0x83531a, emissiveIntensity: 0.8,
+          roughness: 0.24, metalness: 0.65
+        });
+        const ringMarker = new THREE.Mesh(ringGeometry, ringMaterial);
+        const ringPos = cellWorld(ringCell);
+        ringMarker.position.set(ringPos.x, floorYForCell(ringCell.y) + 0.95, ringPos.z);
+        ringMarker.rotation.x = Math.PI / 2;
+        world.add(ringMarker);
+
+        const exitMarker = new THREE.Mesh(
+          new THREE.TorusGeometry(0.7, 0.1, 7, 24),
+          new THREE.MeshStandardMaterial({ color: 0x75e6ed, emissive: 0x1b6b78, emissiveIntensity: 0.9 })
+        );
+        const exitPos = cellWorld(exitCell);
+        exitMarker.position.set(exitPos.x, floorYForCell(exitCell.y) + 0.9, exitPos.z);
+        exitMarker.rotation.x = Math.PI / 2;
+        world.add(exitMarker);
+
+        const mobGeometry = new THREE.DodecahedronGeometry(0.38, 0);
+        const mobCoreGeometry = new THREE.OctahedronGeometry(0.18, 0);
+        const mobEyeGeometry = new THREE.SphereGeometry(0.065, 7, 6);
+        const mobMaterial = new THREE.MeshStandardMaterial({
+          color: 0x7055a8, emissive: 0x241246, emissiveIntensity: 0.38, roughness: 0.48, metalness: 0.28
+        });
+        const mobCoreMaterial = new THREE.MeshBasicMaterial({ color: 0xffa45f });
+        const mobEyeMaterial = new THREE.MeshBasicMaterial({ color: 0xeaffff });
+        const laserMaterial = new THREE.LineBasicMaterial({ color: 0x61f0ed, transparent: true, opacity: 0.96, depthWrite: false });
+        const mobs = [];
+        const cellKey = (cell) => cell.x + ":" + cell.y + ":" + cell.z;
+        const reserved = new Set([entryCell, ringCell, exitCell, ...(maze.crystals || []).map((crystal) => crystal.cell)].filter(Boolean).map(cellKey));
+        const mobCandidates = maze.cells.filter((cell) => !reserved.has(cellKey(cell)));
+        const mobRng = randomFrom(hashSeed(String(seed) + ":ring-mobs"));
+        for (let index = 0; index < Math.min(10, mobCandidates.length); index += 1) {
+          const picked = mobCandidates.splice(Math.floor(mobRng() * mobCandidates.length), 1)[0];
+          if (!picked) break;
+          const group = new THREE.Group();
+          group.name = "ring-maze-mob-" + (index + 1);
+          const body = new THREE.Mesh(mobGeometry, mobMaterial);
+          body.scale.set(0.82, 0.78, 0.66);
+          const core = new THREE.Mesh(mobCoreGeometry, mobCoreMaterial);
+          core.position.set(0, 0.04, 0.29);
+          const eyeLeft = new THREE.Mesh(mobEyeGeometry, mobEyeMaterial);
+          eyeLeft.position.set(-0.12, 0.12, 0.34);
+          const eyeRight = new THREE.Mesh(mobEyeGeometry, mobEyeMaterial);
+          eyeRight.position.set(0.12, 0.12, 0.34);
+          group.add(body, core, eyeLeft, eyeRight);
+          world.add(group);
+          mobs.push({
+            cell: { x: picked.x, y: picked.y, z: picked.z },
+            localX: mobRng() * 2.0 - 1.0,
+            direction: mobRng() < 0.5 ? -1 : 1,
+            group,
+            alive: true
+          });
+        }
         scene.add(world);
 
         return {
-          group: world, boxGeometry, materials, textures: worldTextures, parallaxPanels,
-          specialGeometry: [...extraGeometries, bossBodyGeometry, bossOutlineGeometry, bossArmorGeometry,
-            bossHornGeometry, bossCoreGeometry, bossEyeGeometry, bossRingGeometry, exitGeometry, shockwaveGeometry, pickupGeometry],
-          platforms, bosses, barriers, coreMeshes, exitMarker, exitX: 81, spawnX: -45,
-          shockwaves: [], shockwaveGeometry, shockwaveMaterial,
-          defeatedBosses: 0, pickupGeometry
+          group: world, wallsX, wallsZ, platforms, coreMeshes, boxGeometry, mobs, laserMaterial,
+          materials: [wallMat, floorMat, ceilingMat, frameMat, platformMat, ladderMat, coreMaterial, ringMaterial,
+            exitMarker.material, mobMaterial, mobCoreMaterial, mobEyeMaterial, laserMaterial],
+          specialGeometry: [coreGeometry, ringGeometry, exitMarker.geometry, mobGeometry, mobCoreGeometry, mobEyeGeometry],
+          ringMarker, exitMarker
         };
       }
 
-      function updateRoomSlice() {
-        // Continuous side-scrolling locations do not slice the asteroid maze into rooms.
-      }
-
+      const worldState = buildRingWorld();
+      const laserFlashes = [];
       maze.group.visible = false;
       if (runtime.ship.visual) runtime.ship.visual.visible = false;
       const oldBackground = scene.background;
@@ -2200,16 +1976,20 @@
       const old = document.getElementById("bcm-ring-platformer-old");
       if (old) old.remove();
 
-      // The side-scroll world has to exist before the mode buttons are wired.
-      // Without this call the menu is already on screen when spawn setup throws,
-      // so SINGLE/MULTI look clickable and the level never starts.
-      const worldState = buildRingWorld();
       const cameraOne = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
       const cameraTwo = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
-      const cameraFocus = { x: worldState.spawnX, y: 1.6, z: 0 };
-
+      const cameraFocus = cellWorld(ringCell);
       const savedPlayerVisualState = [];
-      let width = 1, height = 1;
+      let width = 1, height = 1, done = false, gameStarted = false, splitActive = false;
+      let mode = "single";
+      let players = [];
+      let lastHudCount = -1, raf = 0, frameStamp = 0;
+      const keyboardInputs = [{}, {}];
+      const touchInputs = [{}, {}];
+      const padInputs = [{}, {}];
+      const previousPad = [{}, {}];
+      const oneShotActions = new Set(["turnUp", "turnDown", "floorUp", "floorDown"]);
+      const playerColors = ["#65dcf0", "#f3c46c"];
 
       const textureLoader = new THREE.TextureLoader();
       function fallbackCrewTexture(index) {
@@ -2246,14 +2026,20 @@
         player.spriteMaterial = material;
       }
 
+      function cellPositionOf(player) { return cellWorld({ x: player.x, y: player.y, z: player.z }); }
       function playerWorldPosition(player) {
-        return { x: player.worldX, y: player.worldY + 0.98, z: 0.45 };
+        const p = cellPositionOf(player);
+        const floorY = floorYForCell(player.y);
+        if (player.orientation === 0) {
+          return { x: p.x + player.localX, y: floorY + 0.98 + player.jumpHeight, z: p.z + 0.72 };
+        }
+        return { x: p.x + 0.72, y: floorY + 0.98 + player.jumpHeight, z: p.z - player.localX };
       }
       function updatePlayerSprite(player) {
         if (!player.sprite) return;
         const p = playerWorldPosition(player);
         player.sprite.position.set(p.x, p.y, p.z);
-        player.sprite.scale.x = player.facing < 0 ? -1.45 : 1.45;
+        player.sprite.scale.x = player.facing < 0 ? -1.18 : 1.18;
         player.sprite.visible = true;
       }
 
@@ -2262,16 +2048,12 @@
         const player = {
           index,
           name: String(crew.name || crew.displayName || ("Crew " + (index + 1))),
-          worldX: Number(spawn.x) || 0, worldY: Number(spawn.y) || 0,
-          x: Number(spawn.x) || 0, y: Number(spawn.y) || 0, z: 0,
+          x: spawn.x, y: spawn.y, z: spawn.z,
           localX: 0, jumpHeight: 0, vy: 0, grounded: true, supportPlatform: null,
-          facing: 1, lastActionAt: 0, wasJumpDown: false,
-          actionReadyAt: 0, dashReadyAt: 0, dashUntil: 0,
-          weaponType: weaponProgress.type || "pointer",
-          weaponTier: Math.max(1, Number(weaponProgress.tier) || 1),
-          weaponReadyAt: 0,
-          hp: 5, maxHp: 5, invulnerableUntil: 0,
-          checkpointX: Number(spawn.x) || -45,
+          orientation: 0, facing: 1, turnReadyAt: 0, lastActionAt: 0,
+          wasJumpDown: false, padTurnUpWasDown: false, padTurnDownWasDown: false,
+          padFloorUpWasDown: false, padFloorDownWasDown: false,
+          fireReadyAt: 0, hp: 3, invulnerableUntil: 0,
           image: crewImages[index] || null, tint: playerColors[index], moves: 0,
           sprite: null, spriteMaterial: null
         };
@@ -2292,242 +2074,124 @@
         };
       }
 
-      const bossMeter = root2d.querySelector("[data-ring-boss-meter]");
-      const bossFill = root2d.querySelector("[data-ring-boss-fill]");
-
       function updateHud(message) {
-        countEl.textContent = "БОССЫ " + worldState.defeatedBosses + "/3";
+        countEl.textContent = "ЯДРА " + Math.max(0, maze.count || 0) + "/3";
         const p1 = players[0];
         const p2 = players[1];
         if (p1) {
-          const zone = p1.worldX < -2 ? 1 : p1.worldX < 36 ? 2 : 3;
-          floorEl.textContent = "ЗОНА " + zone + "/3 · P1 HP " + p1.hp +
-            (p2 ? " · P2 HP " + p2.hp : "") + (splitActive ? " · SPLIT" : " · SHARED");
+          floorEl.textContent = "P1: ЭТАЖ " + (p1.y + 1) +
+            (p2 ? " · P2: ЭТАЖ " + (p2.y + 1) : "") +
+            " · SEED " + seed + (splitActive ? " · SPLIT" : " · SHARED");
         } else {
-          floorEl.textContent = "RING FRONTIER · 3 ЗОНЫ";
+          floorEl.textContent = "ЭТАЖ " + (ringCell.y + 1) + " · SEED " + seed;
         }
-        const focusPlayer = p1 || p2;
-        const activeBoss = worldState.bosses.find((boss) =>
-          boss.alive && focusPlayer && Math.abs(focusPlayer.worldX - boss.x) < 15
-        );
-        if (bossMeter) bossMeter.style.display = activeBoss ? "block" : "none";
-        if (bossFill) bossFill.style.width = activeBoss ? Math.max(0, activeBoss.hp / activeBoss.maxHp * 100) + "%" : "100%";
         if (message) {
           statusEl.textContent = message;
           return;
         }
-        if (worldState.defeatedBosses >= 3) {
-          statusEl.textContent = (p1 && p1.worldX >= worldState.exitX - 2)
-            ? "ВЫХОД ОТКРЫТ · ВОЗВРАЩАЙСЯ К КОЛЬЦУ"
-            : "АРЕНЫ ОЧИЩЕНЫ · ИДИ К ВЫХОДУ";
-        } else if (activeBoss) {
-          statusEl.textContent = activeBoss.name + " · " + activeBoss.hp + "/" + activeBoss.maxHp;
-        } else {
-          statusEl.textContent = "ЗОНА " + (p1 ? (p1.worldX < -2 ? 1 : p1.worldX < 36 ? 2 : 3) : 1) +
-            " · НАЙДИ АРЕНУ БОССА";
+        if (lastHudCount !== Number(maze.count || 0)) {
+          lastHudCount = Number(maze.count || 0);
+          statusEl.textContent = maze.count >= 3
+            ? "ЯДРА СОБРАНЫ · ВЕРНИСЬ ЧЕРЕЗ ТРИГГЕРЫ К ВХОДУ"
+            : "ИССЛЕДУЙ КОМНАТЫ · ЯДЕР ОСТАЛОСЬ " + Math.max(0, 3 - maze.count);
         }
+      }
+
+      function syncCoreMeshes() {
+        (maze.crystals || []).forEach((crystal, index) => {
+          if (worldState.coreMeshes[index]) worldState.coreMeshes[index].visible = !crystal.taken;
+        });
       }
 
       function collectAt(player) {
-        let collected = false;
-        worldState.coreMeshes.forEach((core) => {
-          if (core.taken || Math.abs(player.worldX - core.x) > 1.0 ||
-              Math.abs((player.worldY + 0.8) - core.y) > 1.5) return;
-          core.taken = true;
-          core.mesh.visible = false;
-          player.hp = Math.min(player.maxHp, player.hp + 1);
-          collected = true;
-        });
-        if (collected) updateHud("ЭНЕРГОЯДРО · СИСТЕМЫ ВОССТАНОВЛЕНЫ");
-        return collected;
-      }
-
-      function currentWeaponProfile(player) {
-        const type = String(player?.weaponType || weaponProgress.type || "pointer");
-        const tier = Math.max(1, Number(player?.weaponTier || weaponProgress.tier) || 1);
-        if (type === "pulse") return { cooldown: Math.max(360, 720 - tier * 45), damage: 2 + Math.floor((tier - 1) / 2), color: 0xffb960, range: 16 };
-        if (type === "spectrum") return { cooldown: Math.max(190, 390 - tier * 30), damage: 1 + Math.floor(tier / 3), color: weaponPalette[weaponShotIndex % weaponPalette.length], range: 17 };
-        return { cooldown: Math.max(75, 150 - tier * 14), damage: 1, color: 0x75eaff, range: 15 };
-      }
-
-      function firePlayerWeapon(player, now) {
-        if (!player || !gameStarted || done || now < player.weaponReadyAt) return false;
-        const profile = currentWeaponProfile(player);
-        player.weaponReadyAt = now + profile.cooldown;
-        const start = new THREE.Vector3(player.worldX, player.worldY + 0.9, 0.92);
-        const end = start.clone().add(new THREE.Vector3(player.facing * profile.range, 0, 0));
-        let target = null;
-        let nearest = Infinity;
-        for (const boss of worldState.bosses) {
-          if (!boss.alive) continue;
-          const forwardDistance = (boss.x - player.worldX) * player.facing;
-          if (forwardDistance <= 0 || forwardDistance > profile.range) continue;
-          if (Math.abs(player.worldY - boss.y) > 4.4) continue;
-          if (forwardDistance < nearest) { target = boss; nearest = forwardDistance; }
-        }
-        if (target) end.set(target.x, target.y + 0.2, 0.94);
-        const beamDirection = end.clone().sub(start);
-        const beamLength = Math.max(0.01, beamDirection.length());
-        const beamRotation = new THREE.Quaternion().setFromUnitVectors(
-          new THREE.Vector3(0, 1, 0), beamDirection.clone().normalize()
+        if (Math.abs(player.localX) > 0.74 || player.jumpHeight > 0.6) return false;
+        const crystal = (maze.crystals || []).find((item) =>
+          !item.taken && item.cell &&
+          item.cell.x === player.x && item.cell.y === player.y && item.cell.z === player.z
         );
-        const geometry = new THREE.CylinderGeometry(profile.width, profile.width, beamLength, 6, 1, true);
-        const material = new THREE.MeshBasicMaterial({
-          color: profile.color, transparent: true, opacity: 0.94, depthTest: false, depthWrite: false
-        });
-        const beam = new THREE.Mesh(geometry, material);
-        beam.position.copy(start).add(end).multiplyScalar(0.5);
-        beam.quaternion.copy(beamRotation);
-        beam.renderOrder = 999;
-        scene.add(beam);
-        const glowWidth = profile.width * (player.weaponType === "pointer" ? 2.2 : 3.2);
-        const glowGeometry = new THREE.CylinderGeometry(glowWidth, glowWidth, beamLength, 6, 1, true);
-        const glowMaterial = new THREE.MeshBasicMaterial({
-          color: profile.color, transparent: true, opacity: 0.23, depthTest: false, depthWrite: false
-        });
-        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-        glow.position.copy(beam.position);
-        glow.quaternion.copy(beamRotation);
-        glow.renderOrder = 998;
-        scene.add(glow);
-        weaponShots.push({ mesh: beam, life: 0.105, geometry, material, glow, glowGeometry, glowMaterial });
-
-        if (player.weaponType === "spectrum") weaponShotIndex += 1;
-        if (target && target.activated && now >= (Number(target.nextDamageAt) || 0)) {
-          target.nextDamageAt = now + Math.max(110, profile.cooldown * 0.7);
-          target.hp = Math.max(0, target.hp - profile.damage);
-          target.lastDamageAt = now;
-          if (target.hp <= 0) {
-            target.alive = false;
-            target.group.visible = false;
-            worldState.defeatedBosses = Math.min(3, worldState.defeatedBosses + 1);
-            worldState.barriers.forEach((barrier) => {
-              barrier.group.visible = worldState.defeatedBosses < barrier.unlockAfter;
-            });
-            updateHud(target.name + " · ОРУЖИЕ " + String(player.weaponType).toUpperCase());
-            if (worldState.defeatedBosses === 1 && !masterOfferedThisRun) {
-              masterOfferedThisRun = true;
-              window.setTimeout(() => offerWeaponChoice(false), 120);
-            }
-          } else {
-            updateHud("ПОПАДАНИЕ · " + target.name + " · " + target.hp + "/" + target.maxHp);
-          }
-        } else if (target && !target.activated) {
-          updateHud("АРЕНА ЕЩЁ НЕ ОТКРЫТА");
-        }
+        if (!crystal) return false;
+        crystal.taken = true;
+        if (crystal.mesh) crystal.mesh.visible = false;
+        maze.count = Math.min(3, Number(maze.count || 0) + 1);
+        syncCoreMeshes();
+        updateHud("ЯДРО СОБРАНО · " + maze.count + "/3");
         return true;
       }
 
-      function updateWeaponShots(dt) {
-        for (let i = weaponShots.length - 1; i >= 0; i -= 1) {
-          const shot = weaponShots[i];
-          shot.life -= dt;
-          const opacity = Math.max(0, shot.life / 0.105);
-          shot.mesh.material.opacity = opacity;
-          shot.glow.material.opacity = opacity * 0.3;
-          if (shot.life > 0) continue;
-          scene.remove(shot.mesh);
-          scene.remove(shot.glow);
-          try { shot.geometry.dispose(); } catch (e) {}
-          try { shot.material.dispose(); } catch (e) {}
-          try { shot.glowGeometry.dispose(); } catch (e) {}
-          try { shot.glowMaterial.dispose(); } catch (e) {}
-          weaponShots.splice(i, 1);
-        }
-      }
-
-      function applyTeamWeapon(type, tier) {
-        const validType = ["pointer", "pulse", "spectrum"].includes(type) ? type : "pointer";
-        weaponProgress.type = validType;
-        weaponProgress.tier = Math.max(1, Math.min(5, Math.floor(Number(tier) || 1)));
-        players.forEach((player) => {
-          player.weaponType = weaponProgress.type;
-          player.weaponTier = weaponProgress.tier;
-          player.weaponReadyAt = 0;
-        });
-        const fireButton = root2d.querySelector('[data-ring-action="fire"]');
-        if (fireButton) {
-          const labels = window.BCMDialogue?.language === "en"
-            ? { pointer: "LASER", pulse: "PULSE", spectrum: "SPECTRUM" }
-            : { pointer: "ЛАЗЕР", pulse: "ИМПУЛЬС", spectrum: "СПЕКТР" };
-          fireButton.textContent = labels[validType];
-        }
-        const names = window.BCMDialogue?.language === "en"
-          ? { pointer: "Laser pointer", pulse: "Pulse beam", spectrum: "Spectrum beam" }
-          : { pointer: "Лазер-указка", pulse: "Импульсный луч", spectrum: "Спектральный луч" };
-        updateHud("ОРУЖИЕ · " + names[validType] + " · T" + weaponProgress.tier);
-      }
-
-      function offerWeaponChoice(upgradeTest) {
-        const lang = window.BCMDialogue?.language || "ru";
-        const message = upgradeTest
-          ? (lang === "en" ? "A stronger weapon test is ready. Upgrade your current weapon or keep the proven setting." : "Мастер подготовил усиленный тест. Улучшить оружие или оставить проверенный вариант?")
-          : (lang === "en" ? "Choose a main weapon. Each option has its own firing rhythm and beam colour." : "Выбери основное оружие. У каждого свой ритм выстрела и цвет луча.");
-        const choices = upgradeTest
-          ? [
-              { label: lang === "en" ? "TEST UPGRADE" : "ПРОБНЫЙ АПГРЕЙД", onSelect: () => {
-                applyTeamWeapon(weaponProgress.type || "pointer", (weaponProgress.tier || 1) + 1);
-                weaponProgress.pendingUpgrade = false;
-                weaponProgress.lastUpgradePromptRun = weaponProgress.completedRuns;
-                weaponProgress.nextUpgradeAt = weaponProgress.completedRuns + 2;
-              } },
-              { label: lang === "en" ? "KEEP CURRENT" : "ОСТАВИТЬ", onSelect: () => {
-                weaponProgress.pendingUpgrade = false;
-                weaponProgress.lastUpgradePromptRun = weaponProgress.completedRuns;
-                weaponProgress.nextUpgradeAt = weaponProgress.completedRuns + 2;
-              } }
-            ]
-          : [
-              { label: lang === "en" ? "Laser pointer · fast" : "Лазер-указка · быстро", onSelect: () => applyTeamWeapon("pointer", 1) },
-              { label: lang === "en" ? "Pulse · heavy" : "Импульс · мощно", onSelect: () => applyTeamWeapon("pulse", 1) },
-              { label: lang === "en" ? "Spectrum · rainbow" : "Спектр · радуга", onSelect: () => applyTeamWeapon("spectrum", 1) }
-            ];
-        window.BCMDialogue?.showOperator(lang === "en" ? "WEAPON MASTER" : "МАСТЕР ОРУЖИЯ", message, choices);
-      }
-
-      function activateBossWeakpoint(player) {
+      function triggerTurn(player, direction) {
         const now = performance.now();
-        const boss = worldState.bosses.find((item) =>
-          item.alive && item.activated && Math.abs(player.worldX - item.x) < 5.8 &&
-          Math.abs(player.worldY - item.y) < 4.5
-        );
-        if (!boss) {
-          updateHud("ПОДОЙДИ К АРЕНЕ И НАЖМИ АКТИВАЦИЮ");
+        if (!gameStarted || done || now < player.turnReadyAt) return false;
+        if (Math.abs(player.localX) > 1.28) {
+          updateHud("ПОВОРОТ · ПОДОЙДИ К ДВЕРНОМУ ТРИГГЕРУ В ЦЕНТРЕ");
           return false;
         }
-        if (now < boss.nextDamageAt) return false;
-        boss.nextDamageAt = now + 620;
-        boss.hp = Math.max(0, boss.hp - 1);
-        boss.lastDamageAt = now;
-        if (boss.hp <= 0) {
-          boss.alive = false;
-          boss.group.visible = false;
-          worldState.defeatedBosses = Math.min(3, worldState.defeatedBosses + 1);
-          worldState.barriers.forEach((barrier) => {
-            barrier.group.visible = worldState.defeatedBosses < barrier.unlockAfter;
-          });
-          updateHud(boss.name + " · АРЕНА ОЧИЩЕНА");
-          if (worldState.defeatedBosses === 1 && !masterOfferedThisRun) {
-            masterOfferedThisRun = true;
-            window.setTimeout(() => offerWeaponChoice(false), 120);
-          }
+        const cell = getCell(player.x, player.y, player.z);
+        if (!cell) return false;
+        let flag, dx = 0, dz = 0;
+        if (player.orientation === 0) {
+          flag = direction === "turnUp" ? "zn" : "zp";
+          dz = direction === "turnUp" ? -1 : 1;
         } else {
-          updateHud("ТОЧКА БОССА ОТКЛИКНУЛАСЬ · " + boss.hp + " / " + boss.maxHp);
+          flag = direction === "turnUp" ? "xp" : "xn";
+          dx = direction === "turnUp" ? 1 : -1;
         }
+        if (!cell.open[flag] || !getCell(player.x + dx, player.y, player.z + dz)) {
+          updateHud("СТЕНА · ИЩИ ДРУГОЙ ДВЕРНОЙ ТРИГГЕР");
+          return false;
+        }
+        player.x += dx;
+        player.z += dz;
+        player.orientation = player.orientation === 0 ? 1 : 0;
+        player.localX = 0;
+        player.supportPlatform = null;
+        player.turnReadyAt = now + 260;
+        player.moves += 1;
+        collectAt(player);
+        updateHud("РАЗВОРОТ · КАМЕРА ПЕРЕШЛА В СОСЕДНЮЮ СЕКЦИЮ");
+        checkFinish(player);
+        return true;
+      }
+
+      function triggerFloor(player, direction) {
+        const now = performance.now();
+        if (!gameStarted || done || now < player.turnReadyAt) return false;
+        if (Math.abs(player.localX) > 1.05) {
+          updateHud("ЛЕСТНИЦА · ПОДОЙДИ К ВЕРТИКАЛЬНОМУ ТРИГГЕРУ");
+          return false;
+        }
+        const cell = getCell(player.x, player.y, player.z);
+        const flag = direction === "floorUp" ? "yp" : "yn";
+        const dy = direction === "floorUp" ? 1 : -1;
+        if (!cell || !cell.open[flag] || !getCell(player.x, player.y + dy, player.z)) {
+          updateHud("ЗДЕСЬ НЕТ ЛЕСТНИЦЫ · ПРОВЕРЬ КАРТУ");
+          return false;
+        }
+        player.y += dy;
+        player.localX = 0;
+        player.jumpHeight = 0;
+        player.vy = 0;
+        player.grounded = true;
+        player.supportPlatform = null;
+        player.turnReadyAt = now + 340;
+        player.moves += 1;
+        collectAt(player);
+        updateHud("ЭТАЖ " + (player.y + 1) + " · ПЕРЕХОД ПО ЛЕСТНИЦЕ");
+        checkFinish(player);
+        return true;
+      }
+
+      function checkFinish(player) {
+        if (maze.count < 3 || player.x !== exitCell.x || player.y !== exitCell.y ||
+            player.z !== exitCell.z || Math.abs(player.localX) > 0.72 || player.jumpHeight > 0.45) return false;
+        finishRingPlatformer(maze, true);
         return true;
       }
 
       function triggerAction(index, action) {
         const player = players[index];
         if (!player || !gameStarted || done) return false;
-        const now = performance.now();
-        if (action === "activate") return activateBossWeakpoint(player);
-        if (action === "dash" && now >= player.dashReadyAt) {
-          player.dashUntil = now + 210;
-          player.dashReadyAt = now + 850;
-          player.invulnerableUntil = Math.max(player.invulnerableUntil, now + 210);
-          return true;
-        }
+        if (action === "turnUp" || action === "turnDown") return triggerTurn(player, action);
+        if (action === "floorUp" || action === "floorDown") return triggerFloor(player, action);
         return false;
       }
 
@@ -2540,53 +2204,36 @@
           finishRingPlatformer(maze, false);
           return;
         }
-        if (!gameStarted) {
-          const previousFocus = event.code === "ArrowLeft" || event.code === "KeyA" || event.code === "Tab" && event.shiftKey;
-          const nextFocus = event.code === "ArrowRight" || event.code === "KeyD" || event.code === "Tab" && !event.shiftKey;
-          const confirm = event.code === "KeyE" || event.code === "Enter" || event.code === "NumpadEnter" || event.code === "Space";
-          if (previousFocus || nextFocus || confirm) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            if (!down || event.repeat) return;
-            if (previousFocus) focusModeMenu(menuFocusIndex - 1);
-            else if (nextFocus) focusModeMenu(menuFocusIndex + 1);
-            else confirmModeMenu();
-          }
-          return;
-        }
         const p1 = {
           ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
-          Space: "jump", ArrowUp: "jump", KeyW: "jump"
+          Space: "jump", KeyX: "fire"
         };
-        const p2 = { KeyJ: "left", KeyL: "right", KeyP: "jump" };
+        const p2 = {
+          KeyJ: "left", KeyL: "right", KeyP: "jump", KeyM: "fire"
+        };
         let index = 0;
-        if (event.code === "KeyQ" || (mode === "multi" && event.code === "KeyK")) {
-          index = event.code === "KeyK" ? 1 : 0;
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          keyboardInputs[index].fire = down;
-          return;
-        }
         let action = p1[event.code] || null;
         if (!action && mode === "multi") {
           action = p2[event.code] || null;
           if (action) index = 1;
         }
-        const p1Activate = event.code === "KeyE";
-        const p1Dash = event.code === "ShiftLeft" || event.code === "ShiftRight" || event.code === "KeyC";
-        const p2Activate = event.code === "KeyO";
-        const p2Dash = event.code === "KeyI";
-        if (mode === "multi" && (p2Activate || p2Dash)) index = 1;
-        if (p1Activate || p2Activate) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          if (down && !event.repeat) triggerAction(index, "activate");
-          return;
-        }
-        if (p1Dash || p2Dash) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          if (down && !event.repeat) triggerAction(index, "dash");
+        const isP1TurnUp = event.code === "ArrowUp" || event.code === "KeyW";
+        const isP1TurnDown = event.code === "ArrowDown" || event.code === "KeyS";
+        const isP2TurnUp = event.code === "KeyI";
+        const isP2TurnDown = event.code === "KeyK";
+        const floorUp = event.code === "KeyE" || (mode === "multi" && event.code === "KeyO");
+        const floorDown = event.code === "KeyQ" || (mode === "multi" && event.code === "KeyU");
+        if (!action && (isP1TurnUp || isP1TurnDown || isP2TurnUp || isP2TurnDown || floorUp || floorDown)) {
+          if (mode === "multi" && (isP2TurnUp || isP2TurnDown || (event.code === "KeyO" || event.code === "KeyU"))) index = 1;
+          if (isP1TurnUp || isP2TurnUp) action = "turnUp";
+          else if (isP1TurnDown || isP2TurnDown) action = "turnDown";
+          else if (floorUp) action = "floorUp";
+          else if (floorDown) action = "floorDown";
+          if (down && !event.repeat) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            triggerAction(index, action);
+          }
           return;
         }
         if (!action || index >= (mode === "multi" ? 2 : 1)) return;
@@ -2596,11 +2243,7 @@
       }
 
       function pollGamepads() {
-        if (done || !navigator.getGamepads) return;
-        if (!gameStarted) {
-          pollModeMenuGamepad();
-          return;
-        }
+        if (!gameStarted || done || !navigator.getGamepads) return;
         const connected = [...navigator.getGamepads()].filter((pad) => pad && pad.connected);
         const assignment = mode === "multi"
           ? (connected.length > 1 ? [connected[0], connected[1]] : [null, connected[0] || null])
@@ -2611,196 +2254,227 @@
           if (!pad || !players[i]) continue;
           const axisX = Number(pad.axes?.[0] || 0);
           const axisY = Number(pad.axes?.[1] || 0);
-          const button = (n) => !!(pad.buttons && pad.buttons[n] && pad.buttons[n].pressed);
-          statePad.left = !!(button(14) || axisX < -0.42);
-          statePad.right = !!(button(15) || axisX > 0.42);
-          statePad.jump = !!(button(0) || button(12) || axisY < -0.68);
-          statePad.dash = !!button(1);
-          statePad.activate = !!button(2);
-          statePad.fire = !!button(3);
-          if (statePad.activate && !previousPad[i].activate) triggerAction(i, "activate");
-          if (statePad.dash && !previousPad[i].dash) triggerAction(i, "dash");
-          previousPad[i] = { activate: statePad.activate, dash: statePad.dash };
-        }
-      }
-
-      function damagePlayer(player, now) {
-        if (now < player.invulnerableUntil) return;
-        player.hp -= 1;
-        player.invulnerableUntil = now + 1000;
-        if (player.hp <= 0) {
-          player.hp = player.maxHp;
-          player.worldX = player.checkpointX;
-          player.worldY = 0;
-          player.vy = 0;
-          player.grounded = true;
-          player.supportPlatform = null;
-          player.invulnerableUntil = now + 1500;
-          updateHud(player.name + " · ВОЗВРАТ НА КОНТРОЛЬНУЮ ТОЧКУ");
-        } else {
-          updateHud(player.name + " · ПОВРЕЖДЕНИЕ " + player.hp + " HP");
-        }
-      }
-
-      function updateBosses(dt, now) {
-        const living = players.filter(Boolean);
-        worldState.bosses.forEach((boss) => {
-          if (!boss.alive) return;
-          const ring = boss.group.children[3];
-          if (ring) ring.rotation.z += dt * 0.8;
-          const target = living.reduce((best, player) =>
-            !best || Math.abs(player.worldX - boss.x) < Math.abs(best.worldX - boss.x) ? player : best, null);
-          if (!target || Math.abs(target.worldX - boss.x) > 14) return;
-          if (!boss.activated) {
-            boss.activated = true;
-            boss.nextAttackAt = now + 900;
-            boss.nextDamageAt = 0;
-            updateHud("АРЕНА ОТКРЫТА · " + boss.name);
+          statePad.left = !!(pad.buttons?.[14]?.pressed || axisX < -0.42);
+          statePad.right = !!(pad.buttons?.[15]?.pressed || axisX > 0.42);
+          statePad.turnUp = !!(pad.buttons?.[12]?.pressed || axisY < -0.58);
+          statePad.turnDown = !!(pad.buttons?.[13]?.pressed || axisY > 0.58);
+          statePad.floorUp = !!pad.buttons?.[5]?.pressed;
+          statePad.floorDown = !!pad.buttons?.[4]?.pressed;
+          statePad.jump = !!pad.buttons?.[0]?.pressed;
+          statePad.fire = !!pad.buttons?.[2]?.pressed;
+          if (statePad.turnUp && !previousPad[i].turnUp) triggerAction(i, "turnUp");
+          if (statePad.turnDown && !previousPad[i].turnDown) triggerAction(i, "turnDown");
+          if (statePad.floorUp && !previousPad[i].floorUp) triggerAction(i, "floorUp");
+          if (statePad.floorDown && !previousPad[i].floorDown) triggerAction(i, "floorDown");
+          const back = !!pad.buttons?.[8]?.pressed;
+          if (back && !previousPad[i].back) {
+            finishRingPlatformer(maze, false);
+            return;
           }
-          if (now < boss.nextAttackAt) return;
-          boss.nextAttackAt = now + Math.max(1350, 2350 - boss.zone * 220);
-          const direction = target.worldX < boss.x ? -1 : 1;
-          const startX = boss.x + direction * 2.2;
-          const mesh = new THREE.Mesh(worldState.shockwaveGeometry, worldState.shockwaveMaterial);
-          mesh.position.set(startX, 0.95, 0.78);
-          mesh.scale.setScalar(0.78);
-          worldState.group.add(mesh);
-          worldState.shockwaves.push({ mesh, x: startX, direction, age: 0 });
+          previousPad[i] = {
+            turnUp: statePad.turnUp, turnDown: statePad.turnDown,
+            floorUp: statePad.floorUp, floorDown: statePad.floorDown, back
+          };
+        }
+      }
+
+
+      function mobWorldPosition(mob, orientation) {
+        const p = cellWorld(mob.cell);
+        const y = floorYForCell(mob.cell.y) + 0.82;
+        return orientation === 0
+          ? new THREE.Vector3(p.x + mob.localX, y, p.z + 0.72)
+          : new THREE.Vector3(p.x + 0.72, y, p.z - mob.localX);
+      }
+      function syncMobPoseForView(player) {
+        (worldState.mobs || []).forEach((mob) => {
+          if (!mob.alive) { mob.group.visible = false; return; }
+          mob.group.position.copy(mobWorldPosition(mob, player.orientation));
+          mob.group.rotation.y = player.orientation === 0 ? 0 : Math.PI / 2;
+          mob.group.visible = mob.cell.y === player.y;
         });
+      }
+      function updateMobPatrol(dt) {
+        (worldState.mobs || []).forEach((mob) => {
+          if (!mob.alive) return;
+          mob.localX += mob.direction * dt * 0.62;
+          if (mob.localX > 1.28) { mob.localX = 1.28; mob.direction = -1; }
+          if (mob.localX < -1.28) { mob.localX = -1.28; mob.direction = 1; }
+        });
+      }
+      function updateLaserFlashes(dt) {
+        for (let index = laserFlashes.length - 1; index >= 0; index -= 1) {
+          const shot = laserFlashes[index];
+          shot.life -= dt;
+          if (shot.life > 0) continue;
+          shot.line.parent?.remove(shot.line);
+          try { shot.line.geometry.dispose(); } catch (e) {}
+          laserFlashes.splice(index, 1);
+        }
+      }
+      function fireAtMob(player) {
+        const now = performance.now();
+        if (!gameStarted || done || now < player.fireReadyAt) return false;
+        player.fireReadyAt = now + 360;
+        const target = (worldState.mobs || []).find((mob) =>
+          mob.alive && mob.cell.x === player.x && mob.cell.y === player.y && mob.cell.z === player.z &&
+          Math.abs(mob.localX - player.localX) < 3.15
+        );
+        const start = playerWorldPosition(player);
+        const from = new THREE.Vector3(start.x, start.y, start.z);
+        const to = target ? mobWorldPosition(target, player.orientation) : new THREE.Vector3(
+          start.x + (player.orientation === 0 ? player.facing * 2.6 : 0),
+          start.y,
+          start.z + (player.orientation === 1 ? -player.facing * 2.6 : 0)
+        );
+        const geometry = new THREE.BufferGeometry().setFromPoints([from, to]);
+        const line = new THREE.Line(geometry, worldState.laserMaterial);
+        line.name = "ring-maze-laser-flash";
+        line.renderOrder = 20;
+        worldState.group.add(line);
+        laserFlashes.push({ line, life: 0.12 });
+        if (target) {
+          target.alive = false;
+          target.group.visible = false;
+          updateHud("МОБ УСТРАНЁН · ЯДРА " + Math.max(0, maze.count || 0) + "/3");
+        }
+        return !!target;
+      }
+      function checkMobContact(player) {
+        const now = performance.now();
+        if (now < player.invulnerableUntil) return;
+        const mob = (worldState.mobs || []).find((item) =>
+          item.alive && item.cell.x === player.x && item.cell.y === player.y && item.cell.z === player.z &&
+          Math.abs(item.localX - player.localX) < 0.54
+        );
+        if (!mob) return;
+        player.hp = Math.max(0, player.hp - 1);
+        player.invulnerableUntil = now + 850;
+        if (player.hp <= 0) {
+          player.hp = 3;
+          player.x = ringCell.x; player.y = ringCell.y; player.z = ringCell.z;
+          player.localX = 0; player.jumpHeight = 0; player.vy = 0;
+          player.grounded = true; player.supportPlatform = null;
+          updateHud("ЭКИПАЖ ВОССТАНОВЛЕН У КОЛЬЦА · ЯДРА СОХРАНЕНЫ");
+        } else {
+          updateHud("МОБ ЗАДЕЛ ЭКИПАЖ · ОСТАЛОСЬ " + player.hp + " УСЛОВНЫХ ЕДИНИЦ");
+        }
       }
 
       function updatePlayers(dt) {
         pollGamepads();
-        const now = performance.now();
+        if (gameStarted) updateMobPatrol(dt);
+        updateLaserFlashes(dt);
         for (const player of players) {
           const input = getInput(player);
           const direction = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-          if (direction) {
+          if (direction !== 0) {
+            player.localX += direction * 4.15 * dt;
             player.facing = direction;
-            player.moves += dt;
+            player.moves += Math.abs(direction) * dt;
           }
-          if (input.fire) firePlayerWeapon(player, now);
-          const dashing = now < player.dashUntil;
-          const previousX = player.worldX;
-          if (dashing) player.worldX += player.facing * 12.5 * dt;
-          else player.worldX += direction * 7.2 * dt;
-          player.worldX = Math.max(-49, Math.min(worldState.exitX + 1.5, player.worldX));
 
-          worldState.barriers.forEach((barrier) => {
-            if (worldState.defeatedBosses < barrier.unlockAfter &&
-                previousX <= barrier.x + 0.12 && player.worldX > barrier.x - 0.72) {
-              player.worldX = barrier.x - 0.72;
+          const edge = roomHalf;
+          if (player.localX > edge || player.localX < -edge) {
+            const side = player.localX > 0 ? 1 : -1;
+            const cell = getCell(player.x, player.y, player.z);
+            const flag = player.orientation === 0
+              ? (side > 0 ? "xp" : "xn")
+              : (side > 0 ? "zp" : "zn");
+            let dx = 0, dz = 0;
+            if (player.orientation === 0) dx = side;
+            else dz = side;
+            if (cell && cell.open[flag] && getCell(player.x + dx, player.y, player.z + dz)) {
+              player.x += dx;
+              player.z += dz;
+              player.localX -= side * cellSize;
+              player.turnReadyAt = performance.now() + 120;
+              player.supportPlatform = null;
+              collectAt(player);
+              checkFinish(player);
+            } else {
+              player.localX = side * (roomHalf - 0.55);
             }
-          });
+          }
 
-          const previousY = player.worldY;
+          const pWorld = playerWorldPosition(player);
+          const previousHeight = player.jumpHeight;
           if (input.jump && !player.wasJumpDown && player.grounded) {
-            player.vy = 8.8;
+            player.vy = 5.1;
             player.grounded = false;
             player.supportPlatform = null;
           }
           player.wasJumpDown = input.jump;
-          player.vy -= 21 * dt;
-          player.worldY += player.vy * dt;
 
-          if (player.vy <= 0) {
-            const landing = worldState.platforms
-              .filter((platform) => player.worldX >= platform.minX && player.worldX <= platform.maxX &&
-                previousY >= platform.y && player.worldY <= platform.y)
-              .sort((a, b) => b.y - a.y)[0];
-            if (landing) {
-              player.worldY = landing.y;
+          if (!player.grounded) {
+            player.vy -= 12.5 * dt;
+            player.jumpHeight = Math.max(-0.3, player.jumpHeight + player.vy * dt);
+            const floorY = floorYForCell(player.y);
+            const currentWorld = playerWorldPosition(player);
+            const landed = worldState.platforms.find((platform) =>
+              platform.x === player.x && platform.y === player.y && platform.z === player.z &&
+              player.vy <= 0 &&
+              previousHeight > platform.topHeight && player.jumpHeight <= platform.topHeight &&
+              Math.abs(currentWorld.x - platform.worldX) <= platform.halfX &&
+              Math.abs(currentWorld.z - platform.worldZ) <= platform.halfZ
+            );
+            if (landed) {
+              player.jumpHeight = landed.topHeight;
               player.vy = 0;
               player.grounded = true;
-              player.supportPlatform = landing;
-              if (landing.y === 0) player.checkpointX = player.worldX < -2 ? -43 : (player.worldX < 36 ? 3 : 40);
-            } else {
+              player.supportPlatform = landed;
+            } else if (player.jumpHeight <= 0) {
+              player.jumpHeight = 0;
+              player.vy = 0;
+              player.grounded = true;
+              player.supportPlatform = null;
+            }
+          } else if (player.supportPlatform) {
+            const platform = player.supportPlatform;
+            const currentWorld = playerWorldPosition(player);
+            if (Math.abs(currentWorld.x - platform.worldX) > platform.halfX ||
+                Math.abs(currentWorld.z - platform.worldZ) > platform.halfZ) {
               player.grounded = false;
+              player.vy = 0;
+              player.supportPlatform = null;
             }
           }
-          if (player.worldY < -7) {
-            player.worldY = 0;
-            player.vy = 0;
-            player.grounded = true;
-            player.supportPlatform = null;
-            player.worldX = player.checkpointX;
-            damagePlayer(player, now);
-          }
-          if (player.grounded && player.supportPlatform && player.supportPlatform.y > 0 &&
-              (player.worldX < player.supportPlatform.minX || player.worldX > player.supportPlatform.maxX)) {
-            player.grounded = false;
-            player.vy = -0.2;
-            player.supportPlatform = null;
-          }
 
+          if (player.grounded && player.jumpHeight < 0.05) player.jumpHeight = 0;
           collectAt(player);
-          const blinking = now < player.invulnerableUntil && Math.floor(now / 90) % 2 === 0;
-          if (player.sprite) player.sprite.visible = !blinking;
+          if (input.fire) fireAtMob(player);
+          checkMobContact(player);
           updatePlayerSprite(player);
         }
-
-        worldState.shockwaves = worldState.shockwaves.filter((wave) => {
-          wave.age += dt;
-          wave.x += wave.direction * 8.5 * dt;
-          wave.mesh.position.x = wave.x;
-          wave.mesh.scale.setScalar(0.72 + Math.min(0.45, wave.age * 0.22));
-          const hitPlayer = players.find((player) =>
-            Math.abs(player.worldX - wave.x) < 1.0 && player.worldY < 1.15
-          );
-          if (hitPlayer) {
-            damagePlayer(hitPlayer, now);
-            wave.mesh.parent?.remove(wave.mesh);
-            return false;
-          }
-          if (wave.x < -53 || wave.x > worldState.exitX + 4) {
-            wave.mesh.parent?.remove(wave.mesh);
-            return false;
-          }
-          return true;
-        });
-
-        updateBosses(dt, now);
-        worldState.coreMeshes.forEach((core, index) => {
-          if (!core.taken) core.mesh.rotation.y += dt * (1.0 + index * 0.2);
-        });
-        worldState.exitMarker.rotation.z += dt * 0.42;
-        if (worldState.defeatedBosses >= 3 && players.some((player) => player.worldX >= worldState.exitX - 1.3)) {
-          finishRingPlatformer(maze, true);
-          return;
-        }
-        updateSplitState();
-        updateHud();
       }
 
       function updateSplitState() {
-        if (mode !== "multi" || players.length < 2) {
-          splitActive = false;
-          splitDivider.hidden = true;
-          return;
-        }
-        const dx = Math.abs(players[0].worldX - players[1].worldX);
-        const dy = Math.abs(players[0].worldY - players[1].worldY);
-        if (!splitActive && (dx > 20 || dy > 7)) splitActive = true;
-        else if (splitActive && dx < 14 && dy < 4.5) splitActive = false;
+        if (mode !== "multi" || players.length < 2) { splitActive = false; return; }
+        const a = playerWorldPosition(players[0]);
+        const b = playerWorldPosition(players[1]);
+        const distance = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+        const samePlane = players[0].y === players[1].y &&
+          players[0].orientation === players[1].orientation &&
+          (players[0].orientation === 0
+            ? players[0].z === players[1].z
+            : players[0].x === players[1].x);
+        if (!splitActive && (!samePlane || distance > cellSize * 1.62)) splitActive = true;
+        else if (splitActive && samePlane && distance < cellSize * 1.22) splitActive = false;
+        const landscape = width >= height;
         splitDivider.hidden = !splitActive;
-        splitDivider.style.border = "0";
-        splitDivider.style.borderLeft = "0";
-        splitDivider.style.background = splitActive
-          ? "linear-gradient(to bottom, transparent calc(50% - 1px), rgba(115,203,225,.82) calc(50% - 1px), rgba(115,203,225,.82) calc(50% + 1px), transparent calc(50% + 1px))"
-          : "transparent";
+        splitDivider.style.border = splitActive ? "1px solid rgba(115,203,225,.45)" : "0";
+        splitDivider.style.background = "transparent";
+        if (splitActive) {
+          splitDivider.style.borderTop = landscape ? "0" : "2px solid rgba(115,203,225,.75)";
+          splitDivider.style.borderLeft = landscape ? "2px solid rgba(115,203,225,.75)" : "0";
+        } else {
+          splitDivider.style.border = "0";
+        }
       }
 
-      function configureCamera(camera, viewport, center) {
+      function configureCamera(camera, viewport, center, orientation) {
+        const halfHeight = Math.max(3.7, Math.min(4.7, cellSize * 0.82));
         const aspect = Math.max(0.3, viewport.w / Math.max(1, viewport.h));
-        const halfHeight = viewport.h > viewport.w ? 7.1 : 5.4;
-        // The painted zone backgrounds drift more slowly than the action plane.
-        // Apply per view so local split-screen cameras each get the same parallax illusion.
-        const worldState = state.ringRenderState && state.ringRenderState.worldState;
-        if (worldState && Array.isArray(worldState.parallaxPanels)) {
-          worldState.parallaxPanels.forEach((layer) => {
-            layer.mesh.position.x = layer.baseX + center.x * (1 - layer.factor);
-          });
-        }
         camera.left = -halfHeight * aspect;
         camera.right = halfHeight * aspect;
         camera.top = halfHeight;
@@ -2809,58 +2483,72 @@
         camera.far = 500;
         camera.updateProjectionMatrix();
         camera.up.set(0, 1, 0);
-        camera.position.set(center.x, center.y + 0.65, 42);
-        camera.lookAt(center.x, center.y + 0.65, 0);
+        if (orientation === 0) {
+          camera.position.set(center.x, center.y + 0.55, center.z + cellSize * 2.05);
+          camera.lookAt(center.x, center.y, center.z);
+        } else {
+          camera.position.set(center.x + cellSize * 2.05, center.y + 0.55, center.z);
+          camera.lookAt(center.x, center.y, center.z);
+        }
       }
 
       function cameraTargetFor(player) {
-        return { x: player.worldX, y: player.worldY + 2.2, z: 0 };
+        const p = playerWorldPosition(player);
+        return { x: p.x, y: p.y - 0.1, z: p.z };
       }
 
       function renderRingViews(frameContext) {
         if (!state.ringPlatformer || !state.ringRenderState || done) return false;
         const renderer = frameContext && frameContext.renderer;
         const activeScene = frameContext && frameContext.scene;
-        if (!renderer || !activeScene) return false;
-        const viewW = Math.max(1, root2d.clientWidth);
-        const viewH = Math.max(1, root2d.clientHeight);
-        if (!players.length) {
-          configureCamera(cameraOne, { w: viewW, h: viewH }, cameraFocus);
-          renderer.render(activeScene, cameraOne);
+        if (!renderer || !activeScene || !players.length) {
+          const defaultPos = cellWorld(ringCell);
+          configureCamera(cameraOne, { w: Math.max(1, root.clientWidth), h: Math.max(1, root.clientHeight) }, {
+            x: defaultPos.x, y: floorYForCell(ringCell.y) + 1, z: defaultPos.z
+          }, 0);
+          if (renderer && activeScene) renderer.render(activeScene, cameraOne);
           return true;
         }
+        const viewW = Math.max(1, root.clientWidth);
+        const viewH = Math.max(1, root.clientHeight);
         const oldAutoClear = renderer.autoClear;
         renderer.autoClear = false;
         renderer.setScissorTest(true);
         const landscape = viewW >= viewH;
         let views;
         if (splitActive && mode === "multi" && players.length > 1) {
-          // P1/pilot always owns the upper horizontal half; P2's lower view is
-          // independent so players can explore different zones comfortably.
-          const half = Math.floor(viewH / 2);
-          views = [
-            { x: 0, y: half, w: viewW, h: viewH - half, player: players[0], camera: cameraOne },
-            { x: 0, y: 0, w: viewW, h: half, player: players[1], camera: cameraTwo }
-          ];
+          const half = Math.floor((landscape ? viewW : viewH) / 2);
+          views = landscape
+            ? [
+                { x: 0, y: 0, w: half, h: viewH, player: players[0], camera: cameraOne },
+                { x: half, y: 0, w: viewW - half, h: viewH, player: players[1], camera: cameraTwo }
+              ]
+            : [
+                { x: 0, y: Math.floor(viewH / 2), w: viewW, h: viewH - Math.floor(viewH / 2), player: players[0], camera: cameraOne },
+                { x: 0, y: 0, w: viewW, h: Math.floor(viewH / 2), player: players[1], camera: cameraTwo }
+              ];
         } else {
           let target = cameraTargetFor(players[0]);
           if (mode === "multi" && players[1]) {
             const other = cameraTargetFor(players[1]);
-            target = {
-              x: (target.x + other.x) * 0.5,
-              y: (target.y + other.y) * 0.5,
-              z: 0
-            };
+            target = { x: (target.x + other.x) * 0.5, y: (target.y + other.y) * 0.5, z: (target.z + other.z) * 0.5 };
           }
-          views = [{ x: 0, y: 0, w: viewW, h: viewH, player: players[0], camera: cameraOne, target }];
+          views = [{ x: 0, y: 0, w: viewW, h: viewH, player: players[0], camera: cameraOne, shared: true, target }];
         }
 
         for (const view of views) {
-          const target = view.target || cameraTargetFor(view.player);
-          configureCamera(view.camera, view, target);
+          const p = view.player;
+          let target;
+          if (view.shared) {
+            target = view.target;
+          } else {
+            target = cameraTargetFor(p);
+          }
+          configureCamera(view.camera, view, target, p.orientation);
           renderer.setViewport(view.x, view.y, view.w, view.h);
           renderer.setScissor(view.x, view.y, view.w, view.h);
           renderer.clear(true, true, true);
+          syncMobPoseForView(p);
           renderer.render(activeScene, view.camera);
         }
         renderer.setScissorTest(false);
@@ -2874,76 +2562,100 @@
         g.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
         g.clearRect(0, 0, mapWidth, mapHeight);
         const bg = g.createLinearGradient(0, 0, mapWidth, mapHeight);
-        bg.addColorStop(0, "#081826");
-        bg.addColorStop(1, "#02070d");
-        g.fillStyle = bg;
-        g.fillRect(0, 0, mapWidth, mapHeight);
-        const x1 = 9, x2 = mapWidth - 9, y = Math.max(20, mapHeight * 0.52);
-        const trackW = Math.max(1, x2 - x1);
-        const zones = [
-          { a: -50, b: -2, c: "#194359" },
-          { a: -2, b: 36, c: "#1f4c4a" },
-          { a: 36, b: 84, c: "#3c2852" }
-        ];
-        zones.forEach((zone) => {
-          const left = x1 + (zone.a + 50) / 134 * trackW;
-          const right = x1 + (zone.b + 50) / 134 * trackW;
-          g.fillStyle = zone.c;
-          g.fillRect(left, y - 5, right - left, 10);
-          g.strokeStyle = "rgba(191,226,239,.26)";
-          g.strokeRect(left, y - 5, right - left, 10);
+        bg.addColorStop(0, "#081826"); bg.addColorStop(1, "#02070d");
+        g.fillStyle = bg; g.fillRect(0, 0, mapWidth, mapHeight);
+        const floor = players.length ? players[0].y : ringCell.y;
+        const pad = 7;
+        const cell = Math.max(8, Math.min(24, Math.floor(Math.min(mapWidth - pad * 2, mapHeight - pad * 2) / Math.max(nx, nz))));
+        const x0 = Math.floor((mapWidth - cell * nx) / 2);
+        const y0 = Math.floor((mapHeight - cell * nz) / 2);
+        const floorCells = maze.cells.filter((c) => c.y === floor);
+        floorCells.forEach((c) => {
+          const x = x0 + c.x * cell, y = y0 + c.z * cell;
+          g.fillStyle = ((c.x + c.z) & 1) ? "#102532" : "#0c1e29";
+          g.fillRect(x + 1, y + 1, cell - 2, cell - 2);
         });
-        worldState.bosses.forEach((boss, index) => {
-          const x = x1 + (boss.x + 50) / 134 * trackW;
-          g.fillStyle = boss.alive ? "#ffba75" : "#67e6cf";
+        g.lineWidth = Math.max(1.2, cell * 0.095);
+        g.lineCap = "square";
+        g.strokeStyle = "#4fa9be";
+        floorCells.forEach((c) => {
+          const x = x0 + c.x * cell, y = y0 + c.z * cell;
           g.beginPath();
-          g.arc(x, y, boss.alive ? 4.3 : 3.2, 0, Math.PI * 2);
+          if (c.x === 0) { g.moveTo(x, y); g.lineTo(x, y + cell); }
+          if (c.x === nx - 1 || !c.open.xp) { g.moveTo(x + cell, y); g.lineTo(x + cell, y + cell); }
+          if (c.z === 0 && !(c.x === 0 && c.y === 1)) { g.moveTo(x, y); g.lineTo(x + cell, y); }
+          if (c.z === nz - 1 && !(c.x === nx - 1 && c.y === 1)) { g.moveTo(x, y + cell); g.lineTo(x + cell, y + cell); }
+          if (c.z < nz - 1 && !c.open.zp) { g.moveTo(x, y + cell); g.lineTo(x + cell, y + cell); }
+          g.stroke();
+        });
+        (maze.crystals || []).forEach((crystal) => {
+          if (!crystal.taken && crystal.cell && crystal.cell.y === floor) {
+            const x = x0 + (crystal.cell.x + 0.5) * cell, y = y0 + (crystal.cell.z + 0.5) * cell;
+            g.fillStyle = "#5af3df"; g.beginPath(); g.arc(x, y, Math.max(2, cell * 0.13), 0, Math.PI * 2); g.fill();
+          }
+        });
+        (worldState.mobs || []).forEach((mob) => {
+          if (!mob.alive || mob.cell.y !== floor) return;
+          const x = x0 + (mob.cell.x + 0.5) * cell, y = y0 + (mob.cell.z + 0.5) * cell;
+          g.fillStyle = "#ef9562";
+          g.beginPath();
+          g.moveTo(x, y - Math.max(2.5, cell * 0.18));
+          g.lineTo(x + Math.max(2.5, cell * 0.18), y + Math.max(2, cell * 0.15));
+          g.lineTo(x - Math.max(2.5, cell * 0.18), y + Math.max(2, cell * 0.15));
+          g.closePath();
           g.fill();
-          g.fillStyle = "#d1e7ef";
-          g.font = "9px system-ui";
-          g.textAlign = "center";
-          g.fillText(String(index + 1), x, y - 10);
         });
         players.forEach((player) => {
-          const x = x1 + (player.worldX + 50) / 134 * trackW;
-          g.fillStyle = playerColors[player.index];
-          g.shadowColor = playerColors[player.index];
-          g.shadowBlur = 6;
-          g.beginPath();
-          g.arc(x, y + (player.index ? 4 : -4), 3, 0, Math.PI * 2);
-          g.fill();
+          if (player.y !== floor) return;
+          const x = x0 + (player.x + 0.5) * cell, y = y0 + (player.z + 0.5) * cell;
+          g.fillStyle = playerColors[player.index]; g.shadowColor = playerColors[player.index]; g.shadowBlur = 7;
+          g.beginPath(); g.arc(x, y, Math.max(3, cell * 0.18), 0, Math.PI * 2); g.fill();
           g.shadowBlur = 0;
         });
-        g.fillStyle = "#b8d2de";
-        g.font = "9px system-ui";
-        g.textAlign = "left";
-        g.textBaseline = "top";
-        // Progress is shown by the strip and markers; avoid tiny permanent caption text.
+        g.fillStyle = "#b8d2de"; g.font = "10px system-ui"; g.textAlign = "left"; g.textBaseline = "top";
+        g.fillText("КАРТА · ЭТАЖ " + (floor + 1), 7, 5);
       }
 
       function startMode(nextMode) {
-        if (done || gameStarted) return;
+        if (done) return;
         mode = nextMode === "multi" ? "multi" : "single";
         gameStarted = true;
         menu.hidden = true;
         menu.style.display = "none";
-        const spawn1 = { x: worldState.spawnX, y: 0 };
-        const spawn2 = mode === "multi" ? { x: worldState.spawnX - 2, y: 0 } : null;
+        const spawn1 = { x: ringCell.x, y: ringCell.y, z: ringCell.z };
+        let spawn2 = null;
+        if (mode === "multi") {
+          const cell = getCell(ringCell.x, ringCell.y, ringCell.z);
+          const options = [
+            { flag: "zn", x: 0, z: -1 }, { flag: "xn", x: -1, z: 0 },
+            { flag: "zp", x: 0, z: 1 }, { flag: "xp", x: 1, z: 0 }
+          ];
+          const option = options.find((item) => cell && cell.open[item.flag] && getCell(ringCell.x + item.x, ringCell.y, ringCell.z + item.z));
+          spawn2 = option
+            ? { x: ringCell.x + option.x, y: ringCell.y, z: ringCell.z + option.z }
+            : { x: ringCell.x, y: ringCell.y, z: ringCell.z };
+        }
         players = [createPlayer(0, spawn1)];
         if (spawn2) players.push(createPlayer(1, spawn2));
+        syncCoreMeshes();
         updateSplitState();
-        updateHud(mode === "multi" ? "MULTI" : "SINGLE");
-        statusEl.style.display = "none";
-        floorEl.style.display = "none";
-        countEl.style.display = "none";
-        window.BCMDialogue?.showControls("ring");
-        if (Number(weaponProgress.completedRuns) >= Number(weaponProgress.nextUpgradeAt || 2) &&
-            weaponProgress.pendingUpgrade &&
-            Number(weaponProgress.lastUpgradePromptRun) !== Number(weaponProgress.completedRuns)) {
-          window.setTimeout(() => offerWeaponChoice(true), 250);
-        }
+        updateHud(mode === "multi"
+          ? "MULTI · P1 WASD/стрелки · P2 IJKL · Space/P прыжок · E/Q этаж"
+          : "SINGLE · WASD/стрелки · Space прыжок · E/Q лестницы");
         resize2d();
         root2d.focus({ preventScroll: true });
+      }
+
+      function updateSplitState() {
+        if (mode !== "multi" || players.length < 2) { splitActive = false; return; }
+        const a = playerWorldPosition(players[0]);
+        const b = playerWorldPosition(players[1]);
+        const distance = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+        const samePlane = players[0].y === players[1].y &&
+          players[0].orientation === players[1].orientation &&
+          (players[0].orientation === 0 ? players[0].z === players[1].z : players[0].x === players[1].x);
+        if (!splitActive && (!samePlane || distance > cellSize * 1.62)) splitActive = true;
+        else if (splitActive && samePlane && distance < cellSize * 1.22) splitActive = false;
       }
 
       function updateViewportSize() {
@@ -2952,6 +2664,15 @@
         cameraOne.aspect = width / height;
         cameraTwo.aspect = width / height;
         updateSplitState();
+        splitDivider.hidden = !splitActive;
+        const landscape = width >= height;
+        if (splitActive) {
+          splitDivider.style.border = "0";
+          splitDivider.style.borderLeft = landscape ? "2px solid rgba(115,203,225,.75)" : "0";
+          splitDivider.style.borderTop = landscape ? "0" : "2px solid rgba(115,203,225,.75)";
+        } else {
+          splitDivider.style.border = "0";
+        }
       }
 
       function frame(now) {
@@ -2959,9 +2680,9 @@
         const dt = frameStamp ? Math.min(0.05, Math.max(0.001, (now - frameStamp) / 1000)) : 1 / 60;
         frameStamp = now;
         updatePlayers(dt);
-        updateWeaponShots(dt);
-        if (done) return;
         updateSplitState();
+        worldState.coreMeshes.forEach((mesh) => { if (mesh) mesh.rotation.y += dt * 0.9; });
+        worldState.ringMarker.rotation.z += dt * 0.32;
         drawMiniMap();
         raf = requestAnimationFrame(frame);
       }
@@ -2981,7 +2702,7 @@
 
       root2d.querySelectorAll("[data-ring-action]").forEach((button) => {
         const action = button.getAttribute("data-ring-action");
-        button.style.cssText += ";pointer-events:auto;border:1px solid #426779;border-radius:10px;background:rgba(16,35,45,.96);color:#e8fbff;font-weight:900;touch-action:none";
+        button.style.cssText += ";border:1px solid #426779;border-radius:10px;background:rgba(16,35,45,.96);color:#e8fbff;font-weight:900;touch-action:none";
         button.addEventListener("pointerdown", (event) => {
           event.preventDefault();
           setActionFromPointer(button, action, true, event);
@@ -2994,51 +2715,8 @@
       const closeButton = root2d.querySelector("[data-ring-exit]");
       closeButton.style.cssText += ";pointer-events:auto";
       closeButton.addEventListener("click", () => finishRingPlatformer(maze, false));
-      focusModeMenu(0);
-      modeButtons.forEach((button, index) => {
-        if (!button) return;
-        button.style.pointerEvents = "auto";
-        button.style.position = "relative";
-        button.style.zIndex = "50";
-        button.style.cursor = "pointer";
-        const activate = () => {
-          focusModeMenu(index);
-          startMode(index === 1 ? "multi" : "single");
-        };
-        // pointerdown gives mobile taps an immediate activation path; the click
-        // handler remains for keyboard and assistive-technology activation.
-        button.addEventListener("pointerdown", (event) => {
-          if (event.button !== 0 || gameStarted || done) return;
-          event.preventDefault();
-          event.stopPropagation();
-          activate();
-        });
-        button.addEventListener("focus", () => focusModeMenu(index));
-        button.addEventListener("click", activate);
-      });
-      root2d.addEventListener("keydown", (event) => {
-        if (gameStarted || done) return;
-        if (event.code === "ArrowLeft" || event.code === "ArrowUp") {
-          event.preventDefault();
-          event.stopPropagation();
-          focusModeMenu(menuFocusIndex - 1);
-        } else if (event.code === "ArrowRight" || event.code === "ArrowDown") {
-          event.preventDefault();
-          event.stopPropagation();
-          focusModeMenu(menuFocusIndex + 1);
-        } else if (event.code === "Enter" || event.code === "Space") {
-          event.preventDefault();
-          event.stopPropagation();
-          confirmModeMenu();
-        }
-      });
-      menu.addEventListener("pointerdown", (event) => {
-        if (gameStarted || done || event.target.closest("button")) return;
-        if (event.target === menu || event.target.closest("[data-ring-mode-menu]")) {
-          event.preventDefault();
-          confirmModeMenu();
-        }
-      });
+      root2d.querySelector("[data-ring-single]").addEventListener("click", () => startMode("single"));
+      root2d.querySelector("[data-ring-multi]").addEventListener("click", () => startMode("multi"));
       window.addEventListener("keydown", keyboardMove, true);
       window.addEventListener("keyup", keyboardMove, true);
       window.addEventListener("blur", () => {
@@ -3062,6 +2740,10 @@
       state.ringPlatformerCleanup = () => {
         done = true;
         if (raf) cancelAnimationFrame(raf);
+        laserFlashes.forEach((shot) => {
+          try { shot.line.parent?.remove(shot.line); shot.line.geometry.dispose(); } catch (e) {}
+        });
+        laserFlashes.length = 0;
         window.removeEventListener("keydown", keyboardMove, true);
         window.removeEventListener("keyup", keyboardMove, true);
         window.removeEventListener("resize", resize2d);
@@ -3073,21 +2755,11 @@
         });
         try { worldState.boxGeometry.dispose(); } catch (e) {}
         worldState.specialGeometry.forEach((geometry) => { try { geometry.dispose(); } catch (e) {} });
-        worldState.textures.forEach((texture) => { try { texture.dispose(); } catch (e) {} });
         worldState.materials.forEach((material) => { try { material.dispose(); } catch (e) {} });
         players.forEach((player) => {
           if (player.sprite) worldState.group.remove(player.sprite);
           if (player.spriteMaterial) player.spriteMaterial.dispose();
         });
-        weaponShots.forEach((shot) => {
-          scene.remove(shot.mesh);
-          scene.remove(shot.glow);
-          try { shot.geometry.dispose(); } catch (e) {}
-          try { shot.material.dispose(); } catch (e) {}
-          try { shot.glowGeometry.dispose(); } catch (e) {}
-          try { shot.glowMaterial.dispose(); } catch (e) {}
-        });
-        weaponShots.length = 0;
         maze.group.visible = worldSaved.oldMazeVisible;
         if (runtime.ship.visual) runtime.ship.visual.visible = worldSaved.oldShipVisible;
         scene.background = oldBackground;
@@ -3103,6 +2775,7 @@
       return true;
     }
 
+    
     function finishRingPlatformer(maze, completed) {
       if (!state.ringPlatformer || !maze) return false;
       const success = completed === true;

@@ -1,3 +1,13 @@
+## D-023 — Mini-Sim 0.9.114: Ring uses the existing maze
+
+**Status:** candidate in fix/minisim-0.9.114-ring-cutaway-controls; not yet live-verified.
+
+- Reuse the active maze graph, seed, entry/exit and the same three crystals in the cutaway view. Do not replace it with a linear arena, comic panels or mandatory boss gates.
+- Clone materials from the active maze so its original asteroid-wall texture maps are reused. Do not dispose shared maps when the Ring session closes.
+- Goal: collect three crystals and return to the entry. Minor mobs are optional hazards and targets, never gates to completion.
+- Gamepad X/button 2 fires; Y/button 3 is not fire. Back/Select exits Ring or returns home outside overlays. B stays available for local in-level/Hull Dive actions, while global navigation callbacks are suppressed when Ring/Hull Dive owns input.
+- Opening Hull Dive releases Pointer Lock so the mouse can interact with cabin controls; exterior flight is not paused. Manual device QA remains outstanding.
+
 ## D-022 — Mini-Sim 0.9.112: reliable Ring entry, UI hit-testing and live pilot view
 
 **Status:** merged in PR [#57](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/57). Main merge SHA 443cd4f1cd388d020f1811908f1d31ad53809334; Mini-Sim 0.9.112 / Tower 0.2.64.
