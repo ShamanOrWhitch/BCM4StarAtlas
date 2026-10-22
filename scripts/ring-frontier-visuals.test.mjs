@@ -46,6 +46,6 @@ test("Ring disposes generated backdrop textures when leaving the location", () =
 });
 
 test("Mini-Sim cache version is bumped for the Ring art update", () => {
-  assert.match(plugin, /Version: 0\.9\.108/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.9\.108'\)/);
+  assert.match(plugin, /Version: 0\.9\.113/);
+  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.9\.113'\)/);
 });

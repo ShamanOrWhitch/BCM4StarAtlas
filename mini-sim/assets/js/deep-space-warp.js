@@ -154,6 +154,17 @@
       video.disablePictureInPicture = true;
       video.style.cssText = "display:block;width:100%;height:100%;object-fit:contain;background:#000";
       overlay.appendChild(video);
+      const skip = document.createElement("button");
+      skip.type = "button";
+      skip.textContent = "СТАРТ УРОВНЯ";
+      skip.setAttribute("aria-label", "Start the Ring level");
+      skip.style.cssText = "position:absolute;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:8;min-height:48px;min-width:180px;padding:10px 18px;border:1px solid #69d7ea;border-radius:12px;background:#123c48;color:#e8fbff;font:800 14px system-ui;letter-spacing:.06em;cursor:pointer;pointer-events:auto";
+      skip.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        enterLevel();
+      });
+      overlay.appendChild(skip);
       document.body.appendChild(overlay);
 
       function enterLevel() {
@@ -1106,6 +1117,23 @@
       const scene = runtime.scene;
       if (!THREE || !scene || !runtime.ship) return;
 
+      // The asteroid is already built. Starting here must not depend on
+      // flying to the Ring or climbing into the hold first.
+      if (!state.nav || !state.nav.current) {
+        state.nav = {
+          current: { id: "asteroid-berth", name: "ASTEROID COMPLEX", x: -40, y: 30, raw: null },
+          targets: [],
+          live: false,
+          localPreview: true,
+          label: "ASTEROID COMPLEX",
+          coordsKnown: true,
+          adapter: null
+        };
+      }
+      if (!state.target) {
+        state.target = { id: "asteroid-complex", name: "ASTEROID COMPLEX", x: -39, y: 30, raw: null };
+      }
+
       const NX = 7, NY = 3, NZ = 7, CELL = 5.4, WALL = 0.46;
       // Keep the test maze off-axis and away from the old negative-Z texture-preload trigger.
       const center = new THREE.Vector3(230, 0, 150);
@@ -1347,10 +1375,31 @@
 
       // The main physics resumes in this scene. The seeded maze uses a small number of
       // instanced wall batches and up to four asterwall textures, with a tiny procedural fallback.
-      // Default Mini-Sim forward is -Z; face inward from the asteroid entrance.
-      engine.teleport({ x: maze.start.x, y: maze.start.y, z: maze.start.z, yaw: 0 }, null);
+      // Cell +Z index is world −Z, the ship's forward at yaw 0. Face whichever
+      // side the carve actually opened, including up/down, so spawn is not a wall.
+      const spawn = maze.start.clone();
+      const look = new THREE.Quaternion();
+      if (startNode.open.zp) {
+        spawn.z -= 0.45;
+      } else if (startNode.open.xp) {
+        look.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2);
+        spawn.x += 0.45;
+      } else if (startNode.open.xn) {
+        look.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
+        spawn.x -= 0.45;
+      } else if (startNode.open.yp) {
+        look.setFromEuler(new THREE.Euler(1.05, 0, 0, "YXZ"));
+        spawn.y += 0.45;
+      } else if (startNode.open.yn) {
+        look.setFromEuler(new THREE.Euler(-1.05, 0, 0, "YXZ"));
+        spawn.y -= 0.45;
+      } else if (startNode.open.zn) {
+        look.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+        spawn.z += 0.45;
+      }
+      engine.teleport({ x: spawn.x, y: spawn.y, z: spawn.z }, look);
       engine.pauseForWarp(false);
-      engine.setExternalHUD("ASTEROID COMPLEX · " + sectorText(state.target), "EXPEDITION · CORE SHARDS 0/3 · GOLD RING OPENS THE HULL");
+      engine.setExternalHUD("ASTEROID COMPLEX · " + sectorText(state.target), "EXPEDITION · CORE SHARDS 0/3 · U / R3 OPENS THE HOLD");
       maze.lastPosition = runtime.ship.position.clone();
       state.mode = "maze";
       state.lastStatusAt = 0;
@@ -1364,9 +1413,9 @@
       const pos = ship.position;
       const radius = 0.7;
 
-      // The external ship scene remains the transparent window's backdrop while either
-      // overlay is active; keep camera/visual transforms synced, but never move a paused ship.
-      if (state.ringPlatformer || state.hullOpen) {
+      // Ring gameplay replaces the flight view. The hold does not: the helm
+      // keeps flying the same ship, so maze collision stays active.
+      if (state.ringPlatformer || state.ringTransitionActive) {
         if (frame.camera) {
           frame.camera.position.copy(pos);
           frame.camera.quaternion.copy(ship.quaternion);
@@ -1466,8 +1515,8 @@
       if (performance.now() - maze.sinceStatus > 1300) {
         maze.sinceStatus = performance.now();
         const message = state.ringDistance < 22
-          ? "RING GRAVITY ACTIVE · PRESS U / R3 OR TAP THE HULL BUTTON"
-          : "EXPEDITION · CORE SHARDS " + maze.count + "/3 · FOLLOW THE GOLD RING";
+          ? "RING AHEAD · THE LEVEL IS OPTIONAL · HELM STILL FLIES THE SHIP"
+          : "EXPEDITION · CORE SHARDS " + maze.count + "/3 · ASTEROID COMPLEX";
         setMazeStatus(message);
       }
     }
@@ -1480,36 +1529,22 @@
           !root.classList.contains("game-active") || !runtime || !runtime.ship ||
           !window.BCMHullDive || typeof window.BCMHullDive.open !== "function") return false;
 
-      // This is the ship's interior, not a teleport to the golden Ring.
-      // Preserve the current first-person flight pose and only pause the ship while
-      // the transparent compartment simulation owns the screen.
+      // The hold is the crew's station, not a cutscene. Do not pause the ship:
+      // whoever is standing at the helm keeps flying it.
       state.hullOpen = true;
       root.classList.add("bcm-hull-interior-active");
       window.dispatchEvent(new Event("resize"));
       window.BCMDialogue?.showControls("hull");
+      window.BCMHullHelmState = { engaged: true, thrust: 0, yaw: 0 };
+      window.BCMRingWindowState = null;
       syncHullButtonVisibility();
-      if (engine.pauseForWarp) engine.pauseForWarp(true);
-
-      const nearRing = !!(maze && maze.beacon && state.ringDistance < 18);
-      window.BCMRingWindowState = nearRing ? {
-        visible: true,
-        ringDistance: state.ringDistance,
-        target: maze.beacon.position.clone(),
-        maze
-      } : null;
 
       window.BCMHullDive.open(() => {
         state.hullOpen = false;
         root.classList.remove("bcm-hull-interior-active");
         window.dispatchEvent(new Event("resize"));
         window.BCMRingWindowState = null;
-        if (engine.pauseForWarp) engine.pauseForWarp(false);
-        const freshRuntime = engine.getRuntime ? engine.getRuntime() : null;
-        if (maze && freshRuntime?.ship?.position) {
-          state.ringDistance = freshRuntime.ship.position.distanceTo(maze.beacon.position);
-          setMazeStatus("BACK IN THE SHIP · RING WINDOW " +
-            (state.ringDistance < 18 ? "VISIBLE" : "OUT OF VIEW"));
-        }
+        window.BCMHullHelmState = { engaged: false, thrust: 0, yaw: 0 };
         syncHullButtonVisibility();
       });
       syncHullButtonVisibility();
@@ -1622,7 +1657,7 @@
             '<button type="button" data-ring-action="dash" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.dash + '</button>' +
           '</div>' +
         '</div>' +
-        '<div data-ring-mode-menu style="position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(1,5,12,.74);pointer-events:auto">' +
+        '<div data-ring-mode-menu style="position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(1,5,12,.74);pointer-events:auto">' +
           '<div style="width:min(480px,100%);padding:22px;border:1px solid #37677c;border-radius:16px;background:rgba(6,20,32,.97);box-shadow:0 12px 60px #0009;text-align:center">' +
             '<div style="font-size:12px;letter-spacing:.18em;color:#60ddec">RING FRONTIER · SEED ' + seed + '</div>' +
             '<div style="font-size:24px;font-weight:900;margin:12px 0 7px">' + copy.title + '</div>' +
@@ -2165,6 +2200,10 @@
       const old = document.getElementById("bcm-ring-platformer-old");
       if (old) old.remove();
 
+      // The side-scroll world has to exist before the mode buttons are wired.
+      // Without this call the menu is already on screen when spawn setup throws,
+      // so SINGLE/MULTI look clickable and the level never starts.
+      const worldState = buildRingWorld();
       const cameraOne = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
       const cameraTwo = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
       const cameraFocus = { x: worldState.spawnX, y: 1.6, z: 0 };
@@ -2960,7 +2999,7 @@
         if (!button) return;
         button.style.pointerEvents = "auto";
         button.style.position = "relative";
-        button.style.zIndex = "7";
+        button.style.zIndex = "50";
         button.style.cursor = "pointer";
         const activate = () => {
           focusModeMenu(index);
@@ -3774,6 +3813,13 @@ return axialRoll + ahead * 0.12 +
 
     window.BCMDeepSpaceWarpToggle = function () {
       if (state.mode === "closed") openMap();
+    };
+
+    window.BCMDeepSpaceWarpEnterAsteroid = function () {
+      if (state.ringPlatformer || state.ringTransitionActive || state.hullOpen) return false;
+      if (state.mode === "maze" && state.maze && state.maze.active) return true;
+      enterAsteroidMaze();
+      return !!(state.mode === "maze" && state.maze && state.maze.active);
     };
 
     function enableWarpTilt(recalibrate) {

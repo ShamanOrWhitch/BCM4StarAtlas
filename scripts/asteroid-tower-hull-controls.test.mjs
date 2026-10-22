@@ -13,7 +13,9 @@ test("First-person flight exposes Hull Interior with touch, U and edge-triggered
   assert.match(warp, /function openHullInterior\(\)/);
   const interior = warp.slice(warp.indexOf("function openHullInterior()"), warp.indexOf("window.BCMDeepSpaceWarpPoll"));
   assert.match(interior, /state\.hullOpen = true/);
-  assert.match(interior, /engine\.pauseForWarp\(true\)/);
+  assert.doesNotMatch(interior, /engine\.pauseForWarp\(true\)/);
+  assert.match(interior, /BCMHullHelmState/);
+  assert.match(interior, /whoever is standing at the helm keeps flying it/);
   assert.doesNotMatch(interior, /ship\.position\.copy\(maze\.beacon\.position\)/);
   assert.match(mini, /window\.BCMDeepSpaceWarpPoll\(\{ dt, running, paused: externalPause, root \}\)/);
   assert.match(warp, /const wasDown = hullEntryPadWasDown\.get\(pad\.index\) \|\| false/);
