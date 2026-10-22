@@ -22,30 +22,31 @@ test("Rendered cabin station labels and controls have English and Russian copy",
     ['say("ОТСЕК · РЕМОНТ", "COMPARTMENT · REPAIR")', "compartment"],
     ['say("ПРОВЕРЬ ВОДУ И КОРПУС", "CHECK WATER AND HULL")', "status"],
     ['say("НАЗАД В ПОЛЁТ", "BACK TO FLIGHT")', "exit"],
-    ['say("V · ШТУРВАЛ", "V · HELM")', "helm"],
-    ['say("SPACE · ОРУДИЕ", "SPACE · GUN")', "gun"],
-    ['say("R · БОЕЗАПАС", "R · AMMO")', "ammo"],
-    ['say("F · РЕМОНТ", "F · REPAIR")', "repair"],
-    ['say("E · НАСОС", "E · PUMP")', "pump"],
+    ['say("Штурвал", "Helm")', "helm"],
+    ['say("Орудие", "Gun")', "gun"],
+    ['say("Боезапас", "Ammunition")', "ammo"],
+    ['say("Ремонт", "Repair")', "repair"],
+    ['say("Насос", "Pump")', "pump"],
     ['"PILOT / NAVIGATION"', "pilot panel"],
     ['"GUN / AMMO"', "gun panel"],
     ['"ENGINEERING / REPAIR"', "engineering panel"]
   ]) {
     assert.ok(hull.includes(pair[0]), "missing bilingual " + pair[1] + " copy");
   }
+  assert.doesNotMatch(hull, /V · ШТУРВАЛ|SPACE · ОРУДИЕ|R · БОЕЗАПАС|F · РЕМОНТ|E · НАСОС|LB\/V|A\/D и W\/S/);
 });
 
 test("Cabin runtime feedback also follows the selected language", () => {
   for (const phrase of [
     "Could not prepare the selected Crew portrait",
-    "Out of ammo. Hold R at the rack to reload",
+    "Out of ammo. Hold the ammunition button at the rack to reload",
     "Target destroyed. Reload to engage the next asteroid",
-    "Helm: W/S controls thrust, A/D heading. Press V to leave the helm",
+    "Helm released. Crew can now pump water and repair the hull.",
     "The exterior breach is still open; patch it from outside first",
     "Patch the exterior breach first; the inner seam is still locked",
-    "Oxygen depleted. Use E (or gamepad B) to pump while your head is above water.",
+    "Oxygen depleted. Press the pump control while keeping your head above water.",
     "Compartment dry. You can return to the Ring.",
-    "Repair: F / Enter or gamepad A. Pressure "
+    "Hold the repair control beside the breach. Pressure "
   ]) assert.ok(hull.includes(phrase), "missing English runtime feedback: " + phrase);
   assert.match(hull, /say\("шов ", "SEAM "\)/);
   assert.match(hull, /say\("ТЯГА ", "THRUST "\)/);
@@ -63,12 +64,12 @@ test("The cabin remains compact and sci-fi visuals use cool energy colors", () =
 });
 
 test("Mini-Sim 0.9.115 cache and all source-contract tests use the same version", () => {
-  assert.match(php, /Version: 0\.9\.113/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.9\.113'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.9\.113/);
-  assert.match(qa, /Version: 0\.9\.113/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.9\.113'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.9\.113/);
+  assert.match(php, /Version: 0\.9\.115/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.9\.115'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.9\.115/);
+  assert.match(qa, /Version: 0\.9\.115/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.9\.115'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.9\.115/);
   assert.ok(uiTests.includes("Version: 0\\.9\\.113"));
   assert.ok(uiTests.includes("BCM_MINI_SIM_VERSION', '0\\.9\\.113'"));
   assert.ok(uiTests.includes("SPACE LABYRINTH — 0\\.9\\.113"));
