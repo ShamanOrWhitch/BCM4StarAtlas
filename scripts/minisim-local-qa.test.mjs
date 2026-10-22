@@ -225,7 +225,7 @@ test("Ring cutaway owns each runtime state declaration exactly once", async () =
   const declarationCount = (name) => ring.split("\n").filter((line) =>
     /^\s*(?:let|const|var)\s+/.test(line) && new RegExp("\\b" + name + "\\s*=").test(line)
   ).length;
-  for (const name of ["done", "gameStarted", "splitActive", "mode", "players", "lastHudCount", "raf", "frameStamp", "keyboardInputs", "touchInputs", "padInputs", "previousPad", "oneShotActions", "playerColors"]) {
+  for (const name of ["done", "gameStarted", "splitActive", "mode", "players", "lastHudCount", "raf", "frameStamp", "keyboardInputs", "touchInputs", "padInputs", "previousPad", "oneShotActions", "playerColors", "menuFocusIndex", "menuPadPrevious"]) {
     assert.equal(declarationCount(name), 1, name + " should be declared once in Ring scope");
   }
   assert.match(ring, /let width = 1, height = 1;/, "split-screen camera dimensions remain declared");
