@@ -1,4 +1,11 @@
-## Candidate work — Mini-Sim 0.9.114
+## Живая база — Mini-Sim 0.11.0
+- Код 0.9.113 плюс старт в Room 1. В main как 0.11.0. 0.9.114 и 0.9.115 не продолжать.
+- Снаружи: V = Warp, U = трюм. В трюме V = штурвал. Не переназначать клавиши без ручного прогона этой сборки.
+- Платформенных персонажей рисовать через уже существующий вырез фона, не новым спрайт-пайплайном.
+- Пушить ветку в репозиторий в том же заходе. galia-desk не трогать. PR #14 и #18 не сливать.
+
+## Candidate work — Mini-Sim 0.9.114 — закрыт как база
+
 - Main baseline: 0.9.113 / Tower 0.2.64. Branch: fix/minisim-0.9.114-ring-cutaway-controls.
 - Scope: restore same-maze Ring cutaway with original asteroid textures, keep collect-three-and-return objective, add minor mobs, move fire to X, move full return to Back, restore mouse access in Hull Dive.
 - Shared changes require branch commits and a PR; GitHub merge does not deploy WordPress.

@@ -1,6 +1,20 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
-## Рабочая версия 0.9.114
+## Рабочая версия 0.11.0
+Дата: 22 октября 2026.
+
+Это **0.9.113 от Грока**, возвращённая в main, со стартом снова в **Room 1** `(0, 0, 2)`. Автотелепорт в астероид снят: первая лока упирается в объекты с сайта, тест Room 1 на астероиде не проходит. Трюм по-прежнему не ставит корабль на паузу. Штурвал: W/S тяга, A/D курс. Снаружи трюма **V — Warp**, **U / R3 — трюм**. Внутри трюма V отдаёт и возвращает штурвал. Не переназначать это на X и не делать отдельную 0.9.115.
+
+Ветка 0.9.114 (cutaway Ring, другие кнопки геймпада) **не является рабочей базой**. Её код кольца откатан к 0.9.113. PR #14 и #18 не сливать.
+
+## Контракт — не изобретать путь заново
+
+- Старт только Room 1. Не вызывать `BCMDeepSpaceWarpEnterAsteroid` из `beginFlight`.
+- Платформенный экипаж рисовать уже существующим вырезом фона (`BCMTowerAPI.makeCrewSpriteTexture`), а не новым чиби-пайплайном.
+- Клавиши V/U не перевешивать, пока ручной прогон именно этой сборки не покажет, что старый путь мёртв.
+- После правки механик сразу пушить ветку и PR в `ShamanOrWhitch/BCM4StarAtlas`. Локальный превью другим агентам не виден. `wordpress/galia-desk` не трогать.
+
+## Рабочая версия 0.9.114 — ОТМЕНЕНА как база
 - Main baseline: 0.9.113 / Tower 0.2.64. Candidate branch: fix/minisim-0.9.114-ring-cutaway-controls.
 - Ring is a cutaway of the same maze, not a linear side-scroll level. Existing connections, floors, crystals, entrance and exit are reused. Surface materials take textures from the active maze.
 - The objective is three crystals and return to entry; minor mobs are hazards/targets, not boss gates.

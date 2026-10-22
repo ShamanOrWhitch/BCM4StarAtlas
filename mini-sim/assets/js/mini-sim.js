@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.9.113",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.0",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.9.113",
+      title: "SPACE LABYRINTH — 0.11.0",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -863,6 +863,9 @@
     canvas.focus();
     window.BCMDialogue?.showOperator("", textForLanguage("welcome"));
     window.BCMDialogue?.showControls("flight");
+
+    // Start stays Room 1 at (0, 0, 2). Do not teleport into the asteroid:
+    // the first location test needs the site objects that live here.
 
     if (canvas.requestPointerLock && !("ontouchstart" in window)) {
       canvas.requestPointerLock();
@@ -3560,25 +3563,19 @@
     const btn = (n) => !!(gp.buttons && gp.buttons[n] && (gp.buttons[n].pressed || gp.buttons[n].value > 0.5));
     pad.roll = (btn(5) ? 1 : 0) - (btn(4) ? 1 : 0);
     pad.vert = (btn(7) ? 1 : 0) - (btn(6) ? 1 : 0);
-    const overlayOwnsPadActions = !!(
-      document.getElementById("bcm-hull-dive") ||
-      document.getElementById("bcm-ring-platformer") ||
-      document.getElementById("bcm-ring-transition")
-    );
     const edge = (n, fn) => {
       const on = btn(n);
-      if (on && !pad.prev[n] && running && !overlayOwnsPadActions) fn();
+      if (on && !pad.prev[n] && running) fn();
       pad.prev[n] = on;
     };
-    // B remains available for in-level/Hull Dive actions; outside overlays it resets the current room.
-    // Back/Select performs full return-to-start.
+    // B remains full-home; the separate Back/Select button restarts the current area.
     edge(0, () => openDoor("REMOTE"));
-    edge(1, resetCurrentRoom);
+    edge(1, returnToStart);
     edge(2, toggleCinemaFocus);
     edge(3, () => { if (typeof window.BCMDeepSpaceWarpToggle === "function") window.BCMDeepSpaceWarpToggle(); else tryPortal(); });
     edge(10, tryPortal);
     edge(9, toggleSettings);
-    edge(8, returnToStart);
+    edge(8, resetCurrentRoom);
   }
 
   function tiltLook() {

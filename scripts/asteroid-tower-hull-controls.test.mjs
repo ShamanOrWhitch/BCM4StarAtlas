@@ -23,6 +23,14 @@ test("First-person flight exposes Hull Interior with touch, U and edge-triggered
   assert.match(hull, /say\("НАЗАД В ПОЛЁТ", "BACK TO FLIGHT"\)/);
 });
 
+test("Flight starts in Room 1 and does not teleport into the asteroid", async () => {
+  const mini = await read("mini-sim/assets/js/mini-sim.js");
+  const begin = mini.slice(mini.indexOf("function beginFlight()"), mini.indexOf("const byName = Object.create(null)"));
+  assert.doesNotMatch(begin, /BCMDeepSpaceWarpEnterAsteroid\s*\(/);
+  assert.match(mini, /ship\.position = new THREE\.Vector3\(0, 0, 2\)/);
+  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.0/);
+});
+
 test("Asteroid walls are resolved from the prepared asterwall asset family", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(warp, /function asteroidWallAssetPool\(\)/);

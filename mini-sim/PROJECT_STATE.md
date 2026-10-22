@@ -1,4 +1,10 @@
-## Текущий этап — Mini-Sim 0.9.114
+## Текущий этап — Mini-Sim 0.11.0
+- База кода: механики **0.9.113** (PR #59, коммит `c9d90ec`). Старт снова **Room 1** `(0, 0, 2)`, без автотелепорта в астероид. Версия кэша **0.11.0**.
+- 0.9.114 (cutaway Ring и переназначение кнопок) снята с роли рабочей базы. Ручной прогон той линии не прошёл: V не открывал Warp, U не вёл в трюм.
+- Снаружи трюма: V — Warp, U — трюм. Внутри трюма V — сесть/сойти со штурвала. Корабль ведёт тот, кто у штурвала; трюм полёт не паузит.
+- Это не деплой WordPress и не физический тест телефона.
+
+## История этапа 0.9.114 — не база
 - Main baseline: Mini-Sim 0.9.113 / Tower 0.2.64 (PR #59). Candidate branch: fix/minisim-0.9.114-ring-cutaway-controls. Flight start remains normal; the ship is not auto-teleported into the asteroid maze.
 - Ring Maze is restored from the active 3D maze graph: cells/open passages/stairs, the same seed, entry/exit and three crystals. Linear boss arenas and generated comic backdrops are removed.
 - Ring surfaces clone existing maze materials and reuse their texture maps. Cleanup may dispose cloned materials but not textures owned by the active asteroid maze.
