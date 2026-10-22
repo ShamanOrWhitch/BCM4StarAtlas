@@ -51,9 +51,6 @@
 
   function open(onClose) {
     if (document.getElementById("bcm-hull-dive")) return;
-    try {
-      if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
-    } catch (e) {}
     const THREE = window.THREE;
     const en = window.BCMDialogue?.language === "en";
     const say = (ru, english) => en ? english : ru;

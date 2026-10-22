@@ -1,6 +1,16 @@
+## D-024 — Mini-Sim 0.11.0: Room 1 start on the 0.9.113 mechanics
+
+**Status:** the live base. Supersedes D-023 as the code that runs.
+
+- Keep Grok's 0.9.113 hold, helm and Ring-menu fixes.
+- Flight begins in Room 1 at `(0, 0, 2)`. Do not auto-enter the asteroid; that start fails the first-location test because some objects come from the site.
+- Outside the hold, V opens Warp and U opens the hold. Inside the hold, V leaves or retakes the helm. Do not rebind these to X.
+- Draw platformer crew with the existing background-cutout helper. Do not invent a second chibi pipeline.
+- 0.9.114's Ring rewrite is not the base.
+
 ## D-023 — Mini-Sim 0.9.114: Ring uses the existing maze
 
-**Status:** candidate in fix/minisim-0.9.114-ring-cutaway-controls; not yet live-verified.
+**Status:** superseded by D-024. Not the running game. Manual play of that line failed.
 
 - Reuse the active maze graph, seed, entry/exit and the same three crystals in the cutaway view. Do not replace it with a linear arena, comic panels or mandatory boss gates.
 - Clone materials from the active maze so its original asteroid-wall texture maps are reused. Do not dispose shared maps when the Ring session closes.

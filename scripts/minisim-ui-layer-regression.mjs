@@ -11,12 +11,11 @@ const hull = read("mini-sim/assets/js/hull-dive.js");
 const warp = read("mini-sim/assets/js/deep-space-warp.js");
 const audit = read("mini-sim/assets/js/ui-layer-audit.js");
 
-assert.match(php, /Version: 0\.9\.114/);
-assert.match(php, /define\('BCM_MINI_SIM_VERSION', '0\.9\.114'\)/);
+assert.match(php, /Version: 0\.11\.0/);
+assert.match(php, /define\('BCM_MINI_SIM_VERSION', '0\.11\.0'\)/);
 assert.match(php, /bcm-ui-layer-audit/);
 assert.match(flight, /showUnderlyingScene = !externalPause[\s\S]{0,180}bcm-hull-interior-active/);
 assert.match(hull, /let pilotMode = true/);
-assert.match(hull, /document\.pointerLockElement && document\.exitPointerLock/);
 assert.match(hull, /\.sort\(\(a, b\) => a\.index - b\.index\)/);
 assert.match(hull, /width:min\(450px,44vw\);height:min\(345px,40vh\)/);
 assert.match(warp, /document\.body\.appendChild\(hullEnterButton\)/);
@@ -29,11 +28,9 @@ assert.match(warp, /ENTER RING LABYRINTH/);
 assert.match(warp, /ringDistance >= 18/);
 assert.match(warp, /ringPressed && state\.mode === "maze"/);
 assert.match(warp, /transitionWatchdog = window\.setTimeout/);
-assert.match(warp, /world\.name = "bcm-ring-cutaway-world"/);
-assert.doesNotMatch(warp, /bcm-ring-frontier-side-scroll|function makeComicBackdrop/);
 assert.match(audit, /document\.elementFromPoint/);
 assert.match(audit, /partially-covered/);
 assert.match(audit, /getLastReport/);
 assert.match(audit, /event\.ctrlKey[\s\S]{0,80}event\.altKey[\s\S]{0,80}KeyU/);
 
-console.log("PASS Mini-Sim 0.9.114 UI layer regressions: pilot view, helm default, gamepad assignment, Ring entry and hit testing.");
+console.log("PASS Mini-Sim 0.11.0 UI layer regressions: pilot view, helm default, gamepad assignment, Ring entry and hit testing.");
