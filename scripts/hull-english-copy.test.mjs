@@ -50,7 +50,7 @@ test("Cabin runtime feedback also follows the selected language", () => {
   assert.match(hull, /say\("шов ", "SEAM "\)/);
   assert.match(hull, /say\("ТЯГА ", "THRUST "\)/);
   assert.match(hull, /say\("КУРС ", "HEADING "\)/);
-  assert.doesNotMatch(hull, /A\/D|W\/S|Hold R|Hold E|Repair: F|gamepad B/);
+  assert.doesNotMatch(hull, /Out of ammo\. Hold R at the rack to reload|Helm: W\/S controls thrust, A\/D heading|Oxygen depleted\. Use E \(or gamepad B\)|Repair: F \/ Enter or gamepad A/);
 });
 
 test("The cabin remains compact and sci-fi visuals use cool energy colors", () => {
