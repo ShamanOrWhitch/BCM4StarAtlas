@@ -113,13 +113,13 @@ test("Hydrogen mission unlocks only after required screens really play and is an
   assert.match(warp, /new CustomEvent\("bcm:mission:hydrogen-collected"/);
 });
 
-test("0.11.4 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
-  assert.match(php, /Version: 0\.11\.4/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.4'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.11\.4/);
-  assert.match(qa, /Version: 0\.11\.4/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.4'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.4/);
+test("0.11.5 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
+  assert.match(php, /Version: 0\.11\.5/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.5'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.11\.5/);
+  assert.match(qa, /Version: 0\.11\.5/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.5'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.5/);
   assert.match(browserWorkflow, /timeout-minutes: 45/);
   assert.match(browserWorkflow, /timeout-minutes: 20/);
   assert.match(browserWorkflow, /timeout-minutes: 25/);
