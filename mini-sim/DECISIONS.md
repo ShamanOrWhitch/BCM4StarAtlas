@@ -1,3 +1,13 @@
+## D-029 — Mini-Sim 0.11.5: deterministic astral movement rules
+
+**Status:** candidate on minisim-0.11.5-astral-phase; CI and visual play pending.
+
+- For each Y-layer cell, derive astralMode and phase from the existing asteroid seed plus cell coordinates. Never consume the route/crystal RNG stream for decoration/physics. Same seed => same cell graph and same anomaly pattern.
+- Drift = low gravity; Flux = bounded gravity oscillation that remains downward; Dense = heavier gravity and a different jump impulse. Existing cell walls, texture indices, quarter-turns, doors and crystal locations remain untouched.
+- The minimap uses distinct colors/glyphs and the HUD names the active rule, so unusual movement is legible rather than random/opaque.
+- Next: validate feel in browser/device after normal site access is possible, then design more anomalous interactions (issue #68). The Tower city and same-seed trip back to the arriving ship remain a separate lifecycle task (#67).
+- Keep wordpress/galia-desk locked; no generated textures.
+
 ## D-028 — Mini-Sim 0.11.4: screen-discovery quest and first-cell Hydrogen
 
 **Status:** candidate on `minisim-0.11.4-hydrogen-mission`; requires CI review and live play.
