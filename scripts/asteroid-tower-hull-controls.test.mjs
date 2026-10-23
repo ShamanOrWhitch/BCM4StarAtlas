@@ -171,7 +171,8 @@ test("Crew facing follows the Tower convention and 3D wall materials use each ce
   const core = await read("mini-sim/assets/js/crew-core.js");
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   const tower = await read("mini-sim/tower/assets/js/tower.js");
-  assert.ok(core.includes('const face = -(Number(actor.facing) < 0 ? -1 : 1) * (profile.facingFactor || -1);'));
+  assert.ok(core.includes('const faceFactor = String(profile.species || "").toLowerCase().includes("mierese") ? baseFacing : -baseFacing;'));
+  assert.ok(core.includes('const face = (Number(actor.facing) < 0 ? -1 : 1) * faceFactor;'));
   assert.match(core, /function facingFactor\(species\)/);
   assert.ok(tower.includes('p.visualFacing = (turnInput > 0 ? -1 : 1) * facingFactor;'));
   assert.ok(warp.includes('function addWall(x, y, z, sx, sy, sz, cell)'));
