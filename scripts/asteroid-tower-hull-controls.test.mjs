@@ -37,6 +37,8 @@ test("Asteroid walls are resolved from the prepared asterwall asset family", asy
   assert.match(warp, /asterwall/);
   assert.ok(warp.includes("asterwall[^.]*"), "include every asterwall filename suffix");
   assert.match(warp, /const chosenWallAssets = availableWallAssets;/);
+  assert.ok(warp.includes('const wallAssetOrderRng = randomFrom(hashSeed(String(seed) + "|wall-assets"));'));
+  assert.ok(warp.includes("Math.floor(wallAssetOrderRng() * (i + 1))"));
   assert.doesNotMatch(warp, /availableWallAssets\.slice\(0, 4\)/);
   assert.match(warp, /wallMesh\.name = "asteroid-maze-wall-panels-" \+ key\.replace\(":", "-"\)/);
   assert.match(warp, /wallMaterials\[index\]\.map = fallbackTexture/);
