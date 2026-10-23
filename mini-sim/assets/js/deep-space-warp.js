@@ -1108,6 +1108,18 @@
         .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
     }
 
+    function publishAsteroidChart(maze) {
+      if (!maze) return;
+      const marks = (maze.crystals || []).filter((crystal) => crystal.scouted || crystal.taken).map((crystal) => ({
+        x: crystal.cell.x, y: crystal.cell.y, z: crystal.cell.z, taken: !!crystal.taken
+      }));
+      window.BCMAsteroidChart = {
+        seed: maze.seed,
+        dimensions: maze.dimensions,
+        marks
+      };
+    }
+
     function enterAsteroidMaze() {
       // Warp OST owns the whole Warp stage, including the asteroid maze.
       const engine = api();
@@ -1329,6 +1341,11 @@
       beacon.name = "return-warp-beacon";
       group.add(beacon);
 
+      cells.forEach((cell) => {
+        cell.wallTurn = Math.floor(rng() * 4);
+        cell.wallAsset = wallTextures.length ? Math.floor(rng() * wallTextures.length) : 0;
+      });
+
       scene.add(group);
       const maze = {
         active: true,
@@ -1483,10 +1500,17 @@
         if (crystal.taken) return;
         crystal.mesh.rotation.y += Math.min(frame.dt || 0.016, 0.04) * 1.35;
         crystal.mesh.position.y += Math.sin(performance.now() * 0.002 + crystal.phase) * 0.001;
+        if (!crystal.scouted && pos.distanceTo(crystal.mesh.position) < 8) {
+          crystal.scouted = true;
+          publishAsteroidChart(maze);
+          setMazeStatus("CHART MARK · CORE SHARD " + (crystal.cell.x + 1) + "." + (crystal.cell.z + 1));
+        }
         if (pos.distanceTo(crystal.mesh.position) < 1.55) {
           crystal.taken = true;
+          crystal.scouted = true;
           crystal.mesh.visible = false;
           maze.count += 1;
+          publishAsteroidChart(maze);
           setMazeStatus("CORE SHARDS " + maze.count + "/3 · " + (maze.count === 3 ? "GOLD RING IS OPEN" : "SEARCH THE CONNECTED CORRIDORS"));
         }
       });
@@ -1623,14 +1647,14 @@
       const copy = en ? {
         landing: "LANDING", bosses: "BOSSES", back: "Return to ship", canvas: "Large arena progress",
         jump: "JUMP", action: "ACTION", laser: "LASER", dash: "DASH",
-        title: "Large location",
-        description: "Run across large side arenas, jump between platforms and defeat three bosses. The small map only marks your progress.",
+        title: "One large cell",
+        description: "The pigs and the ring are one large cell of the path. The other cells use the asteroid seed and its textures. Flight marks crystal cells on the map.",
         controls: "P1: ← → / A D · jump: Space / W · action: E · fire: Q\nP2: J L · jump: P · action: O · fire: K · gamepads supported"
       } : {
         landing: "ВЫСАДКА", bosses: "БОССЫ", back: "В корабль", canvas: "Прогресс по аренам",
         jump: "ПРЫЖОК", action: "ДЕЙСТВИЕ", laser: "ЛАЗЕР", dash: "РЫВОК",
-        title: "Большая локация",
-        description: "Свободное движение по большим боковым аренам, прыжки между платформами и три босса в разных зонах. Мини-карта показывает только продвижение по локации.",
+        title: "Большая клетка",
+        description: "Свиньи и кольцо — одна большая клетка пути. Остальные клетки собраны из seed астероида и его текстур. Корабль отмечает на карте, где искать кристаллы.",
         controls: "P1: ← → / A D · прыжок: Space / W · действие: E · лазер: Q\nP2: J L · прыжок: P · действие: O · лазер: K · геймпады поддерживаются"
       };
       root2d.innerHTML =
@@ -1644,7 +1668,7 @@
             '<button type="button" data-ring-exit title="' + copy.back + '" aria-label="' + copy.back + '" style="min-width:42px;min-height:42px;padding:7px 11px;border:1px solid #547083;border-radius:9px;background:rgba(16,35,45,.96);color:#e8fbff;font-size:20px;font-weight:800">↩</button>' +
           '</div>' +
         '</div>' +
-        '<canvas data-ring-canvas aria-label="' + copy.canvas + '" style="position:absolute;right:12px;top:96px;width:min(30vw,190px);height:56px;min-width:96px;min-height:42px;border:1px solid rgba(88,173,198,.55);border-radius:9px;background:rgba(3,10,18,.83);z-index:2;pointer-events:none"></canvas>' +
+        '<canvas data-ring-canvas aria-label="' + copy.canvas + '" style="position:absolute;right:12px;top:78px;width:min(34vw,220px);height:168px;min-width:120px;min-height:120px;border:1px solid rgba(88,173,198,.55);border-radius:9px;background:rgba(3,10,18,.83);z-index:2;pointer-events:none"></canvas>' +
         '<div data-ring-split-divider hidden style="position:absolute;inset:0;z-index:1;pointer-events:none;border:0"></div>' +
         '<div style="position:absolute;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:flex-end;gap:12px;z-index:4;pointer-events:none">' +
           '<div style="display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(2,42px);gap:4px;pointer-events:auto">' +
@@ -2189,7 +2213,175 @@
       }
 
       function updateRoomSlice() {
-        // Continuous side-scrolling locations do not slice the asteroid maze into rooms.
+        // The pigs-and-ring side-scroller stays one large cell. Neighbors use the asteroid chart.
+      }
+
+      function attachAsteroidCellPath(world) {
+        const RING_CELL_HOME = 420;
+        const ROOM_HALF = 6;
+        const keyOf = (x, y, z) => x + "," + y + "," + z;
+        const step = { xp: [1, 0, 0], xn: [-1, 0, 0], zp: [0, 0, 1], zn: [0, 0, -1], yp: [0, 1, 0], yn: [0, -1, 0] };
+        const opposite = { xp: "xn", xn: "xp", zp: "zn", zn: "zp", yp: "yn", yn: "yp" };
+        const nodes = new Map();
+        (maze.cells || []).forEach((cell) => {
+          const large = !!(maze.exitCell && cell.x === maze.exitCell.x && cell.y === maze.exitCell.y && cell.z === maze.exitCell.z);
+          nodes.set(keyOf(cell.x, cell.y, cell.z), {
+            x: cell.x, y: cell.y, z: cell.z,
+            open: cell.open || {},
+            wallTurn: cell.wallTurn || 0,
+            wallAsset: cell.wallAsset || 0,
+            astral: cell.y !== 1,
+            large,
+            mobs: []
+          });
+        });
+        function neighbor(node, dir) {
+          if (!node || !node.open || !node.open[dir] || !step[dir]) return null;
+          const delta = step[dir];
+          return nodes.get(keyOf(node.x + delta[0], node.y + delta[1], node.z + delta[2])) || null;
+        }
+        const textures = (maze.textures || []).map((tex) => {
+          const copy = tex.clone();
+          copy.needsUpdate = true;
+          copy.wrapS = THREE.RepeatWrapping;
+          copy.wrapT = THREE.RepeatWrapping;
+          copy.center.set(0.5, 0.5);
+          return copy;
+        });
+        if (!textures.length) {
+          const canvas = document.createElement("canvas");
+          canvas.width = 64;
+          canvas.height = 64;
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = "#3d5562";
+          ctx.fillRect(0, 0, 64, 64);
+          ctx.strokeStyle = "#8fd0e2";
+          ctx.strokeRect(4, 4, 56, 56);
+          textures.push(new THREE.CanvasTexture(canvas));
+        }
+        const floorMaterial = new THREE.MeshStandardMaterial({
+          map: textures[0], color: 0xffffff, roughness: 0.82, metalness: 0.24
+        });
+        const wallMaterial = new THREE.MeshStandardMaterial({
+          map: textures[0], color: 0xd5e4ea, roughness: 0.9, metalness: 0.18
+        });
+        const room = new THREE.Group();
+        room.name = "bcm-asteroid-cell-room";
+        const floor = new THREE.Mesh(new THREE.BoxGeometry(ROOM_HALF * 2, 0.36, 3.8), floorMaterial);
+        floor.position.set(RING_CELL_HOME, -0.18, 0);
+        room.add(floor);
+        const doorGeo = new THREE.BoxGeometry(0.28, 2.4, 0.4);
+        const doorLeft = new THREE.Mesh(doorGeo, wallMaterial);
+        const doorRight = new THREE.Mesh(doorGeo, wallMaterial);
+        doorLeft.position.set(RING_CELL_HOME - ROOM_HALF + 0.2, 1.15, 0);
+        doorRight.position.set(RING_CELL_HOME + ROOM_HALF - 0.2, 1.15, 0);
+        room.add(doorLeft, doorRight);
+        const hatch = new THREE.Mesh(
+          new THREE.BoxGeometry(1.1, 0.08, 1.1),
+          new THREE.MeshBasicMaterial({ color: 0xb9a6ff })
+        );
+        hatch.position.set(RING_CELL_HOME, 0.08, 0.2);
+        room.add(hatch);
+        const mobMat = new THREE.MeshStandardMaterial({ color: 0xd27a4a, emissive: 0x3a1408, roughness: 0.45, metalness: 0.2 });
+        const mobGeo = new THREE.BoxGeometry(0.7, 0.9, 0.5);
+        nodes.forEach((node) => {
+          if (node.large) return;
+          const sides = ["xn", "xp", "zn", "zp", "yn", "yp"].filter((dir) => node.open && node.open[dir]);
+          const count = Math.min(2, sides.length);
+          for (let i = 0; i < count; i += 1) {
+            const side = sides[i];
+            const mesh = new THREE.Mesh(mobGeo, mobMat);
+            mesh.visible = false;
+            mesh.name = "ring-cell-mob";
+            room.add(mesh);
+            const fromLeft = side === "xn" || side === "zn" || side === "yn";
+            node.mobs.push({
+              side,
+              offset: fromLeft ? -4.2 : 4.2,
+              dir: fromLeft ? 1 : -1,
+              alive: true,
+              respawnAt: 0,
+              mesh
+            });
+          }
+        });
+        scene.add(room);
+        world.platforms.push({ minX: RING_CELL_HOME - ROOM_HALF, maxX: RING_CELL_HOME + ROOM_HALF, y: 0, cellRoom: true });
+        world.materials.push(floorMaterial, wallMaterial, hatch.material, mobMat);
+        textures.forEach((texture) => world.textures.push(texture));
+        world.specialGeometry.push(floor.geometry, doorGeo, hatch.geometry, mobGeo);
+        const start = (maze.startCell && nodes.get(keyOf(maze.startCell.x, maze.startCell.y, maze.startCell.z)))
+          || nodes.values().next().value;
+        const firstOpen = ["xp", "zp", "xn", "zn"].find((dir) => start && start.open && start.open[dir]) || "xp";
+        world.cellPath = {
+          nodes, neighbor, opposite, keyOf,
+          nx: maze.dimensions?.nx || 7,
+          ny: maze.dimensions?.ny || 3,
+          nz: maze.dimensions?.nz || 7,
+          room, floorMaterial, wallMaterial, doorLeft, doorRight, hatch, textures,
+          homeX: RING_CELL_HOME, half: ROOM_HALF,
+          current: start, heading: firstOpen, previous: null, returnNode: null,
+          respawnMs: 240000, turnQueued: false
+        };
+        world.inLargeCell = false;
+        world.group.visible = false;
+        room.visible = true;
+        applyRingCellLook(world);
+        publishAsteroidChart(maze);
+      }
+
+      function applyRingCellLook(world) {
+        const path = world.cellPath;
+        if (!path || !path.current) return;
+        const node = path.current;
+        const tex = path.textures[Math.abs(node.wallAsset || 0) % path.textures.length];
+        if (tex) {
+          tex.rotation = (node.wallTurn || 0) * (Math.PI / 2);
+          tex.center.set(0.5, 0.5);
+          path.floorMaterial.map = tex;
+          path.wallMaterial.map = tex;
+          path.floorMaterial.needsUpdate = true;
+          path.wallMaterial.needsUpdate = true;
+        }
+        path.floorMaterial.color.setHex(node.astral ? 0xc9b6ff : 0xffffff);
+        path.wallMaterial.color.setHex(node.astral ? 0x8d78c9 : 0xd5e4ea);
+        path.doorRight.visible = !node.large && !!path.neighbor(node, path.heading);
+        path.doorLeft.visible = !node.large && !!path.neighbor(node, path.opposite[path.heading]);
+        path.hatch.visible = !node.large && !!(path.neighbor(node, "yp") || path.neighbor(node, "yn"));
+        path.nodes.forEach((other) => {
+          (other.mobs || []).forEach((mob) => {
+            if (!mob.mesh) return;
+            mob.mesh.visible = other === node && mob.alive && !node.large;
+          });
+        });
+        world.inLargeCell = !!node.large;
+        world.group.visible = !!node.large;
+        path.room.visible = !node.large;
+      }
+
+      function placeParty(x) {
+        players.forEach((mate, index) => {
+          mate.worldX = x + (index ? -0.9 : 0);
+          mate.worldY = 0;
+          mate.vy = 0;
+          mate.grounded = true;
+          mate.supportPlatform = null;
+          mate.checkpointX = worldState.inLargeCell ? worldState.spawnX : worldState.cellPath.homeX;
+          updatePlayerSprite(mate);
+        });
+      }
+
+      function enterRingCell(world, node, fromSide) {
+        const path = world.cellPath;
+        if (!path || !node) return world.spawnX;
+        path.previous = path.current;
+        path.current = node;
+        if (node.large && path.previous && !path.previous.large) path.returnNode = path.previous;
+        applyRingCellLook(world);
+        if (node.large) return world.spawnX;
+        if (fromSide === "right") return path.homeX + path.half - 0.9;
+        if (fromSide === "left") return path.homeX - path.half + 0.9;
+        return path.homeX;
       }
 
       maze.group.visible = false;
@@ -2204,9 +2396,10 @@
       // Without this call the menu is already on screen when spawn setup throws,
       // so SINGLE/MULTI look clickable and the level never starts.
       const worldState = buildRingWorld();
+      attachAsteroidCellPath(worldState);
       const cameraOne = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
       const cameraTwo = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
-      const cameraFocus = { x: worldState.spawnX, y: 1.6, z: 0 };
+      const cameraFocus = { x: worldState.cellPath ? worldState.cellPath.homeX : worldState.spawnX, y: 1.6, z: 0 };
 
       const savedPlayerVisualState = [];
       let width = 1, height = 1;
@@ -2226,13 +2419,16 @@
       function makePlayerSprite(player) {
         let texture = null;
         const imageUrl = String(crewSelection[player.index]?.image || "");
-        if (imageUrl && window.BCMTowerAPI?.makeCrewSpriteTexture) {
-          try { texture = window.BCMTowerAPI.makeCrewSpriteTexture(imageUrl); } catch (e) {}
-        }
-        if (!texture && imageUrl) {
-          try { texture = textureLoader.load(imageUrl); } catch (e) {}
+        if (window.BCMCrewCutout?.placeholder) {
+          try { texture = window.BCMCrewCutout.placeholder(THREE, player.index); } catch (e) {}
         }
         if (!texture) texture = fallbackCrewTexture(player.index);
+        if (imageUrl && window.BCMTowerAPI?.makeCrewSpriteTexture) {
+          try {
+            const shared = window.BCMTowerAPI.makeCrewSpriteTexture(imageUrl);
+            if (shared) texture = shared;
+          } catch (e) {}
+        }
         if (texture.colorSpace !== undefined && THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
         const material = new THREE.SpriteMaterial({
           map: texture, transparent: true, alphaTest: 0.035, depthWrite: false
@@ -2241,9 +2437,17 @@
         sprite.name = "ring-crew-sprite-" + (player.index + 1);
         sprite.scale.set(1.18, 1.78, 1);
         sprite.renderOrder = 8;
-        worldState.group.add(sprite);
+        scene.add(sprite);
         player.sprite = sprite;
         player.spriteMaterial = material;
+        const swapCutout = window.BCMCrewCutout?.makeTexture || null;
+        if (swapCutout && imageUrl) {
+          swapCutout(THREE, imageUrl).then((cut) => {
+            if (!cut || !player.spriteMaterial || player.spriteMaterial.map === cut) return;
+            player.spriteMaterial.map = cut;
+            player.spriteMaterial.needsUpdate = true;
+          }).catch(() => {});
+        }
       }
 
       function playerWorldPosition(player) {
@@ -2345,9 +2549,9 @@
       function currentWeaponProfile(player) {
         const type = String(player?.weaponType || weaponProgress.type || "pointer");
         const tier = Math.max(1, Number(player?.weaponTier || weaponProgress.tier) || 1);
-        if (type === "pulse") return { cooldown: Math.max(360, 720 - tier * 45), damage: 2 + Math.floor((tier - 1) / 2), color: 0xffb960, range: 16 };
-        if (type === "spectrum") return { cooldown: Math.max(190, 390 - tier * 30), damage: 1 + Math.floor(tier / 3), color: weaponPalette[weaponShotIndex % weaponPalette.length], range: 17 };
-        return { cooldown: Math.max(75, 150 - tier * 14), damage: 1, color: 0x75eaff, range: 15 };
+        if (type === "pulse") return { cooldown: Math.max(360, 720 - tier * 45), damage: 2 + Math.floor((tier - 1) / 2), color: 0xffb960, range: 16, width: 0.07 };
+        if (type === "spectrum") return { cooldown: Math.max(190, 390 - tier * 30), damage: 1 + Math.floor(tier / 3), color: weaponPalette[weaponShotIndex % weaponPalette.length], range: 17, width: 0.055 };
+        return { cooldown: Math.max(75, 150 - tier * 14), damage: 1, color: 0x75eaff, range: 15, width: 0.045 };
       }
 
       function firePlayerWeapon(player, now) {
@@ -2358,6 +2562,16 @@
         const end = start.clone().add(new THREE.Vector3(player.facing * profile.range, 0, 0));
         let target = null;
         let nearest = Infinity;
+        if (!worldState.inLargeCell && worldState.cellPath && worldState.cellPath.current) {
+          worldState.cellPath.current.mobs.forEach((mob) => {
+            if (!mob.alive || !mob.mesh) return;
+            const forwardDistance = (mob.mesh.position.x - player.worldX) * player.facing;
+            if (forwardDistance <= 0.2 || forwardDistance > profile.range) return;
+            mob.alive = false;
+            mob.mesh.visible = false;
+            mob.respawnAt = now + worldState.cellPath.respawnMs;
+          });
+        }
         for (const boss of worldState.bosses) {
           if (!boss.alive) continue;
           const forwardDistance = (boss.x - player.worldX) * player.facing;
@@ -2521,7 +2735,13 @@
         const player = players[index];
         if (!player || !gameStarted || done) return false;
         const now = performance.now();
-        if (action === "activate") return activateBossWeakpoint(player);
+        if (action === "activate") {
+          if (worldState.cellPath && !worldState.inLargeCell) {
+            worldState.cellPath.turnQueued = true;
+            return true;
+          }
+          return activateBossWeakpoint(player);
+        }
         if (action === "dash" && now >= player.dashReadyAt) {
           player.dashUntil = now + 210;
           player.dashReadyAt = now + 850;
@@ -2642,6 +2862,32 @@
         }
       }
 
+      function updateCellMobs(dt, now) {
+        const path = worldState.cellPath;
+        if (!path || worldState.inLargeCell || !path.current) return;
+        const node = path.current;
+        if (node.astral && path.floorMaterial.map) {
+          path.floorMaterial.map.rotation = (node.wallTurn || 0) * (Math.PI / 2) + now * 0.0004;
+        }
+        (node.mobs || []).forEach((mob) => {
+          if (!mob.mesh) return;
+          if (!mob.alive) {
+            mob.mesh.visible = false;
+            if (now >= mob.respawnAt) {
+              mob.alive = true;
+              mob.mesh.visible = true;
+            }
+            return;
+          }
+          mob.offset += mob.dir * (node.astral ? 3.3 : 2.05) * dt;
+          if (mob.offset > 4.25 || mob.offset < -4.25) mob.dir *= -1;
+          mob.mesh.position.set(path.homeX + mob.offset, node.astral ? 1.2 : 0.55, 0.45);
+          mob.mesh.visible = true;
+          const hit = players.find((player) => Math.abs(player.worldX - mob.mesh.position.x) < 0.62 && player.worldY < 1.35);
+          if (hit) damagePlayer(hit, now);
+        });
+      }
+
       function updateBosses(dt, now) {
         const living = players.filter(Boolean);
         worldState.bosses.forEach((boss) => {
@@ -2684,7 +2930,42 @@
           const previousX = player.worldX;
           if (dashing) player.worldX += player.facing * 12.5 * dt;
           else player.worldX += direction * 7.2 * dt;
-          player.worldX = Math.max(-49, Math.min(worldState.exitX + 1.5, player.worldX));
+          const path = worldState.cellPath;
+          if (worldState.inLargeCell) {
+            if (direction < 0 && previousX <= -48.15 && path && path.returnNode) {
+              placeParty(enterRingCell(worldState, path.returnNode, "right"));
+              return;
+            }
+            player.worldX = Math.max(-49, Math.min(worldState.exitX + 1.5, player.worldX));
+          } else if (path && path.current) {
+            const node = path.current;
+            const right = path.neighbor(node, path.heading);
+            const left = path.neighbor(node, path.opposite[path.heading]);
+            if (player.worldX > path.homeX + path.half - 0.4 && right) {
+              placeParty(enterRingCell(worldState, right, "left"));
+              return;
+            }
+            if (player.worldX < path.homeX - path.half + 0.4 && left) {
+              placeParty(enterRingCell(worldState, left, "right"));
+              return;
+            }
+            player.worldX = Math.max(path.homeX - path.half + 0.35, Math.min(path.homeX + path.half - 0.35, player.worldX));
+            if (path.turnQueued) {
+              path.turnQueued = false;
+              const up = (Math.abs(player.worldX - path.homeX) < 1.35) && (path.neighbor(node, "yp") || path.neighbor(node, "yn"));
+              const turn = ["zp", "zn", "xp", "xn"].find((dir) => dir !== path.heading && dir !== path.opposite[path.heading] && path.neighbor(node, dir));
+              if (up) {
+                placeParty(enterRingCell(worldState, up, null));
+                return;
+              }
+              if (turn) {
+                path.heading = turn;
+                applyRingCellLook(worldState);
+              }
+            }
+          } else {
+            player.worldX = Math.max(-49, Math.min(worldState.exitX + 1.5, player.worldX));
+          }
 
           worldState.barriers.forEach((barrier) => {
             if (worldState.defeatedBosses < barrier.unlockAfter &&
@@ -2700,7 +2981,8 @@
             player.supportPlatform = null;
           }
           player.wasJumpDown = input.jump;
-          player.vy -= 21 * dt;
+          const astral = !!(worldState.cellPath && worldState.cellPath.current && worldState.cellPath.current.astral && !worldState.inLargeCell);
+          player.vy -= (astral ? 9 : 21) * dt;
           player.worldY += player.vy * dt;
 
           if (player.vy <= 0) {
@@ -2759,12 +3041,13 @@
           return true;
         });
 
+        updateCellMobs(dt, now);
         updateBosses(dt, now);
         worldState.coreMeshes.forEach((core, index) => {
           if (!core.taken) core.mesh.rotation.y += dt * (1.0 + index * 0.2);
         });
         worldState.exitMarker.rotation.z += dt * 0.42;
-        if (worldState.defeatedBosses >= 3 && players.some((player) => player.worldX >= worldState.exitX - 1.3)) {
+        if (worldState.inLargeCell && worldState.defeatedBosses >= 3 && players.some((player) => player.worldX >= worldState.exitX - 1.3)) {
           finishRingPlatformer(maze, true);
           return;
         }
@@ -2878,6 +3161,36 @@
         bg.addColorStop(1, "#02070d");
         g.fillStyle = bg;
         g.fillRect(0, 0, mapWidth, mapHeight);
+        const path = worldState.cellPath;
+        if (path && path.current) {
+          const pad = 8;
+          const cellW = (mapWidth - pad * 2) / Math.max(1, path.nx);
+          const cellH = (mapHeight - 16) / Math.max(1, path.nz);
+          const layer = path.current.y;
+          for (let z = 0; z < path.nz; z += 1) {
+            for (let x = 0; x < path.nx; x += 1) {
+              const node = path.nodes.get(path.keyOf(x, layer, z));
+              if (!node) continue;
+              const px = pad + x * cellW;
+              const py = 8 + z * cellH;
+              const linked = node.open.xp || node.open.xn || node.open.zp || node.open.zn || node.open.yp || node.open.yn;
+              g.fillStyle = node.large ? "#4a3b14" : node.astral ? "#2a1844" : (linked ? "#143246" : "#0c1a24");
+              g.fillRect(px + 1, py + 1, Math.max(1, cellW - 2), Math.max(1, cellH - 2));
+              if (node === path.current) {
+                g.strokeStyle = "#f4fbff";
+                g.strokeRect(px + 0.5, py + 0.5, Math.max(1, cellW - 1), Math.max(1, cellH - 1));
+              }
+              const mark = (maze.crystals || []).find((crystal) =>
+                crystal.cell && crystal.cell.x === x && crystal.cell.y === layer && crystal.cell.z === z &&
+                (crystal.scouted || crystal.taken));
+              if (mark) {
+                g.fillStyle = mark.taken ? "#8ef6d8" : "#5ce1ff";
+                g.fillRect(px + cellW * 0.32, py + cellH * 0.32, Math.max(2, cellW * 0.34), Math.max(2, cellH * 0.34));
+              }
+            }
+          }
+          return;
+        }
         const x1 = 9, x2 = mapWidth - 9, y = Math.max(20, mapHeight * 0.52);
         const trackW = Math.max(1, x2 - x1);
         const zones = [
@@ -2927,8 +3240,11 @@
         gameStarted = true;
         menu.hidden = true;
         menu.style.display = "none";
-        const spawn1 = { x: worldState.spawnX, y: 0 };
-        const spawn2 = mode === "multi" ? { x: worldState.spawnX - 2, y: 0 } : null;
+        const home = worldState.cellPath
+          ? enterRingCell(worldState, worldState.cellPath.current, null)
+          : worldState.spawnX;
+        const spawn1 = { x: home, y: 0 };
+        const spawn2 = mode === "multi" ? { x: home - 1.4, y: 0 } : null;
         players = [createPlayer(0, spawn1)];
         if (spawn2) players.push(createPlayer(1, spawn2));
         updateSplitState();
@@ -3065,6 +3381,7 @@
         window.removeEventListener("keydown", keyboardMove, true);
         window.removeEventListener("keyup", keyboardMove, true);
         window.removeEventListener("resize", resize2d);
+        if (worldState.cellPath && worldState.cellPath.room) worldState.cellPath.room.parent?.remove(worldState.cellPath.room);
         worldState.group.parent?.remove(worldState.group);
         worldState.group.traverse((object) => {
           if (object.geometry && object.geometry !== worldState.boxGeometry) {
@@ -3076,7 +3393,7 @@
         worldState.textures.forEach((texture) => { try { texture.dispose(); } catch (e) {} });
         worldState.materials.forEach((material) => { try { material.dispose(); } catch (e) {} });
         players.forEach((player) => {
-          if (player.sprite) worldState.group.remove(player.sprite);
+          if (player.sprite) scene.remove(player.sprite);
           if (player.spriteMaterial) player.spriteMaterial.dispose();
         });
         weaponShots.forEach((shot) => {

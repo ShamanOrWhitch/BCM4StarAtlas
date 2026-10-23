@@ -1,10 +1,19 @@
+## D-025 — Mini-Sim 0.11.1: helm on X, asteroid chart, paired hands
+
+**Status:** the live base. Keeps D-024's Room 1 start. Overrides only the hold helm key.
+
+- Helm engage/leave inside the hold is X. V stays Warp and is not swallowed by the hold. U / R3 still opens the hold. Hold buttons are icons.
+- Desktop flight keys apply only while the pointer is locked, so mouse and keyboard are one two-handed control. Touch and a live gamepad are unchanged.
+- Ring path cells come from the asteroid seed, with that cell's wall texture and quarter-turn. The pig/ring side-scroller is the exit cell only. Scouted crystals are marks on the 2D chart. Y-layer rooms are astral, not a fake third axis. Mobs enter from open sides and respawn after 240000 ms.
+- Exterior crew sprites use `window.BCMCrewCutout`, the same cutout cache as the hold and the tower.
+
 ## D-024 — Mini-Sim 0.11.0: Room 1 start on the 0.9.113 mechanics
 
-**Status:** the live base. Supersedes D-023 as the code that runs.
+**Status:** kept for the Room 1 start. Helm key inside the hold is superseded by D-025.
 
 - Keep Grok's 0.9.113 hold, helm and Ring-menu fixes.
 - Flight begins in Room 1 at `(0, 0, 2)`. Do not auto-enter the asteroid; that start fails the first-location test because some objects come from the site.
-- Outside the hold, V opens Warp and U opens the hold. Inside the hold, V leaves or retakes the helm. Do not rebind these to X.
+- Outside the hold, V opens Warp and U opens the hold. Inside the hold, X leaves or retakes the helm (was V in 0.11.0).
 - Draw platformer crew with the existing background-cutout helper. Do not invent a second chibi pipeline.
 - 0.9.114's Ring rewrite is not the base.
 

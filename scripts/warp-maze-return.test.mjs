@@ -258,7 +258,10 @@ test("Ring Frontier is a continuous side-scrolling action level with three large
   assert.ok(ring.includes("ПЛАЗМЕННЫЙ СЕРДЕЧНИК"));
   assert.ok(ring.includes("СТАРШИЙ СИНГУЛЯРНОСТИ"));
   assert.ok(ring.includes("defeatedBosses < barrier.unlockAfter"));
-  assert.doesNotMatch(ring, /maze\.cells|function triggerTurn\(|function triggerFloor\(/);
+  assert.match(ring, /maze\.cells/);
+  assert.match(ring, /bcm-asteroid-cell-room/);
+  assert.match(ring, /respawnMs: 240000/);
+  assert.doesNotMatch(ring, /function triggerTurn\(|function triggerFloor\(/);
   assert.ok(warp.includes("maze.ringCompleted = success"));
   assert.match(warp, /ringApproachArmed: true/);
   assert.match(warp, /state\.ringApproachArmed = false/);

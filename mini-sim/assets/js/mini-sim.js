@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.0",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.1",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.0",
+      title: "SPACE LABYRINTH — 0.11.1",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -1268,6 +1268,7 @@
   let renderer, scene, camera, light;
   let running = false;
   let pointerLocked = false;
+  let pointerLockBlocked = false;
   let last = performance.now();
   let transitionBusy = false;
   let transitionLoading = false;
@@ -4097,11 +4098,18 @@
   function input() {
     readPad();
     const look = tiltLook();
+    // Mouse look and the flight keys are one two-handed control. On a desktop
+    // the keyboard hand does nothing until the pointer is locked with the mouse.
+    // Touch and a live gamepad stay independent so a phone or pad is not stuck.
+    const touchDevice = ("ontouchstart" in window) || (navigator.maxTouchPoints > 0);
+    const padLive = Math.abs(pad.lx) + Math.abs(pad.ly) + Math.abs(pad.rx) + Math.abs(pad.ry) + Math.abs(pad.roll) + Math.abs(pad.vert) > 0.04;
+    const hands = touchDevice || pointerLocked || pointerLockBlocked || padLive;
+    const keyOn = (code) => !!(hands && keys[code]);
     return {
-      thrust: (keys.KeyW || touch.thrust ? 1 : 0) - (keys.KeyS || touch.brake ? 1 : 0) - pad.ly,
-      strafe: (keys.KeyD || touch.right ? 1 : 0) - (keys.KeyA || touch.left ? 1 : 0) + pad.lx,
-      vertical: (keys.Space || touch.up ? 1 : 0) - (keys.KeyC || touch.down ? 1 : 0) + pad.vert,
-      roll: (keys.KeyE || touch.rollRight ? 1 : 0) - (keys.KeyQ || touch.rollLeft ? 1 : 0) + pad.roll,
+      thrust: (keyOn("KeyW") || touch.thrust ? 1 : 0) - (keyOn("KeyS") || touch.brake ? 1 : 0) - pad.ly,
+      strafe: (keyOn("KeyD") || touch.right ? 1 : 0) - (keyOn("KeyA") || touch.left ? 1 : 0) + pad.lx,
+      vertical: (keyOn("Space") || touch.up ? 1 : 0) - (keyOn("KeyC") || touch.down ? 1 : 0) + pad.vert,
+      roll: (keyOn("KeyE") || touch.rollRight ? 1 : 0) - (keyOn("KeyQ") || touch.rollLeft ? 1 : 0) + pad.roll,
       yaw: (mobileLandscape() && cinema.focus ? 0 : ((touch.yawLeft ? 1 : 0) - (touch.yawRight ? 1 : 0) + look.yaw + pad.rx * (settings.invertYaw ? 1 : -1))),
       lookYaw: look.yaw,
       pitch: look.pitch
@@ -4801,8 +4809,14 @@
 
   function bind() {
     window.addEventListener("keydown", (e) => {
+      // V is always Warp, even while the hold is open. Helm is X inside the hold.
+      if (e.code === "KeyV" && !document.getElementById("bcm-ring-platformer") && !document.getElementById("bcm-ring-transition")) {
+        e.preventDefault();
+        if (typeof window.BCMDeepSpaceWarpToggle === "function") window.BCMDeepSpaceWarpToggle();
+        return;
+      }
       // Hull Dive owns keyboard input while its overlay is open. Do not let
-      // this earlier global handler reinterpret V as Warp or retain ship input.
+      // this earlier global handler retain ship input.
       if (document.getElementById("bcm-hull-dive")) {
         if (e.code !== "Escape") e.preventDefault();
         return;
@@ -4817,11 +4831,6 @@
         else resetCurrentRoom();
         return;
       }
-      if (e.code === "KeyV") {
-        e.preventDefault();
-        if (typeof window.BCMDeepSpaceWarpToggle === "function") window.BCMDeepSpaceWarpToggle();
-        return;
-      }
       if (e.code === "Enter") {
         e.preventDefault();
         if (!running) {
@@ -4833,6 +4842,10 @@
         return;
       }
       if (settings.open) return;
+      const flightCodes = { KeyW: 1, KeyA: 1, KeyS: 1, KeyD: 1, KeyQ: 1, KeyE: 1, KeyC: 1, Space: 1 };
+      if (flightCodes[e.code] && running && !pointerLocked && !("ontouchstart" in window) && !(navigator.maxTouchPoints > 0)) {
+        if (canvas.requestPointerLock) canvas.requestPointerLock();
+      }
       keys[e.code] = true;
       if (e.code === "KeyG") { e.preventDefault(); tryPortal(); }
       if (e.code === "KeyF") { e.preventDefault(); toggleCinemaFocus(); }
@@ -4857,7 +4870,12 @@
     });
     document.addEventListener("pointerlockchange", () => {
       pointerLocked = document.pointerLockElement === canvas;
+      if (pointerLocked) pointerLockBlocked = false;
+      if (!pointerLocked) {
+        ["KeyW", "KeyA", "KeyS", "KeyD", "KeyQ", "KeyE", "KeyC", "Space"].forEach((code) => { keys[code] = false; });
+      }
     });
+    document.addEventListener("pointerlockerror", () => { pointerLockBlocked = true; });
     document.addEventListener("mousemove", (e) => {
       if (!pointerLocked || settings.open) return;
       ship.angularVelocity.y -= e.movementX * 0.0032;

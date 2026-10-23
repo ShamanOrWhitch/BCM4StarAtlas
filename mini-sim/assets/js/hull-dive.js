@@ -49,6 +49,285 @@
     return { ...component };
   };
 
+  function makeFallbackChibiTexture(THREE, suitColor, accentColor) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 96;
+    canvas.height = 128;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.fillStyle = "rgba(0,0,0,.28)";
+    ctx.beginPath(); ctx.ellipse(48, 119, 24, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#344453"; ctx.fillRect(62, 53, 13, 30);
+    ctx.fillStyle = accentColor; ctx.fillRect(64, 58, 9, 20);
+    ctx.fillStyle = "#263744"; ctx.fillRect(27, 87, 16, 25); ctx.fillRect(51, 87, 16, 25);
+    ctx.fillStyle = "#0c1720"; ctx.fillRect(23, 108, 21, 8); ctx.fillRect(49, 108, 21, 8);
+    ctx.fillStyle = suitColor;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(24, 49, 49, 43, 12);
+    else ctx.rect(24, 49, 49, 43);
+    ctx.fill();
+    ctx.strokeStyle = "#e7eef2"; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(27, 58); ctx.lineTo(17, 76); ctx.moveTo(69, 58); ctx.lineTo(80, 74); ctx.stroke();
+    ctx.fillStyle = accentColor;
+    ctx.beginPath(); ctx.arc(17, 78, 5, 0, Math.PI * 2); ctx.arc(80, 76, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#c5d5df"; ctx.beginPath(); ctx.arc(48, 35, 27, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#142632"; ctx.beginPath(); ctx.ellipse(48, 36, 20, 17, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#8ee8ff"; ctx.beginPath(); ctx.ellipse(48, 35, 15, 12, -0.12, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#eafcff"; ctx.beginPath(); ctx.arc(42, 33, 2.5, 0, Math.PI * 2); ctx.arc(54, 33, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#e8f3f8"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(48, 35, 26, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
+    ctx.fillStyle = accentColor; ctx.fillRect(39, 60, 18, 12);
+    ctx.fillStyle = "#0d2330"; ctx.fillRect(42, 63, 12, 6);
+    const texture = new THREE.CanvasTexture(canvas);
+    if (THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
+    else if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
+    texture.needsUpdate = true;
+    return texture;
+  }
+
+
+  let hullCrewSegmentationPipelinePromise = null;
+
+  function officialCrewCutoutUrl(url) {
+    const text = String(url || "");
+    const full = text.match(/^(https?:\/\/cdn\.staratlas\.com\/crew\/v1\/)(\d+)_full\.(?:jpe?g|png|webp)(?:\?.*)?$/i);
+    if (full) return full[1] + full[2] + ".png";
+    const bare = text.match(/^https?:\/\/cdn\.staratlas\.com\/crew\/v1\/\d+\.png(?:\?.*)?$/i);
+    return bare ? text : "";
+  }
+
+  function crewCutoutCacheRequest(url) {
+    if (!window.caches || !window.location || !window.location.origin) return null;
+    let hash = 2166136261;
+    const input = String(url || "") + "|crew-isnet-v8";
+    for (let i = 0; i < input.length; i += 1) {
+      hash ^= input.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return new Request(window.location.origin + "/?bcm-crew-cutout=v8-" + (hash >>> 0).toString(36));
+  }
+
+  async function readCrewCutoutCache(url) {
+    try {
+      const request = crewCutoutCacheRequest(url);
+      if (!request) return null;
+      const cache = await window.caches.open("bcm-tower-crew-cutouts-v8");
+      const response = await cache.match(request);
+      return response && response.ok ? await response.blob() : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async function writeCrewCutoutCache(url, canvas) {
+    try {
+      const request = crewCutoutCacheRequest(url);
+      if (!request || !canvas.toBlob || typeof Response !== "function") return;
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) return;
+      const cache = await window.caches.open("bcm-tower-crew-cutouts-v8");
+      await cache.put(request, new Response(blob, { headers: { "Content-Type": "image/png" } }));
+    } catch (error) {}
+  }
+
+  function loadCrewImage(url) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.crossOrigin = "anonymous";
+      image.decoding = "async";
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Crew image failed to load"));
+      image.src = url;
+    });
+  }
+
+  function crewPixelsHaveCutoutAlpha(pixels) {
+    let samples = 0;
+    let clear = 0;
+    for (let i = 3; i < pixels.length; i += 16) {
+      samples += 1;
+      if (pixels[i] < 16) clear += 1;
+    }
+    return samples > 0 && clear / samples > 0.18;
+  }
+
+  function cropCrewCanvas(source) {
+    const ctx = source.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return source;
+    const frame = ctx.getImageData(0, 0, source.width, source.height);
+    const pixels = frame.data;
+    let minX = source.width;
+    let minY = source.height;
+    let maxX = -1;
+    let maxY = -1;
+    for (let y = 0; y < source.height; y += 1) {
+      for (let x = 0; x < source.width; x += 1) {
+        if (pixels[(y * source.width + x) * 4 + 3] < 4) continue;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+    if (maxX < minX || maxY < minY) throw new Error("Crew cut-out is empty");
+    const padX = Math.max(3, Math.round(source.width * 0.025));
+    const padY = Math.max(3, Math.round(source.height * 0.02));
+    const left = Math.max(0, minX - padX);
+    const top = Math.max(0, minY - padY);
+    const right = Math.min(source.width, maxX + padX + 1);
+    const bottom = Math.min(source.height, maxY + padY + 1);
+    const cropped = document.createElement("canvas");
+    cropped.width = Math.max(1, right - left);
+    cropped.height = Math.max(1, bottom - top);
+    const croppedContext = cropped.getContext("2d");
+    if (!croppedContext) return source;
+    croppedContext.drawImage(source, left, top, cropped.width, cropped.height, 0, 0, cropped.width, cropped.height);
+    return cropped;
+  }
+
+  function getHullCrewSegmenter() {
+    if (!hullCrewSegmentationPipelinePromise) {
+      hullCrewSegmentationPipelinePromise = import("https://esm.sh/@huggingface/transformers@3.8.1?bundle")
+        .then((module) => {
+          if (module.env) {
+            module.env.useBrowserCache = true;
+            module.env.allowRemoteModels = true;
+          }
+          return module.pipeline("background-removal", "Ko033/isnet-general-use-onnx", { dtype: "q8" });
+        })
+        .catch((error) => {
+          hullCrewSegmentationPipelinePromise = null;
+          throw error;
+        });
+    }
+    return hullCrewSegmentationPipelinePromise;
+  }
+
+  async function cutOutCrewCanvas(canvas) {
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) throw new Error("No Crew canvas context");
+    const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const output = await (await getHullCrewSegmenter())(canvas);
+    const results = Array.isArray(output) ? output : [output];
+    const picked = results.find((item) => item && item.mask && item.mask.data && item.mask.width && item.mask.height)
+      || results.find((item) => item && item.data && item.width && item.height);
+    const mask = picked && picked.mask ? picked.mask : picked;
+    if (!mask || !mask.data || !mask.width || !mask.height) throw new Error("ISNet returned no Crew matte");
+    const channels = Math.max(1, Number(mask.channels) || 1);
+    const embeddedAlpha = !picked.mask && channels === 4;
+    const channel = embeddedAlpha ? 3 : 0;
+    const count = mask.width * mask.height;
+    if (mask.data.length < count * channels) throw new Error("ISNet returned incomplete matte");
+    let minMask = Infinity;
+    let maxMask = -Infinity;
+    for (let i = 0; i < count; i += 1) {
+      const value = Number(mask.data[i * channels + channel]) || 0;
+      minMask = Math.min(minMask, value);
+      maxMask = Math.max(maxMask, value);
+    }
+    const byteMask = mask.data instanceof Uint8Array || mask.data instanceof Uint8ClampedArray || maxMask > 1.5;
+    const maskScale = byteMask ? 255 : 1;
+    if (!Number.isFinite(minMask) || !Number.isFinite(maxMask) || maxMask - minMask < (byteMask ? 2 : 0.01)) {
+      throw new Error("ISNet returned a flat Crew matte");
+    }
+    const smoothstep = (a, b, value) => {
+      const t = Math.max(0, Math.min(1, (value - a) / (b - a)));
+      return t * t * (3 - 2 * t);
+    };
+    for (let y = 0; y < canvas.height; y += 1) {
+      const my = Math.min(mask.height - 1, Math.round(y * (mask.height - 1) / Math.max(1, canvas.height - 1)));
+      for (let x = 0; x < canvas.width; x += 1) {
+        const mx = Math.min(mask.width - 1, Math.round(x * (mask.width - 1) / Math.max(1, canvas.width - 1)));
+        const mi = (my * mask.width + mx) * channels + channel;
+        const normalized = Math.max(0, Math.min(1, (Number(mask.data[mi]) || 0) / maskScale));
+        const alpha = embeddedAlpha ? smoothstep(0.025, 0.26, normalized) : smoothstep(0.18, 0.52, normalized);
+        const pi = (y * canvas.width + x) * 4;
+        frame.data[pi + 3] = Math.round(frame.data[pi + 3] * alpha);
+      }
+    }
+    ctx.putImageData(frame, 0, 0);
+    return cropCrewCanvas(canvas);
+  }
+
+  function setCrewTextureColorSpace(THREE, texture) {
+    if (THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
+    else if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
+    // Keep a single top-to-bottom convention for every Crew texture.
+    texture.flipY = true;
+    texture.needsUpdate = true;
+    return texture;
+  }
+
+  async function makeCrewTexture(THREE, crew) {
+    const sourceUrl = String(crew && crew.image || "").trim();
+    if (!sourceUrl) return null;
+    const officialUrl = officialCrewCutoutUrl(sourceUrl);
+    const candidates = Array.from(new Set([officialUrl, sourceUrl].filter(Boolean)));
+
+    for (const candidate of candidates) {
+      const cached = await readCrewCutoutCache(candidate);
+      if (!cached) continue;
+      try {
+        // Decode cached PNGs through the same image -> canvas route as fresh
+        // cut-outs. ImageBitmap ignores WebGL's flipY upload flag in some
+        // browsers, which can invert just one of two Crew sprites.
+        const objectUrl = URL.createObjectURL(cached);
+        try {
+          const cachedImage = await loadCrewImage(objectUrl);
+          const canvas = document.createElement("canvas");
+          canvas.width = cachedImage.naturalWidth || cachedImage.width || 1;
+          canvas.height = cachedImage.naturalHeight || cachedImage.height || 1;
+          const context = canvas.getContext("2d");
+          if (!context) throw new Error("No cached Crew canvas context");
+          context.drawImage(cachedImage, 0, 0);
+          return setCrewTextureColorSpace(THREE, new THREE.CanvasTexture(canvas));
+        } finally {
+          URL.revokeObjectURL(objectUrl);
+        }
+      } catch (error) {}
+    }
+
+    let image = null;
+    let cacheUrl = candidates[0] || sourceUrl;
+    for (const candidate of candidates) {
+      try {
+        image = await loadCrewImage(candidate);
+        cacheUrl = candidate;
+        break;
+      } catch (error) {}
+    }
+    if (!image) throw new Error("Selected Crew artwork is unavailable");
+
+    const maxSide = 512;
+    const scale = Math.min(1, maxSide / Math.max(image.naturalWidth || image.width || 1, image.naturalHeight || image.height || 1));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round((image.naturalWidth || image.width || 1) * scale));
+    canvas.height = Math.max(1, Math.round((image.naturalHeight || image.height || 1) * scale));
+    let ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) throw new Error("No Crew texture context");
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const cutout = crewPixelsHaveCutoutAlpha(frame.data)
+      ? cropCrewCanvas(canvas)
+      : await cutOutCrewCanvas(canvas);
+    await writeCrewCutoutCache(cacheUrl, cutout);
+    return setCrewTextureColorSpace(THREE, new THREE.CanvasTexture(cutout));
+  }
+
+
+  window.BCMCrewCutout = {
+    makeTexture(THREE, crewOrUrl) {
+      const crew = typeof crewOrUrl === "string" ? { image: crewOrUrl } : (crewOrUrl || {});
+      return makeCrewTexture(THREE, crew);
+    },
+    placeholder(THREE, index) {
+      const suit = index ? "#d7a65a" : "#62b9d8";
+      const accent = index ? "#fff0bd" : "#d9f6ff";
+      return makeFallbackChibiTexture(THREE, suit, accent);
+    }
+  };
+
   function open(onClose) {
     if (document.getElementById("bcm-hull-dive")) return;
     const THREE = window.THREE;
@@ -70,19 +349,19 @@
       '<button type="button" data-hull-control="up" aria-label="' + say("Плыть вверх", "Move up") + '">▲</button>' +
       '<button type="button" data-hull-control="down" aria-label="' + say("Плыть вниз", "Move down") + '">▼</button></div>' +
       '<div style="display:flex;gap:5px;pointer-events:auto;flex-wrap:wrap;max-width:min(72vw,560px);justify-content:flex-end">' +
-      '<button type="button" data-hull-control="helm">' + say("V · ШТУРВАЛ", "V · HELM") + '</button>' +
-      '<button type="button" data-hull-control="shoot">' + say("SPACE · ОРУДИЕ", "SPACE · GUN") + '</button>' +
-      '<button type="button" data-hull-control="reload">' + say("R · БОЕЗАПАС", "R · AMMO") + '</button>' +
-      '<button type="button" data-hull-control="repair">' + say("F · РЕМОНТ", "F · REPAIR") + '</button>' +
-      '<button type="button" data-hull-control="pump">' + say("E · НАСОС", "E · PUMP") + '</button></div></div>' +
+      '<button type="button" data-hull-control="helm" aria-label="' + say("Штурвал", "Helm") + '">⌖</button>' +
+      '<button type="button" data-hull-control="shoot" aria-label="' + say("Орудие", "Gun") + '">●</button>' +
+      '<button type="button" data-hull-control="reload" aria-label="' + say("Боезапас", "Ammo") + '">▣</button>' +
+      '<button type="button" data-hull-control="repair" aria-label="' + say("Ремонт", "Repair") + '">✚</button>' +
+      '<button type="button" data-hull-control="pump" aria-label="' + say("Насос", "Pump") + '">◐</button></div></div>' +
       '<div style="position:absolute;left:12px;right:12px;bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px">' +
       '<span data-hull-ox style="font-variant-numeric:tabular-nums">O2 100</span>' +
       '<span data-hull-weld>' + say("шов 0%", "SEAM 0%") + '</span>' +
-      '<span data-hull-hazards style="font-variant-numeric:tabular-nums">' + say("ВОДА 12% · ДЫМ 9% · ПЕРЕГРЕВ 6%", "WATER 12% · SMOKE 9% · OVERHEAT 6%") + '</span>' +
-      '<span data-hull-ammo>' + say("БОЕЗАПАС 6/6", "AMMO 6/6") + '</span>' +
-      '<span data-hull-flight>' + say("ТЯГА 0% · КУРС 0°", "THRUST 0% · HEADING 0°") + '</span>' +
-      '<span data-hull-crew>CREW</span>' +
-      '<span data-hull-hint style="opacity:.9">' + say("CREW · НАСОС · РЕМОНТ", "CREW · PUMP · REPAIR") + '</span></div>' +
+      '<span data-hull-hazards style="font-variant-numeric:tabular-nums"></span>' +
+      '<span data-hull-ammo>6/6</span>' +
+      '<span data-hull-flight>' + say("ТЯГА ", "THRUST ") + '0% · ' + say("КУРС ", "HEADING ") + '0°</span>' +
+      '<span data-hull-crew></span>' +
+      '<span data-hull-hint hidden style="display:none"></span></div>' +
       '<style>#bcm-hull-dive [data-hull-controls] button{touch-action:none;min-height:38px;min-width:38px;padding:5px 9px;border:1px solid #46667b;border-radius:8px;background:rgba(16,32,44,.94);color:#e7eef2;font-weight:700}#bcm-hull-dive [data-hull-controls] button.is-active{background:#294b60;border-color:#7bd9ee}#bcm-hull-dive canvas{display:block;width:100%;height:100%;touch-action:none}@media(max-width:620px){#bcm-hull-dive{width:min(58vw,320px)!important;height:min(48vh,280px)!important;min-width:220px!important;min-height:210px!important;right:6px!important;bottom:6px!important}#bcm-hull-dive [data-hull-controls]{left:4px;right:4px;bottom:38px;gap:3px}#bcm-hull-dive [data-hull-controls] button{font-size:10px;padding:4px 6px;min-height:32px;min-width:30px}}@media(min-width:1000px){#bcm-hull-dive [data-hull-controls]{left:50%;right:auto;transform:translateX(-50%);width:min(800px,94vw)}}</style>';
     document.body.appendChild(root);
 
@@ -156,7 +435,7 @@
 
     const keys = Object.create(null);
     const handledCodes = new Set([
-      "KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyF", "KeyR", "KeyQ", "KeyC", "KeyV", "Period", "Slash",
+      "KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyF", "KeyR", "KeyQ", "KeyC", "KeyX", "Period", "Slash",
       "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter", "ShiftLeft", "ShiftRight", "Space"
     ]);
     let helmTogglePending = false;
@@ -173,13 +452,13 @@
       const down = event.type === "keydown";
       const physicalKey = ({
         KeyW: "w", KeyA: "a", KeyS: "s", KeyD: "d", KeyE: "e",
-        KeyF: "f", KeyR: "r", KeyQ: "q", KeyC: "c", KeyV: "v"
+        KeyF: "f", KeyR: "r", KeyQ: "q", KeyC: "c", KeyX: "x"
       })[event.code] || String(event.key || "").toLowerCase();
       keys[physicalKey] = down;
       if (event.code === "Space") keys.space = down;
       if (event.code === "Period") keys.period = down;
       if (event.code === "Slash") keys.slash = down;
-      if (event.code === "KeyV" && down && !event.repeat) helmTogglePending = true;
+      if (event.code === "KeyX" && down && !event.repeat) helmTogglePending = true;
       if (handledCodes.has(event.code)) {
         event.preventDefault();
         // This input belongs to the Hull Dive scene; it must not also trigger
@@ -197,7 +476,7 @@
     window.addEventListener("blur", clearHeldKeys);
     document.addEventListener("visibilitychange", onVisibilityChange);
 
-    const buttonKeys = { left: "a", right: "d", up: "w", down: "s", helm: "v", shoot: "space", reload: "r", repair: "f", pump: "e" };
+    const buttonKeys = { left: "a", right: "d", up: "w", down: "s", helm: "x", shoot: "space", reload: "r", repair: "f", pump: "e" };
     root.querySelectorAll("[data-hull-control]").forEach((button) => {
       const key = buttonKeys[button.dataset.hullControl];
       if (!key) return;
@@ -248,7 +527,7 @@
     let actionStatus = "";
     let actionStatusUntil = 0;
     // Crew 1 starts seated at the pilot station, so the main helm is active immediately.
-    // V / gamepad LB leaves the helm for on-foot Crew control.
+    // X / gamepad LB leaves the helm for on-foot Crew control. V stays Warp.
     let pilotMode = true;
     let helmToggleWasDown = false;
     let enginePower = 0;
@@ -302,7 +581,7 @@
           // assigned to independent Crew movement and repair/pump actions.
           shoot: !!keys.space,
           reload: !!keys.r,
-          helm: !!(keys.v || pad.helm)
+          helm: !!(keys.x || pad.helm)
         };
       }
       return {
@@ -314,272 +593,6 @@
         reload: !!keys.slash,
         helm: !!pad.helm
       };
-    }
-
-    function makeFallbackChibiTexture(THREE, suitColor, accentColor) {
-      const canvas = document.createElement("canvas");
-      canvas.width = 96;
-      canvas.height = 128;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return null;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.fillStyle = "rgba(0,0,0,.28)";
-      ctx.beginPath(); ctx.ellipse(48, 119, 24, 5, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#344453"; ctx.fillRect(62, 53, 13, 30);
-      ctx.fillStyle = accentColor; ctx.fillRect(64, 58, 9, 20);
-      ctx.fillStyle = "#263744"; ctx.fillRect(27, 87, 16, 25); ctx.fillRect(51, 87, 16, 25);
-      ctx.fillStyle = "#0c1720"; ctx.fillRect(23, 108, 21, 8); ctx.fillRect(49, 108, 21, 8);
-      ctx.fillStyle = suitColor;
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(24, 49, 49, 43, 12);
-      else ctx.rect(24, 49, 49, 43);
-      ctx.fill();
-      ctx.strokeStyle = "#e7eef2"; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.moveTo(27, 58); ctx.lineTo(17, 76); ctx.moveTo(69, 58); ctx.lineTo(80, 74); ctx.stroke();
-      ctx.fillStyle = accentColor;
-      ctx.beginPath(); ctx.arc(17, 78, 5, 0, Math.PI * 2); ctx.arc(80, 76, 5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#c5d5df"; ctx.beginPath(); ctx.arc(48, 35, 27, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#142632"; ctx.beginPath(); ctx.ellipse(48, 36, 20, 17, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#8ee8ff"; ctx.beginPath(); ctx.ellipse(48, 35, 15, 12, -0.12, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#eafcff"; ctx.beginPath(); ctx.arc(42, 33, 2.5, 0, Math.PI * 2); ctx.arc(54, 33, 2.5, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = "#e8f3f8"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(48, 35, 26, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
-      ctx.fillStyle = accentColor; ctx.fillRect(39, 60, 18, 12);
-      ctx.fillStyle = "#0d2330"; ctx.fillRect(42, 63, 12, 6);
-      const texture = new THREE.CanvasTexture(canvas);
-      if (THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
-      else if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
-      texture.needsUpdate = true;
-      return texture;
-    }
-
-
-    let hullCrewSegmentationPipelinePromise = null;
-
-    function officialCrewCutoutUrl(url) {
-      const text = String(url || "");
-      const full = text.match(/^(https?:\/\/cdn\.staratlas\.com\/crew\/v1\/)(\d+)_full\.(?:jpe?g|png|webp)(?:\?.*)?$/i);
-      if (full) return full[1] + full[2] + ".png";
-      const bare = text.match(/^https?:\/\/cdn\.staratlas\.com\/crew\/v1\/\d+\.png(?:\?.*)?$/i);
-      return bare ? text : "";
-    }
-
-    function crewCutoutCacheRequest(url) {
-      if (!window.caches || !window.location || !window.location.origin) return null;
-      let hash = 2166136261;
-      const input = String(url || "") + "|crew-isnet-v8";
-      for (let i = 0; i < input.length; i += 1) {
-        hash ^= input.charCodeAt(i);
-        hash = Math.imul(hash, 16777619);
-      }
-      return new Request(window.location.origin + "/?bcm-crew-cutout=v8-" + (hash >>> 0).toString(36));
-    }
-
-    async function readCrewCutoutCache(url) {
-      try {
-        const request = crewCutoutCacheRequest(url);
-        if (!request) return null;
-        const cache = await window.caches.open("bcm-tower-crew-cutouts-v8");
-        const response = await cache.match(request);
-        return response && response.ok ? await response.blob() : null;
-      } catch (error) {
-        return null;
-      }
-    }
-
-    async function writeCrewCutoutCache(url, canvas) {
-      try {
-        const request = crewCutoutCacheRequest(url);
-        if (!request || !canvas.toBlob || typeof Response !== "function") return;
-        const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-        if (!blob) return;
-        const cache = await window.caches.open("bcm-tower-crew-cutouts-v8");
-        await cache.put(request, new Response(blob, { headers: { "Content-Type": "image/png" } }));
-      } catch (error) {}
-    }
-
-    function loadCrewImage(url) {
-      return new Promise((resolve, reject) => {
-        const image = new Image();
-        image.crossOrigin = "anonymous";
-        image.decoding = "async";
-        image.onload = () => resolve(image);
-        image.onerror = () => reject(new Error("Crew image failed to load"));
-        image.src = url;
-      });
-    }
-
-    function crewPixelsHaveCutoutAlpha(pixels) {
-      let samples = 0;
-      let clear = 0;
-      for (let i = 3; i < pixels.length; i += 16) {
-        samples += 1;
-        if (pixels[i] < 16) clear += 1;
-      }
-      return samples > 0 && clear / samples > 0.18;
-    }
-
-    function cropCrewCanvas(source) {
-      const ctx = source.getContext("2d", { willReadFrequently: true });
-      if (!ctx) return source;
-      const frame = ctx.getImageData(0, 0, source.width, source.height);
-      const pixels = frame.data;
-      let minX = source.width;
-      let minY = source.height;
-      let maxX = -1;
-      let maxY = -1;
-      for (let y = 0; y < source.height; y += 1) {
-        for (let x = 0; x < source.width; x += 1) {
-          if (pixels[(y * source.width + x) * 4 + 3] < 4) continue;
-          if (x < minX) minX = x;
-          if (y < minY) minY = y;
-          if (x > maxX) maxX = x;
-          if (y > maxY) maxY = y;
-        }
-      }
-      if (maxX < minX || maxY < minY) throw new Error("Crew cut-out is empty");
-      const padX = Math.max(3, Math.round(source.width * 0.025));
-      const padY = Math.max(3, Math.round(source.height * 0.02));
-      const left = Math.max(0, minX - padX);
-      const top = Math.max(0, minY - padY);
-      const right = Math.min(source.width, maxX + padX + 1);
-      const bottom = Math.min(source.height, maxY + padY + 1);
-      const cropped = document.createElement("canvas");
-      cropped.width = Math.max(1, right - left);
-      cropped.height = Math.max(1, bottom - top);
-      const croppedContext = cropped.getContext("2d");
-      if (!croppedContext) return source;
-      croppedContext.drawImage(source, left, top, cropped.width, cropped.height, 0, 0, cropped.width, cropped.height);
-      return cropped;
-    }
-
-    function getHullCrewSegmenter() {
-      if (!hullCrewSegmentationPipelinePromise) {
-        hullCrewSegmentationPipelinePromise = import("https://esm.sh/@huggingface/transformers@3.8.1?bundle")
-          .then((module) => {
-            if (module.env) {
-              module.env.useBrowserCache = true;
-              module.env.allowRemoteModels = true;
-            }
-            return module.pipeline("background-removal", "Ko033/isnet-general-use-onnx", { dtype: "q8" });
-          })
-          .catch((error) => {
-            hullCrewSegmentationPipelinePromise = null;
-            throw error;
-          });
-      }
-      return hullCrewSegmentationPipelinePromise;
-    }
-
-    async function cutOutCrewCanvas(canvas) {
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      if (!ctx) throw new Error("No Crew canvas context");
-      const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const output = await (await getHullCrewSegmenter())(canvas);
-      const results = Array.isArray(output) ? output : [output];
-      const picked = results.find((item) => item && item.mask && item.mask.data && item.mask.width && item.mask.height)
-        || results.find((item) => item && item.data && item.width && item.height);
-      const mask = picked && picked.mask ? picked.mask : picked;
-      if (!mask || !mask.data || !mask.width || !mask.height) throw new Error("ISNet returned no Crew matte");
-      const channels = Math.max(1, Number(mask.channels) || 1);
-      const embeddedAlpha = !picked.mask && channels === 4;
-      const channel = embeddedAlpha ? 3 : 0;
-      const count = mask.width * mask.height;
-      if (mask.data.length < count * channels) throw new Error("ISNet returned incomplete matte");
-      let minMask = Infinity;
-      let maxMask = -Infinity;
-      for (let i = 0; i < count; i += 1) {
-        const value = Number(mask.data[i * channels + channel]) || 0;
-        minMask = Math.min(minMask, value);
-        maxMask = Math.max(maxMask, value);
-      }
-      const byteMask = mask.data instanceof Uint8Array || mask.data instanceof Uint8ClampedArray || maxMask > 1.5;
-      const maskScale = byteMask ? 255 : 1;
-      if (!Number.isFinite(minMask) || !Number.isFinite(maxMask) || maxMask - minMask < (byteMask ? 2 : 0.01)) {
-        throw new Error("ISNet returned a flat Crew matte");
-      }
-      const smoothstep = (a, b, value) => {
-        const t = Math.max(0, Math.min(1, (value - a) / (b - a)));
-        return t * t * (3 - 2 * t);
-      };
-      for (let y = 0; y < canvas.height; y += 1) {
-        const my = Math.min(mask.height - 1, Math.round(y * (mask.height - 1) / Math.max(1, canvas.height - 1)));
-        for (let x = 0; x < canvas.width; x += 1) {
-          const mx = Math.min(mask.width - 1, Math.round(x * (mask.width - 1) / Math.max(1, canvas.width - 1)));
-          const mi = (my * mask.width + mx) * channels + channel;
-          const normalized = Math.max(0, Math.min(1, (Number(mask.data[mi]) || 0) / maskScale));
-          const alpha = embeddedAlpha ? smoothstep(0.025, 0.26, normalized) : smoothstep(0.18, 0.52, normalized);
-          const pi = (y * canvas.width + x) * 4;
-          frame.data[pi + 3] = Math.round(frame.data[pi + 3] * alpha);
-        }
-      }
-      ctx.putImageData(frame, 0, 0);
-      return cropCrewCanvas(canvas);
-    }
-
-    function setCrewTextureColorSpace(THREE, texture) {
-      if (THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
-      else if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
-      // Keep a single top-to-bottom convention for every Crew texture.
-      texture.flipY = true;
-      texture.needsUpdate = true;
-      return texture;
-    }
-
-    async function makeCrewTexture(THREE, crew) {
-      const sourceUrl = String(crew && crew.image || "").trim();
-      if (!sourceUrl) return null;
-      const officialUrl = officialCrewCutoutUrl(sourceUrl);
-      const candidates = Array.from(new Set([officialUrl, sourceUrl].filter(Boolean)));
-
-      for (const candidate of candidates) {
-        const cached = await readCrewCutoutCache(candidate);
-        if (!cached) continue;
-        try {
-          // Decode cached PNGs through the same image -> canvas route as fresh
-          // cut-outs. ImageBitmap ignores WebGL's flipY upload flag in some
-          // browsers, which can invert just one of two Crew sprites.
-          const objectUrl = URL.createObjectURL(cached);
-          try {
-            const cachedImage = await loadCrewImage(objectUrl);
-            const canvas = document.createElement("canvas");
-            canvas.width = cachedImage.naturalWidth || cachedImage.width || 1;
-            canvas.height = cachedImage.naturalHeight || cachedImage.height || 1;
-            const context = canvas.getContext("2d");
-            if (!context) throw new Error("No cached Crew canvas context");
-            context.drawImage(cachedImage, 0, 0);
-            return setCrewTextureColorSpace(THREE, new THREE.CanvasTexture(canvas));
-          } finally {
-            URL.revokeObjectURL(objectUrl);
-          }
-        } catch (error) {}
-      }
-
-      let image = null;
-      let cacheUrl = candidates[0] || sourceUrl;
-      for (const candidate of candidates) {
-        try {
-          image = await loadCrewImage(candidate);
-          cacheUrl = candidate;
-          break;
-        } catch (error) {}
-      }
-      if (!image) throw new Error("Selected Crew artwork is unavailable");
-
-      const maxSide = 512;
-      const scale = Math.min(1, maxSide / Math.max(image.naturalWidth || image.width || 1, image.naturalHeight || image.height || 1));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round((image.naturalWidth || image.width || 1) * scale));
-      canvas.height = Math.max(1, Math.round((image.naturalHeight || image.height || 1) * scale));
-      let ctx = canvas.getContext("2d", { willReadFrequently: true });
-      if (!ctx) throw new Error("No Crew texture context");
-      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-      const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const cutout = crewPixelsHaveCutoutAlpha(frame.data)
-        ? cropCrewCanvas(canvas)
-        : await cutOutCrewCanvas(canvas);
-      await writeCrewCutoutCache(cacheUrl, cutout);
-      return setCrewTextureColorSpace(THREE, new THREE.CanvasTexture(cutout));
     }
 
     function makeHullSideTexture(THREE, english = false) {
@@ -1026,10 +1039,10 @@
             // Leaving the helm must always be possible, even if drift put the
             // Crew sprite just outside the narrow physical station radius.
             pilotMode = false;
-            notifyStatus(say("Экипаж: A/D и W/S — перемещение. V — вернуться к штурвалу", "Crew movement: A/D and W/S. Press V to return to the helm"), 2800);
+            notifyStatus(say("Экипаж: A/D и W/S — перемещение. X — вернуться к штурвалу", "Crew movement: A/D and W/S. Press X to return to the helm"), 2800);
           } else if (atHelm) {
             pilotMode = true;
-            notifyStatus(say("Штурвал: W/S — тяга, A/D — курс. V — покинуть пост", "Helm: W/S controls thrust, A/D heading. Press V to leave the helm"), 2800);
+            notifyStatus(say("Штурвал: W/S — тяга, A/D — курс. X — покинуть пост", "Helm: W/S controls thrust, A/D heading. Press X to leave the helm"), 2800);
           } else {
             notifyStatus(say("Чтобы сесть за штурвал, вернись в носовой отсек", "Return to the forward compartment to use the helm"), 2200);
           }
@@ -1149,8 +1162,7 @@
       const activeReload = Math.max(reloadProgress[0], reloadProgress[1]);
       if (ammoEl) ammoEl.textContent = say("БОЕЗАПАС ", "AMMO ") + ammo + "/" + maxAmmo + (activeReload > 0 ? " · " + say("ЗАРЯДКА ", "RELOADING ") + Math.round(activeReload / 1.05 * 100) + "%" : "");
       const flightEl = root.querySelector("[data-hull-flight]");
-      if (flightEl) flightEl.textContent = (pilotMode ? say("ШТУРВАЛ · LB/V ВЫХОД", "HELM · LB/V EXIT") : say("CREW · LB/V ШТУРВАЛ", "CREW · LB/V HELM")) +
-        " · " + say("ТЯГА ", "THRUST ") + Math.round(enginePower * 100) + "% · " + say("КУРС ", "HEADING ") + Math.round(flightHeading * 45) + "°";
+      if (flightEl) flightEl.textContent = say("ТЯГА ", "THRUST ") + Math.round(enginePower * 100) + "% · " + say("КУРС ", "HEADING ") + Math.round(flightHeading * 45) + "°";
       waters.forEach((mesh, index) => {
         const depth = Math.max(0.04, water[index] * 3.15);
         mesh.scale.y = depth;
