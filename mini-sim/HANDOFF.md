@@ -1,6 +1,17 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
-## Кандидат Mini-Sim 0.11.4 — Hydrogen mission
+## Кандидат Mini-Sim 0.11.5 — Astral phase rules
+Дата: 23 октября 2026.
+
+Ветка minisim-0.11.5-astral-phase, stacked above 0.11.4 / PR #66 and 0.11.3 / PR #65. Не влита и не развёрнута.
+
+- Y-layer cells derive one of three rules from maze.seed + cell coordinates, independent of route/crystal RNG: Drift (low gravity), Flux (bounded pulsing gravity, never reverses), Dense (heavier gravity). The map glyph and HUD identify the current mode.
+- Door graph, cell coordinates, selected wallAsset and wallTurn, crystal positions and large pig/ring exit cell do not change. Existing textures only.
+- PR #66: screen playback activates the Hydrogen quest, and the collectible belongs to the first small cell.
+- Remaining: city under Tower + same-seed return to arrival ship is tracked in issue #67. Expand the astral layer only after these rules are tested in the game; use issue #68 for the follow-up.
+- CI can validate source contracts and syntax. Remote production browser QA is blocked by HTTP 403 firewall; no phone or visual production test has been verified.
+
+## Previous candidate — Mini-Sim 0.11.4 Hydrogen mission
 Дата: 23 октября 2026.
 
 Ветка `minisim-0.11.4-hydrogen-mission`, поверх candidate PR #65 (0.11.3); пока не влита/не развёрнута.
