@@ -36,8 +36,11 @@
     if (!sprite || !actor) return 0;
     const profile = actor.profile || readCrewProfile(actor.crew || actor);
     const motion = profile.motion || speciesMotion("", "");
-    // Match Tower: its visual-facing calculation reverses the horizontal input before applying the species factor.
-    const face = -(Number(actor.facing) < 0 ? -1 : 1) * (profile.facingFactor || -1);
+    // The current Ring/Hull cut-outs run backwards for non-Mierese. Correct those textures,
+    // but preserve Mierese artwork, whose source already matches the movement direction.
+    const baseFacing = profile.facingFactor || -1;
+    const faceFactor = String(profile.species || "").toLowerCase().includes("mierese") ? baseFacing : -baseFacing;
+    const face = (Number(actor.facing) < 0 ? -1 : 1) * faceFactor;
     const map = sprite.material && sprite.material.map;
     if (map) {
       map.wrapS = 1000;
