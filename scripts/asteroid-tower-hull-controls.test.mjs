@@ -222,3 +222,20 @@ test("Astral Y-cells are seed-deterministic and alter movement without rebuildin
   assert.match(warp, /drift: "≈", flux: "↕", dense: "◆"/);
   assert.match(warp, /const anomalies = \(maze\.cells \|\| \[\]\)\.filter\(\(cell\) => cell\.y !== 1\)/);
 });
+
+
+test("Tower handoff preserves the arrival ship snapshot and active Tower seed for later return", async () => {
+  const mini = await read("mini-sim/assets/js/mini-sim.js");
+  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  const tower = await read("mini-sim/tower/assets/js/tower.js");
+  const towerPhp = await read("mini-sim/tower/bcm-tower.php");
+  assert.match(mini, /function captureArrivalShipSnapshot\(\)/);
+  assert.match(mini, /mission\.originShipSnapshot = snapshot/);
+  assert.match(mini, /captureArrivalShipSnapshot\(\);[\s\S]*?ship\.velocity\.set\(0, 0, 0\)/);
+  assert.match(mini, /originShipSnapshot:|mission\.originShipSnapshot/);
+  assert.match(warp, /window\.BCMDeepSpaceWarpGetReturnSnapshot = \(\) =>/);
+  assert.match(tower, /window\.BCMWorldMission\.towerSeed = seed/);
+  assert.match(tower, /originShipSnapshot\.towerSeed = seed/);
+  assert.match(towerPhp, /define\('BCM_TOWER_VERSION', '0\.2\.65'\)/);
+  assert.match(tower, /const TOWER_VERSION = "0\.2\.65"/);
+});
