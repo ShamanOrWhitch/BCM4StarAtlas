@@ -22,11 +22,11 @@ test("Rendered cabin station labels and controls have English and Russian copy",
     ['say("ОТСЕК · РЕМОНТ", "COMPARTMENT · REPAIR")', "compartment"],
     ['say("ПРОВЕРЬ ВОДУ И КОРПУС", "CHECK WATER AND HULL")', "status"],
     ['say("НАЗАД В ПОЛЁТ", "BACK TO FLIGHT")', "exit"],
-    ['say("V · ШТУРВАЛ", "V · HELM")', "helm"],
-    ['say("SPACE · ОРУДИЕ", "SPACE · GUN")', "gun"],
-    ['say("R · БОЕЗАПАС", "R · AMMO")', "ammo"],
-    ['say("F · РЕМОНТ", "F · REPAIR")', "repair"],
-    ['say("E · НАСОС", "E · PUMP")', "pump"],
+    ['say("Штурвал", "Helm")', "helm"],
+    ['say("Орудие", "Gun")', "gun"],
+    ['say("Боезапас", "Ammo")', "ammo"],
+    ['say("Ремонт", "Repair")', "repair"],
+    ['say("Насос", "Pump")', "pump"],
     ['"PILOT / NAVIGATION"', "pilot panel"],
     ['"GUN / AMMO"', "gun panel"],
     ['"ENGINEERING / REPAIR"', "engineering panel"]
@@ -40,7 +40,7 @@ test("Cabin runtime feedback also follows the selected language", () => {
     "Could not prepare the selected Crew portrait",
     "Out of ammo. Hold R at the rack to reload",
     "Target destroyed. Reload to engage the next asteroid",
-    "Helm: W/S controls thrust, A/D heading. Press V to leave the helm",
+    "Helm: W/S controls thrust, A/D heading. Press X to leave the helm",
     "The exterior breach is still open; patch it from outside first",
     "Patch the exterior breach first; the inner seam is still locked",
     "Oxygen depleted. Use E (or gamepad B) to pump while your head is above water.",
@@ -62,14 +62,14 @@ test("The cabin remains compact and sci-fi visuals use cool energy colors", () =
   assert.doesNotMatch(hull, /0xffb15a|0xff6b55/);
 });
 
-test("Mini-Sim 0.11.0 cache and all source-contract tests use the same version", () => {
-  assert.match(php, /Version: 0\.11\.0/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.0'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.11\.0/);
-  assert.match(qa, /Version: 0\.11\.0/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.0'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.0/);
-  assert.ok(uiTests.includes("Version: 0\\.11\\.0"));
-  assert.ok(uiTests.includes("BCM_MINI_SIM_VERSION', '0\\.11\\.0'"));
-  assert.ok(uiTests.includes("SPACE LABYRINTH — 0\\.11\\.0"));
+test("Mini-Sim 0.11.1 cache and all source-contract tests use the same version", () => {
+  assert.match(php, /Version: 0\.11\.1/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.1'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.11\.1/);
+  assert.match(qa, /Version: 0\.11\.1/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.1'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.1/);
+  assert.ok(uiTests.includes("Version: 0\\.11\\.1"));
+  assert.ok(uiTests.includes("BCM_MINI_SIM_VERSION', '0\\.11\\.1'"));
+  assert.ok(uiTests.includes("SPACE LABYRINTH — 0\\.11\\.1"));
 });

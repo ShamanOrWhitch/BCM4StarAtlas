@@ -11,8 +11,8 @@ const hull = read("mini-sim/assets/js/hull-dive.js");
 const warp = read("mini-sim/assets/js/deep-space-warp.js");
 const audit = read("mini-sim/assets/js/ui-layer-audit.js");
 
-assert.match(php, /Version: 0\.11\.0/);
-assert.match(php, /define\('BCM_MINI_SIM_VERSION', '0\.11\.0'\)/);
+assert.match(php, /Version: 0\.11\.1/);
+assert.match(php, /define\('BCM_MINI_SIM_VERSION', '0\.11\.1'\)/);
 assert.match(php, /bcm-ui-layer-audit/);
 assert.match(flight, /showUnderlyingScene = !externalPause[\s\S]{0,180}bcm-hull-interior-active/);
 assert.match(hull, /let pilotMode = true/);
@@ -33,4 +33,4 @@ assert.match(audit, /partially-covered/);
 assert.match(audit, /getLastReport/);
 assert.match(audit, /event\.ctrlKey[\s\S]{0,80}event\.altKey[\s\S]{0,80}KeyU/);
 
-console.log("PASS Mini-Sim 0.11.0 UI layer regressions: pilot view, helm default, gamepad assignment, Ring entry and hit testing.");
+console.log("PASS Mini-Sim 0.11.1 UI layer regressions: pilot view, helm default, gamepad assignment, Ring entry and hit testing.");
