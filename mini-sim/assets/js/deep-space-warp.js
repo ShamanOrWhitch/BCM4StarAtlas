@@ -336,6 +336,22 @@
       tilt: { enabled: false, bound: false, permissionGranted: false, available: false, filterReady: false, filtered: 0, neutral: 0, calibrating: false, samples: 0, sum: 0, value: 0 }
     };
 
+    window.addEventListener("bcm:mission:hydrogen-unlocked", () => {
+      const maze = state.maze;
+      if (!maze || !maze.active) return;
+      maze.hydrogen = maze.hydrogen || { cell: { ...maze.startCell }, taken: false, scouted: false };
+      maze.hydrogen.unlocked = true;
+      publishAsteroidChart(maze);
+    });
+    window.addEventListener("bcm:mission:hydrogen-collected", () => {
+      const maze = state.maze;
+      if (!maze) return;
+      maze.hydrogen = maze.hydrogen || { cell: { ...maze.startCell }, unlocked: true, scouted: false };
+      maze.hydrogen.unlocked = true;
+      maze.hydrogen.taken = true;
+      publishAsteroidChart(maze);
+    });
+
     // Small public bridge for the later NFT/Galaxy selection integration.
     // It only changes decorative rendering; route, collision, speed and controls stay untouched.
     window.BCMDeepSpaceWarpSetDriveSlot = (slotSize) => {
@@ -1113,10 +1129,16 @@
       const marks = (maze.crystals || []).filter((crystal) => crystal.scouted || crystal.taken).map((crystal) => ({
         x: crystal.cell.x, y: crystal.cell.y, z: crystal.cell.z, taken: !!crystal.taken
       }));
+      const hydrogen = maze.hydrogen || null;
       window.BCMAsteroidChart = {
         seed: maze.seed,
         dimensions: maze.dimensions,
-        marks
+        marks,
+        hydrogen: hydrogen ? {
+          x: hydrogen.cell.x, y: hydrogen.cell.y, z: hydrogen.cell.z,
+          unlocked: !!hydrogen.unlocked,
+          taken: !!hydrogen.taken
+        } : null
       };
     }
 
@@ -1447,8 +1469,17 @@
         flyRadius: 43.2,
         lastPosition: null,
         lastImpactAt: 0,
-        ringCompleted: false
+        ringCompleted: false,
+        hydrogen: {
+          cell: { x: startNode.x, y: startNode.y, z: startNode.z },
+          unlocked: !!window.BCMWorldMission?.hydrogenUnlocked,
+          taken: !!window.BCMWorldMission?.hydrogenCollected,
+          scouted: false
+        }
       };
+      if (window.BCMWorldMission) {
+        if (!window.BCMWorldMission.asteroidSeed) window.BCMWorldMission.asteroidSeed = seed;
+      }
       state.savedSpeedMode = engine.getSpeedMode ? engine.getSpeedMode() : 1;
       if (engine.setSpeedMode) engine.setSpeedMode(2);
       state.maze = maze;
@@ -2392,12 +2423,35 @@
         const start = (maze.startCell && nodes.get(keyOf(maze.startCell.x, maze.startCell.y, maze.startCell.z)))
           || nodes.values().next().value;
         const firstOpen = ["xp", "zp", "xn", "zn"].find((dir) => start && start.open && start.open[dir]) || "xp";
+        const hydrogenGeometry = new THREE.OctahedronGeometry(0.46, 0);
+        const hydrogenMaterial = new THREE.MeshStandardMaterial({
+          color: 0x9cffe9, emissive: 0x198b78, emissiveIntensity: 1.15,
+          metalness: 0.18, roughness: 0.28
+        });
+        const hydrogenMesh = new THREE.Mesh(hydrogenGeometry, hydrogenMaterial);
+        hydrogenMesh.name = "ring-hydrogen-pickup";
+        hydrogenMesh.position.set(RING_CELL_HOME + 2.6, 0.82, 0.58);
+        hydrogenMesh.visible = !!window.BCMWorldMission?.hydrogenUnlocked &&
+          !window.BCMWorldMission?.hydrogenCollected && !start?.large;
+        room.add(hydrogenMesh);
+        world.materials.push(hydrogenMaterial);
+        world.specialGeometry.push(hydrogenGeometry);
+        const hydrogenState = maze.hydrogen || {
+          cell: { x: start?.x || 0, y: start?.y || 1, z: start?.z || 0 },
+          unlocked: !!window.BCMWorldMission?.hydrogenUnlocked,
+          taken: !!window.BCMWorldMission?.hydrogenCollected,
+          scouted: false
+        };
         world.cellPath = {
           nodes, neighbor, opposite, keyOf,
           nx: maze.dimensions?.nx || 7,
           ny: maze.dimensions?.ny || 3,
           nz: maze.dimensions?.nz || 7,
           room, floorMaterial, wallMaterial, doorLeft, doorRight, hatch, textures,
+          hydrogenNode: start,
+          hydrogen: hydrogenState,
+          hydrogenMesh,
+          hydrogenPickupX: RING_CELL_HOME + 2.6,
           homeX: RING_CELL_HOME, half: ROOM_HALF,
           current: start, heading: firstOpen, previous: null, returnNode: null,
           respawnMs: 240000, turnQueued: false
@@ -2427,6 +2481,11 @@
         path.doorRight.visible = !node.large && !!path.neighbor(node, path.heading);
         path.doorLeft.visible = !node.large && !!path.neighbor(node, path.opposite[path.heading]);
         path.hatch.visible = !node.large && !!(path.neighbor(node, "yp") || path.neighbor(node, "yn"));
+        if (path.hydrogenMesh) {
+          const mission = window.BCMWorldMission || {};
+          path.hydrogenMesh.visible = !!mission.hydrogenUnlocked && !mission.hydrogenCollected &&
+            node === path.hydrogenNode && !node.large;
+        }
         path.nodes.forEach((other) => {
           (other.mobs || []).forEach((mob) => {
             if (!mob.mesh) return;
@@ -2625,6 +2684,30 @@
           statusEl.textContent = "ЗОНА " + (p1 ? (p1.worldX < -2 ? 1 : p1.worldX < 36 ? 2 : 3) : 1) +
             " · НАЙДИ АРЕНУ БОССА";
         }
+      }
+
+      function collectHydrogenAt(player) {
+        const path = worldState.cellPath;
+        const mission = window.BCMWorldMission || {};
+        if (!path || !path.hydrogenMesh || !path.hydrogenMesh.visible ||
+            !mission.hydrogenUnlocked || mission.hydrogenCollected ||
+            path.current !== path.hydrogenNode || path.current?.large) return false;
+        if (Math.abs(player.worldX - path.hydrogenPickupX) > 1.05 ||
+            Math.abs(player.worldY - 0.82) > 1.25) return false;
+
+        path.hydrogenMesh.visible = false;
+        path.hydrogen.taken = true;
+        path.hydrogen.unlocked = true;
+        maze.hydrogen = path.hydrogen;
+        publishAsteroidChart(maze);
+        window.dispatchEvent(new CustomEvent("bcm:mission:hydrogen-collected", {
+          detail: { asteroidSeed: maze.seed, cell: { ...path.hydrogen.cell } }
+        }));
+        updateHud(window.BCMDialogue?.language === "en"
+          ? "HYDROGEN RECOVERED · MISSION UPDATED"
+          : "HYDROGEN ПОЛУЧЕН · ЗАДАНИЕ ОБНОВЛЕНО");
+        drawMiniMap();
+        return true;
       }
 
       function collectAt(player) {
@@ -3111,6 +3194,7 @@
           }
 
           collectAt(player);
+          collectHydrogenAt(player);
           const blinking = now < player.invulnerableUntil && Math.floor(now / 90) % 2 === 0;
           if (player.sprite) player.sprite.visible = !blinking;
           updatePlayerSprite(player);
@@ -3281,6 +3365,16 @@
               if (mark) {
                 g.fillStyle = mark.taken ? "#8ef6d8" : "#5ce1ff";
                 g.fillRect(px + cellW * 0.32, py + cellH * 0.32, Math.max(2, cellW * 0.34), Math.max(2, cellH * 0.34));
+              }
+              const mission = window.BCMWorldMission || {};
+              const hydrogen = maze.hydrogen;
+              if (hydrogen && hydrogen.unlocked && !mission.hydrogenCollected &&
+                  hydrogen.cell.x === x && hydrogen.cell.y === layer && hydrogen.cell.z === z) {
+                g.fillStyle = "#9cffe9";
+                g.font = "bold 10px system-ui";
+                g.textAlign = "center";
+                g.textBaseline = "middle";
+                g.fillText("H", px + cellW * 0.5, py + cellH * 0.5);
               }
             }
           }
