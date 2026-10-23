@@ -1,4 +1,11 @@
-## Кандидат — Mini-Sim 0.11.4 Hydrogen mission
+## Кандидат — Mini-Sim 0.11.5 Astral phase
+- Branch: minisim-0.11.5-astral-phase, stacked on PR #66 / 0.11.4 and PR #65 / 0.11.3. Not merged or deployed.
+- Y-layer cells select deterministic Drift/Flux/Dense gravity from asteroid seed + cell coordinates. Keep maze topology/crystal RNG unchanged and preserve existing texture assets/rotations.
+- 0.11.4 Hydrogen objective uses actual screen playback + the original cell graph.
+- City below Tower and same-seed return remains issue #67. Deeper astral rules remain issue #68; current implementation is a modest first step, not a full astral-dimension implementation.
+- Workflow CI reports source checks; production browser requests get 403 from firewall. Do not bypass the firewall, and do not claim a visual phone test. wordpress/galia-desk remains off-limits.
+
+## Previous candidate — Mini-Sim 0.11.4 Hydrogen mission
 - Branch: `minisim-0.11.4-hydrogen-mission`, stacked on candidate 0.11.3 / PR #65. Not merged or deployed.
 - Screen progress counts a configured screen only after video `playing`. Once all required screens are visited, operator requests Hydrogen; pickup belongs to the first small cell from `maze.startCell` and shows H on the chart.
 - Leave Bearhead optional pending upload. Don't create separate maze textures or regenerate a different cell map for Ring.
