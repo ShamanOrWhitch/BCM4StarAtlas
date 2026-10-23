@@ -40,7 +40,7 @@ test("Asteroid walls are resolved from the prepared asterwall asset family", asy
   assert.doesNotMatch(warp, /availableWallAssets\.slice\(0, 4\)/);
   assert.match(warp, /wallMesh\.name = "asteroid-maze-wall-panels-" \+ key\.replace\(":", "-"\)/);
   assert.match(warp, /wallMaterials\[index\]\.map = fallbackTexture/);
-  assert.match(warp, /for \(const texture of new Set\(maze\.textures/);
+  assert.match(warp, /for \(const texture of new Set\(\[\.\.\.\(maze\.textures \|\| \[maze\.texture\]\), \.\.\.\(maze\.wallVariantTextures \|\| \[\]\)\]\)\)/);
 });
 
 test("Room 0 uses speed level 3 temporarily and restores its previous setting", async () => {
