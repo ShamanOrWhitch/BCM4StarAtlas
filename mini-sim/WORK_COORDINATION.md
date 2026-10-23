@@ -2,7 +2,7 @@
 - Branch: minisim-0.11.5-astral-phase, stacked on PR #66 / 0.11.4 and PR #65 / 0.11.3. Not merged or deployed.
 - Y-layer cells select deterministic Drift/Flux/Dense gravity from asteroid seed + cell coordinates. Keep maze topology/crystal RNG unchanged and preserve existing texture assets/rotations.
 - 0.11.4 Hydrogen objective uses actual screen playback + the original cell graph.
-- City below Tower and same-seed return remains issue #67. Deeper astral rules remain issue #68; current implementation is a modest first step, not a full astral-dimension implementation.
+- Tower handoff now saves the arriving ship state before velocity freeze and stores the active Tower seed in the mission session. Tower version/cache is 0.2.65. City below Tower and same-seed return remains issue #67; actual restore is not yet wired. Deeper astral rules remain issue #68; current implementation is a modest first step, not a full astral-dimension implementation.
 - Explicit cinema focus stays on the chosen panel until unavailable/out of its radius; nearer media doesn't steal it. Mission HUD reports screen progress and Hydrogen completion.
 - Workflow CI reports source checks; production browser requests get 403 from firewall. Do not bypass the firewall, and do not claim a visual phone test. wordpress/galia-desk remains off-limits.
 
