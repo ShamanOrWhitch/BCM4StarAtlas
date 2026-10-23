@@ -98,12 +98,12 @@ test("ONICSS keeps its station poster during preload, X releases camera focus, a
 });
 
 test("0.11.3 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
-  assert.match(php, /Version: 0\.11\.2/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.2'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.11\.2/);
-  assert.match(qa, /Version: 0\.11\.2/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.2'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.2/);
+  assert.match(php, /Version: 0\.11\.3/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.3'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.11\.3/);
+  assert.match(qa, /Version: 0\.11\.3/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.3'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.3/);
   assert.match(browserWorkflow, /timeout-minutes: 45/);
   assert.match(browserWorkflow, /timeout-minutes: 20/);
   assert.match(browserWorkflow, /timeout-minutes: 25/);
