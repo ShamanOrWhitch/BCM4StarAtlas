@@ -1,3 +1,11 @@
+## D-031 — Mini-Sim 0.11.5: snapshot before Tower freezes flight
+
+**Status:** candidate source contract; city/return implementation still pending.
+
+- Save the incoming ship pose, quaternion, velocity, angular velocity, navigation metadata and mission-session seed just before the Tower handoff zeroes velocity and disposes the Mini-Sim scene.
+- Every built Tower stores its active seed on the same session mission object; city exit must rebuild that exact seed, not call makeSeed().
+- The current patch records data for a future resume path; it does not yet restore flight or add the city. Tower cache/version is bumped to 0.2.65.
+
 ## D-030 — Mini-Sim 0.11.5: explicit camera focus is a playback lease
 
 **Status:** candidate, source tests added.
