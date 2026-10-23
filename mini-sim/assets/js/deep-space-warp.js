@@ -2535,6 +2535,13 @@
       // so SINGLE/MULTI look clickable and the level never starts.
       const worldState = buildRingWorld();
       attachAsteroidCellPath(worldState);
+      const mission = window.BCMWorldMission;
+      if (mission?.hydrogenUnlocked && !mission.hydrogenCollected && !mission.ringHydrogenPromptShown) {
+        mission.ringHydrogenPromptShown = true;
+        window.BCMDialogue?.showOperator?.("", window.BCMDialogue?.language === "en"
+          ? "Hydrogen is marked on your chart. It is in the first small cell, not at the pig arena. Take the side door and search the floor."
+          : "Hydrogen отмечен на карте. Он в первой малой ячейке, а не на арене со свиньями. Иди через боковую дверь и осмотри пол.");
+      }
       const cameraOne = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
       const cameraTwo = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
       const cameraFocus = { x: worldState.cellPath ? worldState.cellPath.homeX : worldState.spawnX, y: 1.6, z: 0 };
