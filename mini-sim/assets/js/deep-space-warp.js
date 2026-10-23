@@ -1259,6 +1259,7 @@
           const texture = loader.load(asset.url, undefined, undefined, () => {
             // Keep both the 3D maze and Ring's 2D cutaway on the same fallback.
             wallTextures[index] = fallbackTexture;
+            if (state.maze?.textures && state.maze.textures[index] !== undefined) state.maze.textures[index] = fallbackTexture;
             if (wallMaterials[index]) {
               wallMaterials[index].map = fallbackTexture;
               wallMaterials[index].needsUpdate = true;
