@@ -36,7 +36,8 @@
     if (!sprite || !actor) return 0;
     const profile = actor.profile || readCrewProfile(actor.crew || actor);
     const motion = profile.motion || speciesMotion("", "");
-    const face = (Number(actor.facing) < 0 ? -1 : 1) * (profile.facingFactor || -1);
+    // Match Tower: its visual-facing calculation reverses the horizontal input before applying the species factor.
+    const face = -(Number(actor.facing) < 0 ? -1 : 1) * (profile.facingFactor || -1);
     const map = sprite.material && sprite.material.map;
     if (map) {
       map.wrapS = 1000;
