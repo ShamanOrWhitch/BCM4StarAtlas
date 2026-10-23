@@ -990,6 +990,18 @@
       visited: required.filter((id) => worldMission.screenVisited[id]).length,
       total: required.length
     };
+    const missionLabel = root.querySelector(".bcm-mini-sim-mission");
+    if (missionLabel && !worldMission.hydrogenCollected) {
+      if (worldMission.hydrogenUnlocked) {
+        missionLabel.textContent = interfaceLanguage === "en"
+          ? "MISSION: FIND HYDROGEN IN THE FIRST RING CELL"
+          : "МИССИЯ: НАЙТИ HYDROGEN В ПЕРВОЙ ЯЧЕЙКЕ RING";
+      } else {
+        missionLabel.textContent = interfaceLanguage === "en"
+          ? "SCREENS ONLINE: " + worldMission.screenProgress.visited + "/" + worldMission.screenProgress.total + " · ACTIVATE ALL"
+          : "ЭКРАНЫ АКТИВНЫ: " + worldMission.screenProgress.visited + "/" + worldMission.screenProgress.total + " · АКТИВИРУЙ ВСЕ";
+      }
+    }
     if (!required.length || worldMission.hydrogenUnlocked ||
         !required.every((id) => worldMission.screenVisited[id])) return;
     worldMission.hydrogenUnlocked = true;
@@ -1018,6 +1030,10 @@
   window.addEventListener("bcm:mission:hydrogen-collected", () => {
     if (worldMission.hydrogenCollected) return;
     worldMission.hydrogenCollected = true;
+    const missionLabel = root.querySelector(".bcm-mini-sim-mission");
+    if (missionLabel) missionLabel.textContent = interfaceLanguage === "en"
+      ? "MISSION COMPLETE: HYDROGEN RECOVERED"
+      : "МИССИЯ ВЫПОЛНЕНА: HYDROGEN СОБРАН";
     showOperatorDialog("", interfaceLanguage === "en"
       ? "Hydrogen recovered. Good work. Keep the asteroid chart: its cells share the same seed and passages."
       : "Hydrogen получен. Отличная работа. Сохрани карту астероида: её ячейки связаны одним seed и общими проходами.");
