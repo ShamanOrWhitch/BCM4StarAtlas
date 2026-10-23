@@ -352,6 +352,16 @@
       publishAsteroidChart(maze);
     });
 
+    window.BCMDeepSpaceWarpGetReturnSnapshot = () => ({
+      mode: state.mode,
+      currentSectorId: state.nav?.current?.id ?? null,
+      targetSectorId: state.target?.id ?? null,
+      sectorProgressed: !!state.sectorProgressed,
+      launchSectorProgressed: !!state.launchSectorProgressed,
+      ringCompleted: !!state.maze?.ringCompleted,
+      hydrogenCollected: !!window.BCMWorldMission?.hydrogenCollected
+    });
+
     // Small public bridge for the later NFT/Galaxy selection integration.
     // It only changes decorative rendering; route, collision, speed and controls stay untouched.
     window.BCMDeepSpaceWarpSetDriveSlot = (slotSize) => {
@@ -362,6 +372,7 @@
       return state.warpVisualClass;
     };
     window.BCMDeepSpaceWarpGetVisualClass = () => state.warpVisualClass;
+    window.BCMDeepSpaceWarpGetSpeedMode = () => api()?.getSpeedMode?.() ?? null;
     window.BCMDeepSpaceWarpGetPreviewClass = () => Number(state.warpPreviewClass) || null;
 
     const hullEnterButton = document.createElement("button");
