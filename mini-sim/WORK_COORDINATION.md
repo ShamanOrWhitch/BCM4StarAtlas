@@ -1,4 +1,11 @@
-## Кандидатная база — Mini-Sim 0.11.3
+## Кандидат — Mini-Sim 0.11.4 Hydrogen mission
+- Branch: `minisim-0.11.4-hydrogen-mission`, stacked on candidate 0.11.3 / PR #65. Not merged or deployed.
+- Screen progress counts a configured screen only after video `playing`. Once all required screens are visited, operator requests Hydrogen; pickup belongs to the first small cell from `maze.startCell` and shows H on the chart.
+- Leave Bearhead optional pending upload. Don't create separate maze textures or regenerate a different cell map for Ring.
+- City under Tower and return to the arriving ship need a separate architecture change: Tower entry disposes Mini-Sim scene/renderer. Preserve same Tower seed and ship state intentionally before building the city route.
+- Production browser QA is blocked by 403 firewall; do not bypass firewall. `wordpress/galia-desk` remains locked and untouched.
+
+## Предыдущая кандидатная база — Mini-Sim 0.11.3
 - Branch: `minisim-0.11.3-ring-texture-focus`, based on main SHA `424394e`. Not merged or deployed.
 - Исправляются: facing не-Mierese в shared CrewCore; реальное назначение текстуры/четверть-поворота per asteroid cell; ONICSS poster/preload fallback; explicit X-release camera focus; optional Bearhead avatar video.
 - Держать отдельными будущими задачами: Hydrogen, once-only mission after screen discovery, true astral phase mechanics, Tower city below + return to original ship via same seed.
