@@ -1270,8 +1270,10 @@
       // shuffle means the entire asteroid run can display the whole texture family.
       const fallbackTexture = makeMazeTexture(THREE);
       const availableWallAssets = asteroidWallAssetPool();
+      // Asset ordering is decorative too: do not consume the topology/crystal RNG.
+      const wallAssetOrderRng = randomFrom(hashSeed(String(seed) + "|wall-assets"));
       for (let i = availableWallAssets.length - 1; i > 0; i -= 1) {
-        const j = Math.floor(rng() * (i + 1));
+        const j = Math.floor(wallAssetOrderRng() * (i + 1));
         [availableWallAssets[i], availableWallAssets[j]] = [availableWallAssets[j], availableWallAssets[i]];
       }
       const chosenWallAssets = availableWallAssets;
