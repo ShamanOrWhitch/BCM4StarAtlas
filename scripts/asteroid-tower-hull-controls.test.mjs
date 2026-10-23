@@ -210,9 +210,9 @@ test("Hydrogen unlock follows real screen playback and places the collectible in
 
 test("Astral Y-cells are seed-deterministic and alter movement without rebuilding the maze", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
-  assert.match(warp, /const astralHash = hashSeed\(String\(maze\.seed\) \+ "\\|astral\\|" \+ cell\.x \+ "\\|" \+ cell\.y \+ "\\|" \+ cell\.z\)/);
+  assert.ok(warp.includes('const astralHash = hashSeed(String(maze.seed) + "|astral|" + cell.x + "|" + cell.y + "|" + cell.z)'));
   assert.match(warp, /astralMode: astral \? \["drift", "flux", "dense"\]\[astralHash % 3\] : "normal"/);
-  assert.match(warp, /astralPhase: \(\(hashSeed\(String\(maze\.seed\) \+ "\\|phase\\|" /);
+  assert.ok(warp.includes('astralPhase: ((hashSeed(String(maze.seed) + "|phase|" + cell.x + "|" + cell.y + "|" + cell.z) / 0xffffffff) * Math.PI * 2)'));
   assert.match(warp, /gravity = 6\.0;[\s\S]*?jumpVelocity = 7\.8/);
   assert.match(warp, /gravity = 8\.0 \+ Math\.sin\(now \* 0\.0018 \+ \(astralNode\.astralPhase \|\| 0\)\) \* 1\.8/);
   assert.match(warp, /gravity = 14\.5;[\s\S]*?jumpVelocity = 10\.2/);
