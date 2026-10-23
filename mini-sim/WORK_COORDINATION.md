@@ -1,8 +1,9 @@
-## Живая база — Mini-Sim 0.11.2
-- Ядро экипажа: `mini-sim/assets/js/crew-core.js`. Не копировать походку в новый уровень.
-- Трюм не обрезает вид. Мышь штурвала работает при открытом трюме.
-- Варп-вид I — норма. Полоски туннеля не возвращать.
-- Пушить ветку в том же заходе. galia-desk не трогать. PR #14 и #18 не сливать.
+## Кандидатная база — Mini-Sim 0.11.3
+- Branch: `minisim-0.11.3-ring-texture-focus`, based on main SHA `424394e`. Not merged or deployed.
+- Исправляются: facing не-Mierese в shared CrewCore; реальное назначение текстуры/четверть-поворота per asteroid cell; ONICSS poster/preload fallback; explicit X-release camera focus; optional Bearhead avatar video.
+- Держать отдельными будущими задачами: Hydrogen, once-only mission after screen discovery, true astral phase mechanics, Tower city below + return to original ship via same seed.
+- Обновление production требует deployment вручную. Remote browser QA не стартует, потому что URL получает 403 от firewall. Не обходить защиту и не делать выводов о рендере по статическим тестам.
+- Не трогать `wordpress/galia-desk`; Tower остается 0.2.64; Room 1 остается стартом; снаружи V = Warp / U = трюм; внутри X = штурвал; не путать с X камеры, которая работает только в обычном полёте.
 
 ## Предыдущая база — Mini-Sim 0.11.1
 
