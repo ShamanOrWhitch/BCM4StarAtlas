@@ -3308,6 +3308,39 @@
     return gate.mesh.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position);
   }
 
+  function captureArrivalShipSnapshot() {
+    const mission = window.BCMWorldMission;
+    if (!mission || !ship || !ship.position || !ship.quaternion) return null;
+    const vec3 = (v) => v ? {
+      x: Number(v.x) || 0, y: Number(v.y) || 0, z: Number(v.z) || 0
+    } : null;
+    const quat = (q) => q ? {
+      x: Number(q.x) || 0, y: Number(q.y) || 0,
+      z: Number(q.z) || 0, w: Number(q.w) || 1
+    } : null;
+    const snapshot = {
+      sessionSeed: mission.sessionSeed,
+      capturedAt: Date.now(),
+      ship: {
+        position: vec3(ship.position),
+        quaternion: quat(ship.quaternion),
+        velocity: vec3(ship.velocity),
+        angularVelocity: vec3(ship.angularVelocity)
+      },
+      navigation: typeof window.BCMDeepSpaceWarpGetReturnSnapshot === "function"
+        ? window.BCMDeepSpaceWarpGetReturnSnapshot()
+        : null,
+      speedMode: Number(window.BCMDeepSpaceWarpGetSpeedMode?.()) || null,
+      towerSeed: Number.isFinite(Number(mission.towerSeed)) ? Number(mission.towerSeed) >>> 0 : null
+    };
+    mission.originShipSnapshot = snapshot;
+    mission.returnShipAvailable = true;
+    window.dispatchEvent(new CustomEvent("bcm:tower:arrival-ship-saved", {
+      detail: { sessionSeed: mission.sessionSeed, capturedAt: snapshot.capturedAt }
+    }));
+    return snapshot;
+  }
+
   let towerGateTriggered = false;
 
   function resetPendingTowerHandoff(message) {
@@ -3347,6 +3380,8 @@
         // trigger or when the async Tower script/video merely starts loading.
         transitionLoading = false;
         transitionBusy = true;
+        // Store the actual arrival pose before freezing it for Tower's handoff.
+        captureArrivalShipSnapshot();
         ship.velocity.set(0, 0, 0);
         ship.angularVelocity.set(0, 0, 0);
         pauseAllCinemaVideos();
