@@ -954,7 +954,7 @@
       }
       if (!gunTarget) return;
       if (ammo <= 0) {
-        notifyStatus(say("Боезапас пуст. У стойки нажми R и удерживай для зарядки", "Out of ammo. Hold the ammo control at the rack to reload"), 2300);
+        notifyStatus(say("Боезапас пуст. У стойки удерживай кнопку боезапаса для зарядки", "Out of ammo. Hold the ammo control at the rack to reload"), 2300);
         return;
       }
       if (!gunTarget.visible) {
@@ -1114,7 +1114,7 @@
           reloadProgress[index] = 0;
         }
         if (input.reload && !reloadHeld[index] && Math.abs(player.x) >= 1.35) {
-          notifyStatus(say("Подойди к центральной стойке боезапаса и удерживай R", "Move to the central ammo rack and hold the reload control"), 2200);
+          notifyStatus(say("Подойди к центральной стойке боезапаса и удерживай кнопку перезарядки", "Move to the central ammo rack and hold the reload control"), 2200);
         }
         reloadHeld[index] = input.reload;
         if (input.dx) player.facing = input.dx < 0 ? -1 : 1;
@@ -1154,7 +1154,7 @@
         oxygen = 100;
         water[0] *= 0.5;
         water[1] = Math.min(1, water[1] + 0.2);
-        status.textContent = say("Воздух кончился. Насос E (или gamepad B), пока голова над водой.", "Oxygen depleted. Press the pump control while keeping your head above water.");
+        status.textContent = say("Воздух кончился. Нажми кнопку насоса, оставаясь над водой.", "Oxygen depleted. Press the pump control while keeping your head above water.");
       }
       if (gunTarget && gunTarget.visible) {
         const lateral = Math.sin(flightTime * 0.62 + flightHeading * 2.1) * (0.34 + enginePower * 1.25);
@@ -1188,7 +1188,7 @@
         won = true;
         status.textContent = say("Отсек сухой. Можно обратно к кольцу.", "Compartment dry. You can return to the Ring.");
       } else if (!won && anyNearBreach && weld < 1) {
-        status.textContent = say("Ремонт: F / Enter или gamepad A. Давление ", "Hold the repair control beside the breach. Pressure ") + pressure.toFixed(1);
+        status.textContent = say("Удерживай ремонт рядом с пробоиной. Давление ", "Hold the repair control beside the breach. Pressure ") + pressure.toFixed(1);
       }
       oxEl.textContent = "O2 " + Math.round(oxygen);
       weldEl.textContent = say("шов ", "SEAM ") + Math.round(weld * 100) + "%";
