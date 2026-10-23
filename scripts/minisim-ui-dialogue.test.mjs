@@ -97,6 +97,22 @@ test("ONICSS keeps its station poster during preload, X releases camera focus, a
   assert.ok(css.includes(".bcm-comic-dialog-avatar video{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}"));
 });
 
+test("Hydrogen mission unlocks only after required screens really play and is anchored to the first Ring cell", () => {
+  assert.match(mini, /window\.BCMWorldMissionAPI = \{/);
+  assert.match(mini, /function registerMissionScreen\(screenId, required = true\)/);
+  assert.match(mini, /function markMissionScreenActive\(screenId\)/);
+  assert.match(mini, /required\.every\(\(id\) => worldMission\.screenVisited\[id\]\)/);
+  assert.match(mini, /video\.addEventListener\("playing", \(\) => markMissionScreenActive\(item\.screenId\)\)/);
+  assert.match(mini, /registerMissionScreen\(item\.screenId, !item\.towerGate\)/);
+  assert.match(warp, /cell: \{ x: startNode\.x, y: startNode\.y, z: startNode\.z \}/);
+  assert.match(warp, /hydrogenMesh\.name = "ring-hydrogen-pickup"/);
+  assert.match(warp, /hydrogenNode: start/);
+  assert.match(warp, /g\.fillText\("H"/);
+  assert.match(warp, /function collectHydrogenAt\(player\)/);
+  assert.match(warp, /path\.current !== path\.hydrogenNode/);
+  assert.match(warp, /new CustomEvent\("bcm:mission:hydrogen-collected"/);
+});
+
 test("0.11.4 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
   assert.match(php, /Version: 0\.11\.4/);
   assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.4'/);
