@@ -113,6 +113,19 @@ test("Hydrogen mission unlocks only after required screens really play and is an
   assert.match(warp, /new CustomEvent\("bcm:mission:hydrogen-collected"/);
 });
 
+test("Explicit screen focus persists until its own radius expires and mission progress stays visible", () => {
+  assert.ok(mini.includes("const focusedZone = cinema.focus && cinema.zones.includes(cinema.focus)"));
+  assert.ok(mini.includes("const focusedPanel = cinema.focus && !cinema.zones.includes(cinema.focus)"));
+  assert.ok(mini.includes("const nearest = focusedZone || (focusedPanel ? null"));
+  assert.ok(mini.includes("A nearby different video must not steal focus."));
+  assert.ok(mini.includes("if (!cinema.zones.length) {"));
+  const noZones = mini.slice(mini.indexOf("if (!cinema.zones.length) {"), mini.indexOf("const candidates = [];"));
+  assert.doesNotMatch(noZones, /cinema\.focus = null/);
+  assert.ok(mini.includes('missionLabel.textContent = interfaceLanguage === "en"'));
+  assert.ok(mini.includes("SCREENS ONLINE: "));
+  assert.ok(mini.includes("MISSION COMPLETE: HYDROGEN RECOVERED"));
+});
+
 test("0.11.5 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
   assert.match(php, /Version: 0\.11\.5/);
   assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.5'/);
