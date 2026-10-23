@@ -178,9 +178,17 @@ function bcm_tower_enqueue_assets() {
     );
 
     wp_enqueue_script(
+        'bcm-crew-core',
+        plugins_url('assets/js/crew-core.js', dirname(__DIR__) . '/bcm-mini-sim.php'),
+        array(),
+        BCM_TOWER_VERSION,
+        false
+    );
+
+    wp_enqueue_script(
         'bcm-tower',
         BCM_TOWER_URL . 'assets/js/tower.js',
-        array(),
+        array('bcm-crew-core'),
         BCM_TOWER_VERSION,
         false
     );

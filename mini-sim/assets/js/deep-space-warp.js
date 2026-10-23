@@ -1146,7 +1146,7 @@
         state.target = { id: "asteroid-complex", name: "ASTEROID COMPLEX", x: -39, y: 30, raw: null };
       }
 
-      const NX = 7, NY = 3, NZ = 7, CELL = 5.4, WALL = 0.46;
+      const NX = 7, NY = 3, NZ = 7, CELL = 6.8, WALL = 0.46;
       // Keep the test maze off-axis and away from the old negative-Z texture-preload trigger.
       const center = new THREE.Vector3(230, 0, 150);
       const runNonce = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
@@ -1306,8 +1306,8 @@
       const texture = wallTextures[0];
 
       const shell = new THREE.Mesh(
-        new THREE.SphereGeometry(31, 18, 14),
-        new THREE.MeshBasicMaterial({ color: 0x254050, transparent: true, opacity: 0.11, side: THREE.BackSide, depthWrite: false })
+        new THREE.SphereGeometry(46, 18, 14),
+        new THREE.MeshBasicMaterial({ color: 0x254050, transparent: true, opacity: 0.08, side: THREE.BackSide, depthWrite: false })
       );
       shell.name = "asteroid-inner-shell";
       shell.position.copy(center);
@@ -1340,6 +1340,20 @@
       beacon.scale.set(1.65, 1.65, 1.65);
       beacon.name = "return-warp-beacon";
       group.add(beacon);
+
+      const satellites = [
+        { offset: new THREE.Vector3(34, 3, 10), radius: 6.4 },
+        { offset: new THREE.Vector3(-30, -7, 16), radius: 3.6 }
+      ].map((rock, index) => {
+        const mesh = new THREE.Mesh(
+          new THREE.SphereGeometry(rock.radius, 12, 9),
+          wallMaterials[index % wallMaterials.length]
+        );
+        mesh.position.copy(center).add(rock.offset);
+        mesh.name = "asteroid-satellite-" + index;
+        group.add(mesh);
+        return { position: mesh.position, radius: rock.radius, mesh: mesh };
+      });
 
       cells.forEach((cell) => {
         cell.wallTurn = Math.floor(rng() * 4);
@@ -1376,6 +1390,8 @@
         crystalMaterial,
         beaconGeometry,
         beaconMaterial,
+        satellites,
+        flyRadius: 43.2,
         lastPosition: null,
         lastImpactAt: 0,
         ringCompleted: false
@@ -1480,11 +1496,21 @@
       }
 
       const fromCenter = pos.clone().sub(maze.center);
-      if (fromCenter.length() > 29.4) {
-        fromCenter.setLength(29.4);
+      const flyRadius = Number(maze.flyRadius) || 43.2;
+      if (fromCenter.length() > flyRadius) {
+        fromCenter.setLength(flyRadius);
         pos.copy(maze.center).add(fromCenter);
         ship.velocity.multiplyScalar(0.25);
       }
+      (maze.satellites || []).forEach((rock) => {
+        const away = pos.clone().sub(rock.position);
+        const limit = rock.radius + 1.05;
+        if (away.length() >= limit) return;
+        if (away.lengthSq() < 1e-6) away.set(1, 0, 0);
+        away.setLength(limit);
+        pos.copy(rock.position).add(away);
+        ship.velocity.multiplyScalar(0.45);
+      });
 
       // Local artificial gravity activates near the gold ring, with a smooth falloff.
       const ringVector = maze.beacon.position.clone().sub(pos);
@@ -2455,9 +2481,25 @@
       }
       function updatePlayerSprite(player) {
         if (!player.sprite) return;
-        const p = playerWorldPosition(player);
-        player.sprite.position.set(p.x, p.y, p.z);
-        player.sprite.scale.x = player.facing < 0 ? -1.45 : 1.45;
+        const moved = Math.abs((player._prevX ?? player.worldX) - player.worldX) > 0.01;
+        player._prevX = player.worldX;
+        if (window.BCMCrewCore) {
+          window.BCMCrewCore.applyPlatformSprite(player.sprite, {
+            facing: player.facing,
+            moving: moved || !player.grounded,
+            grounded: player.grounded,
+            vy: player.vy,
+            crew: crewSelection[player.index],
+            index: player.index,
+            y: player.worldY + 0.98
+          });
+          player.sprite.position.x = player.worldX;
+          player.sprite.position.z = 0.45;
+        } else {
+          const p = playerWorldPosition(player);
+          player.sprite.position.set(p.x, p.y, p.z);
+          player.sprite.scale.x = player.facing < 0 ? -1.45 : 1.45;
+        }
         player.sprite.visible = true;
       }
 
@@ -3755,7 +3797,7 @@ return axialRoll + ahead * 0.12 +
 
       // Class II: flowing race-engine ion rails laid over the existing curved shell.
       // This is Canvas-only (no new renderer, textures, geometry, or collision surfaces).
-      if (visualClass >= 2) {
+      if (visualClass === 2) {
         const railCount = 4;
         const railSpin = state.tubeTravel * 0.012;
         const railTravel = ((state.tubeTravel * 0.0013) % 1 + 1) % 1;
@@ -3772,7 +3814,7 @@ return axialRoll + ahead * 0.12 +
             if (step === 0) g.moveTo(p.x, p.y);
             else g.lineTo(p.x, p.y);
           }
-          g.strokeStyle = rail % 2 === 0 ? "rgba(64,230,255,0.78)" : "rgba(255,181,104,0.68)";
+          g.strokeStyle = rail % 2 === 0 ? "rgba(64,230,255,0.34)" : "rgba(255,181,104,0.28)";
           g.lineWidth = 1.1 + maxRadius * 0.004;
           g.lineCap = "round";
           g.stroke();
@@ -3791,7 +3833,7 @@ return axialRoll + ahead * 0.12 +
 
       // Class III adds several shifting energy arcs. They are visual-only and stay
       // behind collision obstacles, so the displayed class cannot change difficulty.
-      if (visualClass >= 3) {
+      if (visualClass === 3) {
         g.save();
         g.globalCompositeOperation = "lighter";
         for (let hoop = 0; hoop < 4; hoop += 1) {
@@ -3800,8 +3842,8 @@ return axialRoll + ahead * 0.12 +
           const span = Math.PI * (1.16 + (hoop % 2) * 0.18);
           const start = phase + hoop * 0.46;
           drawArc(depth, start, start + span, hoop % 2
-            ? "rgba(255,190,116,0.68)" : "rgba(84,232,255,0.76)",
-            Math.max(1.1, maxRadius * (0.0035 + depth * 0.003)));
+            ? "rgba(255,190,116,0.28)" : "rgba(84,232,255,0.32)",
+            Math.max(1.1, maxRadius * (0.0022 + depth * 0.0016)));
           drawArc(depth, start + Math.PI, start + Math.PI + span * 0.38,
             "rgba(192,252,255,0.42)", Math.max(0.9, maxRadius * 0.002));
         }
@@ -3809,7 +3851,7 @@ return axialRoll + ahead * 0.12 +
       }
 
       // Class IV adds heavier twin stargate hoops and pulsing junctions over Class III.
-      if (visualClass >= 4) {
+      if (visualClass === 4) {
         g.save();
         g.globalCompositeOperation = "lighter";
         for (let gate = 0; gate < 3; gate += 1) {
@@ -3887,32 +3929,23 @@ return axialRoll + ahead * 0.12 +
           });
         } else if (layer.type === "boost") {
           drawArc(d, layer.safeAngle - 0.55, layer.safeAngle + 0.55, "rgba(56,245,193,0.96)", Math.max(5, rx * 0.075));
-          for (let stripe = -2; stripe <= 2; stripe += 1) {
-            const a = layer.safeAngle + stripe * 0.13;
-            const p0 = point(d, a, -rx * 0.03);
-            const p1 = point(Math.min(1.07, d + 0.025), a, -rx * 0.18);
-            g.beginPath();
-            g.moveTo(p0.x, p0.y);
-            g.lineTo(p1.x, p1.y);
-            g.strokeStyle = "rgba(115,255,214,0.88)";
-            g.lineWidth = Math.max(1, rx * 0.022);
-            g.stroke();
-          }
+          const chevron = point(d, layer.safeAngle, -rx * 0.16);
+          g.beginPath();
+          g.moveTo(chevron.x - 6, chevron.y);
+          g.lineTo(chevron.x, chevron.y - 7);
+          g.lineTo(chevron.x + 6, chevron.y);
+          g.strokeStyle = "rgba(186,255,230,0.9)";
+          g.lineWidth = 1.4;
+          g.stroke();
         } else if (layer.type === "launcher") {
           // A passable pair of angled launch rails, not an opaque slab.
           drawArc(d, layer.safeAngle - 0.48, layer.safeAngle + 0.48, "rgba(255,190,95,0.96)", Math.max(4, rx * 0.06));
-          for (let stripe = -2; stripe <= 2; stripe += 1) {
-            const a0 = layer.safeAngle + stripe * 0.14 - 0.10;
-            const a1 = layer.safeAngle + stripe * 0.14 + 0.06;
-            const p0 = point(d, a0, -rx * 0.03);
-            const p1 = point(Math.min(1.07, d + 0.035), a1, -rx * 0.22);
-            g.beginPath();
-            g.moveTo(p0.x, p0.y);
-            g.lineTo(p1.x, p1.y);
-            g.strokeStyle = "rgba(255,222,155,0.96)";
-            g.lineWidth = Math.max(1, rx * 0.026);
-            g.stroke();
-          }
+          const gateMark = point(d, layer.safeAngle, -rx * 0.18);
+          g.beginPath();
+          g.arc(gateMark.x, gateMark.y, Math.max(3, rx * 0.04), 0, Math.PI * 2);
+          g.strokeStyle = "rgba(255,222,155,0.95)";
+          g.lineWidth = 1.5;
+          g.stroke();
         }
       });
 

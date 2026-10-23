@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.1",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.2",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.1",
+      title: "SPACE LABYRINTH — 0.11.2",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -4527,11 +4527,20 @@
     const focusedOrbit = orbitFocusedScreen(dt);
     const mobileTiltMode = mobileLandscape() && tilt.enabled;
     if (hullHelm) {
-      // A turns the nose left, D turns it right. Rate, not a slow ramp:
-      // the person at the wheel should feel the ship answer immediately.
-      ship.angularVelocity.x = 0;
-      ship.angularVelocity.y = -inn.yaw * 1.85;
-      ship.angularVelocity.z = 0;
+      // Keyboard yaw stays a steady rate. Mouse look is a separate impulse so
+      // the helm does not wipe the right hand every frame.
+      if (!hullHelm.engaged) {
+        ship.angularVelocity.set(0, 0, 0);
+        ship._helmMouseX = 0;
+        ship._helmMouseY = 0;
+      } else {
+        const drag = Math.max(0, 1 - ship.angularDrag * dt);
+        ship._helmMouseX = (ship._helmMouseX || 0) * drag;
+        ship._helmMouseY = (ship._helmMouseY || 0) * drag;
+        ship.angularVelocity.x = ship._helmMouseX;
+        ship.angularVelocity.y = ship._helmMouseY - inn.yaw * 1.85;
+        ship.angularVelocity.z = 0;
+      }
     } else if (mobileTiltMode) {
       const manualPitch = pad.ry * (settings.invertPitch ? 1 : -1);
       ship.angularVelocity.x = manualPitch * 0.85 + inn.pitch * 0.85;
@@ -4552,8 +4561,8 @@
     }
     camera.position.copy(ship.position);
     camera.quaternion.copy(ship.quaternion);
+    if (window.BCMHelmInstruments) window.BCMHelmInstruments.update(hullHelm);
     light.position.copy(ship.position);
-    if (ship.position.z < -48) startBackgroundTextureLoading();
     updateTowerApproachPreload();
     updateCinemaZones();
     updateLiveWall();
@@ -4877,10 +4886,54 @@
     });
     document.addEventListener("pointerlockerror", () => { pointerLockBlocked = true; });
     document.addEventListener("mousemove", (e) => {
-      if (!pointerLocked || settings.open) return;
+      if (settings.open) return;
+      const hullOpen = document.getElementById("bcm-hull-dive");
+      const helmOn = hullOpen && window.BCMHullHelmState && window.BCMHullHelmState.engaged;
+      if (helmOn) {
+        const overHold = e.target && e.target.closest && e.target.closest("#bcm-hull-dive");
+        if (overHold) return;
+        ship._helmMouseX = (ship._helmMouseX || 0) - e.movementY * 0.0036;
+        ship._helmMouseY = (ship._helmMouseY || 0) - e.movementX * 0.0032;
+        return;
+      }
+      if (!pointerLocked) return;
       ship.angularVelocity.y -= e.movementX * 0.0032;
       ship.angularVelocity.x -= e.movementY * 0.0036;
     });
+    const helmPanel = document.createElement("div");
+    helmPanel.className = "bcm-helm-instruments";
+    helmPanel.innerHTML = '<div><b>SPD</b><strong data-helm-speed>0</strong></div><div><b>THR</b><strong data-helm-thrust>0%</strong></div><div><b>HDG</b><strong data-helm-head>0°</strong></div><canvas data-helm-horizon width="84" height="42" aria-hidden="true"></canvas>';
+    root.appendChild(helmPanel);
+    const helmSpeed = helmPanel.querySelector("[data-helm-speed]");
+    const helmThrust = helmPanel.querySelector("[data-helm-thrust]");
+    const helmHead = helmPanel.querySelector("[data-helm-head]");
+    const helmHorizon = helmPanel.querySelector("[data-helm-horizon]");
+    window.BCMHelmInstruments = {
+      update(helm) {
+        const open = !!document.getElementById("bcm-hull-dive");
+        helmPanel.style.display = open ? "flex" : "none";
+        if (!open) return;
+        const speed = ship.velocity ? ship.velocity.length() : 0;
+        const thrust = helm && helm.engaged ? Math.round((Number(helm.thrust) || 0) * 100) : 0;
+        const toDeg = (THREE.MathUtils && THREE.MathUtils.radToDeg) || ((rad) => rad * 180 / Math.PI);
+        const euler = new THREE.Euler().setFromQuaternion(ship.quaternion, "YXZ");
+        if (helmSpeed) helmSpeed.textContent = speed.toFixed(1);
+        if (helmThrust) helmThrust.textContent = thrust + "%";
+        if (helmHead) helmHead.textContent = Math.round(toDeg(euler.y)) + "°";
+        const ctx = helmHorizon && helmHorizon.getContext("2d");
+        if (!ctx) return;
+        ctx.clearRect(0, 0, 84, 42);
+        ctx.fillStyle = "#07141e";
+        ctx.fillRect(0, 0, 84, 42);
+        ctx.strokeStyle = "#6fd7ea";
+        ctx.beginPath();
+        ctx.moveTo(6, 21 - euler.x * 18);
+        ctx.lineTo(78, 21 + euler.x * 18);
+        ctx.stroke();
+        ctx.fillStyle = "#d7b15a";
+        ctx.fillRect(40, 19, 4, 4);
+      }
+    };
     root.querySelectorAll(".bcm-mini-sim-mobile button").forEach((btn) => {
       const id = btn.dataset.control;
       const down = (ev) => {

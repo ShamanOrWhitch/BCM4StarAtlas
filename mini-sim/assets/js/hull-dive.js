@@ -380,8 +380,8 @@
       (entry?.mint ? String(entry.mint).slice(0, 8) + "…" : "Crew " + (index + 1))
     ).slice(0, 28);
     const players = [
-      { x: -4.75, y: floor + 0.42, sprite: null, texture: null, crew: crewSelection[0] || null, name: crewName(crewSelection[0], 0) },
-      { x: 4.75, y: floor + 0.42, sprite: null, texture: null, crew: crewSelection[1] || null, name: crewName(crewSelection[1], 1) }
+      { x: -4.75, y: floor + 0.42, facing: 1, sprite: null, texture: null, crew: crewSelection[0] || null, name: crewName(crewSelection[0], 0) },
+      { x: 4.75, y: floor + 0.42, facing: -1, sprite: null, texture: null, crew: crewSelection[1] || null, name: crewName(crewSelection[1], 1) }
     ];
     if (crewEl) crewEl.textContent = "CREW: " + players.map((player) => player.name).join(" / ");
     let closed = false;
@@ -1102,7 +1102,22 @@
           notifyStatus(say("Подойди к центральной стойке боезапаса и удерживай R", "Move to the central ammo rack and hold R"), 2200);
         }
         reloadHeld[index] = input.reload;
-        if (player.sprite) player.sprite.position.set(player.x, player.y + 0.16, 0.82 + index * 0.015);
+        if (input.dx) player.facing = input.dx < 0 ? -1 : 1;
+        if (player.sprite && window.BCMCrewCore) {
+          window.BCMCrewCore.applyPlatformSprite(player.sprite, {
+            facing: player.facing,
+            moving: Math.abs(input.dx) > 0.04 || Math.abs(input.dy) > 0.04,
+            grounded: !submergedRooms[index],
+            vy: input.dy,
+            crew: player.crew,
+            index: index,
+            y: player.y + 0.16
+          });
+          player.sprite.position.x = player.x;
+          player.sprite.position.z = 0.82 + index * 0.015;
+        } else if (player.sprite) {
+          player.sprite.position.set(player.x, player.y + 0.16, 0.82 + index * 0.015);
+        }
       });
       // A short touchscreen tap can begin and end between animation frames.
       // Consume the edge-triggered request once so the helm never feels stuck.

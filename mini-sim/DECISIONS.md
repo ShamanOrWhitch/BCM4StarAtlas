@@ -1,3 +1,12 @@
+## D-026 — Mini-Sim 0.11.2: one helm, one crew core
+
+**Status:** the live base.
+
+- Helm mouse and keyboard stay one control while the hold mini-game is open. Do not crop the flight view to make room for the hold; use the instrument cluster.
+- Crew facing, race motion, walk and fall go through `window.BCMCrewCore`. Do not copy that table into the next level.
+- Warp class I is the readable default. Classes II and III are alternates, not a stack. Do not decorate the tunnel with stripe fans.
+- The asteroid generator stays. Corridors may be roomier than the rock, and extra rocks may differ in size.
+
 ## D-025 — Mini-Sim 0.11.1: helm on X, asteroid chart, paired hands
 
 **Status:** the live base. Keeps D-024's Room 1 start. Overrides only the hold helm key.

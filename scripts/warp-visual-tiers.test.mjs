@@ -38,20 +38,20 @@ test("Visual Classes II–IV have distinct decorative effects only", () => {
   assert.ok(start >= 0 && end > start, "Tube drawing function should exist");
   const draw = warp.slice(start, end);
 
-  assert.match(draw, /if \(visualClass >= 2\)[\s\S]*?const railCount = 4/);
-  assert.match(draw, /Class III adds several shifting energy arcs[\s\S]*?if \(visualClass >= 3\)/);
-  assert.match(draw, /Class IV adds heavier twin stargate hoops[\s\S]*?if \(visualClass >= 4\)/);
+  assert.match(draw, /if \(visualClass === 2\)[\s\S]*?const railCount = 4/);
+  assert.match(draw, /Class III adds several shifting energy arcs[\s\S]*?if \(visualClass === 3\)/);
+  assert.match(draw, /Class IV adds heavier twin stargate hoops[\s\S]*?if \(visualClass === 4\)/);
   assert.match(draw, /const routeProgress = warpObstacleProgress\(state\.elapsed\)/);
   assert.doesNotMatch(draw, /new THREE\.WebGLRenderer/);
   assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
   assert.match(warp, /window\.BCMDeepSpaceWarpSetDriveSlot = \(slotSize\) =>/);
 });
 
-test("Mini-Sim 0.11.1 cache/version contracts are synchronized", () => {
-  assert.match(plugin, /Version: 0\.11\.1/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.1'\)/);
-  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.1/);
-  assert.match(qa, /Version: 0\.11\.1/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.1'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.1/);
+test("Mini-Sim 0.11.2 cache/version contracts are synchronized", () => {
+  assert.match(plugin, /Version: 0\.11\.2/);
+  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.2'\)/);
+  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.2/);
+  assert.match(qa, /Version: 0\.11\.2/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.2'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.2/);
 });

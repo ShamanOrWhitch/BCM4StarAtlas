@@ -57,7 +57,8 @@ test("Hull Dive is an inset cabin, leaves pilot screen space, and keeps bounded 
   assert.match(hull, /level > 0\.01 \? Math\.min\(bubble\.particleCount/);
   assert.match(warp, /root\.classList\.add\("bcm-hull-interior-active"\)/);
   assert.match(warp, /root\.classList\.remove\("bcm-hull-interior-active"\)/);
-  assert.match(css, /\.bcm-mini-sim\.bcm-hull-interior-active \.bcm-mini-sim-canvas[\s\S]*?height:68%/);
+  assert.match(css, /\.bcm-mini-sim\.bcm-hull-interior-active \.bcm-mini-sim-canvas[\s\S]*?height:100%/);
+  assert.match(css, /\.bcm-helm-instruments/);
 });
 
 test("Ring weapon prototypes include laser pointer, pulse and spectrum, with operator choices and test upgrades", () => {
@@ -84,13 +85,13 @@ test("Ring two-player split is top/bottom; caption clutter is removed", () => {
   assert.doesNotMatch(warp, /fillText\("ПРОГРЕСС ПО ЗОНАМ"/);
 });
 
-test("0.11.1 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
-  assert.match(php, /Version: 0\.11\.1/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.1'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.11\.1/);
-  assert.match(qa, /Version: 0\.11\.1/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.1'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.1/);
+test("0.11.2 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
+  assert.match(php, /Version: 0\.11\.2/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.2'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.11\.2/);
+  assert.match(qa, /Version: 0\.11\.2/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.2'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.2/);
   assert.match(browserWorkflow, /timeout-minutes: 45/);
   assert.match(browserWorkflow, /timeout-minutes: 20/);
   assert.match(browserWorkflow, /timeout-minutes: 25/);

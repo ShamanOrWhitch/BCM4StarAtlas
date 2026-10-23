@@ -246,6 +246,9 @@
   }
 
   function speciesMotion(species, sex) {
+    if (window.BCMCrewCore && window.BCMCrewCore.speciesMotion) {
+      return window.BCMCrewCore.speciesMotion(species, sex);
+    }
     const key = String(species || "").toLowerCase();
     const female = /female/i.test(String(sex || ""));
     if (key.includes("profound") || key.includes("high punaab") || key.includes("punaab")) {
@@ -1767,7 +1770,9 @@
           : "";
         const species = String(selectedCrew?.species || selectedCrew?.spec || traitSpecies || "");
         const sex = String(selectedCrew?.sex || "");
-        playerFacingFactors[i] = -1;
+        playerFacingFactors[i] = window.BCMCrewCore && window.BCMCrewCore.facingFactor
+          ? window.BCMCrewCore.facingFactor(species)
+          : (String(species).toLowerCase().includes("mierese") ? 1 : -1);
         playerMotion[i] = speciesMotion(species, sex);
         const imageUrl = selectedCrew?.image || "";
         const officialUrl = officialCrewCutoutUrl(imageUrl);
