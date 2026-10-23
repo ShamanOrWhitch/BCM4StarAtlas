@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.3",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.4",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.3",
+      title: "SPACE LABYRINTH — 0.11.4",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -2974,6 +2974,7 @@
     liveWall.el = video;
     liveWall.screenId = "live-wall";
     registerMissionScreen(liveWall.screenId, true);
+    video.addEventListener("playing", () => markMissionScreenActive(liveWall.screenId));
     liveWall.texture = texture;
     liveWall.mesh = mesh;
     liveWall.material = fallbackMaterial;
@@ -3033,7 +3034,6 @@
       liveWallOnScreen();
 
     if (visible) {
-      markMissionScreenActive(liveWall.screenId);
       if (liveWall.ready && liveWall.el.paused) {
         const p = liveWall.el.play();
         if (p && p.catch) p.catch(() => {});
