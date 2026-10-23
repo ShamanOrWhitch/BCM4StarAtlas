@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.2",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.3",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.2",
+      title: "SPACE LABYRINTH — 0.11.3",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -133,7 +133,7 @@
   dialogueRoot.className = "bcm-comic-dialogs";
   dialogueRoot.innerHTML =
     '<section class="bcm-comic-dialog bcm-comic-dialog-operator" data-dialog-box="operator" hidden aria-live="polite">' +
-      '<div class="bcm-comic-dialog-avatar" aria-hidden="true"><span data-operator-avatar-fallback>✦</span><video data-operator-avatar-video muted playsinline loop preload="none"></video></div>' +
+      '<div class="bcm-comic-dialog-avatar" aria-hidden="true"><span data-operator-avatar-fallback>✦</span><video data-operator-avatar-video hidden muted playsinline loop preload="none"></video></div>' +
       '<div class="bcm-comic-dialog-copy"><strong data-dialog-speaker>ОПЕРАТОР</strong><p data-dialog-message></p><div class="bcm-comic-dialog-choices" data-dialog-choices></div></div>' +
       '<button type="button" class="bcm-comic-dialog-close" data-dialog-close="operator" aria-label="Close">×</button>' +
     '</section>' +
