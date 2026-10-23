@@ -955,6 +955,74 @@
 
   const labyrinthSeed = makeLabyrinthSeed();
 
+  // Shared mission state: screen discoveries are session-scoped and Hydrogen
+  // is placed inside the Ring's first asteroid cell, not in a separate arena.
+  const previousMission = window.BCMWorldMission;
+  const worldMission = previousMission && previousMission.sessionSeed === labyrinthSeed
+    ? previousMission
+    : {
+        sessionSeed: labyrinthSeed,
+        requiredScreens: {},
+        screenVisited: {},
+        hydrogenUnlocked: false,
+        hydrogenCollected: false,
+        asteroidSeed: null,
+        screenDiscoveryAnnounced: false,
+        towerSeed: null,
+        cityEntered: false,
+        cityReturnedToTower: false
+      };
+  worldMission.requiredScreens = worldMission.requiredScreens || {};
+  worldMission.screenVisited = worldMission.screenVisited || {};
+  window.BCMWorldMission = worldMission;
+
+  function registerMissionScreen(screenId, required = true) {
+    const id = String(screenId || "").trim();
+    if (!id) return;
+    worldMission.requiredScreens[id] = !!required;
+    if (!(id in worldMission.screenVisited)) worldMission.screenVisited[id] = false;
+  }
+
+  function evaluateMissionScreens() {
+    const required = Object.keys(worldMission.requiredScreens)
+      .filter((id) => worldMission.requiredScreens[id]);
+    worldMission.screenProgress = {
+      visited: required.filter((id) => worldMission.screenVisited[id]).length,
+      total: required.length
+    };
+    if (!required.length || worldMission.hydrogenUnlocked ||
+        !required.every((id) => worldMission.screenVisited[id])) return;
+    worldMission.hydrogenUnlocked = true;
+    worldMission.screenDiscoveryAnnounced = true;
+    window.dispatchEvent(new CustomEvent("bcm:mission:hydrogen-unlocked", {
+      detail: { sessionSeed: labyrinthSeed, screenIds: required.slice() }
+    }));
+    showOperatorDialog("", interfaceLanguage === "en"
+      ? "All screens are online. New objective: enter the asteroid Ring, explore the first cells, and recover Hydrogen. I marked the mission in your chart."
+      : "Все экраны активированы. Новая задача: войти в Кольцо астероида, исследовать первые ячейки и забрать Hydrogen. Отметка миссии добавлена на карту.");
+  }
+
+  function markMissionScreenActive(screenId) {
+    const id = String(screenId || "").trim();
+    if (!id || !worldMission.requiredScreens[id] || worldMission.screenVisited[id]) return;
+    worldMission.screenVisited[id] = true;
+    evaluateMissionScreens();
+  }
+
+  window.BCMWorldMissionAPI = {
+    getState: () => worldMission,
+    registerScreen: registerMissionScreen,
+    markScreenActive: markMissionScreenActive
+  };
+
+  window.addEventListener("bcm:mission:hydrogen-collected", () => {
+    if (worldMission.hydrogenCollected) return;
+    worldMission.hydrogenCollected = true;
+    showOperatorDialog("", interfaceLanguage === "en"
+      ? "Hydrogen recovered. Good work. Keep the asteroid chart: its cells share the same seed and passages."
+      : "Hydrogen получен. Отличная работа. Сохрани карту астероида: её ячейки связаны одним seed и общими проходами.");
+  });
+
   function seedRandom(salt = 0) {
     let state = (labyrinthSeed ^ Number(salt || 0) ^ 0x9e3779b9) >>> 0;
     return function () {
@@ -2608,6 +2676,7 @@
         posterMaterial,
         mesh,
         url: zone.url,
+        screenId: "space:" + index,
         radius: Number(zone.radius) || 16,
         preloadRadius: Number(zone.preloadRadius) || 0,
         firstFrame: false,
@@ -2622,8 +2691,10 @@
 
       video.addEventListener("playing", () => {
         item.firstFrame = true;
+        markMissionScreenActive(item.screenId);
         if (item.videoMaterial && item.mesh) item.mesh.material = item.videoMaterial;
       });
+      registerMissionScreen(item.screenId, !item.towerGate);
       video.addEventListener("loadedmetadata", () => {
         if (!item.mesh || !video.videoWidth || !video.videoHeight) return;
         const mobileSize = window.matchMedia && window.matchMedia("(pointer: coarse) and (orientation: landscape)").matches
@@ -2757,6 +2828,7 @@
       texture,
       material,
       mesh,
+      screenId: "interior:" + String(options.name || mesh.name),
       url: options.url,
       radius: Number(options.radius) || 20,
       preloadRadius: Number(options.preloadRadius) || 99,
@@ -2784,6 +2856,8 @@
     });
 
     liveInterior.push(item);
+    registerMissionScreen(item.screenId, true);
+    video.addEventListener("playing", () => markMissionScreenActive(item.screenId));
     return item;
   }
 
@@ -2898,6 +2972,8 @@
     scene.add(mesh);
 
     liveWall.el = video;
+    liveWall.screenId = "live-wall";
+    registerMissionScreen(liveWall.screenId, true);
     liveWall.texture = texture;
     liveWall.mesh = mesh;
     liveWall.material = fallbackMaterial;
@@ -2957,6 +3033,7 @@
       liveWallOnScreen();
 
     if (visible) {
+      markMissionScreenActive(liveWall.screenId);
       if (liveWall.ready && liveWall.el.paused) {
         const p = liveWall.el.play();
         if (p && p.catch) p.catch(() => {});
