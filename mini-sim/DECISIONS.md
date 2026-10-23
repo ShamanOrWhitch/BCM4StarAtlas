@@ -1,3 +1,11 @@
+## D-030 — Mini-Sim 0.11.5: explicit camera focus is a playback lease
+
+**Status:** candidate, source tests added.
+
+- F/X focus selects one video target. A selected exterior screen remains the nearest/playback owner while within its active radius; an explicitly focused interior panel/live wall is not cancelled just because no exterior video is nearest.
+- Clear focus when the selected target becomes unavailable or leaves its own radius. Don't let another nearby video steal focus.
+- The mission HUD exposes visited screen progress and switches to Hydrogen objective/completion text.
+
 ## D-029 — Mini-Sim 0.11.5: deterministic astral movement rules
 
 **Status:** candidate on minisim-0.11.5-astral-phase; CI and visual play pending.
