@@ -188,3 +188,21 @@ test("Crew facing follows the Tower convention and 3D wall materials use each ce
   assert.doesNotMatch(warp, /walls\.forEach\(\(wall, index\) => wallBatches\[index % wallBatches\.length\]\.push\(wall\)\)/);
   assert.ok(warp.includes('maze.wallVariantTextures || []'));
 });
+
+
+test("Hydrogen unlock follows real screen playback and places the collectible in the asteroid start cell", async () => {
+  const mini = await read("mini-sim/assets/js/mini-sim.js");
+  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  assert.match(mini, /window\.BCMWorldMissionAPI = \{/);
+  assert.match(mini, /function registerMissionScreen\(screenId, required = true\)/);
+  assert.match(mini, /required\.every\(\(id\) => worldMission\.screenVisited\[id\]\)/);
+  assert.match(mini, /video\.addEventListener\("playing", \(\) => markMissionScreenActive\(item\.screenId\)\)/);
+  assert.match(mini, /registerMissionScreen\(item\.screenId, !item\.towerGate\)/);
+  assert.match(warp, /cell: \{ x: startNode\.x, y: startNode\.y, z: startNode\.z \}/);
+  assert.match(warp, /hydrogenMesh\.name = "ring-hydrogen-pickup"/);
+  assert.match(warp, /hydrogenNode: start/);
+  assert.match(warp, /g\.fillText\("H"/);
+  assert.match(warp, /path\.current !== path\.hydrogenNode/);
+  assert.match(warp, /new CustomEvent\("bcm:mission:hydrogen-collected"/);
+  assert.match(warp, /hydrogen: hydrogen \?/);
+});
