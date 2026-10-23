@@ -3995,7 +3995,9 @@
     if (!cinema.zones.length) {
       if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume;
       cinema.nearest = null;
-      cinema.focus = null;
+      // Interior panels and the live wall can remain focused without any
+      // external space-video zone. updateCinemaFocus validates them later
+      // in this frame, after their own visibility/active state has refreshed.
       return;
     }
 
@@ -4027,7 +4029,16 @@
     });
 
     candidates.sort((a, b) => a.distance - b.distance);
-    const nearest = candidates.length ? candidates[0] : null;
+    const focusedZone = cinema.focus && cinema.zones.includes(cinema.focus) &&
+      cinema.focus.mesh && cinema.focus.distance <= cinema.focus.radius
+      ? cinema.focus
+      : null;
+    const focusedPanel = cinema.focus && !cinema.zones.includes(cinema.focus) &&
+      cinema.focus.mesh && cinema.focus.active &&
+      Number(cinema.focus.distance) <= Number(cinema.focus.radius);
+    // F/X explicitly selects a screen: keep it the playback owner until it
+    // leaves its own radius. A nearby different video must not steal focus.
+    const nearest = focusedZone || (focusedPanel ? null : (candidates.length ? candidates[0] : null));
     cinema.nearest = nearest;
 
     // Only the nearest visible zone is allowed to decode/play.
@@ -4076,7 +4087,8 @@
 
     if (!nearest) {
       if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume;
-      if (cinema.focus) cinema.focus = null;
+      // A focused interior panel/live wall is managed by its own video loop.
+      // Do not drop that focus simply because no exterior zone is nearest.
       return;
     }
 
@@ -4210,13 +4222,17 @@
   }
 
   function updateCinemaFocus() {
-    if (!cinema.focus || !cinema.focus.mesh || !cinema.focus.active) return;
-    if (cinema.focus.distance > cinema.focus.radius) {
+    if (!cinema.focus) return;
+    const focused = cinema.focus;
+    if (!focused.mesh || !focused.active ||
+        !Number.isFinite(Number(focused.distance)) ||
+        Number(focused.distance) > Number(focused.radius)) {
       cinema.focus = null;
+      setStatus("CINEMA FOCUS OFF");
       return;
     }
 
-    const target = cinema.focus.mesh.getWorldPosition(new THREE.Vector3());
+    const target = focused.mesh.getWorldPosition(new THREE.Vector3());
     const matrix = new THREE.Matrix4().lookAt(
       ship.position,
       target,
