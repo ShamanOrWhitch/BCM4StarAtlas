@@ -165,3 +165,21 @@ test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, amm
   assert.match(hull, /smokeParticles\.forEach/);
   assert.match(hull, /BCMHullDive = \{ open: open \}/);
 });
+
+
+test("Crew facing follows the Tower convention and 3D wall materials use each cell's Ring map data", async () => {
+  const core = await read("mini-sim/assets/js/crew-core.js");
+  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  const tower = await read("mini-sim/tower/assets/js/tower.js");
+  assert.ok(core.includes('const face = -(Number(actor.facing) < 0 ? -1 : 1) * (profile.facingFactor || -1);'));
+  assert.match(core, /function facingFactor\(species\)/);
+  assert.ok(tower.includes('p.visualFacing = (turnInput > 0 ? -1 : 1) * facingFactor;'));
+  assert.ok(warp.includes('function addWall(x, y, z, sx, sy, sz, cell)'));
+  assert.ok(warp.includes('walls.push({ x, y, z, sx, sy, sz, cell });'));
+  assert.ok(warp.includes('const wallLookRng = randomFrom(hashSeed(seed + "|wall-map"));'));
+  assert.ok(warp.includes('const resolved = wallVariant(wall.cell);'));
+  assert.ok(warp.includes('variantTexture.rotation = turn * (Math.PI / 2);'));
+  assert.ok(warp.includes('wallBatches.get(resolved.key).walls.push(wall)'));
+  assert.doesNotMatch(warp, /walls\.forEach\(\(wall, index\) => wallBatches\[index % wallBatches\.length\]\.push\(wall\)\)/);
+  assert.ok(warp.includes('maze.wallVariantTextures || []'));
+});
