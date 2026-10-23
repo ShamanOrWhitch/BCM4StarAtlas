@@ -133,7 +133,11 @@ test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, amm
   assert.match(hull, /\"KeyX\"/);
   assert.match(hull, /event\.stopImmediatePropagation\(\)/);
   assert.match(hull, /let helmTogglePending = false/);
-  assert.match(hull, /Leaving the helm must always be possible/);
+  assert.match(hull, /let helmOwner = 0/);
+  assert.match(hull, /const toggleRequester = inputs\.findIndex/);
+  assert.match(hull, /index === helmOwner && atHelm/);
+  assert.match(hull, /const activeHelmInput = helmOwner >= 0/);
+  assert.match(hull, /helmToggleRequestedBy = helmOwner >= 0 \? helmOwner : -1/);
   assert.match(hull, /window\.addEventListener\(\"blur\", clearHeldKeys\)/);
   const mini = await read("mini-sim/assets/js/mini-sim.js");
   assert.match(mini, /document\.getElementById\(\"bcm-hull-dive\"\)/);
