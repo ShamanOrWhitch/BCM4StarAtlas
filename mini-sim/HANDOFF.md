@@ -9,6 +9,7 @@
 - Door graph, cell coordinates, selected wallAsset and wallTurn, crystal positions and large pig/ring exit cell do not change. Existing textures only.
 - PR #66: screen playback activates the Hydrogen quest, and the collectible belongs to the first small cell.
 - Remaining: city under Tower + same-seed return to arrival ship is tracked in issue #67. Expand the astral layer only after these rules are tested in the game; use issue #68 for the follow-up.
+- Explicit camera focus now wins over nearer videos and remains on interior panels even when no exterior zone is nearest; stale focus clears when the target is unavailable/out of radius. The mission HUD shows screen count and Hydrogen collected state.
 - CI can validate source contracts and syntax. Remote production browser QA is blocked by HTTP 403 firewall; no phone or visual production test has been verified.
 
 ## Previous candidate — Mini-Sim 0.11.4 Hydrogen mission
