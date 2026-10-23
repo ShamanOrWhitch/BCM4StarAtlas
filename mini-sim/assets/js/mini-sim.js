@@ -3316,7 +3316,7 @@
     } : null;
     const quat = (q) => q ? {
       x: Number(q.x) || 0, y: Number(q.y) || 0,
-      z: Number(q.z) || 0, w: Number(q.w) || 1
+      z: Number(q.z) || 0, w: Number.isFinite(Number(q.w)) ? Number(q.w) : 1
     } : null;
     const snapshot = {
       sessionSeed: mission.sessionSeed,
