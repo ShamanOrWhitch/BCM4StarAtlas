@@ -1,3 +1,13 @@
+## D-027 — Mini-Sim 0.11.3: per-cell textures, safe ONICSS fallback, common Crew facing
+
+**Status:** candidate on `minisim-0.11.3-ring-texture-focus`; tests and visual review pending.
+
+- Each physical asteroid wall retains the cell that created it. Seed-derived `wallAsset` and `wallTurn` select a batched material variant for 3D walls; the 2.5D Ring path uses the same cell data. Keep the topology/crystal RNG stream separate from decorative wall selection.
+- Non-Mierese cut-outs get the requested facing correction in the shared core; Mierese remains unchanged. Do not clone the walk/fall animation table per game mode.
+- ONICSS plane keeps `OniStation.png` until `onicss.mp4` actually starts; loading honors the configured preload radius, while only the nearest eligible zone plays. X releases active camera focus only when no modal gameplay overlay owns input.
+- The operator dialog uses `bearhead.mp4` only if it exists in the recursive Assets list and gracefully keeps the glyph otherwise.
+- Not in this patch: Hydrogen/visited-screen quest, astral dimension interactions, city below Tower and deterministic same-seed return trip. Those require separate world-state contracts so the same cell/tower seeds persist between representations.
+
 ## D-026 — Mini-Sim 0.11.2: one helm, one crew core
 
 **Status:** the live base.

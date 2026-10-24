@@ -439,10 +439,12 @@
       "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter", "ShiftLeft", "ShiftRight", "Space"
     ]);
     let helmTogglePending = false;
+    let helmToggleRequestedBy = -1;
     function clearHeldKeys() {
       Object.keys(keys).forEach((key) => { keys[key] = false; });
-      helmToggleWasDown = false;
+      helmToggleWasDown = [false, false];
       helmTogglePending = false;
+      helmToggleRequestedBy = -1;
       root.querySelectorAll("[data-hull-control]").forEach((button) => button.classList.remove("is-active"));
     }
     function onVisibilityChange() {
@@ -458,7 +460,10 @@
       if (event.code === "Space") keys.space = down;
       if (event.code === "Period") keys.period = down;
       if (event.code === "Slash") keys.slash = down;
-      if (event.code === "KeyX" && down && !event.repeat) helmTogglePending = true;
+      if (event.code === "KeyX" && down && !event.repeat) {
+        helmTogglePending = true;
+        helmToggleRequestedBy = helmOwner >= 0 ? helmOwner : -1;
+      }
       if (handledCodes.has(event.code)) {
         event.preventDefault();
         // This input belongs to the Hull Dive scene; it must not also trigger
@@ -484,7 +489,10 @@
         event.preventDefault();
         event.stopPropagation();
         keys[key] = true;
-        if (button.dataset.hullControl === "helm") helmTogglePending = true;
+        if (button.dataset.hullControl === "helm") {
+          helmTogglePending = true;
+          helmToggleRequestedBy = helmOwner >= 0 ? helmOwner : -1;
+        }
         button.classList.add("is-active");
         try { if (button.setPointerCapture && event.pointerId != null) button.setPointerCapture(event.pointerId); } catch (e) {}
       };
@@ -526,10 +534,11 @@
     let gunTargetRing = null;
     let actionStatus = "";
     let actionStatusUntil = 0;
-    // Crew 1 starts seated at the pilot station, so the main helm is active immediately.
-    // X / gamepad LB leaves the helm for on-foot Crew control. V stays Warp.
+    // Crew 1 starts at the helm. Ownership can move to any Crew at the helm station.
+    // X releases/reclaims it; the helm icon and gamepad LB use the same handoff.
+    let helmOwner = 0;
     let pilotMode = true;
-    let helmToggleWasDown = false;
+    let helmToggleWasDown = [false, false];
     let enginePower = 0;
     let flightHeading = 0;
     let flightTime = 0;
@@ -591,7 +600,7 @@
         pump: !!(keys.shift || pad.pump),
         shoot: !!keys.enter,
         reload: !!keys.slash,
-        helm: !!pad.helm
+        helm: !!(keys.x || pad.helm)
       };
     }
 
@@ -945,7 +954,7 @@
       }
       if (!gunTarget) return;
       if (ammo <= 0) {
-        notifyStatus(say("Боезапас пуст. У стойки нажми R и удерживай для зарядки", "Out of ammo. Hold R at the rack to reload"), 2300);
+        notifyStatus(say("Боезапас пуст. У стойки удерживай кнопку боезапаса для зарядки", "Out of ammo. Hold the ammo control at the rack to reload"), 2300);
         return;
       }
       if (!gunTarget.visible) {
@@ -1031,24 +1040,37 @@
       const inputs = players.map((player, index) => playerInput(index, assignedPads[index]));
       const submergedRooms = players.map((player) => water[roomAt(player.x)] > 0.42);
       const submergedCount = submergedRooms.filter(Boolean).length;
+      const toggleRequester = inputs.findIndex((input, index) => input.helm && !helmToggleWasDown[index]);
+      if (toggleRequester >= 0) helmTogglePending = true;
+      if (helmTogglePending) {
+        let requestIndex = helmToggleRequestedBy >= 0 ? helmToggleRequestedBy : toggleRequester;
+        const atHelm = (player) => !!player && Math.abs(player.x + 4.75) < 0.8;
+        if (helmOwner < 0 && (!players[requestIndex] || !atHelm(players[requestIndex]))) {
+          const availableCrew = players.findIndex((player) => atHelm(player));
+          if (availableCrew >= 0) requestIndex = availableCrew;
+        }
+        if (requestIndex < 0 && helmOwner >= 0) requestIndex = helmOwner;
+        if (helmOwner === requestIndex && helmOwner >= 0) {
+          const leavingPilot = players[helmOwner];
+          helmOwner = -1;
+          pilotMode = false;
+          if (leavingPilot) leavingPilot.x = Math.min(6, leavingPilot.x + 1.15);
+          notifyStatus(say("Штурвал свободен. Можно откачивать воду и ремонтировать корпус.", "Helm released. Crew can pump water and repair the hull."), 2800);
+        } else if (atHelm(players[requestIndex])) {
+          helmOwner = requestIndex;
+          pilotMode = true;
+          notifyStatus(say("Штурвал занят. Второй член экипажа может продолжать ремонт.", "Helm engaged. The other crew member can keep repairing."), 2800);
+        } else {
+          notifyStatus(say("Подойди к штурвалу, чтобы взять управление кораблём.", "Move to the helm station to take ship control."), 2200);
+        }
+        helmTogglePending = false;
+        helmToggleRequestedBy = -1;
+      }
+      inputs.forEach((input, index) => { helmToggleWasDown[index] = !!input.helm; });
       players.forEach((player, index) => {
         const input = inputs[index];
-        const atHelm = index === 0 && Math.abs(player.x + 4.75) < 0.8;
-        if (index === 0 && ((input.helm && !helmToggleWasDown) || helmTogglePending)) {
-          if (pilotMode) {
-            // Leaving the helm must always be possible, even if drift put the
-            // Crew sprite just outside the narrow physical station radius.
-            pilotMode = false;
-            notifyStatus(say("Экипаж: A/D и W/S — перемещение. X — вернуться к штурвалу", "Crew movement: A/D and W/S. Press X to return to the helm"), 2800);
-          } else if (atHelm) {
-            pilotMode = true;
-            notifyStatus(say("Штурвал: W/S — тяга, A/D — курс. X — покинуть пост", "Helm: W/S controls thrust, A/D heading. Press X to leave the helm"), 2800);
-          } else {
-            notifyStatus(say("Чтобы сесть за штурвал, вернись в носовой отсек", "Return to the forward compartment to use the helm"), 2200);
-          }
-        }
-        if (index === 0) helmToggleWasDown = input.helm;
-        const usingHelm = index === 0 && atHelm && pilotMode;
+        const atHelm = Math.abs(player.x + 4.75) < 0.8;
+        const usingHelm = index === helmOwner && atHelm;
         if (usingHelm) {
           enginePower = Math.max(0, Math.min(1, enginePower + input.dy * dt * 0.7));
           flightHeading = Math.max(-1, Math.min(1, flightHeading + input.dx * dt * 0.75));
@@ -1061,13 +1083,6 @@
           } else {
             player.y += (floor + 0.42 - player.y) * Math.min(1, dt * 8);
           }
-        }
-        if (index === 0) {
-          window.BCMHullHelmState = {
-            engaged: usingHelm,
-            thrust: usingHelm ? input.dy : 0,
-            yaw: usingHelm ? input.dx : 0
-          };
         }
         player.x = Math.max(-6, Math.min(6, player.x));
         player.y = Math.max(floor + 0.3, Math.min(ceil - 0.2, player.y));
@@ -1099,7 +1114,7 @@
           reloadProgress[index] = 0;
         }
         if (input.reload && !reloadHeld[index] && Math.abs(player.x) >= 1.35) {
-          notifyStatus(say("Подойди к центральной стойке боезапаса и удерживай R", "Move to the central ammo rack and hold R"), 2200);
+          notifyStatus(say("Подойди к центральной стойке боезапаса и удерживай кнопку перезарядки", "Move to the central ammo rack and hold the reload control"), 2200);
         }
         reloadHeld[index] = input.reload;
         if (input.dx) player.facing = input.dx < 0 ? -1 : 1;
@@ -1119,9 +1134,12 @@
           player.sprite.position.set(player.x, player.y + 0.16, 0.82 + index * 0.015);
         }
       });
-      // A short touchscreen tap can begin and end between animation frames.
-      // Consume the edge-triggered request once so the helm never feels stuck.
-      helmTogglePending = false;
+      const activeHelmInput = helmOwner >= 0 && Math.abs(players[helmOwner].x + 4.75) < 0.8 ? inputs[helmOwner] : null;
+      window.BCMHullHelmState = {
+        engaged: !!activeHelmInput,
+        thrust: activeHelmInput ? Number(activeHelmInput.dy) || 0 : 0,
+        yaw: activeHelmInput ? Number(activeHelmInput.dx) || 0 : 0
+      };
 
       const nearBreach = players.map((player) => Math.abs(player.x) < 0.7 && player.y < floor + 0.9);
       const repairers = nearBreach.reduce((count, near, index) =>
@@ -1136,7 +1154,7 @@
         oxygen = 100;
         water[0] *= 0.5;
         water[1] = Math.min(1, water[1] + 0.2);
-        status.textContent = say("Воздух кончился. Насос E (или gamepad B), пока голова над водой.", "Oxygen depleted. Use E (or gamepad B) to pump while your head is above water.");
+        status.textContent = say("Воздух кончился. Нажми кнопку насоса, оставаясь над водой.", "Oxygen depleted. Press the pump control while keeping your head above water.");
       }
       if (gunTarget && gunTarget.visible) {
         const lateral = Math.sin(flightTime * 0.62 + flightHeading * 2.1) * (0.34 + enginePower * 1.25);
@@ -1170,7 +1188,7 @@
         won = true;
         status.textContent = say("Отсек сухой. Можно обратно к кольцу.", "Compartment dry. You can return to the Ring.");
       } else if (!won && anyNearBreach && weld < 1) {
-        status.textContent = say("Ремонт: F / Enter или gamepad A. Давление ", "Repair: F / Enter or gamepad A. Pressure ") + pressure.toFixed(1);
+        status.textContent = say("Удерживай ремонт рядом с пробоиной. Давление ", "Hold the repair control beside the breach. Pressure ") + pressure.toFixed(1);
       }
       oxEl.textContent = "O2 " + Math.round(oxygen);
       weldEl.textContent = say("шов ", "SEAM ") + Math.round(weld * 100) + "%";

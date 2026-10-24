@@ -1215,27 +1215,27 @@
       const group = new THREE.Group();
       group.name = "bcm-procedural-asteroid-maze";
       const walls = [];
-      function addWall(x, y, z, sx, sy, sz) {
-        walls.push({ x, y, z, sx, sy, sz });
+      function addWall(x, y, z, sx, sy, sz, cell) {
+        walls.push({ x, y, z, sx, sy, sz, cell });
       }
       cells.forEach((cell) => {
         const x = cellX(cell.x), y = cellY(cell.y), z = cellZ(cell.z);
-        if (cell.x === 0) addWall(x - CELL / 2, y, z, WALL, CELL, CELL);
-        if (cell.x === NX - 1) addWall(x + CELL / 2, y, z, WALL, CELL, CELL);
-        else if (!cell.open.xp) addWall(x + CELL / 2, y, z, WALL, CELL, CELL);
-        if (cell.y === 0) addWall(x, y - CELL / 2, z, CELL, WALL, CELL);
-        if (cell.y === NY - 1) addWall(x, y + CELL / 2, z, CELL, WALL, CELL);
-        else if (!cell.open.yp) addWall(x, y + CELL / 2, z, CELL, WALL, CELL);
+        if (cell.x === 0) addWall(x - CELL / 2, y, z, WALL, CELL, CELL, cell);
+        if (cell.x === NX - 1) addWall(x + CELL / 2, y, z, WALL, CELL, CELL, cell);
+        else if (!cell.open.xp) addWall(x + CELL / 2, y, z, WALL, CELL, CELL, cell);
+        if (cell.y === 0) addWall(x, y - CELL / 2, z, CELL, WALL, CELL, cell);
+        if (cell.y === NY - 1) addWall(x, y + CELL / 2, z, CELL, WALL, CELL, cell);
+        else if (!cell.open.yp) addWall(x, y + CELL / 2, z, CELL, WALL, CELL, cell);
         if (cell.z === 0) {
           // Leave one clean entrance into the first central cell.
-          if (!(cell.x === 0 && cell.y === 1)) addWall(x, y, z + CELL / 2, CELL, CELL, WALL);
+          if (!(cell.x === 0 && cell.y === 1)) addWall(x, y, z + CELL / 2, CELL, CELL, WALL, cell);
         } else if (!cell.open.zn) {
-          addWall(x, y, z + CELL / 2, CELL, CELL, WALL);
+          addWall(x, y, z + CELL / 2, CELL, CELL, WALL, cell);
         }
         if (cell.z === NZ - 1) {
           // Far exit is opened only at the last cell. Internal Z-planes are emitted once
           // from the adjacent cell's positive face, avoiding overlapping double walls.
-          if (!(cell.x === NX - 1 && cell.y === 1)) addWall(x, y, z - CELL / 2, CELL, CELL, WALL);
+          if (!(cell.x === NX - 1 && cell.y === 1)) addWall(x, y, z - CELL / 2, CELL, CELL, WALL, cell);
         }
       });
 
@@ -1250,14 +1250,34 @@
       const chosenWallAssets = availableWallAssets;
       const wallMaterials = [];
       const wallTextures = [];
+      const wallVariantTextures = [];
+      const wallVariantMaterials = [];
+      const wallVariantsByAsset = Array.from({ length: Math.max(1, chosenWallAssets.length) }, () => []);
       if (chosenWallAssets.length) {
         const loader = new THREE.TextureLoader();
         chosenWallAssets.forEach((asset, index) => {
           const texture = loader.load(asset.url, undefined, undefined, () => {
+            // Keep both the 3D maze and Ring's 2D cutaway on the same fallback.
+            wallTextures[index] = fallbackTexture;
+            if (state.maze?.textures && state.maze.textures[index] !== undefined) state.maze.textures[index] = fallbackTexture;
             if (wallMaterials[index]) {
               wallMaterials[index].map = fallbackTexture;
               wallMaterials[index].needsUpdate = true;
             }
+            (wallVariantsByAsset[index] || []).forEach((variant) => {
+              const replacement = fallbackTexture.clone();
+              replacement.wrapS = THREE.RepeatWrapping;
+              replacement.wrapT = THREE.RepeatWrapping;
+              replacement.center.set(0.5, 0.5);
+              replacement.rotation = variant.turn * (Math.PI / 2);
+              replacement.needsUpdate = true;
+              try { variant.texture.dispose(); } catch (e) {}
+              variant.texture = replacement;
+              variant.material.map = replacement;
+              variant.material.needsUpdate = true;
+              wallVariantTextures.push(replacement);
+            });
+            try { texture.dispose(); } catch (e) {}
           });
           texture.generateMipmaps = false;
           texture.minFilter = THREE.LinearFilter;
@@ -1280,16 +1300,53 @@
           map: fallbackTexture, color: 0xa9bec8, roughness: 0.82, metalness: 0.24, emissive: 0x07121a
         }));
       }
+
+      // Texture selection is deterministic for this maze seed but does not consume
+      // the route/crystal RNG stream. Each cell's wall choice now drives both views.
+      const wallLookRng = randomFrom(hashSeed(seed + "|wall-map"));
+      cells.forEach((cell) => {
+        cell.wallTurn = Math.floor(wallLookRng() * 4);
+        cell.wallAsset = wallTextures.length > 1 ? Math.floor(wallLookRng() * wallTextures.length) : 0;
+      });
+
+      const wallVariantByKey = new Map();
+      function wallVariant(cell) {
+        const assetIndex = Math.max(0, Math.min(wallTextures.length - 1, Math.floor(Number(cell?.wallAsset) || 0)));
+        const turn = ((Math.floor(Number(cell?.wallTurn) || 0) % 4) + 4) % 4;
+        const key = assetIndex + ":" + turn;
+        if (wallVariantByKey.has(key)) return { key, entry: wallVariantByKey.get(key) };
+        const source = wallTextures[assetIndex] || fallbackTexture;
+        const variantTexture = source.clone();
+        variantTexture.wrapS = THREE.RepeatWrapping;
+        variantTexture.wrapT = THREE.RepeatWrapping;
+        variantTexture.center.set(0.5, 0.5);
+        variantTexture.rotation = turn * (Math.PI / 2);
+        variantTexture.needsUpdate = true;
+        const variantMaterial = new THREE.MeshStandardMaterial({
+          map: variantTexture, color: 0xffffff, roughness: 0.82, metalness: 0.24, emissive: 0x07121a
+        });
+        const entry = { assetIndex, turn, texture: variantTexture, material: variantMaterial };
+        wallVariantByKey.set(key, entry);
+        wallVariantsByAsset[assetIndex].push(entry);
+        wallVariantTextures.push(variantTexture);
+        wallVariantMaterials.push(variantMaterial);
+        return { key, entry };
+      }
+
       const unit = new THREE.BoxGeometry(1, 1, 1);
-      const wallBatches = Array.from({ length: wallMaterials.length }, () => []);
-      walls.forEach((wall, index) => wallBatches[index % wallBatches.length].push(wall));
-      const wallMeshes = wallBatches.map((batch, index) => {
-        const wallMesh = new THREE.InstancedMesh(unit, wallMaterials[index], batch.length);
-        wallMesh.name = "asteroid-maze-wall-panels-" + index;
+      const wallBatches = new Map();
+      walls.forEach((wall) => {
+        const resolved = wallVariant(wall.cell);
+        if (!wallBatches.has(resolved.key)) wallBatches.set(resolved.key, { entry: resolved.entry, walls: [] });
+        wallBatches.get(resolved.key).walls.push(wall);
+      });
+      const wallMeshes = Array.from(wallBatches.entries()).map(([key, batch]) => {
+        const wallMesh = new THREE.InstancedMesh(unit, batch.entry.material, batch.walls.length);
+        wallMesh.name = "asteroid-maze-wall-panels-" + key.replace(":", "-");
         wallMesh.frustumCulled = false;
         const matrix = new THREE.Matrix4();
         const rotation = new THREE.Quaternion();
-        batch.forEach((wall, instanceIndex) => {
+        batch.walls.forEach((wall, instanceIndex) => {
           matrix.compose(
             new THREE.Vector3(wall.x, wall.y, wall.z),
             rotation,
@@ -1301,10 +1358,9 @@
         group.add(wallMesh);
         return wallMesh;
       });
-      const wallMesh = wallMeshes[0];
+      const wallMesh = wallMeshes[0] || null;
       const material = wallMaterials[0];
       const texture = wallTextures[0];
-
       const shell = new THREE.Mesh(
         new THREE.SphereGeometry(46, 18, 14),
         new THREE.MeshBasicMaterial({ color: 0x254050, transparent: true, opacity: 0.08, side: THREE.BackSide, depthWrite: false })
@@ -1355,11 +1411,6 @@
         return { position: mesh.position, radius: rock.radius, mesh: mesh };
       });
 
-      cells.forEach((cell) => {
-        cell.wallTurn = Math.floor(rng() * 4);
-        cell.wallAsset = wallTextures.length ? Math.floor(rng() * wallTextures.length) : 0;
-      });
-
       scene.add(group);
       const maze = {
         active: true,
@@ -1385,6 +1436,8 @@
         textures: wallTextures.concat(fallbackTexture === texture ? [] : [fallbackTexture]),
         material,
         materials: wallMaterials,
+        wallVariantMaterials,
+        wallVariantTextures,
         geometry: unit,
         crystalGeometry,
         crystalMaterial,
@@ -3504,10 +3557,10 @@
         try { mesh?.dispose?.(); } catch (e) {}
       }
       try { maze.geometry.dispose(); } catch (e) {}
-      for (const material of new Set(maze.materials || [maze.material])) {
+      for (const material of new Set([...(maze.materials || [maze.material]), ...(maze.wallVariantMaterials || [])])) {
         try { material?.dispose?.(); } catch (e) {}
       }
-      for (const texture of new Set(maze.textures || [maze.texture])) {
+      for (const texture of new Set([...(maze.textures || [maze.texture]), ...(maze.wallVariantTextures || [])])) {
         try { texture?.dispose?.(); } catch (e) {}
       }
       try { maze.shell.geometry.dispose(); } catch (e) {}

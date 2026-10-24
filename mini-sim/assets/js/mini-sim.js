@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.2",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.3",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.2",
+      title: "SPACE LABYRINTH — 0.11.3",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -133,7 +133,7 @@
   dialogueRoot.className = "bcm-comic-dialogs";
   dialogueRoot.innerHTML =
     '<section class="bcm-comic-dialog bcm-comic-dialog-operator" data-dialog-box="operator" hidden aria-live="polite">' +
-      '<div class="bcm-comic-dialog-avatar" aria-hidden="true">✦</div>' +
+      '<div class="bcm-comic-dialog-avatar" aria-hidden="true"><span data-operator-avatar-fallback>✦</span><video data-operator-avatar-video hidden muted playsinline loop preload="none"></video></div>' +
       '<div class="bcm-comic-dialog-copy"><strong data-dialog-speaker>ОПЕРАТОР</strong><p data-dialog-message></p><div class="bcm-comic-dialog-choices" data-dialog-choices></div></div>' +
       '<button type="button" class="bcm-comic-dialog-close" data-dialog-close="operator" aria-label="Close">×</button>' +
     '</section>' +
@@ -148,6 +148,9 @@
   const operatorSpeaker = dialogueRoot.querySelector("[data-dialog-speaker]");
   const operatorMessage = dialogueRoot.querySelector("[data-dialog-message]");
   const operatorChoices = dialogueRoot.querySelector("[data-dialog-choices]");
+  const operatorAvatar = dialogueRoot.querySelector(".bcm-comic-dialog-operator .bcm-comic-dialog-avatar");
+  const operatorAvatarFallback = operatorAvatar?.querySelector("[data-operator-avatar-fallback]");
+  const operatorAvatarVideo = operatorAvatar?.querySelector("[data-operator-avatar-video]");
   const controlsDialog = dialogueRoot.querySelector('[data-dialog-box="controls"]');
   const controlsMessage = dialogueRoot.querySelector("[data-dialog-controls-message]");
   let operatorDialogTimer = 0;
@@ -212,7 +215,35 @@
   function hideOperatorDialog() {
     if (operatorDialogTimer) window.clearTimeout(operatorDialogTimer);
     operatorDialogTimer = 0;
+    if (operatorAvatarVideo) operatorAvatarVideo.pause();
     if (operatorDialog) operatorDialog.hidden = true;
+  }
+
+  function prepareOperatorAvatar() {
+    if (!operatorAvatarVideo || typeof assetUrl !== "function") return;
+    const url = assetUrl("bearhead.mp4");
+    if (!url) return; // Bearhead is optional until the asset is uploaded.
+    if (operatorAvatarVideo.dataset.assetUrl !== url) {
+      operatorAvatarVideo.dataset.assetUrl = url;
+      operatorAvatarVideo.src = url;
+      operatorAvatarVideo.load();
+    }
+    const playback = operatorAvatarVideo.play();
+    if (playback && typeof playback.catch === "function") playback.catch(() => {
+      operatorAvatarVideo.hidden = true;
+      if (operatorAvatarFallback) operatorAvatarFallback.hidden = false;
+    });
+  }
+
+  if (operatorAvatarVideo) {
+    operatorAvatarVideo.addEventListener("playing", () => {
+      operatorAvatarVideo.hidden = false;
+      if (operatorAvatarFallback) operatorAvatarFallback.hidden = true;
+    });
+    operatorAvatarVideo.addEventListener("error", () => {
+      operatorAvatarVideo.hidden = true;
+      if (operatorAvatarFallback) operatorAvatarFallback.hidden = false;
+    });
   }
 
   function hideControlsDialog() {
@@ -241,6 +272,7 @@
       operatorChoices.appendChild(button);
     });
     operatorDialog.hidden = false;
+    prepareOperatorAvatar();
     if (!choices || !choices.length) operatorDialogTimer = window.setTimeout(hideOperatorDialog, 9500);
   }
 
@@ -2555,24 +2587,30 @@
         toneMapped: false
       });
       material.color.setRGB(1.14, 1.14, 1.14);
+      // ONICSS keeps a real station image under its video until a decoded frame
+      // is actually playing, so slow media or an error never exposes a black orb.
+      const posterMaterial = zone.towerGate ? textured("OniStation.png", 0x496b8f, THREE.DoubleSide) : null;
 
       const mesh = new THREE.Mesh(
         new THREE.PlaneGeometry(zone.width || 5.8, zone.height || 3.4),
-        material
+        posterMaterial || material
       );
       mesh.position.set(zone.x || 0, zone.y || 0, zone.z || -36);
       mesh.name = "space-video-zone-" + index;
       mesh.renderOrder = 22;
       scene.add(mesh);
 
-      // Space-screen videos stay lazy until the pilot is near them. In
-      // particular, onicss.mp4 must not compete with the start-room textures.
+      // Keep video requests lazy, but honor the configured approach preload radius.
       const item = {
         el: video,
         texture,
+        videoMaterial: material,
+        posterMaterial,
         mesh,
         url: zone.url,
         radius: Number(zone.radius) || 16,
+        preloadRadius: Number(zone.preloadRadius) || 0,
+        firstFrame: false,
         maxVolume: 1,
         active: false,
         visible: false,
@@ -2582,6 +2620,10 @@
         distance: 99
       };
 
+      video.addEventListener("playing", () => {
+        item.firstFrame = true;
+        if (item.videoMaterial && item.mesh) item.mesh.material = item.videoMaterial;
+      });
       video.addEventListener("loadedmetadata", () => {
         if (!item.mesh || !video.videoWidth || !video.videoHeight) return;
         const mobileSize = window.matchMedia && window.matchMedia("(pointer: coarse) and (orientation: landscape)").matches
@@ -2603,6 +2645,8 @@
       video.addEventListener("error", () => {
         item.active = false;
         item.visible = false;
+        item.firstFrame = false;
+        if (item.posterMaterial && item.mesh) item.mesh.material = item.posterMaterial;
       });
 
       cinema.zones.push(item);
@@ -3882,6 +3926,14 @@
 
     cinema.zones.forEach((zone) => {
       zone.distance = zone.mesh.position.distanceTo(ship.position);
+      if (zone.preloadRadius > 0 && zone.distance <= zone.preloadRadius &&
+          running && !transitionBusy && !settings.open && !zone.loaded && zone.url) {
+        zone.el.preload = mobileLandscape() ? "auto" : "metadata";
+        try { zone.el.fetchPriority = "low"; } catch (e) {}
+        zone.el.src = zone.url;
+        zone.el.load();
+        zone.loaded = true;
+      }
       const portalDistance = zone.mesh.position.distanceTo(
         portal.mesh ? portal.mesh.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(0, 0, portal.z)
       );
@@ -3931,8 +3983,11 @@
         zone.active = false;
 
         // Release the decoder/source when the screen is far outside its useful radius.
-        if (zone.loaded && !zone.keepLoaded && zone.distance > zone.radius * 1.35) {
+        const retentionRadius = Math.max(zone.radius * 1.35, Number(zone.preloadRadius) || 0);
+        if (zone.loaded && !zone.keepLoaded && zone.distance > retentionRadius) {
           zone.el.pause();
+          if (zone.posterMaterial && zone.mesh) zone.mesh.material = zone.posterMaterial;
+          zone.firstFrame = false;
           zone.el.removeAttribute("src");
           zone.el.preload = "none";
           try { zone.el.fetchPriority = "low"; } catch (e) {}
@@ -4858,6 +4913,12 @@
       keys[e.code] = true;
       if (e.code === "KeyG") { e.preventDefault(); tryPortal(); }
       if (e.code === "KeyF") { e.preventDefault(); toggleCinemaFocus(); }
+      if (e.code === "KeyX" && cinema.focus && !document.getElementById("bcm-hull-dive") &&
+          !document.getElementById("bcm-ring-platformer") && !document.getElementById("bcm-ring-transition")) {
+        e.preventDefault();
+        cinema.focus = null;
+        setStatus("CINEMA FOCUS OFF");
+      }
       if (e.code === "KeyH") { e.preventDefault(); returnToStart(); }
       if (e.code === "KeyR") { e.preventDefault(); openDoor("REMOTE"); }
 

@@ -28,7 +28,7 @@ test("Flight starts in Room 1 and does not teleport into the asteroid", async ()
   const begin = mini.slice(mini.indexOf("function beginFlight()"), mini.indexOf("const byName = Object.create(null)"));
   assert.doesNotMatch(begin, /BCMDeepSpaceWarpEnterAsteroid\s*\(/);
   assert.match(mini, /ship\.position = new THREE\.Vector3\(0, 0, 2\)/);
-  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.2/);
+  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.3/);
 });
 
 test("Asteroid walls are resolved from the prepared asterwall asset family", async () => {
@@ -38,9 +38,9 @@ test("Asteroid walls are resolved from the prepared asterwall asset family", asy
   assert.ok(warp.includes("asterwall[^.]*"), "include every asterwall filename suffix");
   assert.match(warp, /const chosenWallAssets = availableWallAssets;/);
   assert.doesNotMatch(warp, /availableWallAssets\.slice\(0, 4\)/);
-  assert.match(warp, /wallMesh\.name = "asteroid-maze-wall-panels-" \+ index/);
+  assert.match(warp, /wallMesh\.name = "asteroid-maze-wall-panels-" \+ key\.replace\(":", "-"\)/);
   assert.match(warp, /wallMaterials\[index\]\.map = fallbackTexture/);
-  assert.match(warp, /for \(const texture of new Set\(maze\.textures/);
+  assert.match(warp, /for \(const texture of new Set\(\[\.\.\.\(maze\.textures \|\| \[maze\.texture\]\), \.\.\.\(maze\.wallVariantTextures \|\| \[\]\)\]\)\)/);
 });
 
 test("Room 0 uses speed level 3 temporarily and restores its previous setting", async () => {
@@ -133,7 +133,11 @@ test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, amm
   assert.match(hull, /\"KeyX\"/);
   assert.match(hull, /event\.stopImmediatePropagation\(\)/);
   assert.match(hull, /let helmTogglePending = false/);
-  assert.match(hull, /Leaving the helm must always be possible/);
+  assert.match(hull, /let helmOwner = 0/);
+  assert.match(hull, /const toggleRequester = inputs\.findIndex/);
+  assert.match(hull, /index === helmOwner && atHelm/);
+  assert.match(hull, /const activeHelmInput = helmOwner >= 0/);
+  assert.match(hull, /helmToggleRequestedBy = helmOwner >= 0 \? helmOwner : -1/);
   assert.match(hull, /window\.addEventListener\(\"blur\", clearHeldKeys\)/);
   const mini = await read("mini-sim/assets/js/mini-sim.js");
   assert.match(mini, /document\.getElementById\(\"bcm-hull-dive\"\)/);
@@ -164,4 +168,23 @@ test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, amm
   assert.match(hull, /fire\[room\] = Math\.max\(0, fire\[room\] - 0\.30 \* dt\)/);
   assert.match(hull, /smokeParticles\.forEach/);
   assert.match(hull, /BCMHullDive = \{ open: open \}/);
+});
+
+
+test("Crew facing follows the Tower convention and 3D wall materials use each cell's Ring map data", async () => {
+  const core = await read("mini-sim/assets/js/crew-core.js");
+  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  const tower = await read("mini-sim/tower/assets/js/tower.js");
+  assert.ok(core.includes('const faceFactor = String(profile.species || "").toLowerCase().includes("mierese") ? baseFacing : -baseFacing;'));
+  assert.ok(core.includes('const face = (Number(actor.facing) < 0 ? -1 : 1) * faceFactor;'));
+  assert.match(core, /function facingFactor\(species\)/);
+  assert.ok(tower.includes('p.visualFacing = (turnInput > 0 ? -1 : 1) * facingFactor;'));
+  assert.ok(warp.includes('function addWall(x, y, z, sx, sy, sz, cell)'));
+  assert.ok(warp.includes('walls.push({ x, y, z, sx, sy, sz, cell });'));
+  assert.ok(warp.includes('const wallLookRng = randomFrom(hashSeed(seed + "|wall-map"));'));
+  assert.ok(warp.includes('const resolved = wallVariant(wall.cell);'));
+  assert.ok(warp.includes('variantTexture.rotation = turn * (Math.PI / 2);'));
+  assert.ok(warp.includes('wallBatches.get(resolved.key).walls.push(wall)'));
+  assert.doesNotMatch(warp, /walls\.forEach\(\(wall, index\) => wallBatches\[index % wallBatches\.length\]\.push\(wall\)\)/);
+  assert.ok(warp.includes('maze.wallVariantTextures || []'));
 });
