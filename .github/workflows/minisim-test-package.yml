@@ -23,7 +23,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VERSION="$(sed -n 's/^[[:space:]]*Version: \([0-9.]*\)$/\1/p' mini-sim/bcm-mini-sim.php | head -n 1)"
+          VERSION="$(grep -m1 'Version:' mini-sim/bcm-mini-sim.php | sed -E 's/.*Version: ([0-9.]+).*/\1/')"
           TOWER_VERSION="$(sed -n "s/.*define('BCM_TOWER_VERSION', '\([0-9.]*\)').*/\1/p" mini-sim/tower/bcm-tower.php | head -n 1)"
           test -n "$VERSION"
           test -n "$TOWER_VERSION"
