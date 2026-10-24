@@ -136,13 +136,13 @@ test("Explicit screen focus persists until its own radius expires and mission pr
   assert.ok(mini.includes("MISSION COMPLETE: HYDROGEN RECOVERED"));
 });
 
-test("0.11.7 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
-  assert.match(php, /Version: 0\.11\.7/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.7'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.11\.7/);
-  assert.match(qa, /Version: 0\.11\.7/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.7'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.7/);
+test("0.11.8 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
+  assert.match(php, /Version: 0\.11\.8/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.8'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.11\.8/);
+  assert.match(qa, /Version: 0\.11\.8/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.8'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.8/);
   assert.match(browserWorkflow, /timeout-minutes: 45/);
   assert.match(browserWorkflow, /timeout-minutes: 20/);
   assert.match(browserWorkflow, /timeout-minutes: 25/);

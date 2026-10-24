@@ -2216,12 +2216,33 @@
         const bossHornGeometry = new THREE.ConeGeometry(0.42, 1.35, 5);
         const bossCoreGeometry = new THREE.SphereGeometry(0.40, 12, 10);
         const bossEyeGeometry = new THREE.SphereGeometry(0.18, 10, 8);
+        // Reuse a small set of Three.js primitives to restore the three pig bosses;
+        // no external textures or newly generated image assets are needed.
+        const pigSphereGeometry = new THREE.SphereGeometry(1, 16, 12);
+        const pigEarGeometry = new THREE.ConeGeometry(0.24, 0.58, 5);
+        const pigTuskGeometry = new THREE.ConeGeometry(0.13, 0.34, 5);
+        const pigTailGeometry = new THREE.TorusGeometry(0.20, 0.065, 6, 16);
         const bossRingGeometry = new THREE.TorusGeometry(1.9, 0.10, 8, 28);
         const exitGeometry = new THREE.TorusGeometry(1.15, 0.13, 8, 32);
         const shockwaveGeometry = new THREE.TorusGeometry(0.82, 0.12, 8, 20);
         const pickupGeometry = new THREE.OctahedronGeometry(0.38, 0);
         const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xc9fbff });
         const bossCoreMaterial = new THREE.MeshBasicMaterial({ color: 0xfff0b5 });
+        const pigSnoutMaterial = new THREE.MeshStandardMaterial({
+          color: 0xf0b0ae, roughness: 0.72, metalness: 0.02
+        });
+        const pigInnerEarMaterial = new THREE.MeshStandardMaterial({
+          color: 0x813747, roughness: 0.78, metalness: 0.01
+        });
+        const pigNostrilMaterial = new THREE.MeshBasicMaterial({ color: 0x341821 });
+        const pigEyeWhiteMaterial = new THREE.MeshBasicMaterial({ color: 0xfff2df });
+        const pigPupilMaterial = new THREE.MeshBasicMaterial({ color: 0x11131b });
+        const pigTuskMaterial = new THREE.MeshStandardMaterial({
+          color: 0xf4d59b, roughness: 0.4, metalness: 0.04
+        });
+        const pigHoofMaterial = new THREE.MeshStandardMaterial({
+          color: 0x382633, roughness: 0.62, metalness: 0.12
+        });
         const bossOutlineMaterial = new THREE.MeshBasicMaterial({ color: 0x02060b });
         const bossArmorMaterial = new THREE.MeshStandardMaterial({
           color: 0x1b2935, roughness: 0.48, metalness: 0.62, emissive: 0x09121a, emissiveIntensity: 0.45
@@ -2230,7 +2251,9 @@
         const exitMaterial = new THREE.MeshBasicMaterial({ color: 0x72f0e2, transparent: true, opacity: 0.8 });
         const pickupMaterial = new THREE.MeshStandardMaterial({ color: 0x75f2e1, emissive: 0x117f79, emissiveIntensity: 1.25, roughness: 0.22, metalness: 0.2 });
         const shockwaveMaterial = new THREE.MeshBasicMaterial({ color: 0xff9e5e, transparent: true, opacity: 0.94 });
-        materials.push(eyeMaterial, bossCoreMaterial, bossOutlineMaterial, bossArmorMaterial,
+        materials.push(eyeMaterial, bossCoreMaterial, pigSnoutMaterial, pigInnerEarMaterial,
+          pigNostrilMaterial, pigEyeWhiteMaterial, pigPupilMaterial, pigTuskMaterial,
+          pigHoofMaterial, bossOutlineMaterial, bossArmorMaterial,
           bossRingMaterial, exitMaterial, pickupMaterial, shockwaveMaterial);
 
         const bosses = [
@@ -2251,6 +2274,11 @@
           const group = new THREE.Group();
           group.name = "ring-boss-" + (index + 1);
           group.position.set(boss.x, boss.y, 0.1);
+          const pigSkinMaterial = new THREE.MeshStandardMaterial({
+            color: [0xd9878e, 0xc97c89, 0xa98ac8][index],
+            roughness: 0.72, metalness: 0.03, emissive: 0x16090d, emissiveIntensity: 0.12
+          });
+          materials.push(pigSkinMaterial);
 
           // Dark offset meshes create the thick inked silhouette of a comic-book boss.
           const outline = new THREE.Mesh(bossOutlineGeometry, bossOutlineMaterial);
@@ -2306,6 +2334,85 @@
           ring.position.set(0, 2.20, -0.05);
           ring.scale.set(1.18 + index * 0.15, 1.18 + index * 0.15, 1);
           group.add(ring);
+
+          // Pig body, face, ears, nostrils and tusks sit in front of the arena armor.
+          const pig = new THREE.Group();
+          pig.name = "ring-pig-boss-" + (index + 1);
+          pig.position.z = 0.72;
+          group.add(pig);
+          const pigBody = new THREE.Mesh(pigSphereGeometry, pigSkinMaterial);
+          pigBody.name = "ring-pig-boss-body-" + (index + 1);
+          pigBody.position.set(0, 1.48, 0.08);
+          pigBody.scale.set(1.46 + index * 0.10, 0.98 + index * 0.08, 0.68);
+          pig.add(pigBody);
+
+          const pigHead = new THREE.Mesh(pigSphereGeometry, pigSkinMaterial);
+          pigHead.name = "ring-pig-boss-head-" + (index + 1);
+          pigHead.position.set(0, 2.38, 0.42);
+          pigHead.scale.set(0.82 + index * 0.04, 0.78 + index * 0.04, 0.59);
+          pig.add(pigHead);
+
+          const pigSnout = new THREE.Mesh(pigSphereGeometry, pigSnoutMaterial);
+          pigSnout.name = "ring-pig-boss-snout-" + (index + 1);
+          pigSnout.position.set(0, 2.10, 0.94);
+          pigSnout.scale.set(0.48, 0.34, 0.25);
+          pig.add(pigSnout);
+          [-1, 1].forEach((side) => {
+            const nostril = new THREE.Mesh(pigSphereGeometry, pigNostrilMaterial);
+            nostril.name = "ring-pig-boss-nostril";
+            nostril.position.set(side * 0.15, 2.12, 1.16);
+            nostril.scale.set(0.07, 0.095, 0.045);
+            pig.add(nostril);
+
+            const eye = new THREE.Mesh(bossEyeGeometry, pigEyeWhiteMaterial);
+            eye.name = "ring-pig-boss-eye";
+            eye.position.set(side * 0.34, 2.62, 0.91);
+            eye.scale.set(1.0, 1.08, 0.72);
+            pig.add(eye);
+            const pupil = new THREE.Mesh(pigSphereGeometry, pigPupilMaterial);
+            pupil.name = "ring-pig-boss-pupil";
+            pupil.position.set(side * 0.36, 2.62, 0.985);
+            pupil.scale.set(0.065, 0.085, 0.045);
+            pig.add(pupil);
+
+            const ear = new THREE.Mesh(pigEarGeometry, pigSkinMaterial);
+            ear.name = "ring-pig-boss-ear";
+            ear.position.set(side * 0.56, 3.02, 0.27);
+            ear.rotation.z = side * 0.24;
+            ear.scale.set(1.0, 1.0, 0.82);
+            pig.add(ear);
+            const innerEar = new THREE.Mesh(pigEarGeometry, pigInnerEarMaterial);
+            innerEar.name = "ring-pig-boss-inner-ear";
+            innerEar.position.set(side * 0.56, 3.04, 0.40);
+            innerEar.rotation.z = side * 0.24;
+            innerEar.scale.set(0.52, 0.58, 0.35);
+            pig.add(innerEar);
+
+            const tusk = new THREE.Mesh(pigTuskGeometry, pigTuskMaterial);
+            tusk.name = "ring-pig-boss-tusk";
+            tusk.position.set(side * 0.43, 1.95, 0.91);
+            tusk.rotation.z = side * -0.52;
+            pig.add(tusk);
+
+            const leg = new THREE.Mesh(bossArmorGeometry, pigSkinMaterial);
+            leg.name = "ring-pig-boss-leg";
+            leg.position.set(side * 0.86, 0.51, 0.17);
+            leg.scale.set(0.32, 0.66, 0.42);
+            pig.add(leg);
+            const hoof = new THREE.Mesh(bossArmorGeometry, pigHoofMaterial);
+            hoof.name = "ring-pig-boss-hoof";
+            hoof.position.set(side * 0.86, 0.18, 0.22);
+            hoof.scale.set(0.35, 0.20, 0.44);
+            pig.add(hoof);
+          });
+          const pigTail = new THREE.Mesh(pigTailGeometry, pigSkinMaterial);
+          pigTail.name = "ring-pig-boss-tail";
+          pigTail.position.set(-1.47, 1.88, -0.03);
+          pigTail.rotation.y = Math.PI / 2;
+          pig.add(pigTail);
+
+          // Keep the weakpoint visible above the snout for the existing activation mechanic.
+          core.position.set(0, 2.78, 1.02);
           world.add(group);
           Object.assign(boss, { group, hp: boss.maxHp, alive: true, activated: false, nextAttackAt: 0, lastDamageAt: 0 });
         });
@@ -2351,7 +2458,8 @@
         return {
           group: world, boxGeometry, materials, textures: worldTextures, parallaxPanels,
           specialGeometry: [...extraGeometries, bossBodyGeometry, bossOutlineGeometry, bossArmorGeometry,
-            bossHornGeometry, bossCoreGeometry, bossEyeGeometry, bossRingGeometry, exitGeometry, shockwaveGeometry, pickupGeometry],
+            bossHornGeometry, bossCoreGeometry, bossEyeGeometry, pigSphereGeometry, pigEarGeometry,
+            pigTuskGeometry, pigTailGeometry, bossRingGeometry, exitGeometry, shockwaveGeometry, pickupGeometry],
           platforms, bosses, barriers, coreMeshes, exitMarker, exitX: 81, spawnX: -45,
           shockwaves: [], shockwaveGeometry, shockwaveMaterial,
           defeatedBosses: 0, pickupGeometry

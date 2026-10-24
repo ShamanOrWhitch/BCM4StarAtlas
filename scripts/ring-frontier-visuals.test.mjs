@@ -28,7 +28,19 @@ test("Ring Frontier builds three large side-scrolling arenas instead of using ma
   assert.doesNotMatch(build, /maze\.cells/);
 });
 
-test("Large bosses and platforms have strong comic-style silhouettes", () => {
+test("Pig bosses are visible in the three large arenas without new image assets", () => {
+  const build = section(warp, "function buildRingWorld()", "function updateRoomSlice()");
+  assert.match(build, /pigSphereGeometry/);
+  assert.match(build, /pig\.name = "ring-pig-boss-" \+ \(index \+ 1\)/);
+  assert.match(build, /pigSnout\.name = "ring-pig-boss-snout-/);
+  assert.match(build, /ring-pig-boss-nostril/);
+  assert.match(build, /ring-pig-boss-tusk/);
+  assert.match(build, /ring-pig-boss-tail/);
+  assert.match(build, /world\.add\(group\)/);
+  assert.match(warp, /viewport\.h > viewport\.w \? 7\.1 : 5\.4/);
+});
+
+test("Large bosses and platforms keep their comic-style arena structure", () => {
   const build = section(warp, "function buildRingWorld()", "function updateRoomSlice()");
   assert.match(build, /bossOutlineGeometry/);
   assert.match(build, /bossArmorGeometry/);
@@ -63,6 +75,6 @@ test("Ring disposes generated backdrop textures when leaving the location", () =
 });
 
 test("Mini-Sim cache version is bumped for the Ring art update", () => {
-  assert.match(plugin, /Version: 0\.11\.7/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.7'\)/);
+  assert.match(plugin, /Version: 0\.11\.8/);
+  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.8'\)/);
 });
