@@ -3273,8 +3273,8 @@
                 }
               } else if (turn) {
                 const activeHeading = player.ringHeading || path.heading;
-                if (turn === activeHeading) player.worldX = path.homeX + path.half - 0.48;
-                else if (turn === path.opposite[activeHeading]) player.worldX = path.homeX - path.half + 0.48;
+                if (turn === activeHeading) player.worldX = path.homeX + path.half - 0.25;
+                else if (turn === path.opposite[activeHeading]) player.worldX = path.homeX - path.half + 0.25;
                 else {
                   player.ringHeading = turn;
                   if (player.index === 0) path.heading = turn;
