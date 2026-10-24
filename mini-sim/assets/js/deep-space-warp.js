@@ -1279,6 +1279,7 @@
 
       // Use every prepared asterwall variant. The files are small, and a full
       // shuffle means the entire asteroid run can display the whole texture family.
+      let maze = null;
       const fallbackTexture = makeMazeTexture(THREE);
       const availableWallAssets = asteroidWallAssetPool();
       // Asset ordering is decorative too: do not consume the topology/crystal RNG.
@@ -1293,13 +1294,28 @@
       const wallVariantTextures = [];
       const wallVariantMaterials = [];
       const wallVariantsByAsset = Array.from({ length: Math.max(1, chosenWallAssets.length) }, () => []);
+      const wallTextureCopiesByAsset = Array.from({ length: Math.max(1, chosenWallAssets.length) }, () => []);
       if (chosenWallAssets.length) {
         const loader = new THREE.TextureLoader();
         chosenWallAssets.forEach((asset, index) => {
-          const texture = loader.load(asset.url, undefined, undefined, () => {
+          const texture = loader.load(asset.url, (loadedTexture) => {
+            // Clones created before TextureLoader decodes the image keep image=null.
+            // Sync that decoded image into all existing wall and Ring texture copies.
+            const syncImage = (copy) => {
+              if (!copy) return;
+              copy.image = loadedTexture.image;
+              copy.needsUpdate = true;
+            };
+            (wallVariantsByAsset[index] || []).forEach((variant) => syncImage(variant.texture));
+            (wallTextureCopiesByAsset[index] || []).forEach(syncImage);
+          }, undefined, () => {
             // Keep both the 3D maze and Ring's 2D cutaway on the same fallback.
             wallTextures[index] = fallbackTexture;
-            if (state.maze?.textures && state.maze.textures[index] !== undefined) state.maze.textures[index] = fallbackTexture;
+            if (maze?.textures && maze.textures[index] !== undefined) maze.textures[index] = fallbackTexture;
+            (wallTextureCopiesByAsset[index] || []).forEach((copy) => {
+              copy.image = fallbackTexture.image;
+              copy.needsUpdate = true;
+            });
             if (wallMaterials[index]) {
               wallMaterials[index].map = fallbackTexture;
               wallMaterials[index].needsUpdate = true;
@@ -1452,7 +1468,7 @@
       });
 
       scene.add(group);
-      const maze = {
+      maze = {
         active: true,
         group,
         center,
@@ -1474,6 +1490,7 @@
         sinceStatus: 0,
         texture,
         textures: wallTextures.concat(fallbackTexture === texture ? [] : [fallbackTexture]),
+        wallTextureCopiesByAsset,
         material,
         materials: wallMaterials,
         wallVariantMaterials,
@@ -2372,12 +2389,16 @@
           const delta = step[dir];
           return nodes.get(keyOf(node.x + delta[0], node.y + delta[1], node.z + delta[2])) || null;
         }
-        const textures = (maze.textures || []).map((tex) => {
+        const textures = (maze.textures || []).map((tex, index) => {
           const copy = tex.clone();
+          copy.image = tex.image;
           copy.needsUpdate = true;
           copy.wrapS = THREE.RepeatWrapping;
           copy.wrapT = THREE.RepeatWrapping;
           copy.center.set(0.5, 0.5);
+          if (maze.wallTextureCopiesByAsset && maze.wallTextureCopiesByAsset[index]) {
+            maze.wallTextureCopiesByAsset[index].push(copy);
+          }
           return copy;
         });
         if (!textures.length) {
@@ -2485,10 +2506,11 @@
         publishAsteroidChart(maze);
       }
 
-      function applyRingCellLook(world) {
+      function applyRingCellLook(world, nodeOverride, headingOverride) {
         const path = world.cellPath;
-        if (!path || !path.current) return;
-        const node = path.current;
+        if (!path || !(nodeOverride || path.current)) return;
+        const node = nodeOverride || path.current;
+        const heading = headingOverride || path.heading;
         const tex = path.textures[Math.abs(node.wallAsset || 0) % path.textures.length];
         if (tex) {
           tex.rotation = (node.wallTurn || 0) * (Math.PI / 2);
@@ -2506,8 +2528,8 @@
         const tint = astralPalette[node.astralMode] || { floor: 0xffffff, wall: 0xd5e4ea };
         path.floorMaterial.color.setHex(node.astral ? tint.floor : 0xffffff);
         path.wallMaterial.color.setHex(node.astral ? tint.wall : 0xd5e4ea);
-        path.doorRight.visible = !node.large && !!path.neighbor(node, path.heading);
-        path.doorLeft.visible = !node.large && !!path.neighbor(node, path.opposite[path.heading]);
+        path.doorRight.visible = !node.large && !!path.neighbor(node, heading);
+        path.doorLeft.visible = !node.large && !!path.neighbor(node, path.opposite[heading]);
         path.hatch.visible = !node.large && !!(path.neighbor(node, "yp") || path.neighbor(node, "yn"));
         if (path.hydrogenMesh) {
           const mission = window.BCMWorldMission || {};
@@ -2520,33 +2542,48 @@
             mob.mesh.visible = other === node && mob.alive && !node.large;
           });
         });
-        world.inLargeCell = !!node.large;
+        if (!nodeOverride) world.inLargeCell = !!node.large;
         world.group.visible = !!node.large;
         path.room.visible = !node.large;
       }
 
-      function placeParty(x) {
-        players.forEach((mate, index) => {
-          mate.worldX = x + (index ? -0.9 : 0);
+      function placeParty(x, player) {
+        const targets = player ? [player] : players;
+        targets.forEach((mate, index) => {
+          mate.worldX = x + (!player && index ? -0.9 : 0);
           mate.worldY = 0;
           mate.vy = 0;
           mate.grounded = true;
           mate.supportPlatform = null;
-          mate.checkpointX = worldState.inLargeCell ? worldState.spawnX : worldState.cellPath.homeX;
+          const node = mate.ringCurrent || worldState.cellPath?.current;
+          mate.checkpointX = node?.large ? worldState.spawnX : worldState.cellPath.homeX;
           updatePlayerSprite(mate);
         });
       }
 
-      function enterRingCell(world, node, fromSide) {
+      function enterRingCell(world, node, fromSide, player) {
         const path = world.cellPath;
         if (!path || !node) return world.spawnX;
-        path.previous = path.current;
+        const previous = player ? (player.ringCurrent || path.current) : path.current;
+        path.previous = previous;
         path.current = node;
-        if (node.large && path.previous && !path.previous.large) path.returnNode = path.previous;
-        applyRingCellLook(world);
+        if (player) {
+          player.ringPrevious = previous;
+          player.ringCurrent = node;
+          if (node.large && previous && !previous.large) player.ringReturnNode = previous;
+          else if (!node.large) player.ringReturnNode = null;
+          player.ringHeading = player.ringHeading || path.heading;
+          if (player.index === 0) {
+            path.heading = player.ringHeading;
+            path.returnNode = player.ringReturnNode || null;
+          }
+        } else if (node.large && previous && !previous.large) {
+          path.returnNode = previous;
+        }
+        applyRingCellLook(world, player ? node : null, player ? player.ringHeading : null);
         if (node.large) return world.spawnX;
-        if (fromSide === "right") return path.homeX + path.half - 0.9;
-        if (fromSide === "left") return path.homeX - path.half + 0.9;
+        if (fromSide === "right") return path.homeX + path.half - 1.6;
+        if (fromSide === "left") return path.homeX - path.half + 1.6;
         return path.homeX;
       }
 
@@ -2666,7 +2703,12 @@
           hp: 5, maxHp: 5, invulnerableUntil: 0,
           checkpointX: Number(spawn.x) || -45,
           image: crewImages[index] || null, tint: playerColors[index], moves: 0,
-          sprite: null, spriteMaterial: null
+          sprite: null, spriteMaterial: null,
+          ringCurrent: worldState.cellPath ? worldState.cellPath.current : null,
+          ringPrevious: null,
+          ringHeading: worldState.cellPath ? worldState.cellPath.heading : "xp",
+          ringReturnNode: worldState.cellPath ? worldState.cellPath.returnNode : null,
+          ringTurnQueued: false
         };
         makePlayerSprite(player);
         return player;
@@ -2729,9 +2771,10 @@
       function collectHydrogenAt(player) {
         const path = worldState.cellPath;
         const mission = window.BCMWorldMission || {};
-        if (!path || !path.hydrogenMesh || !path.hydrogenMesh.visible ||
+        const playerNode = player.ringCurrent || path?.current;
+        if (!path || !path.hydrogenMesh ||
             !mission.hydrogenUnlocked || mission.hydrogenCollected ||
-            path.current !== path.hydrogenNode || path.current?.large) return false;
+            playerNode !== path.hydrogenNode || playerNode?.large) return false;
         if (Math.abs(player.worldX - path.hydrogenPickupX) > 1.05 ||
             Math.abs(player.worldY - 0.82) > 1.25) return false;
 
@@ -2780,8 +2823,9 @@
         const end = start.clone().add(new THREE.Vector3(player.facing * profile.range, 0, 0));
         let target = null;
         let nearest = Infinity;
-        if (!worldState.inLargeCell && worldState.cellPath && worldState.cellPath.current) {
-          worldState.cellPath.current.mobs.forEach((mob) => {
+        const playerNode = player.ringCurrent || worldState.cellPath?.current;
+        if (playerNode && !playerNode.large) {
+          playerNode.mobs.forEach((mob) => {
             if (!mob.alive || !mob.mesh) return;
             const forwardDistance = (mob.mesh.position.x - player.worldX) * player.facing;
             if (forwardDistance <= 0.2 || forwardDistance > profile.range) return;
@@ -2954,8 +2998,9 @@
         if (!player || !gameStarted || done) return false;
         const now = performance.now();
         if (action === "activate") {
-          if (worldState.cellPath && !worldState.inLargeCell) {
-            worldState.cellPath.turnQueued = true;
+          const node = player.ringCurrent || worldState.cellPath?.current;
+          if (node && !node.large) {
+            player.ringTurnQueued = true;
             return true;
           }
           return activateBossWeakpoint(player);
@@ -3082,27 +3127,29 @@
 
       function updateCellMobs(dt, now) {
         const path = worldState.cellPath;
-        if (!path || worldState.inLargeCell || !path.current) return;
-        const node = path.current;
-        if (node.astral && path.floorMaterial.map) {
-          path.floorMaterial.map.rotation = (node.wallTurn || 0) * (Math.PI / 2) + now * 0.0004;
-        }
-        (node.mobs || []).forEach((mob) => {
-          if (!mob.mesh) return;
-          if (!mob.alive) {
-            mob.mesh.visible = false;
-            if (now >= mob.respawnAt) {
-              mob.alive = true;
-              mob.mesh.visible = true;
-            }
-            return;
+        if (!path) return;
+        const activeNodes = new Set(players.map((player) => player.ringCurrent || path.current).filter((node) => node && !node.large));
+        if (!activeNodes.size && path.current && !path.current.large) activeNodes.add(path.current);
+        activeNodes.forEach((node) => {
+          if (node.astral) {
+            const tex = path.textures[Math.abs(node.wallAsset || 0) % path.textures.length];
+            if (tex) tex.rotation = (node.wallTurn || 0) * (Math.PI / 2) + now * 0.0004;
           }
-          mob.offset += mob.dir * (node.astral ? 3.3 : 2.05) * dt;
-          if (mob.offset > 4.25 || mob.offset < -4.25) mob.dir *= -1;
-          mob.mesh.position.set(path.homeX + mob.offset, node.astral ? 1.2 : 0.55, 0.45);
-          mob.mesh.visible = true;
-          const hit = players.find((player) => Math.abs(player.worldX - mob.mesh.position.x) < 0.62 && player.worldY < 1.35);
-          if (hit) damagePlayer(hit, now);
+          (node.mobs || []).forEach((mob) => {
+            if (!mob.mesh) return;
+            if (!mob.alive) {
+              mob.mesh.visible = false;
+              if (now >= mob.respawnAt) mob.alive = true;
+              else return;
+            }
+            mob.offset += mob.dir * (node.astral ? 3.3 : 2.05) * dt;
+            if (mob.offset > 4.25 || mob.offset < -4.25) mob.dir *= -1;
+            mob.mesh.position.set(path.homeX + mob.offset, node.astral ? 1.2 : 0.55, 0.45);
+            mob.mesh.visible = true;
+            const hit = players.find((player) => (player.ringCurrent || path.current) === node &&
+              Math.abs(player.worldX - mob.mesh.position.x) < 0.62 && player.worldY < 1.35);
+            if (hit) damagePlayer(hit, now);
+          });
         });
       }
 
@@ -3139,167 +3186,126 @@
         for (const player of players) {
           const input = getInput(player);
           const direction = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-          if (direction) {
-            player.facing = direction;
-            player.moves += dt;
-          }
+          if (direction) { player.facing = direction; player.moves += dt; }
           if (input.fire) firePlayerWeapon(player, now);
-          const dashing = now < player.dashUntil;
-          const previousX = player.worldX;
+          const dashing = now < player.dashUntil, previousX = player.worldX;
           if (dashing) player.worldX += player.facing * 12.5 * dt;
           else player.worldX += direction * 7.2 * dt;
           const path = worldState.cellPath;
-          if (worldState.inLargeCell) {
-            if (direction < 0 && previousX <= -48.15 && path && path.returnNode) {
-              placeParty(enterRingCell(worldState, path.returnNode, "right"));
-              return;
+          const playerNode = player.ringCurrent || path?.current;
+          const playerInLarge = playerNode ? !!playerNode.large : worldState.inLargeCell;
+          if (playerInLarge) {
+            if (direction < 0 && previousX <= -48.15 && path && player.ringReturnNode) {
+              placeParty(enterRingCell(worldState, player.ringReturnNode, "right", player), player);
+              continue;
             }
             player.worldX = Math.max(-49, Math.min(worldState.exitX + 1.5, player.worldX));
-          } else if (path && path.current) {
-            const node = path.current;
-            const right = path.neighbor(node, path.heading);
-            const left = path.neighbor(node, path.opposite[path.heading]);
+          } else if (path && playerNode) {
+            const node = playerNode, heading = player.ringHeading || path.heading;
+            const right = path.neighbor(node, heading), left = path.neighbor(node, path.opposite[heading]);
             if (player.worldX > path.homeX + path.half - 0.4 && right) {
-              placeParty(enterRingCell(worldState, right, "left"));
-              return;
+              placeParty(enterRingCell(worldState, right, "left", player), player);
+              continue;
             }
             if (player.worldX < path.homeX - path.half + 0.4 && left) {
-              placeParty(enterRingCell(worldState, left, "right"));
-              return;
+              placeParty(enterRingCell(worldState, left, "right", player), player);
+              continue;
             }
             player.worldX = Math.max(path.homeX - path.half + 0.35, Math.min(path.homeX + path.half - 0.35, player.worldX));
-            if (path.turnQueued) {
-              path.turnQueued = false;
-              const up = (Math.abs(player.worldX - path.homeX) < 1.35) && (path.neighbor(node, "yp") || path.neighbor(node, "yn"));
-              const turn = ["zp", "zn", "xp", "xn"].find((dir) => dir !== path.heading && dir !== path.opposite[path.heading] && path.neighbor(node, dir));
+            if (player.ringTurnQueued) {
+              player.ringTurnQueued = false;
+              const up = Math.abs(player.worldX - path.homeX) < 1.35 && (path.neighbor(node, "yp") || path.neighbor(node, "yn"));
+              const turn = ["zp", "zn", "xp", "xn"].find((dir) => dir !== heading && dir !== path.opposite[heading] && path.neighbor(node, dir));
               if (up) {
-                placeParty(enterRingCell(worldState, up, null));
-                return;
+                placeParty(enterRingCell(worldState, up, null, player), player);
+                continue;
               }
               if (turn) {
-                path.heading = turn;
-                applyRingCellLook(worldState);
+                player.ringHeading = turn;
+                if (player.index === 0) path.heading = turn;
+                applyRingCellLook(worldState, node, player.ringHeading);
               }
             }
-          } else {
-            player.worldX = Math.max(-49, Math.min(worldState.exitX + 1.5, player.worldX));
-          }
-
+          } else player.worldX = Math.max(-49, Math.min(worldState.exitX + 1.5, player.worldX));
           worldState.barriers.forEach((barrier) => {
-            if (worldState.defeatedBosses < barrier.unlockAfter &&
-                previousX <= barrier.x + 0.12 && player.worldX > barrier.x - 0.72) {
-              player.worldX = barrier.x - 0.72;
-            }
+            if (worldState.defeatedBosses < barrier.unlockAfter && previousX <= barrier.x + 0.12 && player.worldX > barrier.x - 0.72) player.worldX = barrier.x - 0.72;
           });
-
           const previousY = player.worldY;
-          const astralNode = worldState.cellPath && worldState.cellPath.current;
-          const astral = !!(astralNode && astralNode.astral && !worldState.inLargeCell);
+          const astralNode = player.ringCurrent || worldState.cellPath?.current;
+          const astral = !!(astralNode && astralNode.astral && !playerInLarge);
           const astralMode = astral ? astralNode.astralMode : "normal";
-          let gravity = 21;
-          let jumpVelocity = 8.8;
-          if (astralMode === "drift") {
-            gravity = 6.0;
-            jumpVelocity = 7.8;
-          } else if (astralMode === "flux") {
-            // A bounded pulse changes the feel of the jump without ever reversing
-            // gravity or trapping a player away from the route floor.
-            gravity = 8.0 + Math.sin(now * 0.0018 + (astralNode.astralPhase || 0)) * 1.8;
-            jumpVelocity = 8.8;
-          } else if (astralMode === "dense") {
-            gravity = 14.5;
-            jumpVelocity = 10.2;
-          }
-          if (input.jump && !player.wasJumpDown && player.grounded) {
-            player.vy = jumpVelocity;
-            player.grounded = false;
-            player.supportPlatform = null;
-          }
+          let gravity = 21, jumpVelocity = 8.8;
+          if (astralMode === "drift") { gravity = 6.0; jumpVelocity = 7.8; }
+          else if (astralMode === "flux") { gravity = 8.0 + Math.sin(now * 0.0018 + (astralNode.astralPhase || 0)) * 1.8; jumpVelocity = 8.8; }
+          else if (astralMode === "dense") { gravity = 14.5; jumpVelocity = 10.2; }
+          if (input.jump && !player.wasJumpDown && player.grounded) { player.vy = jumpVelocity; player.grounded = false; player.supportPlatform = null; }
           player.wasJumpDown = input.jump;
           player.vy -= gravity * dt;
           player.worldY += player.vy * dt;
-
           if (player.vy <= 0) {
-            const landing = worldState.platforms
-              .filter((platform) => player.worldX >= platform.minX && player.worldX <= platform.maxX &&
-                previousY >= platform.y && player.worldY <= platform.y)
-              .sort((a, b) => b.y - a.y)[0];
+            const landing = worldState.platforms.filter((platform) =>
+              player.worldX >= platform.minX && player.worldX <= platform.maxX &&
+              previousY >= platform.y && player.worldY <= platform.y
+            ).sort((a,b)=>b.y-a.y)[0];
             if (landing) {
-              player.worldY = landing.y;
-              player.vy = 0;
-              player.grounded = true;
-              player.supportPlatform = landing;
-              if (landing.y === 0) player.checkpointX = player.worldX < -2 ? -43 : (player.worldX < 36 ? 3 : 40);
-            } else {
-              player.grounded = false;
-            }
+              player.worldY = landing.y; player.vy = 0; player.grounded = true; player.supportPlatform = landing;
+              if (landing.y === 0) player.checkpointX = playerInLarge ? worldState.spawnX : (path ? path.homeX : (player.worldX < -2 ? -43 : (player.worldX < 36 ? 3 : 40)));
+            } else player.grounded = false;
           }
           if (player.worldY < -7) {
-            player.worldY = 0;
-            player.vy = 0;
-            player.grounded = true;
-            player.supportPlatform = null;
-            player.worldX = player.checkpointX;
-            damagePlayer(player, now);
+            player.worldY = 0; player.vy = 0; player.grounded = true; player.supportPlatform = null;
+            player.worldX = player.checkpointX; damagePlayer(player, now);
           }
           if (player.grounded && player.supportPlatform && player.supportPlatform.y > 0 &&
               (player.worldX < player.supportPlatform.minX || player.worldX > player.supportPlatform.maxX)) {
-            player.grounded = false;
-            player.vy = -0.2;
-            player.supportPlatform = null;
+            player.grounded = false; player.vy = -0.2; player.supportPlatform = null;
           }
-
-          collectAt(player);
-          collectHydrogenAt(player);
+          collectAt(player); collectHydrogenAt(player);
           const blinking = now < player.invulnerableUntil && Math.floor(now / 90) % 2 === 0;
           if (player.sprite) player.sprite.visible = !blinking;
           updatePlayerSprite(player);
         }
-
         worldState.shockwaves = worldState.shockwaves.filter((wave) => {
-          wave.age += dt;
-          wave.x += wave.direction * 8.5 * dt;
-          wave.mesh.position.x = wave.x;
+          wave.age += dt; wave.x += wave.direction * 8.5 * dt; wave.mesh.position.x = wave.x;
           wave.mesh.scale.setScalar(0.72 + Math.min(0.45, wave.age * 0.22));
-          const hitPlayer = players.find((player) =>
-            Math.abs(player.worldX - wave.x) < 1.0 && player.worldY < 1.15
-          );
-          if (hitPlayer) {
-            damagePlayer(hitPlayer, now);
-            wave.mesh.parent?.remove(wave.mesh);
-            return false;
-          }
-          if (wave.x < -53 || wave.x > worldState.exitX + 4) {
-            wave.mesh.parent?.remove(wave.mesh);
-            return false;
-          }
+          const hitPlayer = players.find((player) => Math.abs(player.worldX - wave.x) < 1.0 && player.worldY < 1.15);
+          if (hitPlayer) { damagePlayer(hitPlayer, now); wave.mesh.parent?.remove(wave.mesh); return false; }
+          if (wave.x < -53 || wave.x > worldState.exitX + 4) { wave.mesh.parent?.remove(wave.mesh); return false; }
           return true;
         });
-
-        updateCellMobs(dt, now);
-        updateBosses(dt, now);
-        worldState.coreMeshes.forEach((core, index) => {
-          if (!core.taken) core.mesh.rotation.y += dt * (1.0 + index * 0.2);
-        });
+        updateCellMobs(dt, now); updateBosses(dt, now);
+        worldState.coreMeshes.forEach((core, index) => { if (!core.taken) core.mesh.rotation.y += dt * (1 + index * 0.2); });
         worldState.exitMarker.rotation.z += dt * 0.42;
-        if (worldState.inLargeCell && worldState.defeatedBosses >= 3 && players.some((player) => player.worldX >= worldState.exitX - 1.3)) {
-          finishRingPlatformer(maze, true);
-          return;
-        }
-        updateSplitState();
-        updateHud();
+        if (worldState.defeatedBosses >= 3 && players.some((player) =>
+          (player.ringCurrent ? player.ringCurrent.large : worldState.inLargeCell) && player.worldX >= worldState.exitX - 1.3
+        )) { finishRingPlatformer(maze, true); return; }
+        updateSplitState(); updateHud();
       }
 
       function updateSplitState() {
+        const path = worldState.cellPath;
+        if (players[0] && players[0].ringCurrent && path) {
+          path.current = players[0].ringCurrent;
+          path.heading = players[0].ringHeading || path.heading;
+          path.returnNode = players[0].ringReturnNode || null;
+          worldState.inLargeCell = !!players[0].ringCurrent.large;
+        }
         if (mode !== "multi" || players.length < 2) {
           splitActive = false;
           splitDivider.hidden = true;
           return;
         }
-        const dx = Math.abs(players[0].worldX - players[1].worldX);
-        const dy = Math.abs(players[0].worldY - players[1].worldY);
-        if (!splitActive && (dx > 20 || dy > 7)) splitActive = true;
-        else if (splitActive && dx < 14 && dy < 4.5) splitActive = false;
+        const p1 = players[0], p2 = players[1];
+        const dx = Math.abs(p1.worldX - p2.worldX), dy = Math.abs(p1.worldY - p2.worldY);
+        const haveSeparateCells = !!(p1.ringCurrent && p2.ringCurrent && p1.ringCurrent !== p2.ringCurrent);
+        if (haveSeparateCells) splitActive = true;
+        else if (p1.ringCurrent && p2.ringCurrent && !p1.ringCurrent.large && !p2.ringCurrent.large) {
+          if (!splitActive && (dx > 4 || dy > 3)) splitActive = true;
+          else if (splitActive && dx < 2.5 && dy < 1.5) splitActive = false;
+        } else {
+          if (!splitActive && (dx > 20 || dy > 7)) splitActive = true;
+          else if (splitActive && dx < 14 && dy < 4.5) splitActive = false;
+        }
         splitDivider.hidden = !splitActive;
         splitDivider.style.border = "0";
         splitDivider.style.borderLeft = "0";
@@ -3375,6 +3381,7 @@
 
         for (const view of views) {
           const target = view.target || cameraTargetFor(view.player);
+          if (worldState.cellPath && view.player?.ringCurrent) applyRingCellLook(worldState, view.player.ringCurrent, view.player.ringHeading);
           configureCamera(view.camera, view, target);
           renderer.setViewport(view.x, view.y, view.w, view.h);
           renderer.setScissor(view.x, view.y, view.w, view.h);

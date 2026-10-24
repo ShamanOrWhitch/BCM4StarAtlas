@@ -113,6 +113,15 @@ test("Hydrogen mission unlocks only after required screens really play and is an
   assert.match(warp, /new CustomEvent\("bcm:mission:hydrogen-collected"/);
 });
 
+test("ONICSS uses the paused video frame at distance and never a duplicate station-textured planet", () => {
+  assert.ok(mini.includes("spacePlanet.mesh = null"));
+  assert.ok(mini.includes('const posterMaterial = null;'));
+  assert.ok(mini.includes('video.addEventListener("loadeddata", () => {'));
+  assert.ok(mini.includes('if (item.towerGate && item.url)'));
+  assert.ok(mini.includes('video.pause();'));
+  assert.ok(warp.includes('copy.image = tex.image;'));
+});
+
 test("Explicit screen focus persists until its own radius expires and mission progress stays visible", () => {
   assert.ok(mini.includes("const focusedZone = cinema.focus && cinema.zones.includes(cinema.focus)"));
   assert.ok(mini.includes("const focusedPanel = cinema.focus && !cinema.zones.includes(cinema.focus)"));
@@ -126,13 +135,13 @@ test("Explicit screen focus persists until its own radius expires and mission pr
   assert.ok(mini.includes("MISSION COMPLETE: HYDROGEN RECOVERED"));
 });
 
-test("0.11.5 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
-  assert.match(php, /Version: 0\.11\.5/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.5'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.11\.5/);
-  assert.match(qa, /Version: 0\.11\.5/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.5'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.5/);
+test("0.11.6 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
+  assert.match(php, /Version: 0\.11\.6/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.6'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.11\.6/);
+  assert.match(qa, /Version: 0\.11\.6/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.6'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.6/);
   assert.match(browserWorkflow, /timeout-minutes: 45/);
   assert.match(browserWorkflow, /timeout-minutes: 20/);
   assert.match(browserWorkflow, /timeout-minutes: 25/);

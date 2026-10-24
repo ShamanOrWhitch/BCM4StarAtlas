@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.5",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.6",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.5",
+      title: "SPACE LABYRINTH — 0.11.6",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -2506,15 +2506,9 @@
     namePlate.position.set(0, -5.4, 0);
     group.add(namePlate);
 
-    const planetMaterial = textured("OniStation.png", 0x496b8f);
-    const planet = new THREE.Mesh(
-      new THREE.SphereGeometry(11, 24, 16),
-      planetMaterial
-    );
-    planet.position.set(-26, 9, -190);
-    planet.name = "deep-space-planet";
-    parent.add(planet);
-    spacePlanet.mesh = planet;
+    // Keep the distant ONICSS as its real onicss.mp4 video plane.
+    // Do not draw a duplicate static OniStation.png sphere.
+    spacePlanet.mesh = null;
 
     parent.add(group);
     spaceSatellite.group = group;
@@ -2673,11 +2667,12 @@
       material.color.setRGB(1.14, 1.14, 1.14);
       // ONICSS keeps a real station image under its video until a decoded frame
       // is actually playing, so slow media or an error never exposes a black orb.
-      const posterMaterial = zone.towerGate ? textured("OniStation.png", 0x496b8f, THREE.DoubleSide) : null;
+      // ONICSS displays its actual paused video frame at distance.
+      const posterMaterial = null;
 
       const mesh = new THREE.Mesh(
         new THREE.PlaneGeometry(zone.width || 5.8, zone.height || 3.4),
-        posterMaterial || material
+        material
       );
       mesh.position.set(zone.x || 0, zone.y || 0, zone.z || -36);
       mesh.name = "space-video-zone-" + index;
@@ -2705,6 +2700,14 @@
         distance: 99
       };
 
+      video.addEventListener("loadeddata", () => {
+        // A loaded paused frame may show at distance; only "playing" counts
+        // as actually visiting the mission screen.
+        if (item.towerGate && item.videoMaterial && item.mesh && !item.active) {
+          item.mesh.material = item.videoMaterial;
+          try { video.pause(); } catch (e) {}
+        }
+      });
       video.addEventListener("playing", () => {
         item.firstFrame = true;
         markMissionScreenActive(item.screenId);
@@ -2737,6 +2740,14 @@
       });
 
       cinema.zones.push(item);
+      if (item.towerGate && item.url) {
+        // Preload the genuine ONICSS clip early, but leave it paused until the
+        // existing proximity/focus logic requests playback.
+        video.preload = "auto";
+        video.src = item.url;
+        video.load();
+        item.loaded = true;
+      }
     });
 
     // Room 1 rear wall: personnel animation loads in the background while the player flies around.

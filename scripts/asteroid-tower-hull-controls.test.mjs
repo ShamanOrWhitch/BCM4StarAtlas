@@ -28,7 +28,7 @@ test("Flight starts in Room 1 and does not teleport into the asteroid", async ()
   const begin = mini.slice(mini.indexOf("function beginFlight()"), mini.indexOf("const byName = Object.create(null)"));
   assert.doesNotMatch(begin, /BCMDeepSpaceWarpEnterAsteroid\s*\(/);
   assert.match(mini, /ship\.position = new THREE\.Vector3\(0, 0, 2\)/);
-  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.5/);
+  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.6/);
 });
 
 test("Asteroid walls are resolved from the prepared asterwall asset family", async () => {
@@ -189,6 +189,9 @@ test("Crew facing follows the Tower convention and 3D wall materials use each ce
   assert.ok(warp.includes('wallBatches.get(resolved.key).walls.push(wall)'));
   assert.doesNotMatch(warp, /walls\.forEach\(\(wall, index\) => wallBatches\[index % wallBatches\.length\]\.push\(wall\)\)/);
   assert.ok(warp.includes('maze.wallVariantTextures || []'));
+  assert.ok(warp.includes('copy.image = loadedTexture.image;'));
+  assert.ok(warp.includes('wallTextureCopiesByAsset[index].push(copy)'));
+  assert.ok(warp.includes('(wallVariantsByAsset[index] || []).forEach((variant) => syncImage(variant.texture))'));
 });
 
 
@@ -214,6 +217,11 @@ test("Astral Y-cells are seed-deterministic and alter movement without rebuildin
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   assert.ok(warp.includes('const astralHash = hashSeed(String(maze.seed) + "|astral|" + cell.x + "|" + cell.y + "|" + cell.z)'));
   assert.match(warp, /astralMode: astral \? \["drift", "flux", "dense"\]\[astralHash % 3\] : "normal"/);
+  assert.match(warp, /ringCurrent: worldState\.cellPath \? worldState\.cellPath\.current : null/);
+  assert.match(warp, /player\.ringTurnQueued = true/);
+  assert.match(warp, /const haveSeparateCells = !!\(p1\.ringCurrent && p2\.ringCurrent && p1\.ringCurrent !== p2\.ringCurrent\)/);
+  assert.match(warp, /placeParty\(enterRingCell\(worldState, right, "left", player\), player\)/);
+  assert.doesNotMatch(warp, /placeParty\(enterRingCell\(worldState, right, "left"\)\);/);
   assert.ok(warp.includes('astralPhase: ((hashSeed(String(maze.seed) + "|phase|" + cell.x + "|" + cell.y + "|" + cell.z) / 0xffffffff) * Math.PI * 2)'));
   assert.match(warp, /gravity = 6\.0;[\s\S]*?jumpVelocity = 7\.8/);
   assert.match(warp, /gravity = 8\.0 \+ Math\.sin\(now \* 0\.0018 \+ \(astralNode\.astralPhase \|\| 0\)\) \* 1\.8/);

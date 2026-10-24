@@ -34,16 +34,24 @@ test("Warp uses a rolling circular wall and angular obstacle course",async()=>{
   assert.doesNotMatch(update,/state\.playerX = nextX \/ radial \* 0\.78/);
   assert.doesNotMatch(body,/const roadY=d=>|const half=d=>|Continuous floor panels and centre dashes/);
 });
-test("Room 2 can already see the deep-space satellite and planet",async()=>{
+test("Room 2 keeps the station separate and shows a real paused ONICSS video frame",async()=>{
   const s=await read("mini-sim/assets/js/mini-sim.js");
   const body=s.slice(s.indexOf("function updateSpaceSatelliteVisibility"),s.indexOf("function buildWorld"));
   assert.match(body,/zone === "ROOM2" \|\| zone === "DEEP_SPACE"/);
   assert.match(s,/metalness: 0\.82/);
   assert.match(s,/existing\.listeners\.push/);
-  assert.match(s,/new THREE\.SphereGeometry\(11, 24, 16\)/);
-  assert.match(s,/planet\.position\.set\(-26, 9, -190\)/);
-  assert.doesNotMatch(s,/new THREE\.SphereGeometry\(28, 24, 16\)/);
-  assert.doesNotMatch(s,/planet\.position\.set\(0, 16, -220\)/);
+  assert.match(s,/spacePlanet\.mesh = null/);
+  assert.doesNotMatch(s,/new THREE\.SphereGeometry\(11, 24, 16\)/);
+  assert.doesNotMatch(s,/planet\.position\.set\(-26, 9, -190\)/);
+  const zones=s.slice(s.indexOf("const videoZones = Array.isArray(config.spaceVideoZones)"),s.indexOf("// Room 1 rear wall"));
+  assert.match(zones,/video\.addEventListener\("loadeddata"/);
+  assert.match(zones,/item\.mesh\.material = item\.videoMaterial/);
+  assert.match(zones,/if \(item\.towerGate && item\.url\)/);
+  assert.match(zones,/video\.preload = "auto"/);
+  assert.match(zones,/video\.src = item\.url/);
+  assert.match(zones,/video\.load\(\)/);
+  assert.match(zones,/video\.pause\(\)/);
+  assert.doesNotMatch(zones,/textured\("OniStation\.png", 0x496b8f, THREE\.DoubleSide\)/);
 });
 test("Room 1 Home clears Room 0 constraints and restores Starbase OST",async()=>{
   const s=await read("mini-sim/assets/js/mini-sim.js");
@@ -89,6 +97,8 @@ test("startup prioritizes Starbase OST, initial room textures, right-wall video 
   assert.ok(mini.includes('if (/^roofa[0-9]*\\.png$/.test(base)) return 4;'));
   assert.ok(mini.includes('if (/^wall[1-5]\\.png$/.test(base)) return 1;'));
   const zones=mini.slice(mini.indexOf("const videoZones = Array.isArray(config.spaceVideoZones)"),mini.indexOf("// Room 1 rear wall"));
+  assert.match(zones,/if \(item\.towerGate && item\.url\)/);
+  assert.match(zones,/video\.preload = "auto";\s*video\.src = item\.url;\s*video\.load\(\)/);
   assert.doesNotMatch(zones,/video\.src = zone\.url;\s*video\.load\(\)/);
 });
 
@@ -198,9 +208,9 @@ test("Mini-Sim and Tower displayed versions match their PHP asset-cache versions
   const miniPhp = await read("mini-sim/bcm-mini-sim.php");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   const tower = await read("mini-sim/tower/assets/js/tower.js");
-  assert.ok(miniPhp.includes("Version: 0.11.5"));
-  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.11.5'"));
-  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.11.5"));
+  assert.ok(miniPhp.includes("Version: 0.11.6"));
+  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.11.6'"));
+  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.11.6"));
   assert.ok(towerPhp.includes("BCM_TOWER_VERSION', '0.2.65'"));
   assert.ok(tower.includes('const TOWER_VERSION = "0.2.65"'));
 });
