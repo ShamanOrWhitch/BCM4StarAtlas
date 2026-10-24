@@ -2412,7 +2412,7 @@
           pig.add(pigTail);
 
           // Keep the weakpoint visible above the snout for the existing activation mechanic.
-          core.position.set(0, 2.78, 1.02);
+          core.position.set(0, 2.78, 1.85);
           world.add(group);
           Object.assign(boss, { group, hp: boss.maxHp, alive: true, activated: false, nextAttackAt: 0, lastDamageAt: 0 });
         });

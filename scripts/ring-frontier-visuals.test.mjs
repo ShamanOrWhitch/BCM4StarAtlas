@@ -33,6 +33,7 @@ test("Pig bosses are visible in the three large arenas without new image assets"
   assert.match(build, /pigSphereGeometry/);
   assert.match(build, /pig\.name = "ring-pig-boss-" \+ \(index \+ 1\)/);
   assert.match(build, /pigSnout\.name = "ring-pig-boss-snout-/);
+  assert.match(build, /core\.position\.set\(0, 2\.78, 1\.85\)/);
   assert.match(build, /ring-pig-boss-nostril/);
   assert.match(build, /ring-pig-boss-tusk/);
   assert.match(build, /ring-pig-boss-tail/);
