@@ -86,11 +86,12 @@ test("Ring two-player split is top/bottom; caption clutter is removed", () => {
 });
 
 test("ONICSS keeps its station poster during preload, X releases camera focus, and Bearhead is optional", () => {
-  assert.ok(mini.includes('const posterMaterial = zone.towerGate ? textured("OniStation.png", 0x496b8f, THREE.DoubleSide) : null;'));
+  assert.ok(mini.includes("const posterMaterial = null;"));
   assert.ok(mini.includes("zone.preloadRadius > 0"));
+  assert.ok(mini.includes('video.addEventListener("loadeddata", () => {'));
   assert.ok(mini.includes('video.addEventListener("playing", () => {'));
   assert.ok(mini.includes("item.mesh.material = item.videoMaterial"));
-  assert.ok(mini.includes("item.mesh.material = item.posterMaterial"));
+  assert.ok(mini.includes("video.pause();"));
   assert.ok(mini.includes('assetUrl("bearhead.mp4")'));
   assert.ok(mini.includes('video data-operator-avatar-video hidden muted playsinline loop preload="none"'));
   assert.ok(mini.includes('e.code === "KeyX" && cinema.focus'));
@@ -109,7 +110,7 @@ test("Hydrogen mission unlocks only after required screens really play and is an
   assert.match(warp, /hydrogenNode: start/);
   assert.match(warp, /g\.fillText\("H"/);
   assert.match(warp, /function collectHydrogenAt\(player\)/);
-  assert.match(warp, /path\.current !== path\.hydrogenNode/);
+  assert.match(warp, /playerNode !== path\.hydrogenNode/);
   assert.match(warp, /new CustomEvent\("bcm:mission:hydrogen-collected"/);
 });
 
