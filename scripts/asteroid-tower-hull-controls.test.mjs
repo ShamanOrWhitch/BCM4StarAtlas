@@ -207,7 +207,7 @@ test("Hydrogen unlock follows real screen playback and places the collectible in
   assert.match(warp, /hydrogenMesh\.name = "ring-hydrogen-pickup"/);
   assert.match(warp, /hydrogenNode: start/);
   assert.match(warp, /g\.fillText\("H"/);
-  assert.match(warp, /path\.current !== path\.hydrogenNode/);
+  assert.match(warp, /playerNode !== path\.hydrogenNode/);
   assert.match(warp, /new CustomEvent\("bcm:mission:hydrogen-collected"/);
   assert.match(warp, /hydrogen: hydrogen \?/);
 });
