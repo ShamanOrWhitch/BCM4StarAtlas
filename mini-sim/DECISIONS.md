@@ -1,3 +1,29 @@
+## D-031 — Mini-Sim 0.11.5: snapshot before Tower freezes flight
+
+**Status:** candidate source contract; city/return implementation still pending.
+
+- Save the incoming ship pose, quaternion, velocity, angular velocity, navigation metadata and mission-session seed just before the Tower handoff zeroes velocity and disposes the Mini-Sim scene.
+- Every built Tower stores its active seed on the same session mission object; city exit must rebuild that exact seed, not call makeSeed().
+- The current patch records data for a future resume path; it does not yet restore flight or add the city. Tower cache/version is bumped to 0.2.65.
+
+## D-030 — Mini-Sim 0.11.5: explicit camera focus is a playback lease
+
+**Status:** candidate, source tests added.
+
+- F/X focus selects one video target. A selected exterior screen remains the nearest/playback owner while within its active radius; an explicitly focused interior panel/live wall is not cancelled just because no exterior video is nearest.
+- Clear focus when the selected target becomes unavailable or leaves its own radius. Don't let another nearby video steal focus.
+- The mission HUD exposes visited screen progress and switches to Hydrogen objective/completion text.
+
+## D-029 — Mini-Sim 0.11.5: deterministic astral movement rules
+
+**Status:** candidate on minisim-0.11.5-astral-phase; CI and visual play pending.
+
+- For each Y-layer cell, derive astralMode and phase from the existing asteroid seed plus cell coordinates. Never consume the route/crystal RNG stream for decoration/physics. Same seed => same cell graph and same anomaly pattern.
+- Drift = low gravity; Flux = bounded gravity oscillation that remains downward; Dense = heavier gravity and a different jump impulse. Existing cell walls, texture indices, quarter-turns, doors and crystal locations remain untouched.
+- The minimap uses distinct colors/glyphs and the HUD names the active rule, so unusual movement is legible rather than random/opaque.
+- Next: validate feel in browser/device after normal site access is possible, then design more anomalous interactions (issue #68). The Tower city and same-seed trip back to the arriving ship remain a separate lifecycle task (#67).
+- Keep wordpress/galia-desk locked; no generated textures.
+
 ## D-028 — Mini-Sim 0.11.4: screen-discovery quest and first-cell Hydrogen
 
 **Status:** candidate on `minisim-0.11.4-hydrogen-mission`; requires CI review and live play.

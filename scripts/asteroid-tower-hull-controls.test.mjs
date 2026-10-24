@@ -28,7 +28,7 @@ test("Flight starts in Room 1 and does not teleport into the asteroid", async ()
   const begin = mini.slice(mini.indexOf("function beginFlight()"), mini.indexOf("const byName = Object.create(null)"));
   assert.doesNotMatch(begin, /BCMDeepSpaceWarpEnterAsteroid\s*\(/);
   assert.match(mini, /ship\.position = new THREE\.Vector3\(0, 0, 2\)/);
-  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.4/);
+  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.5/);
 });
 
 test("Asteroid walls are resolved from the prepared asterwall asset family", async () => {
@@ -37,6 +37,8 @@ test("Asteroid walls are resolved from the prepared asterwall asset family", asy
   assert.match(warp, /asterwall/);
   assert.ok(warp.includes("asterwall[^.]*"), "include every asterwall filename suffix");
   assert.match(warp, /const chosenWallAssets = availableWallAssets;/);
+  assert.ok(warp.includes('const wallAssetOrderRng = randomFrom(hashSeed(String(seed) + "|wall-assets"));'));
+  assert.ok(warp.includes("Math.floor(wallAssetOrderRng() * (i + 1))"));
   assert.doesNotMatch(warp, /availableWallAssets\.slice\(0, 4\)/);
   assert.match(warp, /wallMesh\.name = "asteroid-maze-wall-panels-" \+ key\.replace\(":", "-"\)/);
   assert.match(warp, /wallMaterials\[index\]\.map = fallbackTexture/);
@@ -205,4 +207,35 @@ test("Hydrogen unlock follows real screen playback and places the collectible in
   assert.match(warp, /path\.current !== path\.hydrogenNode/);
   assert.match(warp, /new CustomEvent\("bcm:mission:hydrogen-collected"/);
   assert.match(warp, /hydrogen: hydrogen \?/);
+});
+
+
+test("Astral Y-cells are seed-deterministic and alter movement without rebuilding the maze", async () => {
+  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  assert.ok(warp.includes('const astralHash = hashSeed(String(maze.seed) + "|astral|" + cell.x + "|" + cell.y + "|" + cell.z)'));
+  assert.match(warp, /astralMode: astral \? \["drift", "flux", "dense"\]\[astralHash % 3\] : "normal"/);
+  assert.ok(warp.includes('astralPhase: ((hashSeed(String(maze.seed) + "|phase|" + cell.x + "|" + cell.y + "|" + cell.z) / 0xffffffff) * Math.PI * 2)'));
+  assert.match(warp, /gravity = 6\.0;[\s\S]*?jumpVelocity = 7\.8/);
+  assert.match(warp, /gravity = 8\.0 \+ Math\.sin\(now \* 0\.0018 \+ \(astralNode\.astralPhase \|\| 0\)\) \* 1\.8/);
+  assert.match(warp, /gravity = 14\.5;[\s\S]*?jumpVelocity = 10\.2/);
+  assert.match(warp, /"ASTRAL · DRIFT", flux: "ASTRAL · GRAVITY FLUX", dense: "ASTRAL · DENSE GRAVITY"/);
+  assert.match(warp, /drift: "≈", flux: "↕", dense: "◆"/);
+  assert.match(warp, /const anomalies = \(maze\.cells \|\| \[\]\)\.filter\(\(cell\) => cell\.y !== 1\)/);
+});
+
+
+test("Tower handoff preserves the arrival ship snapshot and active Tower seed for later return", async () => {
+  const mini = await read("mini-sim/assets/js/mini-sim.js");
+  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  const tower = await read("mini-sim/tower/assets/js/tower.js");
+  const towerPhp = await read("mini-sim/tower/bcm-tower.php");
+  assert.match(mini, /function captureArrivalShipSnapshot\(\)/);
+  assert.match(mini, /mission\.originShipSnapshot = snapshot/);
+  assert.match(mini, /captureArrivalShipSnapshot\(\);[\s\S]*?ship\.velocity\.set\(0, 0, 0\)/);
+  assert.match(mini, /originShipSnapshot:|mission\.originShipSnapshot/);
+  assert.match(warp, /window\.BCMDeepSpaceWarpGetReturnSnapshot = \(\) =>/);
+  assert.match(tower, /window\.BCMWorldMission\.towerSeed = seed/);
+  assert.match(tower, /originShipSnapshot\.towerSeed = seed/);
+  assert.match(towerPhp, /define\('BCM_TOWER_VERSION', '0\.2\.65'\)/);
+  assert.match(tower, /const TOWER_VERSION = "0\.2\.65"/);
 });

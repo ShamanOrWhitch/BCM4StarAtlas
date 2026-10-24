@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.64";
+  const TOWER_VERSION = "0.2.65";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -1646,6 +1646,15 @@
     function buildTower(nextSeed) {
       seed = nextSeed >>> 0;
       tower = generateTower(seed);
+      // Keep the exact geometry seed in the session so a future city exit can
+      // rebuild this same tower rather than silently creating a new route.
+      if (window.BCMWorldMission) {
+        window.BCMWorldMission.towerSeed = seed;
+        if (window.BCMWorldMission.originShipSnapshot &&
+            window.BCMWorldMission.originShipSnapshot.sessionSeed === window.BCMWorldMission.sessionSeed) {
+          window.BCMWorldMission.originShipSnapshot.towerSeed = seed;
+        }
+      }
       replaceTowerRoot();
 
       const wallUrl = pick(assetPool("towerWallJpgPool"), mulberry32(seed ^ 0x7891));

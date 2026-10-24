@@ -352,6 +352,16 @@
       publishAsteroidChart(maze);
     });
 
+    window.BCMDeepSpaceWarpGetReturnSnapshot = () => ({
+      mode: state.mode,
+      currentSectorId: state.nav?.current?.id ?? null,
+      targetSectorId: state.target?.id ?? null,
+      sectorProgressed: !!state.sectorProgressed,
+      launchSectorProgressed: !!state.launchSectorProgressed,
+      ringCompleted: !!state.maze?.ringCompleted,
+      hydrogenCollected: !!window.BCMWorldMission?.hydrogenCollected
+    });
+
     // Small public bridge for the later NFT/Galaxy selection integration.
     // It only changes decorative rendering; route, collision, speed and controls stay untouched.
     window.BCMDeepSpaceWarpSetDriveSlot = (slotSize) => {
@@ -362,6 +372,7 @@
       return state.warpVisualClass;
     };
     window.BCMDeepSpaceWarpGetVisualClass = () => state.warpVisualClass;
+    window.BCMDeepSpaceWarpGetSpeedMode = () => api()?.getSpeedMode?.() ?? null;
     window.BCMDeepSpaceWarpGetPreviewClass = () => Number(state.warpPreviewClass) || null;
 
     const hullEnterButton = document.createElement("button");
@@ -1129,11 +1140,16 @@
       const marks = (maze.crystals || []).filter((crystal) => crystal.scouted || crystal.taken).map((crystal) => ({
         x: crystal.cell.x, y: crystal.cell.y, z: crystal.cell.z, taken: !!crystal.taken
       }));
+      const anomalies = (maze.cells || []).filter((cell) => cell.y !== 1).map((cell) => ({
+        x: cell.x, y: cell.y, z: cell.z,
+        mode: ["drift", "flux", "dense"][hashSeed(String(maze.seed) + "|astral|" + cell.x + "|" + cell.y + "|" + cell.z) % 3]
+      }));
       const hydrogen = maze.hydrogen || null;
       window.BCMAsteroidChart = {
         seed: maze.seed,
         dimensions: maze.dimensions,
         marks,
+        anomalies,
         hydrogen: hydrogen ? {
           x: hydrogen.cell.x, y: hydrogen.cell.y, z: hydrogen.cell.z,
           unlocked: !!hydrogen.unlocked,
@@ -1265,8 +1281,10 @@
       // shuffle means the entire asteroid run can display the whole texture family.
       const fallbackTexture = makeMazeTexture(THREE);
       const availableWallAssets = asteroidWallAssetPool();
+      // Asset ordering is decorative too: do not consume the topology/crystal RNG.
+      const wallAssetOrderRng = randomFrom(hashSeed(String(seed) + "|wall-assets"));
       for (let i = availableWallAssets.length - 1; i > 0; i -= 1) {
-        const j = Math.floor(rng() * (i + 1));
+        const j = Math.floor(wallAssetOrderRng() * (i + 1));
         [availableWallAssets[i], availableWallAssets[j]] = [availableWallAssets[j], availableWallAssets[i]];
       }
       const chosenWallAssets = availableWallAssets;
@@ -2335,12 +2353,16 @@
         const nodes = new Map();
         (maze.cells || []).forEach((cell) => {
           const large = !!(maze.exitCell && cell.x === maze.exitCell.x && cell.y === maze.exitCell.y && cell.z === maze.exitCell.z);
+          const astral = cell.y !== 1;
+          const astralHash = hashSeed(String(maze.seed) + "|astral|" + cell.x + "|" + cell.y + "|" + cell.z);
           nodes.set(keyOf(cell.x, cell.y, cell.z), {
             x: cell.x, y: cell.y, z: cell.z,
             open: cell.open || {},
             wallTurn: cell.wallTurn || 0,
             wallAsset: cell.wallAsset || 0,
-            astral: cell.y !== 1,
+            astral,
+            astralMode: astral ? ["drift", "flux", "dense"][astralHash % 3] : "normal",
+            astralPhase: ((hashSeed(String(maze.seed) + "|phase|" + cell.x + "|" + cell.y + "|" + cell.z) / 0xffffffff) * Math.PI * 2),
             large,
             mobs: []
           });
@@ -2476,8 +2498,14 @@
           path.floorMaterial.needsUpdate = true;
           path.wallMaterial.needsUpdate = true;
         }
-        path.floorMaterial.color.setHex(node.astral ? 0xc9b6ff : 0xffffff);
-        path.wallMaterial.color.setHex(node.astral ? 0x8d78c9 : 0xd5e4ea);
+        const astralPalette = {
+          drift: { floor: 0xc9b6ff, wall: 0x8d78c9 },
+          flux: { floor: 0x9ce9ff, wall: 0x438fa9 },
+          dense: { floor: 0xf0c8ff, wall: 0x9666ac }
+        };
+        const tint = astralPalette[node.astralMode] || { floor: 0xffffff, wall: 0xd5e4ea };
+        path.floorMaterial.color.setHex(node.astral ? tint.floor : 0xffffff);
+        path.wallMaterial.color.setHex(node.astral ? tint.wall : 0xd5e4ea);
         path.doorRight.visible = !node.large && !!path.neighbor(node, path.heading);
         path.doorLeft.visible = !node.large && !!path.neighbor(node, path.opposite[path.heading]);
         path.hatch.visible = !node.large && !!(path.neighbor(node, "yp") || path.neighbor(node, "yn"));
@@ -2666,8 +2694,13 @@
         const p2 = players[1];
         if (p1) {
           const zone = p1.worldX < -2 ? 1 : p1.worldX < 36 ? 2 : 3;
+          const astralNode = worldState.cellPath && worldState.cellPath.current;
+          const anomalyLabel = astralNode?.astral
+            ? ({ drift: "ASTRAL · DRIFT", flux: "ASTRAL · GRAVITY FLUX", dense: "ASTRAL · DENSE GRAVITY" }[astralNode.astralMode] || "ASTRAL")
+            : "";
           floorEl.textContent = "ЗОНА " + zone + "/3 · P1 HP " + p1.hp +
-            (p2 ? " · P2 HP " + p2.hp : "") + (splitActive ? " · SPLIT" : " · SHARED");
+            (p2 ? " · P2 HP " + p2.hp : "") + (splitActive ? " · SPLIT" : " · SHARED") +
+            (anomalyLabel ? " · " + anomalyLabel : "");
         } else {
           floorEl.textContent = "RING FRONTIER · 3 ЗОНЫ";
         }
@@ -3160,14 +3193,30 @@
           });
 
           const previousY = player.worldY;
+          const astralNode = worldState.cellPath && worldState.cellPath.current;
+          const astral = !!(astralNode && astralNode.astral && !worldState.inLargeCell);
+          const astralMode = astral ? astralNode.astralMode : "normal";
+          let gravity = 21;
+          let jumpVelocity = 8.8;
+          if (astralMode === "drift") {
+            gravity = 6.0;
+            jumpVelocity = 7.8;
+          } else if (astralMode === "flux") {
+            // A bounded pulse changes the feel of the jump without ever reversing
+            // gravity or trapping a player away from the route floor.
+            gravity = 8.0 + Math.sin(now * 0.0018 + (astralNode.astralPhase || 0)) * 1.8;
+            jumpVelocity = 8.8;
+          } else if (astralMode === "dense") {
+            gravity = 14.5;
+            jumpVelocity = 10.2;
+          }
           if (input.jump && !player.wasJumpDown && player.grounded) {
-            player.vy = 8.8;
+            player.vy = jumpVelocity;
             player.grounded = false;
             player.supportPlatform = null;
           }
           player.wasJumpDown = input.jump;
-          const astral = !!(worldState.cellPath && worldState.cellPath.current && worldState.cellPath.current.astral && !worldState.inLargeCell);
-          player.vy -= (astral ? 9 : 21) * dt;
+          player.vy -= gravity * dt;
           player.worldY += player.vy * dt;
 
           if (player.vy <= 0) {
@@ -3360,8 +3409,21 @@
               const px = pad + x * cellW;
               const py = 8 + z * cellH;
               const linked = node.open.xp || node.open.xn || node.open.zp || node.open.zn || node.open.yp || node.open.yn;
-              g.fillStyle = node.large ? "#4a3b14" : node.astral ? "#2a1844" : (linked ? "#143246" : "#0c1a24");
+              const anomalyFill = {
+                drift: "#2a2047",
+                flux: "#123d4a",
+                dense: "#362247"
+              }[node.astralMode] || "#2a1844";
+              g.fillStyle = node.large ? "#4a3b14" : node.astral ? anomalyFill : (linked ? "#143246" : "#0c1a24");
               g.fillRect(px + 1, py + 1, Math.max(1, cellW - 2), Math.max(1, cellH - 2));
+              if (node.astral) {
+                const glyph = ({ drift: "≈", flux: "↕", dense: "◆" }[node.astralMode]) || "·";
+                g.fillStyle = "#dfe5ff";
+                g.font = "bold 9px system-ui";
+                g.textAlign = "center";
+                g.textBaseline = "middle";
+                g.fillText(glyph, px + cellW * 0.5, py + cellH * 0.5);
+              }
               if (node === path.current) {
                 g.strokeStyle = "#f4fbff";
                 g.strokeRect(px + 0.5, py + 0.5, Math.max(1, cellW - 1), Math.max(1, cellH - 1));

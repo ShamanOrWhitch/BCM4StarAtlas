@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.4",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.5",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.4",
+      title: "SPACE LABYRINTH — 0.11.5",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -990,6 +990,18 @@
       visited: required.filter((id) => worldMission.screenVisited[id]).length,
       total: required.length
     };
+    const missionLabel = root.querySelector(".bcm-mini-sim-mission");
+    if (missionLabel && !worldMission.hydrogenCollected) {
+      if (worldMission.hydrogenUnlocked) {
+        missionLabel.textContent = interfaceLanguage === "en"
+          ? "MISSION: FIND HYDROGEN IN THE FIRST RING CELL"
+          : "МИССИЯ: НАЙТИ HYDROGEN В ПЕРВОЙ ЯЧЕЙКЕ RING";
+      } else {
+        missionLabel.textContent = interfaceLanguage === "en"
+          ? "SCREENS ONLINE: " + worldMission.screenProgress.visited + "/" + worldMission.screenProgress.total + " · ACTIVATE ALL"
+          : "ЭКРАНЫ АКТИВНЫ: " + worldMission.screenProgress.visited + "/" + worldMission.screenProgress.total + " · АКТИВИРУЙ ВСЕ";
+      }
+    }
     if (!required.length || worldMission.hydrogenUnlocked ||
         !required.every((id) => worldMission.screenVisited[id])) return;
     worldMission.hydrogenUnlocked = true;
@@ -1018,6 +1030,10 @@
   window.addEventListener("bcm:mission:hydrogen-collected", () => {
     if (worldMission.hydrogenCollected) return;
     worldMission.hydrogenCollected = true;
+    const missionLabel = root.querySelector(".bcm-mini-sim-mission");
+    if (missionLabel) missionLabel.textContent = interfaceLanguage === "en"
+      ? "MISSION COMPLETE: HYDROGEN RECOVERED"
+      : "МИССИЯ ВЫПОЛНЕНА: HYDROGEN СОБРАН";
     showOperatorDialog("", interfaceLanguage === "en"
       ? "Hydrogen recovered. Good work. Keep the asteroid chart: its cells share the same seed and passages."
       : "Hydrogen получен. Отличная работа. Сохрани карту астероида: её ячейки связаны одним seed и общими проходами.");
@@ -3292,6 +3308,39 @@
     return gate.mesh.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position);
   }
 
+  function captureArrivalShipSnapshot() {
+    const mission = window.BCMWorldMission;
+    if (!mission || !ship || !ship.position || !ship.quaternion) return null;
+    const vec3 = (v) => v ? {
+      x: Number(v.x) || 0, y: Number(v.y) || 0, z: Number(v.z) || 0
+    } : null;
+    const quat = (q) => q ? {
+      x: Number(q.x) || 0, y: Number(q.y) || 0,
+      z: Number(q.z) || 0, w: Number.isFinite(Number(q.w)) ? Number(q.w) : 1
+    } : null;
+    const snapshot = {
+      sessionSeed: mission.sessionSeed,
+      capturedAt: Date.now(),
+      ship: {
+        position: vec3(ship.position),
+        quaternion: quat(ship.quaternion),
+        velocity: vec3(ship.velocity),
+        angularVelocity: vec3(ship.angularVelocity)
+      },
+      navigation: typeof window.BCMDeepSpaceWarpGetReturnSnapshot === "function"
+        ? window.BCMDeepSpaceWarpGetReturnSnapshot()
+        : null,
+      speedMode: Number(window.BCMDeepSpaceWarpGetSpeedMode?.()) || null,
+      towerSeed: Number.isFinite(Number(mission.towerSeed)) ? Number(mission.towerSeed) >>> 0 : null
+    };
+    mission.originShipSnapshot = snapshot;
+    mission.returnShipAvailable = true;
+    window.dispatchEvent(new CustomEvent("bcm:tower:arrival-ship-saved", {
+      detail: { sessionSeed: mission.sessionSeed, capturedAt: snapshot.capturedAt }
+    }));
+    return snapshot;
+  }
+
   let towerGateTriggered = false;
 
   function resetPendingTowerHandoff(message) {
@@ -3331,6 +3380,8 @@
         // trigger or when the async Tower script/video merely starts loading.
         transitionLoading = false;
         transitionBusy = true;
+        // Store the actual arrival pose before freezing it for Tower's handoff.
+        captureArrivalShipSnapshot();
         ship.velocity.set(0, 0, 0);
         ship.angularVelocity.set(0, 0, 0);
         pauseAllCinemaVideos();
@@ -3995,7 +4046,9 @@
     if (!cinema.zones.length) {
       if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume;
       cinema.nearest = null;
-      cinema.focus = null;
+      // Interior panels and the live wall can remain focused without any
+      // external space-video zone. updateCinemaFocus validates them later
+      // in this frame, after their own visibility/active state has refreshed.
       return;
     }
 
@@ -4027,7 +4080,16 @@
     });
 
     candidates.sort((a, b) => a.distance - b.distance);
-    const nearest = candidates.length ? candidates[0] : null;
+    const focusedZone = cinema.focus && cinema.zones.includes(cinema.focus) &&
+      cinema.focus.mesh && cinema.focus.distance <= cinema.focus.radius
+      ? cinema.focus
+      : null;
+    const focusedPanel = cinema.focus && !cinema.zones.includes(cinema.focus) &&
+      cinema.focus.mesh && cinema.focus.active &&
+      Number(cinema.focus.distance) <= Number(cinema.focus.radius);
+    // F/X explicitly selects a screen: keep it the playback owner until it
+    // leaves its own radius. A nearby different video must not steal focus.
+    const nearest = focusedZone || (focusedPanel ? null : (candidates.length ? candidates[0] : null));
     cinema.nearest = nearest;
 
     // Only the nearest visible zone is allowed to decode/play.
@@ -4076,7 +4138,8 @@
 
     if (!nearest) {
       if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume;
-      if (cinema.focus) cinema.focus = null;
+      // A focused interior panel/live wall is managed by its own video loop.
+      // Do not drop that focus simply because no exterior zone is nearest.
       return;
     }
 
@@ -4210,13 +4273,17 @@
   }
 
   function updateCinemaFocus() {
-    if (!cinema.focus || !cinema.focus.mesh || !cinema.focus.active) return;
-    if (cinema.focus.distance > cinema.focus.radius) {
+    if (!cinema.focus) return;
+    const focused = cinema.focus;
+    if (!focused.mesh || !focused.active ||
+        !Number.isFinite(Number(focused.distance)) ||
+        Number(focused.distance) > Number(focused.radius)) {
       cinema.focus = null;
+      setStatus("CINEMA FOCUS OFF");
       return;
     }
 
-    const target = cinema.focus.mesh.getWorldPosition(new THREE.Vector3());
+    const target = focused.mesh.getWorldPosition(new THREE.Vector3());
     const matrix = new THREE.Matrix4().lookAt(
       ship.position,
       target,
