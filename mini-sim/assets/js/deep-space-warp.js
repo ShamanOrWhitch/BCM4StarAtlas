@@ -3381,12 +3381,21 @@
 
         for (const view of views) {
           const target = view.target || cameraTargetFor(view.player);
-          if (worldState.cellPath && view.player?.ringCurrent) applyRingCellLook(worldState, view.player.ringCurrent, view.player.ringHeading);
+          const previousSpriteVisibility = players.map((player) => player.sprite ? player.sprite.visible : null);
+          if (worldState.cellPath && view.player?.ringCurrent) {
+            applyRingCellLook(worldState, view.player.ringCurrent, view.player.ringHeading);
+            players.forEach((player) => {
+              if (player.sprite && player.ringCurrent !== view.player.ringCurrent) player.sprite.visible = false;
+            });
+          }
           configureCamera(view.camera, view, target);
           renderer.setViewport(view.x, view.y, view.w, view.h);
           renderer.setScissor(view.x, view.y, view.w, view.h);
           renderer.clear(true, true, true);
           renderer.render(activeScene, view.camera);
+          players.forEach((player, index) => {
+            if (player.sprite && previousSpriteVisibility[index] !== null) player.sprite.visible = previousSpriteVisibility[index];
+          });
         }
         renderer.setScissorTest(false);
         renderer.setViewport(0, 0, viewW, viewH);
