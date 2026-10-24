@@ -1,0 +1,51 @@
+name: Package Mini-Sim test build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mini-sim/**'
+      - '.github/workflows/minisim-test-package.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: Read plugin versions and verify package contents
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n 's/^[[:space:]]*Version: \([0-9.]*\)$/\1/p' mini-sim/bcm-mini-sim.php | head -n 1)"
+          TOWER_VERSION="$(sed -n "s/.*define('BCM_TOWER_VERSION', '\([0-9.]*\)').*/\1/p" mini-sim/tower/bcm-tower.php | head -n 1)"
+          test -n "$VERSION"
+          test -n "$TOWER_VERSION"
+          test -s mini-sim/assets/js/mini-sim.js
+          test -s mini-sim/tower/assets/js/tower.js
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tower_version=$TOWER_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building Mini-Sim $VERSION with Tower $TOWER_VERSION"
+
+      - name: Build installable plugin ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          zip -qr "dist/bcm-mini-sim-${{ steps.version.outputs.version }}-test.zip" mini-sim
+          unzip -t "dist/bcm-mini-sim-${{ steps.version.outputs.version }}-test.zip"
+          unzip -l "dist/bcm-mini-sim-${{ steps.version.outputs.version }}-test.zip" | grep -F 'mini-sim/bcm-mini-sim.php'
+
+      - name: Publish downloadable test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bcm-mini-sim-${{ steps.version.outputs.version }}-test
+          path: dist/bcm-mini-sim-${{ steps.version.outputs.version }}-test.zip
+          if-no-files-found: error
+          retention-days: 14
