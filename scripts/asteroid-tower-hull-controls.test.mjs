@@ -220,6 +220,9 @@ test("Astral Y-cells are seed-deterministic and alter movement without rebuildin
   assert.match(warp, /ringCurrent: worldState\.cellPath \? worldState\.cellPath\.current : null/);
   assert.match(warp, /player\.ringTurnQueued = true/);
   assert.match(warp, /const haveSeparateCells = !!\(p1\.ringCurrent && p2\.ringCurrent && p1\.ringCurrent !== p2\.ringCurrent\)/);
+  assert.match(warp, /function nextDirectionTowardLarge\(startNode\)/);
+  assert.match(warp, /routeDirection = path\.nextDirectionTowardLarge\(node\)/);
+  assert.match(warp, /if \(!nextNode\) \{[\s\S]*?path\.nextDirectionTowardLarge\(node\)/);
   assert.match(warp, /placeParty\(enterRingCell\(worldState, right, "left", player\), player\)/);
   assert.doesNotMatch(warp, /placeParty\(enterRingCell\(worldState, right, "left"\)\);/);
   assert.ok(warp.includes('astralPhase: ((hashSeed(String(maze.seed) + "|phase|" + cell.x + "|" + cell.y + "|" + cell.z) / 0xffffffff) * Math.PI * 2)'));

@@ -47,6 +47,15 @@ test("Ring cell maze exposes a route to the large boss arena", () => {
   assert.match(warp, /group\.name = "ring-boss-" \+ \(index \+ 1\)/);
 });
 
+test("Ring cell maze exposes a route to the large boss arena and fallback transitions", () => {
+  assert.match(warp, /function nextDirectionTowardLarge\(startNode\)/);
+  assert.match(warp, /const firstStep = new Map\(\[\[startNode, null\]\]\)/);
+  assert.match(warp, /path\.nextDirectionTowardLarge\(node\)/);
+  assert.match(warp, /if \(!nextNode\) \{[\s\S]*?path\.nextDirectionTowardLarge\(node\)/);
+  assert.match(warp, /world\.group\.visible = !!node\.large/);
+  assert.match(warp, /group\.name = "ring-boss-" \+ \(index \+ 1\)/);
+});
+
 test("Ring disposes generated backdrop textures when leaving the location", () => {
   const cleanup = section(warp, "state.ringPlatformerCleanup = () =>", "state.ringLastUpdate = 0");
   assert.match(cleanup, /worldState\.textures\.forEach\(\(texture\) => \{ try \{ texture\.dispose\(\); \} catch \(e\) \{\} \}\)/);

@@ -2390,6 +2390,25 @@
           const delta = step[dir];
           return nodes.get(keyOf(node.x + delta[0], node.y + delta[1], node.z + delta[2])) || null;
         }
+        // The carved map is connected. BFS gives every room a known route to the
+        // large pig arena, so a player can escape dead ends without a random guess.
+        function nextDirectionTowardLarge(startNode) {
+          if (!startNode || startNode.large) return null;
+          const dirs = ["xp", "xn", "zp", "zn", "yp", "yn"];
+          const firstStep = new Map([[startNode, null]]);
+          const queue = [startNode];
+          for (let cursor = 0; cursor < queue.length; cursor += 1) {
+            const here = queue[cursor];
+            for (const dir of dirs) {
+              const next = neighbor(here, dir);
+              if (!next || firstStep.has(next)) continue;
+              firstStep.set(next, here === startNode ? dir : firstStep.get(here));
+              if (next.large) return firstStep.get(next);
+              queue.push(next);
+            }
+          }
+          return null;
+        }
         const textures = (maze.textures || []).map((tex, index) => {
           const copy = tex.clone();
           copy.image = tex.image;
@@ -2487,7 +2506,7 @@
           scouted: false
         };
         world.cellPath = {
-          nodes, neighbor, opposite, keyOf,
+          nodes, neighbor, opposite, keyOf, nextDirectionTowardLarge,
           nx: maze.dimensions?.nx || 7,
           ny: maze.dimensions?.ny || 3,
           nz: maze.dimensions?.nz || 7,
@@ -2529,8 +2548,9 @@
         const tint = astralPalette[node.astralMode] || { floor: 0xffffff, wall: 0xd5e4ea };
         path.floorMaterial.color.setHex(node.astral ? tint.floor : 0xffffff);
         path.wallMaterial.color.setHex(node.astral ? tint.wall : 0xd5e4ea);
-        path.doorRight.visible = !node.large && !!path.neighbor(node, heading);
-        path.doorLeft.visible = !node.large && !!path.neighbor(node, path.opposite[heading]);
+        const arenaRoute = path.nextDirectionTowardLarge(node);
+        path.doorRight.visible = !node.large && !!(path.neighbor(node, heading) || arenaRoute);
+        path.doorLeft.visible = !node.large && !!(path.neighbor(node, path.opposite[heading]) || arenaRoute);
         path.hatch.visible = !node.large && !!(path.neighbor(node, "yp") || path.neighbor(node, "yn"));
         if (path.hydrogenMesh) {
           const mission = window.BCMWorldMission || {};
@@ -3203,28 +3223,63 @@
             player.worldX = Math.max(-49, Math.min(worldState.exitX + 1.5, player.worldX));
           } else if (path && playerNode) {
             const node = playerNode, heading = player.ringHeading || path.heading;
-            const right = path.neighbor(node, heading), left = path.neighbor(node, path.opposite[heading]);
-            if (player.worldX > path.homeX + path.half - 0.4 && right) {
-              placeParty(enterRingCell(worldState, right, "left", player), player);
-              continue;
+            if (player.worldX > path.homeX + path.half - 0.4) {
+              let nextDirection = heading;
+              let nextNode = path.neighbor(node, nextDirection);
+              if (!nextNode) {
+                nextDirection = path.nextDirectionTowardLarge(node) ||
+                  ["xp", "xn", "zp", "zn", "yp", "yn"].find((dir) => path.neighbor(node, dir));
+                nextNode = nextDirection ? path.neighbor(node, nextDirection) : null;
+              }
+              if (nextNode) {
+                if (nextDirection !== "yp" && nextDirection !== "yn") {
+                  player.ringHeading = nextDirection;
+                  if (player.index === 0) path.heading = nextDirection;
+                }
+                placeParty(enterRingCell(worldState, nextNode,
+                  nextDirection === "yp" || nextDirection === "yn" ? null : "left", player), player);
+                continue;
+              }
             }
-            if (player.worldX < path.homeX - path.half + 0.4 && left) {
-              placeParty(enterRingCell(worldState, left, "right", player), player);
-              continue;
+            if (player.worldX < path.homeX - path.half + 0.4) {
+              let nextDirection = path.opposite[heading];
+              let nextNode = path.neighbor(node, nextDirection);
+              if (!nextNode) {
+                nextDirection = path.nextDirectionTowardLarge(node) ||
+                  ["xp", "xn", "zp", "zn", "yp", "yn"].find((dir) => path.neighbor(node, dir));
+                nextNode = nextDirection ? path.neighbor(node, nextDirection) : null;
+              }
+              if (nextNode) {
+                if (nextDirection !== "yp" && nextDirection !== "yn") {
+                  player.ringHeading = nextDirection;
+                  if (player.index === 0) path.heading = nextDirection;
+                }
+                placeParty(enterRingCell(worldState, nextNode,
+                  nextDirection === "yp" || nextDirection === "yn" ? null : "right", player), player);
+                continue;
+              }
             }
             player.worldX = Math.max(path.homeX - path.half + 0.35, Math.min(path.homeX + path.half - 0.35, player.worldX));
             if (player.ringTurnQueued) {
               player.ringTurnQueued = false;
-              const up = Math.abs(player.worldX - path.homeX) < 1.35 && (path.neighbor(node, "yp") || path.neighbor(node, "yn"));
-              const turn = ["zp", "zn", "xp", "xn"].find((dir) => dir !== heading && dir !== path.opposite[heading] && path.neighbor(node, dir));
-              if (up) {
-                placeParty(enterRingCell(worldState, up, null, player), player);
-                continue;
-              }
-              if (turn) {
-                player.ringHeading = turn;
-                if (player.index === 0) path.heading = turn;
-                applyRingCellLook(worldState, node, player.ringHeading);
+              const routeDirection = path.nextDirectionTowardLarge(node);
+              const turn = routeDirection || ["zp", "zn", "xp", "xn", "yp", "yn"].find((dir) => path.neighbor(node, dir));
+              if (turn === "yp" || turn === "yn") {
+                const next = path.neighbor(node, turn);
+                if (next) {
+                  player.worldX = path.homeX;
+                  placeParty(enterRingCell(worldState, next, null, player), player);
+                  continue;
+                }
+              } else if (turn) {
+                const activeHeading = player.ringHeading || path.heading;
+                if (turn === activeHeading) player.worldX = path.homeX + path.half - 0.48;
+                else if (turn === path.opposite[activeHeading]) player.worldX = path.homeX - path.half + 0.48;
+                else {
+                  player.ringHeading = turn;
+                  if (player.index === 0) path.heading = turn;
+                  applyRingCellLook(worldState, node, player.ringHeading);
+                }
               }
             }
           } else player.worldX = Math.max(-49, Math.min(worldState.exitX + 1.5, player.worldX));
