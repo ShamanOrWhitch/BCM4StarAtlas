@@ -18,17 +18,18 @@ test("Warp Drive slot sizes map the intense rail look to XX-Small", () => {
   assert.equal(mapper("X-Small"), 1);
   assert.equal(mapper("Small"), 1);
   assert.equal(mapper("MEDIUM"), 3);
-  assert.equal(mapper("Large"), 4);
-  assert.equal(mapper("Class 8"), 4);
+  assert.equal(mapper("Large"), 3);
+  assert.equal(mapper("Class 8"), 3);
   assert.equal(mapper("unknown"), 1);
   assert.match(warp, /config\.warpDriveSlotSize \|\| root\.dataset\.warpDriveSlotSize \|\| "x-small"/);
 });
 
-test("Tube view exposes a compact, live selector for all four visual classes", () => {
-  for (const tier of [1, 2, 3, 4]) assert.ok(warp.includes('data-warp-tier="' + tier + '"'));
+test("Tube view exposes three selectable visual classes; Class IV remains disabled", () => {
+  for (const tier of [1, 2, 3]) assert.ok(warp.includes('data-warp-tier="' + tier + '"'));
+  assert.match(warp, /data-warp-tier="4"[^>]*disabled/);
   assert.match(warp, /window\.BCMDeepSpaceWarpPreviewClass = setWarpVisualPreviewClass/);
   assert.match(warp, /function activeWarpVisualClass\(\)[\s\S]*?Number\(state\.warpPreviewClass\) \|\| Number\(state\.warpVisualClass\)/);
-  assert.match(warp, /function setWarpVisualPreviewClass\(value\)[\s\S]*?\[1, 2, 3, 4\]\.includes\(selected\)/);
+  assert.match(warp, /function setWarpVisualPreviewClass\(value\)[\s\S]*?\[1, 2, 3\]\.includes\(selected\)/);
   assert.match(warp, /state\.warpPreviewClass = null;\s*updateWarpTierPreviewButtons\(\);\s*tubeResult\.hidden/);
 });
 
@@ -38,20 +39,23 @@ test("Visual Classes II–IV have distinct decorative effects only", () => {
   assert.ok(start >= 0 && end > start, "Tube drawing function should exist");
   const draw = warp.slice(start, end);
 
-  assert.match(draw, /if \(visualClass === 2\)[\s\S]*?const railCount = 4/);
-  assert.match(draw, /Class III adds several shifting energy arcs[\s\S]*?if \(visualClass === 3\)/);
+  assert.match(draw, /if \(visualClass === 2\)[\s\S]*?const railCount = 3/);
+  assert.match(draw, /Class III has a darker purple shell[\s\S]*?if \(visualClass === 3\)/);
   assert.match(draw, /Class IV adds heavier twin stargate hoops[\s\S]*?if \(visualClass === 4\)/);
+  assert.match(draw, /Broken radial bars instead of a circular hoop/);
+  assert.doesNotMatch(draw, /const chevron = point\(/);
+  assert.doesNotMatch(draw, /const gateMark = point\(/);
   assert.match(draw, /const routeProgress = warpObstacleProgress\(state\.elapsed\)/);
   assert.doesNotMatch(draw, /new THREE\.WebGLRenderer/);
   assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
   assert.match(warp, /window\.BCMDeepSpaceWarpSetDriveSlot = \(slotSize\) =>/);
 });
 
-test("Mini-Sim 0.11.6 cache/version contracts are synchronized", () => {
-  assert.match(plugin, /Version: 0\.11\.6/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.6'\)/);
-  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.6/);
-  assert.match(qa, /Version: 0\.11\.6/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.6'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.6/);
+test("Mini-Sim 0.11.7 cache/version contracts are synchronized", () => {
+  assert.match(plugin, /Version: 0\.11\.7/);
+  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.7'\)/);
+  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.7/);
+  assert.match(qa, /Version: 0\.11\.7/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.7'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.7/);
 });

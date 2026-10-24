@@ -39,6 +39,14 @@ test("Large bosses and platforms have strong comic-style silhouettes", () => {
   assert.match(warp, /viewport\.h > viewport\.w \? 7\.1 : 5\.4/);
 });
 
+test("Ring cell maze exposes a route to the large boss arena", () => {
+  assert.match(warp, /function nextDirectionTowardLarge\(startNode\)/);
+  assert.match(warp, /const firstStep = new Map\(\[\[startNode, null\]\]\)/);
+  assert.match(warp, /path\.nextDirectionTowardLarge\(node\)/);
+  assert.match(warp, /world\.group\.visible = !!node\.large/);
+  assert.match(warp, /group\.name = "ring-boss-" \+ \(index \+ 1\)/);
+});
+
 test("Ring disposes generated backdrop textures when leaving the location", () => {
   const cleanup = section(warp, "state.ringPlatformerCleanup = () =>", "state.ringLastUpdate = 0");
   assert.match(cleanup, /worldState\.textures\.forEach\(\(texture\) => \{ try \{ texture\.dispose\(\); \} catch \(e\) \{\} \}\)/);
@@ -46,6 +54,6 @@ test("Ring disposes generated backdrop textures when leaving the location", () =
 });
 
 test("Mini-Sim cache version is bumped for the Ring art update", () => {
-  assert.match(plugin, /Version: 0\.11\.6/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.6'\)/);
+  assert.match(plugin, /Version: 0\.11\.7/);
+  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.7'\)/);
 });

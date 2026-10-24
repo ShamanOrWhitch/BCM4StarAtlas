@@ -264,7 +264,7 @@
       if (/^(xx-small|xxs)$/.test(size)) return 2;
       if (/^(x-small|xs|extra-small|small|s)$/.test(size)) return 1;
       if (/^(medium|m)$/.test(size)) return 3;
-      if (/^(large|x-large|xx-large|capital|class-8|xl|xxl)$/.test(size)) return 4;
+      if (/^(large|x-large|xx-large|capital|class-8|xl|xxl)$/.test(size)) return 3;
       return 1;
     }
 
@@ -478,7 +478,7 @@
           '<button type="button" data-warp-tier="1" aria-pressed="false" title="Class I — стандарт" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">I</button>' +
           '<button type="button" data-warp-tier="2" aria-pressed="false" title="Class II — спиральные рельсы" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">II</button>' +
           '<button type="button" data-warp-tier="3" aria-pressed="false" title="Class III — энергетические дуги" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">III</button>' +
-          '<button type="button" data-warp-tier="4" aria-pressed="false" title="Class IV — тяжёлые врата" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">IV</button>' +
+          '<button type="button" data-warp-tier="4" aria-pressed="false" aria-disabled="true" disabled title="Class IV выключен" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #3a444a;border-radius:6px;background:rgba(19,25,30,.82);color:#64737b;opacity:.58;cursor:not-allowed">IV ×</button>' +
         '</div>' +
         '<div class="bcm-warp-touch-controls"><button type="button" data-warp-control="left" aria-label="Рулить влево">◀</button><button type="button" data-warp-control="tilt" aria-label="Включить или откалибровать управление наклоном">↻ TILT</button><button type="button" data-warp-control="right" aria-label="Рулить вправо">▶</button></div>' +
         '<div class="bcm-warp-result" data-tube-result hidden><h2 data-tube-result-title></h2><p data-tube-result-text></p><div class="bcm-warp-actions"><button type="button" data-tube-continue hidden>ПРОДОЛЖИТЬ</button><button type="button" data-tube-retry>ПОВТОРИТЬ WARP</button><button type="button" data-tube-abort class="bcm-warp-secondary">ОТМЕНА</button></div></div>' +
@@ -513,7 +513,8 @@
     const warpTierButtons = [...overlay.querySelectorAll("[data-warp-tier]")];
 
     function activeWarpVisualClass() {
-      return Number(state.warpPreviewClass) || Number(state.warpVisualClass) || 1;
+      const selected = Number(state.warpPreviewClass) || Number(state.warpVisualClass) || 1;
+      return [1, 2, 3].includes(selected) ? selected : 1;
     }
 
     function updateWarpTierPreviewButtons() {
@@ -529,7 +530,7 @@
 
     function setWarpVisualPreviewClass(value) {
       const selected = Math.trunc(Number(value));
-      if (![1, 2, 3, 4].includes(selected)) return activeWarpVisualClass();
+      if (![1, 2, 3].includes(selected)) return activeWarpVisualClass();
       state.warpPreviewClass = selected;
       updateWarpTierPreviewButtons();
       return selected;
@@ -3891,6 +3892,7 @@
     function drawTubeTunnel(g, w, h, now) {
       const t = state.tubeTravel;
       const shimmerTime = Number(state.tubeShimmerTime || 0);
+      const visualClass = activeWarpVisualClass();
       // 45% of the former roll rate: midway between the old over-rotation and the current almost-static tube.
       const axialRoll = Number(state.tubeRoll || 0) + Math.sin(t * 0.13) * 0.126;
       const mid = w * 0.5;
@@ -3965,7 +3967,7 @@ return axialRoll + ahead * 0.12 +
       // Build the inside wall from circumferential panels. Seams, panel
       // highlights, rings, and obstacles all rotate around the tunnel axis.
       const depthSteps = 23;
-      const panelCount = 18;
+      const panelCount = visualClass === 3 ? 12 : 18;
       for (let step = 0; step < depthSteps; step += 1) {
         const d0 = 0.04 + (step / depthSteps) * 0.96;
         const d1 = 0.04 + ((step + 1) / depthSteps) * 0.96;
@@ -3984,20 +3986,28 @@ return axialRoll + ahead * 0.12 +
           g.closePath();
           const shimmer = Math.sin(shimmerTime * 1.35 + panel * 1.72 + step * 0.77 + playerAngle) * 0.5 + 0.5;
           const light = ((step + Math.floor(shimmerTime * 8) + panel * 3) % 5 === 0) ? 1 : 0;
-          const red = Math.round(8 + shimmer * 8 + light * 2);
-          const green = Math.round(20 + shimmer * 18 + light * 12);
-          const blue = Math.round(31 + shimmer * 22 + light * 18);
+          const red = visualClass === 3
+            ? Math.round(17 + shimmer * 12 + light * 3)
+            : Math.round(8 + shimmer * 8 + light * 2);
+          const green = visualClass === 3
+            ? Math.round(12 + shimmer * 8 + light * 5)
+            : Math.round(20 + shimmer * 18 + light * 12);
+          const blue = visualClass === 3
+            ? Math.round(34 + shimmer * 28 + light * 12)
+            : Math.round(31 + shimmer * 22 + light * 18);
           g.fillStyle = "rgba(" + red + "," + green + "," + blue + ",0.98)";
           g.fill();
-          g.strokeStyle = "rgba(81,181,207," + (0.12 + shimmer * 0.18) + ")";
+          g.strokeStyle = visualClass === 3
+            ? "rgba(166,124,218," + (0.22 + shimmer * 0.16) + ")"
+            : "rgba(81,181,207," + (0.12 + shimmer * 0.18) + ")";
           g.lineWidth = 0.6 + d1 * 0.7;
           g.stroke();
         }
       }
 
       // Circumferential rings and seams make the enclosing cylinder legible.
-      for (let ring = 0; ring < 17; ring += 1) {
-        const d = 0.06 + (ring / 17) * 0.92;
+      for (let ring = 0; ring < 8; ring += 1) {
+        const d = 0.06 + (ring / 8) * 0.92;
         for (let part = 0; part < 48; part += 1) {
           const a0 = part * Math.PI * 2 / 48;
           const a1 = (part + 1) * Math.PI * 2 / 48;
@@ -4006,8 +4016,10 @@ return axialRoll + ahead * 0.12 +
           g.beginPath();
           g.moveTo(p0.x, p0.y);
           g.lineTo(p1.x, p1.y);
-          g.strokeStyle = ring % 3 === 0 ? "rgba(118,222,237,0.55)" : "rgba(88,154,178,0.20)";
-          g.lineWidth = ring % 3 === 0 ? 1 + d * 1.4 : 0.7;
+          g.strokeStyle = visualClass === 3
+            ? (ring % 2 === 0 ? "rgba(170,133,224,0.42)" : "rgba(92,161,194,0.18)")
+            : (ring % 3 === 0 ? "rgba(118,222,237,0.40)" : "rgba(88,154,178,0.14)");
+          g.lineWidth = ring % 3 === 0 ? 0.8 + d * 1.0 : 0.5;
           g.stroke();
         }
       }
@@ -4025,12 +4037,10 @@ return axialRoll + ahead * 0.12 +
         g.stroke();
       }
 
-      const visualClass = activeWarpVisualClass();
-
-      // Class II: flowing race-engine ion rails laid over the existing curved shell.
+      // Class II: subdued ion rails, reserved for the smallest drive-slot tier.
       // This is Canvas-only (no new renderer, textures, geometry, or collision surfaces).
       if (visualClass === 2) {
-        const railCount = 4;
+        const railCount = 3;
         const railSpin = state.tubeTravel * 0.012;
         const railTravel = ((state.tubeTravel * 0.0013) % 1 + 1) % 1;
         g.save();
@@ -4046,7 +4056,7 @@ return axialRoll + ahead * 0.12 +
             if (step === 0) g.moveTo(p.x, p.y);
             else g.lineTo(p.x, p.y);
           }
-          g.strokeStyle = rail % 2 === 0 ? "rgba(64,230,255,0.34)" : "rgba(255,181,104,0.28)";
+          g.strokeStyle = rail % 2 === 0 ? "rgba(64,210,232,0.15)" : "rgba(220,154,100,0.12)";
           g.lineWidth = 1.1 + maxRadius * 0.004;
           g.lineCap = "round";
           g.stroke();
@@ -4057,27 +4067,27 @@ return axialRoll + ahead * 0.12 +
           const pulse = point(pulseDepth, pulseAngle, -2.7);
           g.beginPath();
           g.arc(pulse.x, pulse.y, 1.2 + pulseDepth * 2.2, 0, Math.PI * 2);
-          g.fillStyle = rail % 2 === 0 ? "rgba(167,248,255,0.96)" : "rgba(255,225,172,0.94)";
+          g.fillStyle = rail % 2 === 0 ? "rgba(145,225,235,0.58)" : "rgba(230,198,157,0.52)";
           g.fill();
         }
         g.restore();
       }
 
-      // Class III adds several shifting energy arcs. They are visual-only and stay
-      // behind collision obstacles, so the displayed class cannot change difficulty.
+      // Class III has a darker purple shell and restrained energy ribs.
+      // Visual-only: it never changes collision or steering.
       if (visualClass === 3) {
         g.save();
-        g.globalCompositeOperation = "lighter";
+        g.globalCompositeOperation = "source-over";
         for (let hoop = 0; hoop < 4; hoop += 1) {
           const depth = 0.18 + hoop * 0.19;
           const phase = shimmerTime * 0.18 + t * 0.004 + hoop * 1.27;
           const span = Math.PI * (1.16 + (hoop % 2) * 0.18);
           const start = phase + hoop * 0.46;
           drawArc(depth, start, start + span, hoop % 2
-            ? "rgba(255,190,116,0.28)" : "rgba(84,232,255,0.32)",
-            Math.max(1.1, maxRadius * (0.0022 + depth * 0.0016)));
+            ? "rgba(186,133,225,0.42)" : "rgba(99,205,226,0.38)",
+            Math.max(1.4, maxRadius * (0.0030 + depth * 0.0018)));
           drawArc(depth, start + Math.PI, start + Math.PI + span * 0.38,
-            "rgba(192,252,255,0.42)", Math.max(0.9, maxRadius * 0.002));
+            "rgba(181,156,226,0.34)", Math.max(1.1, maxRadius * 0.0024));
         }
         g.restore();
       }
@@ -4117,16 +4127,22 @@ return axialRoll + ahead * 0.12 +
         const rx = radiusX(d);
         const strokeWidth = Math.max(3, rx * 0.052);
         if (layer.type === "gate") {
-          // All angles are blocked except the clearly marked opening used by
-          // the exact same angular collision rule in updateTube().
-          const pieces = 32;
+          // Broken radial bars instead of a circular hoop; the safe opening
+          // remains aligned with the exact same collision rule.
+          const pieces = 28;
           for (let i = 0; i < pieces; i += 1) {
-            const from = i * Math.PI * 2 / pieces;
-            const to = (i + 1) * Math.PI * 2 / pieces;
-            if (Math.abs(angleDifference((from + to) * 0.5, layer.safeAngle)) <= layer.gapHalf) continue;
-            drawArc(d, from, to, i % 4 === 0 ? "rgba(255,191,119,0.98)" : "rgba(117,204,222,0.92)", strokeWidth);
+            const angle = i * Math.PI * 2 / pieces;
+            if (Math.abs(angleDifference(angle, layer.safeAngle)) <= layer.gapHalf) continue;
+            const p0 = point(d, angle, -rx * 0.06);
+            const p1 = point(d, angle, -rx * 0.23);
+            g.beginPath();
+            g.moveTo(p0.x, p0.y);
+            g.lineTo(p1.x, p1.y);
+            g.strokeStyle = i % 4 === 0 ? "rgba(214,170,124,0.70)" : "rgba(117,184,202,0.52)";
+            g.lineWidth = Math.max(2, strokeWidth * 0.54);
+            g.stroke();
           }
-          drawArc(d, layer.safeAngle - layer.gapHalf, layer.safeAngle + layer.gapHalf, "rgba(86,240,208,0.94)", Math.max(1.5, strokeWidth * 0.28));
+          drawArc(d, layer.safeAngle - layer.gapHalf, layer.safeAngle + layer.gapHalf, "rgba(86,210,191,0.44)", Math.max(1.1, strokeWidth * 0.15));
         } else if (layer.type === "sweeper") {
           const angle = layer.sweepAngle + state.elapsed * layer.sweepSpeed;
           const p0 = point(d, angle, -rx * 0.02);
@@ -4160,24 +4176,11 @@ return axialRoll + ahead * 0.12 +
             g.stroke();
           });
         } else if (layer.type === "boost") {
-          drawArc(d, layer.safeAngle - 0.55, layer.safeAngle + 0.55, "rgba(56,245,193,0.96)", Math.max(5, rx * 0.075));
-          const chevron = point(d, layer.safeAngle, -rx * 0.16);
-          g.beginPath();
-          g.moveTo(chevron.x - 6, chevron.y);
-          g.lineTo(chevron.x, chevron.y - 7);
-          g.lineTo(chevron.x + 6, chevron.y);
-          g.strokeStyle = "rgba(186,255,230,0.9)";
-          g.lineWidth = 1.4;
-          g.stroke();
+          // A simple passable energy rail; no arrow glyph.
+          drawArc(d, layer.safeAngle - 0.55, layer.safeAngle + 0.55, "rgba(76,205,178,0.62)", Math.max(3, rx * 0.045));
         } else if (layer.type === "launcher") {
-          // A passable pair of angled launch rails, not an opaque slab.
-          drawArc(d, layer.safeAngle - 0.48, layer.safeAngle + 0.48, "rgba(255,190,95,0.96)", Math.max(4, rx * 0.06));
-          const gateMark = point(d, layer.safeAngle, -rx * 0.18);
-          g.beginPath();
-          g.arc(gateMark.x, gateMark.y, Math.max(3, rx * 0.04), 0, Math.PI * 2);
-          g.strokeStyle = "rgba(255,222,155,0.95)";
-          g.lineWidth = 1.5;
-          g.stroke();
+          // A simple pair of passable launch rails; no extra ring or dot.
+          drawArc(d, layer.safeAngle - 0.48, layer.safeAngle + 0.48, "rgba(214,168,105,0.64)", Math.max(3, rx * 0.04));
         }
       });
 
