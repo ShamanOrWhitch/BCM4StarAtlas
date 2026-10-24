@@ -8,6 +8,16 @@
 - Camera: явно выбранный экран сохраняет приоритет над другими роликами и не теряет фокус только потому, что нет ближайшего внешнего видео. Фокус снимается при выходе цели из радиуса/недоступности; HUD показывает прогресс экранов и сбор Hydrogen.
 - CI: после открытия PR должны пройти исходные и регрессионные тесты. Production Browser QA получает 403 от firewall; физическое управление и видимый рендер на телефоне не подтверждены.
 
+## Current main state — Mini-Sim 0.11.8 (24 October 2026)
+
+This entry supersedes the older 0.11.3–0.11.5 candidate notes below; those sections remain as history, not as the current state. Current code is on `main`; Tower remains `0.2.65`. **Nothing has been deployed to the website.**
+
+- Warp: Class II has subdued visuals; Class III has a distinct purple shell and ribs; Class IV is disabled. Solid circular obstacle hoops were removed, along with the extra `>` chevron and launcher loop marker. Tube collision and steering should remain independent of visual class.
+- Ring: the room graph has a BFS route to the large arena. At blocked doorways a transition selects an available step toward the arena; the action control uses the route hint. Each player retains a separate logical room, with split-screen when they occupy different cells.
+- All three bosses now have recognisable pig silhouettes built from existing Three.js primitives (body, snout, ears, nostrils, tusks, legs and tail); no new image or texture assets were added. The weakpoint is in front of the head so the snout does not hide it.
+- Source/regression checks, UI-layer checks, Tower top-cap checks, and the test ZIP build passed on the current code. Browser QA did not verify rendering: `https://walkingyog.com/bcm4sa/` returns HTTP 403 before the game container appears. Do not bypass the firewall or report this run as a visual test.
+- `wordpress/galia-desk` is untouched. No production deployment was made.
+
 ## Предыдущий кандидат Mini-Sim 0.11.4 — Hydrogen mission
 - Основа: PR #65 / candidate 0.11.3 поверх main 0.11.2, Tower остаётся 0.2.64. Ветка `minisim-0.11.4-hydrogen-mission`, не слита и не развёрнута.
 - Диалоги оператора учитывают экраны только после реального `playing`; каждый настроенный экран засчитывается один раз. После последнего экранного триггера появляется цель: найти Hydrogen в первой маленькой ячейке Ring.

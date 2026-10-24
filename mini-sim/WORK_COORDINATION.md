@@ -6,6 +6,16 @@
 - Explicit cinema focus stays on the chosen panel until unavailable/out of its radius; nearer media doesn't steal it. Mission HUD reports screen progress and Hydrogen completion.
 - Workflow CI reports source checks; production browser requests get 403 from firewall. Do not bypass the firewall, and do not claim a visual phone test. wordpress/galia-desk remains off-limits.
 
+## Current main state — Mini-Sim 0.11.8 (24 October 2026)
+
+This entry supersedes the older 0.11.3–0.11.5 candidate notes below; those sections remain as history, not as the current state. Current code is on `main`; Tower remains `0.2.65`. **Nothing has been deployed to the website.**
+
+- Warp: Class II has subdued visuals; Class III has a distinct purple shell and ribs; Class IV is disabled. Solid circular obstacle hoops were removed, along with the extra `>` chevron and launcher loop marker. Tube collision and steering should remain independent of visual class.
+- Ring: the room graph has a BFS route to the large arena. At blocked doorways a transition selects an available step toward the arena; the action control uses the route hint. Each player retains a separate logical room, with split-screen when they occupy different cells.
+- All three bosses now have recognisable pig silhouettes built from existing Three.js primitives (body, snout, ears, nostrils, tusks, legs and tail); no new image or texture assets were added. The weakpoint is in front of the head so the snout does not hide it.
+- Source/regression checks, UI-layer checks, Tower top-cap checks, and the test ZIP build passed on the current code. Browser QA did not verify rendering: `https://walkingyog.com/bcm4sa/` returns HTTP 403 before the game container appears. Do not bypass the firewall or report this run as a visual test.
+- `wordpress/galia-desk` is untouched. No production deployment was made.
+
 ## Previous candidate — Mini-Sim 0.11.4 Hydrogen mission
 - Branch: `minisim-0.11.4-hydrogen-mission`, stacked on candidate 0.11.3 / PR #65. Not merged or deployed.
 - Screen progress counts a configured screen only after video `playing`. Once all required screens are visited, operator requests Hydrogen; pickup belongs to the first small cell from `maze.startCell` and shows H on the chart.
