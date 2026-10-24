@@ -1,3 +1,13 @@
+## D-028 — Mini-Sim 0.11.4: screen-discovery quest and first-cell Hydrogen
+
+**Status:** candidate on `minisim-0.11.4-hydrogen-mission`; requires CI review and live play.
+
+- Register only configured screens, count the first successful playback once, and unlock the Hydrogen objective only when all required screens have been visited.
+- Hydrogen lives in Ring's first small cell, using the same existing `maze.startCell` and texture/topology map; it does not introduce a duplicate maze or image assets.
+- The 2.5D cell shows a pickup and H map marker when unlocked; collecting it fires `bcm:mission:hydrogen-collected` and triggers operator feedback.
+- Keep `bearhead.mp4` optional until the user uploads it.
+- City below Tower / return to original ship stays out of this patch. Tower handoff calls Mini-Sim scene disposal; same-seed return needs a deliberate park/resume or save/rebuild contract before adding city portals.
+
 ## D-027 — Mini-Sim 0.11.3: per-cell textures, safe ONICSS fallback, common Crew facing
 
 **Status:** candidate on `minisim-0.11.3-ring-texture-focus`; tests and visual review pending.
