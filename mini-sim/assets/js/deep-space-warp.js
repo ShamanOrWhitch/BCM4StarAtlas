@@ -4335,50 +4335,28 @@ return axialRoll + ahead * 0.12 +
         }
       }
 
-      // Longitudinal strips — the established Warp look. No extra hoops.
-      for (let seam = 0; seam < 24; seam += 1) {
-        const theta = seam * Math.PI * 2 / 24;
+      // Keep the established 12 longitudinal strips. A restrained depth-only skew
+      // stops them reading as straight vertical bars while leaving the near opening aligned.
+      for (let seam = 0; seam < 12; seam += 1) {
+        const theta = seam * Math.PI * 2 / 12;
         g.beginPath();
         for (let step = 0; step <= 35; step += 1) {
           const d = 0.04 + (step / 35) * 0.96;
-          const p = point(d, theta, -1.5);
+          const p = point(d, theta + (d - 0.92) * 0.36, -1.5);
           if (!step) g.moveTo(p.x, p.y);
           else g.lineTo(p.x, p.y);
         }
         g.strokeStyle = visualClass === 3
           ? (seam % 3 === 0 ? "rgba(189,139,246,0.86)" : "rgba(131,96,184,0.36)")
-          : (seam % 3 === 0 ? "rgba(110,239,246,0.72)" : "rgba(110,191,210,0.25)");
+          : visualClass === 2
+            ? (seam % 3 === 0 ? "rgba(115,193,206,0.56)" : "rgba(110,191,210,0.22)")
+            : (seam % 3 === 0 ? "rgba(110,239,246,0.72)" : "rgba(110,191,210,0.25)");
         g.lineWidth = seam % 3 === 0 ? 1.25 : 0.65;
         g.stroke();
       }
 
-      // Class II: subdued ion rails, reserved for the smallest drive-slot tier.
-      // This is Canvas-only (no new renderer, textures, geometry, or collision surfaces).
-      if (visualClass === 2) {
-        // Class II: two faint ion rails, no additive bloom or moving dots.
-        const railCount = 2;
-        const railSpin = state.tubeTravel * 0.004;
-        g.save();
-        g.globalCompositeOperation = "source-over";
-        for (let rail = 0; rail < railCount; rail += 1) {
-          const baseAngle = rail * Math.PI * 2 / railCount;
-          g.beginPath();
-          for (let step = 0; step <= 52; step += 1) {
-            const d = 0.045 + (step / 52) * 0.93;
-            const theta = baseAngle + railSpin + d * Math.PI * 1.25 +
-              Math.sin(shimmerTime * 0.10 + d * 3 + rail) * 0.018;
-            const p = point(d, theta, -1.9);
-            if (step === 0) g.moveTo(p.x, p.y);
-            else g.lineTo(p.x, p.y);
-          }
-          g.strokeStyle = rail % 2 === 0 ? "rgba(64,210,232,0.026)" : "rgba(220,154,100,0.020)";
-          g.lineWidth = 0.65;
-          g.lineCap = "round";
-          g.stroke();
-        }
-        g.restore();
-      }
-
+      // Class II is a quieter tint of the same tunnel, not a second set of rails.
+      // Class III has a distinct violet identity without circular geometry.
       // Class III has a distinct violet identity without circular geometry.
       if (visualClass === 3) {
         g.fillStyle = "rgba(30,11,54,0.34)";
@@ -4387,66 +4365,62 @@ return axialRoll + ahead * 0.12 +
 
       const routeProgress = warpObstacleProgress(state.elapsed);
       const obstacleDepth = (distance) => {
-        // Stay inside the near ring. d>1 is what stretched spikes into the gold wedge.
-        if (distance > 0.36 || distance <= 0) return null;
-        return Math.min(1, 0.055 / (distance + 0.05));
+        // Give hazards more warning time: distant obstacles start small, then grow toward the ship.
+        if (distance > 0.68 || distance <= 0) return null;
+        return Math.min(0.94, 0.12 + ((0.68 - distance) / 0.68) * 0.82);
       };
       state.layers.forEach((layer) => {
         const distance = layer.progress - routeProgress;
         const d = obstacleDepth(distance);
         if (d == null) return;
         const rx = radiusX(d);
-        const strokeWidth = Math.max(3, rx * 0.052);
+        const strokeWidth = Math.max(5, rx * 0.065);
         if (layer.type === "gate") {
-          // Two longitudinal guide-lines mark the safe opening; collision is unchanged.
-          const guideDepths = [Math.min(0.98, d + 0.13), Math.max(0.045, d - 0.12)];
-          [layer.safeAngle - layer.gapHalf, layer.safeAngle + layer.gapHalf].forEach((angle) => {
-            const p0 = point(guideDepths[0], angle, -rx * 0.06);
-            const p1 = point(guideDepths[1], angle, -rx * 0.06);
-            g.beginPath(); g.moveTo(p0.x, p0.y); g.lineTo(p1.x, p1.y);
-            g.strokeStyle = visualClass === 3 ? "rgba(187,142,245,0.68)" : "rgba(117,184,202,0.58)";
-            g.lineWidth = Math.max(2, strokeWidth * 0.36);
-            g.lineCap = "round"; g.stroke();
-          });
+          // Show a broken segmented barrier and leave the exact collision-safe gap open.
+          // Small breaks between segments keep it from reading as a solid decorative hoop.
+          const pieces = 32;
+          for (let i = 0; i < pieces; i += 1) {
+            const from = i * Math.PI * 2 / pieces;
+            const to = (i + 1) * Math.PI * 2 / pieces;
+            if (Math.abs(angleDifference((from + to) * 0.5, layer.safeAngle)) <= layer.gapHalf) continue;
+            drawArc(d, from + 0.012, to - 0.012,
+              i % 4 === 0 ? "rgba(255,191,119,0.98)" : "rgba(117,204,222,0.92)",
+              strokeWidth);
+          }
         } else if (layer.type === "sweeper") {
           const angle = layer.sweepAngle + state.elapsed * layer.sweepSpeed;
           const p0 = point(d, angle, -rx * 0.02);
           const p1 = point(d, angle + Math.PI, -rx * 0.02);
           g.beginPath();
           g.moveTo(p0.x, p0.y);
+          g.lineTo(centerX(d), centerY(d));
           g.lineTo(p1.x, p1.y);
-          g.strokeStyle = "rgba(255,132,104,0.66)";
-          g.lineWidth = Math.max(3, rx * 0.065);
+          g.strokeStyle = "rgba(255,112,86,0.98)";
+          g.lineWidth = Math.max(5, rx * 0.095);
           g.lineCap = "round";
           g.stroke();
+          g.strokeStyle = "rgba(255,231,200,0.96)";
+          g.lineWidth = Math.max(1.6, rx * 0.025);
+          g.stroke();
         } else if (layer.type === "spikes") {
+          // Bright inward-pointing hazard teeth; no full ring and no checkmark glyphs.
           layer.blockedAngles.forEach((angle, index) => {
-            const p0 = point(d, angle, -rx * 0.06);
-            const p1 = point(d, angle, -rx * 0.25);
+            const tip = point(d, angle, -rx * 0.28);
+            const sideA = point(d, angle - 0.11, -rx * 0.035);
+            const sideB = point(d, angle + 0.11, -rx * 0.035);
             g.beginPath();
-            g.moveTo(p0.x, p0.y);
-            g.lineTo(p1.x, p1.y);
-            g.strokeStyle = index % 2 ? "rgba(255,141,115,0.72)" : "rgba(233,211,174,0.68)";
-            g.lineWidth = Math.max(3, rx * 0.055);
-            g.lineCap = "round";
-            g.stroke();
-          });
-        } else if (layer.type === "boost" || layer.type === "launcher") {
-          // Straight, parallel rails indicate the safe lane without a circle or arrow.
-          const railHalf = layer.type === "launcher" ? 0.14 : 0.18;
-          [-1, 1].forEach((offset) => {
-            const angle = layer.safeAngle + offset * railHalf;
-            const p0 = point(d, angle, -rx * 0.06);
-            const p1 = point(d, angle, -rx * 0.26);
-            g.beginPath();
-            g.moveTo(p0.x, p0.y);
-            g.lineTo(p1.x, p1.y);
-            g.strokeStyle = layer.type === "launcher" ? "rgba(214,168,105,0.58)" : "rgba(76,205,178,0.52)";
-            g.lineWidth = Math.max(2.5, rx * 0.035);
-            g.lineCap = "round";
+            g.moveTo(sideA.x, sideA.y);
+            g.lineTo(tip.x, tip.y);
+            g.lineTo(sideB.x, sideB.y);
+            g.closePath();
+            g.fillStyle = index % 2 ? "rgba(255,104,75,0.95)" : "rgba(255,177,112,0.95)";
+            g.strokeStyle = "rgba(255,226,194,0.98)";
+            g.lineWidth = 1.4;
+            g.fill();
             g.stroke();
           });
         }
+        // Boost/launcher pickups remain functional but have no distracting checkmark decoration.
       });
 
       // The ship rides the wall. Right decreases the angle so it moves screen-right
