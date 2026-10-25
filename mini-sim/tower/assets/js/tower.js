@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.65";
+  const TOWER_VERSION = "0.2.66";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -2338,7 +2338,7 @@
               index,
               impactSpeed >= fallResetSpeed
                 ? "СИЛЬНОЕ ПАДЕНИЕ: СКОРОСТЬ УДАРА " + impactSpeed.toFixed(1)
-                : "ПАДЕНИЕ БОЛЕЕ 5 УРОВНЕЙ: ВОЗВРАТ В НАЧАЛО"
+                : "ОСТОРОЖНО: ПАДЕНИЕ НА 5 ПРОЛЁТОВ — ВОЗВРАТ В НАЧАЛО"
             );
             return;
           }
@@ -2386,7 +2386,7 @@
             Math.max(0, p.fallStartY - p.y) / tower.stepY
           );
           if (fallenNow >= 5) {
-            resetAfterHazard(index, "ПАДЕНИЕ БОЛЕЕ 5 УРОВНЕЙ: ВОЗВРАТ В НАЧАЛО");
+            resetAfterHazard(index, "ОСТОРОЖНО: ПАДЕНИЕ НА 5 ПРОЛЁТОВ — ВОЗВРАТ В НАЧАЛО");
           }
         }
         return;
@@ -2586,8 +2586,8 @@
           " · SEED " + tower.seed;
         if (modeEl) {
           modeEl.textContent = mode === "multi"
-            ? "МИССИЯ: КТО ПЕРВЫЙ АККУРАТНО СПУСТИТСЯ ВНИЗ"
-            : "МИССИЯ: АККУРАТНО СПУСТИТЬСЯ ВНИЗ";
+            ? "КТО ПЕРВЫМ СПУСТИТСЯ ВНИЗ?"
+            : "ПОРА СПУСТИТЬСЯ ВНИЗ";
         }
       } else {
         levelEl.textContent =
@@ -2595,7 +2595,7 @@
           " · P2: " + currentLevelText(players[1]) +
           " · SEED " + tower.seed;
         if (modeEl) {
-          modeEl.textContent = "МИССИЯ: КТО ПЕРВЫЙ АККУРАТНО СПУСТИТСЯ ВНИЗ";
+          modeEl.textContent = "КТО ПЕРВЫМ СПУСТИТСЯ ВНИЗ?";
         }
       }
 
@@ -2737,6 +2737,7 @@
       mobile?.setAttribute("aria-hidden", "false");
       mobile?.querySelector(".bcm-tower-mobile-p2")?.toggleAttribute("hidden", mode !== "multi");
       root.classList.toggle("is-multi", mode === "multi");
+      syncTowerInputHelp();
 
       try {
         buildTower(makeSeed());
@@ -2755,10 +2756,10 @@
 
       if (mode === "multi") {
         mobile?.classList.add("is-multi");
-        status.textContent = "МИССИЯ: КТО ПЕРВЫЙ АККУРАТНО СПУСТИТСЯ ВНИЗ";
+        status.textContent = "КТО ПЕРВЫМ СПУСТИТСЯ ВНИЗ?";
       } else {
         mobile?.classList.remove("is-multi");
-        status.textContent = "МИССИЯ: АККУРАТНО СПУСТИТЬСЯ ВНИЗ";
+        status.textContent = "ПОРА СПУСТИТЬСЯ ВНИЗ";
       }
     }
 
@@ -3279,6 +3280,43 @@
       showMenu();
     });
 
+    let lastInputHelpSignature = "";
+
+    function syncTowerInputHelp(padCount) {
+      const count = Math.max(0, Number(padCount) || 0);
+      root.classList.toggle("has-gamepad", count > 0);
+      const signature = (mode || "menu") + ":" + count;
+      if (signature === lastInputHelpSignature) return;
+      lastInputHelpSignature = signature;
+
+      const gamepadHelp = root.querySelector(".bcm-tower-help-gamepad");
+      const menuGamepadHelp = root.querySelector(".bcm-tower-menu-help-gamepad");
+      const touchHelp = root.querySelector(".bcm-tower-help-touch");
+
+      let gamepadLine;
+      if (mode === "multi") {
+        if (count === 1) {
+          gamepadLine = "Управление · P1: A/D + W/S + Space + E · P2 (геймпад): левый стик · A — прыжок · X — действие · Y — новый спуск";
+        } else if (count >= 2) {
+          gamepadLine = "Управление · P1/P2: левый стик — поворот/высота · A — прыжок · X — действие · Y — новый спуск";
+        } else {
+          gamepadLine = "Управление · P1: A/D + W/S + Space + E · P2: ←/→ + ↑/↓ + X + Shift";
+        }
+      } else {
+        gamepadLine = "Управление · левый стик — поворот/высота · A — прыжок · X — действие · Y — новый спуск";
+      }
+      if (gamepadHelp) gamepadHelp.textContent = gamepadLine;
+
+      if (menuGamepadHelp) {
+        menuGamepadHelp.textContent = "Геймпад: левый стик — поворот/высота · A — прыжок · X — действие · Y — новый спуск. В MULTI: один геймпад — P2, два — P1/P2.";
+      }
+      if (touchHelp) {
+        touchHelp.textContent = mode === "multi"
+          ? "Управление · P1: наклон + ПРЫЖОК · P2: ◀ / ▶ + JET. Кто первым спустится вниз?"
+          : "Управление · наклон телефона — поворот башни · ПРЫЖОК — джетпак";
+      }
+    }
+
     function pollGamepads() {
       // An embedded/hidden Tower must never consume a controller's held A button
       // as a menu confirmation. Hull Dive and the Ring platformer own input while
@@ -3308,6 +3346,7 @@
       }
       const pads = navigator.getGamepads ? [...navigator.getGamepads()] : [];
       const connectedPads = pads.filter(Boolean);
+      syncTowerInputHelp(connectedPads.length);
 
       // Multi-player assignment:
       // 0 gamepads  -> P1 keyboard + P2 keyboard
