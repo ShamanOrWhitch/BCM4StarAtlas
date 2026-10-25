@@ -68,10 +68,10 @@ test("Warp keeps uncluttered longitudinal strips and clearly visible collision h
 });
 
 test("Mini-Sim 0.11.11 cache/version contracts are synchronized", () => {
-  assert.match(plugin, /Version: 0\.11\.10/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.10'\)/);
-  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.10/);
-  assert.match(qa, /Version: 0\.11\.10/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.10'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.10/);
+  assert.match(plugin, /Version: 0\.11\.11/);
+  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.11'\)/);
+  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.11/);
+  assert.match(qa, /Version: 0\.11\.11/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.11'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.11/);
 });
