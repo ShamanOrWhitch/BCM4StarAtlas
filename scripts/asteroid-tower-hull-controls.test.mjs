@@ -197,8 +197,10 @@ test("Crew facing follows the Tower convention and 3D wall materials use each ce
   assert.ok(warp.includes('copy.image = loadedTexture.image;'));
   assert.ok(warp.includes('wallTextureCopiesByAsset[index].push(copy)'));
   assert.ok(warp.includes('(wallVariantsByAsset[index] || []).forEach((variant) => syncImage(variant.texture))'));
-  assert.match(warp, /const previousPosition = maze\.lastPosition/);
-  assert.match(warp, /let sweptHit = null/);
+  assert.doesNotMatch(warp, /const previousPosition = maze\.lastPosition/);
+  assert.match(warp, /flyRadius: 43\.2/);
+  assert.match(warp, /ship\.velocity\.x \*= 0\.15/);
+  assert.match(warp, /const hx = w\.sx \/ 2 \+ radius/);
   assert.match(warp, /const routeParent = new Map\(\[\[startNode, null\]\]\)/);
   assert.match(warp, /scouted: true/);
 });

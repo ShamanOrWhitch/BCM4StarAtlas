@@ -1583,7 +1583,7 @@
         beaconMaterial,
         satellites,
         // The shell is a flyable exterior, not a hard brake at the old inner radius.
-        flyRadius: 58.0,
+        flyRadius: 43.2,
         lastPosition: null,
         lastImpactAt: 0,
         ringCompleted: false,
@@ -1728,7 +1728,6 @@
       const ship = frame.ship;
       const pos = ship.position;
       const radius = 0.7;
-      const previousPosition = maze.lastPosition && maze.lastPosition.clone ? maze.lastPosition.clone() : pos.clone();
 
       // Ring gameplay replaces the flight view. The hold does not: the helm
       // keeps flying the same ship, so maze collision stays active.
@@ -1745,68 +1744,7 @@
         return;
       }
 
-      // Sweep the ship's previous-to-current segment against expanded wall boxes.
-      const axisNames = ["x", "y", "z"];
-      const displacement = pos.clone().sub(previousPosition);
-      let sweptHit = null;
-      for (let i = 0; i < maze.walls.length; i += 1) {
-        const wall = maze.walls[i];
-        const extents = [wall.sx / 2 + radius, wall.sy / 2 + radius, wall.sz / 2 + radius];
-        let tEnter = 0, tExit = 1, hitAxis = -1, hitNormal = 0, valid = true;
-        for (let axis = 0; axis < 3; axis += 1) {
-          const name = axisNames[axis], from = previousPosition[name], delta = displacement[name];
-          const min = wall[name] - extents[axis], max = wall[name] + extents[axis];
-          if (Math.abs(delta) < 1e-8) {
-            if (from < min || from > max) { valid = false; break; }
-            continue;
-          }
-          const ta = (min - from) / delta, tb = (max - from) / delta;
-          const near = Math.min(ta, tb), far = Math.max(ta, tb);
-          if (near > tEnter) {
-            tEnter = near; hitAxis = axis; hitNormal = delta > 0 ? -1 : 1;
-          }
-          tExit = Math.min(tExit, far);
-          if (tEnter > tExit) { valid = false; break; }
-        }
-        if (!valid || tEnter > 1 || tExit <= 0) continue;
-        // A fast frame can start inside the ship-expanded wall box after a prior
-        // overlap. Do not discard it because the segment entry time is <= 0:
-        // eject toward the nearest face, opposing travel when exactly centered.
-        if (hitAxis < 0 || tEnter <= 0) {
-          let nearestPenetration = Infinity;
-          for (let axis = 0; axis < 3; axis += 1) {
-            const name = axisNames[axis];
-            const offset = previousPosition[name] - wall[name];
-            const penetration = extents[axis] - Math.abs(offset);
-            if (penetration < nearestPenetration) {
-              nearestPenetration = penetration;
-              hitAxis = axis;
-              hitNormal = offset < 0 ? -1 : offset > 0 ? 1 : (displacement[name] > 0 ? -1 : 1);
-            }
-          }
-          tEnter = 0;
-        }
-        if (hitAxis < 0) continue;
-        if (!sweptHit || tEnter < sweptHit.time) sweptHit = { wall, time: tEnter, axis: hitAxis, normal: hitNormal, extents };
-      }
-      if (sweptHit) {
-        const impactSpeed = ship.velocity.length();
-        pos.copy(previousPosition).addScaledVector(displacement, Math.max(0, sweptHit.time - 0.002));
-        const normalAxis = axisNames[sweptHit.axis];
-        pos[normalAxis] = sweptHit.wall[normalAxis] + sweptHit.normal * (sweptHit.extents[sweptHit.axis] + 0.015);
-        // Cancel only the velocity directed into the wall; preserve tangential flight.
-        ship.velocity[normalAxis] = 0;
-        const impactNow = performance.now();
-        if (impactSpeed > 3.0 && impactNow - maze.lastImpactAt > 650) {
-          maze.lastImpactAt = impactNow;
-          const compartmentId = pos.x < maze.center.x - 5.4 ? 1 : (pos.x > maze.center.x + 5.4 ? 3 : 2);
-          const damage = Math.max(4, Math.min(24, Math.round((impactSpeed - 2.0) * 4.4)));
-          const damaged = window.BCMHullRepairState?.triggerExternalImpact?.(compartmentId, damage);
-          if (damaged) setMazeStatus("IMPACT · " + damaged.name + " · INTEGRITY " + Math.round(damaged.integrity) + "% · HIT " + damage);
-        }
-      }
-
-      // Retain the overlap resolver as a safety net for slow contact.
+      // Only test wall panels close to the craft; distant cells cost almost nothing per frame.
       for (let pass = 0; pass < 2; pass += 1) {
         for (let i = 0; i < maze.walls.length; i += 1) {
           const w = maze.walls[i];
@@ -1829,27 +1767,23 @@
           }
           if (px <= py && px <= pz) {
             pos.x = w.x + (pos.x >= w.x ? 1 : -1) * (hx + 0.015);
-            ship.velocity.x = 0;
+            ship.velocity.x *= 0.15;
           } else if (py <= pz) {
             pos.y = w.y + (pos.y >= w.y ? 1 : -1) * (hy + 0.015);
-            ship.velocity.y = 0;
+            ship.velocity.y *= 0.15;
           } else {
             pos.z = w.z + (pos.z >= w.z ? 1 : -1) * (hz + 0.015);
-            ship.velocity.z = 0;
+            ship.velocity.z *= 0.15;
           }
         }
       }
 
       const fromCenter = pos.clone().sub(maze.center);
-      const flyRadius = Number(maze.flyRadius) || 58.0;
+      const flyRadius = Number(maze.flyRadius) || 43.2;
       if (fromCenter.length() > flyRadius) {
-        const boundaryNormal = fromCenter.clone().normalize();
         fromCenter.setLength(flyRadius);
         pos.copy(maze.center).add(fromCenter);
-        // A soft radial boundary removes only outward velocity. Tangential speed
-        // remains available, so the pilot can keep orbiting the asteroid exterior.
-        const outwardSpeed = ship.velocity.dot(boundaryNormal);
-        if (outwardSpeed > 0) ship.velocity.addScaledVector(boundaryNormal, -outwardSpeed);
+        ship.velocity.multiplyScalar(0.25);
       }
       (maze.satellites || []).forEach((rock) => {
         const away = pos.clone().sub(rock.position);

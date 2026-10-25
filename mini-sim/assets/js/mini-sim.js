@@ -2017,7 +2017,7 @@
       }[surface];
       // Only backside-textured outer-shell panels can become Photoli doors.
       // Corridor walls and asteroid-maze walls never enter this collection.
-      const doorEligible = !!surfaceInfo && Math.random() < 0.095;
+      const doorEligible = !!surfaceInfo;
       panels.push({
         mesh, material, surface, w, h,
         base: { x, y, z },
@@ -2525,28 +2525,45 @@
 
   function updateBacksideDoors(dt, now) {
     const styles = ["slide", "wipe", "iris"];
+    const openRange = 12.0;
+    const closeRange = 14.5;
+    const footprintPadding = 0.9;
+
     backside.panels.forEach((panel) => {
       if (!panel.doorEligible) return;
-      if (panel.doorState === "CLOSED" && now >= panel.doorNextAt) {
+      const axis = panel.normalAxis;
+      const tangentA = panel.tangentA;
+      const tangentB = panel.tangentB;
+      if (!axis || !tangentA || !tangentB) return;
+
+      // Every backside* shell tile is a real proximity door. Open neighboring
+      // tiles too, so a ship can pass a seam between texture panels.
+      const position = ship.position;
+      const distance = Math.abs(position[axis] - panel.base[axis]);
+      const footprint =
+        Math.abs(position[tangentA] - panel.base[tangentA]) <= panel.halfA + footprintPadding &&
+        Math.abs(position[tangentB] - panel.base[tangentB]) <= panel.halfB + footprintPadding;
+      const wantsOpen = distance <= openRange && footprint;
+
+      if (wantsOpen && panel.doorState === "CLOSED") {
         panel.doorStyle = styles[Math.floor(Math.random() * styles.length)];
-        panel.doorDuration = 0.62 + Math.random() * 0.48;
-        panel.doorProgress = 0;
+        panel.doorDuration = 0.24;
         panel.doorState = "OPENING";
+      } else if (wantsOpen && panel.doorState === "CLOSING") {
+        // Reverse the same door animation if the ship turns back toward it.
+        panel.doorDuration = 0.24;
+        panel.doorState = "OPENING";
+      } else if (!wantsOpen && (panel.doorState === "OPEN" || panel.doorState === "OPENING")) {
+        panel.doorDuration = 0.28;
+        panel.doorState = "CLOSING";
       }
+
       if (panel.doorState === "OPENING") {
         panel.doorProgress = Math.min(1, panel.doorProgress + dt / panel.doorDuration);
-        if (panel.doorProgress >= 1) {
-          panel.doorState = "OPEN";
-          panel.doorCloseAt = now + 1400 + Math.random() * 4200;
-        }
-      } else if (panel.doorState === "OPEN" && now >= panel.doorCloseAt) {
-        panel.doorState = "CLOSING";
+        if (panel.doorProgress >= 1) panel.doorState = "OPEN";
       } else if (panel.doorState === "CLOSING") {
         panel.doorProgress = Math.max(0, panel.doorProgress - dt / panel.doorDuration);
-        if (panel.doorProgress <= 0) {
-          panel.doorState = "CLOSED";
-          panel.doorNextAt = now + 4800 + Math.random() * 10500;
-        }
+        if (panel.doorProgress <= 0) panel.doorState = "CLOSED";
       }
       applyBacksideDoorPose(panel);
     });
@@ -4541,12 +4558,18 @@
       y: before.y + (after.y - before.y) * t,
       z: before.z + (after.z - before.z) * t
     };
-    return backside.panels.some((panel) => {
-      if (!panel.doorEligible || panel.doorState !== "OPEN" ||
-          panel.normalAxis !== axis || Math.abs(panel.base[axis] - edge) > 0.16) return false;
-      return Math.abs(point[panel.tangentA] - panel.base[panel.tangentA]) <= panel.halfA - 0.82 &&
-        Math.abs(point[panel.tangentB] - panel.base[panel.tangentB]) <= panel.halfB - 0.82;
+
+    // The craft has a nonzero radius. At panel seams, require every tile that
+    // intersects its clearance envelope to be open, rather than a random tile
+    // far away or a single tile that leaves a solid sliver in the doorway.
+    const overlappingPanels = backside.panels.filter((panel) => {
+      if (!panel.doorEligible || panel.normalAxis !== axis ||
+          Math.abs(panel.base[axis] - edge) > 0.16) return false;
+      return Math.abs(point[panel.tangentA] - panel.base[panel.tangentA]) <= panel.halfA + 0.82 &&
+        Math.abs(point[panel.tangentB] - panel.base[panel.tangentB]) <= panel.halfB + 0.82;
     });
+    return overlappingPanels.length > 0 &&
+      overlappingPanels.every((panel) => panel.doorState === "OPEN");
   }
 
   function collideStarbaseShell(before, allowInteriorOpenings) {
@@ -4642,7 +4665,7 @@
         const leavingThroughCorridor = !room1 && inCorridorMouth &&
           before.z > rearCapZ && ship.position.z < rearCapZ;
         const openBacksidePassage = hasOpenBacksideDoor("z", rearCapZ, before, ship.position);
-        if (leavingThroughCorridor || openBacksidePassage) {
+        if (openBacksidePassage) {
           if (leavingThroughCorridor) exteriorFlight = true;
         } else {
           ship.position.z = before.z < rearCapZ ? rearCapZ - 0.06 : rearCapZ + 0.06;
@@ -4722,12 +4745,16 @@
         ship.position.z = before.z < room.rearZ ? room.rearZ - 0.06 : room.rearZ + 0.06;
         ship.velocity.z = 0;
         blocked = true;
-      } else if (before.z > room.rearZ && after.z < room.rearZ) {
-        exteriorFlight = true;
-      } else if (before.z < room.rearZ && after.z >= room.rearZ) {
-        ship.position.z = room.rearZ - 0.06;
-        ship.velocity.z = 0;
-        blocked = true;
+      } else {
+        const rearPassageOpen = hasOpenBacksideDoor("z", room.rearZ, before, after);
+        const leavingThroughRear = before.z > room.rearZ && after.z < room.rearZ;
+        if (rearPassageOpen) {
+          if (leavingThroughRear) exteriorFlight = true;
+        } else {
+          ship.position.z = before.z > room.rearZ ? room.rearZ + 0.06 : room.rearZ - 0.06;
+          ship.velocity.z = 0;
+          blocked = true;
+        }
       }
     });
 
