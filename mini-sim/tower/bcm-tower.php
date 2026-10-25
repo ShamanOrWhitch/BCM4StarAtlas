@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_TOWER_VERSION', '0.2.65');
+define('BCM_TOWER_VERSION', '0.2.66');
 define('BCM_TOWER_PATH', __DIR__ . '/');
 define('BCM_TOWER_URL', trailingslashit(plugin_dir_url(__FILE__)));
 
@@ -226,8 +226,11 @@ function bcm_tower_shortcode($atts = array()) {
                 <button type="button" data-tower-mode="multi">MULTI</button>
             </div>
             <div class="bcm-tower-menu-help">
-                SINGLE — клавиатура / мышь / 1 gamepad<br>
-                MULTI — 0 gamepad: P1 WASD+Space, P2 arrows+X · 1 gamepad: P2 gamepad · 2 gamepad: P1/P2
+                <strong>Управление</strong>
+                <div class="bcm-tower-menu-help-keyboard">Клавиатура/мышь: A/D — поворот · Space — джетпак · W/S — высота · мышь — обзор.</div>
+                <div class="bcm-tower-menu-help-touch">Телефон: наклон — поворот башни · ПРЫЖОК — джетпак. В MULTI второй игрок: ◀ / ▶ + JET.</div>
+                <div class="bcm-tower-menu-help-gamepad">Геймпад: левый стик — поворот/высота · A — прыжок · X — действие · Y — новый спуск. В MULTI: один геймпад — P2, два — P1/P2.</div>
+                <div class="bcm-tower-menu-warning">Осторожно: падение на 5 пролётов — возврат в начало.</div>
             </div>
         </div>
 
@@ -237,16 +240,16 @@ function bcm_tower_shortcode($atts = array()) {
             <div class="bcm-tower-level"></div>
             <div class="bcm-tower-mode"></div>
             <div class="bcm-tower-help bcm-tower-help-single">
-                <span>A/D</span> вращение башни · <span>Space</span> jetpack ×2 ·
-                <span>W/S</span> ручная коррекция высоты · <span>Mouse</span> обзор · <span>R</span> новый спуск
+                <strong>Управление</strong> · A/D — поворот · Space — джетпак · W/S — высота · мышь — обзор · R — новый спуск
             </div>
             <div class="bcm-tower-help bcm-tower-help-touch">
-                <span>наклон</span> крутит только первого · снизу слева <span>ПРЫЖОК</span> · справа кнопки второго игрока
+                <strong>Управление</strong> · наклон телефона — поворот · ПРЫЖОК — джетпак
             </div>
+            <div class="bcm-tower-help bcm-tower-help-gamepad"></div>
             <div class="bcm-tower-help bcm-tower-help-multi">
-                <b>P1</b> A/D + W/S + Space + E · <b>P2</b> ←/→ + ↑/↓ + X + Shift ·
-                <span>1 gamepad = P2 · 2 gamepads = P1/P2</span> · общая карта
+                <strong>Управление</strong> · P1: A/D + W/S + Space + E · P2: ←/→ + ↑/↓ + X + Shift
             </div>
+            <div class="bcm-tower-warning">Осторожно: падение на 5 пролётов — возврат в начало.</div>
             <div class="bcm-tower-crew" aria-live="polite"></div>
         </div>
 

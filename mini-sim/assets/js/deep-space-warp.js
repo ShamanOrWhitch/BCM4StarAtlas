@@ -190,6 +190,9 @@
           state.ringEntryFailed = true;
           if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
           stopRingAudio(true);
+          setMazeStatus("RING ENTRY FAILED · ASTEROID RESTORED · PRESS RING BUTTON TO RETRY");
+          try { console.error("Mini-Sim Ring transition ended, but the level did not initialize."); } catch (e) {}
+          syncHullButtonVisibility();
           syncRingButtonVisibility();
         }
       }
@@ -452,24 +455,70 @@
 
     function attemptOpenRingPlatformer(maze, afterTransition = false) {
       state.ringEntryFailed = false;
+      const engine = api();
+      const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
+      const scene = runtime && runtime.scene;
+      const snapshot = {
+        mazeGroup: maze && maze.group ? maze.group : null,
+        mazeVisible: maze && maze.group ? maze.group.visible : null,
+        shipVisual: runtime && runtime.ship ? runtime.ship.visual : null,
+        shipVisible: runtime && runtime.ship && runtime.ship.visual ? runtime.ship.visual.visible : null,
+        scene,
+        sceneBackground: scene ? scene.background : null,
+        sceneChildren: new Set(scene && scene.children ? scene.children : []),
+        customRenderer: window.BCMDeepSpaceWarpRender
+      };
+
+      // Ring setup creates a sizeable 3D world in the shared scene. If any
+      // texture/world/UI setup step throws, roll it back as one transaction:
+      // never strand the pilot with a hidden asteroid and ship but no Ring level.
+      function restoreEntrySnapshot() {
+        try {
+          if (snapshot.mazeGroup) snapshot.mazeGroup.visible = snapshot.mazeVisible;
+        } catch (e) {}
+        try {
+          if (snapshot.shipVisual) snapshot.shipVisual.visible = snapshot.shipVisible;
+        } catch (e) {}
+        try {
+          if (snapshot.scene) {
+            [...snapshot.scene.children].forEach((child) => {
+              if (!snapshot.sceneChildren.has(child)) snapshot.scene.remove(child);
+            });
+            snapshot.scene.background = snapshot.sceneBackground;
+          }
+        } catch (e) {}
+        try { window.BCMDeepSpaceWarpRender = snapshot.customRenderer; } catch (e) {}
+        state.ringRenderState = null;
+      }
+
       try {
-        return openRingPlatformer(maze, afterTransition);
+        const opened = openRingPlatformer(maze, afterTransition);
+        if (!opened && !state.ringPlatformer && !state.ringTransitionActive) {
+          restoreEntrySnapshot();
+        }
+        return opened;
       } catch (error) {
-        // A partially-created Ring overlay must never strand flight or disable
-        // the asteroid's collision callback. Re-arm a manual retry and expose
-        // the error in the existing maze HUD instead of silently killing the loop.
+        const partialCleanup = state.ringPlatformerCleanup;
+        state.ringPlatformerCleanup = null;
+        try {
+          if (typeof partialCleanup === "function") partialCleanup();
+        } catch (cleanupError) {
+          try { console.error("Mini-Sim Ring partial cleanup failed:", cleanupError); } catch (e) {}
+        }
+        restoreEntrySnapshot();
         state.ringPlatformer = false;
         state.ringTransitionActive = false;
         state.ringApproachArmed = true;
         state.ringEntryFailed = true;
         try { document.getElementById("bcm-ring-transition")?.remove(); } catch (e) {}
         try { document.getElementById("bcm-ring-platformer")?.remove(); } catch (e) {}
-        try { window.BCMDeepSpaceWarpRender = null; } catch (e) {}
-        const engine = api();
+        try { document.getElementById("bcm-ring-platformer-old")?.remove(); } catch (e) {}
         try { if (engine && engine.pauseForWarp) engine.pauseForWarp(false); } catch (e) {}
         try { stopRingAudio(true); } catch (e) {}
-        try { setMazeStatus("RING ENTRY FAILED · PRESS RING BUTTON TO RETRY"); } catch (e) {}
-        try { console.error("Mini-Sim Ring entry failed:", error); } catch (e) {}
+        try {
+          setMazeStatus("RING ENTRY FAILED · ASTEROID RESTORED · PRESS RING BUTTON TO RETRY");
+        } catch (e) {}
+        try { console.error("Mini-Sim Ring entry failed; restored asteroid scene:", error); } catch (e) {}
         try { syncHullButtonVisibility(); syncRingButtonVisibility(); } catch (e) {}
         return false;
       }
@@ -2928,10 +2977,7 @@
         return path.homeX;
       }
 
-      maze.group.visible = false;
-      if (runtime.ship.visual) runtime.ship.visual.visible = false;
       const oldBackground = scene.background;
-      scene.background = new THREE.Color(0x030812);
 
       const old = document.getElementById("bcm-ring-platformer-old");
       if (old) old.remove();
@@ -4057,6 +4103,12 @@
         root2d.remove();
         syncHullButtonVisibility();
       };
+      // Commit the scene switch only after the Ring world, input bindings,
+      // renderer, and cleanup routine are ready. Failures before this point
+      // leave the asteroid visible; later failures are safely rolled back above.
+      maze.group.visible = false;
+      if (runtime.ship.visual) runtime.ship.visual.visible = false;
+      scene.background = new THREE.Color(0x030812);
       state.ringLastUpdate = 0;
       syncHullButtonVisibility();
       raf = requestAnimationFrame(frame);

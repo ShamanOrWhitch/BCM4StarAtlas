@@ -465,3 +465,52 @@
   background: rgba(24,93,91,.94);
   box-shadow: 0 0 0 5px rgba(86,240,208,.11), 0 10px 35px rgba(0,0,0,.35);
 }
+
+
+/* Plain device-specific controls, objective and fall warning. */
+.bcm-tower-menu-help-keyboard,
+.bcm-tower-menu-help-touch,
+.bcm-tower-menu-help-gamepad {
+    margin-top: 4px;
+}
+.bcm-tower-menu-help-touch,
+.bcm-tower-menu-help-gamepad {
+    display: none;
+}
+.bcm-tower-menu-warning,
+.bcm-tower-warning {
+    margin-top: 7px;
+    color: #ffd27a;
+    font-weight: 800;
+    letter-spacing: .01em;
+}
+.bcm-tower-warning {
+    font-size: 12px;
+    line-height: 1.4;
+}
+.bcm-tower-help-gamepad {
+    display: none;
+}
+@media (pointer: coarse) {
+    .bcm-tower-menu-help-keyboard {
+        display: none !important;
+    }
+    .bcm-tower-menu-help-touch {
+        display: block !important;
+    }
+}
+.bcm-tower.has-gamepad .bcm-tower-menu-help-keyboard,
+.bcm-tower.has-gamepad .bcm-tower-menu-help-touch {
+    display: none !important;
+}
+.bcm-tower.has-gamepad .bcm-tower-menu-help-gamepad {
+    display: block !important;
+}
+.bcm-tower.has-gamepad .bcm-tower-help-single,
+.bcm-tower.has-gamepad .bcm-tower-help-touch,
+.bcm-tower.has-gamepad .bcm-tower-help-multi {
+    display: none !important;
+}
+.bcm-tower.has-gamepad .bcm-tower-help-gamepad {
+    display: block !important;
+}
