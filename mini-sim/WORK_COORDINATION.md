@@ -1,4 +1,15 @@
-## Active Work Lock — Mini-Sim 0.11.11 Warp/Panda regression (25 October 2026)
+## Active Work Lock — Mini-Sim 0.11.12 finite space boundaries + asteroid Warp continuation (25 October 2026)
+
+- Issue: [#74](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/74); follow-up branch: `fix/minisim-0.11.12-space-boundaries`.
+- Parent: Warp/Panda candidate [PR #71](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/71), head `864426e50e59e4b6d704ea9ded24e826a059a3db`. Preserve its accepted 0.11.11 visual treatment; this follow-up does not change Warp drawing.
+- Owned paths: `mini-sim/assets/js/mini-sim.js`, `mini-sim/assets/js/deep-space-warp.js`, `mini-sim/bcm-mini-sim.php`, `scripts/warp-maze-return.test.mjs`, version-contract tests, and Mini-Sim state/handoff/decision docs.
+- Scope: turn Room 1/Room 2 corridor collisions into finite surfaces; preserve real inside-corridor collisions and the intended Room 2 rear exit; prevent open-space movement from being clamped back to Room 1; keep the live asteroid pose and quaternion when opening the next Warp map; make V open the next-destination map from asteroid flight.
+- Exclusions: no changes to Warp visuals/speed/audio, asteroid maze's own wall/collision topology, Tower physics, `wordpress/galia-desk`, scanner, market/pricing data or shared assets.
+- Validation must distinguish source tests, GitHub browser runner and actual site/device use. The current GitHub Actions browser runner receives HTTP 403 before the game UI appears; record that as BLOCKED, never as a visual pass. No production deployment is performed by this branch.
+
+---
+
+## Previous Work Lock — Mini-Sim 0.11.11 Warp/Panda regression (25 October 2026)
 
 - Issue: [#70](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/70); branch: `fix/minisim-0.11.11-warp-panda-prompt`.
 - Baseline main SHA: `bc77614564aa7bf1f2a211c945006fc258d6aeff` (Mini-Sim 0.11.10 / Tower 0.2.65).
