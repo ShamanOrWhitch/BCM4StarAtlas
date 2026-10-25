@@ -1,6 +1,14 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
-## Current main state — Mini-Sim 0.11.8 (24 October 2026)
+## Candidate branch — Mini-Sim 0.11.11 Warp and Panda UI (25 October 2026)
+
+- Branch `fix/minisim-0.11.11-warp-panda-prompt`, lock issue [#70](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/70), based on main `bc77614564aa7bf1f2a211c945006fc258d6aeff` (0.11.10 / Tower 0.2.65). Not merged or deployed.
+- Warp now has 12 gently skewed base strips, no extra Class II rail/pulse overlay, no decorative wall hoops/chevrons, and more visible segmented gates, sweepers and spikes. Hazard draw depth was extended; hit/collision formulas, speed ramp, shimmer clock, audio and navigation were left unchanged.
+- Flight/Warp instructions are routed into the Panda operator bubble. Separate right-side controls markup/styles are removed. Bubble width is increased and Panda stays visible at 420px.
+- Code/CI status is pending until runs for the pull request finish. Repeat production browser QA still receives HTTP 403 before the game container; do not call this visual verification. No WordPress deployment or physical device test is claimed.
+- Do not touch `wordpress/galia-desk`, the scanner or pricing data.
+
+## Historical snapshot — Mini-Sim 0.11.8 (24 October 2026; superseded by main 0.11.10)
 
 This entry supersedes the older 0.11.3–0.11.5 candidate notes below; those sections remain as history, not as the current state. Current code is on `main`; Tower remains `0.2.65`. **Nothing has been deployed to the website.**
 
