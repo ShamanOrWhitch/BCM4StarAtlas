@@ -82,7 +82,7 @@ test("Warp multiplier and displayed speed ramp from 1x to 8x", () => {
   assert.match(warp, /return Math\.min\(1, 0\.055 \/ \(distance \+ 0\.05\)\)/);
 });
 
-test("Mini-Sim 0.11.15 cache/version contracts are synchronized", () => {
+test("Mini-Sim 0.11.16 cache/version contracts are synchronized", () => {
   assert.match(plugin, /Version: 0\.11\.15/);
   assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.15'\)/);
   assert.match(plugin, /SPACE LABYRINTH — 0\.11\.15/);
