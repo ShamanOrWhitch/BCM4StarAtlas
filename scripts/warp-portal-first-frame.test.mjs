@@ -47,8 +47,9 @@ test("Tube displays multiple obstacle types and tests collisions against their v
   assert.match(draw, /layer\.type === "gate"/);
   assert.match(draw, /layer\.type === "sweeper"/);
   assert.match(draw, /layer\.type === "spikes"/);
-  assert.match(draw, /layer\.type === "boost"/);
-  assert.match(draw, /layer\.type === "launcher"/);
+  assert.doesNotMatch(draw, /layer\.type === "boost"|layer\.type === "launcher"/);
+  assert.match(update, /layer\.type === "boost"/);
+  assert.match(update, /layer\.type === "launcher"/);
   assert.match(update, /angleDifference\(playerAngle, layer\.safeAngle\)/);
   assert.match(update, /layer\.blockedAngles\.some/);
   assert.match(update, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
