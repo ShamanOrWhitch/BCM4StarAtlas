@@ -1,13 +1,13 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
-## Candidate 0.11.15 — backside-only Photoli doors, asteroid flight and Hydrogen pickup feedback
+## Merged main 0.11.15 — backside-only Photoli doors, asteroid flight and Hydrogen pickup feedback
 
-- Branch `fix/minisim-0.11.15-photoli-doors-hydrogen-feedback`, PR [#78](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/78), work lock [#77](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/77); based on merged 0.11.14 main.
+- Merged by [PR #78](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/78) as `1b00a801f62506917f533ead12d0524f06159802`; issue [#77](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/77) is closed.
 - User scope correction: randomized slide / wipe / iris doors are only on the external shell panels using `backside*` textures. Room 2's corridor walls remain solid. No asteroid labyrinth wall doors.
 - Open shell passage is gated by the state and footprint of the specific moving backside panel; other panels and the corridor remain hard.
 - Wall impacts in the asteroid remove only inward normal velocity, retaining tangential speed. A radius-58 exterior flight envelope removes only outward radial speed at its limit to preserve orbital movement.
 - Crystal pickup effect is larger and includes floating `H +1`; mission event/count and duplicate-ID protection are retained and covered by a source-level behavioral test.
-- Version/cache bumped to 0.11.15. CI pending on current head; browser QA may be blocked by HTTP 403 before the game root. Not deployed. Do not change Galia Desk, scanner/pricing, Tower, common assets or firewall.
+- Version/cache bumped to 0.11.15. Source regression suites passed on the merged PR head. Browser smoke has not reached the site because Playwright setup was still running; earlier probes stopped at HTTP 403 before gameplay. No live visual/device PASS or WordPress deployment is claimed. Do not change Galia Desk, scanner/pricing, Tower, common assets or firewall.
 
 ---
 
