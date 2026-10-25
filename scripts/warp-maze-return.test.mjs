@@ -18,7 +18,7 @@ function section(source, startMarker, endMarker) {
 }
 
 test("asteroid exit returns to Warp, Ring stays separate and Hull Dive is enterable in first-person", () => {
-  assert.match(warp, /exitButton\.textContent = "RETURN TO WARP MAP"/);
+  assert.match(warp, /exitButton\.textContent = "СЛЕДУЮЩИЙ ПЕРЕХОД · V"/);
   assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
   assert.match(warp, /maze\.count === 3 \? "GOLD RING IS OPEN"/);
   assert.match(warp, /if \(state\.ringApproachArmed && !state\.ringEntryFailed && !state\.ringPlatformer &&[\s\S]{0,120}ringDistance < 2\.6\)\s*\{\s*attemptOpenRingPlatformer\(maze\)/);
@@ -47,7 +47,8 @@ test("returning to the sector map keeps Warp active and pauses the ship", () => 
   assert.doesNotMatch(body, /stopWarpAudio\(\)|resumeLevelOst\(\)/);
   assert.doesNotMatch(body, /state\.savedPosition = null|state\.savedQuaternion = null/);
   assert.match(body, /state\.returnPosition = runtime\.ship\.position\.clone\(\)/);
-  assert.match(body, /const yaw = Math\.atan2\(-forward\.x, -forward\.z\)/);
+  assert.match(body, /state\.returnQuaternion = runtime\.ship\.quaternion\.clone\(\)/);
+  assert.doesNotMatch(body, /engine\.teleport\(state\.savedPosition,\s*state\.savedQuaternion\)/);
   assert.ok(body.indexOf("state.returnPosition = runtime.ship.position.clone()") < body.indexOf("disposeMaze()"), "capture asteroid anchor before disposing maze");
 });
 
@@ -339,4 +340,61 @@ test("Ring entry failures are retryable and don't disable the asteroid collision
   const callbacks = section(sim, "function reportDeepSpaceCallbackError(label, error)", "function toggleSettings()");
   assert.doesNotMatch(callbacks, /window\.BCMDeepSpaceWarpFrame = null/);
   assert.doesNotMatch(callbacks, /window\.BCMDeepSpaceWarpPoll = null/);
+});
+
+
+test("Room 2 collision surfaces do not extend into open space", () => {
+  const collisionSource = section(sim, "function collideCorridorShell(before)", "function collide(previousPosition)");
+  const makeCollider = (ship, shellCrossed) => new Function(
+    "ship", "shellCrossed",
+    "let exteriorFlight = false;\n" + collisionSource +
+      "\nreturn { run: collideCorridorShell, isExterior: () => exteriorFlight };"
+  )(ship, shellCrossed);
+  const collide = (before, after) => {
+    const ship = { position: { ...after }, velocity: { x: 0, y: 0, z: 0 } };
+    const collider = makeCollider(ship, (a, b, edge) =>
+      (a >= edge && b < edge) || (a <= edge && b > edge));
+    const blocked = collider.run({ ...before });
+    return { ship, blocked, exterior: collider.isExterior() };
+  };
+
+  const openSide = collide({ x: 5.5, y: 20, z: -60 }, { x: 6.5, y: 20, z: -60 });
+  assert.equal(openSide.blocked, false, "X wall plane outside the side wall must be open");
+  assert.equal(openSide.ship.position.x, 6.5);
+
+  const openYSide = collide({ x: 20, y: 3, z: -60 }, { x: 20, y: 4, z: -60 });
+  assert.equal(openYSide.blocked, false, "Y wall plane outside the side wall must be open");
+  assert.equal(openYSide.ship.position.y, 4);
+
+  const openCap = collide({ x: 20, y: 0, z: -46.5 }, { x: 20, y: 0, z: -48.5 });
+  assert.equal(openCap.blocked, false, "Room 2 front plane outside its cross-section must be open");
+  assert.equal(openCap.ship.position.z, -48.5);
+
+  const openRoom1Band = collide({ x: 20, y: 0, z: 5.8 }, { x: 20, y: 0, z: 0 });
+  assert.equal(openRoom1Band.blocked, false, "Room 1 fallback must not capture a ship in space");
+  assert.equal(openRoom1Band.ship.position.x, 20);
+  assert.equal(openRoom1Band.ship.position.z, 0);
+
+  const actualSide = collide({ x: 5.5, y: 0, z: -60 }, { x: 6.5, y: 0, z: -60 });
+  assert.equal(actualSide.blocked, true, "the actual Room 2 side wall remains solid");
+  assert.equal(actualSide.ship.position.x, 5.94);
+
+  const actualCap = collide({ x: 0, y: 0, z: -46.5 }, { x: 0, y: 0, z: -48.5 });
+  assert.equal(actualCap.blocked, true, "the actual Room 2 front cap remains solid");
+  assert.equal(actualCap.ship.position.z, -47.44);
+
+  const room2Exit = collide({ x: 0, y: 0, z: -84.4 }, { x: 0, y: 0, z: -84.8 });
+  assert.equal(room2Exit.blocked, false, "the normal Room 2 rear exit remains open");
+  assert.equal(room2Exit.exterior, true);
+  assert.equal(room2Exit.ship.position.z, -84.8);
+});
+
+test("V opens the next-destination map from asteroid flight without resetting the ship", () => {
+  assert.match(warp, /window\.BCMDeepSpaceWarpToggle = function \(\) \{[\s\S]*?state\.mode === "closed"\)[\s\S]*?state\.mode === "maze"[\s\S]*?returnToWarpMap\(\)/);
+  const body = section(warp, "function returnToWarpMap()", "function resizeBackdrop()");
+  assert.match(body, /state\.returnPosition = runtime\.ship\.position\.clone\(\)/);
+  assert.match(body, /state\.returnQuaternion = runtime\.ship\.quaternion\.clone\(\)/);
+  assert.doesNotMatch(body, /engine\.teleport\(state\.savedPosition,\s*state\.savedQuaternion\)/);
+  assert.match(warp, /NEXT WARP DESTINATION · V/);
+  assert.match(warp, /СЛЕДУЮЩИЙ ПЕРЕХОД · V/);
 });
