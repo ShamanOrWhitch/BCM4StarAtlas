@@ -240,10 +240,16 @@ test("Mini-Sim and Tower displayed versions match their PHP asset-cache versions
 });
 
 
-test("Asteroid movement sweeps wall collisions and places visible core shards on a connected route", async () => {
+test("Asteroid collision keeps the 0.11.2 baseline and visible core shards on a connected route", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
-  assert.match(warp, /const previousPosition = maze\.lastPosition/);
-  assert.match(warp, /let sweptHit = null/);
+  const body = warp.slice(warp.indexOf("function updateMazeFrame(frame)"), warp.indexOf("function openHullInterior"));
+  assert.match(body, /for \(let pass = 0; pass < 2; pass \+= 1\)/);
+  assert.match(body, /ship\.velocity\.x \*= 0\.15/);
+  assert.match(body, /ship\.velocity\.y \*= 0\.15/);
+  assert.match(body, /ship\.velocity\.z \*= 0\.15/);
+  assert.doesNotMatch(body, /Sweep the ship's previous-to-current segment/);
+  assert.match(warp, /flyRadius: 43\.2/);
+  assert.match(body, /ship\.velocity\.multiplyScalar\(0\.25\)/);
   assert.match(warp, /const routeParent = new Map\(\[\[startNode, null\]\]\)/);
   assert.match(warp, /scouted: true/);
   assert.match(warp, /pos\.distanceTo\(crystal\.mesh\.position\) < 2\.0/);
