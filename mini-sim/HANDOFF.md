@@ -1,5 +1,18 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
+## Candidate 0.11.15 — backside-only Photoli doors, asteroid flight and Hydrogen pickup feedback
+
+- Branch `fix/minisim-0.11.15-photoli-doors-hydrogen-feedback`, PR [#78](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/78), work lock [#77](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/77); based on merged 0.11.14 main.
+- User scope correction: randomized slide / wipe / iris doors are only on the external shell panels using `backside*` textures. Room 2's corridor walls remain solid. No asteroid labyrinth wall doors.
+- Open shell passage is gated by the state and footprint of the specific moving backside panel; other panels and the corridor remain hard.
+- Wall impacts in the asteroid remove only inward normal velocity, retaining tangential speed. A radius-58 exterior flight envelope removes only outward radial speed at its limit to preserve orbital movement.
+- Crystal pickup effect is larger and includes floating `H +1`; mission event/count and duplicate-ID protection are retained and covered by a source-level behavioral test.
+- Version/cache bumped to 0.11.15. CI pending on current head; browser QA may be blocked by HTTP 403 before the game root. Not deployed. Do not change Galia Desk, scanner/pricing, Tower, common assets or firewall.
+
+---
+
+# BCM4StarAtlas / Mini-Sim — актуальная передача
+
 ## Merged main 0.11.14 — free space around Room 2 and asteroid Warp handoff
 
 - Merged by [PR #76](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/76) into `main` as `65df7b29b7e0ab7a139cbf691f41ad103b0d8ba2`. Issue [#74](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/74) is closed.

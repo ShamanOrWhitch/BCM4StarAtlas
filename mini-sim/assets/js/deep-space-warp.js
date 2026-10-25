@@ -1582,7 +1582,8 @@
         beaconGeometry,
         beaconMaterial,
         satellites,
-        flyRadius: 43.2,
+        // The shell is a flyable exterior, not a hard brake at the old inner radius.
+        flyRadius: 58.0,
         lastPosition: null,
         lastImpactAt: 0,
         ringCompleted: false,
@@ -1601,7 +1602,7 @@
       state.maze = maze;
       publishAsteroidChart(maze);
       maze.pickupEffects = [];
-      function spawnCrystalPickupEffect(position) {
+      function spawnCrystalPickupEffect(position, pickupLabel) {
         const effect = new THREE.Group();
         effect.name = "asteroid-crystal-pickup-impact";
         effect.position.copy(position);
@@ -1617,26 +1618,64 @@
         const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.055, 6, 24), ringMaterial);
         ring.rotation.x = Math.PI * 0.34;
         effect.add(core, ring);
-        const light = new THREE.PointLight(0x74f6ff, 2.8, 9, 2);
+        const light = new THREE.PointLight(0x74f6ff, 3.8, 12, 2);
         effect.add(light);
+
+        // A world-space label makes mission pickups obvious even when the HUD is small.
+        const labelCanvas = document.createElement("canvas");
+        labelCanvas.width = 320;
+        labelCanvas.height = 112;
+        const ctx = labelCanvas.getContext("2d");
+        if (ctx) {
+          ctx.clearRect(0, 0, labelCanvas.width, labelCanvas.height);
+          ctx.font = "bold 64px system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.lineJoin = "round";
+          ctx.lineWidth = 14;
+          ctx.strokeStyle = "rgba(2, 15, 26, 0.95)";
+          ctx.strokeText(pickupLabel || "CORE +1", 160, 56);
+          ctx.fillStyle = pickupLabel === "H +1" ? "#bafff1" : "#a9f5ff";
+          ctx.fillText(pickupLabel || "CORE +1", 160, 56);
+        }
+        const labelTexture = new THREE.CanvasTexture(labelCanvas);
+        labelTexture.needsUpdate = true;
+        const labelMaterial = new THREE.SpriteMaterial({
+          map: labelTexture, transparent: true, depthWrite: false, opacity: 1
+        });
+        const labelSprite = new THREE.Sprite(labelMaterial);
+        labelSprite.position.set(0, 1.55, 0);
+        labelSprite.scale.set(3.6, 1.25, 1);
+        effect.add(labelSprite);
+
         scene.add(effect);
-        maze.pickupEffects.push({ group: effect, core, ring, light, glowMaterial, ringMaterial, age: 0, duration: 0.72 });
+        maze.pickupEffects.push({
+          group: effect, core, ring, light, glowMaterial, ringMaterial,
+          labelSprite, labelMaterial, labelTexture, age: 0, duration: 1.15
+        });
       }
       function updateCrystalPickupEffects(dt) {
         maze.pickupEffects = maze.pickupEffects.filter((effect) => {
           effect.age += dt;
           const t = Math.min(1, effect.age / effect.duration);
-          effect.ring.scale.setScalar(0.55 + t * 5.2);
-          effect.ring.rotation.z += dt * 3.4;
-          effect.core.scale.setScalar(0.6 + (1 - t) * 2.0);
-          effect.glowMaterial.opacity = Math.max(0, (1 - t) * 0.95);
-          effect.ringMaterial.opacity = Math.max(0, (1 - t) * 0.9);
-          effect.light.intensity = Math.max(0, (1 - t) * 2.8);
+          effect.ring.scale.setScalar(0.55 + t * 6.6);
+          effect.ring.rotation.z += dt * 4.0;
+          effect.core.scale.setScalar(0.6 + (1 - t) * 2.8);
+          effect.glowMaterial.opacity = Math.max(0, (1 - t) * 0.98);
+          effect.ringMaterial.opacity = Math.max(0, (1 - t) * 0.96);
+          effect.light.intensity = Math.max(0, (1 - t) * 3.8);
+          if (effect.labelSprite) {
+            effect.labelSprite.position.y = 1.55 + t * 2.2;
+            effect.labelMaterial.opacity = Math.max(0, 1 - t * 0.92);
+            effect.labelSprite.scale.set(3.6 + t * 0.75, 1.25 + t * 0.22, 1);
+          }
           if (t >= 1) {
             scene.remove(effect.group);
             effect.group.traverse((child) => { if (child.geometry) child.geometry.dispose(); });
             effect.glowMaterial.dispose();
             effect.ringMaterial.dispose();
+            if (effect.labelMaterial) effect.labelMaterial.dispose();
+            if (effect.labelTexture) effect.labelTexture.dispose();
             return false;
           }
           return true;
@@ -1755,7 +1794,8 @@
         pos.copy(previousPosition).addScaledVector(displacement, Math.max(0, sweptHit.time - 0.002));
         const normalAxis = axisNames[sweptHit.axis];
         pos[normalAxis] = sweptHit.wall[normalAxis] + sweptHit.normal * (sweptHit.extents[sweptHit.axis] + 0.015);
-        ship.velocity[normalAxis] *= 0.12;
+        // Cancel only the velocity directed into the wall; preserve tangential flight.
+        ship.velocity[normalAxis] = 0;
         const impactNow = performance.now();
         if (impactSpeed > 3.0 && impactNow - maze.lastImpactAt > 650) {
           maze.lastImpactAt = impactNow;
@@ -1789,23 +1829,27 @@
           }
           if (px <= py && px <= pz) {
             pos.x = w.x + (pos.x >= w.x ? 1 : -1) * (hx + 0.015);
-            ship.velocity.x *= 0.15;
+            ship.velocity.x = 0;
           } else if (py <= pz) {
             pos.y = w.y + (pos.y >= w.y ? 1 : -1) * (hy + 0.015);
-            ship.velocity.y *= 0.15;
+            ship.velocity.y = 0;
           } else {
             pos.z = w.z + (pos.z >= w.z ? 1 : -1) * (hz + 0.015);
-            ship.velocity.z *= 0.15;
+            ship.velocity.z = 0;
           }
         }
       }
 
       const fromCenter = pos.clone().sub(maze.center);
-      const flyRadius = Number(maze.flyRadius) || 43.2;
+      const flyRadius = Number(maze.flyRadius) || 58.0;
       if (fromCenter.length() > flyRadius) {
+        const boundaryNormal = fromCenter.clone().normalize();
         fromCenter.setLength(flyRadius);
         pos.copy(maze.center).add(fromCenter);
-        ship.velocity.multiplyScalar(0.25);
+        // A soft radial boundary removes only outward velocity. Tangential speed
+        // remains available, so the pilot can keep orbiting the asteroid exterior.
+        const outwardSpeed = ship.velocity.dot(boundaryNormal);
+        if (outwardSpeed > 0) ship.velocity.addScaledVector(boundaryNormal, -outwardSpeed);
       }
       (maze.satellites || []).forEach((rock) => {
         const away = pos.clone().sub(rock.position);
@@ -1842,10 +1886,12 @@
           crystal.scouted = true;
           crystal.mesh.visible = false;
           maze.count += 1;
-          spawnCrystalPickupEffect(pickupPosition);
           publishAsteroidChart(maze);
           const mission = window.BCMWorldMission || {};
-          if (mission.hydrogenUnlocked && Number(mission.hydrogenCount || 0) < 3) {
+          const isHydrogenPickup = !!mission.hydrogenUnlocked &&
+            Number(mission.hydrogenCount || 0) < 3;
+          spawnCrystalPickupEffect(pickupPosition, isHydrogenPickup ? "H +1" : "CORE +1");
+          if (isHydrogenPickup) {
             window.dispatchEvent(new CustomEvent("bcm:mission:hydrogen-shard-collected", {
               detail: {
                 crystalId: String(maze.seed) + ":" + crystal.cell.x + "," + crystal.cell.y + "," + crystal.cell.z,

@@ -1,3 +1,15 @@
+## Candidate Mini-Sim 0.11.15 — backside-only Photoli doors, softer asteroid impacts and Hydrogen feedback (25 October 2026)
+
+- Branch `fix/minisim-0.11.15-photoli-doors-hydrogen-feedback`, PR [#78](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/78); issue [#77](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/77). Based on the merged 0.11.14 main.
+- The only dynamic door candidates are the outer starbase-shell panels built from `backside*` textures. Room 2 interior walls and asteroid maze walls are explicitly excluded. Room 2 does not become generally passable.
+- The external shell collider accepts a crossing only if the matching selected backside panel is fully OPEN and the ship crosses within that panel's aperture.
+- Asteroid maze collisions zero only the wall-normal component instead of leaving residual impact velocity; tangential motion remains. Exterior radius cap is widened to 58 and removes only outward radial velocity, not all ship speed.
+- Crystal pickups show a stronger pickup flash plus floating `H +1` (or `CORE +1` outside the Hydrogen stage). The existing mission event synchronously advances the Hydrogen count; duplicate crystal IDs remain ignored.
+- New regression cases cover shell-only door selection/opening, solid Room 2 corridor bounds, low-kickback tangential motion and the actual Hydrogen mission counter.
+- CI pending for PR #78. Browser/device visual pass not yet claimed. Not deployed.
+
+---
+
 ## Main state — Mini-Sim 0.11.14 merged (25 October 2026)
 
 - Merged via [PR #76](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/76) as main commit `65df7b29b7e0ab7a139cbf691f41ad103b0d8ba2`; issue [#74](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/74) is closed.

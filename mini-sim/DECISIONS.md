@@ -1,3 +1,16 @@
+## D-036 — Mini-Sim 0.11.15: backside-only Photoli doors, gentle asteroid contacts and Hydrogen feedback
+
+**Status:** Candidate PR [#78](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/78), issue [#77](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/77); CI pending, not deployed. Based on merged 0.11.14 main.
+
+- Randomly animated doors belong exclusively to the external starbase-shell panels built from `backside*` textures. Use a staggered randomized slide / wipe / iris cycle. A passage is collision-open only while its specific panel is fully open and only within that panel's footprint.
+- Do not make all Room 2 passable; preserve Room 2's interior corridor walls and boundary clamps. Do not apply doors to asteroid-maze walls.
+- Asteroid wall impacts zero the contact-normal velocity component only. Keep tangential velocity. Enlarge exterior flight radius to 58; at the cap remove only outward radial velocity so the pilot can orbit rather than brake in every direction.
+- On a crystal pickup, add a brighter expansion flash and a floating `H +1` label during the Hydrogen mission (otherwise `CORE +1`). Keep the `bcm:mission:hydrogen-shard-collected` event, mission counter and idempotent duplicate-ID check.
+- Preserve the 0.11.14 finite Room 2 collision fix, Warp rendering, Ring and Tower. Do not touch Galia Desk, scanner, pricing, shared art or firewall.
+- Treat source/CI tests separately from live browser, mobile and gamepad tests. No production deployment from this PR.
+
+---
+
 ## D-035 — Mini-Sim 0.11.14: finite room boundaries and asteroid Warp continuation
 
 **Status:** Merged to `main` by [PR #76](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/76), commit `65df7b29b7e0ab7a139cbf691f41ad103b0d8ba2`. Source regression suites and package build passed. Browser smoke has not reached the game UI; earlier runs stopped at HTTP 403. Not deployed. Preserves the accepted 0.11.13 Warp-depth/collision/Ring work.

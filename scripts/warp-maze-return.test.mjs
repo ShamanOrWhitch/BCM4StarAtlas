@@ -398,3 +398,113 @@ test("V opens the next-destination map from asteroid flight without resetting th
   assert.match(warp, /NEXT WARP DESTINATION · V/);
   assert.match(warp, /СЛЕДУЮЩИЙ ПЕРЕХОД · V/);
 });
+
+
+test("Photoli doors belong only to backside shell panels; Room 2 corridor walls remain solid", () => {
+  const shellBuild = section(sim, "function buildStarbaseExterior(parent)", "function trackSurfaceName");
+  assert.match(shellBuild, /function addPanel\(material, x, y, z, w, h, rx, ry, surface\)/);
+  assert.match(shellBuild, /const doorEligible = !!surfaceInfo && Math\.random\(\) < 0\.095/);
+  assert.match(shellBuild, /addPanel\(sideLeft, -outerX, y, center, segmentWidth, sideCellH, 0, -Math\.PI \/ 2, "left"\)/);
+  assert.match(shellBuild, /addPanel\(sideRight, outerX, y, center, segmentWidth, sideCellH, 0, Math\.PI \/ 2, "right"\)/);
+  assert.match(shellBuild, /"top"\);/);
+  assert.match(shellBuild, /"bottom"\);/);
+  assert.match(shellBuild, /rotationY === 0 \? "front" : "rear"/);
+  assert.match(sim, /function updateBacksideDoors\(dt, now\)/);
+  assert.match(sim, /function applyBacksideDoorPose\(panel\)/);
+  assert.match(sim, /panel\.doorState !== "OPEN"/);
+
+  const roomInterior = section(sim, "function collide(previousPosition)", "function updatePhysics(dt)");
+  assert.match(roomInterior, /const room2Interior =/);
+  assert.match(roomInterior, /ship\.position\.x = Math\.max\(-5\.3, Math\.min\(5\.3, ship\.position\.x\)\)/);
+  assert.match(roomInterior, /ship\.position\.y = Math\.max\(-3\.2, Math\.min\(3\.2, ship\.position\.y\)\)/);
+
+  const shellCollider = section(sim, "function collideStarbaseShell(before, allowInteriorOpenings)", "function collideCorridorShell(before)");
+  assert.match(shellCollider, /hasOpenBacksideDoor\("x"/);
+  assert.match(shellCollider, /hasOpenBacksideDoor\("y"/);
+  assert.match(shellCollider, /hasOpenBacksideDoor\("z"/);
+});
+
+test("only a fully open backside panel creates a matching outer-shell passage", () => {
+  const helperSource = section(sim, "function hasOpenBacksideDoor(axis, edge, before, after)", "function collideStarbaseShell(before, allowInteriorOpenings)");
+  const makeCheck = (panels) => new Function(
+    "backside",
+    "shellCrossed",
+    helperSource + "\nreturn hasOpenBacksideDoor;"
+  )({ panels }, (a, b, edge) => (a >= edge && b < edge) || (a <= edge && b > edge));
+  const panel = {
+    doorEligible: true,
+    doorState: "OPEN",
+    normalAxis: "x",
+    base: { x: 16, y: 0, z: -60 },
+    tangentA: "z",
+    tangentB: "y",
+    halfA: 2.25,
+    halfB: 3
+  };
+  const before = { x: 15, y: 0, z: -60 };
+  const after = { x: 17, y: 0, z: -60 };
+  assert.equal(makeCheck([panel])("x", 16, before, after), true);
+  assert.equal(makeCheck([{ ...panel, doorState: "CLOSING" }])("x", 16, before, after), false);
+  assert.equal(makeCheck([{ ...panel, doorEligible: false }])("x", 16, before, after), false);
+  assert.equal(makeCheck([panel])("x", 16, before, { ...after, z: -56 }), false);
+});
+
+test("asteroid-wall contact stops only inward normal speed and preserves orbital movement", () => {
+  const body = section(warp, "function updateMazeFrame(frame)", "function openHullInterior");
+  assert.match(body, /ship\.velocity\[normalAxis\] = 0/);
+  assert.match(body, /ship\.velocity\.x = 0/);
+  assert.match(body, /ship\.velocity\.y = 0/);
+  assert.match(body, /ship\.velocity\.z = 0/);
+  assert.doesNotMatch(body, /ship\.velocity\[normalAxis\] \*= 0\.12/);
+  assert.doesNotMatch(body, /ship\.velocity\.[xyz] \*= 0\.15/);
+  assert.match(warp, /flyRadius: 58\.0/);
+  const radialBoundary = section(body, "const fromCenter = pos.clone().sub(maze.center);", "(maze.satellites || [])");
+  assert.match(radialBoundary, /ship\.velocity\.dot\(boundaryNormal\)/);
+  assert.match(radialBoundary, /ship\.velocity\.addScaledVector\(boundaryNormal, -outwardSpeed\)/);
+  assert.doesNotMatch(radialBoundary, /ship\.velocity\.multiplyScalar/);
+});
+
+test("asteroid Hydrogen pickup has an obvious H+1 effect and updates the real mission counter", () => {
+  const effect = section(warp, "function spawnCrystalPickupEffect(position, pickupLabel)", "function updateCrystalPickupEffects(dt)");
+  assert.match(effect, /new THREE\.CanvasTexture\(labelCanvas\)/);
+  assert.match(effect, /pickupLabel \|\| "CORE \+1"/);
+  assert.match(effect, /pickupLabel === "H \+1"/);
+  assert.match(effect, /labelSprite\.scale\.set/);
+
+  const collect = section(warp, "maze.crystals.forEach((crystal) => {", "updateCrystalPickupEffects(Math.min");
+  assert.match(collect, /const isHydrogenPickup = !!mission\.hydrogenUnlocked/);
+  assert.match(collect, /spawnCrystalPickupEffect\(pickupPosition, isHydrogenPickup \? "H \+1" : "CORE \+1"\)/);
+  assert.match(collect, /bcm:mission:hydrogen-shard-collected/);
+  assert.match(collect, /const count = Number\(window\.BCMWorldMission\?\.hydrogenCount \|\| 0\)/);
+  assert.match(collect, /HYDROGEN " \+ count \+ "\/3/);
+
+  const missionSource = section(sim, "function recordHydrogenShard(detail)", "window.BCMWorldMissionAPI = {");
+  assert.match(missionSource, /worldMission\.hydrogenCollectedIds\[id\]/);
+  assert.match(missionSource, /worldMission\.hydrogenCount = Math\.min\(3, worldMission\.hydrogenCount \+ 1\)/);
+  const mission = { hydrogenUnlocked: true, medusaUnlocked: false, hydrogenCount: 0, hydrogenCollectedIds: {} };
+  const labels = [];
+  const dialogs = [];
+  const events = [];
+  const record = new Function(
+    "worldMission", "updateHydrogenMissionLabel", "interfaceLanguage",
+    "showOperatorDialog", "window", "CustomEvent", "labyrinthSeed",
+    missionSource + "\nreturn recordHydrogenShard;"
+  )(
+    mission,
+    () => labels.push(mission.hydrogenCount),
+    "en",
+    (...args) => dialogs.push(args),
+    { dispatchEvent: (event) => events.push(event) },
+    function CustomEvent(type, init) { this.type = type; this.detail = init.detail; },
+    123
+  );
+  record({ crystalId: "seed-a:1,1,2", asteroidSeed: "seed-a", cell: { x: 1, y: 1, z: 2 } });
+  record({ crystalId: "seed-a:1,1,2", asteroidSeed: "seed-a", cell: { x: 1, y: 1, z: 2 } });
+  assert.equal(mission.hydrogenCount, 1, "duplicate crystal IDs must not increment Hydrogen twice");
+  record({ crystalId: "seed-a:2,1,2", asteroidSeed: "seed-a", cell: { x: 2, y: 1, z: 2 } });
+  record({ crystalId: "seed-a:3,1,2", asteroidSeed: "seed-a", cell: { x: 3, y: 1, z: 2 } });
+  assert.equal(mission.hydrogenCount, 3);
+  assert.equal(mission.medusaUnlocked, true);
+  assert.equal(events.filter((event) => event.type === "bcm:mission:medusa-unlocked").length, 1);
+  assert.ok(labels.includes(1) && labels.includes(2) && labels.includes(3));
+});

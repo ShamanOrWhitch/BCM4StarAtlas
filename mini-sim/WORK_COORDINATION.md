@@ -1,3 +1,15 @@
+## Active Work Lock — Mini-Sim 0.11.15: backside-only Photoli doors, asteroid collision feel and Hydrogen feedback (25 October 2026)
+
+- Branch: `fix/minisim-0.11.15-photoli-doors-hydrogen-feedback`; PR [#78](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/78); task [issue #77](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/77). Based on merged main 0.11.14.
+- **Scope correction from user:** auto-opening/closing doors apply only to external starbase-shell panels carrying `backside*` textures. The Room 2 corridor remains solid; do not make all of Room 2 passable. Do not put doors into the asteroid maze's wall topology.
+- Selected exterior panels get staggered randomized cycles using Room 1's slide / wipe / iris technique. The matching collision aperture is enabled only while its selected panel is fully open.
+- Asteroid wall hits cancel inward normal velocity only and preserve tangential movement. Increase the flight envelope to radius 58 while removing the old all-velocity damping at its cap, so an exit through the intended start opening can lead to exterior orbit.
+- Hydrogen pickups add a floating `H +1` visual and a stronger light/ring. The mission counter/event and duplicate-ID guard must remain the source of truth.
+- Preserve the 0.11.14 finite Room 2 fix, Warp visuals/depth, Ring entry and Tower. Do not touch `wordpress/galia-desk`, scanner, pricing, shared artworks or firewall.
+- CI and actual browser/device testing must be reported separately. No WordPress deployment is performed by this PR.
+
+---
+
 ## Completed Work Lock — Mini-Sim 0.11.14: finite space boundaries + asteroid Warp handoff (25 October 2026)
 
 - Merged via [PR #76](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/76) to `main` as `65df7b29b7e0ab7a139cbf691f41ad103b0d8ba2`; tracked issue [#74](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/74) is closed.
