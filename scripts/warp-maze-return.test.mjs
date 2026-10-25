@@ -400,36 +400,41 @@ test("V opens the next-destination map from asteroid flight without resetting th
 });
 
 
-test("Photoli doors belong only to backside shell panels; Room 2 corridor walls remain solid", () => {
+test("every backside shell tile is a proximity door; Room 2 corridor walls remain solid", () => {
   const shellBuild = section(sim, "function buildStarbaseExterior(parent)", "function trackSurfaceName");
-  assert.match(shellBuild, /function addPanel\(material, x, y, z, w, h, rx, ry, surface\)/);
-  assert.match(shellBuild, /const doorEligible = !!surfaceInfo && Math\.random\(\) < 0\.095/);
-  assert.match(shellBuild, /addPanel\(sideLeft, -outerX, y, center, segmentWidth, sideCellH, 0, -Math\.PI \/ 2, "left"\)/);
-  assert.match(shellBuild, /addPanel\(sideRight, outerX, y, center, segmentWidth, sideCellH, 0, Math\.PI \/ 2, "right"\)/);
-  assert.match(shellBuild, /"top"\);/);
-  assert.match(shellBuild, /"bottom"\);/);
-  assert.match(shellBuild, /rotationY === 0 \? "front" : "rear"/);
-  assert.match(sim, /function updateBacksideDoors\(dt, now\)/);
-  assert.match(sim, /function applyBacksideDoorPose\(panel\)/);
-  assert.match(sim, /panel\.doorState !== "OPEN"/);
+  assert.match(shellBuild, /function addPanel\\(material, x, y, z, w, h, rx, ry, surface\\)/);
+  assert.match(shellBuild, /const doorEligible = !!surfaceInfo;/);
+  assert.doesNotMatch(shellBuild, /Math\\.random\\(\\) < 0\\.095/);
+  assert.match(shellBuild, /addPanel\\(sideLeft, -outerX, y, center, segmentWidth, sideCellH, 0, -Math\\.PI \\/ 2, "left"\\)/);
+  assert.match(shellBuild, /addPanel\\(sideRight, outerX, y, center, segmentWidth, sideCellH, 0, Math\\.PI \\/ 2, "right"\\)/);
+  assert.match(shellBuild, /rotationY === 0 \\? "front" : "rear"/);
+  assert.match(sim, /function updateBacksideDoors\\(dt, now\\)/);
+  assert.match(sim, /const openRange = 12\\.0/);
+  assert.match(sim, /const closeRange = 14\\.5/);
+  assert.match(sim, /panel\\.halfA \\+ footprintPadding/);
+  assert.match(sim, /panel\\.halfB \\+ footprintPadding/);
+  assert.match(sim, /panel\\.doorState === "OPEN"/);
 
   const roomInterior = section(sim, "function collide(previousPosition)", "function updatePhysics(dt)");
   assert.match(roomInterior, /const room2Interior =/);
-  assert.match(roomInterior, /ship\.position\.x = Math\.max\(-5\.3, Math\.min\(5\.3, ship\.position\.x\)\)/);
-  assert.match(roomInterior, /ship\.position\.y = Math\.max\(-3\.2, Math\.min\(3\.2, ship\.position\.y\)\)/);
+  assert.match(roomInterior, /ship\\.position\\.x = Math\\.max\\(-5\\.3, Math\\.min\\(5\\.3, ship\\.position\\.x\\)\\)/);
+  assert.match(roomInterior, /ship\\.position\\.y = Math\\.max\\(-3\\.2, Math\\.min\\(3\\.2, ship\\.position\\.y\\)\\)/);
 
   const shellCollider = section(sim, "function collideStarbaseShell(before, allowInteriorOpenings)", "function collideCorridorShell(before)");
-  assert.match(shellCollider, /hasOpenBacksideDoor\("x"/);
-  assert.match(shellCollider, /hasOpenBacksideDoor\("y"/);
-  assert.match(shellCollider, /hasOpenBacksideDoor\("z"/);
+  assert.match(shellCollider, /hasOpenBacksideDoor\\\\"x\\\\"/);
+  assert.match(shellCollider, /hasOpenBacksideDoor\\\\"y\\\\"/);
+  assert.match(shellCollider, /hasOpenBacksideDoor\\\\"z\\\\"/);
+  const corridorCollider = section(sim, "function collideCorridorShell(before)", "function collide(previousPosition)");
+  assert.match(corridorCollider, /if \\(openBacksidePassage\\)/);
+  assert.doesNotMatch(corridorCollider, /leavingThroughCorridor \\|\\| openBacksidePassage/);
 });
 
-test("only a fully open backside panel creates a matching outer-shell passage", () => {
+test("a backside passage needs every tile under the ship footprint fully open", () => {
   const helperSource = section(sim, "function hasOpenBacksideDoor(axis, edge, before, after)", "function collideStarbaseShell(before, allowInteriorOpenings)");
   const makeCheck = (panels) => new Function(
     "backside",
     "shellCrossed",
-    helperSource + "\nreturn hasOpenBacksideDoor;"
+    helperSource + "\\nreturn hasOpenBacksideDoor;"
   )({ panels }, (a, b, edge) => (a >= edge && b < edge) || (a <= edge && b > edge));
   const panel = {
     doorEligible: true,
@@ -446,22 +451,27 @@ test("only a fully open backside panel creates a matching outer-shell passage", 
   assert.equal(makeCheck([panel])("x", 16, before, after), true);
   assert.equal(makeCheck([{ ...panel, doorState: "CLOSING" }])("x", 16, before, after), false);
   assert.equal(makeCheck([{ ...panel, doorEligible: false }])("x", 16, before, after), false);
-  assert.equal(makeCheck([panel])("x", 16, before, { ...after, z: -56 }), false);
+
+  const upper = { ...panel, base: { ...panel.base, y: 3 } };
+  const lower = { ...panel, base: { ...panel.base, y: -3 } };
+  assert.equal(makeCheck([upper, { ...lower, doorState: "CLOSED" }])("x", 16, before, after), false,
+    "a ship on the tile seam must not pass while a neighboring tile is closed");
+  assert.equal(makeCheck([upper, lower])("x", 16, before, after), true,
+    "neighboring tiles open together to provide real clearance at a seam");
 });
 
-test("asteroid-wall contact stops only inward normal speed and preserves orbital movement", () => {
+test("asteroid physics restores the 0.11.2 wall-contact and flight-radius baseline", () => {
   const body = section(warp, "function updateMazeFrame(frame)", "function openHullInterior");
-  assert.match(body, /ship\.velocity\[normalAxis\] = 0/);
-  assert.match(body, /ship\.velocity\.x = 0/);
-  assert.match(body, /ship\.velocity\.y = 0/);
-  assert.match(body, /ship\.velocity\.z = 0/);
-  assert.doesNotMatch(body, /ship\.velocity\[normalAxis\] \*= 0\.12/);
-  assert.doesNotMatch(body, /ship\.velocity\.[xyz] \*= 0\.15/);
-  assert.match(warp, /flyRadius: 58\.0/);
-  const radialBoundary = section(body, "const fromCenter = pos.clone().sub(maze.center);", "(maze.satellites || [])");
-  assert.match(radialBoundary, /ship\.velocity\.dot\(boundaryNormal\)/);
-  assert.match(radialBoundary, /ship\.velocity\.addScaledVector\(boundaryNormal, -outwardSpeed\)/);
-  assert.doesNotMatch(radialBoundary, /ship\.velocity\.multiplyScalar/);
+  assert.match(body, /for \\(let pass = 0; pass < 2; pass \\+= 1\\)/);
+  assert.match(body, /ship\\.velocity\\.x \\*= 0\\.15/);
+  assert.match(body, /ship\\.velocity\\.y \\*= 0\\.15/);
+  assert.match(body, /ship\\.velocity\\.z \\*= 0\\.15/);
+  assert.doesNotMatch(body, /Sweep the ship's previous-to-current segment/);
+  assert.doesNotMatch(body, /const previousPosition = maze\\.lastPosition/);
+  assert.match(warp, /flyRadius: 43\\.2/);
+  const radialBoundary = section(body, "const fromCenter = pos.clone().sub(maze.center);", "// Local artificial gravity activates near the gold ring");
+  assert.match(radialBoundary, /ship\\.velocity\\.multiplyScalar\\(0\\.25\\)/);
+  assert.doesNotMatch(radialBoundary, /boundaryNormal|outwardSpeed|addScaledVector/);
 });
 
 test("asteroid Hydrogen pickup has an obvious H+1 effect and updates the real mission counter", () => {
