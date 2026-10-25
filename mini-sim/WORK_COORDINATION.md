@@ -1,3 +1,15 @@
+## Completed Work Lock — Mini-Sim 0.11.16: asteroid 0.11.2 rollback + triggered backside doors (25 October 2026)
+
+- Merged via [PR #79](https://github.com/ShamanOrWitch/BCM4StarAtlas/pull/79), commit `07ed389df12a491d987d47507bc42a1d97559af5`.
+- Base branch main; tested PR head `a0049580e560babea5d9284ccafbc73e55574e48`.
+- Scope files: `mini-sim/assets/js/deep-space-warp.js`, `mini-sim/assets/js/mini-sim.js`, `mini-sim/bcm-mini-sim.php`, affected regression tests.
+- Asteroid physics block restored to 0.11.2 without replacing newer Warp/Ring/Hydrogen code. Flight radius 43.2; original overlap collision and 0.15 wall-contact damping.
+- Door contract: every exterior `backside*` shell tile responds to approach; neighboring tiles open for ship clearance; both directions across Room 2 rear cap require an open matching door. Room 2 side/front corridor walls remain solid.
+- Source CI: nine regression workflows PASS on the PR head. Browser smoke is not a pass: HTTP 403 from the site and timeout waiting for `.bcm-mini-sim`. No manual device test. No WordPress deployment.
+- Do not reopen unrelated Tower, Galia/market, SAGE adapter, OST mixer, or planet placement.
+
+---
+
 ## Completed Work Lock — Mini-Sim 0.11.15: backside-only Photoli doors, asteroid collision feel and Hydrogen feedback (25 October 2026)
 
 - Merged via [PR #78](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/78) as `1b00a801f62506917f533ead12d0524f06159802`; issue [#77](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/77) is closed.
