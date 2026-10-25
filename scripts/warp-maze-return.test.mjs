@@ -298,3 +298,61 @@ test("Ring soundtrack asset is present in the Mini-Sim merge checkout", async ()
   assert.equal(info.isFile(), true);
   assert.ok(info.size > 0, "ring.mp3 must not be an empty placeholder");
 });
+
+
+test("Room 2 walls are finite surfaces and do not block open-space flight", () => {
+  const collisionSource = section(sim, "function collideCorridorShell(before)", "function collide()");
+  const makeCollider = (ship, shellCrossed) => new Function(
+    "ship",
+    "shellCrossed",
+    "let exteriorFlight = false;\n" + collisionSource +
+      "\nreturn { run: collideCorridorShell, isExterior: () => exteriorFlight };"
+  )(ship, shellCrossed);
+  const collide = (before, after) => {
+    const ship = { position: { ...after }, velocity: { x: 0, y: 0, z: 0 } };
+    const collider = makeCollider(ship, (a, b, edge) =>
+      (a >= edge && b < edge) || (a <= edge && b > edge));
+    const blocked = collider.run({ ...before });
+    return { ship, blocked, exterior: collider.isExterior() };
+  };
+
+  const openSide = collide({ x: 5.5, y: 20, z: -60 }, { x: 6.5, y: 20, z: -60 });
+  assert.equal(openSide.blocked, false, "X-plane beyond the Room 2 wall span stays free");
+  assert.equal(openSide.ship.position.x, 6.5);
+
+  const openVerticalSide = collide({ x: 20, y: 3.0, z: -60 }, { x: 20, y: 4.0, z: -60 });
+  assert.equal(openVerticalSide.blocked, false, "Y-plane beyond the Room 2 wall span stays free");
+  assert.equal(openVerticalSide.ship.position.y, 4.0);
+
+  const openCap = collide({ x: 20, y: 0, z: -46.5 }, { x: 20, y: 0, z: -48.5 });
+  assert.equal(openCap.blocked, false, "Room 2 front cap must not extend across open space");
+  assert.equal(openCap.ship.position.z, -48.5);
+
+  const openRoom1Band = collide({ x: 20, y: 0, z: 5.8 }, { x: 20, y: 0, z: 0 });
+  assert.equal(openRoom1Band.blocked, false, "Room 1 recovery must not capture an open-space ship");
+  assert.equal(openRoom1Band.ship.position.x, 20);
+  assert.equal(openRoom1Band.ship.position.z, 0);
+
+  const roomSide = collide({ x: 5.5, y: 0, z: -60 }, { x: 6.5, y: 0, z: -60 });
+  assert.equal(roomSide.blocked, true, "the real Room 2 side wall remains solid");
+  assert.equal(roomSide.ship.position.x, 5.94);
+
+  const roomFront = collide({ x: 0, y: 0, z: -46.5 }, { x: 0, y: 0, z: -48.5 });
+  assert.equal(roomFront.blocked, true, "the Room 2 front cap remains closed inside its cross-section");
+  assert.equal(roomFront.ship.position.z, -47.44);
+
+  const roomExit = collide({ x: 0, y: 0, z: -84.4 }, { x: 0, y: 0, z: -84.8 });
+  assert.equal(roomExit.blocked, false, "the normal Room 2 rear exit remains open");
+  assert.equal(roomExit.exterior, true);
+  assert.equal(roomExit.ship.position.z, -84.8);
+});
+
+test("V continues from the asteroid into navigation without resetting to the old launch pose", () => {
+  assert.match(warp, /window\.BCMDeepSpaceWarpToggle = function \(\) \{[\s\S]*?state\.mode === "closed"\)[\s\S]*?state\.mode === "maze"[\s\S]*?returnToWarpMap\(\)/);
+  const body = section(warp, "function returnToWarpMap()", "function resizeBackdrop()");
+  assert.match(body, /state\.returnPosition = runtime\.ship\.position\.clone\(\)/);
+  assert.match(body, /state\.returnQuaternion = runtime\.ship\.quaternion\.clone\(\)/);
+  assert.doesNotMatch(body, /engine\.teleport\(state\.savedPosition,\s*state\.savedQuaternion\)/);
+  assert.match(warp, /NEXT WARP DESTINATION · V/);
+  assert.match(warp, /СЛЕДУЮЩИЙ ПЕРЕХОД · V/);
+});
