@@ -459,7 +459,7 @@
     const exitButton = document.createElement("button");
     exitButton.className = "bcm-warp-exit";
     exitButton.type = "button";
-    exitButton.textContent = "RETURN TO WARP MAP";
+    exitButton.textContent = "СЛЕДУЮЩИЙ ПЕРЕХОД · V";
     exitButton.hidden = true;
     root.appendChild(exitButton);
 
@@ -1612,6 +1612,7 @@
       }
       state.ringApproachArmed = true;
       root.classList.add("bcm-warp-maze-active");
+      exitButton.textContent = nextWarpDestinationLabel();
       exitButton.hidden = false;
       overlay.hidden = true;
       root.classList.remove("bcm-warp-open");
@@ -4085,6 +4086,15 @@
       state.maze = null;
     }
 
+    function nextWarpDestinationLabel() {
+      let language = "ru";
+      try {
+        const saved = window.localStorage.getItem("bcm-mini-sim-language");
+        if (saved === "ru" || saved === "en") language = saved;
+      } catch (e) {}
+      return language === "en" ? "NEXT WARP DESTINATION · V" : "СЛЕДУЮЩИЙ ПЕРЕХОД · V";
+    }
+
     function returnToWarpMap() {
       const maze = state.maze;
       if (!maze) return;
@@ -4096,13 +4106,7 @@
       if (runtime && runtime.ship && runtime.ship.position && runtime.ship.quaternion) {
         state.returnPosition = runtime.ship.position.clone();
         const THREE = runtime.THREE;
-        if (THREE && THREE.Vector3 && THREE.Quaternion) {
-          const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(runtime.ship.quaternion);
-          const yaw = Math.atan2(-forward.x, -forward.z);
-          state.returnQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-        } else {
-          state.returnQuaternion = runtime.ship.quaternion.clone();
-        }
+        state.returnQuaternion = runtime.ship.quaternion.clone();
       }
 
       const arrivedSector = state.target || (state.nav && state.nav.current);
@@ -4123,9 +4127,8 @@
         }
         state.savedSpeedMode = null;
         engine.clearExternalHUD();
-        if (state.savedPosition && state.savedQuaternion) {
-          engine.teleport(state.savedPosition, state.savedQuaternion);
-        }
+        // Keep the live ship pose where it is: this is the next-destination handoff,
+        // not a reset to the pre-Warp launch point.
         // The map is a paused navigation overlay. Keep Warp OST running without
         // overlapping it with Starbase; closing the map resumes the normal zone.
         engine.pauseForWarp(true);
@@ -4636,7 +4639,12 @@ return axialRoll + ahead * 0.12 +
     }
 
     window.BCMDeepSpaceWarpToggle = function () {
-      if (state.mode === "closed") openMap();
+      if (state.mode === "closed") {
+        openMap();
+      } else if (state.mode === "maze" && state.maze && state.maze.active &&
+          !state.ringPlatformer && !state.ringTransitionActive && !state.hullOpen) {
+        returnToWarpMap();
+      }
     };
 
     window.BCMDeepSpaceWarpEnterAsteroid = function () {
