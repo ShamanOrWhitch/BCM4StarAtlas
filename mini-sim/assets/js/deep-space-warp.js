@@ -1801,15 +1801,15 @@
       const copy = en ? {
         landing: "LANDING", bosses: "BOSSES", back: "Return to ship", canvas: "Large arena progress",
         jump: "JUMP", action: "ACTION", laser: "LASER", dash: "DASH",
-        title: "One large cell",
-        description: "The pigs and the ring are one large cell of the path. The other cells use the asteroid seed and its textures. Flight marks crystal cells on the map.",
-        controls: "P1: ← → / A D · jump: Space / W · action: E · fire: Q\nP2: J L · jump: P · action: O · fire: K · gamepads supported"
+        title: "Seeded 3D asteroid cells",
+        description: "Every room follows the asteroid's seeded connected passages and textures. Jump enters the upper layer; hold down with jump to enter the lower layer. Turn at junctions to reach the pig arena.",
+        controls: "P1: ← → / A D · jump: Space / W · down: S+Space · turn: E · fire: Q\nP2: J L · jump: P · down: I+P · turn: O · fire: K · dash: U"
       } : {
         landing: "ВЫСАДКА", bosses: "БОССЫ", back: "В корабль", canvas: "Прогресс по аренам",
         jump: "ПРЫЖОК", action: "ДЕЙСТВИЕ", laser: "ЛАЗЕР", dash: "РЫВОК",
-        title: "Большая клетка",
-        description: "Свиньи и кольцо — одна большая клетка пути. Остальные клетки собраны из seed астероида и его текстур. Корабль отмечает на карте, где искать кристаллы.",
-        controls: "P1: ← → / A D · прыжок: Space / W · действие: E · лазер: Q\nP2: J L · прыжок: P · действие: O · лазер: K · геймпады поддерживаются"
+        title: "Ячейки 3D-лабиринта",
+        description: "Каждая комната использует текстуру своей клетки астероида и ведёт только через настоящий проход. Прыжок — на верхний уровень; S+Space — на нижний. На развилке жми E, чтобы повернуть.",
+        controls: "P1: ← → / A D · прыжок: Space / W · вниз: S+Space · поворот: E · лазер: Q\nP2: J L · прыжок: P · вниз: I+P · поворот: O · лазер: K · рывок: U"
       };
       root2d.innerHTML =
         '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;pointer-events:none;z-index:3">' +
@@ -1825,11 +1825,12 @@
         '<canvas data-ring-canvas aria-label="' + copy.canvas + '" style="position:absolute;right:12px;top:78px;width:min(34vw,220px);height:168px;min-width:120px;min-height:120px;border:1px solid rgba(88,173,198,.55);border-radius:9px;background:rgba(3,10,18,.83);z-index:2;pointer-events:none"></canvas>' +
         '<div data-ring-split-divider hidden style="position:absolute;inset:0;z-index:1;pointer-events:none;border:0"></div>' +
         '<div style="position:absolute;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:flex-end;gap:12px;z-index:4;pointer-events:none">' +
-          '<div style="display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(2,42px);gap:4px;pointer-events:auto">' +
-            '<span></span><button type="button" data-ring-action="jump" aria-label="' + copy.jump + '" style="grid-column:2;grid-row:1;min-height:42px">' + copy.jump + '</button><span></span>' +
-            '<button type="button" data-ring-action="left" aria-label="' + (en ? "Left" : "Влево") + '" style="min-height:42px">◀</button><span style="display:block"></span><button type="button" data-ring-action="right" aria-label="' + (en ? "Right" : "Вправо") + '" style="min-height:42px">▶</button>' +
-          '</div>' +
-          '<div style="display:flex;gap:6px;align-items:flex-end;pointer-events:auto">' +
+          '<div style="display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,42px);gap:4px;pointer-events:auto">' +
+             '<span></span><button type="button" data-ring-action="jump" aria-label="' + copy.jump + '" style="grid-column:2;grid-row:1;min-height:42px">' + copy.jump + '</button><span></span>' +
+             '<button type="button" data-ring-action="left" aria-label="' + (en ? "Left" : "Влево") + '" style="min-height:42px">◀</button><span style="display:block"></span><button type="button" data-ring-action="right" aria-label="' + (en ? "Right" : "Вправо") + '" style="min-height:42px">▶</button>' +
+             '<span></span><button type="button" data-ring-action="down" aria-label="' + (en ? "Lower layer with jump" : "Нижний уровень вместе с прыжком") + '" title="' + (en ? "Hold with jump" : "Зажми вместе с прыжком") + '" style="grid-column:2;grid-row:3;min-height:42px">▼</button><span></span>' +
+           '</div>' +
+           '<div style="display:flex;gap:6px;align-items:flex-end;pointer-events:auto">' +
             '<button type="button" data-ring-action="activate" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.action + '</button>' +
             '<button type="button" data-ring-action="fire" aria-label="' + copy.laser + '" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.laser + '</button>' +
             '<button type="button" data-ring-action="dash" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.dash + '</button>' +
@@ -2564,13 +2565,28 @@
         const doorRight = new THREE.Mesh(doorGeo, wallMaterial);
         doorLeft.position.set(RING_CELL_HOME - ROOM_HALF + 0.2, 1.15, 0);
         doorRight.position.set(RING_CELL_HOME + ROOM_HALF - 0.2, 1.15, 0);
-        room.add(doorLeft, doorRight);
+        const sealedWallGeo = new THREE.BoxGeometry(0.24, 2.55, 3.8);
+        const sealedWallLeft = new THREE.Mesh(sealedWallGeo, wallMaterial);
+        const sealedWallRight = new THREE.Mesh(sealedWallGeo, wallMaterial);
+        sealedWallLeft.name = "ring-cell-sealed-wall-left";
+        sealedWallRight.name = "ring-cell-sealed-wall-right";
+        sealedWallLeft.position.set(RING_CELL_HOME - ROOM_HALF + 0.12, 1.15, 0);
+        sealedWallRight.position.set(RING_CELL_HOME + ROOM_HALF - 0.12, 1.15, 0);
+        room.add(sealedWallLeft, sealedWallRight, doorLeft, doorRight);
         const hatch = new THREE.Mesh(
           new THREE.BoxGeometry(1.1, 0.08, 1.1),
-          new THREE.MeshBasicMaterial({ color: 0xb9a6ff })
+          new THREE.MeshBasicMaterial({ color: 0x5fdbc8, emissive: 0x124b55, emissiveIntensity: 0.9 })
         );
         hatch.position.set(RING_CELL_HOME, 0.08, 0.2);
         room.add(hatch);
+        const portalMaterial = new THREE.MeshBasicMaterial({
+          color: 0x7ef4e6, emissive: 0x1a8eab, transparent: true, opacity: 0.92,
+          blending: THREE.AdditiveBlending, depthWrite: false
+        });
+        const portalRing = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.085, 8, 24), portalMaterial);
+        portalRing.name = "ring-cell-vertical-portal";
+        portalRing.position.set(RING_CELL_HOME, 1.42, 0.62);
+        room.add(portalRing);
         const mobMat = new THREE.MeshStandardMaterial({ color: 0xd27a4a, emissive: 0x3a1408, roughness: 0.45, metalness: 0.2 });
         const mobGeo = new THREE.BoxGeometry(0.7, 0.9, 0.5);
         nodes.forEach((node) => {
@@ -2596,9 +2612,9 @@
         });
         scene.add(room);
         world.platforms.push({ minX: RING_CELL_HOME - ROOM_HALF, maxX: RING_CELL_HOME + ROOM_HALF, y: 0, cellRoom: true });
-        world.materials.push(floorMaterial, wallMaterial, hatch.material, mobMat);
+        world.materials.push(floorMaterial, wallMaterial, hatch.material, portalMaterial, mobMat);
         textures.forEach((texture) => world.textures.push(texture));
-        world.specialGeometry.push(floor.geometry, doorGeo, hatch.geometry, mobGeo);
+        world.specialGeometry.push(floor.geometry, doorGeo, sealedWallGeo, hatch.geometry, portalRing.geometry, mobGeo);
         const start = (maze.startCell && nodes.get(keyOf(maze.startCell.x, maze.startCell.y, maze.startCell.z)))
           || nodes.values().next().value;
         const firstOpen = ["xp", "zp", "xn", "zn"].find((dir) => start && start.open && start.open[dir]) || "xp";
@@ -2626,7 +2642,8 @@
           nx: maze.dimensions?.nx || 7,
           ny: maze.dimensions?.ny || 3,
           nz: maze.dimensions?.nz || 7,
-          room, floorMaterial, wallMaterial, doorLeft, doorRight, hatch, textures,
+          room, floorMaterial, wallMaterial, doorLeft, doorRight, sealedWallLeft, sealedWallRight,
+          hatch, portalRing, portalMaterial, textures,
           hydrogenNode: start,
           hydrogen: hydrogenState,
           hydrogenMesh,
@@ -2664,10 +2681,17 @@
         const tint = astralPalette[node.astralMode] || { floor: 0xffffff, wall: 0xd5e4ea };
         path.floorMaterial.color.setHex(node.astral ? tint.floor : 0xffffff);
         path.wallMaterial.color.setHex(node.astral ? tint.wall : 0xd5e4ea);
-        const arenaRoute = path.nextDirectionTowardLarge(node);
-        path.doorRight.visible = !node.large && !!(path.neighbor(node, heading) || arenaRoute);
-        path.doorLeft.visible = !node.large && !!(path.neighbor(node, path.opposite[heading]) || arenaRoute);
-        path.hatch.visible = !node.large && !!(path.neighbor(node, "yp") || path.neighbor(node, "yn"));
+        const rightDoor = !node.large && !!path.neighbor(node, heading);
+        const leftDoor = !node.large && !!path.neighbor(node, path.opposite[heading]);
+        path.doorRight.visible = rightDoor;
+        path.doorLeft.visible = leftDoor;
+        path.sealedWallRight.visible = !node.large && !rightDoor;
+        path.sealedWallLeft.visible = !node.large && !leftDoor;
+        const verticalExit = !node.large && !!(path.neighbor(node, "yp") || path.neighbor(node, "yn"));
+        path.hatch.visible = verticalExit;
+        path.portalRing.visible = verticalExit;
+        path.portalMaterial.color.setHex(path.neighbor(node, "yp") ? 0x7ef4e6 : 0xb99aff);
+        path.portalMaterial.emissive.setHex(path.neighbor(node, "yp") ? 0x1a8eab : 0x5d2d91);
         if (path.hydrogenMesh) {
           const mission = window.BCMWorldMission || {};
           path.hydrogenMesh.visible = !!mission.hydrogenUnlocked && !mission.hydrogenCollected &&
@@ -2860,6 +2884,7 @@
           left: !!(keys.left || touch.left || pad.left),
           right: !!(keys.right || touch.right || pad.right),
           jump: !!(keys.jump || touch.jump || pad.jump),
+          down: !!(keys.down || touch.down || pad.down),
           fire: !!(keys.fire || touch.fire || pad.fire)
         };
       }
@@ -3176,9 +3201,9 @@
         }
         const p1 = {
           ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
-          Space: "jump", ArrowUp: "jump", KeyW: "jump"
+          Space: "jump", ArrowUp: "jump", KeyW: "jump", ArrowDown: "down", KeyS: "down"
         };
-        const p2 = { KeyJ: "left", KeyL: "right", KeyP: "jump" };
+        const p2 = { KeyJ: "left", KeyL: "right", KeyP: "jump", KeyI: "down" };
         let index = 0;
         if (event.code === "KeyQ" || (mode === "multi" && event.code === "KeyK")) {
           index = event.code === "KeyK" ? 1 : 0;
@@ -3195,7 +3220,7 @@
         const p1Activate = event.code === "KeyE";
         const p1Dash = event.code === "ShiftLeft" || event.code === "ShiftRight" || event.code === "KeyC";
         const p2Activate = event.code === "KeyO";
-        const p2Dash = event.code === "KeyI";
+        const p2Dash = event.code === "KeyU";
         if (mode === "multi" && (p2Activate || p2Dash)) index = 1;
         if (p1Activate || p2Activate) {
           event.preventDefault();
@@ -3235,6 +3260,7 @@
           statePad.left = !!(button(14) || axisX < -0.42);
           statePad.right = !!(button(15) || axisX > 0.42);
           statePad.jump = !!(button(0) || button(12) || axisY < -0.68);
+          statePad.down = !!(button(13) || axisY > 0.68);
           statePad.dash = !!button(1);
           statePad.activate = !!button(2);
           statePad.fire = !!button(3);
@@ -3340,62 +3366,37 @@
           } else if (path && playerNode) {
             const node = playerNode, heading = player.ringHeading || path.heading;
             if (player.worldX > path.homeX + path.half - 0.4) {
-              let nextDirection = heading;
-              let nextNode = path.neighbor(node, nextDirection);
-              if (!nextNode) {
-                nextDirection = path.nextDirectionTowardLarge(node) ||
-                  ["xp", "xn", "zp", "zn", "yp", "yn"].find((dir) => path.neighbor(node, dir));
-                nextNode = nextDirection ? path.neighbor(node, nextDirection) : null;
-              }
+              const nextNode = path.neighbor(node, heading);
               if (nextNode) {
-                if (nextDirection !== "yp" && nextDirection !== "yn") {
-                  player.ringHeading = nextDirection;
-                  if (player.index === 0) path.heading = nextDirection;
-                }
-                placeParty(enterRingCell(worldState, nextNode,
-                  nextDirection === "yp" || nextDirection === "yn" ? null : "left", player), player);
+                placeParty(enterRingCell(worldState, nextNode, "left", player), player);
                 continue;
               }
             }
             if (player.worldX < path.homeX - path.half + 0.4) {
-              let nextDirection = path.opposite[heading];
-              let nextNode = path.neighbor(node, nextDirection);
-              if (!nextNode) {
-                nextDirection = path.nextDirectionTowardLarge(node) ||
-                  ["xp", "xn", "zp", "zn", "yp", "yn"].find((dir) => path.neighbor(node, dir));
-                nextNode = nextDirection ? path.neighbor(node, nextDirection) : null;
-              }
+              const nextNode = path.neighbor(node, path.opposite[heading]);
               if (nextNode) {
-                if (nextDirection !== "yp" && nextDirection !== "yn") {
-                  player.ringHeading = nextDirection;
-                  if (player.index === 0) path.heading = nextDirection;
-                }
-                placeParty(enterRingCell(worldState, nextNode,
-                  nextDirection === "yp" || nextDirection === "yn" ? null : "right", player), player);
+                placeParty(enterRingCell(worldState, nextNode, "right", player), player);
                 continue;
               }
             }
             player.worldX = Math.max(path.homeX - path.half + 0.35, Math.min(path.homeX + path.half - 0.35, player.worldX));
             if (player.ringTurnQueued) {
               player.ringTurnQueued = false;
+              const activeHeading = player.ringHeading || path.heading;
+              const reverseHeading = path.opposite[activeHeading];
               const routeDirection = path.nextDirectionTowardLarge(node);
-              const turn = routeDirection || ["zp", "zn", "xp", "xn", "yp", "yn"].find((dir) => path.neighbor(node, dir));
-              if (turn === "yp" || turn === "yn") {
-                const next = path.neighbor(node, turn);
-                if (next) {
-                  player.worldX = path.homeX;
-                  placeParty(enterRingCell(worldState, next, null, player), player);
-                  continue;
-                }
-              } else if (turn) {
-                const activeHeading = player.ringHeading || path.heading;
-                if (turn === activeHeading) player.worldX = path.homeX + path.half - 0.25;
-                else if (turn === path.opposite[activeHeading]) player.worldX = path.homeX - path.half + 0.25;
-                else {
-                  player.ringHeading = turn;
-                  if (player.index === 0) path.heading = turn;
-                  applyRingCellLook(worldState, node, player.ringHeading);
-                }
+              const horizontal = ["xp", "xn", "zp", "zn"];
+              const routeTurn = horizontal.includes(routeDirection) &&
+                routeDirection !== activeHeading && routeDirection !== reverseHeading &&
+                path.neighbor(node, routeDirection) ? routeDirection : null;
+              const turn = routeTurn || horizontal.find((dir) =>
+                dir !== activeHeading && dir !== reverseHeading && path.neighbor(node, dir));
+              if (turn) {
+                player.ringHeading = turn;
+                if (player.index === 0) path.heading = turn;
+                applyRingCellLook(worldState, node, player.ringHeading);
+              } else {
+                updateHud("ТУТ НЕТ БОКОВОГО ПРОХОДА · ИЩИ СВЕЧЕНИЕ ПОРТАЛА");
               }
             }
           } else player.worldX = Math.max(-49, Math.min(worldState.exitX + 1.5, player.worldX));
@@ -3410,7 +3411,18 @@
           if (astralMode === "drift") { gravity = 6.0; jumpVelocity = 7.8; }
           else if (astralMode === "flux") { gravity = 8.0 + Math.sin(now * 0.0018 + (astralNode.astralPhase || 0)) * 1.8; jumpVelocity = 8.8; }
           else if (astralMode === "dense") { gravity = 14.5; jumpVelocity = 10.2; }
-          if (input.jump && !player.wasJumpDown && player.grounded) { player.vy = jumpVelocity; player.grounded = false; player.supportPlatform = null; }
+          const jumpPressed = input.jump && !player.wasJumpDown && player.grounded;
+          if (jumpPressed && path && playerNode && !playerInLarge &&
+              Math.abs(player.worldX - path.homeX) < 1.35) {
+            const verticalDirection = input.down ? "yn" : "yp";
+            const verticalNode = path.neighbor(playerNode, verticalDirection);
+            if (verticalNode) {
+              player.wasJumpDown = true;
+              placeParty(enterRingCell(worldState, verticalNode, null, player), player);
+              continue;
+            }
+          }
+          if (jumpPressed) { player.vy = jumpVelocity; player.grounded = false; player.supportPlatform = null; }
           player.wasJumpDown = input.jump;
           player.vy -= gravity * dt;
           player.worldY += player.vy * dt;
