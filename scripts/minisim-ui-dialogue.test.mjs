@@ -168,7 +168,7 @@ test("SafeMode, animated faces, readable dialog timing and flight pointer-lock h
   assert.match(css, /\.bcm-comic-dialog-copy p\{[\s\S]{0,150}font-size:19px/);
 });
 
-test("0.11.15 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
+test("0.11.16 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
   assert.match(php, /Version: 0\.11\.15/);
   assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.15'/);
   assert.match(php, /SPACE LABYRINTH — 0\.11\.15/);
