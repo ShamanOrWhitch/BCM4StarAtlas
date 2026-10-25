@@ -20,7 +20,7 @@ test("Warp uses a rolling circular wall and angular obstacle course",async()=>{
   assert.match(s,/const WARP_DURATION = 42/);
   assert.match(body,/const twistAt = \(d\) => courseTwist\(d\)/);
   assert.match(body,/for \(let panel = 0; panel < panelCount; panel \+= 1\)/);
-  assert.match(body,/for \(let seam = 0; seam < 12; seam \+= 1\)/);
+  assert.match(body,/for \(let seam = 0; seam < 24; seam \+= 1\)/);
   assert.match(body,/layer\.type === "gate"/);
   assert.match(body,/layer\.type === "sweeper"/);
   assert.match(body,/layer\.type === "spikes"/);

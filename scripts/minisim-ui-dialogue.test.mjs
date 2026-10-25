@@ -141,7 +141,7 @@ test("Explicit screen focus persists until its own radius expires and mission pr
   assert.ok(mini.includes("if (!cinema.zones.length) {"));
   const noZones = mini.slice(mini.indexOf("if (!cinema.zones.length) {"), mini.indexOf("const candidates = [];"));
   assert.doesNotMatch(noZones, /cinema\.focus = null/);
-  assert.ok(mini.includes('missionLabel.textContent = interfaceLanguage === "en"'));
+  assert.ok(mini.includes('label.textContent = interfaceLanguage === "en"'));
   assert.ok(mini.includes("SCREENS ONLINE: "));
   assert.ok(mini.includes("RETURN TO ONI CSS · X -40 / Y 30"));
 });
