@@ -1,4 +1,14 @@
-## D-033 — Mini-Sim 0.11.12: restore sane Warp speed display and unblock collisions / Ring entry
+## D-034 — Mini-Sim 0.11.13: restore Warp depth staging and real room collision
+
+**Status:** candidate on `fix/minisim-0.11.13-warp-depth-room-collision-ring-entry`, based on main `ab7c3d91c9932d3363375036bb07bbcbd6ad67ad`. Tests pending; not deployed.
+
+- Restore Warp's visible obstacle window to the known-good 0.11.8 value (0.36 instead of 0.68) and the previous reciprocal near-field projection; keep decorative circumferential rings and chevrons removed. HUD speed uses the actual `speed` calculated by `updateTube`.
+- Fix Room 1/2 collision by passing the ship's frame-start position to `collide`. Compare collision corrections against a separate post-integration position.
+- Preserve the asteroid collision callback through transient exceptions. Ring entry exceptions recover the ship, clean partial Ring overlays, display a retry prompt, and prevent repeated automatic retries.
+- Further enlarge Panda.
+- Browser tests can reach only HTTP 403 on the live page, before `.bcm-mini-sim`; no visual/device pass or production deployment is claimed.
+
+## Historical D-033 — Mini-Sim 0.11.12: restore sane Warp speed display and unblock collisions / Ring entry
 
 **Status:** repair candidate on `fix/minisim-0.11.12-warp-speed-collision-ring`, based on main `9caba968636610a2413a23177bd9d64f20fe0900`. Tests pending at authoring time; not deployed.
 

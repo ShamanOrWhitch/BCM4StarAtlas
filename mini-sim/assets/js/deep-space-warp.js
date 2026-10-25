@@ -182,11 +182,12 @@
         overlay.remove();
         state.ringTransitionActive = false;
         state.ringPlatformer = false;
-        if (!openRingPlatformer(maze, true)) {
+        if (!attemptOpenRingPlatformer(maze, true)) {
           state.ringPlatformer = false;
-          // If runtime startup failed after the transition, let the pilot retry
-          // instead of leaving the nearby Ring entry permanently disarmed.
+          // Keep a manual retry available, but don't retrigger the same failing
+          // transition every frame. Clear this latch once the ship leaves the beacon.
           state.ringApproachArmed = true;
+          state.ringEntryFailed = true;
           if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
           stopRingAudio(true);
           syncRingButtonVisibility();
@@ -331,6 +332,7 @@
       ringRenderState: null,
       ringDistance: Infinity,
       ringApproachArmed: true,
+      ringEntryFailed: false,
       hullOpen: false,
       rightStickWasDown: false,
       warpCollisionCount: 0,
@@ -425,7 +427,7 @@
     ringEnterButton.addEventListener("click", () => {
       const maze = state.maze;
       if (!maze || !maze.active || state.mode !== "maze") return;
-      if (openRingPlatformer(maze)) ringEnterButton.hidden = true;
+      if (attemptOpenRingPlatformer(maze)) ringEnterButton.hidden = true;
       syncHullButtonVisibility();
       syncRingButtonVisibility();
     });
@@ -446,6 +448,31 @@
       ringEnterButton.textContent = english ? "ENTER RING LABYRINTH" : "ВХОД В ЛАБИРИНТ RING";
       ringEnterButton.setAttribute("aria-label", english ? "Enter the large Ring Frontier level" : "Войти в большой лабиринт Ring Frontier");
       return visible;
+    }
+
+    function attemptOpenRingPlatformer(maze, afterTransition = false) {
+      state.ringEntryFailed = false;
+      try {
+        return openRingPlatformer(maze, afterTransition);
+      } catch (error) {
+        // A partially-created Ring overlay must never strand flight or disable
+        // the asteroid's collision callback. Re-arm a manual retry and expose
+        // the error in the existing maze HUD instead of silently killing the loop.
+        state.ringPlatformer = false;
+        state.ringTransitionActive = false;
+        state.ringApproachArmed = true;
+        state.ringEntryFailed = true;
+        try { document.getElementById("bcm-ring-transition")?.remove(); } catch (e) {}
+        try { document.getElementById("bcm-ring-platformer")?.remove(); } catch (e) {}
+        try { window.BCMDeepSpaceWarpRender = null; } catch (e) {}
+        const engine = api();
+        try { if (engine && engine.pauseForWarp) engine.pauseForWarp(false); } catch (e) {}
+        try { stopRingAudio(true); } catch (e) {}
+        try { setMazeStatus("RING ENTRY FAILED · PRESS RING BUTTON TO RETRY"); } catch (e) {}
+        try { console.error("Mini-Sim Ring entry failed:", error); } catch (e) {}
+        try { syncHullButtonVisibility(); syncRingButtonVisibility(); } catch (e) {}
+        return false;
+      }
     }
 
     if (typeof MutationObserver === "function") {
@@ -1841,9 +1868,13 @@
       syncRingButtonVisibility();
       // Require the ship to leave the beacon's capture radius after exiting Ring
       // before accepting another approach; the same level can still be re-entered.
-      if (ringDistance > 4.2) state.ringApproachArmed = true;
-      if (state.ringApproachArmed && !state.ringPlatformer && !maze.ringCompleted && ringDistance < 2.6) {
-        openRingPlatformer(maze);
+      if (ringDistance > 4.2) {
+        state.ringApproachArmed = true;
+        state.ringEntryFailed = false;
+      }
+      if (state.ringApproachArmed && !state.ringEntryFailed && !state.ringPlatformer &&
+          !maze.ringCompleted && ringDistance < 2.6) {
+        attemptOpenRingPlatformer(maze);
         return;
       }
 
@@ -1925,7 +1956,7 @@
       if (ringPressed && state.mode === "maze" && state.maze && state.maze.active &&
           state.ringApproachArmed && state.ringDistance < 18 && !state.ringPlatformer &&
           !state.ringTransitionActive && !state.hullOpen) {
-        openRingPlatformer(state.maze);
+        attemptOpenRingPlatformer(state.maze);
         return;
       }
       if (!pressed || state.mode === "map" || state.mode === "tube" || state.mode === "result" ||
@@ -4380,7 +4411,6 @@ return axialRoll + ahead * 0.12 +
 
       // Class II is a quieter tint of the same tunnel, not a second set of rails.
       // Class III has a distinct violet identity without circular geometry.
-      // Class III has a distinct violet identity without circular geometry.
       if (visualClass === 3) {
         g.fillStyle = "rgba(30,11,54,0.34)";
         g.fillRect(0, 0, w, h);
@@ -4388,9 +4418,10 @@ return axialRoll + ahead * 0.12 +
 
       const routeProgress = warpObstacleProgress(state.elapsed);
       const obstacleDepth = (distance) => {
-        // Give hazards more warning time: distant obstacles start small, then grow toward the ship.
-        if (distance > 0.68 || distance <= 0) return null;
-        return Math.min(0.94, 0.12 + ((0.68 - distance) / 0.68) * 0.82);
+        // Keep only the next section of the course visible at once. The earlier
+        // 0.68 window placed too many gates on screen together and flattened depth.
+        if (distance > 0.36 || distance <= 0) return null;
+        return Math.min(1, 0.055 / (distance + 0.05));
       };
       state.layers.forEach((layer) => {
         const distance = layer.progress - routeProgress;
@@ -4654,7 +4685,7 @@ return axialRoll + ahead * 0.12 +
 
       if (state.elapsed >= WARP_DURATION) finishTube(state.shields > 0);
       tubeMeta.textContent = Math.ceil(Math.max(0, WARP_DURATION - state.elapsed)) + "s · " +
-        "SPEED " + warpSpeedMultiplier(state.elapsed).toFixed(1) + "× · " +
+        "SPEED " + speed.toFixed(1) + "× · " +
         Math.round(playerAngle * 180 / Math.PI) + "°";
       tubeShield.style.width = state.shields + "%";
     }

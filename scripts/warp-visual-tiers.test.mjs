@@ -77,14 +77,16 @@ test("Warp multiplier and displayed speed ramp from 1x to 8x", () => {
   assert.equal(speed.warpSpeedMultiplier(42), 8);
   assert.equal(speed.warpCourseProgress(0), 0);
   assert.equal(speed.warpCourseProgress(42), 1);
-  assert.match(warp, /tubeMeta\.textContent[\s\S]{0,180}warpSpeedMultiplier\(state\.elapsed\)\.toFixed\(1\)/);
+  assert.match(warp, /tubeMeta\.textContent[\s\S]{0,180}"SPEED " \+ speed\.toFixed\(1\)/);
+  assert.match(warp, /if \(distance > 0\.36 \|\| distance <= 0\) return null/);
+  assert.match(warp, /return Math\.min\(1, 0\.055 \/ \(distance \+ 0\.05\)\)/);
 });
 
-test("Mini-Sim 0.11.12 cache/version contracts are synchronized", () => {
-  assert.match(plugin, /Version: 0\.11\.12/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.12'\)/);
-  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.12/);
-  assert.match(qa, /Version: 0\.11\.12/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.12'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.12/);
+test("Mini-Sim 0.11.13 cache/version contracts are synchronized", () => {
+  assert.match(plugin, /Version: 0\.11\.13/);
+  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.13'\)/);
+  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.13/);
+  assert.match(qa, /Version: 0\.11\.13/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.13'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.13/);
 });

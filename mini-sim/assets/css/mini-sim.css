@@ -1467,9 +1467,9 @@
   align-items:flex-start;
   gap:10px;
   box-sizing:border-box;
-  width:min(820px,calc(76vw - 18px));
-  min-width:360px;
-  padding:17px 42px 17px 17px;
+  width:min(900px,calc(84vw - 18px));
+  min-width:400px;
+  padding:20px 46px 20px 20px;
   border:1px solid rgba(139,213,232,.55);
   border-radius:20px 20px 20px 7px;
   background:rgba(5,17,28,.79);
@@ -1500,9 +1500,9 @@
   border-radius:20px 20px 7px 20px;
 }
 .bcm-comic-dialog-avatar{
-  flex:0 0 64px;
-  width:64px;
-  height:64px;
+  flex:0 0 80px;
+  width:80px;
+  height:80px;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -1532,7 +1532,7 @@
 .bcm-comic-dialog-copy p{
   margin:0;
   color:#e7f3f8;
-  font-size:17px;
+  font-size:19px;
   line-height:1.5;
   letter-spacing:0;
   text-shadow:none;
@@ -1574,11 +1574,11 @@
 @media (max-width:760px){
   .bcm-mini-sim-language{top:calc(50% + 44px);padding:6px 7px}
   .bcm-mini-sim-language-hint{display:none}
-  .bcm-comic-dialog{width:min(720px,calc(100vw - 16px));min-width:0;gap:12px;padding:14px 34px 14px 12px;border-radius:15px 15px 15px 5px}
+  .bcm-comic-dialog{width:min(820px,calc(100vw - 16px));min-width:0;gap:14px;padding:16px 36px 16px 14px;border-radius:15px 15px 15px 5px}
   .bcm-comic-dialog-operator{left:auto;right:8px;bottom:calc(92px + env(safe-area-inset-bottom))}
-  .bcm-comic-dialog-avatar{flex-basis:50px;width:50px;height:50px;font-size:17px}
-  .bcm-comic-dialog-copy strong{font-size:12px;margin-bottom:5px}
-  .bcm-comic-dialog-copy p{font-size:16px;line-height:1.48}
+  .bcm-comic-dialog-avatar{flex-basis:60px;width:60px;height:60px;font-size:18px}
+  .bcm-comic-dialog-copy strong{font-size:13px;margin-bottom:6px}
+  .bcm-comic-dialog-copy p{font-size:18px;line-height:1.5}
   .bcm-comic-dialog-choice{min-height:30px;padding:5px 7px;font-size:10px}
   .bcm-comic-dialog-close{top:3px;right:3px;width:20px;height:20px;font-size:16px;line-height:20px}
   .bcm-mini-sim-crew-preflight-grid{grid-template-columns:1fr}
@@ -1588,10 +1588,10 @@
   .bcm-mini-sim-crew-slot-main > span:not(.bcm-mini-sim-crew-slot-player){font-size:11px}
 }
 @media (max-width:420px){
-  .bcm-comic-dialog{width:calc(100vw - 16px);min-width:0;padding:12px 30px 12px 10px}
-  .bcm-comic-dialog-avatar{display:flex;flex:0 0 44px;width:44px;height:44px;font-size:15px}
-  .bcm-comic-dialog-copy strong{font-size:11px}
-  .bcm-comic-dialog-copy p{font-size:15px;line-height:1.45}
+  .bcm-comic-dialog{width:calc(100vw - 16px);min-width:0;padding:14px 32px 14px 12px}
+  .bcm-comic-dialog-avatar{display:flex;flex:0 0 60px;width:60px;height:60px;font-size:17px}
+  .bcm-comic-dialog-copy strong{font-size:12px}
+  .bcm-comic-dialog-copy p{font-size:17px;line-height:1.48}
   .bcm-mini-sim-crew-slot-card{grid-template-columns:58px minmax(0,1fr);min-height:84px}
   .bcm-mini-sim-crew-slot-image{width:58px;height:58px}
 }

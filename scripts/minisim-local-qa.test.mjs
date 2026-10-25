@@ -24,7 +24,8 @@ test("Warp uses a rolling circular wall and angular obstacle course",async()=>{
   assert.match(body,/theta \+ \(d - 0\.92\) \* 0\.36/);
   assert.doesNotMatch(body,/for \(let ring = 0; ring < 17/);
   assert.doesNotMatch(body,/railCount|railSpin|pulseDepth/);
-  assert.match(body,/distance > 0\.68/);
+  assert.match(body,/distance > 0\.36/);
+  assert.match(body,/return Math\.min\(1, 0\.055 \/ \(distance \+ 0\.05\)\)/);
   assert.match(body,/const pieces = 32/);
   assert.match(body,/angleDifference\(\(from \+ to\) \* 0\.5, layer\.safeAngle\)/);
   assert.match(body,/rgba\(255,112,86,0\.98\)/);
@@ -191,16 +192,31 @@ test("Playwright runner overrides plugin files from local checkout",async()=>{
 });
 
 
-test("Warp starts at 1x and accelerates to 8x while preserving the tunnel shimmer clock", async () => {
+test("Warp hazards preserve depth separation, the 1x–8x ramp, and actual speed telemetry", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(warp, /return Math\.pow\(8, warpNormalizedTime\(elapsed\)\)/);
   assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) - 1\) \/ 7/);
   assert.match(warp, /Math\.max\(1, Math\.min\(8,/);
+  assert.match(warp, /if \(distance > 0\.36 \|\| distance <= 0\) return null/);
+  assert.match(warp, /return Math\.min\(1, 0\.055 \/ \(distance \+ 0\.05\)\)/);
+  assert.doesNotMatch(warp, /if \(distance > 0\.68 \|\| distance <= 0\) return null/);
   assert.match(warp, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
   assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
-  assert.match(warp, /Math\.pow\(warpCourseProgress\(elapsed\), 0\.86\)/);
-  assert.match(warp, /const gateCount = 22/);
   assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
+  assert.match(warp, /const gateCount = 22/);
+  assert.match(warp, /tubeMeta\.textContent[\s\S]{0,180}"SPEED " \+ speed\.toFixed\(1\)/);
+});
+
+test("Room 1 and Room 2 wall collisions use the true pre-movement position", async () => {
+  const sim = await read("mini-sim/assets/js/mini-sim.js");
+  const physics = sim.slice(sim.indexOf("function updatePhysics(dt)"), sim.indexOf("function render(now)"));
+  assert.match(physics, /const collisionStart = ship\.position\.clone\(\);[\s\S]{0,160}ship\.position\.addScaledVector\(ship\.velocity, dt\);[\s\S]{0,100}collide\(collisionStart\);/);
+  const collision = sim.slice(sim.indexOf("function collide(previousPosition)"), sim.indexOf("function updatePhysics(dt)"));
+  assert.match(collision, /const before = previousPosition[\s\S]{0,130}ship\.position\.clone\(\)/);
+  assert.match(collision, /const attempted = ship\.position\.clone\(\)/);
+  assert.match(collision, /const blockedX = attempted\.x !== ship\.position\.x/);
+  assert.match(collision, /const blockedY = attempted\.y !== ship\.position\.y/);
+  assert.match(collision, /const blockedZ = attempted\.z !== ship\.position\.z/);
 });
 
 test("Warp pause and teleport clear retained ship input", async () => {
@@ -216,9 +232,9 @@ test("Mini-Sim and Tower displayed versions match their PHP asset-cache versions
   const miniPhp = await read("mini-sim/bcm-mini-sim.php");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   const tower = await read("mini-sim/tower/assets/js/tower.js");
-  assert.ok(miniPhp.includes("Version: 0.11.12"));
-  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.11.12'"));
-  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.11.12"));
+  assert.ok(miniPhp.includes("Version: 0.11.13"));
+  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.11.13'"));
+  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.11.13"));
   assert.ok(towerPhp.includes("BCM_TOWER_VERSION', '0.2.65'"));
   assert.ok(tower.includes('const TOWER_VERSION = "0.2.65"'));
 });

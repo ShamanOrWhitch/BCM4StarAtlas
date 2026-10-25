@@ -1,4 +1,13 @@
-## Active Work Lock — Mini-Sim 0.11.12 repair candidate (25 October 2026)
+## Active Work Lock — Mini-Sim 0.11.13 (25 October 2026)
+
+- Branch: `fix/minisim-0.11.13-warp-depth-room-collision-ring-entry`; base main `ab7c3d91c9932d3363375036bb07bbcbd6ad67ad`.
+- Owned paths: Warp renderer/entry, Mini-Sim frame collision, Panda CSS, focused regression tests and state/handoff notes.
+- Do not touch `wordpress/galia-desk`, scanner, pricing data, or firewall. No production deployment without evidence the live package is updated.
+- Key regression: the 0.11.11 visual patch expanded the obstacle draw horizon to 0.68 and crowded hazards. The old code also cloned `before` after integration inside `collide()`, so Room 1/2 crossing checks were ineffective. Fix with pre-integration snapshot and preserve the separate attempted position.
+- A transient Warp frame exception must not uninstall the callback that handles asteroid wall collision. Ring initialization should fail recoverably and offer manual retry.
+- CI/source tests pending. Live browser QA remains blocked by HTTP 403 before the game container; no firewall bypass or visual PASS.
+
+## Historical Work Lock — Mini-Sim 0.11.12 repair candidate (25 October 2026)
 
 - Branch: `fix/minisim-0.11.12-warp-speed-collision-ring`; base main `9caba968636610a2413a23177bd9d64f20fe0900`.
 - Scope: Warp speed/HUD, Panda prompt/legibility, asteroid swept collision, Ring entry guard, focused tests and state/handoff notes. Do not touch `wordpress/galia-desk`, scanner, pricing data, or site firewall.

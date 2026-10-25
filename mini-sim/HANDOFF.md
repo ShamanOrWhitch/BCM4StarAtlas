@@ -1,6 +1,20 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
-## Current repair candidate — Mini-Sim 0.11.12 (25 October 2026)
+## Current repair candidate — Mini-Sim 0.11.13 (25 October 2026)
+
+- Branch: `fix/minisim-0.11.13-warp-depth-room-collision-ring-entry`; baseline main `ab7c3d91c9932d3363375036bb07bbcbd6ad67ad` (0.11.12 / Tower 0.2.65).
+- Warp visibility: restore the old 0.36 obstacle draw window and reciprocal near-field projection. Show the actual multiplier used by `updateTube`, not only `warpSpeedMultiplier`.
+- Room 1/2 collision: snapshot ship position before integration and pass it into `collide(previousPosition)`; maintain a separate post-step `attempted` position so normal movement is not confused with wall correction.
+- Asteroid collision continuity: transient Warp-frame exceptions no longer permanently remove `BCMDeepSpaceWarpFrame`; input/render exceptions are rate-limited and surfaced. Ring initialization is wrapped in a retry path that cleans partial overlays and restores flight if it fails.
+- Panda UI enlarged further (900px desktop cap / 80px avatar / 19px message; mobile portrait 60px).
+- **Not deployed.** Source/CI tests pending. Browser QA is blocked at HTTP 403 before the game container; do not call that a visual pass. Do not change firewall or Galia Desk.
+
+## Historical candidate — Mini-Sim 0.11.12
+
+# BCM4StarAtlas / Mini-Sim — актуальная передача
+
+
+## Historical candidate — Mini-Sim 0.11.12 (25 October 2026)
 
 - Branch: `fix/minisim-0.11.12-warp-speed-collision-ring`; base main `9caba968636610a2413a23177bd9d64f20fe0900` (0.11.11 / Tower 0.2.65).
 - Fixes: Warp speed and HUD 1×→8×; V hint in the initial Panda flight prompt; larger right-side Panda dialogue; asteroid sweep resolver handles a frame starting inside the expanded wall AABB; Ring entry remains armed until runtime validation succeeds.
