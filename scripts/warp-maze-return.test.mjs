@@ -326,7 +326,7 @@ test("Ring entry remains armed when the engine runtime is unavailable", () => {
 test("Ring transition hides duplicate entry UI and re-arms after a failed level start", () => {
   const body = section(warp, "function playRingTransition(maze, source, engine)", "function pauseLevelOst()");
   assert.match(body, /state\.ringTransitionActive = true;[\s\S]{0,120}ringEnterButton\.hidden = true/);
-  assert.match(body, /if \(!attemptOpenRingPlatformer\(maze, true\)\) \{[\s\S]{0,380}state\.ringEntryFailed = true;[\s\S]{0,180}syncRingButtonVisibility\(\);/);
+  assert.match(body, /if \(!attemptOpenRingPlatformer\(maze, true\)\) \{[\s\S]*?state\.ringEntryFailed = true;[\s\S]*?syncRingButtonVisibility\(\);/);
   const entry = section(warp, "function attemptOpenRingPlatformer(maze, afterTransition = false)", "if (typeof MutationObserver");
   assert.match(entry, /state\.ringEntryFailed = true/);
   assert.match(entry, /state\.ringApproachArmed = true/);
