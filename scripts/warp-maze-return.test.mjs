@@ -411,7 +411,7 @@ test("Photoli doors belong only to backside shell panels; Room 2 corridor walls 
   assert.match(shellBuild, /rotationY === 0 \? "front" : "rear"/);
   assert.match(sim, /function updateBacksideDoors\(dt, now\)/);
   assert.match(sim, /function applyBacksideDoorPose\(panel\)/);
-  assert.match(sim, /item\.doorState !== "OPEN"/);
+  assert.match(sim, /panel\.doorState !== "OPEN"/);
 
   const roomInterior = section(sim, "function collide(previousPosition)", "function updatePhysics(dt)");
   assert.match(roomInterior, /const room2Interior =/);
