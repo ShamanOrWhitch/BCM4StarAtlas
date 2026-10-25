@@ -1,3 +1,15 @@
+## D-035 — Mini-Sim 0.11.14: finite room boundaries and asteroid Warp continuation
+
+**Status:** Candidate branch `fix/minisim-0.11.14-space-boundaries-asteroid-warp`; source-level regression cases added; CI pending. Not merged or deployed. Based on main `dd82b03a0cdbe232d2a02fa54ef5ece5d630d913` and preserves the accepted 0.11.13 Warp-depth/collision/Ring work.
+
+- Corridor walls and caps collide only at real finite surfaces; X/Y planes no longer extend through unbounded open space. Room 1 recovery needs both Z overlap and proximity to the room cross-section.
+- Keep actual Room 1/Room 2 collision boundaries and Room 2's normal rear exit.
+- The asteroid-to-map action stores the current live position and full quaternion, never sends the ship to the pre-Warp launch position, and V opens the next-destination map while in normal asteroid flight.
+- Ring platformer/transition/Hull interior are excluded from the V handler to avoid stealing controls.
+- Do not touch `wordpress/galia-desk`, scanner, pricing, Tower or shared assets. Browser QA blocked at HTTP 403 before game UI; no visual PASS inference.
+
+---
+
 ## D-034 — Mini-Sim 0.11.13: restore Warp depth staging and real room collision
 
 **Status:** candidate on `fix/minisim-0.11.13-warp-depth-room-collision-ring-entry`, based on main `ab7c3d91c9932d3363375036bb07bbcbd6ad67ad`. Tests pending; not deployed.
