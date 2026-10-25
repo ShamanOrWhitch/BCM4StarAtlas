@@ -4745,12 +4745,16 @@
         ship.position.z = before.z < room.rearZ ? room.rearZ - 0.06 : room.rearZ + 0.06;
         ship.velocity.z = 0;
         blocked = true;
-      } else if (before.z > room.rearZ && after.z < room.rearZ) {
-        exteriorFlight = true;
-      } else if (before.z < room.rearZ && after.z >= room.rearZ) {
-        ship.position.z = room.rearZ - 0.06;
-        ship.velocity.z = 0;
-        blocked = true;
+      } else {
+        const rearPassageOpen = hasOpenBacksideDoor("z", room.rearZ, before, after);
+        const leavingThroughRear = before.z > room.rearZ && after.z < room.rearZ;
+        if (rearPassageOpen) {
+          if (leavingThroughRear) exteriorFlight = true;
+        } else {
+          ship.position.z = before.z > room.rearZ ? room.rearZ + 0.06 : room.rearZ - 0.06;
+          ship.velocity.z = 0;
+          blocked = true;
+        }
       }
     });
 
