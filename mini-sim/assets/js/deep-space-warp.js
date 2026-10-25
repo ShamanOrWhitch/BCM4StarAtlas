@@ -190,6 +190,9 @@
           state.ringEntryFailed = true;
           if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
           stopRingAudio(true);
+          setMazeStatus("RING ENTRY FAILED · ASTEROID RESTORED · PRESS RING BUTTON TO RETRY");
+          try { console.error("Mini-Sim Ring transition ended, but the level did not initialize."); } catch (e) {}
+          syncHullButtonVisibility();
           syncRingButtonVisibility();
         }
       }
