@@ -1,5 +1,16 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
+## Candidate branch — Mini-Sim 0.11.12: open-space boundaries + asteroid Warp continuation (25 October 2026)
+
+- Branch `fix/minisim-0.11.12-space-boundaries`, WORK LOCK [#74](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/74), stacked on Warp/Panda candidate [PR #71](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/71), head `864426e50e59e4b6d704ea9ded24e826a059a3db`.
+- Preserve the improved 0.11.11 Warp visuals exactly. This follow-up is for physics/navigation only: finite Room 1/Room 2 collision surfaces; no open-space clamp into a room; current asteroid pose survives the Warp-map handoff; V opens navigation for the next destination.
+- Focused regression tests cover open-space crossings outside Room 2 wall/cap footprints, real corridor collisions, rear exit, Room 1 recovery, and map pose retention. CI has not been confirmed yet.
+- Browser QA remains BLOCKED if GitHub Actions receives HTTP 403 from `https://walkingyog.com/bcm4sa/`; do not call that a visual fail/pass because rendering was not reached.
+- Not merged/deployed. `wordpress/galia-desk`, scanner, pricing/market data, shared assets and Tower physics untouched.
+
+---
+
+
 ## Candidate branch — Mini-Sim 0.11.11 Warp and Panda UI (25 October 2026)
 
 - Branch `fix/minisim-0.11.11-warp-panda-prompt`, lock issue [#70](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/70), based on main `bc77614564aa7bf1f2a211c945006fc258d6aeff` (0.11.10 / Tower 0.2.65). Not merged or deployed.
