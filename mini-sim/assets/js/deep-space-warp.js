@@ -1442,29 +1442,58 @@
         new THREE.MeshBasicMaterial({ color: 0x254050, transparent: true, opacity: 0.08, side: THREE.BackSide, depthWrite: false })
       );
       shell.name = "asteroid-inner-shell";
+      shell.visible = false;
       shell.position.copy(center);
       group.add(shell);
 
-      const crystalMaterial = new THREE.MeshBasicMaterial({ color: 0x52f0dc });
-      const crystalGeometry = new THREE.OctahedronGeometry(0.54, 0);
+      const crystalMaterial = new THREE.MeshBasicMaterial({ color: 0x66ffed });
+      const crystalGeometry = new THREE.OctahedronGeometry(0.92, 1);
       const beaconMaterial = new THREE.MeshBasicMaterial({ color: 0xdbc17a });
       const beaconGeometry = new THREE.TorusGeometry(1.1, 0.12, 6, 20);
       const startNode = at(0, 1, 0);
       const exitNode = at(NX - 1, 1, NZ - 1);
-      const candidates = cells.filter((cell) => !(cell.x === startNode.x && cell.y === startNode.y && cell.z === startNode.z) &&
-        !(cell.x === exitNode.x && cell.y === exitNode.y && cell.z === exitNode.z));
-      for (let i = candidates.length - 1; i > 0; i -= 1) {
-        const j = Math.floor(rng() * (i + 1));
-        const temp = candidates[i]; candidates[i] = candidates[j]; candidates[j] = temp;
+
+      const routeParent = new Map([[startNode, null]]);
+      const routeQueue = [startNode];
+      for (let cursor = 0; cursor < routeQueue.length && !routeParent.has(exitNode); cursor += 1) {
+        const here = routeQueue[cursor];
+        dirs.forEach((dir) => {
+          if (!here.open[dir.key]) return;
+          const next = at(here.x + dir.x, here.y + dir.y, here.z + dir.z);
+          if (routeParent.has(next)) return;
+          routeParent.set(next, here);
+          routeQueue.push(next);
+        });
+      }
+      const routeCells = [];
+      for (let node = exitNode; node && routeParent.has(node); node = routeParent.get(node)) routeCells.unshift(node);
+      const isEndpoint = (cell) =>
+        (cell.x === startNode.x && cell.y === startNode.y && cell.z === startNode.z) ||
+        (cell.x === exitNode.x && cell.y === exitNode.y && cell.z === exitNode.z);
+      let coreCandidates = routeCells.filter((cell) => !isEndpoint(cell));
+      const middleRoute = coreCandidates.filter((cell) => cell.y === 1);
+      if (middleRoute.length >= 3) coreCandidates = middleRoute;
+      const crystalCells = [];
+      [0.22, 0.50, 0.78].forEach((fraction) => {
+        if (coreCandidates.length < 3) return;
+        let index = Math.max(0, Math.min(coreCandidates.length - 1, Math.round((coreCandidates.length - 1) * fraction)));
+        while (crystalCells.includes(coreCandidates[index]) && index < coreCandidates.length - 1) index += 1;
+        if (crystalCells.includes(coreCandidates[index])) index = coreCandidates.findIndex((cell) => !crystalCells.includes(cell));
+        if (index >= 0) crystalCells.push(coreCandidates[index]);
+      });
+      const fallbackCandidates = cells.filter((cell) => !isEndpoint(cell) && !crystalCells.includes(cell));
+      while (crystalCells.length < 3 && fallbackCandidates.length) {
+        crystalCells.push(fallbackCandidates.splice(Math.floor(rng() * fallbackCandidates.length), 1)[0]);
       }
       const crystals = [];
-      candidates.slice(0, 3).forEach((cell, index) => {
+      crystalCells.slice(0, 3).forEach((cell, index) => {
         const mesh = new THREE.Mesh(crystalGeometry, crystalMaterial);
         mesh.position.copy(cellPosition(cell.x, cell.y, cell.z));
-        mesh.position.y += 0.2;
+        mesh.position.y += 0.35;
         mesh.name = "core-shard-" + index;
+        mesh.scale.setScalar(1.18);
         group.add(mesh);
-        crystals.push({ mesh, taken: false, phase: rng() * Math.PI * 2, cell: { x: cell.x, y: cell.y, z: cell.z } });
+        crystals.push({ mesh, taken: false, scouted: true, phase: rng() * Math.PI * 2, cell: { x: cell.x, y: cell.y, z: cell.z } });
       });
       const beacon = new THREE.Mesh(beaconGeometry, beaconMaterial);
       beacon.position.copy(cellPosition(exitNode.x, exitNode.y, exitNode.z));
@@ -1538,6 +1567,7 @@
       state.savedSpeedMode = engine.getSpeedMode ? engine.getSpeedMode() : 1;
       if (engine.setSpeedMode) engine.setSpeedMode(2);
       state.maze = maze;
+      publishAsteroidChart(maze);
       maze.pickupEffects = [];
       function spawnCrystalPickupEffect(position) {
         const effect = new THREE.Group();
@@ -1626,6 +1656,7 @@
       const ship = frame.ship;
       const pos = ship.position;
       const radius = 0.7;
+      const previousPosition = maze.lastPosition && maze.lastPosition.clone ? maze.lastPosition.clone() : pos.clone();
 
       // Ring gameplay replaces the flight view. The hold does not: the helm
       // keeps flying the same ship, so maze collision stays active.
@@ -1642,7 +1673,49 @@
         return;
       }
 
-      // Only test wall panels close to the craft; distant cells cost almost nothing per frame.
+      // Sweep the ship's previous-to-current segment against expanded wall boxes.
+      const axisNames = ["x", "y", "z"];
+      const displacement = pos.clone().sub(previousPosition);
+      let sweptHit = null;
+      for (let i = 0; i < maze.walls.length; i += 1) {
+        const wall = maze.walls[i];
+        const extents = [wall.sx / 2 + radius, wall.sy / 2 + radius, wall.sz / 2 + radius];
+        let tEnter = 0, tExit = 1, hitAxis = -1, hitNormal = 0, valid = true;
+        for (let axis = 0; axis < 3; axis += 1) {
+          const name = axisNames[axis], from = previousPosition[name], delta = displacement[name];
+          const min = wall[name] - extents[axis], max = wall[name] + extents[axis];
+          if (Math.abs(delta) < 1e-8) {
+            if (from < min || from > max) { valid = false; break; }
+            continue;
+          }
+          const ta = (min - from) / delta, tb = (max - from) / delta;
+          const near = Math.min(ta, tb), far = Math.max(ta, tb);
+          if (near > tEnter) {
+            tEnter = near; hitAxis = axis; hitNormal = delta > 0 ? -1 : 1;
+          }
+          tExit = Math.min(tExit, far);
+          if (tEnter > tExit) { valid = false; break; }
+        }
+        if (!valid || hitAxis < 0 || tEnter <= 0 || tEnter > 1 || tExit < 0) continue;
+        if (!sweptHit || tEnter < sweptHit.time) sweptHit = { wall, time: tEnter, axis: hitAxis, normal: hitNormal, extents };
+      }
+      if (sweptHit) {
+        const impactSpeed = ship.velocity.length();
+        pos.copy(previousPosition).addScaledVector(displacement, Math.max(0, sweptHit.time - 0.002));
+        const normalAxis = axisNames[sweptHit.axis];
+        pos[normalAxis] = sweptHit.wall[normalAxis] + sweptHit.normal * (sweptHit.extents[sweptHit.axis] + 0.015);
+        ship.velocity[normalAxis] *= 0.12;
+        const impactNow = performance.now();
+        if (impactSpeed > 3.0 && impactNow - maze.lastImpactAt > 650) {
+          maze.lastImpactAt = impactNow;
+          const compartmentId = pos.x < maze.center.x - 5.4 ? 1 : (pos.x > maze.center.x + 5.4 ? 3 : 2);
+          const damage = Math.max(4, Math.min(24, Math.round((impactSpeed - 2.0) * 4.4)));
+          const damaged = window.BCMHullRepairState?.triggerExternalImpact?.(compartmentId, damage);
+          if (damaged) setMazeStatus("IMPACT · " + damaged.name + " · INTEGRITY " + Math.round(damaged.integrity) + "% · HIT " + damage);
+        }
+      }
+
+      // Retain the overlap resolver as a safety net for slow contact.
       for (let pass = 0; pass < 2; pass += 1) {
         for (let i = 0; i < maze.walls.length; i += 1) {
           const w = maze.walls[i];
@@ -1712,7 +1785,7 @@
           publishAsteroidChart(maze);
           setMazeStatus("CHART MARK · CORE SHARD " + (crystal.cell.x + 1) + "." + (crystal.cell.z + 1));
         }
-        if (pos.distanceTo(crystal.mesh.position) < 1.55) {
+        if (pos.distanceTo(crystal.mesh.position) < 2.0) {
           const pickupPosition = crystal.mesh.position.clone();
           crystal.taken = true;
           crystal.scouted = true;
@@ -1786,6 +1859,7 @@
       window.BCMHullHelmState = { engaged: true, thrust: 0, yaw: 0 };
       window.BCMRingWindowState = null;
       syncHullButtonVisibility();
+      window.BCMiniSimAPI?.requestFlightPointerLock?.();
 
       window.BCMHullDive.open(() => {
         state.hullOpen = false;
@@ -1794,6 +1868,7 @@
         window.BCMRingWindowState = null;
         window.BCMHullHelmState = { engaged: false, thrust: 0, yaw: 0 };
         syncHullButtonVisibility();
+        window.BCMiniSimAPI?.requestFlightPointerLock?.();
       });
       syncHullButtonVisibility();
       return true;
@@ -4255,11 +4330,8 @@ return axialRoll + ahead * 0.12 +
             : Math.round(31 + shimmer * 22 + light * 18);
           g.fillStyle = "rgba(" + red + "," + green + "," + blue + ",0.98)";
           g.fill();
-          g.strokeStyle = visualClass === 3
-            ? "rgba(166,124,218," + (0.22 + shimmer * 0.16) + ")"
-            : "rgba(81,181,207," + (0.12 + shimmer * 0.18) + ")";
-          g.lineWidth = 0.6 + d1 * 0.7;
-          g.stroke();
+          // No transverse panel outlines: they read as hoops at speed.
+          // The longitudinal strips below are the sole continuous surface lines.
         }
       }
 
@@ -4283,42 +4355,33 @@ return axialRoll + ahead * 0.12 +
       // Class II: subdued ion rails, reserved for the smallest drive-slot tier.
       // This is Canvas-only (no new renderer, textures, geometry, or collision surfaces).
       if (visualClass === 2) {
-        const railCount = 3;
-        const railSpin = state.tubeTravel * 0.012;
-        const railTravel = ((state.tubeTravel * 0.0013) % 1 + 1) % 1;
+        // Class II: two faint ion rails, no additive bloom or moving dots.
+        const railCount = 2;
+        const railSpin = state.tubeTravel * 0.004;
         g.save();
-        g.globalCompositeOperation = "lighter";
+        g.globalCompositeOperation = "source-over";
         for (let rail = 0; rail < railCount; rail += 1) {
           const baseAngle = rail * Math.PI * 2 / railCount;
           g.beginPath();
           for (let step = 0; step <= 52; step += 1) {
             const d = 0.045 + (step / 52) * 0.93;
-            const theta = baseAngle + railSpin + d * Math.PI * 4.2 +
-              Math.sin(shimmerTime * 0.24 + d * 8 + rail) * 0.055;
+            const theta = baseAngle + railSpin + d * Math.PI * 1.25 +
+              Math.sin(shimmerTime * 0.10 + d * 3 + rail) * 0.018;
             const p = point(d, theta, -1.9);
             if (step === 0) g.moveTo(p.x, p.y);
             else g.lineTo(p.x, p.y);
           }
-          g.strokeStyle = rail % 2 === 0 ? "rgba(64,210,232,0.055)" : "rgba(220,154,100,0.045)";
-          g.lineWidth = 0.7 + maxRadius * 0.002;
+          g.strokeStyle = rail % 2 === 0 ? "rgba(64,210,232,0.026)" : "rgba(220,154,100,0.020)";
+          g.lineWidth = 0.65;
           g.lineCap = "round";
           g.stroke();
-
-          // A short brighter pulse runs along each rail; it is visual-only.
-          const pulseDepth = 0.07 + ((railTravel + rail / railCount) % 1) * 0.88;
-          const pulseAngle = baseAngle + railSpin + pulseDepth * Math.PI * 4.2;
-          const pulse = point(pulseDepth, pulseAngle, -2.7);
-          g.beginPath();
-          g.arc(pulse.x, pulse.y, 1.2 + pulseDepth * 2.2, 0, Math.PI * 2);
-          g.fillStyle = rail % 2 === 0 ? "rgba(145,225,235,0.20)" : "rgba(230,198,157,0.14)";
-          g.fill();
         }
         g.restore();
       }
 
-      // Class III uses a restrained violet tint over the same straight rails.
+      // Class III has a distinct violet identity without circular geometry.
       if (visualClass === 3) {
-        g.fillStyle = "rgba(23,12,39,0.22)";
+        g.fillStyle = "rgba(30,11,54,0.34)";
         g.fillRect(0, 0, w, h);
       }
 
@@ -4335,22 +4398,16 @@ return axialRoll + ahead * 0.12 +
         const rx = radiusX(d);
         const strokeWidth = Math.max(3, rx * 0.052);
         if (layer.type === "gate") {
-          // Broken radial bars instead of a circular hoop; the safe opening
-          // remains aligned with the exact same collision rule.
-          const pieces = 28;
-          for (let i = 0; i < pieces; i += 1) {
-            const angle = i * Math.PI * 2 / pieces;
-            if (Math.abs(angleDifference(angle, layer.safeAngle)) <= layer.gapHalf) continue;
-            const p0 = point(d, angle, -rx * 0.06);
-            const p1 = point(d, angle, -rx * 0.23);
-            g.beginPath();
-            g.moveTo(p0.x, p0.y);
-            g.lineTo(p1.x, p1.y);
-            g.strokeStyle = i % 4 === 0 ? "rgba(214,170,124,0.70)" : "rgba(117,184,202,0.52)";
-            g.lineWidth = Math.max(2, strokeWidth * 0.54);
-            g.stroke();
-          }
-          // The opening is marked by missing radial bars; no hoop or arc cap.
+          // Two longitudinal guide-lines mark the safe opening; collision is unchanged.
+          const guideDepths = [Math.min(0.98, d + 0.13), Math.max(0.045, d - 0.12)];
+          [layer.safeAngle - layer.gapHalf, layer.safeAngle + layer.gapHalf].forEach((angle) => {
+            const p0 = point(guideDepths[0], angle, -rx * 0.06);
+            const p1 = point(guideDepths[1], angle, -rx * 0.06);
+            g.beginPath(); g.moveTo(p0.x, p0.y); g.lineTo(p1.x, p1.y);
+            g.strokeStyle = visualClass === 3 ? "rgba(187,142,245,0.68)" : "rgba(117,184,202,0.58)";
+            g.lineWidth = Math.max(2, strokeWidth * 0.36);
+            g.lineCap = "round"; g.stroke();
+          });
         } else if (layer.type === "sweeper") {
           const angle = layer.sweepAngle + state.elapsed * layer.sweepSpeed;
           const p0 = point(d, angle, -rx * 0.02);

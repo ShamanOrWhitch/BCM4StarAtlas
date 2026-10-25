@@ -394,7 +394,7 @@
     function finish() {
       if (closed) return;
       closed = true;
-      if (document.exitPointerLock && document.pointerLockElement) document.exitPointerLock();
+      // The caller decides whether the ship resumes mouse lock when the hold closes.
       cancelAnimationFrame(frame);
       if (viewResizeObserver) {
         try { viewResizeObserver.disconnect(); } catch (e) {}
@@ -461,6 +461,10 @@
       if (event.code === "Period") keys.period = down;
       if (event.code === "Slash") keys.slash = down;
       if (event.code === "KeyX" && down && !event.repeat) {
+        if (helmOwner >= 0) window.BCMiniSimAPI?.releaseFlightPointerLock?.();
+        else if (players.some((player) => Math.abs(player.x + 4.75) < 0.8)) {
+          window.BCMiniSimAPI?.requestFlightPointerLock?.();
+        }
         helmTogglePending = true;
         helmToggleRequestedBy = helmOwner >= 0 ? helmOwner : -1;
       }

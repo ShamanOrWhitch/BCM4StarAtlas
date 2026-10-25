@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.11.9
+ * Version: 0.11.10
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.11.9');
+define('BCM_MINI_SIM_VERSION', '0.11.10');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -869,7 +869,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.11.9</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.11.10</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
@@ -929,6 +929,7 @@ function bcm_mini_sim_shortcode($atts = array())
                 <label>Громкость <input type="range" min="0" max="100" value="42" data-setting="volume"></label>
                 <label><input type="checkbox" data-setting="invertPitch" checked> Инверсия вертикального наклона</label>
                 <label><input type="checkbox" data-setting="invertYaw"> Реверс лево/право</label>
+                <label><input type="checkbox" data-setting="safeMode"> SafeMode · минимум нагрузки / low-load mode</label>
                 <p>Клавиатура: W/S — тяга, A/D — влево/вправо, Space — вверх, C — вниз, G — портал, F — фиксация экрана, H — домой, R — дверь.</p>
                 <p>Gamepad: левый стик — движение, правый — взгляд; A — дверь, B — домой, X — фиксация экрана, Y — портал; LB/RB — крен, LT/RT — вверх/вниз, Start/Select — меню.</p>
                 <p>Миссия: проверить внешние экраны и все видеозоны. Подлетайте к каждому экрану снаружи, дождитесь его запуска и нажмите центр экрана для той же фиксации ролика, что и клавиша F. На телефоне ▲/▼ — тяга вперёд/назад; ↟/↡ — вертикаль вверх/вниз; ◀/▶ — поворот; ↶/↷ — крен. Свайп — ручной обзор, наклон — обзор.</p>

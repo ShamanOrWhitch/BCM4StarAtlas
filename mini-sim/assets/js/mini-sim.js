@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.9",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.10",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.9",
+      title: "SPACE LABYRINTH — 0.11.10",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -133,7 +133,7 @@
   dialogueRoot.className = "bcm-comic-dialogs";
   dialogueRoot.innerHTML =
     '<section class="bcm-comic-dialog bcm-comic-dialog-operator" data-dialog-box="operator" hidden aria-live="polite">' +
-      '<div class="bcm-comic-dialog-avatar" aria-hidden="true"><span data-operator-avatar-fallback>✦</span><video data-operator-avatar-video hidden muted playsinline loop preload="none"></video></div>' +
+      '<div class="bcm-comic-dialog-avatar" aria-hidden="true"><span data-operator-avatar-fallback>✦</span><video data-operator-avatar-video hidden muted autoplay playsinline loop preload="auto"></video></div>' +
       '<div class="bcm-comic-dialog-copy"><strong data-dialog-speaker>ОПЕРАТОР</strong><p data-dialog-message></p><div class="bcm-comic-dialog-choices" data-dialog-choices></div></div>' +
       '<button type="button" class="bcm-comic-dialog-close" data-dialog-close="operator" aria-label="Close">×</button>' +
     '</section>' +
@@ -151,6 +151,9 @@
   const operatorAvatar = dialogueRoot.querySelector(".bcm-comic-dialog-operator .bcm-comic-dialog-avatar");
   const operatorAvatarFallback = operatorAvatar?.querySelector("[data-operator-avatar-fallback]");
   const operatorAvatarVideo = operatorAvatar?.querySelector("[data-operator-avatar-video]");
+  let safeModeEnabled = false;
+  try { safeModeEnabled = localStorage.getItem("bcm-mini-sim-safe-mode") === "1"; } catch (e) {}
+  let activeOperatorAvatarAsset = "panda.mp4";
   const controlsDialog = dialogueRoot.querySelector('[data-dialog-box="controls"]');
   const controlsMessage = dialogueRoot.querySelector("[data-dialog-controls-message]");
   let operatorDialogTimer = 0;
@@ -221,9 +224,23 @@
 
   function prepareOperatorAvatar(avatarAsset) {
     if (!operatorAvatarVideo || typeof assetUrl !== "function") return;
-    const requestedUrl = assetUrl(avatarAsset || "bearhead.mp4");
-    const url = requestedUrl || assetUrl("bearhead.mp4");
-    if (!url) return; // Bearhead is optional until the asset is uploaded.
+    activeOperatorAvatarAsset = String(avatarAsset || activeOperatorAvatarAsset || "panda.mp4");
+    if (safeModeEnabled) {
+      try { operatorAvatarVideo.pause(); } catch (e) {}
+      operatorAvatarVideo.hidden = true;
+      if (operatorAvatarFallback) operatorAvatarFallback.hidden = false;
+      return;
+    }
+    const url = assetUrl(activeOperatorAvatarAsset) || assetUrl("panda.mp4");
+    if (!url) {
+      operatorAvatarVideo.hidden = true;
+      if (operatorAvatarFallback) operatorAvatarFallback.hidden = false;
+      return;
+    }
+    operatorAvatarVideo.muted = true;
+    operatorAvatarVideo.loop = true;
+    operatorAvatarVideo.playsInline = true;
+    operatorAvatarVideo.preload = "auto";
     if (operatorAvatarVideo.dataset.assetUrl !== url) {
       operatorAvatarVideo.dataset.assetUrl = url;
       operatorAvatarVideo.src = url;
@@ -273,8 +290,12 @@
       operatorChoices.appendChild(button);
     });
     operatorDialog.hidden = false;
-    prepareOperatorAvatar(avatarAsset);
-    if (!choices || !choices.length) operatorDialogTimer = window.setTimeout(hideOperatorDialog, 9500);
+    const speakerName = String(speaker || "").toLowerCase();
+    const faceAsset = avatarAsset ||
+      (speakerName.includes("medusa") ? "medusa.mp4" :
+       (speakerName.includes("zombie") ? "zombie.mp4" : "panda.mp4"));
+    prepareOperatorAvatar(faceAsset);
+    if (!choices || !choices.length) operatorDialogTimer = window.setTimeout(hideOperatorDialog, 26000);
   }
 
   function showControlsDialog(level) {
@@ -308,7 +329,7 @@
     controlsMessage.textContent = specific || textForLanguage(key);
     controlsDialog.querySelector("[data-dialog-controls-title]").textContent = interfaceLanguage === "ru" ? "УПРАВЛЕНИЕ" : "CONTROLS";
     controlsDialog.hidden = false;
-    controlsDialogTimer = window.setTimeout(hideControlsDialog, 14000);
+    controlsDialogTimer = window.setTimeout(hideControlsDialog, 26000);
   }
 
   dialogueRoot.querySelectorAll("[data-dialog-close]").forEach((button) => {
@@ -1202,7 +1223,8 @@
     open: false,
     volume: 0.42,
     invertPitch: true,
-    invertYaw: false
+    invertYaw: false,
+    safeMode: safeModeEnabled
   };
 
   const keys = Object.create(null);
@@ -5089,6 +5111,15 @@
     }
   }
 
+  function applySafeModeQuality() {
+    if (!renderer) return;
+    const maxRatio = isMobileTextureMode()
+      ? (safeModeEnabled ? 0.8 : 1.0)
+      : (safeModeEnabled ? 0.85 : 1.5);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxRatio));
+    resize();
+  }
+
   function resize() {
     if (!renderer || !camera) return;
     const rect = canvas.getBoundingClientRect();
@@ -5294,6 +5325,7 @@
       const vol = settingsRoot.querySelector('[data-setting="volume"]');
       const ip = settingsRoot.querySelector('[data-setting="invertPitch"]');
       const iy = settingsRoot.querySelector('[data-setting="invertYaw"]');
+      const safeModeInput = settingsRoot.querySelector('[data-setting="safeMode"]');
       const cl = settingsRoot.querySelector('[data-setting="close"]');
       if (vol) vol.addEventListener("input", () => {
         settings.volume = Number(vol.value) / 100;
@@ -5301,6 +5333,16 @@
       });
       if (ip) ip.addEventListener("change", () => { settings.invertPitch = ip.checked; });
       if (iy) iy.addEventListener("change", () => { settings.invertYaw = iy.checked; });
+      if (safeModeInput) {
+        safeModeInput.checked = safeModeEnabled;
+        safeModeInput.addEventListener("change", () => {
+          safeModeEnabled = !!safeModeInput.checked;
+          settings.safeMode = safeModeEnabled;
+          try { localStorage.setItem("bcm-mini-sim-safe-mode", safeModeEnabled ? "1" : "0"); } catch (e) {}
+          if (operatorDialog && !operatorDialog.hidden) prepareOperatorAvatar(activeOperatorAvatarAsset);
+          applySafeModeQuality();
+        });
+      }
       if (videoCheckButton) videoCheckButton.addEventListener("click", checkAllVideoSources);
       if (cl) cl.addEventListener("click", toggleSettings);
     }
@@ -5317,6 +5359,20 @@
       }
     };
     window.BCMiniSimAPI.getRuntime = () => ({ renderer, scene, camera, ship, THREE: window.THREE, root, running });
+    window.BCMiniSimAPI.requestFlightPointerLock = () => {
+      if (!running || settings.open || !canvas || !canvas.requestPointerLock ||
+          ("ontouchstart" in window) || navigator.maxTouchPoints > 0) return false;
+      if (document.pointerLockElement === canvas) return true;
+      try {
+        const request = canvas.requestPointerLock();
+        if (request && typeof request.catch === "function") request.catch(() => { pointerLockBlocked = true; });
+        return true;
+      } catch (e) { pointerLockBlocked = true; return false; }
+    };
+    window.BCMiniSimAPI.releaseFlightPointerLock = () => {
+      if (document.pointerLockElement !== canvas || !document.exitPointerLock) return false;
+      try { document.exitPointerLock(); return true; } catch (e) { return false; }
+    };
     window.BCMiniSimAPI.teleport = (position, quaternion) => {
       if (!position || !ship.position || !ship.quaternion) return false;
       clearStoredInputState();
@@ -5379,7 +5435,8 @@
   function startSim() {
     try {
       renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobileTextureMode() ? 1.0 : 1.5));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1,
+        isMobileTextureMode() ? (safeModeEnabled ? 0.8 : 1.0) : (safeModeEnabled ? 0.85 : 1.5)));
       scene = new THREE.Scene();
       scene.background = new THREE.Color(0x020308);
       camera = new THREE.PerspectiveCamera(70, 1, 0.08, 400);
