@@ -350,14 +350,14 @@ test("Ring entry failures are retryable and don't disable the asteroid collision
 
 test("Ring initialization is transactional and restores the asteroid on setup failure", () => {
   const entry = section(warp, "function attemptOpenRingPlatformer(maze, afterTransition = false)", "if (typeof MutationObserver");
-  assert.match(entry, /const snapshot = \\{/);
-  assert.match(entry, /sceneChildren: new Set/);
-  assert.match(entry, /function restoreEntrySnapshot\\(\\)/);
-  assert.match(entry, /partialCleanup/);
-  assert.match(entry, /snapshot\\.mazeGroup\\.visible = snapshot\\.mazeVisible/);
-  assert.match(entry, /snapshot\\.shipVisual\\.visible = snapshot\\.shipVisible/);
-  assert.match(entry, /snapshot\\.scene\\.background = snapshot\\.sceneBackground/);
-  assert.match(entry, /RING ENTRY FAILED · ASTEROID RESTORED/);
+  assert.ok(entry.includes("const snapshot = {"));
+  assert.ok(entry.includes("sceneChildren: new Set"));
+  assert.ok(entry.includes("function restoreEntrySnapshot()"));
+  assert.ok(entry.includes("partialCleanup"));
+  assert.ok(entry.includes("snapshot.mazeGroup.visible = snapshot.mazeVisible"));
+  assert.ok(entry.includes("snapshot.shipVisual.visible = snapshot.shipVisible"));
+  assert.ok(entry.includes("snapshot.scene.background = snapshot.sceneBackground"));
+  assert.ok(entry.includes("RING ENTRY FAILED · ASTEROID RESTORED"));
 
   const ring = section(warp, "function openRingPlatformer(maze, afterTransition = false)", "function finishRingPlatformer");
   const cleanupReady = ring.indexOf("state.ringPlatformerCleanup = () => {");
