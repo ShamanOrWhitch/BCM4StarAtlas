@@ -208,13 +208,23 @@ test("Mini-Sim and Tower displayed versions match their PHP asset-cache versions
   const miniPhp = await read("mini-sim/bcm-mini-sim.php");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   const tower = await read("mini-sim/tower/assets/js/tower.js");
-  assert.ok(miniPhp.includes("Version: 0.11.9"));
-  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.11.9'"));
-  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.11.9"));
+  assert.ok(miniPhp.includes("Version: 0.11.10"));
+  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.11.10'"));
+  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.11.10"));
   assert.ok(towerPhp.includes("BCM_TOWER_VERSION', '0.2.65'"));
   assert.ok(tower.includes('const TOWER_VERSION = "0.2.65"'));
 });
 
+
+test("Asteroid movement sweeps wall collisions and places visible core shards on a connected route", async () => {
+  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  assert.match(warp, /const previousPosition = maze\.lastPosition/);
+  assert.match(warp, /let sweptHit = null/);
+  assert.match(warp, /const routeParent = new Map\(\[\[startNode, null\]\]\)/);
+  assert.match(warp, /scouted: true/);
+  assert.match(warp, /pos\.distanceTo\(crystal\.mesh\.position\) < 2\.0/);
+  assert.match(warp, /shell\.visible = false/);
+});
 
 test("Warp travel motion increases while shimmer rate stays on its own previous clock", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");

@@ -42,10 +42,14 @@ test("Visual Classes II–IV have distinct decorative effects only", () => {
   assert.ok(start >= 0 && end > start, "Tube drawing function should exist");
   const draw = warp.slice(start, end);
 
-  assert.match(draw, /if \(visualClass === 2\)[\s\S]*?const railCount = 3/);
-  assert.match(draw, /Class III uses a restrained violet tint over the same straight rails[\s\S]*?if \(visualClass === 3\)/);
+  assert.match(draw, /if \(visualClass === 2\)[\s\S]*?const railCount = 2/);
+  assert.match(draw, /Class III has a distinct violet identity without circular geometry[\s\S]*?if \(visualClass === 3\)/);
   assert.doesNotMatch(draw, /Class IV adds heavier twin stargate hoops/);
-  assert.match(draw, /Broken radial bars instead of a circular hoop/);
+  assert.match(draw, /Two longitudinal guide-lines mark the safe opening/);
+  const classIIStart = draw.indexOf("if (visualClass === 2)");
+  const classIIIStart = draw.indexOf("// Class III", classIIStart);
+  assert.doesNotMatch(draw.slice(classIIStart, classIIIStart), /g\.arc\(/);
+  assert.doesNotMatch(draw.slice(classIIStart, classIIIStart), /globalCompositeOperation = "lighter"/);
   assert.doesNotMatch(draw, /const chevron = point\(/);
   assert.doesNotMatch(draw, /const gateMark = point\(/);
   assert.match(draw, /const routeProgress = warpObstacleProgress\(state\.elapsed\)/);
@@ -54,11 +58,11 @@ test("Visual Classes II–IV have distinct decorative effects only", () => {
   assert.match(warp, /window\.BCMDeepSpaceWarpSetDriveSlot = \(slotSize\) =>/);
 });
 
-test("Mini-Sim 0.11.9 cache/version contracts are synchronized", () => {
-  assert.match(plugin, /Version: 0\.11\.9/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.9'\)/);
-  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.9/);
-  assert.match(qa, /Version: 0\.11\.9/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.9'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.9/);
+test("Mini-Sim 0.11.10 cache/version contracts are synchronized", () => {
+  assert.match(plugin, /Version: 0\.11\.10/);
+  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.10'\)/);
+  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.10/);
+  assert.match(qa, /Version: 0\.11\.10/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.10'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.10/);
 });

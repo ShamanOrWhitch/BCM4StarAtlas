@@ -92,8 +92,9 @@ test("ONICSS keeps its station poster during preload, X releases camera focus, a
   assert.ok(mini.includes('video.addEventListener("playing", () => {'));
   assert.ok(mini.includes("item.mesh.material = item.videoMaterial"));
   assert.ok(mini.includes("video.pause();"));
-  assert.ok(mini.includes('assetUrl("bearhead.mp4")'));
-  assert.ok(mini.includes('video data-operator-avatar-video hidden muted playsinline loop preload="none"'));
+  assert.ok(mini.includes('assetUrl("panda.mp4")'));
+  assert.ok(mini.includes('speakerName.includes("medusa")'));
+  assert.ok(mini.includes('video data-operator-avatar-video hidden muted autoplay playsinline loop preload="auto"'));
   assert.ok(mini.includes('e.code === "KeyX" && cinema.focus'));
   assert.ok(css.includes(".bcm-comic-dialog-avatar video{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}"));
 });
@@ -146,13 +147,26 @@ test("Explicit screen focus persists until its own radius expires and mission pr
   assert.ok(mini.includes("RETURN TO ONI CSS · X -40 / Y 30"));
 });
 
-test("0.11.9 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
-  assert.match(php, /Version: 0\.11\.9/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.9'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.11\.9/);
-  assert.match(qa, /Version: 0\.11\.9/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.9'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.9/);
+test("SafeMode, animated faces, readable dialog timing and flight pointer-lock handoff are wired", () => {
+  assert.ok(php.includes('data-setting="safeMode"'));
+  assert.ok(mini.includes('localStorage.setItem("bcm-mini-sim-safe-mode"'));
+  assert.ok(mini.includes('if (safeModeEnabled)'));
+  assert.ok(mini.includes('video data-operator-avatar-video hidden muted autoplay playsinline loop preload="auto"'));
+  assert.ok(mini.includes("window.setTimeout(hideOperatorDialog, 26000)"));
+  assert.ok(mini.includes("window.setTimeout(hideControlsDialog, 26000)"));
+  assert.ok(mini.includes("requestFlightPointerLock"));
+  assert.ok(mini.includes("releaseFlightPointerLock"));
+  assert.match(css, /width:min\(460px,calc\(48vw - 18px\)\)/);
+  assert.match(css, /font-size:15px/);
+});
+
+test("0.11.10 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
+  assert.match(php, /Version: 0\.11\.10/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.10'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.11\.10/);
+  assert.match(qa, /Version: 0\.11\.10/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.10'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.10/);
   assert.match(browserWorkflow, /timeout-minutes: 45/);
   assert.match(browserWorkflow, /timeout-minutes: 20/);
   assert.match(browserWorkflow, /timeout-minutes: 25/);

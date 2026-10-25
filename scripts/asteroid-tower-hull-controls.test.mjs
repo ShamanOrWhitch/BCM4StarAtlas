@@ -28,7 +28,7 @@ test("Flight starts in Room 1 and does not teleport into the asteroid", async ()
   const begin = mini.slice(mini.indexOf("function beginFlight()"), mini.indexOf("const byName = Object.create(null)"));
   assert.doesNotMatch(begin, /BCMDeepSpaceWarpEnterAsteroid\s*\(/);
   assert.match(mini, /ship\.position = new THREE\.Vector3\(0, 0, 2\)/);
-  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.9/);
+  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.10/);
 });
 
 test("Asteroid walls are resolved from the prepared asterwall asset family", async () => {
@@ -192,6 +192,10 @@ test("Crew facing follows the Tower convention and 3D wall materials use each ce
   assert.ok(warp.includes('copy.image = loadedTexture.image;'));
   assert.ok(warp.includes('wallTextureCopiesByAsset[index].push(copy)'));
   assert.ok(warp.includes('(wallVariantsByAsset[index] || []).forEach((variant) => syncImage(variant.texture))'));
+  assert.match(warp, /const previousPosition = maze\.lastPosition/);
+  assert.match(warp, /let sweptHit = null/);
+  assert.match(warp, /const routeParent = new Map\(\[\[startNode, null\]\]\)/);
+  assert.match(warp, /scouted: true/);
 });
 
 
@@ -229,6 +233,8 @@ test("Astral Y-cells are seed-deterministic and alter movement without rebuildin
   assert.match(warp, /sealedWallRight\.visible = !node\.large && !rightDoor/);
   assert.match(warp, /ring-cell-vertical-portal/);
   assert.match(warp, /placeParty\(enterRingCell\(worldState, nextNode,[\s\S]*?player\), player\)/);
+  assert.match(warp, /Two longitudinal guide-lines mark the safe opening/);
+  assert.doesNotMatch(warp, /Broken radial bars instead of a circular hoop/);
   assert.doesNotMatch(warp, /placeParty\(enterRingCell\(worldState, right, "left"\)\);/);
   assert.ok(warp.includes('astralPhase: ((hashSeed(String(maze.seed) + "|phase|" + cell.x + "|" + cell.y + "|" + cell.z) / 0xffffffff) * Math.PI * 2)'));
   assert.match(warp, /gravity = 6\.0;[\s\S]*?jumpVelocity = 7\.8/);
