@@ -1,10 +1,10 @@
-## Candidate Mini-Sim 0.11.14 — finite space boundaries and asteroid Warp continuation (25 October 2026)
+## Main state — Mini-Sim 0.11.14 merged (25 October 2026)
 
-- Branch: `fix/minisim-0.11.14-space-boundaries-asteroid-warp`, based on current main `dd82b03a0cdbe232d2a02fa54ef5ece5d630d913`; issue [#74](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/74).
+- Merged via [PR #76](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/76) as main commit `65df7b29b7e0ab7a139cbf691f41ad103b0d8ba2`; issue [#74](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/74) is closed.
 - Retains main's 0.11.13 Warp depth staging, real frame-start collision sampling, swept asteroid collision, Ring entry recovery, and Panda presentation.
 - Changes: Room 1/Room 2 collision planes only block at the actual finite wall/cap intersection; Room 1 recovery is limited to the physical corridor cross-section; Room 2 rear exit remains open; asteroid exit-to-map keeps the current ship pose and V opens next-destination navigation; cache version 0.11.14.
 - Added source regression cases for free-space X/Y/Z crossings, solid corridor wall/cap crossings, Room 2 rear exit, and asteroid -> map pose handoff.
-- Status: candidate; merge/deploy prohibited until CI is reviewed. Browser/device visual test has not run successfully: GitHub browser runner has been blocked by HTTP 403 before the game root. No claim of visual pass.
+- **CI status:** Mini-Sim regression, Warp maze return, Warp visual tiers, UI layer, Ring controls, Tower top-cap, bilingual copy, UI/weapons/cabin, and packaged test build passed on the merged commit. Browser smoke remains unverified: the runner has stalled in Playwright setup; earlier runs got HTTP 403 before the game root. No visual PASS or production deployment is claimed.
 
 ---
 
