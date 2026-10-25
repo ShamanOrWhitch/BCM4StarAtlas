@@ -1,4 +1,11 @@
-## Active Work Lock — Mini-Sim 0.11.11 Warp/Panda regression (25 October 2026)
+## Active Work Lock — Mini-Sim 0.11.12 repair candidate (25 October 2026)
+
+- Branch: `fix/minisim-0.11.12-warp-speed-collision-ring`; base main `9caba968636610a2413a23177bd9d64f20fe0900`.
+- Scope: Warp speed/HUD, Panda prompt/legibility, asteroid swept collision, Ring entry guard, focused tests and state/handoff notes. Do not touch `wordpress/galia-desk`, scanner, pricing data, or site firewall.
+- User reports 0.11.8 remains the best-feeling build; keep this patch narrow and do not claim later features are visually verified.
+- CI pending. Live browser QA is blocked by HTTP 403 before the Mini-Sim container, not a playable test. Do not bypass the firewall or claim WordPress deployment.
+
+## Historical Work Lock — Mini-Sim 0.11.11 Warp/Panda regression (PR #71 merged; not live-deployed)
 
 - Issue: [#70](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/70); branch: `fix/minisim-0.11.11-warp-panda-prompt`.
 - Baseline main SHA: `bc77614564aa7bf1f2a211c945006fc258d6aeff` (Mini-Sim 0.11.10 / Tower 0.2.65).

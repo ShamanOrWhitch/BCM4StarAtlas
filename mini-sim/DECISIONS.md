@@ -1,6 +1,16 @@
+## D-033 — Mini-Sim 0.11.12: restore sane Warp speed display and unblock collisions / Ring entry
+
+**Status:** repair candidate on `fix/minisim-0.11.12-warp-speed-collision-ring`, based on main `9caba968636610a2413a23177bd9d64f20fe0900`. Tests pending at authoring time; not deployed.
+
+- Correct the Warp multiplier from the contradictory 8×→64× formula to the intended 1×→8× ramp and show it beside time/steering angle.
+- Put `V — карта Warp` in the flight prompt shown before opening the map; enlarge and right-align Panda's single dialogue; keep the avatar visible at 44px and message at 15px on small phones.
+- If asteroid collision starts within a ship-expanded wall AABB, resolve toward its nearest face rather than discarding the collision because entry time is zero. Keep the existing sweep and slow-contact resolver.
+- Disarm Ring entry only after `runtime.ship`, `runtime.THREE`, and `runtime.scene` validate; a failed attempt must not hide the entry until the ship moves away.
+- Live browser test still returns HTTP 403 before the game container; no live visual pass or deployment is claimed.
+
 ## D-032 — Mini-Sim 0.11.11: visible Warp hazards and one Panda controls bubble
 
-**Status:** IMPLEMENTED / **TESTED-CODE PASS** on `dbca3b10bbd5f8598a914527bfe481a38cf59a87`; PR #71 is open and not deployed. Mini-Sim regression, UI layer, Warp visual tiers, Warp course/portal, Warp maze return, Ring controls, Hull RU/EN and Tower top-cap CI checks passed. Candidate browser QA [run 40198934895](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40198934895) finished **FAILED/BLOCKED**: HTTP 403 on the target page and timeout waiting for `.bcm-mini-sim`, so the runner never reached the game UI. Do not bypass the firewall or label this a visual code failure. Live visual/device behavior remains unverified.
+**Status:** IMPLEMENTED / **TESTED-CODE PASS** on `dbca3b10bbd5f8598a914527bfe481a38cf59a87`; PR #71 was merged to main, but the files were not deployed to live WordPress. Mini-Sim regression, UI layer, Warp visual tiers, Warp course/portal, Warp maze return, Ring controls, Hull RU/EN and Tower top-cap CI checks passed. Candidate browser QA [run 40198934895](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40198934895) finished **FAILED/BLOCKED**: HTTP 403 on the target page and timeout waiting for `.bcm-mini-sim`, so the runner never reached the game UI. Do not bypass the firewall or label this a visual code failure. Live visual/device behavior remains unverified.
 
 - User reopened Warp after 0.11.10: several obstacles were visually missing, strips read as vertical, and Class II had distracting secondary rails. Compared with the previous renderer, gate obstacles had been reduced to two guide-lines and the base strip count had grown from 12 to 24.
 - The candidate restores segmented high-contrast gates while preserving the safe-angle gap, clear sweeper bars and inward-pointing spike teeth; returns to 12 depth-skewed longitudinal strips and removes extra Class II rails/pulse dots. Decorative circumferential wall hoops and chevrons remain removed.

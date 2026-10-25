@@ -128,6 +128,7 @@
       state.ringTransitionActive = true;
       state.ringPlatformer = true;
       hullEnterButton.hidden = true;
+      ringEnterButton.hidden = true;
       if (engine && engine.pauseForWarp) engine.pauseForWarp(true);
 
       const audioPrepared = prepareRingAudio();
@@ -183,8 +184,12 @@
         state.ringPlatformer = false;
         if (!openRingPlatformer(maze, true)) {
           state.ringPlatformer = false;
+          // If runtime startup failed after the transition, let the pilot retry
+          // instead of leaving the nearby Ring entry permanently disarmed.
+          state.ringApproachArmed = true;
           if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
           stopRingAudio(true);
+          syncRingButtonVisibility();
         }
       }
 
@@ -1696,7 +1701,25 @@
           tExit = Math.min(tExit, far);
           if (tEnter > tExit) { valid = false; break; }
         }
-        if (!valid || hitAxis < 0 || tEnter <= 0 || tEnter > 1 || tExit < 0) continue;
+        if (!valid || tEnter > 1 || tExit <= 0) continue;
+        // A fast frame can start inside the ship-expanded wall box after a prior
+        // overlap. Do not discard it because the segment entry time is <= 0:
+        // eject toward the nearest face, opposing travel when exactly centered.
+        if (hitAxis < 0 || tEnter <= 0) {
+          let nearestPenetration = Infinity;
+          for (let axis = 0; axis < 3; axis += 1) {
+            const name = axisNames[axis];
+            const offset = previousPosition[name] - wall[name];
+            const penetration = extents[axis] - Math.abs(offset);
+            if (penetration < nearestPenetration) {
+              nearestPenetration = penetration;
+              hitAxis = axis;
+              hitNormal = offset < 0 ? -1 : offset > 0 ? 1 : (displacement[name] > 0 ? -1 : 1);
+            }
+          }
+          tEnter = 0;
+        }
+        if (hitAxis < 0) continue;
         if (!sweptHit || tEnter < sweptHit.time) sweptHit = { wall, time: tEnter, axis: hitAxis, normal: hitNormal, extents };
       }
       if (sweptHit) {
@@ -1917,12 +1940,12 @@
 
     function openRingPlatformer(maze, afterTransition = false) {
       if (!maze || !maze.active || state.ringPlatformer || state.hullOpen || state.mode !== "maze") return false;
-      // Disarm at the first approach (including the transition clip). Escape must
-      // not instantly retrigger the Ring while the ship is still at the beacon.
-      state.ringApproachArmed = false;
       const engine = api();
       const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
       if (!runtime?.ship || !runtime.THREE || !runtime.scene) return false;
+      // Disarm only after the engine is valid; a failed attempt must not lock out
+      // the Ring button until the pilot leaves the beacon's capture radius.
+      state.ringApproachArmed = false;
       if (!afterTransition) {
         const transitionSource = findRingTransitionVideoSource();
         if (transitionSource) return playRingTransition(maze, transitionSource, engine);
@@ -4188,13 +4211,13 @@
     // The visual/collision course accelerates as a single journey: 1x at launch,
     // smoothly reaching 8x by the final second without desynchronizing the gates.
     function warpSpeedMultiplier(elapsed) {
-      // Start at the old finish-line pace (8x) and accelerate to 64x by the end.
-      return 8 * Math.pow(8, warpNormalizedTime(elapsed));
+      // Correct launch/finale profile: 1x at launch, accelerating to 8x.
+      return Math.pow(8, warpNormalizedTime(elapsed));
     }
 
     function warpCourseProgress(elapsed) {
-      // 0..1 progress follows the 8x..64x flight profile.
-      return (warpSpeedMultiplier(elapsed) / 8 - 1) / 7;
+      // Normalize the 1x..8x speed ramp to the complete 0..1 obstacle course.
+      return (warpSpeedMultiplier(elapsed) - 1) / 7;
     }
 
     function warpObstacleProgress(elapsed) {
@@ -4547,7 +4570,7 @@ return axialRoll + ahead * 0.12 +
       const rollRates = [0.42, 0.82, 0.55, 1.12, 0.31, 0.72];
       const boosted = state.elapsed < Number(state.tubeBoostUntil || 0);
       const rampMultiplier = warpSpeedMultiplier(state.elapsed);
-      const speed = Math.max(8, Math.min(64,
+      const speed = Math.max(1, Math.min(8,
         tubeSectionBlend(speedBySection, state.elapsed).value * 1.25 *
         rampMultiplier * (boosted ? 1.4 : 1)
       ));
@@ -4631,6 +4654,7 @@ return axialRoll + ahead * 0.12 +
 
       if (state.elapsed >= WARP_DURATION) finishTube(state.shields > 0);
       tubeMeta.textContent = Math.ceil(Math.max(0, WARP_DURATION - state.elapsed)) + "s · " +
+        "SPEED " + warpSpeedMultiplier(state.elapsed).toFixed(1) + "× · " +
         Math.round(playerAngle * 180 / Math.PI) + "°";
       tubeShield.style.width = state.shields + "%";
     }

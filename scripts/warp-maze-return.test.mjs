@@ -298,3 +298,27 @@ test("Ring soundtrack asset is present in the Mini-Sim merge checkout", async ()
   assert.equal(info.isFile(), true);
   assert.ok(info.size > 0, "ring.mp3 must not be an empty placeholder");
 });
+
+
+test("asteroid wall collision resolves a segment starting inside expanded wall bounds", () => {
+  const body = section(warp, "function updateMazeFrame(frame)", "function openHullInterior");
+  assert.match(body, /if \(!valid \|\| tEnter > 1 \|\| tExit <= 0\) continue/);
+  assert.match(body, /if \(hitAxis < 0 \|\| tEnter <= 0\)/);
+  assert.match(body, /const penetration = extents\[axis\] - Math\.abs\(offset\)/);
+  assert.match(body, /nearestPenetration/);
+  assert.doesNotMatch(body, /hitAxis < 0 \|\| tEnter <= 0 \|\|/);
+});
+
+test("Ring entry remains armed when the engine runtime is unavailable", () => {
+  const body = section(warp, "function openRingPlatformer(maze, afterTransition = false)", "function finishRingPlatformer");
+  const unavailable = body.indexOf("if (!runtime?.ship || !runtime.THREE || !runtime.scene) return false");
+  const disarm = body.indexOf("state.ringApproachArmed = false");
+  assert.ok(unavailable >= 0 && disarm > unavailable, "validate the engine before disarming Ring entry");
+});
+
+
+test("Ring transition hides duplicate entry UI and re-arms after a failed level start", () => {
+  const body = section(warp, "function playRingTransition(maze, source, engine)", "function pauseLevelOst()");
+  assert.match(body, /state\.ringTransitionActive = true;[\s\S]{0,120}ringEnterButton\.hidden = true/);
+  assert.match(body, /if \(!openRingPlatformer\(maze, true\)\) \{[\s\S]{0,300}state\.ringApproachArmed = true;[\s\S]{0,140}syncRingButtonVisibility\(\);/);
+});

@@ -86,12 +86,12 @@ test("Tower seed generation is gentler; keyboard/touch slow down without slowing
   assert.match(tower, /\/ 11, -1, 1\)/);
 });
 
-test("Warp Tube scrolls faster while retaining shared scene and soundtrack state", async () => {
+test("Warp Tube speed multiplier climbs from 1x to 8x with shared scene and soundtrack state", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(warp, /const WARP_DURATION = 42/);
   assert.match(warp, /function warpSpeedMultiplier\(elapsed\)/);
-  assert.match(warp, /return 8 \* Math\.pow\(8, warpNormalizedTime\(elapsed\)\)/);
-  assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) \/ 8 - 1\) \/ 7/);
+  assert.match(warp, /return Math\.pow\(8, warpNormalizedTime\(elapsed\)\)/);
+  assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) - 1\) \/ 7/);
   assert.match(warp, /function warpCourseProgress\(elapsed\)/);
   assert.match(warp, /function warpObstacleProgress\(elapsed\)/);
   assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
@@ -99,7 +99,7 @@ test("Warp Tube scrolls faster while retaining shared scene and soundtrack state
   assert.match(warp, /const gateCount = 22/);
   assert.match(warp, /const runNonce = Date\.now\(\).*Math\.random/);
   assert.match(warp, /const rampMultiplier = warpSpeedMultiplier\(state\.elapsed\)/);
-  assert.match(warp, /Math\.max\(8, Math\.min\(64,/);
+  assert.match(warp, /Math\.max\(1, Math\.min\(8,/);
   assert.match(warp, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
   assert.match(warp, /const runtime = engine\.getRuntime\(\)/);
   assert.match(warp, /if \(engine\.setSpeedMode\) engine\.setSpeedMode\(2\)/);

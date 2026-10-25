@@ -320,8 +320,8 @@
     let message = null;
     if (normalizedLevel === "flight") {
       message = interfaceLanguage === "en"
-        ? "Welcome, pilot. WASD flies the ship; U opens the hold. Mouse looks around; press the mouse wheel (middle-click) to release the cursor. On a gamepad, the left stick flies and the right stick looks. Fly close to screens to activate them."
-        : "Привет, пилот! WASD — полёт; U — трюм. Мышь — обзор; нажми колёсико (среднюю кнопку), чтобы освободить курсор. На геймпаде: левый стик — полёт, правый — обзор. Подлетай к экранам, чтобы активировать их.";
+        ? "Welcome, pilot. WASD flies the ship; U opens the hold; V opens the Warp map. Mouse looks around; press the mouse wheel (middle-click) to release the cursor. On a gamepad, the left stick flies and the right stick looks. Fly close to screens to activate them."
+        : "Привет, пилот! WASD — полёт; U — трюм; V — карта Warp. Мышь — обзор; нажми колёсико (среднюю кнопку), чтобы освободить курсор. На геймпаде: левый стик — полёт, правый — обзор. Подлетай к экранам, чтобы активировать их.";
     } else if (normalizedLevel === "warp") {
       message = interfaceLanguage === "en"
         ? "Warp: press V to open the map; press Y on a gamepad. Choose a sector and press START WARP. In the tunnel, hold and move the mouse or steer with A/D / ← →; use the left stick on a gamepad."
