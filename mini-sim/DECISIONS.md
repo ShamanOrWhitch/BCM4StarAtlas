@@ -1,6 +1,6 @@
 ## D-032 — Mini-Sim 0.11.11: visible Warp hazards and one Panda controls bubble
 
-**Status at handoff:** candidate implementation on `fix/minisim-0.11.11-warp-panda-prompt`; awaiting source CI. Not merged/deployed; live/device behavior is unverified.
+**Status:** IMPLEMENTED / **TESTED-CODE PASS** on `dbca3b10bbd5f8598a914527bfe481a38cf59a87`; PR #71 is open and not deployed. Mini-Sim regression, UI layer, Warp visual tiers, Warp course/portal, Warp maze return, Ring controls, Hull RU/EN and Tower top-cap CI checks passed. Candidate browser QA is pending; the previous attempts received HTTP 403 before the container. Live visual/device behavior remains unverified.
 
 - User reopened Warp after 0.11.10: several obstacles were visually missing, strips read as vertical, and Class II had distracting secondary rails. Compared with the previous renderer, gate obstacles had been reduced to two guide-lines and the base strip count had grown from 12 to 24.
 - The candidate restores segmented high-contrast gates while preserving the safe-angle gap, clear sweeper bars and inward-pointing spike teeth; returns to 12 depth-skewed longitudinal strips and removes extra Class II rails/pulse dots. Decorative circumferential wall hoops and chevrons remain removed.
