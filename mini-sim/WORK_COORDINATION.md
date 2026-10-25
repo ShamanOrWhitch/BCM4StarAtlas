@@ -1,12 +1,12 @@
-## Active Work Lock — Mini-Sim 0.11.15: backside-only Photoli doors, asteroid collision feel and Hydrogen feedback (25 October 2026)
+## Completed Work Lock — Mini-Sim 0.11.15: backside-only Photoli doors, asteroid collision feel and Hydrogen feedback (25 October 2026)
 
-- Branch: `fix/minisim-0.11.15-photoli-doors-hydrogen-feedback`; PR [#78](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/78); task [issue #77](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/77). Based on merged main 0.11.14.
+- Merged via [PR #78](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/78) as `1b00a801f62506917f533ead12d0524f06159802`; issue [#77](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/77) is closed.
 - **Scope correction from user:** auto-opening/closing doors apply only to external starbase-shell panels carrying `backside*` textures. The Room 2 corridor remains solid; do not make all of Room 2 passable. Do not put doors into the asteroid maze's wall topology.
 - Selected exterior panels get staggered randomized cycles using Room 1's slide / wipe / iris technique. The matching collision aperture is enabled only while its selected panel is fully open.
 - Asteroid wall hits cancel inward normal velocity only and preserve tangential movement. Increase the flight envelope to radius 58 while removing the old all-velocity damping at its cap, so an exit through the intended start opening can lead to exterior orbit.
 - Hydrogen pickups add a floating `H +1` visual and a stronger light/ring. The mission counter/event and duplicate-ID guard must remain the source of truth.
 - Preserve the 0.11.14 finite Room 2 fix, Warp visuals/depth, Ring entry and Tower. Do not touch `wordpress/galia-desk`, scanner, pricing, shared artworks or firewall.
-- CI and actual browser/device testing must be reported separately. No WordPress deployment is performed by this PR.
+- Source regression suites passed on the merged PR head. The GitHub browser smoke had not reached the site because the isolated Playwright dependency was still installing; earlier browser probes hit HTTP 403 before the game UI. No live visual/device PASS and no WordPress deployment are claimed.
 
 ---
 
