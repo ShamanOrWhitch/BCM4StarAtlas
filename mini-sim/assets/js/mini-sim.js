@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.11",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.12",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.11",
+      title: "SPACE LABYRINTH — 0.11.12",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -4554,120 +4554,88 @@
     if (!before || !ship.position) return false;
 
     let blocked = false;
-
+    const after = { x: ship.position.x, y: ship.position.y, z: ship.position.z };
     const rooms = [
-      {
-        zMin: -24.5,
-        zMax: 5.45,
-        xEdge: 6.0,
-        yEdge: 3.5,
-        frontZ: -25.5,
-        rearZ: 5.5,
-        room1: true
-      },
-      {
-        zMin: -84.5,
-        zMax: -47.46,
-        xEdge: 6.0,
-        yEdge: 3.5,
-        frontZ: -47.5,
-        rearZ: -84.5,
-        room1: false
-      }
+      { zMin: -24.5, zMax: 5.45, xEdge: 6.0, yEdge: 3.5, frontZ: -25.5, rearZ: 5.5, room1: true },
+      { zMin: -84.5, zMax: -47.46, xEdge: 6.0, yEdge: 3.5, frontZ: -47.5, rearZ: -84.5, room1: false }
     ];
 
-    for (const room of rooms) {
-      const inZBand =
-        (before.z >= room.zMin && before.z <= room.zMax) ||
-        (ship.position.z >= room.zMin && ship.position.z <= room.zMax);
+    function crossingPoint(axis, edge) {
+      if (!shellCrossed(before[axis], after[axis], edge)) return null;
+      const delta = after[axis] - before[axis];
+      if (Math.abs(delta) < 1e-9) return null;
+      const t = (edge - before[axis]) / delta;
+      if (t < 0 || t > 1) return null;
+      return {
+        t,
+        x: before.x + (after.x - before.x) * t,
+        y: before.y + (after.y - before.y) * t,
+        z: before.z + (after.z - before.z) * t
+      };
+    }
 
-      if (!inZBand) continue;
+    function pointOnSideWall(point, room) {
+      return !!point && point.z >= room.zMin - 0.06 && point.z <= room.zMax + 0.06;
+    }
 
-      const hitXPos =
-        (before.x < room.xEdge && ship.position.x >= room.xEdge) ||
-        (before.x > room.xEdge && ship.position.x <= room.xEdge);
-      const hitXNeg =
-        (before.x > -room.xEdge && ship.position.x <= -room.xEdge) ||
-        (before.x < -room.xEdge && ship.position.x >= -room.xEdge);
+    function pointOnCap(point, room) {
+      return !!point && Math.abs(point.x) <= room.xEdge + 0.06 && Math.abs(point.y) <= room.yEdge + 0.06;
+    }
 
-      if (hitXPos) {
-        ship.position.x = before.x < room.xEdge
-          ? room.xEdge - 0.06
-          : room.xEdge + 0.06;
-        ship.velocity.x = 0;
-        blocked = true;
-      } else if (hitXNeg) {
-        ship.position.x = before.x > -room.xEdge
-          ? -room.xEdge + 0.06
-          : -room.xEdge - 0.06;
-        ship.velocity.x = 0;
-        blocked = true;
-      }
+    function collideSide(axis, edges, acrossAxis, acrossLimit, room) {
+      const candidates = [];
+      edges.forEach((edge) => {
+        const point = crossingPoint(axis, edge);
+        if (!point || !pointOnSideWall(point, room) || Math.abs(point[acrossAxis]) > acrossLimit + 0.06) return;
+        candidates.push({ edge, t: point.t });
+      });
+      if (!candidates.length) return;
+      candidates.sort((a, b) => a.t - b.t);
+      const edge = candidates[0].edge;
+      ship.position[axis] = before[axis] < edge ? edge - 0.06 : edge + 0.06;
+      ship.velocity[axis] = 0;
+      blocked = true;
+    }
 
-      const hitYPos =
-        (before.y < room.yEdge && ship.position.y >= room.yEdge) ||
-        (before.y > room.yEdge && ship.position.y <= room.yEdge);
-      const hitYNeg =
-        (before.y > -room.yEdge && ship.position.y <= -room.yEdge) ||
-        (before.y < -room.yEdge && ship.position.y >= -room.yEdge);
+    rooms.forEach((room) => {
+      // Side walls are finite surfaces; their infinite extensions are open space.
+      collideSide("x", [room.xEdge, -room.xEdge], "y", room.yEdge, room);
+      collideSide("y", [room.yEdge, -room.yEdge], "x", room.xEdge, room);
 
-      if (hitYPos) {
-        ship.position.y = before.y < room.yEdge
-          ? room.yEdge - 0.06
-          : room.yEdge + 0.06;
-        ship.velocity.y = 0;
-        blocked = true;
-      } else if (hitYNeg) {
-        ship.position.y = before.y > -room.yEdge
-          ? -room.yEdge + 0.06
-          : -room.yEdge - 0.06;
-        ship.velocity.y = 0;
-        blocked = true;
-      }
-
-      // Room 1 and the front of Room 2 stay physically sealed.
-      // The transition to Room 2 happens through the portal cutscene,
-      // not by flying through an open hull.
-      const crossedFront = shellCrossed(before.z, ship.position.z, room.frontZ);
-      if (crossedFront) {
-        ship.position.z = before.z < room.frontZ
-          ? room.frontZ - 0.06
-          : room.frontZ + 0.06;
+      // Front caps occupy only the corridor cross-section.
+      const frontPoint = crossingPoint("z", room.frontZ);
+      if (pointOnCap(frontPoint, room)) {
+        ship.position.z = before.z < room.frontZ ? room.frontZ - 0.06 : room.frontZ + 0.06;
         ship.velocity.z = 0;
         blocked = true;
       }
 
-      // Room 1 rear cap is closed. Room 2 rear cap remains the intended
-      // inside -> Deep Space exit and is allowed only from its corridor.
-      const crossedRear = shellCrossed(before.z, ship.position.z, room.rearZ);
-      if (crossedRear) {
-        if (room.room1) {
-          ship.position.z = before.z <= room.rearZ
-            ? room.rearZ - 0.06
-            : room.rearZ + 0.06;
-          ship.velocity.z = 0;
-          blocked = true;
-        } else if (before.z < room.rearZ && ship.position.z >= room.rearZ) {
-          ship.position.z = room.rearZ - 0.06;
-          ship.velocity.z = 0;
-          blocked = true;
-        } else if (before.z > room.rearZ && ship.position.z < room.rearZ) {
-          exteriorFlight = true;
-        }
+      // Room 1 stays sealed. Room 2 retains its intended inside-to-space rear exit.
+      const rearPoint = crossingPoint("z", room.rearZ);
+      if (!pointOnCap(rearPoint, room)) return;
+      if (room.room1) {
+        ship.position.z = before.z < room.rearZ ? room.rearZ - 0.06 : room.rearZ + 0.06;
+        ship.velocity.z = 0;
+        blocked = true;
+      } else if (before.z > room.rearZ && after.z < room.rearZ) {
+        exteriorFlight = true;
+      } else if (before.z < room.rearZ && after.z >= room.rearZ) {
+        ship.position.z = room.rearZ - 0.06;
+        ship.velocity.z = 0;
+        blocked = true;
       }
-    }
+    });
 
-    // Room 1 must remain hermetically closed until the normal Room 2 route is
-    // reached. The old inside-only clamps could leave the ship outside the hull
-    // after a fast/diagonal frame and then treat that position as open space.
-    // While exteriorFlight is still false, recover any such penetration back
-    // inside the actual Room 1 shell.
+    // Room 1 recovery must not drag a freely flying ship back merely because Z overlaps.
     if (!exteriorFlight) {
-      const room1Span =
+      const room1ZSpan =
         (before.z >= -25.5 && before.z <= 5.5) ||
-        (ship.position.z >= -25.5 && ship.position.z <= 5.5);
+        (after.z >= -25.5 && after.z <= 5.5);
+      const nearRoom1CrossSection =
+        (Math.abs(before.x) <= 6.05 && Math.abs(before.y) <= 3.6) ||
+        (Math.abs(ship.position.x) <= 6.05 && Math.abs(ship.position.y) <= 3.6);
 
-      if (room1Span) {
+      if (room1ZSpan && nearRoom1CrossSection) {
         const room1X = 5.94;
         const room1Y = 3.44;
         const room1ZMin = -25.44;
@@ -4707,7 +4675,6 @@
 
     return blocked;
   }
-
   function collide() {
     if (race.active) {
       constrainRace();
