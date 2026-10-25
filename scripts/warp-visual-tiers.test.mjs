@@ -83,10 +83,10 @@ test("Warp multiplier and displayed speed ramp from 1x to 8x", () => {
 });
 
 test("Mini-Sim 0.11.14 cache/version contracts are synchronized", () => {
-  assert.match(plugin, /Version: 0\.11\.13/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.13'\)/);
-  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.13/);
-  assert.match(qa, /Version: 0\.11\.13/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.13'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.13/);
+  assert.match(plugin, /Version: 0\.11\.14/);
+  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.14'\)/);
+  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.14/);
+  assert.match(qa, /Version: 0\.11\.14/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.14'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.14/);
 });
