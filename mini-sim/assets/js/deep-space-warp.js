@@ -461,6 +461,13 @@
       '<section class="bcm-warp-view bcm-warp-map-view" data-warp-view="map">' +
         '<div class="bcm-warp-card">' +
           '<div class="bcm-warp-kicker">SECTOR NAVIGATION</div><h2>Выберите сектор назначения</h2>' +
+          '<div data-warp-tier-preview aria-label="Выбор оформления Warp" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:8px 0 12px;padding:6px;border:1px solid rgba(102,190,210,.45);border-radius:9px;background:rgba(2,12,21,.74)">' +
+            '<span style="font:700 10px system-ui;color:#a9cbd7;margin-right:3px">ВАРП</span>' +
+            '<button type="button" data-warp-tier="1" aria-pressed="false" title="Class I — полосы" style="min-width:32px;height:28px;padding:0 6px;font:700 11px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">I</button>' +
+            '<button type="button" data-warp-tier="2" aria-pressed="false" title="Class II — мягкое оформление" style="min-width:32px;height:28px;padding:0 6px;font:700 11px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">II</button>' +
+            '<button type="button" data-warp-tier="3" aria-pressed="false" title="Class III — фиолетовые полосы" style="min-width:32px;height:28px;padding:0 6px;font:700 11px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">III</button>' +
+            '<button type="button" data-warp-tier="4" aria-pressed="false" aria-disabled="true" disabled title="Class IV выключен" style="min-width:32px;height:28px;padding:0 6px;font:700 11px system-ui;border:1px solid #3a444a;border-radius:6px;background:rgba(19,25,30,.82);color:#64737b;opacity:.58;cursor:not-allowed">IV ×</button>' +
+          '</div>' +
           '<p class="bcm-warp-explainer" data-warp-current></p>' +
           '<div class="bcm-warp-source" data-warp-source></div>' +
           '<div class="bcm-warp-grid" data-warp-grid hidden aria-label="Соседние клетки вокруг ONI CSS"></div>' +
@@ -475,9 +482,9 @@
         '<div class="bcm-warp-tube-hud"><div class="bcm-warp-kicker">SUBSPACE TUNNEL</div><h2 data-tube-title>WARP IN PROGRESS</h2><div class="bcm-warp-tube-meta" data-tube-meta></div><div class="bcm-warp-shield"><span data-tube-shield></span></div><div class="bcm-warp-tube-help" data-tube-help>Влево и вправо двигают корабль по кольцу. Препятствие остаётся на своём кольце и не растягивается.</div></div>' +
         '<div data-warp-tier-preview aria-label="Временно посмотреть визуальный класс Warp" style="position:absolute;top:12px;right:12px;z-index:8;display:flex;align-items:center;gap:3px;padding:4px;border:1px solid rgba(102,190,210,.45);border-radius:9px;background:rgba(2,12,21,.74);pointer-events:auto;max-width:calc(100vw - 24px)">' +
           '<span style="font:700 9px system-ui,sans-serif;color:#a9cbd7;letter-spacing:.04em;margin-right:2px">ВИД</span>' +
-          '<button type="button" data-warp-tier="1" aria-pressed="false" title="Class I — стандарт" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">I</button>' +
+          '<button type="button" data-warp-tier="1" aria-pressed="false" title="Class I — полосы" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">I</button>' +
           '<button type="button" data-warp-tier="2" aria-pressed="false" title="Class II — спиральные рельсы" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">II</button>' +
-          '<button type="button" data-warp-tier="3" aria-pressed="false" title="Class III — энергетические дуги" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">III</button>' +
+          '<button type="button" data-warp-tier="3" aria-pressed="false" title="Class III — фиолетовые полосы" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">III</button>' +
           '<button type="button" data-warp-tier="4" aria-pressed="false" aria-disabled="true" disabled title="Class IV выключен" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #3a444a;border-radius:6px;background:rgba(19,25,30,.82);color:#64737b;opacity:.58;cursor:not-allowed">IV ×</button>' +
         '</div>' +
         '<div class="bcm-warp-touch-controls"><button type="button" data-warp-control="left" aria-label="Рулить влево">◀</button><button type="button" data-warp-control="tilt" aria-label="Включить или откалибровать управление наклоном">↻ TILT</button><button type="button" data-warp-control="right" aria-label="Рулить вправо">▶</button></div>' +
@@ -532,6 +539,7 @@
       const selected = Math.trunc(Number(value));
       if (![1, 2, 3].includes(selected)) return activeWarpVisualClass();
       state.warpPreviewClass = selected;
+      state.warpVisualClass = selected;
       updateWarpTierPreviewButtons();
       return selected;
     }
@@ -4168,25 +4176,8 @@ return axialRoll + ahead * 0.12 +
         }
       }
 
-      // Circumferential rings and seams make the enclosing cylinder legible.
-      for (let ring = 0; ring < 8; ring += 1) {
-        const d = 0.06 + (ring / 8) * 0.92;
-        for (let part = 0; part < 48; part += 1) {
-          const a0 = part * Math.PI * 2 / 48;
-          const a1 = (part + 1) * Math.PI * 2 / 48;
-          const p0 = point(d, a0, 0.6);
-          const p1 = point(d, a1, 0.6);
-          g.beginPath();
-          g.moveTo(p0.x, p0.y);
-          g.lineTo(p1.x, p1.y);
-          g.strokeStyle = visualClass === 3
-            ? (ring % 2 === 0 ? "rgba(170,133,224,0.42)" : "rgba(92,161,194,0.18)")
-            : (ring % 3 === 0 ? "rgba(118,222,237,0.40)" : "rgba(88,154,178,0.14)");
-          g.lineWidth = ring % 3 === 0 ? 0.8 + d * 1.0 : 0.5;
-          g.stroke();
-        }
-      }
-      for (let seam = 0; seam < 12; seam += 1) {
+      // Longitudinal strips — the established Warp look. No extra hoops.
+      for (let seam = 0; seam < 24; seam += 1) {      for (let seam = 0; seam < 12; seam += 1) {
         const theta = seam * Math.PI * 2 / 12;
         g.beginPath();
         for (let step = 0; step <= 35; step += 1) {
@@ -4195,8 +4186,10 @@ return axialRoll + ahead * 0.12 +
           if (!step) g.moveTo(p.x, p.y);
           else g.lineTo(p.x, p.y);
         }
-        g.strokeStyle = seam % 3 === 0 ? "rgba(110,239,246,0.78)" : "rgba(110,191,210,0.32)";
-        g.lineWidth = seam % 3 === 0 ? 1.5 : 0.8;
+        g.strokeStyle = visualClass === 3
+          ? (seam % 3 === 0 ? "rgba(189,139,246,0.86)" : "rgba(131,96,184,0.36)")
+          : (seam % 3 === 0 ? "rgba(110,239,246,0.72)" : "rgba(110,191,210,0.25)");
+        g.lineWidth = seam % 3 === 0 ? 1.25 : 0.65;
         g.stroke();
       }
 
@@ -4219,8 +4212,8 @@ return axialRoll + ahead * 0.12 +
             if (step === 0) g.moveTo(p.x, p.y);
             else g.lineTo(p.x, p.y);
           }
-          g.strokeStyle = rail % 2 === 0 ? "rgba(64,210,232,0.15)" : "rgba(220,154,100,0.12)";
-          g.lineWidth = 1.1 + maxRadius * 0.004;
+          g.strokeStyle = rail % 2 === 0 ? "rgba(64,210,232,0.055)" : "rgba(220,154,100,0.045)";
+          g.lineWidth = 0.7 + maxRadius * 0.002;
           g.lineCap = "round";
           g.stroke();
 
@@ -4230,51 +4223,16 @@ return axialRoll + ahead * 0.12 +
           const pulse = point(pulseDepth, pulseAngle, -2.7);
           g.beginPath();
           g.arc(pulse.x, pulse.y, 1.2 + pulseDepth * 2.2, 0, Math.PI * 2);
-          g.fillStyle = rail % 2 === 0 ? "rgba(145,225,235,0.58)" : "rgba(230,198,157,0.52)";
+          g.fillStyle = rail % 2 === 0 ? "rgba(145,225,235,0.20)" : "rgba(230,198,157,0.14)";
           g.fill();
         }
         g.restore();
       }
 
-      // Class III has a darker purple shell and restrained energy ribs.
-      // Visual-only: it never changes collision or steering.
+      // Class III uses a restrained violet tint over the same straight rails.
       if (visualClass === 3) {
-        g.save();
-        g.globalCompositeOperation = "source-over";
-        for (let hoop = 0; hoop < 4; hoop += 1) {
-          const depth = 0.18 + hoop * 0.19;
-          const phase = shimmerTime * 0.18 + t * 0.004 + hoop * 1.27;
-          const span = Math.PI * (1.16 + (hoop % 2) * 0.18);
-          const start = phase + hoop * 0.46;
-          drawArc(depth, start, start + span, hoop % 2
-            ? "rgba(186,133,225,0.42)" : "rgba(99,205,226,0.38)",
-            Math.max(1.4, maxRadius * (0.0030 + depth * 0.0018)));
-          drawArc(depth, start + Math.PI, start + Math.PI + span * 0.38,
-            "rgba(181,156,226,0.34)", Math.max(1.1, maxRadius * 0.0024));
-        }
-        g.restore();
-      }
-
-      // Class IV adds heavier twin stargate hoops and pulsing junctions over Class III.
-      if (visualClass === 4) {
-        g.save();
-        g.globalCompositeOperation = "lighter";
-        for (let gate = 0; gate < 3; gate += 1) {
-          const depth = 0.22 + gate * 0.28;
-          const spin = shimmerTime * (gate % 2 ? -0.07 : 0.09) + t * 0.003 + gate * 0.82;
-          drawArc(depth, spin, spin + Math.PI * 2, "rgba(86,225,255,0.76)",
-            Math.max(1.8, maxRadius * 0.008));
-          drawArc(depth, spin + Math.PI * 0.12, spin + Math.PI * 1.12,
-            "rgba(255,179,105,0.86)", Math.max(1.3, maxRadius * 0.005));
-          for (let node = 0; node < 4; node += 1) {
-            const p = point(depth, spin + node * Math.PI / 2, -2.9);
-            g.beginPath();
-            g.arc(p.x, p.y, 1.8 + depth * 1.8, 0, Math.PI * 2);
-            g.fillStyle = node % 2 ? "rgba(255,226,171,0.96)" : "rgba(174,250,255,0.98)";
-            g.fill();
-          }
-        }
-        g.restore();
+        g.fillStyle = "rgba(23,12,39,0.22)";
+        g.fillRect(0, 0, w, h);
       }
 
       const routeProgress = warpObstacleProgress(state.elapsed);
@@ -4305,45 +4263,45 @@ return axialRoll + ahead * 0.12 +
             g.lineWidth = Math.max(2, strokeWidth * 0.54);
             g.stroke();
           }
-          drawArc(d, layer.safeAngle - layer.gapHalf, layer.safeAngle + layer.gapHalf, "rgba(86,210,191,0.44)", Math.max(1.1, strokeWidth * 0.15));
+          // The opening is marked by missing radial bars; no hoop or arc cap.
         } else if (layer.type === "sweeper") {
           const angle = layer.sweepAngle + state.elapsed * layer.sweepSpeed;
           const p0 = point(d, angle, -rx * 0.02);
           const p1 = point(d, angle + Math.PI, -rx * 0.02);
           g.beginPath();
           g.moveTo(p0.x, p0.y);
-          g.lineTo(centerX(d), centerY(d));
           g.lineTo(p1.x, p1.y);
-          g.strokeStyle = "rgba(255,132,104,0.96)";
-          g.lineWidth = Math.max(4, rx * 0.10);
+          g.strokeStyle = "rgba(255,132,104,0.66)";
+          g.lineWidth = Math.max(3, rx * 0.065);
           g.lineCap = "round";
-          g.stroke();
-          g.strokeStyle = "rgba(255,227,190,0.95)";
-          g.lineWidth = Math.max(1.5, rx * 0.025);
           g.stroke();
         } else if (layer.type === "spikes") {
           layer.blockedAngles.forEach((angle, index) => {
-            drawArc(d, angle - 0.12, angle + 0.12, "rgba(255,126,93,0.98)", Math.max(5, rx * 0.09));
-            const tip = point(d, angle, -rx * 0.22);
-            const sideA = point(d, angle - 0.10, -rx * 0.08);
-            const sideB = point(d, angle + 0.10, -rx * 0.08);
+            const p0 = point(d, angle, -rx * 0.06);
+            const p1 = point(d, angle, -rx * 0.25);
             g.beginPath();
-            g.moveTo(sideA.x, sideA.y);
-            g.lineTo(tip.x, tip.y);
-            g.lineTo(sideB.x, sideB.y);
-            g.closePath();
-            g.fillStyle = index % 2 ? "#ff8d73" : "#e9d3ae";
-            g.fill();
-            g.strokeStyle = "rgba(255,224,190,0.9)";
-            g.lineWidth = Math.max(1, rx * 0.012);
+            g.moveTo(p0.x, p0.y);
+            g.lineTo(p1.x, p1.y);
+            g.strokeStyle = index % 2 ? "rgba(255,141,115,0.72)" : "rgba(233,211,174,0.68)";
+            g.lineWidth = Math.max(3, rx * 0.055);
+            g.lineCap = "round";
             g.stroke();
           });
-        } else if (layer.type === "boost") {
-          // A simple passable energy rail; no arrow glyph.
-          drawArc(d, layer.safeAngle - 0.55, layer.safeAngle + 0.55, "rgba(76,205,178,0.62)", Math.max(3, rx * 0.045));
-        } else if (layer.type === "launcher") {
-          // A simple pair of passable launch rails; no extra ring or dot.
-          drawArc(d, layer.safeAngle - 0.48, layer.safeAngle + 0.48, "rgba(214,168,105,0.64)", Math.max(3, rx * 0.04));
+        } else if (layer.type === "boost" || layer.type === "launcher") {
+          // Straight, parallel rails indicate the safe lane without a circle or arrow.
+          const railHalf = layer.type === "launcher" ? 0.14 : 0.18;
+          [-1, 1].forEach((offset) => {
+            const angle = layer.safeAngle + offset * railHalf;
+            const p0 = point(d, angle, -rx * 0.06);
+            const p1 = point(d, angle, -rx * 0.26);
+            g.beginPath();
+            g.moveTo(p0.x, p0.y);
+            g.lineTo(p1.x, p1.y);
+            g.strokeStyle = layer.type === "launcher" ? "rgba(214,168,105,0.58)" : "rgba(76,205,178,0.52)";
+            g.lineWidth = Math.max(2.5, rx * 0.035);
+            g.lineCap = "round";
+            g.stroke();
+          });
         }
       });
 
@@ -4670,6 +4628,7 @@ return axialRoll + ahead * 0.12 +
       document.addEventListener("keydown", (event) => {
         if (overlay.hidden) return;
         if (event.code === "Escape" || event.code === "Backspace") {
+          if (state.mode !== "map") return;
           event.preventDefault(); event.stopImmediatePropagation();
           closeOverlay(true);
           return;
