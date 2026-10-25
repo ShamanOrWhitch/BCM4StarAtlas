@@ -351,6 +351,17 @@
       maze.hydrogen.taken = true;
       publishAsteroidChart(maze);
     });
+    window.addEventListener("bcm:mission:hydrogen-shard-collected", (event) => {
+      const maze = state.maze;
+      if (!maze) return;
+      const detail = event.detail || {};
+      if (detail.type === "ring") {
+        maze.hydrogen = maze.hydrogen || { cell: { ...maze.startCell }, unlocked: true, scouted: false };
+        maze.hydrogen.unlocked = true;
+        maze.hydrogen.taken = true;
+      }
+      publishAsteroidChart(maze);
+    });
 
     window.BCMDeepSpaceWarpGetReturnSnapshot = () => ({
       mode: state.mode,
@@ -1527,6 +1538,48 @@
       state.savedSpeedMode = engine.getSpeedMode ? engine.getSpeedMode() : 1;
       if (engine.setSpeedMode) engine.setSpeedMode(2);
       state.maze = maze;
+      maze.pickupEffects = [];
+      function spawnCrystalPickupEffect(position) {
+        const effect = new THREE.Group();
+        effect.name = "asteroid-crystal-pickup-impact";
+        effect.position.copy(position);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: 0xbafcff, transparent: true, opacity: 0.98,
+          blending: THREE.AdditiveBlending, depthWrite: false
+        });
+        const ringMaterial = new THREE.MeshBasicMaterial({
+          color: 0x5befff, transparent: true, opacity: 0.92,
+          blending: THREE.AdditiveBlending, depthWrite: false
+        });
+        const core = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), glowMaterial);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.055, 6, 24), ringMaterial);
+        ring.rotation.x = Math.PI * 0.34;
+        effect.add(core, ring);
+        const light = new THREE.PointLight(0x74f6ff, 2.8, 9, 2);
+        effect.add(light);
+        scene.add(effect);
+        maze.pickupEffects.push({ group: effect, core, ring, light, glowMaterial, ringMaterial, age: 0, duration: 0.72 });
+      }
+      function updateCrystalPickupEffects(dt) {
+        maze.pickupEffects = maze.pickupEffects.filter((effect) => {
+          effect.age += dt;
+          const t = Math.min(1, effect.age / effect.duration);
+          effect.ring.scale.setScalar(0.55 + t * 5.2);
+          effect.ring.rotation.z += dt * 3.4;
+          effect.core.scale.setScalar(0.6 + (1 - t) * 2.0);
+          effect.glowMaterial.opacity = Math.max(0, (1 - t) * 0.95);
+          effect.ringMaterial.opacity = Math.max(0, (1 - t) * 0.9);
+          effect.light.intensity = Math.max(0, (1 - t) * 2.8);
+          if (t >= 1) {
+            scene.remove(effect.group);
+            effect.group.traverse((child) => { if (child.geometry) child.geometry.dispose(); });
+            effect.glowMaterial.dispose();
+            effect.ringMaterial.dispose();
+            return false;
+          }
+          return true;
+        });
+      }
       state.ringApproachArmed = true;
       root.classList.add("bcm-warp-maze-active");
       exitButton.hidden = false;
@@ -1660,14 +1713,31 @@
           setMazeStatus("CHART MARK · CORE SHARD " + (crystal.cell.x + 1) + "." + (crystal.cell.z + 1));
         }
         if (pos.distanceTo(crystal.mesh.position) < 1.55) {
+          const pickupPosition = crystal.mesh.position.clone();
           crystal.taken = true;
           crystal.scouted = true;
           crystal.mesh.visible = false;
           maze.count += 1;
+          spawnCrystalPickupEffect(pickupPosition);
           publishAsteroidChart(maze);
-          setMazeStatus("CORE SHARDS " + maze.count + "/3 · " + (maze.count === 3 ? "GOLD RING IS OPEN" : "SEARCH THE CONNECTED CORRIDORS"));
+          const mission = window.BCMWorldMission || {};
+          if (mission.hydrogenUnlocked && Number(mission.hydrogenCount || 0) < 3) {
+            window.dispatchEvent(new CustomEvent("bcm:mission:hydrogen-shard-collected", {
+              detail: {
+                crystalId: String(maze.seed) + ":" + crystal.cell.x + "," + crystal.cell.y + "," + crystal.cell.z,
+                asteroidSeed: maze.seed,
+                cell: { ...crystal.cell },
+                type: "asteroid-crystal"
+              }
+            }));
+            const count = Number(window.BCMWorldMission?.hydrogenCount || 0);
+            setMazeStatus("HYDROGEN " + count + "/3 · " + Math.max(0, 3 - count) + " LEFT");
+          } else {
+            setMazeStatus("CORE SHARDS " + maze.count + "/3 · " + (maze.count === 3 ? "GOLD RING IS OPEN" : "SEARCH THE CONNECTED CORRIDORS"));
+          }
         }
       });
+      updateCrystalPickupEffects(Math.min(frame.dt || 0.016, 0.04));
       maze.beacon.rotation.z += Math.min(frame.dt || 0.016, 0.04) * 0.4;
       const ringDistance = pos.distanceTo(maze.beacon.position);
       state.ringDistance = ringDistance;
@@ -2935,8 +3005,8 @@
         const mission = window.BCMWorldMission || {};
         const playerNode = player.ringCurrent || path?.current;
         if (!path || !path.hydrogenMesh ||
-            !mission.hydrogenUnlocked || mission.hydrogenCollected ||
-            playerNode !== path.hydrogenNode || playerNode?.large) return false;
+            !mission.hydrogenUnlocked || Number(mission.hydrogenCount || 0) >= 3 ||
+            path.hydrogen.taken || playerNode !== path.hydrogenNode || playerNode?.large) return false;
         if (Math.abs(player.worldX - path.hydrogenPickupX) > 1.05 ||
             Math.abs(player.worldY - 0.82) > 1.25) return false;
 
@@ -2945,8 +3015,13 @@
         path.hydrogen.unlocked = true;
         maze.hydrogen = path.hydrogen;
         publishAsteroidChart(maze);
-        window.dispatchEvent(new CustomEvent("bcm:mission:hydrogen-collected", {
-          detail: { asteroidSeed: maze.seed, cell: { ...path.hydrogen.cell } }
+        window.dispatchEvent(new CustomEvent("bcm:mission:hydrogen-shard-collected", {
+          detail: {
+            crystalId: "ring:" + String(maze.seed),
+            asteroidSeed: maze.seed,
+            cell: { ...path.hydrogen.cell },
+            type: "ring"
+          }
         }));
         updateHud(window.BCMDialogue?.language === "en"
           ? "HYDROGEN RECOVERED · MISSION UPDATED"
