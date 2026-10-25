@@ -128,6 +128,7 @@
       state.ringTransitionActive = true;
       state.ringPlatformer = true;
       hullEnterButton.hidden = true;
+      ringEnterButton.hidden = true;
       if (engine && engine.pauseForWarp) engine.pauseForWarp(true);
 
       const audioPrepared = prepareRingAudio();
@@ -183,8 +184,12 @@
         state.ringPlatformer = false;
         if (!openRingPlatformer(maze, true)) {
           state.ringPlatformer = false;
+          // If runtime startup failed after the transition, let the pilot retry
+          // instead of leaving the nearby Ring entry permanently disarmed.
+          state.ringApproachArmed = true;
           if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
           stopRingAudio(true);
+          syncRingButtonVisibility();
         }
       }
 
