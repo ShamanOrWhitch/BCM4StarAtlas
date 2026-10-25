@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.11.15
+ * Version: 0.11.16
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
