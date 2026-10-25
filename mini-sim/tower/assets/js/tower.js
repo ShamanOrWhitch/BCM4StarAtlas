@@ -3283,7 +3283,9 @@
     let lastInputHelpSignature = "";
 
     function syncTowerInputHelp(padCount) {
-      const count = Math.max(0, Number(padCount) || 0);
+      const count = padCount == null
+        ? (navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean).length : 0)
+        : Math.max(0, Number(padCount) || 0);
       root.classList.toggle("has-gamepad", count > 0);
       const signature = (mode || "menu") + ":" + count;
       if (signature === lastInputHelpSignature) return;
