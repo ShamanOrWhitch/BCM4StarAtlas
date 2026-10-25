@@ -4264,8 +4264,8 @@ return axialRoll + ahead * 0.12 +
       }
 
       // Longitudinal strips — the established Warp look. No extra hoops.
-      for (let seam = 0; seam < 24; seam += 1) {      for (let seam = 0; seam < 12; seam += 1) {
-        const theta = seam * Math.PI * 2 / 12;
+      for (let seam = 0; seam < 24; seam += 1) {
+        const theta = seam * Math.PI * 2 / 24;
         g.beginPath();
         for (let step = 0; step <= 35; step += 1) {
           const d = 0.04 + (step / 35) * 0.96;
