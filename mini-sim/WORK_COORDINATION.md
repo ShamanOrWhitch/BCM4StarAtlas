@@ -1,6 +1,6 @@
-## Active Work Lock — Mini-Sim 0.11.14: finite space boundaries + asteroid Warp handoff (25 October 2026)
+## Completed Work Lock — Mini-Sim 0.11.14: finite space boundaries + asteroid Warp handoff (25 October 2026)
 
-- Branch: `fix/minisim-0.11.14-space-boundaries-asteroid-warp`, based on main `dd82b03a0cdbe232d2a02fa54ef5ece5d630d913`; task tracked in [issue #74](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/74).
+- Merged via [PR #76](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/76) to `main` as `65df7b29b7e0ab7a139cbf691f41ad103b0d8ba2`; tracked issue [#74](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/74) is closed.
 - Keep the accepted 0.11.13 Warp depth staging, readable obstacles, collision sweeps, Ring entry guards, and Panda UI unchanged.
 - This patch restricts Room 1/Room 2 side walls and caps to their finite cross-section and prevents the Room 1 Z-band fallback from clamping ships far outside the shell. Real corridor collisions and Room 2's intended rear exit must remain functional.
 - Asteroid-to-map handoff captures the current live position + full quaternion, does not teleport to the old pre-Warp launch pose, and maps V to the next-destination UI during ordinary asteroid flight (not Ring/Hull modes).
