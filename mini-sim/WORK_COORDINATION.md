@@ -1,3 +1,13 @@
+## Completed Work Lock — Ring handoff recovery + Tower control copy (26 October 2026)
+
+- Merged PR [#80](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/80), commit `d821764610890e84970ba20b354e90e41d1cc6cf`; Mini-Sim `0.11.17`, Tower `0.2.66`.
+- Ring setup is transactional: snapshot previous scene/visibilities/background; build full Ring world, controls, renderer and cleanup; only then hide asteroid/ship. Failure removes partial Ring scene additions, restores the old asteroid view and leaves a manual retry.
+- Tower: separate concise instructions for keyboard/mouse, touch/tilt and gamepad. Gamepad instructions update by mode and controller count. Mission copy shortened; five-landing fall reset called out persistently.
+- Source regression workflows PASS on tested PR head `1097fe4b528cfc7695e4df85b76812f545e00803`. Browser smoke was still running at note time. No WordPress deployment or manual live-device verification.
+- Scope exclusions remain: no changes to the 0.11.2 asteroid physics rollback, backside door behavior, Tower physics, market/scanner, Galia desk, planet placement or OST mixer.
+
+---
+
 ## Completed Work Lock — Mini-Sim 0.11.16: asteroid 0.11.2 rollback + triggered backside doors (25 October 2026)
 
 - Merged via [PR #79](https://github.com/ShamanOrWitch/BCM4StarAtlas/pull/79), commit `07ed389df12a491d987d47507bc42a1d97559af5`.
