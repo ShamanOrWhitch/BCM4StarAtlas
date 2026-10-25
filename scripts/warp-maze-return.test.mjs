@@ -301,13 +301,18 @@ test("Ring soundtrack asset is present in the Mini-Sim merge checkout", async ()
 });
 
 
-test("asteroid wall collision resolves a segment starting inside expanded wall bounds", () => {
+test("asteroid wall contact and flight radius match the 0.11.2 baseline", () => {
   const body = section(warp, "function updateMazeFrame(frame)", "function openHullInterior");
-  assert.match(body, /if \(!valid \|\| tEnter > 1 \|\| tExit <= 0\) continue/);
-  assert.match(body, /if \(hitAxis < 0 \|\| tEnter <= 0\)/);
-  assert.match(body, /const penetration = extents\[axis\] - Math\.abs\(offset\)/);
-  assert.match(body, /nearestPenetration/);
-  assert.doesNotMatch(body, /hitAxis < 0 \|\| tEnter <= 0 \|\|/);
+  assert.match(body, /for \(let pass = 0; pass < 2; pass \+= 1\)/);
+  assert.match(body, /ship\.velocity\.x \*= 0\.15/);
+  assert.match(body, /ship\.velocity\.y \*= 0\.15/);
+  assert.match(body, /ship\.velocity\.z \*= 0\.15/);
+  assert.doesNotMatch(body, /Sweep the ship's previous-to-current segment/);
+  assert.doesNotMatch(body, /const previousPosition = maze\.lastPosition/);
+  assert.match(warp, /flyRadius: 43\.2/);
+  const radialBoundary = section(body, "const fromCenter = pos.clone().sub(maze.center);", "// Local artificial gravity activates near the gold ring");
+  assert.match(radialBoundary, /ship\.velocity\.multiplyScalar\(0\.25\)/);
+  assert.doesNotMatch(radialBoundary, /boundaryNormal|outwardSpeed|addScaledVector/);
 });
 
 test("Ring entry remains armed when the engine runtime is unavailable", () => {
@@ -346,10 +351,10 @@ test("Ring entry failures are retryable and don't disable the asteroid collision
 test("Room 2 collision surfaces do not extend into open space", () => {
   const collisionSource = section(sim, "function collideCorridorShell(before)", "function collide(previousPosition)");
   const makeCollider = (ship, shellCrossed) => new Function(
-    "ship", "shellCrossed",
+    "ship", "shellCrossed", "hasOpenBacksideDoor",
     "let exteriorFlight = false;\n" + collisionSource +
       "\nreturn { run: collideCorridorShell, isExterior: () => exteriorFlight };"
-  )(ship, shellCrossed);
+  )(ship, shellCrossed, () => true);
   const collide = (before, after) => {
     const ship = { position: { ...after }, velocity: { x: 0, y: 0, z: 0 } };
     const collider = makeCollider(ship, (a, b, edge) =>
