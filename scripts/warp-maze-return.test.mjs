@@ -21,7 +21,7 @@ test("asteroid exit returns to Warp, Ring stays separate and Hull Dive is entera
   assert.match(warp, /exitButton\.textContent = "RETURN TO WARP MAP"/);
   assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
   assert.match(warp, /maze\.count === 3 \? "GOLD RING IS OPEN"/);
-  assert.match(warp, /if \(state\.ringApproachArmed && !state\.ringPlatformer && !maze\.ringCompleted && ringDistance < 2\.6\)\s*\{\s*openRingPlatformer\(maze\)/);
+  assert.match(warp, /if \(state\.ringApproachArmed && !state\.ringEntryFailed && !state\.ringPlatformer &&[\s\S]{0,120}ringDistance < 2\.6\)\s*\{\s*attemptOpenRingPlatformer\(maze\)/);
   const mazeFrame = section(warp, "function updateMazeFrame(frame)", "function openHullInterior");
   assert.match(mazeFrame, /const ringDistance = pos\.distanceTo\(maze\.beacon\.position\)/);
   assert.match(mazeFrame, /state\.ringDistance = ringDistance/);
@@ -237,7 +237,7 @@ test("Ring intro plays ringgummy.mp4 and starts ring.mp3 on the first rendered v
   assert.match(transition, /prepareRingAudio\(\)/);
   assert.match(transition, /video\.requestVideoFrameCallback\(startSoundOnFirstFrame\)/);
   assert.match(transition, /video\.addEventListener\("ended", enterLevel/);
-  assert.match(transition, /openRingPlatformer\(maze, true\)/);
+  assert.match(transition, /attemptOpenRingPlatformer\(maze, true\)/);
   assert.match(warp, /ringTransitionActive: false/);
 });
 
@@ -267,7 +267,7 @@ test("Ring Frontier is a continuous side-scrolling action level with three large
   assert.ok(warp.includes("maze.ringCompleted = success"));
   assert.match(warp, /ringApproachArmed: true/);
   assert.match(warp, /state\.ringApproachArmed = false/);
-  assert.match(warp, /if \(ringDistance > 4\.2\) state\.ringApproachArmed = true/);
+  assert.match(warp, /if \(ringDistance > 4\.2\) \{\s*state\.ringApproachArmed = true;\s*state\.ringEntryFailed = false;/);
   assert.match(warp, /state\.ringApproachArmed && !state\.ringPlatformer && !maze\.ringCompleted/);
   assert.ok(ring.includes("function makeComicBackdrop(zone)"));
   assert.ok(ring.includes("new THREE.CanvasTexture(canvas)"));
@@ -320,7 +320,9 @@ test("Ring entry remains armed when the engine runtime is unavailable", () => {
 test("Ring transition hides duplicate entry UI and re-arms after a failed level start", () => {
   const body = section(warp, "function playRingTransition(maze, source, engine)", "function pauseLevelOst()");
   assert.match(body, /state\.ringTransitionActive = true;[\s\S]{0,120}ringEnterButton\.hidden = true/);
-  assert.match(body, /if \(!openRingPlatformer\(maze, true\)\) \{[\s\S]{0,300}state\.ringApproachArmed = true;[\s\S]{0,140}syncRingButtonVisibility\(\);/);
+  assert.match(body, /if \(!attemptOpenRingPlatformer\(maze, true\)\) \{/);
+  assert.match(warp, /function attemptOpenRingPlatformer\(maze, afterTransition = false\)[\s\S]{0,1100}state\.ringEntryFailed = true[\s\S]{0,300}RING ENTRY FAILED/);
+  assert.match(warp, /if \(ringDistance > 4\.2\) \{[\s\S]{0,120}state\.ringEntryFailed = false/);
 });
 
 

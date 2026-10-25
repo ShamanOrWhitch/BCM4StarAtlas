@@ -24,7 +24,8 @@ test("Warp uses a rolling circular wall and angular obstacle course",async()=>{
   assert.match(body,/theta \+ \(d - 0\.92\) \* 0\.36/);
   assert.doesNotMatch(body,/for \(let ring = 0; ring < 17/);
   assert.doesNotMatch(body,/railCount|railSpin|pulseDepth/);
-  assert.match(body,/distance > 0\.68/);
+  assert.match(body,/distance > 0\.36/);
+  assert.match(body,/return Math\.min\(1, 0\.055 \/ \(distance \+ 0\.05\)\)/);
   assert.match(body,/const pieces = 32/);
   assert.match(body,/angleDifference\(\(from \+ to\) \* 0\.5, layer\.safeAngle\)/);
   assert.match(body,/rgba\(255,112,86,0\.98\)/);
