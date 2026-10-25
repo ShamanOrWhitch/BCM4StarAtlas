@@ -92,14 +92,14 @@ test("Warp Tube is a rolling circular cylinder with a curved / corkscrew route",
   assert.match(body, /const radiusY = \(d\) => radiusX\(d\) \* 0\.91/);
   assert.match(body, /const point = \(d, theta, extra\)/);
   assert.match(body, /for \(let panel = 0; panel < panelCount; panel \+= 1\)/);
-  assert.match(body, /for \(let seam = 0; seam < 24; seam \+= 1\)/);
-  assert.match(body, /Longitudinal strips — the established Warp look/);
+  assert.match(body, /for \(let seam = 0; seam < 12; seam \+= 1\)/);
+  assert.match(body, /Keep the established 12 longitudinal strips/);
   assert.doesNotMatch(body, /Circumferential rings and seams make the enclosing cylinder legible/);
   assert.match(body, /layer\.type === "gate"/);
   assert.match(body, /layer\.type === "sweeper"/);
   assert.match(body, /layer\.type === "spikes"/);
-  assert.match(body, /layer\.type === "boost"/);
-  assert.match(body, /layer\.type === "launcher"/);
+  assert.match(update, /layer\.type === "boost"/);
+  assert.match(update, /layer\.type === "launcher"/);
   assert.match(body, /g\.rotate\(craftAngle - Math\.PI \/ 2 \+ \(state\.steerBank \|\| 0\)\)/);
   assert.match(update, /state\.playerAngle = Number\(state\.playerAngle \|\| 0\) - steer \* dt \* 2\.2/);
   assert.match(update, /angleDifference\(playerAngle, layer\.safeAngle\)/);
