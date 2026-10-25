@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.14",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.15",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.14",
+      title: "SPACE LABYRINTH — 0.11.15",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -2002,11 +2002,39 @@
     backside.materials = materials;
     const panels = [];
 
-    function addPanel(material, x, y, z, w, h, rx, ry) {
+    function addPanel(material, x, y, z, w, h, rx, ry, surface) {
       const mesh = plane(group, x, y, z, w, h, rx || 0, ry || 0, 0, material);
-      mesh.name = "starbase-exterior-panel-" + panels.length;
+      const index = panels.length;
+      mesh.name = "starbase-exterior-panel-" + index;
       mesh.renderOrder = 1;
-      panels.push({ mesh, material });
+      const surfaceInfo = {
+        left:   { axis: "x", sign: -1, a: "z", b: "y" },
+        right:  { axis: "x", sign:  1, a: "z", b: "y" },
+        top:    { axis: "y", sign:  1, a: "x", b: "z" },
+        bottom: { axis: "y", sign: -1, a: "x", b: "z" },
+        front:  { axis: "z", sign:  1, a: "x", b: "y" },
+        rear:   { axis: "z", sign: -1, a: "x", b: "y" }
+      }[surface];
+      // Only backside-textured outer-shell panels can become Photoli doors.
+      // Corridor walls and asteroid-maze walls never enter this collection.
+      const doorEligible = !!surfaceInfo && Math.random() < 0.095;
+      panels.push({
+        mesh, material, surface, w, h,
+        base: { x, y, z },
+        doorEligible,
+        doorState: doorEligible ? "CLOSED" : "STATIC",
+        doorProgress: 0,
+        doorStyle: "slide",
+        doorNextAt: performance.now() + 850 + (index % 17) * 390 + Math.random() * 4200,
+        doorCloseAt: 0,
+        doorDuration: 0.8,
+        normalAxis: surfaceInfo ? surfaceInfo.axis : "",
+        normalSign: surfaceInfo ? surfaceInfo.sign : 0,
+        tangentA: surfaceInfo ? surfaceInfo.a : "",
+        tangentB: surfaceInfo ? surfaceInfo.b : "",
+        halfA: surfaceInfo ? (surfaceInfo.a === "z" && (surface === "left" || surface === "right") ? w / 2 : w / 2) : 0,
+        halfB: surfaceInfo ? h / 2 : 0
+      });
     }
 
     function addRing(z) {
@@ -2079,8 +2107,8 @@
           const sideLeft = materials[(i * 7 + row * 2) % materials.length];
           const sideRight = materials[(i * 7 + row * 2 + 1) % materials.length];
 
-          addPanel(sideLeft, -outerX, y, center, segmentWidth, sideCellH, 0, -Math.PI / 2);
-          addPanel(sideRight, outerX, y, center, segmentWidth, sideCellH, 0, Math.PI / 2);
+          addPanel(sideLeft, -outerX, y, center, segmentWidth, sideCellH, 0, -Math.PI / 2, "left");
+          addPanel(sideRight, outerX, y, center, segmentWidth, sideCellH, 0, Math.PI / 2, "right");
         }
 
         // Ceiling/floor: split every band across X too.
@@ -2089,8 +2117,8 @@
           const top = materials[(i * 7 + 10 + col) % materials.length];
           const bottom = materials[(i * 7 + 14 + col) % materials.length];
 
-          addPanel(top, x, outerY, center, roofCellW, segmentWidth, -Math.PI / 2, 0);
-          addPanel(bottom, x, -outerY, center, roofCellW, segmentWidth, Math.PI / 2, 0);
+          addPanel(top, x, outerY, center, roofCellW, segmentWidth, -Math.PI / 2, 0, "top");
+          addPanel(bottom, x, -outerY, center, roofCellW, segmentWidth, Math.PI / 2, 0, "bottom");
         }
 
       }
@@ -2108,7 +2136,7 @@
             const x = -capWidth / 2 + cellW / 2 + col * (cellW + crossGap);
             const y = -capHeight / 2 + cellH / 2 + row * (cellH + crossGap);
             const material = materials[(row * capCols + col + (z > 0 ? 0 : 5)) % materials.length];
-            addPanel(material, x, y, z, cellW, cellH, 0, rotationY);
+            addPanel(material, x, y, z, cellW, cellH, 0, rotationY, rotationY === 0 ? "front" : "rear");
           }
         }
 
@@ -2473,6 +2501,55 @@
     });
 
     backside.nextAt = now + 250;
+  }
+
+  function applyBacksideDoorPose(panel) {
+    const mesh = panel && panel.mesh;
+    if (!mesh || !panel.doorEligible) return;
+    const p = Math.max(0, Math.min(1, panel.doorProgress || 0));
+    mesh.position.set(panel.base.x, panel.base.y, panel.base.z);
+    mesh.scale.set(1, 1, 1);
+    if (panel.doorStyle === "slide") {
+      mesh.position[panel.normalAxis] += panel.normalSign * 7.2 * p;
+    } else if (panel.doorStyle === "wipe") {
+      // Retract the leaf while wiping it toward the outside of the hull.
+      mesh.scale.y = Math.max(0.025, 1 - p);
+      mesh.position[panel.normalAxis] += panel.normalSign * 3.8 * p;
+    } else {
+      // Photoli iris: contract the panel in both dimensions and pull it off-plane.
+      const scale = Math.max(0.018, 1 - p);
+      mesh.scale.set(scale, scale, 1);
+      mesh.position[panel.normalAxis] += panel.normalSign * 0.65 * p;
+    }
+  }
+
+  function updateBacksideDoors(dt, now) {
+    const styles = ["slide", "wipe", "iris"];
+    backside.panels.forEach((panel) => {
+      if (!panel.doorEligible) return;
+      if (panel.doorState === "CLOSED" && now >= panel.doorNextAt) {
+        panel.doorStyle = styles[Math.floor(Math.random() * styles.length)];
+        panel.doorDuration = 0.62 + Math.random() * 0.48;
+        panel.doorProgress = 0;
+        panel.doorState = "OPENING";
+      }
+      if (panel.doorState === "OPENING") {
+        panel.doorProgress = Math.min(1, panel.doorProgress + dt / panel.doorDuration);
+        if (panel.doorProgress >= 1) {
+          panel.doorState = "OPEN";
+          panel.doorCloseAt = now + 1400 + Math.random() * 4200;
+        }
+      } else if (panel.doorState === "OPEN" && now >= panel.doorCloseAt) {
+        panel.doorState = "CLOSING";
+      } else if (panel.doorState === "CLOSING") {
+        panel.doorProgress = Math.max(0, panel.doorProgress - dt / panel.doorDuration);
+        if (panel.doorProgress <= 0) {
+          panel.doorState = "CLOSED";
+          panel.doorNextAt = now + 4800 + Math.random() * 10500;
+        }
+      }
+      applyBacksideDoorPose(panel);
+    });
   }
 
   function updateBacksideCamouflage(now) {
@@ -4453,6 +4530,25 @@
     return (before >= edge && after < edge) || (before <= edge && after > edge);
   }
 
+  function hasOpenBacksideDoor(axis, edge, before, after) {
+    if (!before || !after || !shellCrossed(before[axis], after[axis], edge)) return false;
+    const delta = after[axis] - before[axis];
+    if (Math.abs(delta) < 1e-9) return false;
+    const t = (edge - before[axis]) / delta;
+    if (t < 0 || t > 1) return false;
+    const point = {
+      x: before.x + (after.x - before.x) * t,
+      y: before.y + (after.y - before.y) * t,
+      z: before.z + (after.z - before.z) * t
+    };
+    return backside.panels.some((panel) => {
+      if (!panel.doorEligible || panel.doorState !== "OPEN" ||
+          panel.normalAxis !== axis || Math.abs(panel.base[axis] - edge) > 0.16) return false;
+      return Math.abs(point[panel.tangentA] - panel.base[panel.tangentA]) <= panel.halfA - 0.82 &&
+        Math.abs(point[panel.tangentB] - panel.base[panel.tangentB]) <= panel.halfB - 0.82;
+    });
+  }
+
   function collideStarbaseShell(before, allowInteriorOpenings) {
     let blocked = false;
     const shellPadding = 1.2;
@@ -4504,30 +4600,38 @@
       // Block crossing the visible outer shell in BOTH directions.
       // The old check only stopped outside -> inside, which made the hull noclip
       // when the ship tried to leave the room through a side wall.
-      if (before.x < hull.outerX && ship.position.x >= hull.outerX) {
+      if (before.x < hull.outerX && ship.position.x >= hull.outerX &&
+          !hasOpenBacksideDoor("x", hull.outerX, before, ship.position)) {
         ship.position.x = hull.outerX - 0.06;
         blocked = true;
-      } else if (before.x > hull.outerX && ship.position.x <= hull.outerX) {
+      } else if (before.x > hull.outerX && ship.position.x <= hull.outerX &&
+          !hasOpenBacksideDoor("x", hull.outerX, before, ship.position)) {
         ship.position.x = hull.outerX + 0.06;
         blocked = true;
-      } else if (before.x > -hull.outerX && ship.position.x <= -hull.outerX) {
+      } else if (before.x > -hull.outerX && ship.position.x <= -hull.outerX &&
+          !hasOpenBacksideDoor("x", -hull.outerX, before, ship.position)) {
         ship.position.x = -hull.outerX + 0.06;
         blocked = true;
-      } else if (before.x < -hull.outerX && ship.position.x >= -hull.outerX) {
+      } else if (before.x < -hull.outerX && ship.position.x >= -hull.outerX &&
+          !hasOpenBacksideDoor("x", -hull.outerX, before, ship.position)) {
         ship.position.x = -hull.outerX - 0.06;
         blocked = true;
       }
 
-      if (before.y < hull.outerY && ship.position.y >= hull.outerY) {
+      if (before.y < hull.outerY && ship.position.y >= hull.outerY &&
+          !hasOpenBacksideDoor("y", hull.outerY, before, ship.position)) {
         ship.position.y = hull.outerY - 0.06;
         blocked = true;
-      } else if (before.y > hull.outerY && ship.position.y <= hull.outerY) {
+      } else if (before.y > hull.outerY && ship.position.y <= hull.outerY &&
+          !hasOpenBacksideDoor("y", hull.outerY, before, ship.position)) {
         ship.position.y = hull.outerY + 0.06;
         blocked = true;
-      } else if (before.y > -hull.outerY && ship.position.y <= -hull.outerY) {
+      } else if (before.y > -hull.outerY && ship.position.y <= -hull.outerY &&
+          !hasOpenBacksideDoor("y", -hull.outerY, before, ship.position)) {
         ship.position.y = -hull.outerY + 0.06;
         blocked = true;
-      } else if (before.y < -hull.outerY && ship.position.y >= -hull.outerY) {
+      } else if (before.y < -hull.outerY && ship.position.y >= -hull.outerY &&
+          !hasOpenBacksideDoor("y", -hull.outerY, before, ship.position)) {
         ship.position.y = -hull.outerY - 0.06;
         blocked = true;
       }
@@ -4537,8 +4641,9 @@
       if (shellCrossed(before.z, ship.position.z, rearCapZ)) {
         const leavingThroughCorridor = !room1 && inCorridorMouth &&
           before.z > rearCapZ && ship.position.z < rearCapZ;
-        if (leavingThroughCorridor) {
-          exteriorFlight = true;
+        const openBacksidePassage = hasOpenBacksideDoor("z", rearCapZ, before, ship.position);
+        if (leavingThroughCorridor || openBacksidePassage) {
+          if (leavingThroughCorridor) exteriorFlight = true;
         } else {
           ship.position.z = before.z < rearCapZ ? rearCapZ - 0.06 : rearCapZ + 0.06;
           ship.velocity.z = 0;
@@ -4776,6 +4881,7 @@
   function updatePhysics(dt) {
     if (transitionBusy || externalPause) return;
     updateDoor(dt);
+    updateBacksideDoors(dt, performance.now());
     const inn = input();
     // While the hold is open, flight comes only from the crew at the helm.
     const hullHelm = document.getElementById("bcm-hull-dive") ? (window.BCMHullHelmState || null) : null;
