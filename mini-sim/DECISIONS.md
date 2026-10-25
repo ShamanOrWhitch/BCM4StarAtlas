@@ -1,3 +1,14 @@
+## D-037 — Mini-Sim 0.11.16: rollback asteroid physics and make backside doors proximity-triggered
+
+**Status:** Merged via [PR #79](https://github.com/ShamanOrWitch/BCM4StarAtlas/pull/79) as `07ed389df12a491d987d47507bc42a1d97559af5`. Supersedes D-036 where its widened asteroid flight radius, swept wall collision, and randomly timed sparse doors conflict with this rollback. No WordPress deployment.
+
+- Restored only the asteroid wall-contact / radius-limit block from the 0.11.2 baseline: two-pass overlap handling; 0.15 damping on the contacting component; radius 43.2; historical 0.25 radial-boundary slowdown. Newer Ring/Warp/Hydrogen paths outside that block remain.
+- Every outer-shell panel using a `backside*` texture is door-eligible. Open nearby footprint-overlapping panels together; reverse opening if the ship turns back; close after the ship departs.
+- Passage helper tests all panels intersecting the ship clearance and requires all to be fully `OPEN`. Room 2 rear entry and exit both pass through this gate; side/front walls remain solid.
+- Source regression workflows passed on tested head `a0049580e560babea5d9284ccafbc73e55574e48`. Browser smoke failed at the host boundary (HTTP 403 + timeout waiting for `.bcm-mini-sim`), so live and manual gameplay behavior remain unverified.
+
+---
+
 ## D-036 — Mini-Sim 0.11.15: backside-only Photoli doors, gentle asteroid contacts and Hydrogen feedback
 
 **Status:** Merged by [PR #78](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/78) as `1b00a801f62506917f533ead12d0524f06159802`; issue [#77](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/77) is closed. Source regression suites passed on the merged PR head; browser smoke has not reached the site because isolated Playwright setup was still running. Not deployed. Based on merged 0.11.14 main.
