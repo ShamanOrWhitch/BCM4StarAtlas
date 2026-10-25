@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.8",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.9",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.8",
+      title: "SPACE LABYRINTH — 0.11.9",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -219,9 +219,10 @@
     if (operatorDialog) operatorDialog.hidden = true;
   }
 
-  function prepareOperatorAvatar() {
+  function prepareOperatorAvatar(avatarAsset) {
     if (!operatorAvatarVideo || typeof assetUrl !== "function") return;
-    const url = assetUrl("bearhead.mp4");
+    const requestedUrl = assetUrl(avatarAsset || "bearhead.mp4");
+    const url = requestedUrl || assetUrl("bearhead.mp4");
     if (!url) return; // Bearhead is optional until the asset is uploaded.
     if (operatorAvatarVideo.dataset.assetUrl !== url) {
       operatorAvatarVideo.dataset.assetUrl = url;
@@ -252,7 +253,7 @@
     if (controlsDialog) controlsDialog.hidden = true;
   }
 
-  function showOperatorDialog(speaker, message, choices) {
+  function showOperatorDialog(speaker, message, choices, avatarAsset) {
     if (!operatorDialog) return;
     hideOperatorDialog();
     operatorSpeaker.textContent = String(speaker || textForLanguage("operator"));
@@ -272,7 +273,7 @@
       operatorChoices.appendChild(button);
     });
     operatorDialog.hidden = false;
-    prepareOperatorAvatar();
+    prepareOperatorAvatar(avatarAsset);
     if (!choices || !choices.length) operatorDialogTimer = window.setTimeout(hideOperatorDialog, 9500);
   }
 
@@ -798,6 +799,17 @@
     return picked;
   }
 
+  document.addEventListener("mousedown", (event) => {
+    if (event.button !== 1 || !root.contains(event.target)) return;
+    event.preventDefault();
+    if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+  }, true);
+  document.addEventListener("auxclick", (event) => {
+    if (event.button !== 1 || !root.contains(event.target)) return;
+    event.preventDefault();
+    if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+  }, true);
+
   function beginFlight() {
     if (!renderer) return;
     const picked = commitCrewSelection();
@@ -893,7 +905,13 @@
     startButton.classList.add("hidden");
     languageBox.hidden = true;
     canvas.focus();
-    window.BCMDialogue?.showOperator("", textForLanguage("welcome"));
+    if (!worldMission.introShown) {
+      worldMission.introShown = true;
+      window.BCMDialogue?.showOperator("ПАНДА", interfaceLanguage === "en"
+        ? "Welcome, pilot. Mouse looks around; keyboard or gamepad steers. Middle-click releases the cursor. Fly close to each wall screen to activate it."
+        : "Привет, пилот! Мышь — обзор, клавиатура или геймпад — управление. Нажми колёсико мыши один раз, чтобы вернуть курсор. Подлетай к экранам, чтобы активировать их.",
+        null, "panda.mp4");
+    }
     window.BCMDialogue?.showControls("flight");
 
     // Start stays Room 1 at (0, 0, 2). Do not teleport into the asteroid:
@@ -955,8 +973,8 @@
 
   const labyrinthSeed = makeLabyrinthSeed();
 
-  // Shared mission state: screen discoveries are session-scoped and Hydrogen
-  // is placed inside the Ring's first asteroid cell, not in a separate arena.
+  // Mission state is local to this game session. Screen video counts only after
+  // actual playback; three distinct Hydrogen shard IDs unlock Medusa and the return trip.
   const previousMission = window.BCMWorldMission;
   const worldMission = previousMission && previousMission.sessionSeed === labyrinthSeed
     ? previousMission
@@ -966,6 +984,11 @@
         screenVisited: {},
         hydrogenUnlocked: false,
         hydrogenCollected: false,
+        hydrogenCount: 0,
+        hydrogenRequired: 3,
+        hydrogenCollectedIds: {},
+        medusaUnlocked: false,
+        introShown: false,
         asteroidSeed: null,
         screenDiscoveryAnnounced: false,
         towerSeed: null,
@@ -974,6 +997,12 @@
       };
   worldMission.requiredScreens = worldMission.requiredScreens || {};
   worldMission.screenVisited = worldMission.screenVisited || {};
+  worldMission.hydrogenCollectedIds = worldMission.hydrogenCollectedIds || {};
+  worldMission.hydrogenRequired = 3;
+  worldMission.hydrogenCount = Math.max(0, Math.min(3, Number(worldMission.hydrogenCount) || 0));
+  worldMission.hydrogenCollected = worldMission.hydrogenCount >= 3;
+  worldMission.medusaUnlocked = !!worldMission.medusaUnlocked && worldMission.hydrogenCollected;
+  worldMission.introShown = !!worldMission.introShown;
   window.BCMWorldMission = worldMission;
 
   function registerMissionScreen(screenId, required = true) {
@@ -983,25 +1012,34 @@
     if (!(id in worldMission.screenVisited)) worldMission.screenVisited[id] = false;
   }
 
+  function updateHydrogenMissionLabel() {
+    const label = root.querySelector(".bcm-mini-sim-mission");
+    if (!label) return;
+    if (worldMission.medusaUnlocked) {
+      label.textContent = interfaceLanguage === "en"
+        ? "RETURN TO ONI CSS · X -40 / Y 30"
+        : "ВОЗВРАЩЕНИЕ В ONI CSS · X -40 / Y 30";
+    } else if (worldMission.hydrogenUnlocked) {
+      const remaining = Math.max(0, 3 - worldMission.hydrogenCount);
+      label.textContent = interfaceLanguage === "en"
+        ? "HYDROGEN " + worldMission.hydrogenCount + "/3 · " + remaining + " LEFT"
+        : "HYDROGEN " + worldMission.hydrogenCount + "/3 · ОСТАЛОСЬ ЕЩЁ " + remaining;
+    } else {
+      const required = Object.keys(worldMission.requiredScreens).filter((id) => worldMission.requiredScreens[id]);
+      const visited = required.filter((id) => worldMission.screenVisited[id]).length;
+      label.textContent = interfaceLanguage === "en"
+        ? "SCREENS ONLINE: " + visited + "/" + required.length + " · ACTIVATE ALL"
+        : "ЭКРАНЫ АКТИВНЫ: " + visited + "/" + required.length + " · АКТИВИРУЙ ВСЕ";
+    }
+  }
+
   function evaluateMissionScreens() {
-    const required = Object.keys(worldMission.requiredScreens)
-      .filter((id) => worldMission.requiredScreens[id]);
+    const required = Object.keys(worldMission.requiredScreens).filter((id) => worldMission.requiredScreens[id]);
     worldMission.screenProgress = {
       visited: required.filter((id) => worldMission.screenVisited[id]).length,
       total: required.length
     };
-    const missionLabel = root.querySelector(".bcm-mini-sim-mission");
-    if (missionLabel && !worldMission.hydrogenCollected) {
-      if (worldMission.hydrogenUnlocked) {
-        missionLabel.textContent = interfaceLanguage === "en"
-          ? "MISSION: FIND HYDROGEN IN THE FIRST RING CELL"
-          : "МИССИЯ: НАЙТИ HYDROGEN В ПЕРВОЙ ЯЧЕЙКЕ RING";
-      } else {
-        missionLabel.textContent = interfaceLanguage === "en"
-          ? "SCREENS ONLINE: " + worldMission.screenProgress.visited + "/" + worldMission.screenProgress.total + " · ACTIVATE ALL"
-          : "ЭКРАНЫ АКТИВНЫ: " + worldMission.screenProgress.visited + "/" + worldMission.screenProgress.total + " · АКТИВИРУЙ ВСЕ";
-      }
-    }
+    updateHydrogenMissionLabel();
     if (!required.length || worldMission.hydrogenUnlocked ||
         !required.every((id) => worldMission.screenVisited[id])) return;
     worldMission.hydrogenUnlocked = true;
@@ -1009,9 +1047,11 @@
     window.dispatchEvent(new CustomEvent("bcm:mission:hydrogen-unlocked", {
       detail: { sessionSeed: labyrinthSeed, screenIds: required.slice() }
     }));
-    showOperatorDialog("", interfaceLanguage === "en"
-      ? "All screens are online. New objective: enter the asteroid Ring, explore the first cells, and recover Hydrogen. I marked the mission in your chart."
-      : "Все экраны активированы. Новая задача: войти в Кольцо астероида, исследовать первые ячейки и забрать Hydrogen. Отметка миссии добавлена на карту.");
+    updateHydrogenMissionLabel();
+    showOperatorDialog("ПАНДА", interfaceLanguage === "en"
+      ? "All music screens have played. Try Warp to a neighboring sector. In any asteroid, collect three glowing Hydrogen crystals. I'll count how many remain."
+      : "Все музыкальные экраны включились! Испытай Warp в соседний сектор. В любом астероиде собери три светящихся кристалла Hydrogen. Я буду считать, сколько ещё осталось.",
+      null, "panda.mp4");
   }
 
   function markMissionScreenActive(screenId) {
@@ -1021,22 +1061,55 @@
     evaluateMissionScreens();
   }
 
+  function recordHydrogenShard(detail) {
+    if (!worldMission.hydrogenUnlocked || worldMission.medusaUnlocked) return;
+    const cell = detail && detail.cell && typeof detail.cell === "object" ? detail.cell : {};
+    const seed = detail && detail.asteroidSeed != null ? String(detail.asteroidSeed) : "unknown";
+    const fallbackId = seed + ":" + [cell.x ?? "?", cell.y ?? "?", cell.z ?? "?"].join(",");
+    const id = String(detail && detail.crystalId || fallbackId);
+    if (!id || worldMission.hydrogenCollectedIds[id]) return;
+    worldMission.hydrogenCollectedIds[id] = true;
+    worldMission.hydrogenCount = Math.min(3, worldMission.hydrogenCount + 1);
+    worldMission.hydrogenCollected = worldMission.hydrogenCount >= 3;
+    updateHydrogenMissionLabel();
+    if (worldMission.hydrogenCount < 3) {
+      const remaining = 3 - worldMission.hydrogenCount;
+      const noun = interfaceLanguage === "en" ? (remaining === 1 ? "shard" : "shards") :
+        (remaining === 1 ? "кристалл" : remaining < 5 ? "кристалла" : "кристаллов");
+      showOperatorDialog("ПАНДА", interfaceLanguage === "en"
+        ? "Hydrogen collected. " + remaining + " more " + noun + " remaining."
+        : "Hydrogen получен. Осталось ещё " + remaining + " " + noun + ".",
+        null, "panda.mp4");
+      return;
+    }
+    worldMission.medusaUnlocked = true;
+    worldMission.hydrogenCollected = true;
+    updateHydrogenMissionLabel();
+    window.dispatchEvent(new CustomEvent("bcm:mission:medusa-unlocked", {
+      detail: { sessionSeed: labyrinthSeed, hydrogenCount: worldMission.hydrogenCount }
+    }));
+    showOperatorDialog("МЕДУЗА", interfaceLanguage === "en"
+      ? "An alien dimension has been detected at the far end of the Ring, but its anomalies are too strong. Return through Warp to ONICSS at X -40, Y 30. We will be waiting at the ONI home."
+      : "На другом конце Кольца обнаружено другое измерение, но оно слишком аномальное. Возвращайся через Warp к ONICSS: координаты X -40, Y 30. Ждём в доме ONI.",
+      null, "medusa.mp4");
+  }
+
   window.BCMWorldMissionAPI = {
     getState: () => worldMission,
     registerScreen: registerMissionScreen,
-    markScreenActive: markMissionScreenActive
+    markScreenActive: markMissionScreenActive,
+    addHydrogenShard: recordHydrogenShard
   };
-
-  window.addEventListener("bcm:mission:hydrogen-collected", () => {
-    if (worldMission.hydrogenCollected) return;
-    worldMission.hydrogenCollected = true;
-    const missionLabel = root.querySelector(".bcm-mini-sim-mission");
-    if (missionLabel) missionLabel.textContent = interfaceLanguage === "en"
-      ? "MISSION COMPLETE: HYDROGEN RECOVERED"
-      : "МИССИЯ ВЫПОЛНЕНА: HYDROGEN СОБРАН";
-    showOperatorDialog("", interfaceLanguage === "en"
-      ? "Hydrogen recovered. Good work. Keep the asteroid chart: its cells share the same seed and passages."
-      : "Hydrogen получен. Отличная работа. Сохрани карту астероида: её ячейки связаны одним seed и общими проходами.");
+  window.addEventListener("bcm:mission:hydrogen-shard-collected", (event) => {
+    recordHydrogenShard(event.detail || {});
+  });
+  window.addEventListener("bcm:mission:hydrogen-collected", (event) => {
+    const detail = event.detail || {};
+    recordHydrogenShard({
+      ...detail,
+      crystalId: detail.crystalId || ("legacy-ring:" + String(detail.asteroidSeed || labyrinthSeed)),
+      type: "ring"
+    });
   });
 
   function seedRandom(salt = 0) {
