@@ -1,12 +1,12 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
-## Candidate 0.11.14 — free space around Room 2 and asteroid Warp handoff
+## Merged main 0.11.14 — free space around Room 2 and asteroid Warp handoff
 
-- Branch `fix/minisim-0.11.14-space-boundaries-asteroid-warp` is based on main `dd82b03a0cdbe232d2a02fa54ef5ece5d630d913` (Mini-Sim 0.11.13). Issue [#74](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/74).
+- Merged by [PR #76](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/76) into `main` as `65df7b29b7e0ab7a139cbf691f41ad103b0d8ba2`. Issue [#74](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/74) is closed.
 - Preserve the improved Warp appearance and 0.11.13 near-field depth staging unchanged.
 - Collision shell changes restrict walls/caps to finite spans. A plane through open space should not clamp the ship; Room 1/Room 2 interior wall collisions remain solid and the Room 2 rear exit still enters space.
 - Asteroid -> next Warp map captures the ship's actual current position/quaternion, removes stale teleport back to the original launch pose, and V invokes the destination map while the asteroid maze is active. Ring/Hull controls remain separate.
-- Tests are source-level and CI-driven; live browser testing is currently blocked before UI by HTTP 403. No live visual PASS or hardware/manual pass is claimed. Not deployed. Leave `wordpress/galia-desk`, scanner/pricing, Tower physics and shared assets untouched.
+- Source regression and package-build checks passed on the merged main commit. The latest browser smoke has not reached the game UI; earlier runs stopped at HTTP 403. No live visual PASS or hardware/manual pass is claimed. Not deployed. Leave `wordpress/galia-desk`, scanner/pricing, Tower physics and shared assets untouched.
 
 ---
 
