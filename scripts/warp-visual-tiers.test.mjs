@@ -67,7 +67,20 @@ test("Warp keeps uncluttered longitudinal strips and clearly visible collision h
   assert.match(warp, /window\.BCMDeepSpaceWarpSetDriveSlot = \(slotSize\) =>/);
 });
 
-test("Mini-Sim 0.11.11 cache/version contracts are synchronized", () => {
+test("Warp multiplier and displayed speed ramp from 1x to 8x", () => {
+  const start = warp.indexOf("function warpNormalizedTime");
+  const end = warp.indexOf("function tubeSectionBlend", start);
+  assert.ok(start >= 0 && end > start, "Warp speed helpers should exist");
+  const speed = new Script(warp.slice(start, end) + "\n({ warpSpeedMultiplier, warpCourseProgress });")
+    .runInNewContext({ WARP_DURATION: 42 });
+  assert.equal(speed.warpSpeedMultiplier(0), 1);
+  assert.equal(speed.warpSpeedMultiplier(42), 8);
+  assert.equal(speed.warpCourseProgress(0), 0);
+  assert.equal(speed.warpCourseProgress(42), 1);
+  assert.match(warp, /tubeMeta\.textContent[\s\S]{0,180}warpSpeedMultiplier\(state\.elapsed\)\.toFixed\(1\)/);
+});
+
+test("Mini-Sim 0.11.12 cache/version contracts are synchronized", () => {
   assert.match(plugin, /Version: 0\.11\.11/);
   assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.11'\)/);
   assert.match(plugin, /SPACE LABYRINTH — 0\.11\.11/);
