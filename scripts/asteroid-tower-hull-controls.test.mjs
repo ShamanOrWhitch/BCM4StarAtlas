@@ -28,7 +28,7 @@ test("Flight starts in Room 1 and does not teleport into the asteroid", async ()
   const begin = mini.slice(mini.indexOf("function beginFlight()"), mini.indexOf("const byName = Object.create(null)"));
   assert.doesNotMatch(begin, /BCMDeepSpaceWarpEnterAsteroid\s*\(/);
   assert.match(mini, /ship\.position = new THREE\.Vector3\(0, 0, 2\)/);
-  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.15/);
+  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.17/);
 });
 
 test("Asteroid walls are resolved from the prepared asterwall asset family", async () => {
@@ -266,6 +266,6 @@ test("Tower handoff preserves the arrival ship snapshot and active Tower seed fo
   assert.match(warp, /window\.BCMDeepSpaceWarpGetReturnSnapshot = \(\) =>/);
   assert.match(tower, /window\.BCMWorldMission\.towerSeed = seed/);
   assert.match(tower, /originShipSnapshot\.towerSeed = seed/);
-  assert.match(towerPhp, /define\('BCM_TOWER_VERSION', '0\.2\.65'\)/);
-  assert.match(tower, /const TOWER_VERSION = "0\.2\.65"/);
+  assert.match(towerPhp, /define\('BCM_TOWER_VERSION', '0\.2\.66'\)/);
+  assert.match(tower, /const TOWER_VERSION = "0\.2\.66"/);
 });
