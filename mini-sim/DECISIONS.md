@@ -1,6 +1,6 @@
 ## D-035 — Mini-Sim 0.11.14: finite room boundaries and asteroid Warp continuation
 
-**Status:** Candidate branch `fix/minisim-0.11.14-space-boundaries-asteroid-warp`; source-level regression cases added; CI pending. Not merged or deployed. Based on main `dd82b03a0cdbe232d2a02fa54ef5ece5d630d913` and preserves the accepted 0.11.13 Warp-depth/collision/Ring work.
+**Status:** Merged to `main` by [PR #76](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/76), commit `65df7b29b7e0ab7a139cbf691f41ad103b0d8ba2`. Source regression suites and package build passed. Browser smoke has not reached the game UI; earlier runs stopped at HTTP 403. Not deployed. Preserves the accepted 0.11.13 Warp-depth/collision/Ring work.
 
 - Corridor walls and caps collide only at real finite surfaces; X/Y planes no longer extend through unbounded open space. Room 1 recovery needs both Z overlap and proximity to the room cross-section.
 - Keep actual Room 1/Room 2 collision boundaries and Room 2's normal rear exit.
