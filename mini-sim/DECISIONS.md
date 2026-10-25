@@ -1,6 +1,6 @@
 ## D-036 — Mini-Sim 0.11.15: backside-only Photoli doors, gentle asteroid contacts and Hydrogen feedback
 
-**Status:** Candidate PR [#78](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/78), issue [#77](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/77); CI pending, not deployed. Based on merged 0.11.14 main.
+**Status:** Merged by [PR #78](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/78) as `1b00a801f62506917f533ead12d0524f06159802`; issue [#77](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/77) is closed. Source regression suites passed on the merged PR head; browser smoke has not reached the site because isolated Playwright setup was still running. Not deployed. Based on merged 0.11.14 main.
 
 - Randomly animated doors belong exclusively to the external starbase-shell panels built from `backside*` textures. Use a staggered randomized slide / wipe / iris cycle. A passage is collision-open only while its specific panel is fully open and only within that panel's footprint.
 - Do not make all Room 2 passable; preserve Room 2's interior corridor walls and boundary clamps. Do not apply doors to asteroid-maze walls.
