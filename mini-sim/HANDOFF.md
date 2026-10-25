@@ -1,6 +1,16 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
-## Merged main 0.11.15 — backside-only Photoli doors, asteroid flight and Hydrogen pickup feedback
+## Merged main 0.11.16 — asteroid rollback + approach-triggered backside doors
+
+- PR [#79](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/79), merge commit `07ed389df12a491d987d47507bc42a1d97559af5`.
+- Asteroid physics restored selectively to the 0.11.2 collision/contact/radius behavior. Do not restore the whole old `deep-space-warp.js`: later Warp/Ring/Hydrogen features were kept.
+- `backside*` outer-shell panels all open by proximity at the corresponding footprint; overlapping/adjacent panels must all reach `OPEN` before passage. Room 2 side/front corridor walls stay solid. Both directions through the Room 2 rear cap require the real open door.
+- Mini-Sim source version: `0.11.16`. Regression suites are green on tested PR head `a0049580e560babea5d9284ccafbc73e55574e48` (nine workflows). Browser QA remains unverified: host responds HTTP 403 and the page locator `.bcm-mini-sim` times out. No WordPress upload and no manual device/gamepad confirmation.
+- Next action only if user reports a reproducible issue: use the specific failed passage/position as a regression test; do not broadly rewrite asteroid physics or make Room 2 walls passable.
+
+## Historical handoff — Mini-Sim 0.11.15
+
+## Superseded merged main 0.11.15 — backside-only Photoli doors, asteroid flight and Hydrogen pickup feedback
 
 - Merged by [PR #78](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/78) as `1b00a801f62506917f533ead12d0524f06159802`; issue [#77](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/77) is closed.
 - User scope correction: randomized slide / wipe / iris doors are only on the external shell panels using `backside*` textures. Room 2's corridor walls remain solid. No asteroid labyrinth wall doors.
