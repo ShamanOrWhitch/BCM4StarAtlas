@@ -4565,7 +4565,7 @@ return axialRoll + ahead * 0.12 +
       const rollRates = [0.42, 0.82, 0.55, 1.12, 0.31, 0.72];
       const boosted = state.elapsed < Number(state.tubeBoostUntil || 0);
       const rampMultiplier = warpSpeedMultiplier(state.elapsed);
-      const speed = Math.max(8, Math.min(64,
+      const speed = Math.max(1, Math.min(8,
         tubeSectionBlend(speedBySection, state.elapsed).value * 1.25 *
         rampMultiplier * (boosted ? 1.4 : 1)
       ));

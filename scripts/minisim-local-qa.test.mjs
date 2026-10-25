@@ -191,11 +191,11 @@ test("Playwright runner overrides plugin files from local checkout",async()=>{
 });
 
 
-test("Warp starts at 8x and accelerates to 64x without changing tunnel shimmer timing", async () => {
+test("Warp starts at 1x and accelerates to 8x while preserving the tunnel shimmer clock", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
-  assert.match(warp, /return 8 \* Math\.pow\(8, warpNormalizedTime\(elapsed\)\)/);
-  assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) \/ 8 - 1\) \/ 7/);
-  assert.match(warp, /Math\.max\(8, Math\.min\(64,/);
+  assert.match(warp, /return Math\.pow\(8, warpNormalizedTime\(elapsed\)\)/);
+  assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) - 1\) \/ 7/);
+  assert.match(warp, /Math\.max\(1, Math\.min\(8,/);
   assert.match(warp, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
   assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
   assert.match(warp, /Math\.pow\(warpCourseProgress\(elapsed\), 0\.86\)/);
