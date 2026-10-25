@@ -1,3 +1,17 @@
+## Candidate Mini-Sim 0.11.11 — Warp visibility and Panda controls (25 October 2026)
+
+- **Branch:** `fix/minisim-0.11.11-warp-panda-prompt`; **WORK LOCK:** [Issue #70](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/70).
+- **Baseline:** main `bc77614564aa7bf1f2a211c945006fc258d6aeff` (Mini-Sim 0.11.10 / Tower 0.2.65). This candidate is not merged or deployed.
+- Warp regression reported by the user: in 0.11.10, some hazards were no longer readable after their rendering was reduced to two faint longitudinal guide-lines; the tunnel had 24 base strips and Class II extra rails/pulse dots. The candidate returns to 12 base strips, applies modest depth skew, removes the extra Class II rails, keeps decorative circumferential wall rings/chevrons absent, and draws visible segmented gates (with the collision-safe opening), sweepers and spike teeth. The obstacle display window is extended; `updateTube` collision formulas, Warp duration/speed ramp, shimmer timing, soundtrack, navigation and Tower physics are not changed.
+- Panda controls: widen the operator bubble to the right; keep Panda visible down to 420px; remove the independent right-side controls card. First-flight copy says WASD, U, mouse look, middle-click release and gamepad sticks. Warp copy says V / gamepad Y and explains mouse drag, A/D/arrows and left-stick steering.
+- Source-contract tests and CI are pending; no live visual/device verification is claimed. The latest repeat of the production browser QA still returned HTTP 403 before the game container. Do not bypass the firewall. `wordpress/galia-desk`, scanner and pricing data remain untouched.
+
+## Main baseline before this candidate — Mini-Sim 0.11.10 (25 October 2026)
+
+- Main SHA: `bc77614564aa7bf1f2a211c945006fc258d6aeff`. The latest commit repaired a pointer-lock API name used by a test; Mini-Sim regression and Tower top-cap regression passed on that SHA.
+- Browser QA against `https://walkingyog.com/bcm4sa/` still failed with HTTP 403; this is a blocked test, not a visual test of the game.
+- No production WordPress deployment or physical phone/gamepad test is recorded.
+
 ## Кандидат Mini-Sim 0.11.5 — детерминированная астральная физика
 - Основа: кандидат 0.11.4 / Hydrogen mission (PR #66), исправления 0.11.3 (PR #65); Tower обновлён до 0.2.65, чтобы сбрасывать кэш seed-снимка. Ветка minisim-0.11.5-astral-phase, не слита и не развёрнута.
 - Для каждой клетки Y-слоя режим вычисляется отдельно от RNG маршрута — по seed астероида и координатам клетки. Одинаковый seed даёт тот же режим и фазу.
@@ -8,7 +22,7 @@
 - Camera: явно выбранный экран сохраняет приоритет над другими роликами и не теряет фокус только потому, что нет ближайшего внешнего видео. Фокус снимается при выходе цели из радиуса/недоступности; HUD показывает прогресс экранов и сбор Hydrogen.
 - CI: после открытия PR должны пройти исходные и регрессионные тесты. Production Browser QA получает 403 от firewall; физическое управление и видимый рендер на телефоне не подтверждены.
 
-## Current main state — Mini-Sim 0.11.8 (24 October 2026)
+## Historical snapshot — Mini-Sim 0.11.8 (24 October 2026; superseded by main 0.11.10)
 
 This entry supersedes the older 0.11.3–0.11.5 candidate notes below; those sections remain as history, not as the current state. Current code is on `main`; Tower remains `0.2.65`. **Nothing has been deployed to the website.**
 
