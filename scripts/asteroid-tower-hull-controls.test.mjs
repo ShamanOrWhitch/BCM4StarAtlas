@@ -238,7 +238,8 @@ test("Astral Y-cells are seed-deterministic and alter movement without rebuildin
   assert.match(warp, /sealedWallRight\.visible = !node\.large && !rightDoor/);
   assert.match(warp, /ring-cell-vertical-portal/);
   assert.match(warp, /placeParty\(enterRingCell\(worldState, nextNode,[\s\S]*?player\), player\)/);
-  assert.match(warp, /Two longitudinal guide-lines mark the safe opening/);
+  assert.match(warp, /const pieces = 32/);
+  assert.match(warp, /Bright inward-pointing hazard teeth/);
   assert.doesNotMatch(warp, /Broken radial bars instead of a circular hoop/);
   assert.doesNotMatch(warp, /placeParty\(enterRingCell\(worldState, right, "left"\)\);/);
   assert.ok(warp.includes('astralPhase: ((hashSeed(String(maze.seed) + "|phase|" + cell.x + "|" + cell.y + "|" + cell.z) / 0xffffffff) * Math.PI * 2)'));
