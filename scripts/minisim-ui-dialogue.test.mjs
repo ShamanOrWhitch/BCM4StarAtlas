@@ -24,18 +24,26 @@ test("RU/EN menu and Enter language toggle are wired to a persistent selection",
   assert.match(mini, /applyLanguage\(\)/);
 });
 
-test("Two dismissible comic bubbles replace the persistent in-game HUD/control wall", () => {
+test("Panda dialogue carries flight and Warp controls without a separate right-side panel", () => {
   assert.match(mini, /id = "bcm-comic-dialogs"/);
   assert.match(mini, /data-dialog-box="operator"/);
-  assert.match(mini, /data-dialog-box="controls"/);
+  assert.doesNotMatch(mini, /data-dialog-box="controls"|bcm-comic-dialog-controls/);
   assert.match(mini, /window\.BCMDialogue = \{/);
   assert.match(mini, /showControls\("flight"\)/);
   assert.match(mini, /showControls\("tower"\)/);
   assert.match(warp, /showControls\("ring"\)/);
   assert.match(warp, /showControls\("hull"\)/);
   assert.match(warp, /showControls\("warp"\)/);
+  assert.match(mini, /WASD — полёт; U — трюм/);
+  assert.match(mini, /колёсико \(среднюю кнопку\), чтобы освободить курсор/);
+  assert.match(mini, /V — открыть карту; на геймпаде — Y/);
+  assert.match(mini, /START WARP/);
+  assert.match(mini, /showOperatorDialog\("ПАНДА", message, null, "panda\.mp4"\)/);
   assert.match(css, /\.bcm-comic-dialog-operator/);
-  assert.match(css, /\.bcm-comic-dialog-controls/);
+  assert.doesNotMatch(css, /\.bcm-comic-dialog-controls/);
+  assert.match(css, /width:min\(720px,calc\(72vw - 18px\)\)/);
+  assert.match(css, /width:min\(640px,calc\(100vw - 16px\)\)/);
+  assert.match(css, /\.bcm-comic-dialog-avatar\{display:flex;flex:0 0 36px/);
   assert.match(css, /\.bcm-mini-sim\.game-active \.bcm-mini-sim-hud[\s\S]*?visibility:hidden/);
 });
 
@@ -153,20 +161,19 @@ test("SafeMode, animated faces, readable dialog timing and flight pointer-lock h
   assert.ok(mini.includes('if (safeModeEnabled)'));
   assert.ok(mini.includes('video data-operator-avatar-video hidden muted autoplay playsinline loop preload="auto"'));
   assert.ok(mini.includes("window.setTimeout(hideOperatorDialog, 26000)"));
-  assert.ok(mini.includes("window.setTimeout(hideControlsDialog, 26000)"));
   assert.ok(mini.includes("requestFlightPointerLock"));
   assert.ok(mini.includes("releaseFlightPointerLock"));
-  assert.match(css, /width:min\(460px,calc\(48vw - 18px\)\)/);
+  assert.match(css, /width:min\(720px,calc\(72vw - 18px\)\)/);
   assert.match(css, /font-size:15px/);
 });
 
-test("0.11.10 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
-  assert.match(php, /Version: 0\.11\.10/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.10'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.11\.10/);
-  assert.match(qa, /Version: 0\.11\.10/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.10'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.10/);
+test("0.11.11 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
+  assert.match(php, /Version: 0\.11\.11/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.11'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.11\.11/);
+  assert.match(qa, /Version: 0\.11\.11/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.11'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.11/);
   assert.match(browserWorkflow, /timeout-minutes: 45/);
   assert.match(browserWorkflow, /timeout-minutes: 20/);
   assert.match(browserWorkflow, /timeout-minutes: 25/);
