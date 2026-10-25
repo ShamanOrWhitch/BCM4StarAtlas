@@ -128,7 +128,12 @@ test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, amm
   assert.match(hull, /data-hull-control="shoot"/);
   assert.match(hull, /data-hull-control="reload"/);
   assert.match(hull, /data-hull-control="helm"/);
-  assert.match(hull, /document\.exitPointerLock && document\.pointerLockElement/);
+  assert.doesNotMatch(hull, /document\.exitPointerLock && document\.pointerLockElement/);
+  const miniControlSource = await read("mini-sim/assets/js/mini-sim.js");
+  assert.match(miniControlSource, /window\.BCMMiniSimAPI\.requestFlightPointerLock =/);
+  assert.match(miniControlSource, /window\.BCMMiniSimAPI\.releaseFlightPointerLock =/);
+  assert.match(hull, /releaseFlightPointerLock/);
+  assert.match(hull, /requestFlightPointerLock/);
   assert.match(hull, /pilotMode = true/);
   assert.match(hull, /KeyX: "x"/);
   assert.match(hull, /down && !event\.repeat/);
