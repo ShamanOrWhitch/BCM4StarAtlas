@@ -1,4 +1,14 @@
-## Main state — Mini-Sim 0.11.15 merged (25 October 2026)
+## Main state — Mini-Sim 0.11.16 merged (25 October 2026)
+
+- Merged via [PR #79](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/79) as commit `07ed389df12a491d987d47507bc42a1d97559af5`; this supersedes the 0.11.15 asteroid-contact and shell-door behavior documented below.
+- **Asteroid rollback:** only the asteroid collision / exterior flight-radius block was restored to the 0.11.2 baseline. It uses the previous two-pass overlap resolver, damps the contacting velocity component by 0.15, retains the 43.2 flight-radius limit and the historical radial-boundary slowdown. Newer Warp, Ring, Hydrogen pickup, route generation, and unrelated Tower code remain in place.
+- **Backside doors:** every outer-shell tile carrying a `backside*` texture now responds to the ship approaching its own footprint. Adjacent tiles open together when their clearance areas overlap; collision passage is allowed only when every overlapping panel is fully open. Doors close after the ship moves away.
+- **Room 2 remains a solid corridor:** its side and front walls are not doors. The rear cap allows entry and exit only through the matching open `backside*` door; the former unconditional inside-to-space bypass is removed.
+- Mini-Sim code/header/cache/title version is `0.11.16`. No WordPress deployment was performed.
+- Source CI on tested PR head `a0049580e560babea5d9284ccafbc73e55574e48`: 9 source regression workflows PASS. Browser smoke FAILED because the site returned HTTP 403; Playwright then timed out waiting for `.bcm-mini-sim`. This does **not** establish a live game pass, and no manual phone/gamepad test was performed.
+- The previous 0.11.15 description below is historical and is superseded by this rollback.
+
+## Superseded state — Mini-Sim 0.11.15 (25 October 2026)
 
 - Merged via [PR #78](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/78) as commit `1b00a801f62506917f533ead12d0524f06159802`; issue [#77](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/77) is closed.
 - The only dynamic door candidates are the outer starbase-shell panels built from `backside*` textures. Room 2 interior walls and asteroid maze walls are explicitly excluded. Room 2 does not become generally passable.
