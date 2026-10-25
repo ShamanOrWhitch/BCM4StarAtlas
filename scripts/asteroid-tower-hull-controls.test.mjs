@@ -269,3 +269,19 @@ test("Tower handoff preserves the arrival ship snapshot and active Tower seed fo
   assert.match(towerPhp, /define\('BCM_TOWER_VERSION', '0\.2\.66'\)/);
   assert.match(tower, /const TOWER_VERSION = "0\.2\.66"/);
 });
+
+test("Tower shows short controls for the active device and a clear descent/fall objective", async () => {
+  const tower = await read("mini-sim/tower/assets/js/tower.js");
+  const towerPhp = await read("mini-sim/tower/bcm-tower.php");
+  const towerCss = await read("mini-sim/tower/assets/css/tower.css");
+  assert.match(tower, /function syncTowerInputHelp\(padCount\)/);
+  assert.match(tower, /syncTowerInputHelp\(connectedPads\.length\)/);
+  assert.match(tower, /ПОРА СПУСТИТЬСЯ ВНИЗ/);
+  assert.match(tower, /КТО ПЕРВЫМ СПУСТИТСЯ ВНИЗ\?/);
+  assert.match(tower, /ОСТОРОЖНО: ПАДЕНИЕ НА 5 ПРОЛЁТОВ — ВОЗВРАТ В НАЧАЛО/);
+  assert.match(towerPhp, /class="bcm-tower-menu-help-keyboard"/);
+  assert.match(towerPhp, /class="bcm-tower-menu-help-touch"/);
+  assert.match(towerPhp, /class="bcm-tower-menu-help-gamepad"/);
+  assert.match(towerPhp, /Осторожно: падение на 5 пролётов — возврат в начало/);
+  assert.match(towerCss, /\.bcm-tower\.has-gamepad \.bcm-tower-help-gamepad/);
+});
