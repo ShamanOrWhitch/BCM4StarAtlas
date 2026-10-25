@@ -322,3 +322,16 @@ test("Ring transition hides duplicate entry UI and re-arms after a failed level 
   assert.match(body, /state\.ringTransitionActive = true;[\s\S]{0,120}ringEnterButton\.hidden = true/);
   assert.match(body, /if \(!openRingPlatformer\(maze, true\)\) \{[\s\S]{0,300}state\.ringApproachArmed = true;[\s\S]{0,140}syncRingButtonVisibility\(\);/);
 });
+
+
+test("Ring entry failures are retryable and don't disable the asteroid collision callback", () => {
+  const entry = section(warp, "function attemptOpenRingPlatformer(maze, afterTransition = false)", "if (typeof MutationObserver");
+  assert.match(entry, /state\.ringEntryFailed = true/);
+  assert.match(entry, /state\.ringApproachArmed = true/);
+  assert.match(entry, /RING ENTRY FAILED/);
+  assert.match(warp, /!state\.ringEntryFailed && !state\.ringPlatformer/);
+  assert.match(warp, /if \(ringDistance > 4\.2\) \{[\s\S]{0,100}state\.ringEntryFailed = false/);
+  const callbacks = section(sim, "function reportDeepSpaceCallbackError(label, error)", "function toggleSettings()");
+  assert.doesNotMatch(callbacks, /window\.BCMDeepSpaceWarpFrame = null/);
+  assert.doesNotMatch(callbacks, /window\.BCMDeepSpaceWarpPoll = null/);
+});

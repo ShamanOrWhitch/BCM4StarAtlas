@@ -42,9 +42,9 @@ test("Panda dialogue carries flight and Warp controls without a separate right-s
   assert.match(mini, /showOperatorDialog\("ПАНДА", message, null, "panda\.mp4"\)/);
   assert.match(css, /\.bcm-comic-dialog-operator/);
   assert.doesNotMatch(css, /\.bcm-comic-dialog-controls/);
-  assert.match(css, /width:min\(820px,calc\(76vw - 18px\)\)/);
-  assert.match(css, /width:min\(720px,calc\(100vw - 16px\)\)/);
-  assert.match(css, /\.bcm-comic-dialog-avatar\{display:flex;flex:0 0 44px/);
+  assert.match(css, /width:min\(900px,calc\(84vw - 18px\)\)/);
+  assert.match(css, /width:min\(820px,calc\(100vw - 16px\)\)/);
+  assert.match(css, /\.bcm-comic-dialog-avatar\{display:flex;flex:0 0 60px/);
   assert.match(css, /\.bcm-mini-sim\.game-active \.bcm-mini-sim-hud[\s\S]*?visibility:hidden/);
 });
 
@@ -164,17 +164,17 @@ test("SafeMode, animated faces, readable dialog timing and flight pointer-lock h
   assert.ok(mini.includes("window.setTimeout(hideOperatorDialog, 26000)"));
   assert.ok(mini.includes("requestFlightPointerLock"));
   assert.ok(mini.includes("releaseFlightPointerLock"));
-  assert.match(css, /width:min\(820px,calc\(76vw - 18px\)\)/);
-  assert.match(css, /font-size:17px/);
+  assert.match(css, /width:min\(900px,calc\(84vw - 18px\)\)/);
+  assert.match(css, /\.bcm-comic-dialog-copy p\{[\s\S]{0,150}font-size:19px/);
 });
 
-test("0.11.12 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
-  assert.match(php, /Version: 0\.11\.12/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.12'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.11\.12/);
-  assert.match(qa, /Version: 0\.11\.12/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.12'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.12/);
+test("0.11.13 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
+  assert.match(php, /Version: 0\.11\.13/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.13'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.11\.13/);
+  assert.match(qa, /Version: 0\.11\.13/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.13'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.13/);
   assert.match(browserWorkflow, /timeout-minutes: 45/);
   assert.match(browserWorkflow, /timeout-minutes: 20/);
   assert.match(browserWorkflow, /timeout-minutes: 25/);

@@ -1,4 +1,13 @@
-## Mini-Sim 0.11.12 repair candidate — 25 October 2026
+## Mini-Sim 0.11.13 repair candidate — 25 October 2026
+
+- **Branch:** `fix/minisim-0.11.13-warp-depth-room-collision-ring-entry`, based on main `ab7c3d91c9932d3363375036bb07bbcbd6ad67ad` (0.11.12 / Tower 0.2.65).
+- Warp: revert the visible obstacle window from 0.68 to 0.36 of the remaining course and restore the prior perspective projection so nearby gates are staged instead of crowding the screen; the HUD now reports the actual speed multiplier used by tube travel, not the abstract ramp.
+- Room 1/2: collision now receives the true frame-start ship position. Previously `collide()` cloned the position only after integration, so its before/after crossing checks compared the same coordinates and could not catch a fast wall crossing. Wall-correction flags compare the attempted post-step position against the corrected position.
+- Asteroid/Ring: do not permanently unset the shared Warp frame/poll/render handlers after one transient exception (that also removes asteroid collision); Ring entry failures are caught, the overlay is cleaned up, and a manual retry is made available without automatic retry spam.
+- Panda dialogue enlarged further: 900px desktop cap, 80px avatar, 19px message; mobile keeps a large avatar and readable message.
+- **Not deployed.** CI/source checks pending. Live browser remains blocked by HTTP 403 before `.bcm-mini-sim`. Do not claim visual PASS or bypass the firewall. `wordpress/galia-desk` is out of scope.
+
+## Historical Mini-Sim 0.11.12 repair candidate — 25 October 2026
 
 - **Branch:** `fix/minisim-0.11.12-warp-speed-collision-ring`, based on main `9caba968636610a2413a23177bd9d64f20fe0900` (Mini-Sim 0.11.11 / Tower 0.2.65).
 - Focused repairs: Warp multiplier corrected to 1×→8× and displayed in the tunnel HUD; the initial Panda flight prompt explicitly includes `V — карта Warp`; Panda's bubble is wider, right-aligned, with 15–17px message text; asteroid swept collision resolves a frame beginning inside the expanded wall AABB; Ring entry stays armed if engine runtime is unavailable.

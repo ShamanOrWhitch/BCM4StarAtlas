@@ -4708,12 +4708,18 @@
     return blocked;
   }
 
-  function collide() {
+  function collide(previousPosition) {
     if (race.active) {
       constrainRace();
       return;
     }
-    const before = ship.position.clone();
+    // This is the position before velocity integration, passed in by updatePhysics.
+    // The old local clone happened after integration and compared the new position
+    // with itself, so wall-crossing checks silently became no-ops.
+    const before = previousPosition && typeof previousPosition.clone === "function"
+      ? previousPosition.clone()
+      : ship.position.clone();
+    const attempted = ship.position.clone();
 
     // A room exists in 3D, not just on the Z axis.
     // Being outside the corridor envelope means free space, even when the
@@ -4782,9 +4788,11 @@
     // penetration through Room 1/2 side walls.
     collideCorridorShell(before);
 
-    const blockedX = before.x !== ship.position.x;
-    const blockedY = before.y !== ship.position.y;
-    const blockedZ = before.z !== ship.position.z;
+    // Compare against the post-integration position to detect only corrections,
+    // not ordinary motion from the previous frame.
+    const blockedX = attempted.x !== ship.position.x;
+    const blockedY = attempted.y !== ship.position.y;
+    const blockedZ = attempted.z !== ship.position.z;
 
     if (room0Labyrinth.active) {
       collideRoom0Labyrinth(before);
@@ -4824,9 +4832,10 @@
     ship.velocity.addScaledVector(localAcc, dt);
     ship.velocity.multiplyScalar(Math.max(0, 1 - ship.linearDrag * dt));
     if (ship.velocity.length() > ship.maxSpeed) ship.velocity.setLength(ship.maxSpeed);
+    const collisionStart = ship.position.clone();
     ship.position.addScaledVector(ship.velocity, dt);
     updateRoom0Labyrinth();
-    collide();
+    collide(collisionStart);
     updateSpaceSatelliteVisibility();
     updateCollisionImpact(dt);
 
@@ -4945,6 +4954,17 @@
     }
   }
 
+  let lastDeepSpaceCallbackErrorAt = 0;
+
+  function reportDeepSpaceCallbackError(label, error) {
+    const now = performance.now();
+    if (now - lastDeepSpaceCallbackErrorAt < 1200) return;
+    lastDeepSpaceCallbackErrorAt = now;
+    const detail = error && error.message ? error.message : "frame";
+    if (!externalHud) setStatus(label + " · " + detail);
+    try { console.error(label, error); } catch (e) {}
+  }
+
   function render(now) {
     if (miniSimReleased) return;
 
@@ -4964,13 +4984,14 @@
       try {
         window.BCMDeepSpaceWarpFrame({ dt, running, paused: externalPause, scene, camera, ship, THREE: window.THREE, root, renderer });
       } catch (err) {
-        window.BCMDeepSpaceWarpFrame = null;
-        if (!externalHud) setStatus("WARP MODULE ERROR · " + (err && err.message ? err.message : "frame"));
+        // Keep the module installed: dropping this callback permanently also
+        // disables asteroid wall collision until a full page reload.
+        reportDeepSpaceCallbackError("WARP MODULE ERROR", err);
       }
     }
     if (typeof window.BCMDeepSpaceWarpPoll === "function") {
       try { window.BCMDeepSpaceWarpPoll({ dt, running, paused: externalPause, root }); }
-      catch (err) { window.BCMDeepSpaceWarpPoll = null; }
+      catch (err) { reportDeepSpaceCallbackError("WARP INPUT ERROR", err); }
     }
     // Ring's room view reuses the existing WebGL context (as Tower does), including
     // optional two-viewport split-screen. If it handled this frame, don't draw the
@@ -4983,8 +5004,7 @@
           THREE: window.THREE, root, renderer
         }) === true;
       } catch (err) {
-        window.BCMDeepSpaceWarpRender = null;
-        if (!externalHud) setStatus("RING RENDER ERROR · " + (err && err.message ? err.message : "frame"));
+        reportDeepSpaceCallbackError("RING RENDER ERROR", err);
       }
     }
     // The Warp map/Tube overlays hide the scene. Ring handles its own views through
