@@ -28,7 +28,7 @@ test("Tube view exposes three selectable visual classes; Class IV remains disabl
   for (const tier of [1, 2, 3]) assert.ok(warp.includes('data-warp-tier="' + tier + '"'));
   assert.match(warp, /data-warp-tier="4"[^>]*disabled/);
   assert.match(warp, /data-warp-tier-preview aria-label="Выбор оформления Warp"/);
-  assert.match(warp, /Longitudinal strips — the established Warp look/);
+  assert.match(warp, /Keep the established 12 longitudinal strips/);
   assert.doesNotMatch(warp, /Circumferential rings and seams make the enclosing cylinder legible/);
   assert.match(warp, /window\.BCMDeepSpaceWarpPreviewClass = setWarpVisualPreviewClass/);
   assert.match(warp, /function activeWarpVisualClass\(\)[\s\S]*?Number\(state\.warpPreviewClass\) \|\| Number\(state\.warpVisualClass\)/);
