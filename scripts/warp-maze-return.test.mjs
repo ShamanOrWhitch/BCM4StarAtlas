@@ -347,8 +347,8 @@ test("Room 2 collision surfaces do not extend into open space", () => {
   const collisionSource = section(sim, "function collideCorridorShell(before)", "function collide(previousPosition)");
   const makeCollider = (ship, shellCrossed) => new Function(
     "ship", "shellCrossed",
-    "let exteriorFlight = false;\\n" + collisionSource +
-      "\\nreturn { run: collideCorridorShell, isExterior: () => exteriorFlight };"
+    "let exteriorFlight = false;\n" + collisionSource +
+      "\nreturn { run: collideCorridorShell, isExterior: () => exteriorFlight };"
   )(ship, shellCrossed);
   const collide = (before, after) => {
     const ship = { position: { ...after }, velocity: { x: 0, y: 0, z: 0 } };
