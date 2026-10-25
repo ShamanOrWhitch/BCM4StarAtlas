@@ -1,3 +1,13 @@
+## D-038 — Mini-Sim 0.11.17 / Tower 0.2.66: transactional Ring handoff and device-specific Tower text
+
+**Status:** Merged via [PR #80](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/80), commit `d821764610890e84970ba20b354e90e41d1cc6cf`. No WordPress deployment.
+
+- Root-cause risk addressed: Ring setup previously hid the asteroid/ship before the new world and cleanup were fully initialized. A setup failure could then remove the transition overlay but leave the underlying asteroid invisible. Scene switching now happens at the commit point after cleanup is registered; failures restore the original scene snapshot and provide a manual retry.
+- Tower instruction copy is separated for keyboard/mouse, touch/tilt and gamepad. Gamepad instructions adapt to controller count and Single/Multi. Objective text is shortened, with a persistent warning that a fall of five landings returns to start.
+- Source CI passed on PR head `1097fe4b528cfc7695e4df85b76812f545e00803`. Browser smoke was still in progress; live/manual playback is not claimed.
+
+---
+
 ## D-037 — Mini-Sim 0.11.16: rollback asteroid physics and make backside doors proximity-triggered
 
 **Status:** Merged via [PR #79](https://github.com/ShamanOrWitch/BCM4StarAtlas/pull/79) as `07ed389df12a491d987d47507bc42a1d97559af5`. Supersedes D-036 where its widened asteroid flight radius, swept wall collision, and randomly timed sparse doors conflict with this rollback. No WordPress deployment.
