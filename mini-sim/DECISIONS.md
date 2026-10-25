@@ -1,3 +1,17 @@
+## D-033 — Mini-Sim 0.11.12: finite corridor walls and asteroid Warp handoff
+
+**Status:** IMPLEMENTED on candidate branch `fix/minisim-0.11.12-space-boundaries`; focused source regression tests added; CI result pending. Not merged and not deployed. Parent PR #71 retains the user's approved Warp visibility improvements.
+
+- Room 1/Room 2 wall collision must be limited to the finite cross-section of the actual shell. A wall's X/Y plane must not extend through open space; a front/rear cap must not clamp the ship outside the corridor footprint.
+- Preserve real collisions when crossing a Room 2 side wall/front cap, preserve Room 1 sealing, and preserve the normal Room 2 inside-to-space rear exit. Preserve the physical starbase-shell collider.
+- The Room 1 fallback recovery may only repair a penetration when the ship is near the Room 1 cross-section; it must not capture an open-space ship solely because Z overlaps the Room 1 band.
+- Asteroid -> Warp map must retain the current ship position and quaternion. Never teleport to the stale pre-Warp `savedPosition` on this handoff.
+- V keeps its normal Warp role. While asteroid flight is active, V opens the next-destination map; Ring gameplay/transition and Hull Interior remain excluded from this handler. The asteroid's own maze walls and fly-radius remain a separate mechanic.
+- WORK LOCK: [Issue #74](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/74). Do not touch `wordpress/galia-desk`, scanner, pricing/market data, shared assets or the visual geometry from PR #71.
+- Verification boundary: source/CI tests are not live rendering. GitHub browser QA has previously stopped at HTTP 403 before the game container; do not bypass the protection or record a visual PASS without reaching the game.
+
+---
+
 ## D-032 — Mini-Sim 0.11.11: visible Warp hazards and one Panda controls bubble
 
 **Status:** IMPLEMENTED / **TESTED-CODE PASS** on `dbca3b10bbd5f8598a914527bfe481a38cf59a87`; PR #71 is open and not deployed. Mini-Sim regression, UI layer, Warp visual tiers, Warp course/portal, Warp maze return, Ring controls, Hull RU/EN and Tower top-cap CI checks passed. Candidate browser QA [run 40198934895](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40198934895) finished **FAILED/BLOCKED**: HTTP 403 on the target page and timeout waiting for `.bcm-mini-sim`, so the runner never reached the game UI. Do not bypass the firewall or label this a visual code failure. Live visual/device behavior remains unverified.
