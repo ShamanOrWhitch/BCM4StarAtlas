@@ -1,4 +1,15 @@
-## Candidate Mini-Sim 0.11.11 — Warp visibility and Panda controls (25 October 2026)
+## Candidate Mini-Sim 0.11.12 — finite space boundaries + asteroid Warp continuation (25 October 2026)
+
+- **Branch:** `fix/minisim-0.11.12-space-boundaries`; **WORK LOCK:** [Issue #74](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/74).
+- **Parent:** PR #71 candidate `fix/minisim-0.11.11-warp-panda-prompt`, HEAD `864426e50e59e4b6d704ea9ded24e826a059a3db`. Improved Warp rendering and Panda control presentation are retained unchanged.
+- **Reported regressions:** Room 2 collision walls extend into adjacent open space; crossing paths can snap back toward the original launch location; V does not continue from asteroid flight into Warp navigation.
+- **Changes:** side walls/caps collide only where their finite surfaces intersect the ship path; Room 1/Room 2 interior collisions and the Room 2 rear exit are preserved; Room 1 fallback recovery is gated by its cross-section; the exact live asteroid pose is preserved when returning to the Warp map; V opens the next-destination map during asteroid flight; asset cache version is 0.11.12.
+- **Tests:** focused regression cases cover open-space X/Y/Z crossings, real corridor walls/cap, the Room 2 rear exit, and asteroid -> map pose retention. CI is not yet confirmed. Browser QA is BLOCKED if the runner receives HTTP 403 before the game container; no visual PASS is inferred.
+- **Deployment:** none. `wordpress/galia-desk`, scanner, market/pricing data and shared artwork/assets are outside scope.
+
+---
+
+## Previous candidate Mini-Sim 0.11.11 — Warp visibility and Panda controls (25 October 2026)
 
 - **Branch:** `fix/minisim-0.11.11-warp-panda-prompt`; **WORK LOCK:** [Issue #70](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/70).
 - **Baseline:** main `bc77614564aa7bf1f2a211c945006fc258d6aeff` (Mini-Sim 0.11.10 / Tower 0.2.65). This candidate is not merged or deployed.
