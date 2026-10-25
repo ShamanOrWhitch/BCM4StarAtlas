@@ -70,7 +70,7 @@ test("Mini-Sim 0.11.16 cache and all source-contract tests use the same version"
   assert.match(qa, /Version: 0\.11\.15/);
   assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.15'/);
   assert.match(qa, /SPACE LABYRINTH — 0\.11\.15/);
-  assert.ok(uiTests.includes("Version: 0\\.11\\.15"));
-  assert.ok(uiTests.includes("BCM_MINI_SIM_VERSION', '0\\.11\\.15'"));
-  assert.ok(uiTests.includes("SPACE LABYRINTH — 0\\.11\\.15"));
+  assert.ok(uiTests.includes("Version: 0\\.11\\.16"));
+  assert.ok(uiTests.includes("BCM_MINI_SIM_VERSION', '0\\.11\\.16'"));
+  assert.ok(uiTests.includes("SPACE LABYRINTH — 0\\.11\\.16"));
 });
