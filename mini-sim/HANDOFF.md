@@ -1,6 +1,16 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
-## Merged main 0.11.16 — asteroid rollback + approach-triggered backside doors
+## Merged main 0.11.17 / Tower 0.2.66 — Ring recovery and concise controls
+
+- PR [#80](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/80), merge commit `d821764610890e84970ba20b354e90e41d1cc6cf`.
+- Ring setup now commits the scene handoff only after successful world/input/render setup. Failure paths restore asteroid/ship visibility and previous background, remove partial Ring scene children and expose a retry. This is source-verified, not yet confirmed by manual playback on WordPress.
+- Tower copy is split by keyboard/mouse, touch/tilt and gamepad. Controller text updates by Single/Multi and number of gamepads. Objective is short; five-landing fall-to-start warning is persistent.
+- Versions: Mini-Sim `0.11.17`; Tower `0.2.66`. No WordPress upload. Source regression workflows pass on PR head `1097fe4b528cfc7695e4df85b76812f545e00803`; browser smoke was still in progress when this note was written.
+- Keep the previously agreed asteroid physics and backside shell doors from PR #79 untouched.
+
+## Historical handoff — Mini-Sim 0.11.16
+
+## Superseded merged main 0.11.16 — asteroid rollback + approach-triggered backside doors
 
 - PR [#79](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/79), merge commit `07ed389df12a491d987d47507bc42a1d97559af5`.
 - Asteroid physics restored selectively to the 0.11.2 collision/contact/radius behavior. Do not restore the whole old `deep-space-warp.js`: later Warp/Ring/Hydrogen features were kept.
