@@ -63,7 +63,7 @@ test("The cabin remains compact and sci-fi visuals use cool energy colors", () =
   assert.doesNotMatch(hull, /0xffb15a|0xff6b55/);
 });
 
-test("Mini-Sim 0.11.15 cache and all source-contract tests use the same version", () => {
+test("Mini-Sim 0.11.16 cache and all source-contract tests use the same version", () => {
   assert.match(php, /Version: 0\.11\.15/);
   assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.15'/);
   assert.match(php, /SPACE LABYRINTH — 0\.11\.15/);
