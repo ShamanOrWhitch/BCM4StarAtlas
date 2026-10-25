@@ -1,12 +1,12 @@
-## Candidate Mini-Sim 0.11.15 — backside-only Photoli doors, softer asteroid impacts and Hydrogen feedback (25 October 2026)
+## Main state — Mini-Sim 0.11.15 merged (25 October 2026)
 
-- Branch `fix/minisim-0.11.15-photoli-doors-hydrogen-feedback`, PR [#78](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/78); issue [#77](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/77). Based on the merged 0.11.14 main.
+- Merged via [PR #78](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/78) as commit `1b00a801f62506917f533ead12d0524f06159802`; issue [#77](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/77) is closed.
 - The only dynamic door candidates are the outer starbase-shell panels built from `backside*` textures. Room 2 interior walls and asteroid maze walls are explicitly excluded. Room 2 does not become generally passable.
 - The external shell collider accepts a crossing only if the matching selected backside panel is fully OPEN and the ship crosses within that panel's aperture.
 - Asteroid maze collisions zero only the wall-normal component instead of leaving residual impact velocity; tangential motion remains. Exterior radius cap is widened to 58 and removes only outward radial velocity, not all ship speed.
 - Crystal pickups show a stronger pickup flash plus floating `H +1` (or `CORE +1` outside the Hydrogen stage). The existing mission event synchronously advances the Hydrogen count; duplicate crystal IDs remain ignored.
 - New regression cases cover shell-only door selection/opening, solid Room 2 corridor bounds, low-kickback tangential motion and the actual Hydrogen mission counter.
-- CI pending for PR #78. Browser/device visual pass not yet claimed. Not deployed.
+- Source suites passed on the merged PR head: Mini-Sim regression, Warp maze return, Warp visual tiers, UI layer, Ring controls, Tower top-cap, bilingual copy, UI/weapons/cabin and Warp course/portal first-frame. Browser smoke did not reach gameplay because the runner was still installing isolated Playwright; no visual/device pass or WordPress deployment is claimed.
 
 ---
 
