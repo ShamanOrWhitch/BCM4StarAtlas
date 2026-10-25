@@ -1,3 +1,13 @@
+## D-032 — Mini-Sim 0.11.11: visible Warp hazards and one Panda controls bubble
+
+**Status:** IMPLEMENTED / **TESTED-CODE PASS** on `dbca3b10bbd5f8598a914527bfe481a38cf59a87`; PR #71 is open and not deployed. Mini-Sim regression, UI layer, Warp visual tiers, Warp course/portal, Warp maze return, Ring controls, Hull RU/EN and Tower top-cap CI checks passed. Candidate browser QA [run 40198934895](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40198934895) finished **FAILED/BLOCKED**: HTTP 403 on the target page and timeout waiting for `.bcm-mini-sim`, so the runner never reached the game UI. Do not bypass the firewall or label this a visual code failure. Live visual/device behavior remains unverified.
+
+- User reopened Warp after 0.11.10: several obstacles were visually missing, strips read as vertical, and Class II had distracting secondary rails. Compared with the previous renderer, gate obstacles had been reduced to two guide-lines and the base strip count had grown from 12 to 24.
+- The candidate restores segmented high-contrast gates while preserving the safe-angle gap, clear sweeper bars and inward-pointing spike teeth; returns to 12 depth-skewed longitudinal strips and removes extra Class II rails/pulse dots. Decorative circumferential wall hoops and chevrons remain removed.
+- Only drawing geometry/visibility changes. `updateTube` hit logic, speed ramp/64x cap, shimmer clock, OST, route and Tower physics remain unchanged.
+- The separate right-side controls dialog is removed; flight and Warp guidance is shown in the wider Panda operator bubble, whose face remains visible at 420px. Flight copy includes WASD/U/mouse-middle-click/gamepad sticks; Warp copy includes V/gamepad Y and tunnel steering.
+- WORK LOCK: [Issue #70](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/70). Baseline main SHA `bc77614564aa7bf1f2a211c945006fc258d6aeff`. The most recent repeat of remote browser QA still receives HTTP 403 before the game container; do not bypass the firewall and do not call that a visual test. Galia Desk and pricing/scanner files stay untouched.
+
 ## D-031 — Mini-Sim 0.11.5: snapshot before Tower freezes flight
 
 **Status:** candidate source contract; city/return implementation still pending.

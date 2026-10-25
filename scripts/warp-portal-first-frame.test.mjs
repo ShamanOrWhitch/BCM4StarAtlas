@@ -28,7 +28,8 @@ test("Tube rendering is a rotating cylinder, not a fixed trapezoid", () => {
   assert.match(draw, /const twistAt = \(d\) => courseTwist\(d\)/);
   assert.match(draw, /const radiusX = \(d\) =>/);
   assert.match(draw, /const radiusY = \(d\) => radiusX\(d\) \* 0\.91/);
-  assert.match(draw, /Circumferential rings and seams/);
+  assert.doesNotMatch(draw, /Circumferential rings and seams|for \(let ring = 0/);
+  assert.match(draw, /theta \+ \(d - 0\.92\) \* 0\.36/);
   assert.match(draw, /for \(let seam = 0; seam < 12; seam \+= 1\)/);
   assert.match(draw, /g\.rotate\(craftAngle - Math\.PI \/ 2 \+ \(state\.steerBank \|\| 0\)\)/);
   assert.match(draw, /Math\.sin\(loopPhase \+ d \* Math\.PI \* 2\.4\) \* loopMix/);
@@ -46,8 +47,9 @@ test("Tube displays multiple obstacle types and tests collisions against their v
   assert.match(draw, /layer\.type === "gate"/);
   assert.match(draw, /layer\.type === "sweeper"/);
   assert.match(draw, /layer\.type === "spikes"/);
-  assert.match(draw, /layer\.type === "boost"/);
-  assert.match(draw, /layer\.type === "launcher"/);
+  assert.doesNotMatch(draw, /layer\.type === "boost"|layer\.type === "launcher"/);
+  assert.match(update, /layer\.type === "boost"/);
+  assert.match(update, /layer\.type === "launcher"/);
   assert.match(update, /angleDifference\(playerAngle, layer\.safeAngle\)/);
   assert.match(update, /layer\.blockedAngles\.some/);
   assert.match(update, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);

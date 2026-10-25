@@ -1,6 +1,14 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
-## Current main state — Mini-Sim 0.11.8 (24 October 2026)
+## Candidate branch — Mini-Sim 0.11.11 Warp and Panda UI (25 October 2026)
+
+- Branch `fix/minisim-0.11.11-warp-panda-prompt`, lock issue [#70](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/70), based on main `bc77614564aa7bf1f2a211c945006fc258d6aeff` (0.11.10 / Tower 0.2.65). Not merged or deployed.
+- Warp now has 12 gently skewed base strips, no extra Class II rail/pulse overlay, no decorative wall hoops/chevrons, and more visible segmented gates, sweepers and spikes. Hazard draw depth was extended; hit/collision formulas, speed ramp, shimmer clock, audio and navigation were left unchanged.
+- Flight/Warp instructions are routed into the Panda operator bubble. Separate right-side controls markup/styles are removed. Bubble width is increased and Panda stays visible at 420px.
+- **TESTED-CODE: PASS** on branch HEAD `dbca3b10bbd5f8598a914527bfe481a38cf59a87`: Mini-Sim regression [40198934822](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40198934822), UI layer [40198934821](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40198934821), Warp visuals [40198934806](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40198934806), Warp course/portal [40198934805](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40198934805), Warp maze [40198934800](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40198934800), Ring controls [40198934803](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40198934803), Hull RU/EN [40198934801](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40198934801), Tower cap [40198934804](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40198934804). These are code/CI checks, not live visual/device verification. Candidate browser QA [40198934895](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40198934895) **FAILED/BLOCKED**: GitHub Actions got HTTP 403 on `https://walkingyog.com/bcm4sa/` and timed out waiting for `.bcm-mini-sim`; it did not reach the game UI. Do not report this as a visual failure or PASS and do not bypass the firewall. No WordPress deployment or physical device test is claimed.
+- Do not touch `wordpress/galia-desk`, the scanner or pricing data.
+
+## Historical snapshot — Mini-Sim 0.11.8 (24 October 2026; superseded by main 0.11.10)
 
 This entry supersedes the older 0.11.3–0.11.5 candidate notes below; those sections remain as history, not as the current state. Current code is on `main`; Tower remains `0.2.65`. **Nothing has been deployed to the website.**
 

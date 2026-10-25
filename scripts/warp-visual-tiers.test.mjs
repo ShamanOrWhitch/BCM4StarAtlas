@@ -28,7 +28,7 @@ test("Tube view exposes three selectable visual classes; Class IV remains disabl
   for (const tier of [1, 2, 3]) assert.ok(warp.includes('data-warp-tier="' + tier + '"'));
   assert.match(warp, /data-warp-tier="4"[^>]*disabled/);
   assert.match(warp, /data-warp-tier-preview aria-label="Выбор оформления Warp"/);
-  assert.match(warp, /Longitudinal strips — the established Warp look/);
+  assert.match(warp, /Keep the established 12 longitudinal strips/);
   assert.doesNotMatch(warp, /Circumferential rings and seams make the enclosing cylinder legible/);
   assert.match(warp, /window\.BCMDeepSpaceWarpPreviewClass = setWarpVisualPreviewClass/);
   assert.match(warp, /function activeWarpVisualClass\(\)[\s\S]*?Number\(state\.warpPreviewClass\) \|\| Number\(state\.warpVisualClass\)/);
@@ -36,33 +36,42 @@ test("Tube view exposes three selectable visual classes; Class IV remains disabl
   assert.match(warp, /state\.warpPreviewClass = null;\s*updateWarpTierPreviewButtons\(\);\s*tubeResult\.hidden/);
 });
 
-test("Visual Classes II–IV have distinct decorative effects only", () => {
+test("Warp keeps uncluttered longitudinal strips and clearly visible collision hazards", () => {
   const start = warp.indexOf("function drawTubeTunnel");
   const end = warp.indexOf("function drawBackdrop", start);
   assert.ok(start >= 0 && end > start, "Tube drawing function should exist");
   const draw = warp.slice(start, end);
+  const updateStart = warp.indexOf("function updateTube(dt, now)");
+  const updateEnd = warp.indexOf("window.BCMDeepSpaceWarpToggle", updateStart);
+  const update = warp.slice(updateStart, updateEnd);
 
-  assert.match(draw, /if \(visualClass === 2\)[\s\S]*?const railCount = 2/);
-  assert.match(draw, /Class III has a distinct violet identity without circular geometry[\s\S]*?if \(visualClass === 3\)/);
-  assert.doesNotMatch(draw, /Class IV adds heavier twin stargate hoops/);
-  assert.match(draw, /Two longitudinal guide-lines mark the safe opening/);
-  const classIIStart = draw.indexOf("if (visualClass === 2)");
-  const classIIIStart = draw.indexOf("// Class III", classIIStart);
-  assert.doesNotMatch(draw.slice(classIIStart, classIIIStart), /g\.arc\(/);
-  assert.doesNotMatch(draw.slice(classIIStart, classIIIStart), /globalCompositeOperation = "lighter"/);
+  assert.match(draw, /for \(let seam = 0; seam < 12; seam \+= 1\)/);
+  assert.match(draw, /theta \+ \(d - 0\.92\) \* 0\.36/);
+  assert.doesNotMatch(draw, /for \(let seam = 0; seam < 24/);
+  assert.doesNotMatch(draw, /for \(let ring = 0; ring < 17/);
+  assert.doesNotMatch(draw, /railCount|railSpin|pulseDepth/);
+  assert.match(draw, /const pieces = 32/);
+  assert.match(draw, /angleDifference\(\(from \+ to\) \* 0\.5, layer\.safeAngle\)/);
+  assert.match(draw, /rgba\(255,112,86,0\.98\)/);
+  assert.match(draw, /Bright inward-pointing hazard teeth/);
+  assert.doesNotMatch(draw, /Two longitudinal guide-lines mark the safe opening/);
   assert.doesNotMatch(draw, /const chevron = point\(/);
   assert.doesNotMatch(draw, /const gateMark = point\(/);
   assert.match(draw, /const routeProgress = warpObstacleProgress\(state\.elapsed\)/);
-  assert.doesNotMatch(draw, /new THREE\.WebGLRenderer/);
+  assert.match(update, /layer\.type === "gate"/);
+  assert.match(update, /layer\.type === "sweeper"/);
+  assert.match(update, /layer\.type === "spikes"/);
+  assert.match(update, /layer\.type === "boost"/);
+  assert.match(update, /layer\.type === "launcher"/);
   assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
   assert.match(warp, /window\.BCMDeepSpaceWarpSetDriveSlot = \(slotSize\) =>/);
 });
 
-test("Mini-Sim 0.11.10 cache/version contracts are synchronized", () => {
-  assert.match(plugin, /Version: 0\.11\.10/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.10'\)/);
-  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.10/);
-  assert.match(qa, /Version: 0\.11\.10/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.10'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.10/);
+test("Mini-Sim 0.11.11 cache/version contracts are synchronized", () => {
+  assert.match(plugin, /Version: 0\.11\.11/);
+  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.11'\)/);
+  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.11/);
+  assert.match(qa, /Version: 0\.11\.11/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.11'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.11/);
 });

@@ -1,3 +1,11 @@
+## Active Work Lock — Mini-Sim 0.11.11 Warp/Panda regression (25 October 2026)
+
+- Issue: [#70](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/70); branch: `fix/minisim-0.11.11-warp-panda-prompt`.
+- Baseline main SHA: `bc77614564aa7bf1f2a211c945006fc258d6aeff` (Mini-Sim 0.11.10 / Tower 0.2.65).
+- Owned paths: `mini-sim/assets/js/deep-space-warp.js`, `mini-sim/assets/js/mini-sim.js`, `mini-sim/assets/css/mini-sim.css`, `mini-sim/bcm-mini-sim.php`, focused Warp/dialogue/QA tests and Mini-Sim state/handoff/decision docs.
+- Keep the patch limited to Warp drawing readability and Panda controls presentation. Preserve collision formulas, speed/shimmer timing, audio, navigation, Tower physics and all Galia Desk/scanner/pricing data.
+- Issue #43's older `feat/hull-ring-repair-loop` branch also touched Warp but is 187 commits behind main; do not merge it wholesale. Test and browser status are recorded in the candidate handoff; browser HTTP 403 is BLOCKED, not visual PASS.
+
 ## Кандидат — Mini-Sim 0.11.5 Astral phase
 - Branch: minisim-0.11.5-astral-phase, stacked on PR #66 / 0.11.4 and PR #65 / 0.11.3. Not merged or deployed.
 - Y-layer cells select deterministic Drift/Flux/Dense gravity from asteroid seed + cell coordinates. Keep maze topology/crystal RNG unchanged and preserve existing texture assets/rotations.

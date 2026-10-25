@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.10",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.11",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.10",
+      title: "SPACE LABYRINTH — 0.11.11",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -136,12 +136,8 @@
       '<div class="bcm-comic-dialog-avatar" aria-hidden="true"><span data-operator-avatar-fallback>✦</span><video data-operator-avatar-video hidden muted autoplay playsinline loop preload="auto"></video></div>' +
       '<div class="bcm-comic-dialog-copy"><strong data-dialog-speaker>ОПЕРАТОР</strong><p data-dialog-message></p><div class="bcm-comic-dialog-choices" data-dialog-choices></div></div>' +
       '<button type="button" class="bcm-comic-dialog-close" data-dialog-close="operator" aria-label="Close">×</button>' +
-    '</section>' +
-    '<section class="bcm-comic-dialog bcm-comic-dialog-controls" data-dialog-box="controls" hidden aria-live="polite">' +
-      '<div class="bcm-comic-dialog-avatar" aria-hidden="true">⌘</div>' +
-      '<div class="bcm-comic-dialog-copy"><strong data-dialog-controls-title>УПРАВЛЕНИЕ</strong><p data-dialog-controls-message></p></div>' +
-      '<button type="button" class="bcm-comic-dialog-close" data-dialog-close="controls" aria-label="Close">×</button>' +
     '</section>';
+
   document.body.appendChild(dialogueRoot);
 
   const operatorDialog = dialogueRoot.querySelector('[data-dialog-box="operator"]');
@@ -154,8 +150,6 @@
   let safeModeEnabled = false;
   try { safeModeEnabled = localStorage.getItem("bcm-mini-sim-safe-mode") === "1"; } catch (e) {}
   let activeOperatorAvatarAsset = "panda.mp4";
-  const controlsDialog = dialogueRoot.querySelector('[data-dialog-box="controls"]');
-  const controlsMessage = dialogueRoot.querySelector("[data-dialog-controls-message]");
   let operatorDialogTimer = 0;
   let controlsDialogTimer = 0;
 
@@ -265,9 +259,9 @@
   }
 
   function hideControlsDialog() {
+    // Backward-compatible API: controls now live in the Panda operator bubble.
     if (controlsDialogTimer) window.clearTimeout(controlsDialogTimer);
     controlsDialogTimer = 0;
-    if (controlsDialog) controlsDialog.hidden = true;
   }
 
   function showOperatorDialog(speaker, message, choices, avatarAsset) {
@@ -299,7 +293,6 @@
   }
 
   function showControlsDialog(level) {
-    if (!controlsDialog) return;
     hideControlsDialog();
     let key = "controlsKeyboard";
     const touch = !!(("ontouchstart" in window) || navigator.maxTouchPoints > 0);
@@ -307,11 +300,9 @@
     try { padConnected = [...(navigator.getGamepads ? navigator.getGamepads() : [])].some((pad) => pad && pad.connected); } catch (e) {}
     if (touch) key = "controlsTouch";
     else if (padConnected) key = "controlsGamepad";
+
+    const normalizedLevel = String(level || "").toLowerCase();
     const levelText = {
-      warp: {
-        ru: {controlsKeyboard:"Warp: мышь/стик — курс, Enter — меню.",controlsTouch:"Warp: наклон телефона или кнопки ◀ ▶; уклоняйся от колец.",controlsGamepad:"Warp: стик рулит по кольцу; A подтверждает, B отменяет."},
-        en: {controlsKeyboard:"Warp: mouse/stick steers. Enter opens menu.",controlsTouch:"Warp: tilt or use ◀ ▶; dodge the rings.",controlsGamepad:"Warp: stick steers around the tunnel; A confirms, B cancels."}
-      },
       ring: {
         ru: {controlsKeyboard:"Ring: ← → или A/D — бег; Space — прыжок; E — цель; Q — лазер.",controlsTouch:"Ring: ◀ ▶ — бег, ПРЫЖОК — прыжок, ЛАЗЕР — выстрел, действие — цель.",controlsGamepad:"Ring: стик — бег; A — прыжок; X — цель; Y — оружие."},
         en: {controlsKeyboard:"Ring: ← → or A/D move; Space jumps; E targets; Q fires.",controlsTouch:"Ring: ◀ ▶ move, JUMP jumps, FIRE shoots, action targets.",controlsGamepad:"Ring: stick moves; A jumps; X targets; Y fires."}
@@ -325,13 +316,23 @@
         en: {controlsKeyboard:"Tower: move with keys or stick. Esc exits.",controlsTouch:"Tower: use direction and jump buttons. Esc exits.",controlsGamepad:"Tower: left stick moves, A jumps. Esc exits."}
       }
     };
-    const specific = levelText[String(level || "").toLowerCase()]?.[interfaceLanguage]?.[key];
-    controlsMessage.textContent = specific || textForLanguage(key);
-    controlsDialog.querySelector("[data-dialog-controls-title]").textContent = interfaceLanguage === "ru" ? "УПРАВЛЕНИЕ" : "CONTROLS";
-    controlsDialog.hidden = false;
-    controlsDialogTimer = window.setTimeout(hideControlsDialog, 26000);
-  }
 
+    let message = null;
+    if (normalizedLevel === "flight") {
+      message = interfaceLanguage === "en"
+        ? "Welcome, pilot. WASD flies the ship; U opens the hold. Mouse looks around; press the mouse wheel (middle-click) to release the cursor. On a gamepad, the left stick flies and the right stick looks. Fly close to screens to activate them."
+        : "Привет, пилот! WASD — полёт; U — трюм. Мышь — обзор; нажми колёсико (среднюю кнопку), чтобы освободить курсор. На геймпаде: левый стик — полёт, правый — обзор. Подлетай к экранам, чтобы активировать их.";
+    } else if (normalizedLevel === "warp") {
+      message = interfaceLanguage === "en"
+        ? "Warp: press V to open the map; press Y on a gamepad. Choose a sector and press START WARP. In the tunnel, hold and move the mouse or steer with A/D / ← →; use the left stick on a gamepad."
+        : "Warp: V — открыть карту; на геймпаде — Y. Выбери сектор и нажми START WARP. В тоннеле удерживай и веди мышь или управляй A/D / ← →; на геймпаде — левый стик.";
+    } else {
+      message = levelText[normalizedLevel]?.[interfaceLanguage]?.[key] || textForLanguage(key);
+    }
+
+    // Keep all control prompts next to Panda's face. Never open a second panel on the right.
+    showOperatorDialog("ПАНДА", message, null, "panda.mp4");
+  }
   dialogueRoot.querySelectorAll("[data-dialog-close]").forEach((button) => {
     button.addEventListener("click", () => {
       if (button.getAttribute("data-dialog-close") === "operator") hideOperatorDialog();
