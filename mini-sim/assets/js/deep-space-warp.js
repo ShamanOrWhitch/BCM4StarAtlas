@@ -184,9 +184,10 @@
         state.ringPlatformer = false;
         if (!attemptOpenRingPlatformer(maze, true)) {
           state.ringPlatformer = false;
-          // If runtime startup failed after the transition, let the pilot retry
-          // instead of leaving the nearby Ring entry permanently disarmed.
+          // Keep a manual retry available, but don't retrigger the same failing
+          // transition every frame. Clear this latch once the ship leaves the beacon.
           state.ringApproachArmed = true;
+          state.ringEntryFailed = true;
           if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
           stopRingAudio(true);
           syncRingButtonVisibility();
