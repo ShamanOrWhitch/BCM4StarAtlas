@@ -424,8 +424,9 @@ test("every backside shell tile is a proximity door; Room 2 corridor walls remai
   assert.ok(shellCollider.includes('hasOpenBacksideDoor("y"'));
   assert.ok(shellCollider.includes('hasOpenBacksideDoor("z"'));
   const corridorCollider = section(sim, "function collideCorridorShell(before)", "function collide(previousPosition)");
-  assert.ok(corridorCollider.includes("if (openBacksidePassage)"));
-  assert.ok(!corridorCollider.includes("leavingThroughCorridor || openBacksidePassage"));
+  assert.ok(corridorCollider.includes('hasOpenBacksideDoor("z", room.rearZ, before, after)'));
+  assert.ok(corridorCollider.includes("if (rearPassageOpen)"));
+  assert.ok(!corridorCollider.includes("else if (before.z > room.rearZ && after.z < room.rearZ)"));
 });
 
 test("a backside passage needs every tile under the ship footprint fully open", () => {
