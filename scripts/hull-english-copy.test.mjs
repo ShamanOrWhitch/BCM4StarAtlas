@@ -64,13 +64,13 @@ test("The cabin remains compact and sci-fi visuals use cool energy colors", () =
 });
 
 test("Mini-Sim 0.11.14 cache and all source-contract tests use the same version", () => {
-  assert.match(php, /Version: 0\.11\.13/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.13'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.11\.13/);
-  assert.match(qa, /Version: 0\.11\.13/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.13'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.13/);
-  assert.ok(uiTests.includes("Version: 0\\.11\\.13"));
-  assert.ok(uiTests.includes("BCM_MINI_SIM_VERSION', '0\\.11\\.13'"));
-  assert.ok(uiTests.includes("SPACE LABYRINTH — 0\\.11\\.13"));
+  assert.match(php, /Version: 0\.11\.14/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.14'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.11\.14/);
+  assert.match(qa, /Version: 0\.11\.14/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.14'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.14/);
+  assert.ok(uiTests.includes("Version: 0\\.11\\.14"));
+  assert.ok(uiTests.includes("BCM_MINI_SIM_VERSION', '0\\.11\\.14'"));
+  assert.ok(uiTests.includes("SPACE LABYRINTH — 0\\.11\\.14"));
 });
