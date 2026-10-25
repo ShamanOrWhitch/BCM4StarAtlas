@@ -348,6 +348,26 @@ test("Ring entry failures are retryable and don't disable the asteroid collision
 });
 
 
+test("Ring initialization is transactional and restores the asteroid on setup failure", () => {
+  const entry = section(warp, "function attemptOpenRingPlatformer(maze, afterTransition = false)", "if (typeof MutationObserver");
+  assert.match(entry, /const snapshot = \\{/);
+  assert.match(entry, /sceneChildren: new Set/);
+  assert.match(entry, /function restoreEntrySnapshot\\(\\)/);
+  assert.match(entry, /partialCleanup/);
+  assert.match(entry, /snapshot\\.mazeGroup\\.visible = snapshot\\.mazeVisible/);
+  assert.match(entry, /snapshot\\.shipVisual\\.visible = snapshot\\.shipVisible/);
+  assert.match(entry, /snapshot\\.scene\\.background = snapshot\\.sceneBackground/);
+  assert.match(entry, /RING ENTRY FAILED · ASTEROID RESTORED/);
+
+  const ring = section(warp, "function openRingPlatformer(maze, afterTransition = false)", "function finishRingPlatformer");
+  const cleanupReady = ring.indexOf("state.ringPlatformerCleanup = () => {");
+  assert.ok(cleanupReady >= 0);
+  assert.ok(ring.indexOf("maze.group.visible = false;") > cleanupReady,
+    "do not hide the asteroid before failure cleanup is registered");
+  assert.ok(ring.indexOf("scene.background = new THREE.Color(0x030812)") > cleanupReady,
+    "commit the Ring scene switch only after setup is ready");
+});
+
 test("Room 2 collision surfaces do not extend into open space", () => {
   const collisionSource = section(sim, "function collideCorridorShell(before)", "function collide(previousPosition)");
   const makeCollider = (ship, shellCrossed) => new Function(
