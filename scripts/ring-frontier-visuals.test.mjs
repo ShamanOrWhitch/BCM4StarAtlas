@@ -64,7 +64,8 @@ test("Ring cell maze exposes a route to the large boss arena and fallback transi
   assert.match(warp, /function nextDirectionTowardLarge\(startNode\)/);
   assert.match(warp, /const firstStep = new Map\(\[\[startNode, null\]\]\)/);
   assert.match(warp, /path\.nextDirectionTowardLarge\(node\)/);
-  assert.match(warp, /if \(!nextNode\) \{[\s\S]*?path\.nextDirectionTowardLarge\(node\)/);
+  assert.doesNotMatch(warp, /nextDirection = path\.nextDirectionTowardLarge\(node\) \|\|/);
+  assert.match(warp, /const verticalDirection = input\.down \? "yn" : "yp"/);
   assert.match(warp, /world\.group\.visible = !!node\.large/);
   assert.match(warp, /group\.name = "ring-boss-" \+ \(index \+ 1\)/);
 });
@@ -76,6 +77,6 @@ test("Ring disposes generated backdrop textures when leaving the location", () =
 });
 
 test("Mini-Sim cache version is bumped for the Ring art update", () => {
-  assert.match(plugin, /Version: 0\.11\.8/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.8'\)/);
+  assert.match(plugin, /Version: 0\.11\.9/);
+  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.9'\)/);
 });

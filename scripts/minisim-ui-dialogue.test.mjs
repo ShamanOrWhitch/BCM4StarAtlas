@@ -111,7 +111,7 @@ test("Hydrogen mission unlocks only after required screens really play and is an
   assert.match(warp, /g\.fillText\("H"/);
   assert.match(warp, /function collectHydrogenAt\(player\)/);
   assert.match(warp, /playerNode !== path\.hydrogenNode/);
-  assert.match(warp, /new CustomEvent\("bcm:mission:hydrogen-collected"/);
+  assert.match(warp, /new CustomEvent\("bcm:mission:hydrogen-shard-collected"/);
 });
 
 test("ONICSS uses the paused video frame at distance and never a duplicate station-textured planet", () => {
@@ -121,6 +121,16 @@ test("ONICSS uses the paused video frame at distance and never a duplicate stati
   assert.ok(mini.includes('if (item.towerGate && item.url)'));
   assert.ok(mini.includes('video.pause();'));
   assert.ok(warp.includes('copy.image = tex.image;'));
+});
+
+test("Hydrogen requires three unique shards and switches from Panda to Medusa", () => {
+  assert.match(mini, /hydrogenRequired = 3/);
+  assert.match(mini, /hydrogenCollectedIds\[id\]/);
+  assert.match(mini, /worldMission\.hydrogenCount = Math\.min\(3, worldMission\.hydrogenCount \+ 1\)/);
+  assert.match(mini, /"panda\.mp4"/);
+  assert.match(mini, /"medusa\.mp4"/);
+  assert.match(mini, /bcm:mission:medusa-unlocked/);
+  assert.match(warp, /asteroid-crystal-pickup-impact/);
 });
 
 test("Explicit screen focus persists until its own radius expires and mission progress stays visible", () => {
@@ -133,16 +143,16 @@ test("Explicit screen focus persists until its own radius expires and mission pr
   assert.doesNotMatch(noZones, /cinema\.focus = null/);
   assert.ok(mini.includes('missionLabel.textContent = interfaceLanguage === "en"'));
   assert.ok(mini.includes("SCREENS ONLINE: "));
-  assert.ok(mini.includes("MISSION COMPLETE: HYDROGEN RECOVERED"));
+  assert.ok(mini.includes("RETURN TO ONI CSS · X -40 / Y 30"));
 });
 
-test("0.11.8 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
-  assert.match(php, /Version: 0\.11\.8/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.8'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.11\.8/);
-  assert.match(qa, /Version: 0\.11\.8/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.8'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.8/);
+test("0.11.9 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
+  assert.match(php, /Version: 0\.11\.9/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.9'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.11\.9/);
+  assert.match(qa, /Version: 0\.11\.9/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.9'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.9/);
   assert.match(browserWorkflow, /timeout-minutes: 45/);
   assert.match(browserWorkflow, /timeout-minutes: 20/);
   assert.match(browserWorkflow, /timeout-minutes: 25/);

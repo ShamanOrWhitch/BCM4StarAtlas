@@ -28,7 +28,7 @@ test("Flight starts in Room 1 and does not teleport into the asteroid", async ()
   const begin = mini.slice(mini.indexOf("function beginFlight()"), mini.indexOf("const byName = Object.create(null)"));
   assert.doesNotMatch(begin, /BCMDeepSpaceWarpEnterAsteroid\s*\(/);
   assert.match(mini, /ship\.position = new THREE\.Vector3\(0, 0, 2\)/);
-  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.8/);
+  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.9/);
 });
 
 test("Asteroid walls are resolved from the prepared asterwall asset family", async () => {
@@ -208,7 +208,7 @@ test("Hydrogen unlock follows real screen playback and places the collectible in
   assert.match(warp, /hydrogenNode: start/);
   assert.match(warp, /g\.fillText\("H"/);
   assert.match(warp, /playerNode !== path\.hydrogenNode/);
-  assert.match(warp, /new CustomEvent\("bcm:mission:hydrogen-collected"/);
+  assert.match(warp, /new CustomEvent\("bcm:mission:hydrogen-shard-collected"/);
   assert.match(warp, /hydrogen: hydrogen \?/);
 });
 
@@ -222,7 +222,12 @@ test("Astral Y-cells are seed-deterministic and alter movement without rebuildin
   assert.match(warp, /const haveSeparateCells = !!\(p1\.ringCurrent && p2\.ringCurrent && p1\.ringCurrent !== p2\.ringCurrent\)/);
   assert.match(warp, /function nextDirectionTowardLarge\(startNode\)/);
   assert.match(warp, /routeDirection = path\.nextDirectionTowardLarge\(node\)/);
-  assert.match(warp, /if \(!nextNode\) \{[\s\S]*?path\.nextDirectionTowardLarge\(node\)/);
+  assert.match(warp, /asteroid-crystal-pickup-impact/);
+  assert.match(warp, /bcm:mission:hydrogen-shard-collected/);
+  assert.doesNotMatch(warp, /nextDirection = path\.nextDirectionTowardLarge\(node\) \|\|/);
+  assert.match(warp, /const verticalDirection = input\.down \? "yn" : "yp"/);
+  assert.match(warp, /sealedWallRight\.visible = !node\.large && !rightDoor/);
+  assert.match(warp, /ring-cell-vertical-portal/);
   assert.match(warp, /placeParty\(enterRingCell\(worldState, nextNode,[\s\S]*?player\), player\)/);
   assert.doesNotMatch(warp, /placeParty\(enterRingCell\(worldState, right, "left"\)\);/);
   assert.ok(warp.includes('astralPhase: ((hashSeed(String(maze.seed) + "|phase|" + cell.x + "|" + cell.y + "|" + cell.z) / 0xffffffff) * Math.PI * 2)'));
