@@ -1,4 +1,13 @@
-## Main state — Mini-Sim 0.11.16 merged (25 October 2026)
+## Main state — Mini-Sim 0.11.17 / Tower 0.2.66 (26 October 2026)
+
+- Merged via [PR #80](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/80), commit `d821764610890e84970ba20b354e90e41d1cc6cf`.
+- **Ring handoff:** the asteroid and ship remain visible until Ring's world, controls, renderer and cleanup routine are ready. Entry snapshots the old scene. If initialization throws or returns false, partial Ring state is cleaned up and the original asteroid visibility, ship visibility, background and scene children are restored; the Ring button remains retryable. The post-video failure path now displays a status instead of silently leaving empty space.
+- **Tower text:** keyboard/mouse, touch/tilt and gamepad each have short device-specific instructions. Gamepad help adapts to Single/Multi and the number of connected controllers. Single objective is `ПОРА СПУСТИТЬСЯ ВНИЗ`; Multi is `КТО ПЕРВЫМ СПУСТИТСЯ ВНИЗ?`. Persistent warning: falling five landings returns to the start.
+- Mini-Sim/cache/title version: `0.11.17`; Tower version: `0.2.66`. No WordPress deployment.
+- Source CI on PR head `1097fe4b528cfc7695e4df85b76812f545e00803`: Ring, Mini-Sim, UI, Tower, Warp, Hull Dive and portal regressions PASS. Browser smoke was still running when this state note was written; it is not counted as a live pass. Manual game/video/device testing remains unverified.
+- The preceding 0.11.16 section is historical and describes the prior asteroid rollback/door fix.
+
+## Superseded state — Mini-Sim 0.11.16 (25 October 2026)
 
 - Merged via [PR #79](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/79) as commit `07ed389df12a491d987d47507bc42a1d97559af5`; this supersedes the 0.11.15 asteroid-contact and shell-door behavior documented below.
 - **Asteroid rollback:** only the asteroid collision / exterior flight-radius block was restored to the 0.11.2 baseline. It uses the previous two-pass overlap resolver, damps the contacting velocity component by 0.15, retains the 43.2 flight-radius limit and the historical radial-boundary slowdown. Newer Warp, Ring, Hydrogen pickup, route generation, and unrelated Tower code remain in place.
