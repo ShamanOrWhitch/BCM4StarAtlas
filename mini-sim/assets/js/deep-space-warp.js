@@ -563,6 +563,11 @@
           '</div>' +
           '<p class="bcm-warp-explainer" data-warp-current></p>' +
           '<div class="bcm-warp-source" data-warp-source></div>' +
+          '<div class="bcm-warp-galaxy-panel">' +
+            '<div class="bcm-warp-galaxy-heading"><strong>GALAXY MAP</strong><span data-warp-galaxy-status>СХЕМА ГАЛАКТИКИ · ТЕКУЩИЙ СЕКТОР</span></div>' +
+            '<canvas class="bcm-warp-galaxy-map" data-warp-galaxy-map tabindex="0" role="img" aria-label="Схематичная карта Галактики. Выберите доступный сектор мышью; клавиатурой можно перемещать фокус по целям."></canvas>' +
+            '<div class="bcm-warp-galaxy-legend"><span><i class="is-current"></i> CURRENT</span><span><i class="is-link"></i> CONNECTED</span><span><i class="is-route"></i> ROUTE</span><small>Фон условный; отмеченные сектора и маршрут берутся из доступной навигации.</small></div>' +
+          '</div>' +
           '<div class="bcm-warp-grid" data-warp-grid hidden aria-label="Соседние клетки вокруг ONI CSS"></div>' +
           '<div class="bcm-warp-sector-list" data-warp-sectors></div>' +
           '<form class="bcm-warp-manual" data-warp-manual><label>Доп. тестовая клетка <span>X</span><input name="x" type="number" step="1" value="-39" inputmode="numeric"></label><label><span>Y</span><input name="y" type="number" step="1" value="30" inputmode="numeric"></label><button type="submit">ВЫБРАТЬ</button></form>' +
@@ -596,6 +601,10 @@
     const gridElement = overlay.querySelector("[data-warp-grid]");
     const currentElement = overlay.querySelector("[data-warp-current]");
     const sourceElement = overlay.querySelector("[data-warp-source]");
+    const galaxyMap = overlay.querySelector("[data-warp-galaxy-map]");
+    const galaxyMapStatus = overlay.querySelector("[data-warp-galaxy-status]");
+    const galaxyMapCtx = galaxyMap ? galaxyMap.getContext("2d") : null;
+    let galaxyMapPoints = [];
     const selectedElement = overlay.querySelector("[data-warp-selected]");
     const footnoteElement = overlay.querySelector("[data-warp-footnote]");
     const manualForm = overlay.querySelector("[data-warp-manual]");
