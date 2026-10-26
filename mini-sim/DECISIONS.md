@@ -1,3 +1,17 @@
+## D-042 — Mini-Sim 0.11.21 playtest stabilization
+
+**Status:** repair candidate on branch `fix/minisim-0.11.21-playtest-stability`, baseline `73ba0cc1f772d73155a093382fce051e1e2843ae`, Work Lock [#84](https://github.com/ShamanOrWitch/BCM4StarAtlas/issues/84), draft PR [#85](https://github.com/ShamanOrWitch/BCM4StarAtlas/pull/85). Not deployed.
+
+- User playtest confirms Ring entry and backside exterior doors work. Preserve these, the same-seed wall textures, optional boss route, and Tower physics.
+- Ring mission crystals must not mutate the 3D flight's transient crystal flags. `BCMWorldMission.hydrogenCount` remains authoritative; stable crystal IDs prevent duplicates.
+- Space/W is jump only. E follows the marked door route; R / gamepad LB explicitly changes floor at a vertical hatch.
+- Room 2 exits through the central front passage in both directions; collisions outside the opening remain solid.
+- Warp variety means a shuffled set of obstacle families, a maximum of two gate barriers among 16 layers, no adjacent duplicate family and a wider gate opening — not more repeated rings.
+- Tower Panda copy explains the real controls and descent goal. Network play remains deferred while local gameplay and ship/reference identity are unresolved.
+- Source/CI tests must pass before merge. Live WordPress/device behaviour remains unverified.
+
+---
+
 ## D-041 — Mini-Sim 0.11.20: Warp button after the screens, landing clip, same asteroid on foot
 
 **Status:** Source change on top of merged 0.11.19 (PR #82). No WordPress deployment. V is Warp. U is the hold. X is the helm. Do not shrink flyRadius. Do not reopen Tower physics or Room 2 walls.
