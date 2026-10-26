@@ -1,3 +1,12 @@
+## Active — WORK LOCK #84: stabilize Mini-Sim after the user's playtest (26 October 2026)
+
+- Branch `fix/minisim-0.11.21-playtest-stability`; baseline `73ba0cc1f772d73155a093382fce051e1e2843ae`; candidate Mini-Sim 0.11.21 / Tower 0.2.66; draft PR [#85](https://github.com/ShamanOrWitch/BCM4StarAtlas/pull/85).
+- Scope: Ring Hydrogen count and explicit door/floor controls; Room 2 central return; non-repetitive Warp course; Tower Panda copy; focused regression tests and handoff documentation.
+- Preserve USER-CONFIRMED Ring entry and external backside doors. Keep Tower physics, Galia Desk, scanner/pricing, SAGE adapter, planet placement and firewall unchanged.
+- Do not implement network mode in this lock. Local gameplay and ship/reference identity come first. Do not claim live verification; the remote browser runner receives HTTP 403.
+
+---
+
 ## Active — Mini-Sim 0.11.20 landing clip, Warp after screens, walkable asteroid (26 October 2026)
 
 - 0.11.19 is already merged (PR #82). This pass puts the Warp button in the second Panda line, restores the landing clip before the Ring menu, skins the side view with this asteroid's textures, and keeps every seed finishable: Hydrogen, then back to the landing. Bosses are occasional, not a gate on every room.
