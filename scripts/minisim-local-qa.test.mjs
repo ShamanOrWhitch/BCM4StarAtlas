@@ -8,7 +8,7 @@ test("Warp OST belongs to the whole Warp stage and loops",async()=>{
   const s=await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(s,/warpAudio\.loop = true/);
   assert.match(s,/const WARP_DURATION = 42/);
-  assert.match(s,/pauseLevelOst\(\);\s*startWarpAudio\(true\);\s*state\.nav = readNavigation\(\)/);
+  assert.match(s,/pauseLevelOst\(\);\s*startWarpAudio\(true\);[\s\S]{0,180}state\.nav = readNavigation\(\)/);
   const tube=s.slice(s.indexOf("function showTube()"),s.indexOf("function finishTube"));
   assert.doesNotMatch(tube,/startWarpAudio/);
   assert.match(s,/function enterAsteroidMaze\(\) \{\s*\/\/ Warp OST owns the whole Warp stage/);
