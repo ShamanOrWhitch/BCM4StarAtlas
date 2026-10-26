@@ -266,8 +266,8 @@ test("Tower handoff preserves the arrival ship snapshot and active Tower seed fo
   assert.match(warp, /window\.BCMDeepSpaceWarpGetReturnSnapshot = \(\) =>/);
   assert.match(tower, /window\.BCMWorldMission\.towerSeed = seed/);
   assert.match(tower, /originShipSnapshot\.towerSeed = seed/);
-  assert.match(towerPhp, /define\('BCM_TOWER_VERSION', '0\.2\.66'\)/);
-  assert.match(tower, /const TOWER_VERSION = "0\.2\.66"/);
+  assert.match(towerPhp, /define\('BCM_TOWER_VERSION', '0\.2\.67'\)/);
+  assert.match(tower, /const TOWER_VERSION = "0\.2\.67"/);
 });
 
 test("Tower shows short controls for the active device and a clear descent/fall objective", async () => {
