@@ -96,12 +96,22 @@ test("Class II reverses the directional Warp streak logic", () => {
   assert.match(frame, /reverseStreaks \? sx : tx/);
 });
 
-test("Warp menu has an interactive schematic Galaxy map", () => {
+test("Warp draws a real 2D SAGE coordinate plane and a separate sector-location layer", () => {
   assert.match(warp, /class="bcm-warp-galaxy-map" data-warp-galaxy-map/);
   assert.match(warp, /function renderGalaxyMap\(\)/);
-  assert.match(warp, /LIVE SECTOR LINKS/);
-  assert.match(warp, /SCHEMATIC GALAXY/);
-  assert.match(warp, /if \(nearest && best <= 24\) selectTarget\(nearest\.sector\)/);
+  assert.match(warp, /SAGE_STAR_REFERENCE_POINTS/);
+  assert.match(warp, /SAGE_CSS_REFERENCE_POINTS/);
+  assert.match(warp, /nav\.adapter\.sectors/);
+  assert.match(warp, /SAGE XY/);
+  assert.match(warp, /−50 … \+50/);
+  assert.match(warp, /if \(nearest && best <= 15\) selectTarget\(nearest\.sector\)/);
+  assert.match(warp, /function renderSectorLocations\(sector\)/);
+  assert.match(warp, /local-asteroid-complex/);
+  assert.match(warp, /akenat-planet/);
+  assert.match(warp, /Pearce/);
+  assert.match(warp, /Ioki/);
+  assert.match(warp, /Deep Space · внешняя зона/);
+  assert.doesNotMatch(warp.slice(warp.indexOf("function renderGalaxyMap"), warp.indexOf("galaxyMap\?\.addEventListener")), /for \(let arm = 0; arm < 4/);
   assert.match(warp, /renderGalaxyMap\(\);\s*focusInitialMapChoice\(\)/);
   assert.match(warp, /engine\.releaseFlightPointerLock\(\)/);
   assert.match(warp, /function focusInitialMapChoice\(\)/);
