@@ -64,6 +64,7 @@ test("Ring route-crystal state is independent from flight pickups and HUD reads 
 test("Ring jump is not a floor transition; E/R and gamepad LB have separate actions", () => {
   assert.match(warp, /const oneShotActions = new Set\(\["activate", "dash", "floor"\]\)/);
   assert.match(warp, /if \(action === "floor"\)/);
+  assert.match(warp, /const preferred = player\.ringFloorDirection \|\|/);
   assert.match(warp, /const p1Floor = event\.code === "KeyR"/);
   assert.match(warp, /const p2Floor = event\.code === "KeyI"/);
   assert.match(warp, /statePad\.floor = !!button\(4\)/);
