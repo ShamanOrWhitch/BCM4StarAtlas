@@ -3,9 +3,9 @@
 ## Candidate Mini-Sim 0.11.21 — user playtest stability
 
 - Work Lock [#84](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/84), draft PR [#85](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/85), branch `fix/minisim-0.11.21-playtest-stability`, base main `73ba0cc1f772d73155a093382fce051e1e2843ae`.
-- User confirmed Ring entry and external backside doors work on 0.11.19/0.11.20; Ring is improved but remains rough. Hydrogen count, Room 2 return, explicit floor interaction, Tower instructions and Warp diversity are active fixes.
+- User confirmed Ring entry and external backside doors work on 0.11.19/0.11.20; Ring is improved but remains rough. Hydrogen count, Room 2 return, explicit floor interaction and Tower instructions remain active fixes. New Warp playtest direction: keep all 22 layers and the randomized obstacle mix, accelerate sooner to 12x, reverse Class II streak direction, and make menu cursor/keyboard/gamepad selection work without an Escape workaround.
 - Controls contract: Space/W only jumps; E follows the open door; R changes floor at a vertical hatch; gamepad A jumps, X uses the door, LB changes floor, Y fires and B dashes.
-- Warp course: 16 varied layers, at most two gates, no adjacent duplicate families and wider safe gaps. Preserve collision formulas and steering.
+- Warp course: restore the 22-layer randomized gate/sweeper/spikes/boost/launcher mix; do not cut layers to reduce repeated-looking visuals. Speed uses a shared collision/visual progress curve, accelerating sooner from 1x to 12x. Class II reverses streak motion. Warp map opens with pointer lock released and an initial focused choice; use arrows/Enter or gamepad navigation. Galaxy panel shows current/connected/selected route data over a clearly labeled schematic galaxy background.
 - No WordPress upload. Network mode is deferred until local play and ship/reference identity are stable. Remote browser QA gets HTTP 403; don't bypass the firewall.
 - CI/source validation is pending; no live browser/device pass is claimed.
 
