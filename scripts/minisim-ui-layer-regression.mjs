@@ -11,8 +11,8 @@ const hull = read("mini-sim/assets/js/hull-dive.js");
 const warp = read("mini-sim/assets/js/deep-space-warp.js");
 const audit = read("mini-sim/assets/js/ui-layer-audit.js");
 
-assert.match(php, /Version: 0\.11\.20/);
-assert.match(php, /define\('BCM_MINI_SIM_VERSION', '0\.11\.20'\)/);
+assert.match(php, /Version: 0\.11\.21/);
+assert.match(php, /define\('BCM_MINI_SIM_VERSION', '0\.11\.21'\)/);
 assert.match(php, /bcm-ui-layer-audit/);
 assert.match(flight, /showUnderlyingScene = !externalPause[\s\S]{0,180}bcm-hull-interior-active/);
 assert.match(hull, /let pilotMode = true/);
