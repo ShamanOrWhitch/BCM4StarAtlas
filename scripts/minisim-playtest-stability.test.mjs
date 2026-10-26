@@ -82,27 +82,22 @@ test("Room 2 central return opening is passable without making side walls noclip
   assert.match(mini, /function pointOnSideWall\(point, room\)/);
 });
 
-test("Warp course contains distinct obstacle families and avoids repeated gate barriers", () => {
-  const start = warp.indexOf("function buildWarpObstacleTypes(rng, count = 16)");
-  const end = warp.indexOf("\n    function warpObstacleProgress", start);
-  assert.ok(start >= 0 && end > start, "obstacle family selector exists");
-  const helper = new Script(warp.slice(start, end) + "\nbuildWarpObstacleTypes;").runInNewContext({});
-  for (let seed = 1; seed <= 12; seed += 1) {
-    let state = seed;
-    const rng = () => {
-      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
-      return state / 4294967296;
-    };
-    const types = Array.from(helper(rng, 16));
-    assert.equal(types.length, 16);
-    assert.deepEqual(Array.from(new Set(types)).sort(), ["boost", "gate", "launcher", "spikes", "sweeper"].sort());
-    assert.equal(types.filter((type) => type === "gate").length, 2);
-    for (let i = 1; i < types.length; i += 1) {
-      assert.notEqual(types[i], types[i - 1], "adjacent obstacle families must differ");
-      if (types[i] === "gate") assert.ok(!types.slice(Math.max(0, i - 2), i).includes("gate"));
-    }
-  }
-  assert.match(warp, /gapHalf: type === "gate" \? 0\.94 : 0\.86/);
+test("Warp preserves 22 randomized obstacle layers and uses the faster shared 12x curve", () => {
+  const start = warp.indexOf("const courseLayerCount = 22");
+  const end = warp.indexOf("tubeTitle.textContent", start);
+  assert.ok(start >= 0 && end > start, "22-layer Warp course exists");
+  const create = warp.slice(start, end);
+  assert.match(create, /const typeRoll = rng\(\)/);
+  assert.match(create, /typeRoll < 0\.34 \? "gate"/);
+  assert.match(create, /typeRoll < 0\.55 \? "sweeper"/);
+  assert.match(create, /typeRoll < 0\.70 \? "spikes"/);
+  assert.match(create, /typeRoll < 0\.86 \? "boost" : "launcher"/);
+  assert.match(create, /gapHalf: type === "gate" \? 0\.94 : 0\.86/);
+  assert.match(warp, /const t = Math\.pow\(warpNormalizedTime\(elapsed\), 0\.82\)/);
+  assert.match(warp, /return Math\.pow\(12, t\)/);
+  assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) - 1\) \/ 11/);
+  assert.match(warp, /Math\.max\(1, Math\.min\(12,/);
+  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.48/);
 });
 
 test("Tower Panda dialogue describes real controls and the descent objective", () => {
