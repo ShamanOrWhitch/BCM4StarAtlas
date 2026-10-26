@@ -3664,9 +3664,8 @@
           const node = player.ringCurrent || path?.current;
           if (!path || !node || node.large) return false;
           const routeStep = path.routeStep;
-          const preferred = routeStep === "yp" || routeStep === "yn"
-            ? routeStep
-            : (player.ringFloorDirection || "yp");
+          const preferred = player.ringFloorDirection ||
+            ((routeStep === "yp" || routeStep === "yn") ? routeStep : "yp");
           const nextDir = [preferred, path.opposite[preferred]].find((dir) => path.neighbor(node, dir));
           if (!nextDir) {
             updateHud(window.BCMDialogue?.language === "en"
