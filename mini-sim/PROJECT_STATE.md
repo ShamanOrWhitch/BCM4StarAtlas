@@ -1,4 +1,11 @@
-## Main state — Mini-Sim 0.11.18 / Tower 0.2.66 (26 October 2026)
+## Main state — Mini-Sim 0.11.19 / Tower 0.2.66 (26 October 2026)
+
+- Ring level opens on approach and stays open. The 0.11.18 two-second video abort is gone. The crash was `portalMaterial.emissive.setHex` on a basic material, plus a maze-frame ReferenceError that skipped the approach check.
+- Warp cancel on the asteroid keeps that locale and those coordinates. Place label is `ASTEROID · X / Y`, not Room 1.
+- Flight radius is 160 so the asteroid can be flown around. Wall damping remains the 0.11.2 contact rule (0.15). V = Warp, U = hold, X = helm.
+- Mini-Sim/cache/title version: `0.11.19`; Tower version: `0.2.66`. No WordPress deployment from this commit. 0.11.18 was already merged as PR #81.
+
+## Previous state — Mini-Sim 0.11.18 / Tower 0.2.66 (26 October 2026)
 
 - Ring entrance is a tappable door above Panda, and the cell maze renders in the flight canvas with the first opening aimed at the large arena.
 - Phone flight copy is tilt, tilt reset, and tap-to-fix music screens. Keyboard Warp is a V button on the same action as the V key; phones get WARP.

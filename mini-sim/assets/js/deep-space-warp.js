@@ -137,7 +137,6 @@
       let playbackRequested = false;
       let finished = false;
       let firstFrameCallback = 0;
-      let transitionWatchdog = 0;
 
       const overlay = document.createElement("div");
       overlay.id = "bcm-ring-transition";
@@ -177,8 +176,6 @@
       function enterLevel() {
         if (finished) return;
         finished = true;
-        if (transitionWatchdog) window.clearTimeout(transitionWatchdog);
-        transitionWatchdog = 0;
         try {
           if (firstFrameCallback && typeof video.cancelVideoFrameCallback === "function") {
             video.cancelVideoFrameCallback(firstFrameCallback);
@@ -242,10 +239,8 @@
       video.src = source;
       video.load();
       maybeStartVideo();
-      // Do not leave the player locked out if a mobile browser stalls media readiness.
-      transitionWatchdog = window.setTimeout(() => {
-        if (!finished) enterLevel();
-      }, 2200);
+      // The clip plays out or the pilot taps ENTER THE RING. Do not abort it
+      // on a short timer: that dumped the ship back to the asteroid with no level.
       return true;
     }
 
@@ -316,6 +311,8 @@
       returnQuaternion: null,
       launchNav: null,
       launchSectorProgressed: false,
+      // Explicit locale. Z alone cannot tell the asteroid (z ≈ 150) from Room 1.
+      place: null,
       savedSpeedMode: null,
       sectorProgressed: false,
       elapsed: 0,
@@ -436,7 +433,7 @@
     ringEnterButton.addEventListener("click", () => {
       const maze = state.maze;
       if (!maze || !maze.active || state.mode !== "maze") return;
-      if (attemptOpenRingPlatformer(maze)) ringEnterButton.hidden = true;
+      if (attemptOpenRingPlatformer(maze, true)) ringEnterButton.hidden = true;
       syncHullButtonVisibility();
       syncRingButtonVisibility();
     });
@@ -867,6 +864,24 @@
       return sector.name + " · " + sector.id;
     }
 
+    function asteroidPlace(sector) {
+      const source = sector || null;
+      const x = source && source.x != null ? source.x : "—";
+      const y = source && source.y != null ? source.y : "—";
+      return {
+        id: "asteroid",
+        label: "ASTEROID · X " + x + " / Y " + y,
+        sectorX: source ? source.x : null,
+        sectorY: source ? source.y : null
+      };
+    }
+
+    function rememberPlace(place) {
+      state.place = place && place.id ? place : null;
+      const engine = api();
+      if (engine && typeof engine.setPlace === "function") engine.setPlace(state.place);
+    }
+
     function listSectorTargets() {
       listElement.replaceChildren();
       const nodes = state.nav.targets || [];
@@ -993,15 +1008,39 @@
     }
 
     function closeOverlay(restoreMain) {
-      stopWarpAudio();
+      const keepAsteroid = !!(state.maze && state.maze.active);
+      if (!keepAsteroid) stopWarpAudio();
       overlay.hidden = true;
       overlay.classList.remove("is-tubing");
       state.tilt.value = 0;
       root.classList.remove("bcm-warp-open", "is-tubing");
       launchButton.classList.remove("is-active");
-      state.mode = "closed";
       state.pointerDown = false;
-      if (state.maze && state.maze.active) return;
+      if (keepAsteroid) {
+        // CANCEL KEEPS THE ASTEROID LOCALE. The rock stays in the scene and
+        // the ship stays at the coordinates where Warp was opened. Do not
+        // rewind launchNav to Room 1 / ONI CSS and do not teleport.
+        root.classList.add("bcm-warp-maze-active");
+        exitButton.hidden = false;
+        exitButton.textContent = nextWarpDestinationLabel();
+        state.mode = "maze";
+        window.BCMDeepSpaceWarpFrame = updateMazeFrame;
+        const engine = api();
+        if ((!state.place || state.place.id !== "asteroid") && (state.target || (state.nav && state.nav.current))) {
+          rememberPlace(asteroidPlace(state.target || state.nav.current));
+        }
+        if (engine) {
+          const placeLabel = state.place && state.place.label
+            ? state.place.label
+            : asteroidPlace(state.target || (state.nav && state.nav.current)).label;
+          engine.setExternalHUD(placeLabel, "EXPEDITION · CORE SHARDS " + (state.maze.count || 0) + "/3 · ASTEROID COMPLEX");
+          engine.pauseForWarp(false);
+        }
+        state.returnPosition = null;
+        state.returnQuaternion = null;
+        return;
+      }
+      state.mode = "closed";
       resumeLevelOst();
       state.layers = [];
       state.target = null;
@@ -1011,15 +1050,13 @@
         engine.clearExternalHUD();
         const anchorPosition = state.returnPosition || state.savedPosition;
         const anchorQuaternion = state.returnQuaternion || state.savedQuaternion;
-        // Cancelling means the simulated sector change was not committed. Keep
-        // the ship's physical comeback position, but restore the sector from
-        // which this particular Tube launch began.
-        if (restoreMain && state.launchNav) {
+        // Cancelling a tube that never committed a new locale restores the
+        // sector the launch started from. An asteroid place is never that path:
+        // the keepAsteroid branch already returned.
+        if (restoreMain && state.launchNav && !(state.place && state.place.id === "asteroid")) {
           state.nav = state.launchNav;
           state.sectorProgressed = state.launchSectorProgressed;
         }
-        // Restore the chosen pose before unpausing physics. This avoids a stale
-        // post-Warp movement update winning over the return position.
         if (restoreMain && anchorPosition && anchorQuaternion) {
           engine.teleport(anchorPosition, anchorQuaternion);
         }
@@ -1150,6 +1187,8 @@
 
     function returnToOniCss() {
       const engine = api();
+      disposeMaze();
+      rememberPlace(null);
       const previous = state.nav || readNavigation();
       const adapter = previous && previous.adapter;
       let homeRecord = null;
@@ -1267,6 +1306,9 @@
 
     function enterAsteroidMaze() {
       // Warp OST owns the whole Warp stage, including the asteroid maze.
+      // A committed arrival replaces the previous rock. Opening the map must
+      // not dispose it; only this handoff and a return to ONI CSS do.
+      if (state.maze) disposeMaze();
       const engine = api();
       if (!engine || !engine.getRuntime) return;
       const runtime = engine.getRuntime();
@@ -1637,8 +1679,9 @@
         beaconGeometry,
         beaconMaterial,
         satellites,
-        // The shell is a flyable exterior, not a hard brake at the old inner radius.
-        flyRadius: 43.2,
+        // Wide enough to fly around the asteroid and its satellites.
+        // Wall-contact damping stays the 0.11.2 baseline; only the envelope grew.
+        flyRadius: 160,
         lastPosition: null,
         lastImpactAt: 0,
         ringCompleted: false,
@@ -1736,6 +1779,8 @@
           return true;
         });
       }
+      maze.spawnCrystalPickupEffect = spawnCrystalPickupEffect;
+      maze.updateCrystalPickupEffects = updateCrystalPickupEffects;
       state.ringApproachArmed = true;
       root.classList.add("bcm-warp-maze-active");
       exitButton.textContent = nextWarpDestinationLabel();
@@ -1770,7 +1815,8 @@
       }
       engine.teleport({ x: spawn.x, y: spawn.y, z: spawn.z }, look);
       engine.pauseForWarp(false);
-      engine.setExternalHUD("ASTEROID COMPLEX · " + sectorText(state.target), "EXPEDITION · CORE SHARDS 0/3 · U / R3 OPENS THE HOLD");
+      rememberPlace(asteroidPlace(state.target));
+      engine.setExternalHUD(state.place.label, "EXPEDITION · CORE SHARDS 0/3 · U / R3 OPENS THE HOLD");
       maze.lastPosition = runtime.ship.position.clone();
       state.mode = "maze";
       state.lastStatusAt = 0;
@@ -1834,7 +1880,7 @@
       }
 
       const fromCenter = pos.clone().sub(maze.center);
-      const flyRadius = Number(maze.flyRadius) || 43.2;
+      const flyRadius = Number(maze.flyRadius) || 160;
       if (fromCenter.length() > flyRadius) {
         fromCenter.setLength(flyRadius);
         pos.copy(maze.center).add(fromCenter);
@@ -1879,7 +1925,7 @@
           const mission = window.BCMWorldMission || {};
           const isHydrogenPickup = !!mission.hydrogenUnlocked &&
             Number(mission.hydrogenCount || 0) < 3;
-          spawnCrystalPickupEffect(pickupPosition, isHydrogenPickup ? "H +1" : "CORE +1");
+          maze.spawnCrystalPickupEffect(pickupPosition, isHydrogenPickup ? "H +1" : "CORE +1");
           if (isHydrogenPickup) {
             window.dispatchEvent(new CustomEvent("bcm:mission:hydrogen-shard-collected", {
               detail: {
@@ -1896,7 +1942,7 @@
           }
         }
       });
-      updateCrystalPickupEffects(Math.min(frame.dt || 0.016, 0.04));
+      maze.updateCrystalPickupEffects(Math.min(frame.dt || 0.016, 0.04));
       maze.beacon.rotation.z += Math.min(frame.dt || 0.016, 0.04) * 0.4;
       const ringDistance = pos.distanceTo(maze.beacon.position);
       state.ringDistance = ringDistance;
@@ -1910,7 +1956,7 @@
       }
       if (state.ringApproachArmed && !state.ringEntryFailed && !state.ringPlatformer &&
           !maze.ringCompleted && ringDistance < 2.6) {
-        attemptOpenRingPlatformer(maze);
+        attemptOpenRingPlatformer(maze, true);
         return;
       }
 
@@ -1992,7 +2038,7 @@
       if (ringPressed && state.mode === "maze" && state.maze && state.maze.active &&
           state.ringApproachArmed && state.ringDistance < 18 && !state.ringPlatformer &&
           !state.ringTransitionActive && !state.hullOpen) {
-        attemptOpenRingPlatformer(state.maze);
+        attemptOpenRingPlatformer(state.maze, true);
         return;
       }
       if (!pressed || state.mode === "map" || state.mode === "tube" || state.mode === "result" ||
@@ -2930,7 +2976,11 @@
         path.hatch.visible = verticalExit;
         path.portalRing.visible = verticalExit;
         path.portalMaterial.color.setHex(path.neighbor(node, "yp") ? 0x7ef4e6 : 0xb99aff);
-        path.portalMaterial.emissive.setHex(path.neighbor(node, "yp") ? 0x1a8eab : 0x5d2d91);
+        // MeshBasicMaterial has no emissive. Calling setHex there aborted the level
+        // and restored the asteroid, so the Ring maze never stayed open.
+        if (path.portalMaterial.emissive && path.portalMaterial.emissive.setHex) {
+          path.portalMaterial.emissive.setHex(path.neighbor(node, "yp") ? 0x1a8eab : 0x5d2d91);
+        }
         if (path.hydrogenMesh) {
           const mission = window.BCMWorldMission || {};
           path.hydrogenMesh.visible = !!mission.hydrogenUnlocked && !mission.hydrogenCollected &&
@@ -4177,7 +4227,10 @@
 
     function setMazeStatus(message) {
       const engine = api();
-      if (engine && engine.setExternalHUD) engine.setExternalHUD("ASTEROID COMPLEX · " + sectorText(state.target), message);
+      const placeLabel = state.place && state.place.id === "asteroid" && state.place.label
+        ? state.place.label
+        : asteroidPlace(state.target).label;
+      if (engine && engine.setExternalHUD) engine.setExternalHUD(placeLabel, message);
     }
 
     function disposeMaze() {
@@ -4229,12 +4282,12 @@
       const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
       if (runtime && runtime.ship && runtime.ship.position && runtime.ship.quaternion) {
         state.returnPosition = runtime.ship.position.clone();
-        const THREE = runtime.THREE;
         state.returnQuaternion = runtime.ship.quaternion.clone();
       }
 
+      // Keep the asteroid in the scene. Cancelling the map returns to this
+      // same locale and these coordinates; disposing here made cancel look like Room 1.
       const arrivedSector = state.target || (state.nav && state.nav.current);
-      disposeMaze();
       window.BCMDeepSpaceWarpFrame = null;
       root.classList.remove("bcm-warp-maze-active", "is-tubing");
       exitButton.hidden = true;

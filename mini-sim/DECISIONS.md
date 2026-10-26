@@ -1,3 +1,13 @@
+## D-040 — Mini-Sim 0.11.19: Ring level, asteroid place, wider flight envelope
+
+**Status:** Source change on top of merged 0.11.18 (PR #81). No WordPress deployment. V is Warp. U is the hold. X is the helm. Do not reopen Tower physics or Room 2 walls.
+
+- The ring maze never stayed open because cell setup called `emissive.setHex` on `MeshBasicMaterial`, and the asteroid frame threw before the approach test. Approach now opens the level directly. The 2.2s video abort is removed.
+- Cancelling Warp no longer disposes the asteroid or relabels z ≈ 150 as Room 1. The committed place is `ASTEROID · X / Y` until a new tube arrival or a return to ONI CSS.
+- `flyRadius` is 160 so the ship can orbit the rock. Contact damping stays 0.15.
+
+---
+
 ## D-039 — Mini-Sim 0.11.18: Ring door, visible cell maze, phone controls on Panda
 
 **Status:** Source change on top of D-038. No WordPress deployment. Do not reopen asteroid physics (D-037) or Tower physics.

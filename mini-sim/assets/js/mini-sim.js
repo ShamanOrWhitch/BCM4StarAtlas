@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.18",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.19",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.18",
+      title: "SPACE LABYRINTH — 0.11.19",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -330,8 +330,8 @@
         en: {controlsKeyboard:"Ring: ← → or A/D move; Space jumps; E targets; Q fires.",controlsTouch:"Ring: ◀ ▶ move, JUMP jumps, FIRE shoots, action targets.",controlsGamepad:"Ring: stick moves; A jumps; X targets; Y fires."}
       },
       hull: {
-        ru: {controlsKeyboard:"Кабина: мышь/палец — тащи Crew; удерживай воду для насоса, пробоину — для ремонта.",controlsTouch:"Кабина: тащи Crew; держи палец на воде для насоса и на шве для ремонта.",controlsGamepad:"Кабина: стик двигает Crew; A ремонт, B насос, LB/V — штурвал."},
-        en: {controlsKeyboard:"Cabin: drag Crew; hold on water to pump or on a seam to repair.",controlsTouch:"Cabin: drag Crew; hold on water to pump and on the seam to repair.",controlsGamepad:"Cabin: stick moves Crew; A repairs, B pumps, LB/V toggles helm."}
+        ru: {controlsKeyboard:"Кабина: мышь/палец — тащи Crew; удерживай воду для насоса, пробоину — для ремонта.",controlsTouch:"Кабина: тащи Crew; держи палец на воде для насоса и на шве для ремонта.",controlsGamepad:"Кабина: стик двигает Crew; A ремонт, B насос, LB/X — штурвал. V — Warp, не трюм."},
+        en: {controlsKeyboard:"Cabin: drag Crew; hold on water to pump or on a seam to repair.",controlsTouch:"Cabin: drag Crew; hold on water to pump and on the seam to repair.",controlsGamepad:"Cabin: stick moves Crew; A repairs, B pumps, LB/X toggles helm. V is Warp, not the hold."}
       },
       tower: {
         ru: {controlsKeyboard:"Tower: двигайся клавишами или стиком. Esc — выйти.",controlsTouch:"Tower: касайся направлений и прыжка. Esc — выйти.",controlsGamepad:"Tower: левый стик двигает, A — прыжок. Esc — выйти."},
@@ -1530,6 +1530,9 @@
   // External Warp/tunnel overlay may pause 6DOF physics without destroying this renderer.
   let externalPause = false;
   let externalHud = null;
+  // Deep-space locales are not a Z band. The asteroid sits at z ≈ 150, which
+  // getSpaceZone would otherwise call Room 1.
+  let simPlace = null;
 
   function clearStoredInputState() {
     Object.keys(keys).forEach((code) => { keys[code] = false; });
@@ -5070,7 +5073,9 @@
 
     const zoneNow = getSpaceZone(ship.position.z);
     let room;
-    if (zoneNow === "DEEP_SPACE") {
+    if (simPlace && simPlace.id === "asteroid" && simPlace.label) {
+      room = simPlace.label;
+    } else if (zoneNow === "DEEP_SPACE") {
       const satelliteDistance = spaceSatellite.group
         ? spaceSatellite.group.getWorldPosition(new THREE.Vector3()).distanceTo(ship.position)
         : 999;
@@ -5557,6 +5562,8 @@
       if (status) status.textContent = externalHud.status;
     };
     window.BCMiniSimAPI.clearExternalHUD = () => { externalHud = null; };
+    window.BCMiniSimAPI.setPlace = (place) => { simPlace = place && place.id ? place : null; };
+    window.BCMiniSimAPI.getPlace = () => simPlace;
 
     window.addEventListener("galia-play-request", handleGaliaPlayRequest);
 

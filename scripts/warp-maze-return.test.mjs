@@ -21,7 +21,7 @@ test("asteroid exit returns to Warp, Ring stays separate and Hull Dive is entera
   assert.match(warp, /exitButton\.textContent = nextWarpDestinationLabel\(\)/);
   assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
   assert.match(warp, /maze\.count === 3 \? "GOLD RING IS OPEN"/);
-  assert.match(warp, /if \(state\.ringApproachArmed && !state\.ringEntryFailed && !state\.ringPlatformer &&[\s\S]{0,120}ringDistance < 2\.6\)\s*\{\s*attemptOpenRingPlatformer\(maze\)/);
+  assert.match(warp, /if \(state\.ringApproachArmed && !state\.ringEntryFailed && !state\.ringPlatformer &&[\s\S]{0,160}ringDistance < 2\.6\)\s*\{\s*attemptOpenRingPlatformer\(maze, true\)/);
   const mazeFrame = section(warp, "function updateMazeFrame(frame)", "function openHullInterior");
   assert.match(mazeFrame, /const ringDistance = pos\.distanceTo\(maze\.beacon\.position\)/);
   assert.match(mazeFrame, /state\.ringDistance = ringDistance/);
@@ -37,9 +37,10 @@ test("asteroid exit returns to Warp, Ring stays separate and Hull Dive is entera
   assert.match(warp, /maze\.ringCompleted = success/);
 });
 
-test("returning to the sector map keeps Warp active and pauses the ship", () => {
+test("returning to the sector map keeps the asteroid locale and pauses the ship", () => {
   const body = section(warp, "function returnToWarpMap()", "function resizeBackdrop()");
-  assert.match(body, /disposeMaze\(\)/);
+  assert.doesNotMatch(body, /disposeMaze\(\)/);
+  assert.match(body, /Keep the asteroid in the scene/);
   assert.match(body, /state\.nav = navigationAfterArrival\(arrivedSector\)/);
   assert.match(body, /overlay\.hidden = false/);
   assert.match(body, /state\.mode = "map"/);
@@ -49,7 +50,8 @@ test("returning to the sector map keeps Warp active and pauses the ship", () => 
   assert.match(body, /state\.returnPosition = runtime\.ship\.position\.clone\(\)/);
   assert.match(body, /state\.returnQuaternion = runtime\.ship\.quaternion\.clone\(\)/);
   assert.doesNotMatch(body, /engine\.teleport\(state\.savedPosition,\s*state\.savedQuaternion\)/);
-  assert.ok(body.indexOf("state.returnPosition = runtime.ship.position.clone()") < body.indexOf("disposeMaze()"), "capture asteroid anchor before disposing maze");
+  assert.match(warp, /CANCEL KEEPS THE ASTEROID LOCALE/);
+  assert.match(warp, /if \(state\.maze\) disposeMaze\(\)/);
 });
 
 test("asteroid maze uses speed mode 2 and restores the previous mode", () => {
@@ -162,12 +164,14 @@ test("Warp Tube mobile HUD hides instructional blocks and keeps only compact tel
 });
 
 
-test("Warp comeback cancellation restores the post-maze anchor before resuming flight", () => {
+test("Warp comeback cancellation restores a non-asteroid anchor before resuming flight", () => {
   const close = section(warp, "function closeOverlay(restoreMain)", "function showTube()");
   assert.match(close, /const anchorPosition = state\.returnPosition \|\| state\.savedPosition/);
   assert.match(close, /const anchorQuaternion = state\.returnQuaternion \|\| state\.savedQuaternion/);
   assert.match(close, /engine\.teleport\(anchorPosition, anchorQuaternion\)/);
-  assert.ok(close.indexOf("engine.teleport(anchorPosition, anchorQuaternion)") < close.indexOf("engine.pauseForWarp(false)"));
+  const teleport = close.indexOf("engine.teleport(anchorPosition, anchorQuaternion)");
+  const unpauseAfter = close.indexOf("engine.pauseForWarp(false)", teleport);
+  assert.ok(teleport >= 0 && unpauseAfter > teleport, "unpause only after the non-asteroid teleport");
 });
 
 test("Warp hazards are faster, denser, randomized per run and visually decoupled from shimmer", () => {
@@ -190,14 +194,15 @@ test("starting another Tube after asteroid comeback resets the cancel anchor to 
   assert.match(tube, /state\.returnQuaternion = null/);
 });
 
-test("cancelling after asteroid comeback restores the launch sector without moving the ship out of the asteroid zone", () => {
+test("cancelling Warp on the asteroid keeps that locale and those coordinates", () => {
   const close = section(warp, "function closeOverlay(restoreMain)", "function showTube()");
-  assert.match(close, /if \(restoreMain && state\.launchNav\)/);
-  assert.match(close, /state\.nav = state\.launchNav/);
-  assert.match(close, /state\.sectorProgressed = state\.launchSectorProgressed/);
-  assert.match(close, /const anchorPosition = state\.returnPosition \|\| state\.savedPosition/);
-  assert.match(close, /engine\.teleport\(anchorPosition, anchorQuaternion\)/);
-  assert.match(close, /state\.launchNav = null/);
+  assert.match(close, /CANCEL KEEPS THE ASTEROID LOCALE/);
+  assert.match(close, /const keepAsteroid = !!\(state\.maze && state\.maze\.active\)/);
+  assert.match(close, /state\.mode = "maze"/);
+  assert.match(close, /window\.BCMDeepSpaceWarpFrame = updateMazeFrame/);
+  assert.match(close, /!\(state\.place && state\.place\.id === "asteroid"\)/);
+  assert.match(close, /engine\.setExternalHUD\(placeLabel/);
+  assert.doesNotMatch(close, /if \(state\.maze && state\.maze\.active\) return/);
 });
 
 test("a new Tube attempt snapshots the currently selected sector as its own origin", () => {
@@ -309,7 +314,7 @@ test("asteroid wall contact and flight radius match the 0.11.2 baseline", () => 
   assert.match(body, /ship\.velocity\.z \*= 0\.15/);
   assert.doesNotMatch(body, /Sweep the ship's previous-to-current segment/);
   assert.doesNotMatch(body, /const previousPosition = maze\.lastPosition/);
-  assert.match(warp, /flyRadius: 43\.2/);
+  assert.match(warp, /flyRadius: 160/);
   const radialBoundary = section(body, "const fromCenter = pos.clone().sub(maze.center);", "// Local artificial gravity activates near the gold ring");
   assert.match(radialBoundary, /ship\.velocity\.multiplyScalar\(0\.25\)/);
   assert.doesNotMatch(radialBoundary, /boundaryNormal|outwardSpeed|addScaledVector/);
@@ -499,7 +504,7 @@ test("asteroid physics restores the 0.11.2 wall-contact and flight-radius baseli
   assert.match(body, /ship\.velocity\.z \*= 0\.15/);
   assert.doesNotMatch(body, /Sweep the ship's previous-to-current segment/);
   assert.doesNotMatch(body, /const previousPosition = maze\.lastPosition/);
-  assert.match(warp, /flyRadius: 43\.2/);
+  assert.match(warp, /flyRadius: 160/);
   const radialBoundary = section(body, "const fromCenter = pos.clone().sub(maze.center);", "// Local artificial gravity activates near the gold ring");
   assert.match(radialBoundary, /ship\.velocity\.multiplyScalar\(0\.25\)/);
   assert.doesNotMatch(radialBoundary, /boundaryNormal|outwardSpeed|addScaledVector/);

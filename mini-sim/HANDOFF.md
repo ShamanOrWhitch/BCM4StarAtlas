@@ -1,5 +1,13 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
+## Mini-Sim 0.11.19 — Ring level stays open, Warp cancel stays on the asteroid
+
+- 0.11.18 (PR #81) is already on main. Its 2.2s video watchdog made Ring worse: the clip aborted and the level threw (`MeshBasicMaterial` has no `emissive`), so the asteroid was restored and the ring maze never stayed up. The maze frame also threw `updateCrystalPickupEffects is not defined` before the approach check, so flying into the ring never opened it.
+- V is Warp, not the hold. U opens the hold. X is the helm. Automatic approach, the Ring button, and gamepad A open the ring level directly. The intro clip is no longer a gate and is not cancelled at 2 seconds.
+- Opening Warp on the asteroid no longer deletes the rock. Cancel returns to the same asteroid coordinates. The place is named `ASTEROID · X / Y`, not Room 1 (z ≈ 150 used to look like Room 1).
+- Flight envelope is `flyRadius: 160` so the ship can orbit the asteroid and its satellites. Wall-contact damping stays 0.15, two-pass overlap, radial slowdown 0.25. Room 2 walls stay solid. Tower physics untouched.
+- Version `0.11.19`. WordPress does not update until the plugin from main is installed.
+
 ## Merged candidate 0.11.18 — Ring door, cell maze, phone panda
 
 - Ring intro no longer sits under Panda. The entrance card is above the dialogue, any tap or the ENTER THE RING button starts the level, and a stalled clip gives up after a short watchdog instead of leaving the pilot on black.
