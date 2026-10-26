@@ -1571,6 +1571,13 @@
   touch-action:manipulation;
 }
 .bcm-comic-dialog-choice:hover{background:rgba(22,78,94,.96);border-color:#9cecf6}
+.bcm-comic-dialog-choice-warp{
+  min-width:52px;
+  letter-spacing:.06em;
+  background:#123c48;
+  border-color:#69d7ea;
+  color:#f3fdff;
+}
 @media (max-width:760px){
   .bcm-mini-sim-language{top:calc(50% + 44px);padding:6px 7px}
   .bcm-mini-sim-language-hint{display:none}

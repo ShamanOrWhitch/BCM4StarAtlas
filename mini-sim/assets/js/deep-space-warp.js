@@ -142,7 +142,7 @@
       const overlay = document.createElement("div");
       overlay.id = "bcm-ring-transition";
       overlay.setAttribute("aria-label", "Ring transition");
-      overlay.style.cssText = "position:fixed;inset:0;z-index:1000700;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;touch-action:none";
+      overlay.style.cssText = "position:fixed;inset:0;z-index:1001400;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;touch-action:manipulation;pointer-events:auto";
       const video = document.createElement("video");
       video.preload = "auto";
       video.autoplay = true;
@@ -157,7 +157,8 @@
       overlay.appendChild(video);
       const skip = document.createElement("button");
       skip.type = "button";
-      skip.textContent = "СТАРТ УРОВНЯ";
+      const english = window.BCMDialogue?.language === "en";
+      skip.textContent = english ? "ENTER THE RING" : "ВОЙТИ В RING";
       skip.setAttribute("aria-label", "Start the Ring level");
       skip.style.cssText = "position:absolute;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:8;min-height:48px;min-width:180px;padding:10px 18px;border:1px solid #69d7ea;border-radius:12px;background:#123c48;color:#e8fbff;font:800 14px system-ui;letter-spacing:.06em;cursor:pointer;pointer-events:auto";
       skip.addEventListener("click", (event) => {
@@ -166,6 +167,11 @@
         enterLevel();
       });
       overlay.appendChild(skip);
+      overlay.addEventListener("pointerdown", (event) => {
+        if (finished || event.target === skip) return;
+        enterLevel();
+      });
+      try { window.BCMDialogue?.hideOperator?.(); } catch (e) {}
       document.body.appendChild(overlay);
 
       function enterLevel() {
@@ -239,7 +245,7 @@
       // Do not leave the player locked out if a mobile browser stalls media readiness.
       transitionWatchdog = window.setTimeout(() => {
         if (!finished) enterLevel();
-      }, 15000);
+      }, 2200);
       return true;
     }
 
@@ -2846,7 +2852,11 @@
         world.specialGeometry.push(floor.geometry, doorGeo, sealedWallGeo, hatch.geometry, portalRing.geometry, mobGeo);
         const start = (maze.startCell && nodes.get(keyOf(maze.startCell.x, maze.startCell.y, maze.startCell.z)))
           || nodes.values().next().value;
-        const firstOpen = ["xp", "zp", "xn", "zn"].find((dir) => start && start.open && start.open[dir]) || "xp";
+        const horizontalOpen = ["xp", "xn", "zp", "zn"];
+        const towardLarge = start ? nextDirectionTowardLarge(start) : null;
+        const firstOpen = (towardLarge && horizontalOpen.includes(towardLarge) && start.open && start.open[towardLarge])
+          ? towardLarge
+          : (horizontalOpen.find((dir) => start && start.open && start.open[dir]) || "xp");
         const hydrogenGeometry = new THREE.OctahedronGeometry(0.46, 0);
         const hydrogenMaterial = new THREE.MeshStandardMaterial({
           color: 0x9cffe9, emissive: 0x198b78, emissiveIntensity: 1.15,
@@ -3150,6 +3160,11 @@
             : "АРЕНЫ ОЧИЩЕНЫ · ИДИ К ВЫХОДУ";
         } else if (activeBoss) {
           statusEl.textContent = activeBoss.name + " · " + activeBoss.hp + "/" + activeBoss.maxHp;
+        } else if (worldState.cellPath && worldState.cellPath.current && !worldState.cellPath.current.large) {
+          const en = window.BCMDialogue?.language === "en";
+          statusEl.textContent = worldState.cellPath.current.astral
+            ? (en ? "ASTRAL LAYER · JUMP AT THE GLOW" : "АСТРАЛЬНЫЙ СЛОЙ · ПРЫЖОК У СВЕЧЕНИЯ")
+            : (en ? "CELL · WALK THROUGH THE OPEN DOOR · E TURNS" : "ЯЧЕЙКА · ИДИ В ОТКРЫТУЮ ДВЕРЬ · E ПОВОРОТ");
         } else {
           statusEl.textContent = "ЗОНА " + (p1 ? (p1.worldX < -2 ? 1 : p1.worldX < 36 ? 2 : 3) : 1) +
             " · НАЙДИ АРЕНУ БОССА";
@@ -3218,7 +3233,7 @@
         let nearest = Infinity;
         const playerNode = player.ringCurrent || worldState.cellPath?.current;
         if (playerNode && !playerNode.large) {
-          playerNode.mobs.forEach((mob) => {
+          (playerNode.mobs || []).forEach((mob) => {
             if (!mob.alive || !mob.mesh) return;
             const forwardDistance = (mob.mesh.position.x - player.worldX) * player.facing;
             if (forwardDistance <= 0.2 || forwardDistance > profile.range) return;
@@ -3761,8 +3776,11 @@
         const renderer = frameContext && frameContext.renderer;
         const activeScene = frameContext && frameContext.scene;
         if (!renderer || !activeScene) return false;
-        const viewW = Math.max(1, root2d.clientWidth);
-        const viewH = Math.max(1, root2d.clientHeight);
+        const canvasEl = renderer.domElement;
+        const viewW = Math.max(1, (canvasEl && canvasEl.clientWidth) || root.clientWidth || 1);
+        const viewH = Math.max(1, (canvasEl && canvasEl.clientHeight) || root.clientHeight || 1);
+        renderer.setScissorTest(false);
+        renderer.setViewport(0, 0, viewW, viewH);
         if (!players.length) {
           configureCamera(cameraOne, { w: viewW, h: viewH }, cameraFocus);
           renderer.render(activeScene, cameraOne);
@@ -3938,8 +3956,8 @@
         if (spawn2) players.push(createPlayer(1, spawn2));
         updateSplitState();
         updateHud(mode === "multi" ? "MULTI" : "SINGLE");
-        statusEl.style.display = "none";
-        floorEl.style.display = "none";
+        statusEl.style.display = "";
+        floorEl.style.display = "";
         countEl.style.display = "none";
         window.BCMDialogue?.showControls("ring");
         if (Number(weaponProgress.completedRuns) >= Number(weaponProgress.nextUpgradeAt || 2) &&
@@ -3961,14 +3979,19 @@
 
       function frame(now) {
         if (done) return;
-        const dt = frameStamp ? Math.min(0.05, Math.max(0.001, (now - frameStamp) / 1000)) : 1 / 60;
-        frameStamp = now;
-        updatePlayers(dt);
-        updateWeaponShots(dt);
-        if (done) return;
-        updateSplitState();
-        drawMiniMap();
-        raf = requestAnimationFrame(frame);
+        try {
+          const dt = frameStamp ? Math.min(0.05, Math.max(0.001, (now - frameStamp) / 1000)) : 1 / 60;
+          frameStamp = now;
+          updatePlayers(dt);
+          updateWeaponShots(dt);
+          if (!done) {
+            updateSplitState();
+            drawMiniMap();
+          }
+        } catch (error) {
+          try { console.error("Mini-Sim Ring maze frame failed:", error); } catch (e) {}
+        }
+        if (!done) raf = requestAnimationFrame(frame);
       }
 
       function setActionFromPointer(button, action, down, event) {
@@ -4067,6 +4090,15 @@
       state.ringPlatformerCleanup = () => {
         done = true;
         if (raf) cancelAnimationFrame(raf);
+        try {
+          const gl = runtime.renderer;
+          const canvasEl = gl && gl.domElement;
+          if (gl && canvasEl) {
+            gl.setScissorTest(false);
+            gl.setViewport(0, 0, Math.max(1, canvasEl.clientWidth), Math.max(1, canvasEl.clientHeight));
+            gl.autoClear = true;
+          }
+        } catch (e) {}
         window.removeEventListener("keydown", keyboardMove, true);
         window.removeEventListener("keyup", keyboardMove, true);
         window.removeEventListener("resize", resize2d);
@@ -4178,7 +4210,13 @@
         const saved = window.localStorage.getItem("bcm-mini-sim-language");
         if (saved === "ru" || saved === "en") language = saved;
       } catch (e) {}
-      return language === "en" ? "NEXT WARP DESTINATION · V" : "СЛЕДУЮЩИЙ ПЕРЕХОД · V";
+      const coarse = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+      const touch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
+      const narrow = Math.min(window.innerWidth || 0, window.innerHeight || 0) < 900;
+      const phone = coarse || (touch && narrow);
+      return language === "en"
+        ? (phone ? "WARP" : "NEXT WARP DESTINATION · V")
+        : (phone ? "WARP" : "СЛЕДУЮЩИЙ ПЕРЕХОД · V");
     }
 
     function returnToWarpMap() {

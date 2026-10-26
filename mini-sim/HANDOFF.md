@@ -1,5 +1,14 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
+## Merged candidate 0.11.18 — Ring door, cell maze, phone panda
+
+- Ring intro no longer sits under Panda. The entrance card is above the dialogue, any tap or the ENTER THE RING button starts the level, and a stalled clip gives up after a short watchdog instead of leaving the pilot on black.
+- The Ring view uses the flight canvas size and restores that viewport when the run ends, so the cell maze is not drawn off the screen. The first door faces the route to the large arena. A cell shows “walk through the open door / E turns” instead of a boss-arena caption. One bad frame does not kill the loop.
+- Panda at flight start on a phone explains tilt, tilt calibration reset, and tapping a silent music screen. Keyboard flight keeps WASD and a V button that runs the same Warp action as the V key. When Panda talks about Warp, keyboard gets that V button and a phone gets WARP. The asteroid exit label is WARP on a phone, still “СЛЕДУЮЩИЙ ПЕРЕХОД · V” on a keyboard.
+- Version `0.11.18`. Do not touch asteroid physics, backside doors, Tower physics, Room 1 start, V = Warp, U = hold, X = helm. No WordPress upload from this change. WordPress keeps the previously installed plugin until that package is updated.
+
+## Historical handoff — Mini-Sim 0.11.17 / Tower 0.2.66
+
 ## Merged main 0.11.17 / Tower 0.2.66 — Ring recovery and concise controls
 
 - PR [#80](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/80), merge commit `d821764610890e84970ba20b354e90e41d1cc6cf`.

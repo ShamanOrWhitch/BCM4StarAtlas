@@ -1,3 +1,13 @@
+## D-039 — Mini-Sim 0.11.18: Ring door, visible cell maze, phone controls on Panda
+
+**Status:** Source change on top of D-038. No WordPress deployment. Do not reopen asteroid physics (D-037) or Tower physics.
+
+- The Ring transition used to render under the Panda bubble, so the start control could not be pressed and a stalled clip held the pilot out of the maze. The entrance is now above that bubble, a tap starts the level, and the watchdog is short.
+- Ring drawing follows the flight canvas and restores its viewport on exit. The opening cell faces the carved route toward the large arena. Cell status no longer pretends the player is already in a boss zone.
+- Flight start on a coarse/narrow touch device does not recite keyboard or joystick controls. It explains tilt, resetting tilt calibration, and tapping a music screen that will not play. A V choice on keyboard, and WARP on a phone, call `BCMDeepSpaceWarpToggle`.
+
+---
+
 ## D-038 — Mini-Sim 0.11.17 / Tower 0.2.66: transactional Ring handoff and device-specific Tower text
 
 **Status:** Merged via [PR #80](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/80), commit `d821764610890e84970ba20b354e90e41d1cc6cf`. No WordPress deployment.

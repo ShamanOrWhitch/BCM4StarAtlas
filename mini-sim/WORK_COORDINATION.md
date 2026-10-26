@@ -1,3 +1,10 @@
+## Active — Mini-Sim 0.11.18 Ring door and phone Panda controls (26 October 2026)
+
+- Not deployed. Builds on main `0.11.17` / Tower `0.2.66`. Do not rewrite asteroid physics, backside doors, or Tower physics.
+- Ring entrance sits above Panda and can be tapped; the cell maze uses the flight canvas. Phone start copy is tilt, calibration reset, and tap-to-fix music screens. Keyboard Warp is a V button; phones get WARP.
+
+---
+
 ## Completed Work Lock — Ring handoff recovery + Tower control copy (26 October 2026)
 
 - Merged PR [#80](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/80), commit `d821764610890e84970ba20b354e90e41d1cc6cf`; Mini-Sim `0.11.17`, Tower `0.2.66`.

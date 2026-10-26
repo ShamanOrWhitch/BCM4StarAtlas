@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.17",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.18",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -84,13 +84,13 @@
       close: "Закрыть",
       welcome: "Корабль готов. Оператор будет подсказывать только важное.",
       controlsKeyboard: "ПК: клавиатура + мышь. WASD — полёт, Space/C — вверх/вниз, V — Warp, Enter — меню и язык.",
-      controlsTouch: "Телефон: кнопки по краям — движение, свайп — обзор, TILT — управление наклоном.",
+      controlsTouch: "Телефон: наклон летает. TILT ещё раз сбрасывает калибровку. Музыкальный экран чинится тапом.",
       controlsGamepad: "Gamepad: левый стик — движение, правый — обзор, Y — Warp, Start — меню.",
       operator: "ОПЕРАТОР"
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.17",
+      title: "SPACE LABYRINTH — 0.11.18",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -104,7 +104,7 @@
       close: "Close",
       welcome: "Ship systems are ready. The operator will only interrupt with useful information.",
       controlsKeyboard: "PC: keyboard + mouse. WASD to fly, Space/C up/down, V for Warp, Enter for menu/language.",
-      controlsTouch: "Phone: edge buttons move, swipe to look around, TILT enables motion controls.",
+      controlsTouch: "Phone: tilt to fly. Tap TILT again to reset calibration. Tap a music screen to fix it.",
       controlsGamepad: "Gamepad: left stick moves, right stick looks, Y opens Warp, Start opens the menu.",
       operator: "OPERATOR"
     }
@@ -276,6 +276,7 @@
       const button = document.createElement("button");
       button.type = "button";
       button.className = "bcm-comic-dialog-choice";
+      if (choice?.className) button.classList.add(choice.className);
       button.textContent = String(choice?.label || "");
       button.addEventListener("click", () => {
         try { if (typeof choice?.onSelect === "function") choice.onSelect(); }
@@ -289,7 +290,28 @@
       (speakerName.includes("medusa") ? "medusa.mp4" :
        (speakerName.includes("zombie") ? "zombie.mp4" : "panda.mp4"));
     prepareOperatorAvatar(faceAsset);
-    if (!choices || !choices.length) operatorDialogTimer = window.setTimeout(hideOperatorDialog, 26000);
+    operatorDialogTimer = window.setTimeout(hideOperatorDialog, 26000);
+  }
+
+  function phonePrimaryControls() {
+    const touch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
+    const coarse = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+    const narrow = Math.min(window.innerWidth || 0, window.innerHeight || 0) < 900;
+    let padConnected = false;
+    try {
+      padConnected = [...(navigator.getGamepads ? navigator.getGamepads() : [])].some((pad) => pad && pad.connected);
+    } catch (e) {}
+    return !padConnected && (coarse || (touch && narrow));
+  }
+
+  function warpControlChoice(label) {
+    return {
+      label: label,
+      className: "bcm-comic-dialog-choice-warp",
+      onSelect: () => {
+        if (typeof window.BCMDeepSpaceWarpToggle === "function") window.BCMDeepSpaceWarpToggle();
+      }
+    };
   }
 
   function showControlsDialog(level) {
@@ -318,20 +340,46 @@
     };
 
     let message = null;
+    let choices = null;
+    const phone = phonePrimaryControls();
     if (normalizedLevel === "flight") {
-      message = interfaceLanguage === "en"
-        ? "Welcome, pilot. WASD flies the ship; U opens the hold; V opens the Warp map. Mouse looks around; press the mouse wheel (middle-click) to release the cursor. On a gamepad, the left stick flies and the right stick looks. Fly close to screens to activate them."
-        : "Привет, пилот! WASD — полёт; U — трюм; V — карта Warp. Мышь — обзор; нажми колёсико (среднюю кнопку), чтобы освободить курсор. На геймпаде: левый стик — полёт, правый — обзор. Подлетай к экранам, чтобы активировать их.";
+      if (phone) {
+        message = interfaceLanguage === "en"
+          ? "Phone: tilt the device to fly. Tap TILT again and hold the phone still for a second to reset tilt calibration. Tap a silent music screen to fix it."
+          : "Телефон: наклоняй аппарат — так летит корабль. Кнопка TILT ещё раз сбрасывает калибровку: подержи ровно секунду. Музыкальный экран, который молчит, чинится тапом по нему.";
+        choices = [{
+          label: interfaceLanguage === "en" ? "TILT · RESET" : "TILT · СБРОС",
+          className: "bcm-comic-dialog-choice-warp",
+          onSelect: () => { enableTilt(); }
+        }];
+      } else if (padConnected) {
+        message = interfaceLanguage === "en"
+          ? "Gamepad: the left stick flies and the right stick looks. Y opens Warp. U opens the hold."
+          : "Геймпад: левый стик — полёт, правый — обзор. Y — Warp, U — трюм.";
+      } else {
+        message = interfaceLanguage === "en"
+          ? "Welcome, pilot. WASD flies the ship; U opens the hold; V opens the Warp map. Mouse looks around; press the mouse wheel (middle-click) to release the cursor. On a gamepad, the left stick flies and the right stick looks. Fly close to screens to activate them."
+          : "Привет, пилот! WASD — полёт; U — трюм; V — карта Warp. Мышь — обзор; нажми колёсико (среднюю кнопку), чтобы освободить курсор. На геймпаде: левый стик — полёт, правый — обзор. Подлетай к экранам, чтобы активировать их.";
+        choices = [warpControlChoice("V")];
+      }
     } else if (normalizedLevel === "warp") {
-      message = interfaceLanguage === "en"
-        ? "Warp: press V to open the map; press Y on a gamepad. Choose a sector and press START WARP. In the tunnel, hold and move the mouse or steer with A/D / ← →; use the left stick on a gamepad."
-        : "Warp: V — открыть карту; на геймпаде — Y. Выбери сектор и нажми START WARP. В тоннеле удерживай и веди мышь или управляй A/D / ← →; на геймпаде — левый стик.";
+      if (phone) {
+        message = interfaceLanguage === "en"
+          ? "Phone Warp has its own button, not the V key. Tap WARP, choose a sector, then START WARP. In the tunnel, tilt steers; tap TILT again to reset calibration."
+          : "Warp на телефоне — своя кнопка, не клавиша V. Нажми WARP, выбери сектор и START WARP. В тоннеле рулит наклон; TILT ещё раз сбрасывает калибровку.";
+        choices = [warpControlChoice("WARP")];
+      } else {
+        message = interfaceLanguage === "en"
+          ? "Warp: press V to open the map; press Y on a gamepad. Choose a sector and press START WARP. In the tunnel, hold and move the mouse or steer with A/D / ← →; use the left stick on a gamepad."
+          : "Warp: V — открыть карту; на геймпаде — Y. Выбери сектор и нажми START WARP. В тоннеле удерживай и веди мышь или управляй A/D / ← →; на геймпаде — левый стик.";
+        choices = [warpControlChoice("V")];
+      }
     } else {
       message = levelText[normalizedLevel]?.[interfaceLanguage]?.[key] || textForLanguage(key);
     }
 
     // Keep all control prompts next to Panda's face. Never open a second panel on the right.
-    showOperatorDialog("ПАНДА", message, null, "panda.mp4");
+    showOperatorDialog("ПАНДА", message, choices, "panda.mp4");
   }
   dialogueRoot.querySelectorAll("[data-dialog-close]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -927,13 +975,7 @@
     startButton.classList.add("hidden");
     languageBox.hidden = true;
     canvas.focus();
-    if (!worldMission.introShown) {
-      worldMission.introShown = true;
-      window.BCMDialogue?.showOperator("ПАНДА", interfaceLanguage === "en"
-        ? "Welcome, pilot. Mouse looks around; keyboard or gamepad steers. Middle-click releases the cursor. Fly close to each wall screen to activate it."
-        : "Привет, пилот! Мышь — обзор, клавиатура или геймпад — управление. Нажми колёсико мыши один раз, чтобы вернуть курсор. Подлетай к экранам, чтобы активировать их.",
-        null, "panda.mp4");
-    }
+    if (!worldMission.introShown) worldMission.introShown = true;
     window.BCMDialogue?.showControls("flight");
 
     // Start stays Room 1 at (0, 0, 2). Do not teleport into the asteroid:
@@ -1073,7 +1115,7 @@
     showOperatorDialog("ПАНДА", interfaceLanguage === "en"
       ? "All music screens have played. Try Warp to a neighboring sector. In any asteroid, collect three glowing Hydrogen crystals. I'll count how many remain."
       : "Все музыкальные экраны включились! Испытай Warp в соседний сектор. В любом астероиде собери три светящихся кристалла Hydrogen. Я буду считать, сколько ещё осталось.",
-      null, "panda.mp4");
+      [warpControlChoice(phonePrimaryControls() ? "WARP" : "V")], "panda.mp4");
   }
 
   function markMissionScreenActive(screenId) {

@@ -18,7 +18,7 @@ function section(source, startMarker, endMarker) {
 }
 
 test("asteroid exit returns to Warp, Ring stays separate and Hull Dive is enterable in first-person", () => {
-  assert.match(warp, /exitButton\.textContent = "СЛЕДУЮЩИЙ ПЕРЕХОД · V"/);
+  assert.match(warp, /exitButton\.textContent = nextWarpDestinationLabel\(\)/);
   assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
   assert.match(warp, /maze\.count === 3 \? "GOLD RING IS OPEN"/);
   assert.match(warp, /if \(state\.ringApproachArmed && !state\.ringEntryFailed && !state\.ringPlatformer &&[\s\S]{0,120}ringDistance < 2\.6\)\s*\{\s*attemptOpenRingPlatformer\(maze\)/);
@@ -422,6 +422,12 @@ test("V opens the next-destination map from asteroid flight without resetting th
   assert.doesNotMatch(body, /engine\.teleport\(state\.savedPosition,\s*state\.savedQuaternion\)/);
   assert.match(warp, /NEXT WARP DESTINATION · V/);
   assert.match(warp, /СЛЕДУЮЩИЙ ПЕРЕХОД · V/);
+  assert.match(warp, /z-index:1001400/);
+  assert.match(warp, /ENTER THE RING/);
+  assert.match(warp, /BCMDialogue\?\.hideOperator/);
+  assert.match(warp, /canvasEl\.clientWidth/);
+  assert.match(warp, /ЯЧЕЙКА · ИДИ В ОТКРЫТУЮ ДВЕРЬ/);
+  assert.match(warp, /nextDirectionTowardLarge\(start\)/);
 });
 
 
