@@ -28,7 +28,7 @@ test("Flight starts in Room 1 and does not teleport into the asteroid", async ()
   const begin = mini.slice(mini.indexOf("function beginFlight()"), mini.indexOf("const byName = Object.create(null)"));
   assert.doesNotMatch(begin, /BCMDeepSpaceWarpEnterAsteroid\s*\(/);
   assert.match(mini, /ship\.position = new THREE\.Vector3\(0, 0, 2\)/);
-  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.20/);
+  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.21/);
 });
 
 test("Asteroid walls are resolved from the prepared asterwall asset family", async () => {
@@ -236,7 +236,10 @@ test("Astral Y-cells are seed-deterministic and alter movement without rebuildin
   assert.match(warp, /asteroid-crystal-pickup-impact/);
   assert.match(warp, /bcm:mission:hydrogen-shard-collected/);
   assert.doesNotMatch(warp, /nextDirection = path\.nextDirectionTowardLarge\(node\) \|\|/);
-  assert.match(warp, /const verticalDirection = input\.down \? "yn" : "yp"/);
+  assert.match(warp, /if \(action === "floor"\)/);
+  assert.match(warp, /const p1Floor = event\.code === "KeyR"/);
+  assert.match(warp, /statePad\.floor = !!button\(4\)/);
+  assert.doesNotMatch(warp, /const verticalDirection = input\.down \? "yn" : "yp"/);
   assert.match(warp, /sealedWallRight\.visible = !node\.large && !rightDoor/);
   assert.match(warp, /ring-cell-vertical-portal/);
   assert.match(warp, /placeParty\(enterRingCell\(worldState, nextNode,[\s\S]*?player\), player\)/);
