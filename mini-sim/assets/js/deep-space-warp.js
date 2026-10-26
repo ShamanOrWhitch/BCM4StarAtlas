@@ -1123,6 +1123,32 @@
       });
       selectedElement.textContent = "DESTINATION · " + sectorText(sector);
       startButton.disabled = false;
+      renderGalaxyMap();
+    }
+
+    function visibleMapChoices() {
+      return [...mapView.querySelectorAll("button:not([disabled]), input:not([disabled]), select:not([disabled])")].filter((node) => {
+        if (node.closest("[hidden]")) return false;
+        const rect = node.getBoundingClientRect();
+        const style = window.getComputedStyle(node);
+        return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+      });
+    }
+
+    function focusMapChoice(step) {
+      const choices = visibleMapChoices();
+      if (!choices.length) { overlay.focus({ preventScroll: true }); return; }
+      let index = choices.indexOf(document.activeElement);
+      if (index < 0) index = 0;
+      else if (step) index = (index + step + choices.length) % choices.length;
+      choices[index].focus({ preventScroll: true });
+      if (choices[index].scrollIntoView) choices[index].scrollIntoView({ block: "nearest" });
+    }
+
+    function focusInitialMapChoice() {
+      const first = listElement.querySelector(".bcm-warp-sector") || manualForm.elements.x || closeButton;
+      if (first && typeof first.focus === "function") first.focus({ preventScroll: true });
+      else overlay.focus({ preventScroll: true });
     }
 
     function openMap() {
@@ -1135,6 +1161,8 @@
       }
       pauseLevelOst();
       startWarpAudio(true);
+      if (engine.releaseFlightPointerLock) engine.releaseFlightPointerLock();
+      if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
       state.nav = readNavigation();
       state.target = null;
       state.mode = "map";
@@ -1146,7 +1174,6 @@
       state.returnPosition = null;
       state.returnQuaternion = null;
       engine.pauseForWarp(true);
-      if (document.exitPointerLock) document.exitPointerLock();
       currentElement.textContent = "CURRENT · " + sectorText(state.nav.current);
       sourceElement.textContent = state.nav.label;
       sourceElement.classList.toggle("is-preview", !state.nav.live);
@@ -1164,7 +1191,10 @@
       overlay.hidden = false;
       root.classList.add("bcm-warp-open");
       launchButton.classList.add("is-active");
+      overlay.style.pointerEvents = "auto";
       resizeBackdrop();
+      renderGalaxyMap();
+      focusInitialMapChoice();
       startBackdropLoop();
     }
 
