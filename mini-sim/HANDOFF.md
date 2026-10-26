@@ -1,5 +1,13 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
+## Mini-Sim 0.11.20 — landing clip, then the same asteroid on foot
+
+- The first Panda line is flight and screens. Screens turn on by flying up to them. The V / Warp button is only in the next line, after the screens have played. V is Warp, not a screen switch and not the hold.
+- Flying into the gold ring plays the landing clip (`ringgummy.mp4`) through. When it ends, or when the pilot presses ENTER THE RING, the Ring menu opens. The clip is not cut at two seconds and is not skipped by tapping the picture.
+- The side view is the same seeded asteroid: each cell shows that cell's asterwall texture and turn, and the arena backdrop uses those textures too. It is a landing, not a different place.
+- The open door faces the next Hydrogen crystal, then the way back to the landing cell. A vertical step is jump or E at the glow. E follows that route instead of turning into a side spur. Sometimes one cell on the way has a boss; shoot it, then the door opens. The pig arena is optional. Every seed can be finished by collecting the crystals and returning to the start.
+- Version `0.11.20`. Tower stays `0.2.66`. WordPress does not update until the plugin from main is installed.
+
 ## Mini-Sim 0.11.19 — Ring level stays open, Warp cancel stays on the asteroid
 
 - 0.11.18 (PR #81) is already on main. Its 2.2s video watchdog made Ring worse: the clip aborted and the level threw (`MeshBasicMaterial` has no `emissive`), so the asteroid was restored and the ring maze never stayed up. The maze frame also threw `updateCrystalPickupEffects is not defined` before the approach check, so flying into the ring never opened it.

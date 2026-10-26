@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.19",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.20",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.19",
+      title: "SPACE LABYRINTH — 0.11.20",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -354,13 +354,13 @@
         }];
       } else if (padConnected) {
         message = interfaceLanguage === "en"
-          ? "Gamepad: the left stick flies and the right stick looks. Y opens Warp. U opens the hold."
-          : "Геймпад: левый стик — полёт, правый — обзор. Y — Warp, U — трюм.";
+          ? "Gamepad: the left stick flies and the right stick looks. U opens the hold. Screens turn on when you fly up to them — not with a button."
+          : "Геймпад: левый стик — полёт, правый — обзор. U — трюм. Экраны включаются подлётом к ним — не кнопкой.";
       } else {
         message = interfaceLanguage === "en"
-          ? "Welcome, pilot. WASD flies the ship; U opens the hold; V opens the Warp map. Mouse looks around; press the mouse wheel (middle-click) to release the cursor. On a gamepad, the left stick flies and the right stick looks. Fly close to screens to activate them."
-          : "Привет, пилот! WASD — полёт; U — трюм; V — карта Warp. Мышь — обзор; нажми колёсико (среднюю кнопку), чтобы освободить курсор. На геймпаде: левый стик — полёт, правый — обзор. Подлетай к экранам, чтобы активировать их.";
-        choices = [warpControlChoice("V")];
+          ? "Welcome, pilot. WASD flies the ship; U opens the hold. Mouse looks around; press the mouse wheel (middle-click) to release the cursor. On a gamepad, the left stick flies and the right stick looks. Screens turn on when you fly up to them — not with a key."
+          : "Привет, пилот! WASD — полёт; U — трюм. Мышь — обзор; нажми колёсико (среднюю кнопку), чтобы освободить курсор. На геймпаде: левый стик — полёт, правый — обзор. Экраны включаются подлётом к ним — не клавишей.";
+        choices = null;
       }
     } else if (normalizedLevel === "warp") {
       if (phone) {
@@ -1113,8 +1113,8 @@
     }));
     updateHydrogenMissionLabel();
     showOperatorDialog("ПАНДА", interfaceLanguage === "en"
-      ? "All music screens have played. Try Warp to a neighboring sector. In any asteroid, collect three glowing Hydrogen crystals. I'll count how many remain."
-      : "Все музыкальные экраны включились! Испытай Warp в соседний сектор. В любом астероиде собери три светящихся кристалла Hydrogen. Я буду считать, сколько ещё осталось.",
+      ? "All music screens have played. V — Warp map. The button below opens it. In any asteroid, collect three glowing Hydrogen crystals, then return to where you landed. I'll count how many remain."
+      : "Все музыкальные экраны включились. V — карта Warp. Кнопка ниже открывает её. В любом астероиде собери три светящихся кристалла Hydrogen и вернись к месту высадки. Я буду считать, сколько ещё осталось.",
       [warpControlChoice(phonePrimaryControls() ? "WARP" : "V")], "panda.mp4");
   }
 

@@ -1,3 +1,13 @@
+## D-041 — Mini-Sim 0.11.20: Warp button after the screens, landing clip, same asteroid on foot
+
+**Status:** Source change on top of merged 0.11.19 (PR #82). No WordPress deployment. V is Warp. U is the hold. X is the helm. Do not shrink flyRadius. Do not reopen Tower physics or Room 2 walls.
+
+- The first Panda line no longer offers V. Screens turn on by flying up to them. The Warp button (V, or WARP on a phone) is only in the second line, after those screens have played.
+- The landing clip plays through, then the Ring menu opens. It is not cut at two seconds and a tap on the picture does not skip it.
+- The side view uses this asteroid seed's wall textures. The open door follows the Hydrogen crystals and then returns to the landing cell. A vertical step is the glow, not a side spur. Sometimes one passage has a boss. The pig arena is not required.
+
+---
+
 ## D-040 — Mini-Sim 0.11.19: Ring level, asteroid place, wider flight envelope
 
 **Status:** Source change on top of merged 0.11.18 (PR #81). No WordPress deployment. V is Warp. U is the hold. X is the helm. Do not reopen Tower physics or Room 2 walls.

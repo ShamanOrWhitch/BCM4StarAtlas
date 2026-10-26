@@ -21,7 +21,7 @@ test("asteroid exit returns to Warp, Ring stays separate and Hull Dive is entera
   assert.match(warp, /exitButton\.textContent = nextWarpDestinationLabel\(\)/);
   assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
   assert.match(warp, /maze\.count === 3 \? "GOLD RING IS OPEN"/);
-  assert.match(warp, /if \(state\.ringApproachArmed && !state\.ringEntryFailed && !state\.ringPlatformer &&[\s\S]{0,160}ringDistance < 2\.6\)\s*\{\s*attemptOpenRingPlatformer\(maze, true\)/);
+  assert.match(warp, /if \(state\.ringApproachArmed && !state\.ringEntryFailed && !state\.ringPlatformer &&[\s\S]{0,160}ringDistance < 2\.6\)\s*\{\s*attemptOpenRingPlatformer\(maze\)/);
   const mazeFrame = section(warp, "function updateMazeFrame(frame)", "function openHullInterior");
   assert.match(mazeFrame, /const ringDistance = pos\.distanceTo\(maze\.beacon\.position\)/);
   assert.match(mazeFrame, /state\.ringDistance = ringDistance/);

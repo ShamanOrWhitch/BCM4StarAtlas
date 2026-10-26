@@ -1,4 +1,10 @@
-## Main state — Mini-Sim 0.11.19 / Tower 0.2.66 (26 October 2026)
+## Main state — Mini-Sim 0.11.20 / Tower 0.2.66 (26 October 2026)
+
+- First Panda dialog is flight and screen approach. The Warp button (V, or WARP on a phone) is the second dialog, after the screens.
+- Ring entry plays the landing clip, then the menu. The 2s abort stays gone. The side view uses the asteroid seed's wall textures. The forward door follows Hydrogen, then the return to the landing cell, including vertical floors.
+- Mini-Sim/cache/title version: `0.11.20`; Tower version: `0.2.66`. No WordPress deployment from this commit.
+
+## Previous state — Mini-Sim 0.11.19 / Tower 0.2.66 (26 October 2026)
 
 - Ring level opens on approach and stays open. The 0.11.18 two-second video abort is gone. The crash was `portalMaterial.emissive.setHex` on a basic material, plus a maze-frame ReferenceError that skipped the approach check.
 - Warp cancel on the asteroid keeps that locale and those coordinates. Place label is `ASTEROID · X / Y`, not Room 1.

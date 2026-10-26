@@ -1,3 +1,10 @@
+## Active — Mini-Sim 0.11.20 landing clip, Warp after screens, walkable asteroid (26 October 2026)
+
+- 0.11.19 is already merged (PR #82). This pass puts the Warp button in the second Panda line, restores the landing clip before the Ring menu, skins the side view with this asteroid's textures, and keeps every seed finishable: Hydrogen, then back to the landing. Bosses are occasional, not a gate on every room.
+- Not a WordPress upload. Tower stays 0.2.66. flyRadius stays 160. Do not rewrite the maze generator or Room 2 walls.
+
+---
+
 ## Active — Mini-Sim 0.11.19 Ring level, asteroid place, orbit radius (26 October 2026)
 
 - 0.11.18 is already merged (PR #81). This pass fixes the ring level that aborted at 2 seconds, Warp cancel dropping the pilot into a Room 1 label, and the asteroid flight envelope (now 160). V is not the hold.
