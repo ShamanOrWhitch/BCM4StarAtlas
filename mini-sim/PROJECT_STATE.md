@@ -1,4 +1,4 @@
-## Repair candidate — Mini-Sim 0.11.21 / Tower 0.2.66 (26 October 2026)
+## Repair candidate — Mini-Sim 0.11.21 / Tower 0.2.67 (26 October 2026)
 
 - Branch: `fix/minisim-0.11.21-playtest-stability`; baseline main SHA `73ba0cc1f772d73155a093382fce051e1e2843ae`; Work Lock [#84](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/84); draft PR [#85](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/85).
 - **USER-CONFIRMED:** on 0.11.19/0.11.20 Ring entry works again and external backside doors work. Ring's seeded cells/textures improved, but controls and route playability remain rough.
