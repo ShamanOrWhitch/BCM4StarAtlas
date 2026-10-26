@@ -1055,7 +1055,8 @@
         locations.forEach((location) => {
           const info = kindInfo(location.kind);
           const item = document.createElement("div");
-          item.className = "bcm-warp-local-location" + (location.status === "implemented" ? " is-implemented" : "");
+          item.className = "bcm-warp-local-location" +
+            (location.status === "implemented" ? " is-implemented" : location.status === "planned" ? " is-planned" : "");
           const symbol = document.createElement("strong");
           symbol.className = "bcm-warp-local-icon";
           symbol.textContent = info.icon;
