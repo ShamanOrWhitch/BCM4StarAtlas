@@ -409,8 +409,12 @@ test("Room 2 collision surfaces do not extend into open space", () => {
   assert.equal(actualSide.ship.position.x, 5.94);
 
   const actualCap = collide({ x: 0, y: 0, z: -46.5 }, { x: 0, y: 0, z: -48.5 });
-  assert.equal(actualCap.blocked, true, "the actual Room 2 front cap remains solid");
-  assert.equal(actualCap.ship.position.z, -47.44);
+  assert.equal(actualCap.blocked, false, "the central Room 2 return opening is passable in both directions");
+  assert.equal(actualCap.ship.position.z, -48.5);
+
+  const offCenterCap = collide({ x: 5.95, y: 0, z: -46.5 }, { x: 5.95, y: 0, z: -48.5 });
+  assert.equal(offCenterCap.blocked, true, "the Room 2 cap stays solid outside the central opening");
+  assert.equal(offCenterCap.ship.position.z, -47.44);
 
   const room2Exit = collide({ x: 0, y: 0, z: -84.4 }, { x: 0, y: 0, z: -84.8 });
   assert.equal(room2Exit.blocked, false, "the normal Room 2 rear exit remains open");
