@@ -5309,42 +5309,9 @@ return axialRoll + ahead * 0.12 +
       });
 
       if (state.mode === "map") {
-        const nav = state.nav;
-        if (nav) {
-          const nodes = [nav.current].concat(nav.targets || []);
-          const maxDelta = Math.max(1, ...nodes.map((n) => Math.max(Math.abs((n.x == null ? 0 : n.x) - (nav.current.x || 0)), Math.abs((n.y == null ? 0 : n.y) - (nav.current.y || 0)))));
-          const reveal = Math.min(1, Math.max(0, (now - state.openedAt) / 650));
-          const easedReveal = reveal * reveal * (3 - 2 * reveal);
-          const scale = (Math.min(w, h) * 0.27 / maxDelta) * (0.20 + 0.80 * easedReveal);
-          const positions = nodes.map((node, index) => {
-            const angle = ((index - 1) / Math.max(1, nodes.length - 1)) * Math.PI * 2;
-            const dx = node.x == null ? (index === 0 ? 0 : Math.cos(angle) * 1.5) : node.x - (nav.current.x || 0);
-            const dy = node.y == null ? (index === 0 ? 0 : Math.sin(angle) * 1.5) : node.y - (nav.current.y || 0);
-            return { node, x: cx + dx * scale, y: cy - dy * scale };
-          });
-          ctx.strokeStyle = "rgba(100,169,201,.30)";
-          ctx.lineWidth = 1;
-          positions.slice(1).forEach((p) => {
-            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(p.x, p.y); ctx.stroke();
-          });
-          positions.forEach((p, i) => {
-            const isCurrent = i === 0;
-            const isSelected = state.target && state.target.id === p.node.id;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, isCurrent ? 7 : isSelected ? 6 : 3.5, 0, Math.PI * 2);
-            ctx.fillStyle = isCurrent ? "#f2f6ff" : isSelected ? "#56f0d0" : "#8bb8d0";
-            ctx.fill();
-            if (isCurrent || isSelected) {
-              ctx.beginPath();
-              ctx.arc(p.x, p.y, isCurrent ? 15 : 12, 0, Math.PI * 2);
-              ctx.strokeStyle = isCurrent ? "rgba(242,246,255,.55)" : "rgba(86,240,208,.55)";
-              ctx.stroke();
-            }
-          });
-          const pulse = 0.96 + Math.sin(now * 0.00045) * 0.035;
-          ctx.strokeStyle = "rgba(130,186,220,.10)";
-          ctx.beginPath(); ctx.arc(cx, cy, Math.min(w, h) * 0.40 * pulse, 0, Math.PI * 2); ctx.stroke();
-        }
+        // Sector navigation is rendered in the real X/Y coordinate canvas inside the menu.
+        // Keep this full-screen backdrop purely atmospheric so it cannot imply a second,
+        // radial or fabricated sector layout behind the actual map.
       } else if (state.mode === "tube" || state.mode === "result") {
         if (state.mode === "tube") updateTube(dt, now);
         drawTubeTunnel(ctx, w, h, now);
