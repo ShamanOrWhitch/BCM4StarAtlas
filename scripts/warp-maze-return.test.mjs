@@ -112,17 +112,33 @@ test("Warp Tube is a rolling circular cylinder with a curved / corkscrew route",
   assert.doesNotMatch(body, /const roadY=d=>|const half=d=>|Continuous floor panels and centre dashes/);
 });
 
-test("Every generated obstacle layer has a distinct type and a passable opening", () => {
-  const start = warp.indexOf("const courseLayerCount = 16");
+test("Warp keeps 22 randomized, varied obstacle layers with a collision-safe opening", () => {
+  const start = warp.indexOf("const courseLayerCount = 22");
   const end = warp.indexOf("tubeTitle.textContent", start);
   assert.ok(start > 0 && end > start);
   const body = warp.slice(start, end);
-  assert.match(warp, /function buildWarpObstacleTypes\(rng, count = 16\)/);
+  assert.match(body, /const typeRoll = rng\(\)/);
+  assert.match(body, /typeRoll < 0\.34 \? "gate"/);
+  assert.match(body, /typeRoll < 0\.55 \? "sweeper"/);
+  assert.match(body, /typeRoll < 0\.70 \? "spikes"/);
+  assert.match(body, /typeRoll < 0\.86 \? "boost" : "launcher"/);
   assert.match(body, /safeAngle/);
-  assert.match(body, /const courseTypes = buildWarpObstacleTypes\(rng, courseLayerCount\)/);
-  assert.match(body, /const type = courseTypes\[i\]/);
   assert.match(body, /gapHalf: type === "gate" \? 0\.94 : 0\.86/);
   assert.match(body, /progress = 0\.08 \+ \(i \/ Math\.max\(1, courseLayerCount - 1\)\) \* 0\.86/);
+});
+
+test("Warp opens with a free pointer and keyboard focus, without requiring Escape", () => {
+  const openBody = section(warp, "function openMap()", "function closeOverlay");
+  assert.match(openBody, /engine\.releaseFlightPointerLock\(\)/);
+  assert.match(openBody, /overlay\.hidden = false/);
+  assert.match(openBody, /renderGalaxyMap\(\)/);
+  assert.match(openBody, /focusInitialMapChoice\(\)/);
+  const handlers = section(warp, "function bindWarpInput()", "launchButton.addEventListener");
+  assert.match(handlers, /focusMapChoice\(1\)/);
+  assert.match(handlers, /focusMapChoice\(-1\)/);
+  assert.match(handlers, /active\.click\(\)/);
+  assert.match(warp, /function renderGalaxyMap\(\)/);
+  assert.match(warp, /data-warp-galaxy-map/);
 });
 
 test("reopening Warp retains the arrived local sector instead of resetting to the adapter launch sector", () => {
@@ -173,12 +189,14 @@ test("Warp comeback cancellation restores a non-asteroid anchor before resuming 
   assert.ok(teleport >= 0 && unpauseAfter > teleport, "unpause only after the non-asteroid teleport");
 });
 
-test("Warp hazards are varied by family, randomized per run and visually decoupled from shimmer", () => {
+test("Warp hazards stay varied across all 22 layers and the faster ramp remains synchronized", () => {
   assert.match(warp, /function warpObstacleProgress\(elapsed\)/);
   assert.match(warp, /Math\.pow\(warpCourseProgress\(elapsed\), 0\.86\)/);
-  assert.match(warp, /const courseLayerCount = 16/);
+  assert.match(warp, /const courseLayerCount = 22/);
   assert.match(warp, /const runNonce = Date\.now\(\)\.toString\(36\) \+ "-" \+ Math\.random/);
-  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
+  assert.match(warp, /Math\.pow\(warpNormalizedTime\(elapsed\), 0\.82\)/);
+  assert.match(warp, /return Math\.pow\(12, t\)/);
+  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.48/);
   assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
   assert.match(warp, /Math\.sin\(shimmerTime \* 1\.35/);
   assert.match(warp, /if \(Math\.abs\(delta\) > 1\.18\)/);
