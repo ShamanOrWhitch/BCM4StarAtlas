@@ -111,7 +111,7 @@ test("Warp draws a real 2D SAGE coordinate plane and a separate sector-location 
   assert.match(warp, /Pearce/);
   assert.match(warp, /Ioki/);
   assert.match(warp, /Deep Space · внешняя зона/);
-  assert.doesNotMatch(warp.slice(warp.indexOf("function renderGalaxyMap"), warp.indexOf("galaxyMap\?\.addEventListener")), /for \(let arm = 0; arm < 4/);
+  assert.doesNotMatch(warp.slice(warp.indexOf("function renderGalaxyMap"), warp.indexOf("galaxyMap?.addEventListener")), /for \(let arm = 0; arm < 4/);
   assert.match(warp, /renderGalaxyMap\(\);\s*focusInitialMapChoice\(\)/);
   assert.match(warp, /engine\.releaseFlightPointerLock\(\)/);
   assert.match(warp, /function focusInitialMapChoice\(\)/);
