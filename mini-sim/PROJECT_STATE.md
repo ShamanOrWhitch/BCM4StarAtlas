@@ -1,4 +1,15 @@
-## Main state — Mini-Sim 0.11.20 / Tower 0.2.66 (26 October 2026)
+## Repair candidate — Mini-Sim 0.11.21 / Tower 0.2.66 (26 October 2026)
+
+- Branch: `fix/minisim-0.11.21-playtest-stability`; baseline main SHA `73ba0cc1f772d73155a093382fce051e1e2843ae`; Work Lock [#84](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/84); draft PR [#85](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/85).
+- **USER-CONFIRMED:** on 0.11.19/0.11.20 Ring entry works again and external backside doors work. Ring's seeded cells/textures improved, but controls and route playability remain rough.
+- Regressions being repaired: Hydrogen mission counter/route-state desynchronization; invisible Room 2 central return wall; jump/floor control overlap; repeated Warp gate pattern; generic Tower Panda copy.
+- Candidate changes: separate Ring route-crystal state driven by `BCMWorldMission.hydrogenCount`; E door + R floor controls (gamepad LB); central Room 2 return opening only; 16 shuffled obstacle layers with max two gates, no adjacent duplicate families and wider gaps; device-specific Tower instructions.
+- **TESTED-CODE pending** until CI passes. No WordPress deployment and no live/device pass claimed. Remote browser QA previously received HTTP 403; do not bypass site protection.
+- Network mode remains deferred until local gameplay and ship/reference identity are stable.
+
+---
+
+## Previous main baseline — Mini-Sim 0.11.20 / Tower 0.2.66 (26 October 2026)
 
 - First Panda dialog is flight and screen approach. The Warp button (V, or WARP on a phone) is the second dialog, after the screens.
 - Ring entry plays the landing clip, then the menu. The 2s abort stays gone. The side view uses the asteroid seed's wall textures. The forward door follows Hydrogen, then the return to the landing cell, including vertical floors.
