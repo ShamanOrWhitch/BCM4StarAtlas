@@ -571,7 +571,7 @@
             '<div class="bcm-warp-galaxy-heading"><strong>GALAXY MAP</strong><span data-warp-galaxy-status>СХЕМА ГАЛАКТИКИ · ТЕКУЩИЙ СЕКТОР</span></div>' +
             '<canvas class="bcm-warp-galaxy-map" data-warp-galaxy-map tabindex="0" role="img" aria-label="Координатная карта SAGE в плоскости X/Y. Яркие точки — текущий и доступные для Warp секторы; выбор доступной точки показывает маршрут."></canvas>' +
             '<div class="bcm-warp-galaxy-legend"><span><i class="is-current"></i> CURRENT / CSS</span><span><i class="is-link"></i> WARP-ДОСТУПЕН</span><span><i class="is-route"></i> МАРШРУТ</span><span><i class="is-star"></i> ЗВЕЗДЫ</span><small>Сетка X/Y −50…50. Полные точки секторов рисуются, только если координаты переданы адаптером.</small></div>' +
-            '<div class="bcm-warp-local-area"><div class="bcm-warp-galaxy-heading"><strong>ЛОКАЦИИ ВЫБРАННОГО СЕКТОРА</strong><span data-warp-local-status>Выберите сектор</span></div><div class="bcm-warp-local-locations" data-warp-local-locations></div></div>' +
+            '<div class="bcm-warp-local-area"><div class="bcm-warp-galaxy-heading"><strong>ЛОКАЦИИ ВЫБРАННОГО СЕКТОРА</strong><span data-warp-local-status>Выберите сектор</span></div><div class="bcm-warp-local-locations" data-warp-local-locations></div><div class="bcm-warp-location-kinds"><span><i>◈</i> Астероиды · локальный комплекс</span><span><i>◎</i> Планета · Tower / внутренние мини-игры</span><span><i>✦</i> Deep Space · внешняя зона с отдельной визуальной темой</span></div></div>' +
           '</div>' +
           '<div class="bcm-warp-grid" data-warp-grid hidden aria-label="Соседние клетки вокруг ONI CSS"></div>' +
           '<div class="bcm-warp-sector-list" data-warp-sectors></div>' +
@@ -1012,14 +1012,32 @@
       const id = String((sector && sector.id) || "").toLowerCase();
       const name = String((sector && sector.name) || "").toLowerCase();
       const isOniCss = (x === -40 && y === 30) || id.includes("oni-css") || name.includes("oni css");
-      if (isOniCss && !locations.some((item) => /asteroid|астероид/i.test(item.name + " " + item.kind))) {
-        locations.unshift({
-          id: "local-asteroid-complex",
-          name: "Астероидный комплекс",
-          kind: "asteroid",
-          detail: "Локальная игровая зона рядом с ONI CSS; существующая механика астероидного прохода.",
-          status: "implemented"
-        });
+      const isMudCss = (x === 0 && y === -39) || id.includes("mud-css") || name.includes("mud css");
+      const isUsturCss = (x === 40 && y === 30) || id.includes("ustur-css") || name.includes("ustur css");
+      const hasKind = (pattern) => locations.some((item) => pattern.test(item.name + " " + item.kind));
+      const addKnownLocation = (location) => {
+        if (!locations.some((item) => item.id === location.id || (item.name === location.name && item.kind === location.kind))) {
+          locations.push(location);
+        }
+      };
+      if (isOniCss) {
+        if (!hasKind(/asteroid|астероид/i)) {
+          locations.unshift({
+            id: "local-asteroid-complex",
+            name: "Астероидный комплекс",
+            kind: "asteroid",
+            detail: "Локальная игровая зона рядом с ONI CSS; существующая механика астероидного прохода.",
+            status: "implemented"
+          });
+        }
+        addKnownLocation({ id: "oni-css-station", name: "ONI CSS", kind: "station", detail: "Орбитальная станция и локальный ориентир сектора.", status: "reference" });
+        addKnownLocation({ id: "akenat-planet", name: "Akenat", kind: "planet", detail: "Планетарная локация системы ONI; Tower и внутренние механики здесь пока требуют привязки запуска.", status: "planned" });
+      } else if (isMudCss) {
+        addKnownLocation({ id: "mud-css-station", name: "MUD CSS", kind: "station", detail: "Орбитальная станция системы MUD.", status: "reference" });
+        addKnownLocation({ id: "pearce-planet", name: "Pearce", kind: "planet", detail: "Планетарная локация системы MUD; Tower и внутренние механики требуют привязки запуска.", status: "planned" });
+      } else if (isUsturCss) {
+        addKnownLocation({ id: "ustur-css-station", name: "Ustur CSS", kind: "station", detail: "Орбитальная станция системы Ustur.", status: "reference" });
+        addKnownLocation({ id: "ioki-planet", name: "Ioki", kind: "planet", detail: "Планетарная локация системы Ustur; Tower и внутренние механики требуют привязки запуска.", status: "planned" });
       }
 
       galaxyLocalStatus.textContent = sector
@@ -1048,7 +1066,10 @@
           const subtitle = document.createElement("small");
           subtitle.textContent = location.detail || info.label;
           const stateText = document.createElement("em");
-          stateText.textContent = location.status === "implemented" ? "В ИГРЕ" : "ДАННЫЕ АДАПТЕРА";
+          stateText.textContent = location.status === "implemented" ? "В ИГРЕ"
+            : location.status === "planned" ? "НУЖНА ПРИВЯЗКА"
+              : location.status === "reference" ? "ОРИЕНТИР"
+                : "ДАННЫЕ АДАПТЕРА";
           copy.append(title, subtitle);
           item.append(symbol, copy, stateText);
           galaxyLocalLocations.appendChild(item);
@@ -1056,9 +1077,7 @@
       } else {
         const note = document.createElement("p");
         note.className = "bcm-warp-local-empty";
-        note.textContent = isOniCss
-          ? "В этом узле подтверждён астероидный комплекс. Планеты с Tower и локации Deep Space должны появляться отдельными точками после привязки к сектору; их координаты здесь не выдумываются."
-          : "Навигационный адаптер не передал локальные локации для этого сектора. Карта поддерживает раздельные точки внутри сектора: астероидные комплексы, планеты / Tower и внешние Deep Space-механики.";
+        note.textContent = "Навигационный адаптер не передал дополнительные локальные точки для этого сектора. Астероидные комплексы, планеты / Tower и внешние Deep Space-механики остаются отдельными типами локаций, пока их привязка не задана.";
         galaxyLocalLocations.appendChild(note);
       }
     }
