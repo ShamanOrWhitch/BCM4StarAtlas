@@ -96,7 +96,7 @@ test("Warp Tube speed multiplier climbs from 1x to 8x with shared scene and soun
   assert.match(warp, /function warpObstacleProgress\(elapsed\)/);
   assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
   assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
-  assert.match(warp, /const gateCount = 22/);
+  assert.match(warp, /const courseLayerCount = 16/);
   assert.match(warp, /const runNonce = Date\.now\(\).*Math\.random/);
   assert.match(warp, /const rampMultiplier = warpSpeedMultiplier\(state\.elapsed\)/);
   assert.match(warp, /Math\.max\(1, Math\.min\(8,/);
