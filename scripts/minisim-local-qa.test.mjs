@@ -192,9 +192,10 @@ test("Playwright runner overrides plugin files from local checkout",async()=>{
 });
 
 
-test("Warp hazards preserve depth separation, the 1x–8x ramp, and actual speed telemetry", async () => {
+test("Warp hazards preserve depth separation, accelerate to 12x, and keep actual speed telemetry", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(warp, /const t = Math\.pow\(warpNormalizedTime\(elapsed\), 0\.82\)/);
+  assert.match(warp, /return Math\.pow\(12, t\)/);
   assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) - 1\) \/ 11/);
   assert.match(warp, /Math\.max\(1, Math\.min\(12,/);
   assert.match(warp, /if \(distance > 0\.36 \|\| distance <= 0\) return null/);
