@@ -6,7 +6,7 @@
 - Ring mission crystals must not mutate the 3D flight's transient crystal flags. `BCMWorldMission.hydrogenCount` remains authoritative; stable crystal IDs prevent duplicates.
 - Space/W is jump only. E follows the marked door route; R / gamepad LB explicitly changes floor at a vertical hatch.
 - Room 2 exits through the central front passage in both directions; collisions outside the opening remain solid.
-- Warp variety means a shuffled set of obstacle families, a maximum of two gate barriers among 16 layers, no adjacent duplicate family and a wider gate opening — not more repeated rings.
+- The user's later, longer playtest supersedes the earlier count-reduction idea: retain 22 randomized layers and the original obstacle-family mixture. Accelerate the shared hazard/collision course sooner, reaching 12x. Visual Class II reverses star-streak motion. Keep safe openings collision-aligned. The destination menu releases pointer lock, initially focuses a usable choice, supports keyboard/controller navigation without Escape as a setup step, and includes a schematic Galaxy panel with current sector, connected targets and selected route. The decorative galaxy background is not authoritative SAGE geography.
 - Tower Panda copy explains the real controls and descent goal. Network play remains deferred while local gameplay and ship/reference identity are unresolved.
 - Source/CI tests must pass before merge. Live WordPress/device behaviour remains unverified.
 
