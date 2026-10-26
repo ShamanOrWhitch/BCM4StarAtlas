@@ -37,16 +37,15 @@ test("Tube rendering is a rotating cylinder, not a fixed trapezoid", () => {
 });
 
 test("Tube displays multiple obstacle types and tests collisions against their visible open angles", () => {
-  const create = section(warp, "const courseLayerCount = 16", "tubeTitle.textContent");
+  const create = section(warp, "const courseLayerCount = 22", "tubeTitle.textContent");
   const update = section(warp, "function updateTube(dt, now)", "window.BCMDeepSpaceWarpToggle");
   const draw = section(warp, "function drawTubeTunnel", "function drawBackdrop");
-  assert.match(warp, /function buildWarpObstacleTypes\(rng, count = 16\)/);
-  assert.match(create, /const courseTypes = buildWarpObstacleTypes\(rng, courseLayerCount\)/);
-  assert.match(create, /const type = courseTypes\[i\]/);
-  assert.match(warp, /"boost", "boost", "boost"/);
-  assert.match(warp, /"launcher", "launcher", "launcher"/);
-  assert.match(warp, /"spikes", "spikes", "spikes", "spikes"/);
-  assert.match(warp, /"sweeper", "sweeper", "sweeper", "sweeper"/);
+  assert.match(create, /const typeRoll = rng\(\)/);
+  assert.match(create, /typeRoll < 0\.34 \? "gate"/);
+  assert.match(create, /typeRoll < 0\.55 \? "sweeper"/);
+  assert.match(create, /typeRoll < 0\.70 \? "spikes"/);
+  assert.match(create, /typeRoll < 0\.86 \? "boost" : "launcher"/);
+  assert.match(create, /gapHalf: type === "gate" \? 0\.94 : 0\.86/);
   assert.match(draw, /layer\.type === "gate"/);
   assert.match(draw, /layer\.type === "sweeper"/);
   assert.match(draw, /layer\.type === "spikes"/);
