@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.20",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.21",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.20",
+      title: "SPACE LABYRINTH — 0.11.21",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -4657,7 +4657,13 @@
         (Math.abs(before.x) <= 6.2 && Math.abs(before.y) <= 3.7) ||
         (Math.abs(ship.position.x) <= 6.2 && Math.abs(ship.position.y) <= 3.7);
       const crossedFront = shellCrossed(before.z, ship.position.z, frontOpeningZ);
-      if (crossedFront && inCorridorMouth) {
+      const frontDelta = ship.position.z - before.z;
+      const frontT = Math.abs(frontDelta) > 1e-9 ? (frontOpeningZ - before.z) / frontDelta : -1;
+      const frontX = before.x + (ship.position.x - before.x) * frontT;
+      const frontY = before.y + (ship.position.y - before.y) * frontT;
+      const centralFrontOpening = frontT >= 0 && frontT <= 1 &&
+        Math.abs(frontX) <= 5.85 && Math.abs(frontY) <= 3.45;
+      if (crossedFront && inCorridorMouth && !centralFrontOpening) {
         ship.position.z = before.z < frontOpeningZ
           ? frontOpeningZ - 0.06
           : frontOpeningZ + 0.06;
@@ -4777,7 +4783,10 @@
 
       // Front caps occupy only the corridor cross-section.
       const frontPoint = crossingPoint("z", room.frontZ);
-      if (pointOnCap(frontPoint, room)) {
+      const centralFrontOpening = !!frontPoint &&
+        Math.abs(frontPoint.x) <= room.xEdge - 0.15 &&
+        Math.abs(frontPoint.y) <= room.yEdge - 0.05;
+      if (pointOnCap(frontPoint, room) && !centralFrontOpening) {
         ship.position.z = before.z < room.frontZ ? room.frontZ - 0.06 : room.frontZ + 0.06;
         ship.velocity.z = 0;
         blocked = true;
@@ -4908,9 +4917,20 @@
         exteriorFlight = true;
       }
 
-      // Front opens only through the central return opening.
+      // Return through the central front opening into the black-hole volume.
+      // The unconditional clamp made the visible opening an invisible wall.
       if (!exteriorFlight && ship.position.z > -47.46) {
-        ship.position.z = -47.46;
+        const deltaZ = ship.position.z - before.z;
+        const crossingT = Math.abs(deltaZ) > 1e-9 ? (-47.46 - before.z) / deltaZ : -1;
+        const crossingX = before.x + (ship.position.x - before.x) * crossingT;
+        const crossingY = before.y + (ship.position.y - before.y) * crossingT;
+        const throughCentralReturn = crossingT >= 0 && crossingT <= 1 &&
+          Math.abs(crossingX) <= 5.85 && Math.abs(crossingY) <= 3.45;
+        if (throughCentralReturn) {
+          exteriorFlight = true;
+        } else {
+          ship.position.z = -47.46;
+        }
       }
     } else {
       // Outside both corridor footprints: free flight.
