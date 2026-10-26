@@ -1637,3 +1637,105 @@
 .bcm-helm-instruments canvas{display:block;width:84px;height:42px;border-radius:8px;background:#061018}
 .bcm-helm-instruments b{display:block;font-size:9px;letter-spacing:.12em;color:#8fb8c6;font-weight:700}
 .bcm-helm-instruments strong{font-variant-numeric:tabular-nums;font-size:14px}
+
+
+/* Warp Galaxy menu: keep the map and navigation controls interactive while flight is paused. */
+.bcm-mini-sim.bcm-warp-open,
+.bcm-mini-sim.bcm-warp-open .bcm-warp-overlay,
+.bcm-mini-sim.bcm-warp-open .bcm-warp-overlay * {
+  cursor: auto;
+}
+.bcm-mini-sim .bcm-warp-overlay:not([hidden]) {
+  pointer-events: auto;
+}
+.bcm-mini-sim .bcm-warp-overlay:not([hidden]) .bcm-warp-map-view {
+  pointer-events: auto;
+}
+.bcm-mini-sim .bcm-warp-card {
+  width: min(920px, 100%);
+}
+.bcm-mini-sim .bcm-warp-galaxy-panel {
+  margin: 10px 0 12px;
+  padding: 8px;
+  border: 1px solid rgba(116, 178, 207, .32);
+  background: rgba(3, 11, 20, .74);
+}
+.bcm-mini-sim .bcm-warp-galaxy-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 9px;
+  margin: 0 0 6px;
+  color: #c8e5ef;
+  font: 700 10px/1.35 "IBM Plex Mono", Consolas, monospace;
+  letter-spacing: .08em;
+}
+.bcm-mini-sim .bcm-warp-galaxy-heading span {
+  color: #82aebf;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: .02em;
+  text-align: right;
+}
+.bcm-mini-sim .bcm-warp-galaxy-map {
+  display: block;
+  width: 100%;
+  height: 220px;
+  border: 1px solid rgba(112, 176, 205, .18);
+  background: #030915;
+  cursor: crosshair;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+.bcm-mini-sim .bcm-warp-galaxy-map:focus-visible {
+  outline: 2px solid #56f0d0;
+  outline-offset: 2px;
+}
+.bcm-mini-sim .bcm-warp-galaxy-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin-top: 7px;
+  color: #9dbbc9;
+  font: 9px/1.4 "IBM Plex Mono", Consolas, monospace;
+}
+.bcm-mini-sim .bcm-warp-galaxy-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.bcm-mini-sim .bcm-warp-galaxy-legend i {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #8bb8d0;
+}
+.bcm-mini-sim .bcm-warp-galaxy-legend i.is-current { background: #f4fbff; }
+.bcm-mini-sim .bcm-warp-galaxy-legend i.is-route {
+  width: 15px;
+  height: 2px;
+  border-radius: 0;
+  background: #56f0d0;
+}
+.bcm-mini-sim .bcm-warp-galaxy-legend small {
+  flex: 1 1 220px;
+  color: #718a98;
+  font-size: 9px;
+}
+.bcm-mini-sim .bcm-warp-map-view .bcm-warp-sector:focus-visible,
+.bcm-mini-sim .bcm-warp-map-view [data-warp-manual] input:focus-visible,
+.bcm-mini-sim .bcm-warp-map-view .bcm-warp-actions button:focus-visible,
+.bcm-mini-sim .bcm-warp-map-view [data-warp-tier]:focus-visible,
+.bcm-mini-sim .bcm-warp-close:focus-visible {
+  outline: 2px solid #56f0d0;
+  outline-offset: 2px;
+}
+@media (max-width: 760px) {
+  .bcm-mini-sim .bcm-warp-galaxy-panel { padding: 5px; margin: 7px 0 9px; }
+  .bcm-mini-sim .bcm-warp-galaxy-map { height: 150px; }
+  .bcm-mini-sim .bcm-warp-galaxy-heading { font-size: 9px; }
+  .bcm-mini-sim .bcm-warp-galaxy-heading span { font-size: 8px; }
+  .bcm-mini-sim .bcm-warp-galaxy-legend { gap: 4px 9px; }
+}
