@@ -1711,6 +1711,11 @@
   border-color: rgba(86, 240, 208, .62);
   background: rgba(26, 88, 81, .20);
 }
+.bcm-mini-sim .bcm-warp-local-location.is-planned {
+  border-style: dashed;
+  border-color: rgba(196, 163, 90, .38);
+  background: rgba(74, 57, 27, .16);
+}
 .bcm-mini-sim .bcm-warp-local-icon {
   display: grid;
   place-items: center;
@@ -1742,6 +1747,7 @@
   letter-spacing: .04em;
 }
 .bcm-mini-sim .bcm-warp-local-location em { color: #79ddcc; }
+.bcm-mini-sim .bcm-warp-local-location.is-planned em { color: #d3b87b; }
 .bcm-mini-sim .bcm-warp-local-location:has(em) { min-height: 70px; }
 .bcm-mini-sim .bcm-warp-local-empty {
   margin: 4px 0 0;
