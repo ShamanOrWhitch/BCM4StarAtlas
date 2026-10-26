@@ -1106,14 +1106,11 @@
       const runNonce = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
       const rng = randomFrom(hashSeed(state.nav.current.id + ">" + state.target.id + ":" + state.target.x + ":" + state.target.y + ":" + runNonce));
       state.layers = [];
-      const gateCount = 22;
+      const courseLayerCount = 16;
+      const courseTypes = buildWarpObstacleTypes(rng, courseLayerCount);
       let previousSafeAngle = null;
-      for (let i = 0; i < gateCount; i += 1) {
-        const typeRoll = rng();
-        const type = typeRoll < 0.34 ? "gate"
-          : typeRoll < 0.55 ? "sweeper"
-          : typeRoll < 0.70 ? "spikes"
-          : typeRoll < 0.86 ? "boost" : "launcher";
+      for (let i = 0; i < courseLayerCount; i += 1) {
+        const type = courseTypes[i];
         let safeAngle = rng() * Math.PI * 2 - Math.PI;
         if (previousSafeAngle != null) {
           const delta = Math.atan2(Math.sin(safeAngle - previousSafeAngle), Math.cos(safeAngle - previousSafeAngle));
@@ -1130,12 +1127,12 @@
           }
           blockedAngles.push(Math.atan2(Math.sin(angle), Math.cos(angle)));
         }
-        const progress = 0.08 + (i / Math.max(1, gateCount - 1)) * 0.86 + (rng() - 0.5) * 0.006;
+        const progress = 0.08 + (i / Math.max(1, courseLayerCount - 1)) * 0.86 + (rng() - 0.5) * 0.006;
         state.layers.push({
           progress,
           type,
           safeAngle,
-          gapHalf: type === "gate" ? 0.76 : 0.86,
+          gapHalf: type === "gate" ? 0.94 : 0.86,
           blockedAngles,
           sweepAngle: rng() * Math.PI * 2 - Math.PI,
           sweepSpeed: (rng() < 0.5 ? -1 : 1) * (0.55 + rng() * 0.38),
@@ -2079,16 +2076,16 @@
       const en = window.BCMDialogue?.language === "en";
       const copy = en ? {
         landing: "LANDING", bosses: "BOSSES", back: "Return to ship", canvas: "Large arena progress",
-        jump: "JUMP", action: "ACTION", laser: "LASER", dash: "DASH",
-        title: "Seeded 3D asteroid cells",
-        description: "This is the same asteroid you just landed on. Each room wears that cell's wall texture. The open door leads to the Hydrogen crystals, then back to the landing. Jump or the action button changes floors. A boss sometimes guards one passage; the pig arena is optional.",
-        controls: "P1: ← → / A D · jump: Space / W · down: S+Space · route: E · fire: Q\nP2: J L · jump: P · down: I+P · route: O · fire: K · dash: U"
+        jump: "JUMP", action: "E · DOOR", floor: "R · FLOOR", laser: "LASER", dash: "DASH",
+        title: "Seeded asteroid cells",
+        description: "This is the same asteroid you just landed on. E follows the marked open door; R / LB changes floor at a glowing hatch. Space / W only jumps. A boss may guard a passage; the pig arena is optional.",
+        controls: "P1: A/D or ←/→ move · Space/W jump · E door · R floor · Q fire · Shift/C dash\nP2: J/L move · P jump · O door · I floor · K fire · U dash\nGamepad: stick move · A jump · X door · LB floor · Y fire · B dash"
       } : {
         landing: "ВЫСАДКА", bosses: "БОССЫ", back: "В корабль", canvas: "Прогресс по аренам",
-        jump: "ПРЫЖОК", action: "ПУТЬ", laser: "ЛАЗЕР", dash: "РЫВОК",
+        jump: "ПРЫЖОК", action: "E · ДВЕРЬ", floor: "R · ЭТАЖ", laser: "ЛАЗЕР", dash: "РЫВОК",
         title: "Высадка на этот астероид",
-        description: "Это тот же астероид и те же текстуры клеток. Открытая дверь ведёт к кристаллам Hydrogen, потом назад к месту высадки. Прыжок или кнопка пути — другой этаж. Иногда проход стережёт босс. Арена со свиньями не обязательна.",
-        controls: "P1: ← → / A D · прыжок: Space / W · вниз: S+Space · путь: E · лазер: Q\nP2: J L · прыжок: P · вниз: I+P · путь: O · лазер: K · рывок: U"
+        description: "Это тот же астероид и те же текстуры клеток. E — пройти через отмеченную открытую дверь; R / LB — перейти на другой этаж у светящегося люка. Space / W — только прыжок. Иногда проход охраняет противник; арена со свиньями необязательна.",
+        controls: "P1: A/D или ←/→ — бег · Space/W — прыжок · E — дверь · R — этаж · Q — лазер · Shift/C — рывок\nP2: J/L — бег · P — прыжок · O — дверь · I — этаж · K — лазер · U — рывок\nГеймпад: стик — бег · A — прыжок · X — дверь · LB — этаж · Y — лазер · B — рывок"
       };
       root2d.innerHTML =
         '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;pointer-events:none;z-index:3">' +
@@ -2107,7 +2104,7 @@
           '<div style="display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,42px);gap:4px;pointer-events:auto">' +
              '<span></span><button type="button" data-ring-action="jump" aria-label="' + copy.jump + '" style="grid-column:2;grid-row:1;min-height:42px">' + copy.jump + '</button><span></span>' +
              '<button type="button" data-ring-action="left" aria-label="' + (en ? "Left" : "Влево") + '" style="min-height:42px">◀</button><span style="display:block"></span><button type="button" data-ring-action="right" aria-label="' + (en ? "Right" : "Вправо") + '" style="min-height:42px">▶</button>' +
-             '<span></span><button type="button" data-ring-action="down" aria-label="' + (en ? "Lower layer with jump" : "Нижний уровень вместе с прыжком") + '" title="' + (en ? "Hold with jump" : "Зажми вместе с прыжком") + '" style="grid-column:2;grid-row:3;min-height:42px">▼</button><span></span>' +
+             '<button type="button" data-ring-action="floor" aria-label="' + copy.floor + '" title="' + (en ? "R / LB: change floor at a glowing hatch" : "R / LB: сменить этаж у светящегося люка") + '" style="grid-column:1 / span 3;grid-row:3;min-height:38px">' + copy.floor + '</button>' +
            '</div>' +
            '<div style="display:flex;gap:6px;align-items:flex-end;pointer-events:auto">' +
             '<button type="button" data-ring-action="activate" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.action + '</button>' +
@@ -2173,7 +2170,7 @@
       const weaponShots = [];
       let weaponShotIndex = 0;
       let masterOfferedThisRun = false;
-      const oneShotActions = new Set(["activate", "dash"]);
+      const oneShotActions = new Set(["activate", "dash", "floor"]);
       const worldSaved = {
         oldMazeVisible: maze.group ? maze.group.visible : true,
         oldShipVisible: runtime.ship.visual ? runtime.ship.visual.visible : true,
@@ -2852,11 +2849,19 @@
           const around = measure(false);
           return Number.isFinite(around) ? around : measure(true);
         }
+        const routeMission = window.BCMWorldMission || {};
+        const routeCrystals = (maze.crystals || []).filter((crystal) => crystal && crystal.cell).map((crystal) => {
+          const cell = { x: crystal.cell.x, y: crystal.cell.y, z: crystal.cell.z };
+          const id = String(maze.seed) + ":" + cell.x + "," + cell.y + "," + cell.z;
+          // Don't inherit a 3D pickup made before the Hydrogen mission unlocked.
+          return { id, cell, taken: !!routeMission.hydrogenCollectedIds?.[id], scouted: false };
+        });
         function objectiveNode(fromNode) {
-          const pending = (maze.crystals || []).map((crystal) => {
-            if (!crystal || crystal.taken || !crystal.cell) return null;
-            return nodes.get(keyOf(crystal.cell.x, crystal.cell.y, crystal.cell.z)) || null;
-          }).filter(Boolean);
+          const mission = window.BCMWorldMission || {};
+          const pending = mission.hydrogenUnlocked && Number(mission.hydrogenCount || 0) < 3
+            ? routeCrystals.filter((crystal) => !crystal.taken).map((crystal) =>
+              nodes.get(keyOf(crystal.cell.x, crystal.cell.y, crystal.cell.z)) || null).filter(Boolean)
+            : [];
           let best = null;
           let bestDist = Infinity;
           pending.forEach((goal) => {
@@ -2995,7 +3000,7 @@
           scouted: false
         };
         world.cellPath = {
-          nodes, neighbor, opposite, keyOf, nextDirectionTowardLarge, nextDirectionToward, objectiveNode,
+          nodes, neighbor, opposite, keyOf, nextDirectionTowardLarge, nextDirectionToward, objectiveNode, routeCrystals,
           nx: maze.dimensions?.nx || 7,
           ny: maze.dimensions?.ny || 3,
           nz: maze.dimensions?.nz || 7,
@@ -3093,12 +3098,12 @@
         }
         if (path.hydrogenMesh) {
           const mission = window.BCMWorldMission || {};
-          const crystalHere = (maze.crystals || []).some((crystal) =>
+          const hydrogenActive = !!mission.hydrogenUnlocked && Number(mission.hydrogenCount || 0) < 3;
+          const crystalHere = (path.routeCrystals || []).some((crystal) =>
             crystal && !crystal.taken && crystal.cell &&
             crystal.cell.x === node.x && crystal.cell.y === node.y && crystal.cell.z === node.z);
-          path.hydrogenMesh.visible = !node.large && (crystalHere ||
-            (!!mission.hydrogenUnlocked && !mission.hydrogenCollected &&
-              node === path.hydrogenNode));
+          path.hydrogenMesh.visible = hydrogenActive && !node.large && (crystalHere ||
+            (!(path.routeCrystals || []).length && node === path.hydrogenNode));
         }
         path.nodes.forEach((other) => {
           (other.mobs || []).forEach((mob) => {
@@ -3149,7 +3154,9 @@
           ? path.nodes.get(path.keyOf(maze.startCell.x, maze.startCell.y, maze.startCell.z))
           : null;
         if (home && node !== home) path.departed = true;
-        const pending = (maze.crystals || []).some((crystal) => crystal && !crystal.taken);
+        const mission = window.BCMWorldMission || {};
+        const pending = !!mission.hydrogenUnlocked && Number(mission.hydrogenCount || 0) < 3 &&
+          (path.routeCrystals || []).some((crystal) => crystal && !crystal.taken);
         if (path.departed && home && node === home && !pending) path.pendingReturn = true;
       }
 
@@ -3313,7 +3320,6 @@
           left: !!(keys.left || touch.left || pad.left),
           right: !!(keys.right || touch.right || pad.right),
           jump: !!(keys.jump || touch.jump || pad.jump),
-          down: !!(keys.down || touch.down || pad.down),
           fire: !!(keys.fire || touch.fire || pad.fire)
         };
       }
@@ -3366,7 +3372,10 @@
             statusEl.textContent = en
               ? "ASTEROID CELL · JUMP OR E AT THE GLOW · OTHER FLOOR"
               : "ЯЧЕЙКА АСТЕРОИДА · ПРЫЖОК ИЛИ E У СВЕЧЕНИЯ · ДРУГОЙ ЭТАЖ";
-          } else if (!(maze.crystals || []).some((crystal) => crystal && !crystal.taken) && worldState.cellPath.departed) {
+          } else if (worldState.cellPath.departed &&
+              (!window.BCMWorldMission?.hydrogenUnlocked ||
+               Number(window.BCMWorldMission?.hydrogenCount || 0) >= 3 ||
+               !(worldState.cellPath.routeCrystals || []).some((crystal) => crystal && !crystal.taken))) {
             statusEl.textContent = en
               ? "CELL · OPEN DOOR LEADS BACK TO THE LANDING"
               : "ЯЧЕЙКА · ОТКРЫТАЯ ДВЕРЬ ВЕДЁТ К МЕСТУ ВЫСАДКИ";
@@ -3385,7 +3394,7 @@
         const path = worldState.cellPath;
         const mission = window.BCMWorldMission || {};
         const playerNode = player.ringCurrent || path?.current;
-        if (!path || !path.hydrogenMesh ||
+        if (!path || (path.routeCrystals || []).length || !path.hydrogenMesh ||
             !mission.hydrogenUnlocked || Number(mission.hydrogenCount || 0) >= 3 ||
             path.hydrogen.taken || playerNode !== path.hydrogenNode || playerNode?.large) return false;
         if (Math.abs(player.worldX - path.hydrogenPickupX) > 1.05 ||
@@ -3415,31 +3424,33 @@
         const path = worldState.cellPath;
         const node = player.ringCurrent || path?.current;
         if (!path || !node || node.large) return false;
-        const crystal = (maze.crystals || []).find((item) =>
+        const mission = window.BCMWorldMission || {};
+        if (!mission.hydrogenUnlocked || Number(mission.hydrogenCount || 0) >= 3) return false;
+        const crystal = (path.routeCrystals || []).find((item) =>
           item && !item.taken && item.cell &&
           item.cell.x === node.x && item.cell.y === node.y && item.cell.z === node.z);
         if (!crystal) return false;
         if (Math.abs(player.worldX - path.hydrogenPickupX) > 1.15) return false;
         crystal.taken = true;
         crystal.scouted = true;
-        if (crystal.mesh) crystal.mesh.visible = false;
         if (path.hydrogenMesh) path.hydrogenMesh.visible = false;
         publishAsteroidChart(maze);
-        const mission = window.BCMWorldMission || {};
-        if (mission.hydrogenUnlocked && Number(mission.hydrogenCount || 0) < 3) {
-          window.dispatchEvent(new CustomEvent("bcm:mission:hydrogen-shard-collected", {
-            detail: {
-              crystalId: String(maze.seed) + ":" + crystal.cell.x + "," + crystal.cell.y + "," + crystal.cell.z,
-              asteroidSeed: maze.seed,
-              cell: { x: crystal.cell.x, y: crystal.cell.y, z: crystal.cell.z },
-              type: "asteroid-crystal"
-            }
-          }));
-        }
-        const left = (maze.crystals || []).filter((item) => item && !item.taken).length;
-        updateHud(left
-          ? "HYDROGEN · ЕЩЁ " + left + " · ЯЧЕЙКА · ИДИ В ОТКРЫТУЮ ДВЕРЬ"
-          : "HYDROGEN СОБРАН · ВЕРНИСЬ К МЕСТУ ВЫСАДКИ");
+        window.dispatchEvent(new CustomEvent("bcm:mission:hydrogen-shard-collected", {
+          detail: {
+            crystalId: crystal.id,
+            asteroidSeed: maze.seed,
+            cell: { x: crystal.cell.x, y: crystal.cell.y, z: crystal.cell.z },
+            type: "asteroid-crystal"
+          }
+        }));
+        const count = Number(window.BCMWorldMission?.hydrogenCount || 0);
+        const left = (path.routeCrystals || []).filter((item) => item && !item.taken).length;
+        const en = window.BCMDialogue?.language === "en";
+        updateHud(count >= 3
+          ? (en ? "HYDROGEN 3/3 · RETURN TO THE LANDING CELL" : "HYDROGEN 3/3 · ВЕРНИСЬ К МЕСТУ ВЫСАДКИ")
+          : (en
+            ? "HYDROGEN " + count + "/3 · " + Math.max(0, 3 - count) + " LEFT · FOLLOW THE OPEN DOOR"
+            : "HYDROGEN " + count + "/3 · ОСТАЛОСЬ " + Math.max(0, 3 - count) + " · ИДИ В ОТКРЫТУЮ ДВЕРЬ"));
         faceAsteroidRoute(worldState, node, player);
         return true;
       }
@@ -3648,6 +3659,26 @@
         const player = players[index];
         if (!player || !gameStarted || done) return false;
         const now = performance.now();
+        if (action === "floor") {
+          const path = worldState.cellPath;
+          const node = player.ringCurrent || path?.current;
+          if (!path || !node || node.large) return false;
+          const routeStep = path.routeStep;
+          const preferred = routeStep === "yp" || routeStep === "yn"
+            ? routeStep
+            : (player.ringFloorDirection || "yp");
+          const nextDir = [preferred, path.opposite[preferred]].find((dir) => path.neighbor(node, dir));
+          if (!nextDir) {
+            updateHud(window.BCMDialogue?.language === "en"
+              ? "NO FLOOR CONNECTION HERE · FIND A GLOWING HATCH"
+              : "ЗДЕСЬ НЕТ ПЕРЕХОДА МЕЖДУ ЭТАЖАМИ · ИЩИ СВЕТЯЩИЙСЯ ЛЮК");
+            return true;
+          }
+          const nextNode = path.neighbor(node, nextDir);
+          player.ringFloorDirection = path.opposite[nextDir] || "yp";
+          placeParty(enterRingCell(worldState, nextNode, null, player), player);
+          return true;
+        }
         if (action === "activate") {
           const path = worldState.cellPath;
           const node = player.ringCurrent || path?.current;
@@ -3713,9 +3744,9 @@
         }
         const p1 = {
           ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
-          Space: "jump", ArrowUp: "jump", KeyW: "jump", ArrowDown: "down", KeyS: "down"
+          Space: "jump", ArrowUp: "jump", KeyW: "jump"
         };
-        const p2 = { KeyJ: "left", KeyL: "right", KeyP: "jump", KeyI: "down" };
+        const p2 = { KeyJ: "left", KeyL: "right", KeyP: "jump" };
         let index = 0;
         if (event.code === "KeyQ" || (mode === "multi" && event.code === "KeyK")) {
           index = event.code === "KeyK" ? 1 : 0;
@@ -3730,10 +3761,18 @@
           if (action) index = 1;
         }
         const p1Activate = event.code === "KeyE";
+        const p1Floor = event.code === "KeyR";
         const p1Dash = event.code === "ShiftLeft" || event.code === "ShiftRight" || event.code === "KeyC";
         const p2Activate = event.code === "KeyO";
+        const p2Floor = event.code === "KeyI";
         const p2Dash = event.code === "KeyU";
-        if (mode === "multi" && (p2Activate || p2Dash)) index = 1;
+        if (mode === "multi" && (p2Activate || p2Floor || p2Dash)) index = 1;
+        if (p1Floor || p2Floor) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          if (down && !event.repeat) triggerAction(index, "floor");
+          return;
+        }
         if (p1Activate || p2Activate) {
           event.preventDefault();
           event.stopImmediatePropagation();
@@ -3772,13 +3811,14 @@
           statePad.left = !!(button(14) || axisX < -0.42);
           statePad.right = !!(button(15) || axisX > 0.42);
           statePad.jump = !!(button(0) || button(12) || axisY < -0.68);
-          statePad.down = !!(button(13) || axisY > 0.68);
           statePad.dash = !!button(1);
           statePad.activate = !!button(2);
           statePad.fire = !!button(3);
+          statePad.floor = !!button(4);
           if (statePad.activate && !previousPad[i].activate) triggerAction(i, "activate");
           if (statePad.dash && !previousPad[i].dash) triggerAction(i, "dash");
-          previousPad[i] = { activate: statePad.activate, dash: statePad.dash };
+          if (statePad.floor && !previousPad[i].floor) triggerAction(i, "floor");
+          previousPad[i] = { activate: statePad.activate, dash: statePad.dash, floor: statePad.floor };
         }
       }
 
@@ -3964,18 +4004,6 @@
           else if (astralMode === "flux") { gravity = 8.0 + Math.sin(now * 0.0018 + (astralNode.astralPhase || 0)) * 1.8; jumpVelocity = 8.8; }
           else if (astralMode === "dense") { gravity = 14.5; jumpVelocity = 10.2; }
           const jumpPressed = input.jump && !player.wasJumpDown && player.grounded;
-          if (jumpPressed && path && playerNode && !playerInLarge) {
-            const step = path.routeStep;
-            const verticalDirection = input.down ? "yn" : "yp";
-            const floorDir = (step === "yp" || step === "yn") ? step : verticalDirection;
-            const nearPad = (step === "yp" || step === "yn") || Math.abs(player.worldX - path.homeX) < 1.35;
-            const verticalNode = nearPad ? path.neighbor(playerNode, floorDir) : null;
-            if (verticalNode) {
-              player.wasJumpDown = true;
-              placeParty(enterRingCell(worldState, verticalNode, null, player), player);
-              continue;
-            }
-          }
           if (jumpPressed) { player.vy = jumpVelocity; player.grounded = false; player.supportPlatform = null; }
           player.wasJumpDown = input.jump;
           player.vy -= gravity * dt;
@@ -4633,6 +4661,26 @@
     function warpCourseProgress(elapsed) {
       // Normalize the 1x..8x speed ramp to the complete 0..1 obstacle course.
       return (warpSpeedMultiplier(elapsed) - 1) / 7;
+    }
+
+    // Shuffle obstacle families; variety is not the same as adding more repeated gates.
+    function buildWarpObstacleTypes(rng, count = 16) {
+      const bag = ["gate", "gate", "sweeper", "sweeper", "sweeper", "sweeper",
+        "spikes", "spikes", "spikes", "spikes", "boost", "boost", "boost",
+        "launcher", "launcher", "launcher"];
+      const types = [];
+      while (types.length < count && bag.length) {
+        const recent = types.slice(-2);
+        const candidates = bag.map((type, index) => ({ type, index })).filter(({ type }) =>
+          type !== types[types.length - 1] && !(type === "gate" && recent.includes("gate"))
+        );
+        const choices = candidates.length ? candidates : bag.map((type, index) => ({ type, index }));
+        const selected = choices[Math.min(choices.length - 1, Math.floor(Math.max(0, Math.min(0.999999, rng())) * choices.length))];
+        if (!selected) break;
+        types.push(selected.type);
+        bag.splice(selected.index, 1);
+      }
+      return types;
     }
 
     function warpObstacleProgress(elapsed) {
