@@ -166,10 +166,8 @@
         enterLevel();
       });
       overlay.appendChild(skip);
-      overlay.addEventListener("pointerdown", (event) => {
-        if (finished || event.target === skip) return;
-        enterLevel();
-      });
+      // Do not skip the landing clip on any tap of the picture. It plays through,
+      // then the Ring menu opens. The button is the only early entrance.
       try { window.BCMDialogue?.hideOperator?.(); } catch (e) {}
       document.body.appendChild(overlay);
 
@@ -433,7 +431,7 @@
     ringEnterButton.addEventListener("click", () => {
       const maze = state.maze;
       if (!maze || !maze.active || state.mode !== "maze") return;
-      if (attemptOpenRingPlatformer(maze, true)) ringEnterButton.hidden = true;
+      if (attemptOpenRingPlatformer(maze)) ringEnterButton.hidden = true;
       syncHullButtonVisibility();
       syncRingButtonVisibility();
     });
@@ -1956,7 +1954,7 @@
       }
       if (state.ringApproachArmed && !state.ringEntryFailed && !state.ringPlatformer &&
           !maze.ringCompleted && ringDistance < 2.6) {
-        attemptOpenRingPlatformer(maze, true);
+        attemptOpenRingPlatformer(maze);
         return;
       }
 
@@ -2038,7 +2036,7 @@
       if (ringPressed && state.mode === "maze" && state.maze && state.maze.active &&
           state.ringApproachArmed && state.ringDistance < 18 && !state.ringPlatformer &&
           !state.ringTransitionActive && !state.hullOpen) {
-        attemptOpenRingPlatformer(state.maze, true);
+        attemptOpenRingPlatformer(state.maze);
         return;
       }
       if (!pressed || state.mode === "map" || state.mode === "tube" || state.mode === "result" ||
@@ -2083,14 +2081,14 @@
         landing: "LANDING", bosses: "BOSSES", back: "Return to ship", canvas: "Large arena progress",
         jump: "JUMP", action: "ACTION", laser: "LASER", dash: "DASH",
         title: "Seeded 3D asteroid cells",
-        description: "Every room follows the asteroid's seeded connected passages and textures. Jump enters the upper layer; hold down with jump to enter the lower layer. Turn at junctions to reach the pig arena.",
-        controls: "P1: ← → / A D · jump: Space / W · down: S+Space · turn: E · fire: Q\nP2: J L · jump: P · down: I+P · turn: O · fire: K · dash: U"
+        description: "This is the same asteroid you just landed on. Each room wears that cell's wall texture. The open door leads to the Hydrogen crystals, then back to the landing. Jump or the action button changes floors. A boss sometimes guards one passage; the pig arena is optional.",
+        controls: "P1: ← → / A D · jump: Space / W · down: S+Space · route: E · fire: Q\nP2: J L · jump: P · down: I+P · route: O · fire: K · dash: U"
       } : {
         landing: "ВЫСАДКА", bosses: "БОССЫ", back: "В корабль", canvas: "Прогресс по аренам",
-        jump: "ПРЫЖОК", action: "ДЕЙСТВИЕ", laser: "ЛАЗЕР", dash: "РЫВОК",
-        title: "Ячейки 3D-лабиринта",
-        description: "Каждая комната использует текстуру своей клетки астероида и ведёт только через настоящий проход. Прыжок — на верхний уровень; S+Space — на нижний. На развилке жми E, чтобы повернуть.",
-        controls: "P1: ← → / A D · прыжок: Space / W · вниз: S+Space · поворот: E · лазер: Q\nP2: J L · прыжок: P · вниз: I+P · поворот: O · лазер: K · рывок: U"
+        jump: "ПРЫЖОК", action: "ПУТЬ", laser: "ЛАЗЕР", dash: "РЫВОК",
+        title: "Высадка на этот астероид",
+        description: "Это тот же астероид и те же текстуры клеток. Открытая дверь ведёт к кристаллам Hydrogen, потом назад к месту высадки. Прыжок или кнопка пути — другой этаж. Иногда проход стережёт босс. Арена со свиньями не обязательна.",
+        controls: "P1: ← → / A D · прыжок: Space / W · вниз: S+Space · путь: E · лазер: Q\nP2: J L · прыжок: P · вниз: I+P · путь: O · лазер: K · рывок: U"
       };
       root2d.innerHTML =
         '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;pointer-events:none;z-index:3">' +
@@ -2734,7 +2732,8 @@
             box.scale.set(item.sx, item.sy, item.sz);
             box.updateMatrix();
             mesh.setMatrixAt(i, box.matrix);
-            if (mesh.setColorAt) mesh.setColorAt(i, new THREE.Color(item.color));
+            const tint = new THREE.Color(0xffffff);
+            if (mesh.setColorAt) mesh.setColorAt(i, tint);
           }
           mesh.instanceMatrix.needsUpdate = true;
           world.add(mesh);
@@ -2807,6 +2806,69 @@
           }
           return null;
         }
+        function nextDirectionToward(startNode, goalNode) {
+          if (!startNode || !goalNode || startNode === goalNode) return null;
+          const dirs = ["xp", "xn", "zp", "zn", "yp", "yn"];
+          function search(allowLarge) {
+            const firstStep = new Map([[startNode, null]]);
+            const queue = [startNode];
+            for (let cursor = 0; cursor < queue.length; cursor += 1) {
+              const here = queue[cursor];
+              for (const dir of dirs) {
+                const next = neighbor(here, dir);
+                if (!next || firstStep.has(next)) continue;
+                if (!allowLarge && next.large && next !== goalNode) continue;
+                const step = here === startNode ? dir : firstStep.get(here);
+                firstStep.set(next, step);
+                if (next === goalNode) return step;
+                queue.push(next);
+              }
+            }
+            return null;
+          }
+          return search(false) || search(true);
+        }
+        function distanceToNode(fromNode, goalNode) {
+          if (!fromNode || !goalNode) return Infinity;
+          if (fromNode === goalNode) return 0;
+          const dirs = ["xp", "xn", "zp", "zn", "yp", "yn"];
+          function measure(allowLarge) {
+            const dist = new Map([[fromNode, 0]]);
+            const queue = [fromNode];
+            for (let cursor = 0; cursor < queue.length; cursor += 1) {
+              const here = queue[cursor];
+              const steps = dist.get(here);
+              for (const dir of dirs) {
+                const next = neighbor(here, dir);
+                if (!next || dist.has(next)) continue;
+                if (!allowLarge && next.large && next !== goalNode) continue;
+                dist.set(next, steps + 1);
+                if (next === goalNode) return steps + 1;
+                queue.push(next);
+              }
+            }
+            return Infinity;
+          }
+          const around = measure(false);
+          return Number.isFinite(around) ? around : measure(true);
+        }
+        function objectiveNode(fromNode) {
+          const pending = (maze.crystals || []).map((crystal) => {
+            if (!crystal || crystal.taken || !crystal.cell) return null;
+            return nodes.get(keyOf(crystal.cell.x, crystal.cell.y, crystal.cell.z)) || null;
+          }).filter(Boolean);
+          let best = null;
+          let bestDist = Infinity;
+          pending.forEach((goal) => {
+            const dist = distanceToNode(fromNode, goal);
+            if (dist < bestDist) { best = goal; bestDist = dist; }
+          });
+          if (best) return best;
+          const home = maze.startCell
+            ? nodes.get(keyOf(maze.startCell.x, maze.startCell.y, maze.startCell.z))
+            : null;
+          return home && home !== fromNode ? home : null;
+        }
         const textures = (maze.textures || []).map((tex, index) => {
           const copy = tex.clone();
           copy.image = tex.image;
@@ -2834,7 +2896,8 @@
           map: textures[0], color: 0xffffff, roughness: 0.82, metalness: 0.24
         });
         const wallMaterial = new THREE.MeshStandardMaterial({
-          map: textures[0], color: 0xd5e4ea, roughness: 0.9, metalness: 0.18
+          map: textures[0], color: 0xffffff, roughness: 0.9, metalness: 0.18,
+          emissive: 0x000000, emissiveIntensity: 0
         });
         const room = new THREE.Group();
         room.name = "bcm-asteroid-cell-room";
@@ -2854,6 +2917,15 @@
         sealedWallLeft.position.set(RING_CELL_HOME - ROOM_HALF + 0.12, 1.15, 0);
         sealedWallRight.position.set(RING_CELL_HOME + ROOM_HALF - 0.12, 1.15, 0);
         room.add(sealedWallLeft, sealedWallRight, doorLeft, doorRight);
+        const backGeo = new THREE.PlaneGeometry(ROOM_HALF * 2.4, 5.4);
+        const backWall = new THREE.Mesh(backGeo, wallMaterial);
+        backWall.name = "ring-cell-asteroid-face";
+        backWall.position.set(RING_CELL_HOME, 2.2, -1.5);
+        const ceilingGeo = new THREE.BoxGeometry(ROOM_HALF * 2, 0.28, 3.6);
+        const ceiling = new THREE.Mesh(ceilingGeo, floorMaterial);
+        ceiling.name = "ring-cell-asteroid-ceiling";
+        ceiling.position.set(RING_CELL_HOME, 3.65, 0);
+        room.add(backWall, ceiling);
         const hatch = new THREE.Mesh(
           new THREE.BoxGeometry(1.1, 0.08, 1.1),
           new THREE.MeshBasicMaterial({ color: 0x5fdbc8, emissive: 0x124b55, emissiveIntensity: 0.9 })
@@ -2895,7 +2967,7 @@
         world.platforms.push({ minX: RING_CELL_HOME - ROOM_HALF, maxX: RING_CELL_HOME + ROOM_HALF, y: 0, cellRoom: true });
         world.materials.push(floorMaterial, wallMaterial, hatch.material, portalMaterial, mobMat);
         textures.forEach((texture) => world.textures.push(texture));
-        world.specialGeometry.push(floor.geometry, doorGeo, sealedWallGeo, hatch.geometry, portalRing.geometry, mobGeo);
+        world.specialGeometry.push(floor.geometry, doorGeo, sealedWallGeo, hatch.geometry, portalRing.geometry, mobGeo, backGeo, ceilingGeo);
         const start = (maze.startCell && nodes.get(keyOf(maze.startCell.x, maze.startCell.y, maze.startCell.z)))
           || nodes.values().next().value;
         const horizontalOpen = ["xp", "xn", "zp", "zn"];
@@ -2923,7 +2995,7 @@
           scouted: false
         };
         world.cellPath = {
-          nodes, neighbor, opposite, keyOf, nextDirectionTowardLarge,
+          nodes, neighbor, opposite, keyOf, nextDirectionTowardLarge, nextDirectionToward, objectiveNode,
           nx: maze.dimensions?.nx || 7,
           ny: maze.dimensions?.ny || 3,
           nz: maze.dimensions?.nz || 7,
@@ -2940,7 +3012,39 @@
         world.inLargeCell = false;
         world.group.visible = false;
         room.visible = true;
+        const skinList = textures.filter(Boolean);
+        (world.parallaxPanels || []).forEach((panel, index) => {
+          const material = panel.mesh && panel.mesh.material;
+          if (!material || !skinList.length) return;
+          material.map = skinList[index % skinList.length];
+          if (material.color) material.color.setHex(0xffffff);
+          material.needsUpdate = true;
+        });
+        (world.materials || []).slice(0, 4).forEach((material, index) => {
+          if (!material || !skinList.length) return;
+          material.map = skinList[index % skinList.length];
+          if (material.color) material.color.setHex(0xffffff);
+          material.needsUpdate = true;
+        });
         applyRingCellLook(world);
+        const gateRoll = hashSeed(String(maze.seed) + "|boss-gate") % 3;
+        if (gateRoll === 1 && start) {
+          const firstCrystal = (maze.crystals || []).map((crystal) => {
+            if (!crystal || !crystal.cell) return null;
+            return nodes.get(keyOf(crystal.cell.x, crystal.cell.y, crystal.cell.z)) || null;
+          }).filter(Boolean).sort((a, b) => distanceToNode(start, a) - distanceToNode(start, b))[0];
+          const trail = [];
+          let walk = start;
+          const seen = new Set();
+          while (walk && firstCrystal && walk !== firstCrystal && trail.length < 48 && !seen.has(walk)) {
+            seen.add(walk);
+            const dir = nextDirectionToward(walk, firstCrystal);
+            walk = dir ? neighbor(walk, dir) : null;
+            if (walk && walk !== firstCrystal && !walk.large) trail.push(walk);
+          }
+          const gateCell = trail.length ? trail[Math.floor(trail.length / 2)] : null;
+          if (gateCell) gateCell.gate = true;
+        }
         publishAsteroidChart(maze);
       }
 
@@ -2963,9 +3067,15 @@
           flux: { floor: 0x9ce9ff, wall: 0x438fa9 },
           dense: { floor: 0xf0c8ff, wall: 0x9666ac }
         };
-        const tint = astralPalette[node.astralMode] || { floor: 0xffffff, wall: 0xd5e4ea };
-        path.floorMaterial.color.setHex(node.astral ? tint.floor : 0xffffff);
-        path.wallMaterial.color.setHex(node.astral ? tint.wall : 0xd5e4ea);
+        const tint = astralPalette[node.astralMode] || { floor: 0x9ce9ff, wall: 0x438fa9 };
+        path.floorMaterial.color.setHex(0xffffff);
+        path.wallMaterial.color.setHex(0xffffff);
+        if (path.floorMaterial.emissive && path.wallMaterial.emissive) {
+          path.floorMaterial.emissive.setHex(node.astral ? tint.floor : 0x000000);
+          path.wallMaterial.emissive.setHex(node.astral ? tint.wall : 0x000000);
+          path.floorMaterial.emissiveIntensity = node.astral ? 0.16 : 0;
+          path.wallMaterial.emissiveIntensity = node.astral ? 0.16 : 0;
+        }
         const rightDoor = !node.large && !!path.neighbor(node, heading);
         const leftDoor = !node.large && !!path.neighbor(node, path.opposite[heading]);
         path.doorRight.visible = rightDoor;
@@ -2983,8 +3093,12 @@
         }
         if (path.hydrogenMesh) {
           const mission = window.BCMWorldMission || {};
-          path.hydrogenMesh.visible = !!mission.hydrogenUnlocked && !mission.hydrogenCollected &&
-            node === path.hydrogenNode && !node.large;
+          const crystalHere = (maze.crystals || []).some((crystal) =>
+            crystal && !crystal.taken && crystal.cell &&
+            crystal.cell.x === node.x && crystal.cell.y === node.y && crystal.cell.z === node.z);
+          path.hydrogenMesh.visible = !node.large && (crystalHere ||
+            (!!mission.hydrogenUnlocked && !mission.hydrogenCollected &&
+              node === path.hydrogenNode));
         }
         path.nodes.forEach((other) => {
           (other.mobs || []).forEach((mob) => {
@@ -3011,6 +3125,34 @@
         });
       }
 
+      function faceAsteroidRoute(world, node, player) {
+        const path = world.cellPath;
+        if (!path || !node || typeof path.objectiveNode !== "function" || typeof path.nextDirectionToward !== "function") return;
+        const goal = path.objectiveNode(node);
+        const step = goal ? path.nextDirectionToward(node, goal) : null;
+        path.routeStep = step;
+        if (node.large) return;
+        const horizontal = ["xp", "xn", "zp", "zn"];
+        let heading = player ? (player.ringHeading || path.heading) : path.heading;
+        if (step && horizontal.includes(step) && path.neighbor(node, step)) heading = step;
+        else if (step === "yp" || step === "yn") {
+          const closed = horizontal.find((dir) => !path.neighbor(node, dir));
+          if (closed) heading = closed;
+        }
+        if (player) {
+          player.ringHeading = heading;
+          if (player.index === 0) path.heading = heading;
+        } else {
+          path.heading = heading;
+        }
+        const home = maze.startCell
+          ? path.nodes.get(path.keyOf(maze.startCell.x, maze.startCell.y, maze.startCell.z))
+          : null;
+        if (home && node !== home) path.departed = true;
+        const pending = (maze.crystals || []).some((crystal) => crystal && !crystal.taken);
+        if (path.departed && home && node === home && !pending) path.pendingReturn = true;
+      }
+
       function enterRingCell(world, node, fromSide, player) {
         const path = world.cellPath;
         if (!path || !node) return world.spawnX;
@@ -3030,7 +3172,8 @@
         } else if (node.large && previous && !previous.large) {
           path.returnNode = previous;
         }
-        applyRingCellLook(world, player ? node : null, player ? player.ringHeading : null);
+        faceAsteroidRoute(world, node, player);
+        applyRingCellLook(world, player ? node : null, player ? (player.ringHeading || path.heading) : path.heading);
         if (node.large) return world.spawnX;
         if (fromSide === "right") return path.homeX + path.half - 1.6;
         if (fromSide === "left") return path.homeX - path.half + 1.6;
@@ -3212,9 +3355,26 @@
           statusEl.textContent = activeBoss.name + " · " + activeBoss.hp + "/" + activeBoss.maxHp;
         } else if (worldState.cellPath && worldState.cellPath.current && !worldState.cellPath.current.large) {
           const en = window.BCMDialogue?.language === "en";
-          statusEl.textContent = worldState.cellPath.current.astral
-            ? (en ? "ASTRAL LAYER · JUMP AT THE GLOW" : "АСТРАЛЬНЫЙ СЛОЙ · ПРЫЖОК У СВЕЧЕНИЯ")
-            : (en ? "CELL · WALK THROUGH THE OPEN DOOR · E TURNS" : "ЯЧЕЙКА · ИДИ В ОТКРЫТУЮ ДВЕРЬ · E ПОВОРОТ");
+          const step = worldState.cellPath.routeStep;
+          const here = worldState.cellPath.current;
+          const gateLocked = !!(here.gate && !here.gateCleared && (here.mobs || []).some((mob) => mob.alive));
+          if (gateLocked) {
+            statusEl.textContent = en
+              ? "THIS CELL'S PASSAGE IS GUARDED · FIRE THE LASER · THEN THE OPEN DOOR"
+              : "ПРОХОД ЭТОЙ КЛЕТКИ СТЕРЕЖЁТ БОСС · ЛАЗЕР · ПОТОМ ОТКРЫТАЯ ДВЕРЬ";
+          } else if (step === "yp" || step === "yn") {
+            statusEl.textContent = en
+              ? "ASTEROID CELL · JUMP OR E AT THE GLOW · OTHER FLOOR"
+              : "ЯЧЕЙКА АСТЕРОИДА · ПРЫЖОК ИЛИ E У СВЕЧЕНИЯ · ДРУГОЙ ЭТАЖ";
+          } else if (!(maze.crystals || []).some((crystal) => crystal && !crystal.taken) && worldState.cellPath.departed) {
+            statusEl.textContent = en
+              ? "CELL · OPEN DOOR LEADS BACK TO THE LANDING"
+              : "ЯЧЕЙКА · ОТКРЫТАЯ ДВЕРЬ ВЕДЁТ К МЕСТУ ВЫСАДКИ";
+          } else {
+            statusEl.textContent = worldState.cellPath.current.astral
+              ? (en ? "ASTRAL LAYER · JUMP AT THE GLOW" : "АСТРАЛЬНЫЙ СЛОЙ · ПРЫЖОК У СВЕЧЕНИЯ")
+              : (en ? "CELL · WALK THROUGH THE OPEN DOOR · E TURNS" : "ЯЧЕЙКА · ИДИ В ОТКРЫТУЮ ДВЕРЬ · E ПОВОРОТ");
+          }
         } else {
           statusEl.textContent = "ЗОНА " + (p1 ? (p1.worldX < -2 ? 1 : p1.worldX < 36 ? 2 : 3) : 1) +
             " · НАЙДИ АРЕНУ БОССА";
@@ -3248,6 +3408,39 @@
           ? "HYDROGEN RECOVERED · MISSION UPDATED"
           : "HYDROGEN ПОЛУЧЕН · ЗАДАНИЕ ОБНОВЛЕНО");
         drawMiniMap();
+        return true;
+      }
+
+      function collectRouteCrystal(player) {
+        const path = worldState.cellPath;
+        const node = player.ringCurrent || path?.current;
+        if (!path || !node || node.large) return false;
+        const crystal = (maze.crystals || []).find((item) =>
+          item && !item.taken && item.cell &&
+          item.cell.x === node.x && item.cell.y === node.y && item.cell.z === node.z);
+        if (!crystal) return false;
+        if (Math.abs(player.worldX - path.hydrogenPickupX) > 1.15) return false;
+        crystal.taken = true;
+        crystal.scouted = true;
+        if (crystal.mesh) crystal.mesh.visible = false;
+        if (path.hydrogenMesh) path.hydrogenMesh.visible = false;
+        publishAsteroidChart(maze);
+        const mission = window.BCMWorldMission || {};
+        if (mission.hydrogenUnlocked && Number(mission.hydrogenCount || 0) < 3) {
+          window.dispatchEvent(new CustomEvent("bcm:mission:hydrogen-shard-collected", {
+            detail: {
+              crystalId: String(maze.seed) + ":" + crystal.cell.x + "," + crystal.cell.y + "," + crystal.cell.z,
+              asteroidSeed: maze.seed,
+              cell: { x: crystal.cell.x, y: crystal.cell.y, z: crystal.cell.z },
+              type: "asteroid-crystal"
+            }
+          }));
+        }
+        const left = (maze.crystals || []).filter((item) => item && !item.taken).length;
+        updateHud(left
+          ? "HYDROGEN · ЕЩЁ " + left + " · ЯЧЕЙКА · ИДИ В ОТКРЫТУЮ ДВЕРЬ"
+          : "HYDROGEN СОБРАН · ВЕРНИСЬ К МЕСТУ ВЫСАДКИ");
+        faceAsteroidRoute(worldState, node, player);
         return true;
       }
 
@@ -3456,8 +3649,31 @@
         if (!player || !gameStarted || done) return false;
         const now = performance.now();
         if (action === "activate") {
-          const node = player.ringCurrent || worldState.cellPath?.current;
+          const path = worldState.cellPath;
+          const node = player.ringCurrent || path?.current;
+          if (node && node.large && path) {
+            const dirs = ["xp", "xn", "zp", "zn", "yp", "yn"].filter((dir) => path.neighbor(node, dir));
+            const other = dirs.map((dir) => path.neighbor(node, dir)).find((next) => next && next !== player.ringReturnNode);
+            const leave = other || (dirs[0] ? path.neighbor(node, dirs[0]) : null);
+            if (leave) {
+              placeParty(enterRingCell(worldState, leave, "right", player), player);
+              return true;
+            }
+          }
           if (node && !node.large) {
+            const step = path && path.routeStep;
+            const gateLocked = !!(node.gate && !node.gateCleared && (node.mobs || []).some((mob) => mob.alive));
+            if (path && step && path.neighbor(node, step) && !gateLocked) {
+              const fromRight = step === "xn" || step === "zn";
+              placeParty(enterRingCell(worldState, path.neighbor(node, step), fromRight ? "right" : "left", player), player);
+              return true;
+            }
+            if (gateLocked) {
+              updateHud(window.BCMDialogue?.language === "en"
+                ? "A BOSS GUARDS THIS PASSAGE · FIRE THE LASER"
+                : "БОСС СТЕРЕЖЁТ ПРОХОД · СТРЕЛЯЙ ЛАЗЕРОМ");
+              return true;
+            }
             player.ringTurnQueued = true;
             return true;
           }
@@ -3598,17 +3814,21 @@
             if (!mob.mesh) return;
             if (!mob.alive) {
               mob.mesh.visible = false;
+              if (node.gate) return;
               if (now >= mob.respawnAt) mob.alive = true;
               else return;
             }
-            mob.offset += mob.dir * (node.astral ? 3.3 : 2.05) * dt;
-            if (mob.offset > 4.25 || mob.offset < -4.25) mob.dir *= -1;
+            const limit = node.gate ? 3.05 : 2.15;
+            mob.offset += mob.dir * (node.astral ? 2.4 : 1.7) * dt;
+            if (mob.offset > limit || mob.offset < -limit) mob.dir *= -1;
+            mob.offset = Math.max(-limit, Math.min(limit, mob.offset));
             mob.mesh.position.set(path.homeX + mob.offset, node.astral ? 1.2 : 0.55, 0.45);
             mob.mesh.visible = true;
             const hit = players.find((player) => (player.ringCurrent || path.current) === node &&
               Math.abs(player.worldX - mob.mesh.position.x) < 0.62 && player.worldY < 1.35);
             if (hit) damagePlayer(hit, now);
           });
+          if (node.gate && !(node.mobs || []).some((mob) => mob.alive)) node.gateCleared = true;
         });
       }
 
@@ -3640,6 +3860,11 @@
       }
 
       function updatePlayers(dt) {
+        if (worldState.cellPath && worldState.cellPath.pendingReturn) {
+          worldState.cellPath.pendingReturn = false;
+          finishRingPlatformer(maze, true);
+          return;
+        }
         pollGamepads();
         const now = performance.now();
         for (const player of players) {
@@ -3660,10 +3885,27 @@
             }
             player.worldX = Math.max(-49, Math.min(worldState.exitX + 1.5, player.worldX));
           } else if (path && playerNode) {
-            const node = playerNode, heading = player.ringHeading || path.heading;
+            const node = playerNode;
+            const horizontalDirs = ["xp", "xn", "zp", "zn"];
+            const step = path.routeStep;
+            const progressDir = (step && horizontalDirs.includes(step) && path.neighbor(node, step))
+              ? step
+              : (player.ringHeading || path.heading);
+            if (progressDir !== (player.ringHeading || path.heading) && step && horizontalDirs.includes(step)) {
+              player.ringHeading = progressDir;
+              if (player.index === 0) path.heading = progressDir;
+            }
+            const heading = player.ringHeading || path.heading;
+            const gateLocked = !!(node.gate && !node.gateCleared && (node.mobs || []).some((mob) => mob.alive));
             if (player.worldX > path.homeX + path.half - 0.4) {
-              const nextNode = path.neighbor(node, heading);
-              if (nextNode) {
+              const forward = (step && horizontalDirs.includes(step)) ? step : heading;
+              const nextNode = !gateLocked || forward !== step ? path.neighbor(node, forward) : null;
+              if (gateLocked && forward === step) {
+                player.worldX = path.homeX + path.half - 0.55;
+                updateHud(window.BCMDialogue?.language === "en"
+                  ? "A BOSS GUARDS THIS PASSAGE · FIRE THE LASER"
+                  : "БОСС СТЕРЕЖЁТ ПРОХОД · СТРЕЛЯЙ ЛАЗЕРОМ");
+              } else if (nextNode) {
                 placeParty(enterRingCell(worldState, nextNode, "left", player), player);
                 continue;
               }
@@ -3679,18 +3921,32 @@
             if (player.ringTurnQueued) {
               player.ringTurnQueued = false;
               const activeHeading = player.ringHeading || path.heading;
-              const reverseHeading = path.opposite[activeHeading];
+              if ((step === "yp" || step === "yn") && path.neighbor(node, step) && !gateLocked) {
+                placeParty(enterRingCell(worldState, path.neighbor(node, step), null, player), player);
+                continue;
+              }
+              if (step && horizontalDirs.includes(step) && path.neighbor(node, step) && !gateLocked) {
+                const fromRight = step === "xn" || step === "zn";
+                placeParty(enterRingCell(worldState, path.neighbor(node, step), fromRight ? "right" : "left", player), player);
+                continue;
+              }
               const routeDirection = path.nextDirectionTowardLarge(node);
-              const horizontal = ["xp", "xn", "zp", "zn"];
-              const routeTurn = horizontal.includes(routeDirection) &&
-                routeDirection !== activeHeading && routeDirection !== reverseHeading &&
-                path.neighbor(node, routeDirection) ? routeDirection : null;
-              const turn = routeTurn || horizontal.find((dir) =>
-                dir !== activeHeading && dir !== reverseHeading && path.neighbor(node, dir));
-              if (turn) {
+              const pendingCrystals = (maze.crystals || []).some((crystal) => crystal && !crystal.taken);
+              if (!pendingCrystals && routeDirection && horizontalDirs.includes(routeDirection) && path.neighbor(node, routeDirection)) {
+                const fromRight = routeDirection === "xn" || routeDirection === "zn";
+                placeParty(enterRingCell(worldState, path.neighbor(node, routeDirection), fromRight ? "right" : "left", player), player);
+                continue;
+              }
+              const openH = horizontalDirs.filter((dir) => path.neighbor(node, dir));
+              const idx = Math.max(0, openH.indexOf(activeHeading));
+              const turn = openH.length > 1 ? openH[(idx + 1) % openH.length] : null;
+              if (turn && turn !== activeHeading) {
                 player.ringHeading = turn;
                 if (player.index === 0) path.heading = turn;
-                applyRingCellLook(worldState, node, player.ringHeading);
+                const goal = typeof path.objectiveNode === "function" ? path.objectiveNode(node) : null;
+                path.routeStep = goal && typeof path.nextDirectionToward === "function"
+                  ? path.nextDirectionToward(node, goal) : path.routeStep;
+                applyRingCellLook(worldState, node, player.ringHeading || path.heading);
               } else {
                 updateHud("ТУТ НЕТ БОКОВОГО ПРОХОДА · ИЩИ СВЕЧЕНИЕ ПОРТАЛА");
               }
@@ -3708,10 +3964,12 @@
           else if (astralMode === "flux") { gravity = 8.0 + Math.sin(now * 0.0018 + (astralNode.astralPhase || 0)) * 1.8; jumpVelocity = 8.8; }
           else if (astralMode === "dense") { gravity = 14.5; jumpVelocity = 10.2; }
           const jumpPressed = input.jump && !player.wasJumpDown && player.grounded;
-          if (jumpPressed && path && playerNode && !playerInLarge &&
-              Math.abs(player.worldX - path.homeX) < 1.35) {
+          if (jumpPressed && path && playerNode && !playerInLarge) {
+            const step = path.routeStep;
             const verticalDirection = input.down ? "yn" : "yp";
-            const verticalNode = path.neighbor(playerNode, verticalDirection);
+            const floorDir = (step === "yp" || step === "yn") ? step : verticalDirection;
+            const nearPad = (step === "yp" || step === "yn") || Math.abs(player.worldX - path.homeX) < 1.35;
+            const verticalNode = nearPad ? path.neighbor(playerNode, floorDir) : null;
             if (verticalNode) {
               player.wasJumpDown = true;
               placeParty(enterRingCell(worldState, verticalNode, null, player), player);
@@ -3740,7 +3998,7 @@
               (player.worldX < player.supportPlatform.minX || player.worldX > player.supportPlatform.maxX)) {
             player.grounded = false; player.vy = -0.2; player.supportPlatform = null;
           }
-          collectAt(player); collectHydrogenAt(player);
+          collectAt(player); collectHydrogenAt(player); collectRouteCrystal(player);
           const blinking = now < player.invulnerableUntil && Math.floor(now / 90) % 2 === 0;
           if (player.sprite) player.sprite.visible = !blinking;
           updatePlayerSprite(player);
