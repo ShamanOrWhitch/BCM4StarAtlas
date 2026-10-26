@@ -203,7 +203,7 @@ test("Warp hazards preserve depth separation, the 1x–8x ramp, and actual speed
   assert.match(warp, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
   assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
   assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
-  assert.match(warp, /const gateCount = 22/);
+  assert.match(warp, /const courseLayerCount = 16/);
   assert.match(warp, /tubeMeta\.textContent[\s\S]{0,180}"SPEED " \+ speed\.toFixed\(1\)/);
 });
 
@@ -232,9 +232,9 @@ test("Mini-Sim and Tower displayed versions match their PHP asset-cache versions
   const miniPhp = await read("mini-sim/bcm-mini-sim.php");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   const tower = await read("mini-sim/tower/assets/js/tower.js");
-  assert.ok(miniPhp.includes("Version: 0.11.20"));
-  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.11.20'"));
-  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.11.20"));
+  assert.ok(miniPhp.includes("Version: 0.11.21"));
+  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.11.21'"));
+  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.11.21"));
   assert.ok(towerPhp.includes("BCM_TOWER_VERSION', '0.2.66'"));
   assert.ok(tower.includes('const TOWER_VERSION = "0.2.66"'));
 });
@@ -263,5 +263,5 @@ test("Warp travel motion increases while shimmer rate stays on its own previous 
   assert.match(warp, /Math\.sin\(shimmerTime \* 1\.35/);
   assert.match(warp, /Math\.floor\(shimmerTime \* 8\)/);
   assert.match(warp, /Math\.pow\(warpCourseProgress\(elapsed\), 0\.86\)/);
-  assert.match(warp, /const gateCount = 22/);
+  assert.match(warp, /const courseLayerCount = 16/);
 });
