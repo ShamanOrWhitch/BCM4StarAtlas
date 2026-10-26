@@ -63,23 +63,57 @@ test("Warp keeps uncluttered longitudinal strips and clearly visible collision h
   assert.match(update, /layer\.type === "spikes"/);
   assert.match(update, /layer\.type === "boost"/);
   assert.match(update, /layer\.type === "launcher"/);
-  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
+  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.48/);
   assert.match(warp, /window\.BCMDeepSpaceWarpSetDriveSlot = \(slotSize\) =>/);
 });
 
-test("Warp multiplier and displayed speed ramp from 1x to 8x", () => {
+test("Warp multiplier and displayed speed ramp faster from 1x to 12x", () => {
   const start = warp.indexOf("function warpNormalizedTime");
   const end = warp.indexOf("function tubeSectionBlend", start);
   assert.ok(start >= 0 && end > start, "Warp speed helpers should exist");
   const speed = new Script(warp.slice(start, end) + "\n({ warpSpeedMultiplier, warpCourseProgress });")
     .runInNewContext({ WARP_DURATION: 42 });
   assert.equal(speed.warpSpeedMultiplier(0), 1);
-  assert.equal(speed.warpSpeedMultiplier(42), 8);
+  assert.equal(speed.warpSpeedMultiplier(42), 12);
   assert.equal(speed.warpCourseProgress(0), 0);
   assert.equal(speed.warpCourseProgress(42), 1);
+  assert.match(warp, /const t = Math\.pow\(warpNormalizedTime\(elapsed\), 0\.82\)/);
+  assert.match(warp, /return Math\.pow\(12, t\)/);
+  assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) - 1\) \/ 11/);
+  assert.match(warp, /const courseLayerCount = 22/);
+  assert.match(warp, /const typeRoll = rng\(\)/);
+  assert.match(warp, /Math\.max\(1, Math\.min\(12,/);
   assert.match(warp, /tubeMeta\.textContent[\s\S]{0,180}"SPEED " \+ speed\.toFixed\(1\)/);
   assert.match(warp, /if \(distance > 0\.36 \|\| distance <= 0\) return null/);
   assert.match(warp, /return Math\.min\(1, 0\.055 \/ \(distance \+ 0\.05\)\)/);
+});
+
+test("Class II reverses the directional Warp streak logic", () => {
+  const frame = warp.slice(warp.indexOf("function drawBackdrop(now)"), warp.indexOf("function updateTube(dt, now)"));
+  assert.match(frame, /const reverseStreaks = activeWarpVisualClass\(\) === 2/);
+  assert.match(frame, /reverseStreaks \? -1 : 1/);
+  assert.match(frame, /reverseStreaks \? tx : sx/);
+  assert.match(frame, /reverseStreaks \? sx : tx/);
+});
+
+test("Warp menu has an interactive schematic Galaxy map", () => {
+  assert.match(warp, /class="bcm-warp-galaxy-map" data-warp-galaxy-map/);
+  assert.match(warp, /function renderGalaxyMap\(\)/);
+  assert.match(warp, /LIVE SECTOR LINKS/);
+  assert.match(warp, /SCHEMATIC GALAXY/);
+  assert.match(warp, /if \(nearest && best <= 24\) selectTarget\(nearest\.sector\)/);
+  assert.match(warp, /renderGalaxyMap\(\);\s*focusInitialMapChoice\(\)/);
+  assert.match(warp, /engine\.releaseFlightPointerLock\(\)/);
+  assert.match(warp, /function focusInitialMapChoice\(\)/);
+  assert.match(warp, /focusMapChoice\(1\)/);
+  assert.match(warp, /focusMapChoice\(-1\)/);
+});
+
+test("Mini-Sim doesn't relock the mouse or consume flight keys on the Warp map", async () => {
+  const mini = await readFile(new URL("../mini-sim/assets/js/mini-sim.js", import.meta.url), "utf8");
+  assert.match(mini, /!root\.classList\.contains\("bcm-warp-open"\).*?canvas\.requestPointerLock/);
+  assert.match(mini, /!root\.classList\.contains\("bcm-warp-open"\).*?pointerLocked/);
+  assert.match(mini, /settings\.open \|\| root\.classList\.contains\("bcm-warp-open"\)/);
 });
 
 test("Mini-Sim 0.11.21 cache/version contracts are synchronized", () => {
