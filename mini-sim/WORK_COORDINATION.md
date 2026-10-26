@@ -1,9 +1,9 @@
 ## Active — WORK LOCK #84: stabilize Mini-Sim after the user's playtest (26 October 2026)
 
 - Branch `fix/minisim-0.11.21-playtest-stability`; baseline `73ba0cc1f772d73155a093382fce051e1e2843ae`; candidate Mini-Sim 0.11.21 / Tower 0.2.67; draft PR [#85](https://github.com/ShamanOrWitch/BCM4StarAtlas/pull/85).
-- Scope: Ring Hydrogen count and explicit door/floor controls; Room 2 central return; non-repetitive Warp course; Tower Panda copy; focused regression tests and handoff documentation.
+- Scope: Ring Hydrogen count and explicit door/floor controls; Room 2 central return; restore 22-layer randomized Warp with faster 12x ramp and Class II reversed streaks; mouse/keyboard/gamepad-accessible Warp destination menu and schematic Galaxy map; Tower Panda copy; focused regression tests and documentation.
 - Preserve USER-CONFIRMED Ring entry and external backside doors. Keep Tower physics, Galia Desk, scanner/pricing, SAGE adapter, planet placement and firewall unchanged.
-- Do not implement network mode in this lock. Local gameplay and ship/reference identity come first. Do not claim live verification; the remote browser runner receives HTTP 403.
+- Do not implement network mode in this lock. Local gameplay and ship/reference identity come first. The galaxy background is schematic; actual sector markers use available navigation data. Do not claim live verification; browser/device QA remains separate from source CI.
 
 ---
 
