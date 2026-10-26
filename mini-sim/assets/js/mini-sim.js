@@ -5359,7 +5359,7 @@
       }
       if (settings.open) return;
       const flightCodes = { KeyW: 1, KeyA: 1, KeyS: 1, KeyD: 1, KeyQ: 1, KeyE: 1, KeyC: 1, Space: 1 };
-      if (flightCodes[e.code] && running && !pointerLocked && !("ontouchstart" in window) && !(navigator.maxTouchPoints > 0)) {
+      if (flightCodes[e.code] && running && !root.classList.contains("bcm-warp-open") && !pointerLocked && !("ontouchstart" in window) && !(navigator.maxTouchPoints > 0)) {
         if (canvas.requestPointerLock) canvas.requestPointerLock();
       }
       keys[e.code] = true;
@@ -5388,7 +5388,8 @@
     });
     updateControlHelp();
     canvas.addEventListener("click", () => {
-      if (running && canvas.requestPointerLock && !("ontouchstart" in window)) canvas.requestPointerLock();
+      if (running && !root.classList.contains("bcm-warp-open") &&
+          canvas.requestPointerLock && !("ontouchstart" in window)) canvas.requestPointerLock();
     });
     document.addEventListener("pointerlockchange", () => {
       pointerLocked = document.pointerLockElement === canvas;
@@ -5553,8 +5554,9 @@
     };
     window.BCMiniSimAPI.getRuntime = () => ({ renderer, scene, camera, ship, THREE: window.THREE, root, running });
     window.BCMiniSimAPI.requestFlightPointerLock = () => {
-      if (!running || settings.open || !canvas || !canvas.requestPointerLock ||
-          ("ontouchstart" in window) || navigator.maxTouchPoints > 0) return false;
+      if (!running || settings.open || root.classList.contains("bcm-warp-open") ||
+          !canvas || !canvas.requestPointerLock || ("ontouchstart" in window) ||
+          navigator.maxTouchPoints > 0) return false;
       if (document.pointerLockElement === canvas) return true;
       try {
         const request = canvas.requestPointerLock();
