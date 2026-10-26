@@ -326,16 +326,24 @@
     const normalizedLevel = String(level || "").toLowerCase();
     const levelText = {
       ring: {
-        ru: {controlsKeyboard:"Ring: ← → или A/D — бег; Space — прыжок; E — цель; Q — лазер.",controlsTouch:"Ring: ◀ ▶ — бег, ПРЫЖОК — прыжок, ЛАЗЕР — выстрел, действие — цель.",controlsGamepad:"Ring: стик — бег; A — прыжок; X — цель; Y — оружие."},
-        en: {controlsKeyboard:"Ring: ← → or A/D move; Space jumps; E targets; Q fires.",controlsTouch:"Ring: ◀ ▶ move, JUMP jumps, FIRE shoots, action targets.",controlsGamepad:"Ring: stick moves; A jumps; X targets; Y fires."}
+        ru: {controlsKeyboard:"Ring: A/D или ←/→ — бег; Space/W — прыжок; E — дверь; R — этаж; Q — лазер; Shift/C — рывок.",controlsTouch:"Ring: ◀ ▶ — бег; ПРЫЖОК — прыжок; ЭТАЖ — сменить этаж; ДВЕРЬ — пройти; ЛАЗЕР — выстрел; РЫВОК — ускорение.",controlsGamepad:"Ring: стик — бег; A — прыжок; X — дверь; LB — этаж; Y — лазер; B — рывок."},
+        en: {controlsKeyboard:"Ring: A/D or ←/→ move; Space/W jumps; E uses the door; R changes floor; Q fires; Shift/C dashes.",controlsTouch:"Ring: ◀ ▶ move; JUMP jumps; FLOOR changes levels; DOOR enters; LASER fires; DASH dodges.",controlsGamepad:"Ring: stick moves; A jumps; X door; LB floor; Y fire; B dash."}
       },
       hull: {
         ru: {controlsKeyboard:"Кабина: мышь/палец — тащи Crew; удерживай воду для насоса, пробоину — для ремонта.",controlsTouch:"Кабина: тащи Crew; держи палец на воде для насоса и на шве для ремонта.",controlsGamepad:"Кабина: стик двигает Crew; A ремонт, B насос, LB/X — штурвал. V — Warp, не трюм."},
         en: {controlsKeyboard:"Cabin: drag Crew; hold on water to pump or on a seam to repair.",controlsTouch:"Cabin: drag Crew; hold on water to pump and on the seam to repair.",controlsGamepad:"Cabin: stick moves Crew; A repairs, B pumps, LB/X toggles helm. V is Warp, not the hold."}
       },
       tower: {
-        ru: {controlsKeyboard:"Tower: двигайся клавишами или стиком. Esc — выйти.",controlsTouch:"Tower: касайся направлений и прыжка. Esc — выйти.",controlsGamepad:"Tower: левый стик двигает, A — прыжок. Esc — выйти."},
-        en: {controlsKeyboard:"Tower: move with keys or stick. Esc exits.",controlsTouch:"Tower: use direction and jump buttons. Esc exits.",controlsGamepad:"Tower: left stick moves, A jumps. Esc exits."}
+        ru: {
+          controlsKeyboard:"Башня: A/D — движение по площадке; W/S — смещение; Space — прыжок; E — действие; R — новый спуск. Цель — добраться до низа. Падение на 5 пролётов вернёт в начало; Esc — выйти.",
+          controlsTouch:"Башня: наклон — поворот; кнопки направления — движение; ПРЫЖОК — джетпак. Цель — добраться до низа. Падение на 5 пролётов вернёт в начало.",
+          controlsGamepad:"Башня: левый стик — движение/смещение; A — прыжок; X — действие; Y — новый спуск. Цель — добраться до низа; падение на 5 пролётов возвращает в начало."
+        },
+        en: {
+          controlsKeyboard:"Tower: A/D move around the platform; W/S shift; Space jumps; E acts; R starts a new descent. Reach the bottom. Falling 5 landings returns to start; Esc exits.",
+          controlsTouch:"Tower: tilt rotates; direction buttons move; JUMP activates the jetpack. Reach the bottom. Falling 5 landings returns to start.",
+          controlsGamepad:"Tower: left stick moves/shifts; A jumps; X acts; Y starts a new descent. Reach the bottom; falling 5 landings returns to start."
+        }
       }
     };
 
