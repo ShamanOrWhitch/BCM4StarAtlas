@@ -959,6 +959,160 @@
       }
     }
 
+    function renderGalaxyMap() {
+      if (!galaxyMap || !galaxyMapCtx) return;
+      const rect = galaxyMap.getBoundingClientRect();
+      const w = Math.max(240, Math.floor(rect.width || 760));
+      const h = Math.max(120, Math.floor(rect.height || 220));
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      if (galaxyMap.width !== Math.round(w * dpr) || galaxyMap.height !== Math.round(h * dpr)) {
+        galaxyMap.width = Math.round(w * dpr);
+        galaxyMap.height = Math.round(h * dpr);
+      }
+      const g = galaxyMapCtx;
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.clearRect(0, 0, w, h);
+      const bg = g.createLinearGradient(0, 0, w, h);
+      bg.addColorStop(0, "#030915");
+      bg.addColorStop(0.55, "#071827");
+      bg.addColorStop(1, "#030711");
+      g.fillStyle = bg;
+      g.fillRect(0, 0, w, h);
+      const cx = w * 0.5, cy = h * 0.52, radius = Math.min(w * 0.43, h * 0.43);
+
+      // Decorative spiral arms give galaxy-scale context; the background itself is illustrative.
+      for (let ring = 1; ring <= 4; ring += 1) {
+        g.beginPath();
+        g.ellipse(cx, cy, radius * ring / 4, radius * ring / 4 * 0.64, -0.22, 0, Math.PI * 2);
+        g.strokeStyle = "rgba(123,171,204," + (ring === 4 ? "0.16" : "0.09") + ")";
+        g.lineWidth = 1;
+        g.stroke();
+      }
+      for (let arm = 0; arm < 4; arm += 1) {
+        g.beginPath();
+        for (let step = 0; step <= 105; step += 1) {
+          const p = step / 105;
+          const rr = radius * (0.06 + p * 0.94);
+          const angle = arm * Math.PI * 0.5 + p * Math.PI * 2.45 + 0.22;
+          const x = cx + Math.cos(angle) * rr;
+          const y = cy + Math.sin(angle) * rr * 0.64;
+          if (!step) g.moveTo(x, y); else g.lineTo(x, y);
+          if (step % 9 === 0) {
+            g.fillStyle = "rgba(118,180,218," + (0.12 + p * 0.16) + ")";
+            g.fillRect(x - 1, y - 1, 2, 2);
+          }
+        }
+        g.strokeStyle = "rgba(93,154,194,0.17)";
+        g.lineWidth = 5;
+        g.stroke();
+        g.strokeStyle = "rgba(147,197,226,0.10)";
+        g.lineWidth = 1.1;
+        g.stroke();
+      }
+      for (let i = 0; i < 100; i += 1) {
+        const ax = Math.sin(i * 127.1 + 3.7) * 43758.5453;
+        const ay = Math.sin(i * 269.5 + 9.2) * 24634.6345;
+        const x = (ax - Math.floor(ax)) * w;
+        const y = (ay - Math.floor(ay)) * h;
+        const size = i % 11 === 0 ? 1.6 : 0.7;
+        g.fillStyle = "rgba(204,230,249," + (0.18 + (i % 5) * 0.08) + ")";
+        g.fillRect(x, y, size, size);
+      }
+
+      const nav = state.nav;
+      const current = nav && nav.current;
+      const targets = nav && Array.isArray(nav.targets) ? nav.targets : [];
+      galaxyMapPoints = [];
+      if (current) {
+        const coords = targets.filter((node) => node && node.x != null && node.y != null &&
+          current.x != null && current.y != null).map((node) =>
+          Math.max(Math.abs(Number(node.x) - Number(current.x)), Math.abs(Number(node.y) - Number(current.y))));
+        const maxDelta = Math.max(1, ...coords);
+        const pointScale = Math.min(w * 0.38, h * 0.34) / maxDelta;
+        const positions = [current].concat(targets).map((node, index) => {
+          let x = cx, y = cy;
+          if (index > 0) {
+            if (node.x != null && node.y != null && current.x != null && current.y != null) {
+              x = cx + (Number(node.x) - Number(current.x)) * pointScale;
+              y = cy - (Number(node.y) - Number(current.y)) * pointScale * 0.64;
+            } else {
+              const angle = ((index - 1) / Math.max(1, targets.length)) * Math.PI * 2 - Math.PI / 2;
+              const rr = Math.min(w * 0.24, h * 0.30);
+              x = cx + Math.cos(angle) * rr;
+              y = cy + Math.sin(angle) * rr * 0.64;
+            }
+          }
+          return { node, x, y, index };
+        });
+        g.save();
+        g.setLineDash([4, 5]);
+        g.lineWidth = 1;
+        positions.slice(1).forEach((p) => {
+          g.beginPath(); g.moveTo(cx, cy); g.lineTo(p.x, p.y);
+          g.strokeStyle = "rgba(108,184,218,0.46)"; g.stroke();
+        });
+        g.restore();
+        const selected = state.target && positions.find((p) => p.node.id === state.target.id);
+        if (selected) {
+          g.beginPath(); g.moveTo(cx, cy); g.lineTo(selected.x, selected.y);
+          g.strokeStyle = "rgba(86,240,208,0.95)"; g.lineWidth = 2.5; g.stroke();
+          const angle = Math.atan2(selected.y - cy, selected.x - cx);
+          const head = 8;
+          g.beginPath();
+          g.moveTo(selected.x, selected.y);
+          g.lineTo(selected.x - Math.cos(angle - 0.45) * head, selected.y - Math.sin(angle - 0.45) * head);
+          g.moveTo(selected.x, selected.y);
+          g.lineTo(selected.x - Math.cos(angle + 0.45) * head, selected.y - Math.sin(angle + 0.45) * head);
+          g.stroke();
+        }
+        positions.forEach((p) => {
+          const isCurrent = p.index === 0;
+          const isSelected = !!(state.target && p.node.id === state.target.id);
+          g.beginPath(); g.arc(p.x, p.y, isCurrent ? 5.5 : isSelected ? 5 : 3.2, 0, Math.PI * 2);
+          g.fillStyle = isCurrent ? "#f4fbff" : isSelected ? "#56f0d0" : "#8bb8d0"; g.fill();
+          if (isCurrent || isSelected) {
+            g.beginPath(); g.arc(p.x, p.y, isCurrent ? 10 : 9, 0, Math.PI * 2);
+            g.strokeStyle = isCurrent ? "rgba(244,251,255,.52)" : "rgba(86,240,208,.65)";
+            g.lineWidth = 1.2; g.stroke();
+            g.fillStyle = isCurrent ? "#edf8ff" : "#b9fff1";
+            g.font = "700 10px system-ui,sans-serif";
+            g.textAlign = p.x > w - 125 ? "right" : "left";
+            g.textBaseline = "bottom";
+            g.fillText(isCurrent ? "CURRENT" : String(p.node.name || "DESTINATION").toUpperCase().slice(0, 24),
+              p.x + (p.x > w - 125 ? -8 : 8), p.y - 7);
+          }
+          if (!isCurrent) galaxyMapPoints.push({ sector: p.node, x: p.x, y: p.y });
+        });
+      }
+      g.fillStyle = "rgba(158,194,218,.72)";
+      g.font = "9px ui-monospace,Consolas,monospace";
+      g.textAlign = "left"; g.textBaseline = "top";
+      g.fillText(nav && nav.live ? "LIVE SECTOR LINKS" : "SCHEMATIC GALAXY · TEST SECTORS", 9, 8);
+      if (galaxyMapStatus) {
+        galaxyMapStatus.textContent = current
+          ? (nav.live ? "LIVE ROUTE DATA" : "SCHEMATIC · " + (targets.length || 0) + " TEST LINKS")
+          : "SECTOR DATA UNAVAILABLE";
+      }
+    }
+
+    galaxyMap?.addEventListener("click", (event) => {
+      const rect = galaxyMap.getBoundingClientRect();
+      const x = event.clientX - rect.left, y = event.clientY - rect.top;
+      let nearest = null, best = Infinity;
+      galaxyMapPoints.forEach((p) => {
+        const d = Math.hypot(p.x - x, p.y - y);
+        if (d < best) { best = d; nearest = p; }
+      });
+      if (nearest && best <= 24) selectTarget(nearest.sector);
+      else galaxyMap.focus({ preventScroll: true });
+    });
+    galaxyMap?.addEventListener("keydown", (event) => {
+      if ((event.code === "Enter" || event.code === "Space") && state.target) {
+        event.preventDefault();
+        startButton.focus({ preventScroll: true });
+      }
+    });
+
     function selectTarget(sector) {
       state.target = sector;
       listElement.querySelectorAll(".bcm-warp-sector").forEach((button) => {
