@@ -175,13 +175,13 @@ test("SafeMode, animated faces, readable dialog timing and flight pointer-lock h
   assert.match(css, /\.bcm-comic-dialog-copy p\{[\s\S]{0,150}font-size:19px/);
 });
 
-test("0.11.18 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
-  assert.match(php, /Version: 0\.11\.18/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.18'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.11\.18/);
-  assert.match(qa, /Version: 0\.11\.18/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.18'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.18/);
+test("0.11.19 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
+  assert.match(php, /Version: 0\.11\.19/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.19'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.11\.19/);
+  assert.match(qa, /Version: 0\.11\.19/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.19'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.19/);
   assert.match(browserWorkflow, /timeout-minutes: 45/);
   assert.match(browserWorkflow, /timeout-minutes: 20/);
   assert.match(browserWorkflow, /timeout-minutes: 25/);

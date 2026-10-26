@@ -1,4 +1,11 @@
-## Active — Mini-Sim 0.11.18 Ring door and phone Panda controls (26 October 2026)
+## Active — Mini-Sim 0.11.19 Ring level, asteroid place, orbit radius (26 October 2026)
+
+- 0.11.18 is already merged (PR #81). This pass fixes the ring level that aborted at 2 seconds, Warp cancel dropping the pilot into a Room 1 label, and the asteroid flight envelope (now 160). V is not the hold.
+- Not a WordPress upload. Tower stays 0.2.66. Do not rewrite the maze generator or Room 2 walls.
+
+---
+
+## Completed — Mini-Sim 0.11.18 Ring door and phone Panda controls (26 October 2026)
 
 - Not deployed. Builds on main `0.11.17` / Tower `0.2.66`. Do not rewrite asteroid physics, backside doors, or Tower physics.
 - Ring entrance sits above Panda and can be tapped; the cell maze uses the flight canvas. Phone start copy is tilt, calibration reset, and tap-to-fix music screens. Keyboard Warp is a V button; phones get WARP.

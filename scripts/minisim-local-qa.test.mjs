@@ -232,9 +232,9 @@ test("Mini-Sim and Tower displayed versions match their PHP asset-cache versions
   const miniPhp = await read("mini-sim/bcm-mini-sim.php");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   const tower = await read("mini-sim/tower/assets/js/tower.js");
-  assert.ok(miniPhp.includes("Version: 0.11.18"));
-  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.11.18'"));
-  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.11.18"));
+  assert.ok(miniPhp.includes("Version: 0.11.19"));
+  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.11.19'"));
+  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.11.19"));
   assert.ok(towerPhp.includes("BCM_TOWER_VERSION', '0.2.66'"));
   assert.ok(tower.includes('const TOWER_VERSION = "0.2.66"'));
 });
@@ -248,7 +248,7 @@ test("Asteroid collision keeps the 0.11.2 baseline and visible core shards on a 
   assert.match(body, /ship\.velocity\.y \*= 0\.15/);
   assert.match(body, /ship\.velocity\.z \*= 0\.15/);
   assert.doesNotMatch(body, /Sweep the ship's previous-to-current segment/);
-  assert.match(warp, /flyRadius: 43\.2/);
+  assert.match(warp, /flyRadius: 160/);
   assert.match(body, /ship\.velocity\.multiplyScalar\(0\.25\)/);
   assert.match(warp, /const routeParent = new Map\(\[\[startNode, null\]\]\)/);
   assert.match(warp, /scouted: true/);

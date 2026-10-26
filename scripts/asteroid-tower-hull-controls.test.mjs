@@ -28,7 +28,7 @@ test("Flight starts in Room 1 and does not teleport into the asteroid", async ()
   const begin = mini.slice(mini.indexOf("function beginFlight()"), mini.indexOf("const byName = Object.create(null)"));
   assert.doesNotMatch(begin, /BCMDeepSpaceWarpEnterAsteroid\s*\(/);
   assert.match(mini, /ship\.position = new THREE\.Vector3\(0, 0, 2\)/);
-  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.18/);
+  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.19/);
 });
 
 test("Asteroid walls are resolved from the prepared asterwall asset family", async () => {
@@ -198,7 +198,7 @@ test("Crew facing follows the Tower convention and 3D wall materials use each ce
   assert.ok(warp.includes('wallTextureCopiesByAsset[index].push(copy)'));
   assert.ok(warp.includes('(wallVariantsByAsset[index] || []).forEach((variant) => syncImage(variant.texture))'));
   assert.doesNotMatch(warp, /const previousPosition = maze\.lastPosition/);
-  assert.match(warp, /flyRadius: 43\.2/);
+  assert.match(warp, /flyRadius: 160/);
   assert.match(warp, /ship\.velocity\.x \*= 0\.15/);
   assert.match(warp, /const hx = w\.sx \/ 2 \+ radius/);
   assert.match(warp, /const routeParent = new Map\(\[\[startNode, null\]\]\)/);
