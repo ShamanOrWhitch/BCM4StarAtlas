@@ -547,6 +547,10 @@
 
     const overlay = document.createElement("div");
     overlay.className = "bcm-warp-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "WARP — карта Галактики и выбор сектора назначения");
+    overlay.tabIndex = -1;
     overlay.hidden = true;
     overlay.innerHTML =
       '<canvas class="bcm-warp-backdrop" aria-hidden="true"></canvas>' +
@@ -1182,6 +1186,7 @@
         : "Стартовая точка ONI CSS · NEUNO: X -40, Y 30. Соседние клетки сгенерированы только для теста. Warp/Tube/лабиринт не меняют состояние Star Atlas.";
       listSectorTargets();
       renderSectorGrid();
+      renderGalaxyMap();
       selectedElement.textContent = "DESTINATION NOT SELECTED";
       startButton.disabled = true;
       mapView.hidden = false;
@@ -5423,6 +5428,32 @@ return axialRoll + ahead * 0.12 +
 
       document.addEventListener("keydown", (event) => {
         if (overlay.hidden) return;
+        if (state.mode === "map") {
+          if (["ArrowDown", "ArrowRight"].includes(event.code)) {
+            event.preventDefault(); event.stopImmediatePropagation();
+            focusMapChoice(1);
+            return;
+          }
+          if (["ArrowUp", "ArrowLeft"].includes(event.code)) {
+            event.preventDefault(); event.stopImmediatePropagation();
+            focusMapChoice(-1);
+            return;
+          }
+          if (event.code === "Enter" || event.code === "Space") {
+            const active = document.activeElement;
+            if (active && active.closest && active.closest("[data-warp-manual]") && event.code === "Enter") return;
+            if (active && active.matches && active.matches("button:not([disabled])")) {
+              event.preventDefault(); event.stopImmediatePropagation();
+              active.click();
+              return;
+            }
+            if (active === galaxyMap && state.target) {
+              event.preventDefault(); event.stopImmediatePropagation();
+              startButton.focus({ preventScroll: true });
+              return;
+            }
+          }
+        }
         if (event.code === "Escape" || event.code === "Backspace") {
           if (state.mode !== "map") return;
           event.preventDefault(); event.stopImmediatePropagation();
@@ -5488,7 +5519,10 @@ return axialRoll + ahead * 0.12 +
     });
     bindWarpInput();
     window.addEventListener("resize", () => {
-      if (!overlay.hidden) resizeBackdrop();
+      if (!overlay.hidden) {
+        resizeBackdrop();
+        if (state.mode === "map") renderGalaxyMap();
+      }
     });
 
     // In the asteroid maze, keep the main game's requestAnimationFrame loop and WebGL context.
