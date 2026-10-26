@@ -1106,11 +1106,14 @@
       const runNonce = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
       const rng = randomFrom(hashSeed(state.nav.current.id + ">" + state.target.id + ":" + state.target.x + ":" + state.target.y + ":" + runNonce));
       state.layers = [];
-      const courseLayerCount = 16;
-      const courseTypes = buildWarpObstacleTypes(rng, courseLayerCount);
+      const courseLayerCount = 22;
       let previousSafeAngle = null;
       for (let i = 0; i < courseLayerCount; i += 1) {
-        const type = courseTypes[i];
+        const typeRoll = rng();
+        const type = typeRoll < 0.34 ? "gate"
+          : typeRoll < 0.55 ? "sweeper"
+          : typeRoll < 0.70 ? "spikes"
+          : typeRoll < 0.86 ? "boost" : "launcher";
         let safeAngle = rng() * Math.PI * 2 - Math.PI;
         if (previousSafeAngle != null) {
           const delta = Math.atan2(Math.sin(safeAngle - previousSafeAngle), Math.cos(safeAngle - previousSafeAngle));
@@ -4653,33 +4656,14 @@
     // The visual/collision course accelerates as a single journey: 1x at launch,
     // smoothly reaching 8x by the final second without desynchronizing the gates.
     function warpSpeedMultiplier(elapsed) {
-      // Correct launch/finale profile: 1x at launch, accelerating to 8x.
-      return Math.pow(8, warpNormalizedTime(elapsed));
+      // Start at 1x, ramp sooner than the old 8x curve, and reach 12x at arrival.
+      const t = Math.pow(warpNormalizedTime(elapsed), 0.82);
+      return Math.pow(12, t);
     }
 
     function warpCourseProgress(elapsed) {
-      // Normalize the 1x..8x speed ramp to the complete 0..1 obstacle course.
-      return (warpSpeedMultiplier(elapsed) - 1) / 7;
-    }
-
-    // Shuffle obstacle families; variety is not the same as adding more repeated gates.
-    function buildWarpObstacleTypes(rng, count = 16) {
-      const bag = ["gate", "gate", "sweeper", "sweeper", "sweeper", "sweeper",
-        "spikes", "spikes", "spikes", "spikes", "boost", "boost", "boost",
-        "launcher", "launcher", "launcher"];
-      const types = [];
-      while (types.length < count && bag.length) {
-        const recent = types.slice(-2);
-        const candidates = bag.map((type, index) => ({ type, index })).filter(({ type }) =>
-          type !== types[types.length - 1] && !(type === "gate" && recent.includes("gate"))
-        );
-        const choices = candidates.length ? candidates : bag.map((type, index) => ({ type, index }));
-        const selected = choices[Math.min(choices.length - 1, Math.floor(Math.max(0, Math.min(0.999999, rng())) * choices.length))];
-        if (!selected) break;
-        types.push(selected.type);
-        bag.splice(selected.index, 1);
-      }
-      return types;
+      // Visible hazard positions and collision timing share this accelerated 1x..12x curve.
+      return (warpSpeedMultiplier(elapsed) - 1) / 11;
     }
 
     function warpObstacleProgress(elapsed) {
@@ -5032,13 +5016,13 @@ return axialRoll + ahead * 0.12 +
       const rollRates = [0.42, 0.82, 0.55, 1.12, 0.31, 0.72];
       const boosted = state.elapsed < Number(state.tubeBoostUntil || 0);
       const rampMultiplier = warpSpeedMultiplier(state.elapsed);
-      const speed = Math.max(1, Math.min(8,
+      const speed = Math.max(1, Math.min(12,
         tubeSectionBlend(speedBySection, state.elapsed).value * 1.25 *
         rampMultiplier * (boosted ? 1.4 : 1)
       ));
       // Give the tube geometry a modestly faster sense of forward movement,
       // while keeping its established material shimmer tempo independent.
-      state.tubeTravel += dt * speed * 1.12;
+      state.tubeTravel += dt * speed * 1.48;
       state.tubeShimmerTime = Number(state.tubeShimmerTime || 0) + dt * speed;
       state.tubeRoll = Number(state.tubeRoll || 0) + dt * tubeSectionBlend(rollRates, state.elapsed).value * 0.45;
       const routeProgress = warpObstacleProgress(state.elapsed);
