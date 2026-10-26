@@ -1,4 +1,10 @@
-## Main state — Mini-Sim 0.11.17 / Tower 0.2.66 (26 October 2026)
+## Main state — Mini-Sim 0.11.18 / Tower 0.2.66 (26 October 2026)
+
+- Ring entrance is a tappable door above Panda, and the cell maze renders in the flight canvas with the first opening aimed at the large arena.
+- Phone flight copy is tilt, tilt reset, and tap-to-fix music screens. Keyboard Warp is a V button on the same action as the V key; phones get WARP.
+- Mini-Sim/cache/title version: `0.11.18`; Tower version: `0.2.66`. No WordPress deployment. Asteroid physics and backside doors stay on the 0.11.16 contract.
+
+## Previous state — Mini-Sim 0.11.17 / Tower 0.2.66 (26 October 2026)
 
 - Merged via [PR #80](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/80), commit `d821764610890e84970ba20b354e90e41d1cc6cf`.
 - **Ring handoff:** the asteroid and ship remain visible until Ring's world, controls, renderer and cleanup routine are ready. Entry snapshots the old scene. If initialization throws or returns false, partial Ring state is cleaned up and the original asteroid visibility, ship visibility, background and scene children are restored; the Ring button remains retryable. The post-video failure path now displays a status instead of silently leaving empty space.

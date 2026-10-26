@@ -39,7 +39,14 @@ test("Panda dialogue carries flight and Warp controls without a separate right-s
   assert.match(mini, /V — открыть карту; на геймпаде — Y/);
   assert.match(mini, /V — карта Warp/);
   assert.match(mini, /START WARP/);
-  assert.match(mini, /showOperatorDialog\("ПАНДА", message, null, "panda\.mp4"\)/);
+  assert.match(mini, /warpControlChoice\("V"\)/);
+  assert.match(mini, /warpControlChoice\("WARP"\)/);
+  assert.match(mini, /BCMDeepSpaceWarpToggle/);
+  assert.match(mini, /сбрасывает калибровку/);
+  assert.match(mini, /чинится тапом/);
+  assert.match(mini, /Phone: tilt the device to fly/);
+  assert.match(mini, /function phonePrimaryControls\(\)/);
+  assert.match(mini, /showOperatorDialog\("ПАНДА", message, choices, "panda\.mp4"\)/);
   assert.match(css, /\.bcm-comic-dialog-operator/);
   assert.doesNotMatch(css, /\.bcm-comic-dialog-controls/);
   assert.match(css, /width:min\(900px,calc\(84vw - 18px\)\)/);
@@ -168,13 +175,13 @@ test("SafeMode, animated faces, readable dialog timing and flight pointer-lock h
   assert.match(css, /\.bcm-comic-dialog-copy p\{[\s\S]{0,150}font-size:19px/);
 });
 
-test("0.11.17 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
-  assert.match(php, /Version: 0\.11\.17/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.17'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.11\.17/);
-  assert.match(qa, /Version: 0\.11\.17/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.17'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.17/);
+test("0.11.18 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
+  assert.match(php, /Version: 0\.11\.18/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.11\.18'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.11\.18/);
+  assert.match(qa, /Version: 0\.11\.18/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.18'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.18/);
   assert.match(browserWorkflow, /timeout-minutes: 45/);
   assert.match(browserWorkflow, /timeout-minutes: 20/);
   assert.match(browserWorkflow, /timeout-minutes: 25/);
