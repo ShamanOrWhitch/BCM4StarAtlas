@@ -4,11 +4,12 @@ import { readFile } from "node:fs/promises";
 import { Script } from "node:vm";
 
 const read = (path) => readFile(new URL("../" + path, import.meta.url), "utf8");
-const [warp, mini, php, tower] = await Promise.all([
+const [warp, mini, php, tower, towerPhp] = await Promise.all([
   read("mini-sim/assets/js/deep-space-warp.js"),
   read("mini-sim/assets/js/mini-sim.js"),
   read("mini-sim/bcm-mini-sim.php"),
-  read("mini-sim/tower/assets/js/tower.js")
+  read("mini-sim/tower/assets/js/tower.js"),
+  read("mini-sim/tower/bcm-tower.php")
 ]);
 
 test("Hydrogen mission counter counts each unique shard once", () => {
@@ -112,10 +113,26 @@ test("Tower Panda dialogue describes real controls and the descent objective", (
   assert.match(tower, /ОСТОРОЖНО: ПАДЕНИЕ НА 5 ПРОЛЁТОВ — ВОЗВРАТ В НАЧАЛО/);
 });
 
-test("Mini-Sim 0.11.21 versions agree across PHP and UI", () => {
+test("Hidden Tower does not steal Ring's R floor action", () => {
+  assert.match(tower, /function towerInputSuppressed\(\) \{[\s\S]*?bcm-ring-platformer[\s\S]*?bcm-ring-transition/);
+  const keydownStart = tower.indexOf('window.addEventListener("keydown", (event) => {');
+  const keyupStart = tower.indexOf('window.addEventListener("keyup", (event) => {');
+  assert.ok(keydownStart >= 0 && keyupStart > keydownStart);
+  const keydown = tower.slice(keydownStart, keyupStart);
+  const keyupEnd = tower.indexOf('window.addEventListener("blur"', keyupStart);
+  assert.ok(keyupEnd > keyupStart);
+  const keyup = tower.slice(keyupStart, keyupEnd);
+  assert.match(keydown, /if \(towerInputSuppressed\(\)\)/);
+  assert.ok(keydown.indexOf("towerInputSuppressed()") < keydown.indexOf('if (event.code === "KeyR")'));
+  assert.match(keyup, /if \(towerInputSuppressed\(\)\)/);
+});
+
+test("Mini-Sim 0.11.21 and Tower 0.2.67 versions agree across PHP and UI", () => {
   assert.match(php, /Version: 0\.11\.21/);
   assert.match(php, /define\('BCM_MINI_SIM_VERSION', '0\.11\.21'\)/);
   assert.match(php, /SPACE LABYRINTH — 0\.11\.21/);
   assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.21/);
   assert.match(mini, /SPACE LABYRINTH — 0\.11\.21/);
+  assert.match(towerPhp, /define\('BCM_TOWER_VERSION', '0\.2\.67'\)/);
+  assert.match(tower, /const TOWER_VERSION = "0\.2\.67"/);
 });
