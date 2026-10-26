@@ -1,5 +1,17 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
+## Candidate Mini-Sim 0.11.21 — user playtest stability
+
+- Work Lock [#84](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/84), draft PR [#85](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/85), branch `fix/minisim-0.11.21-playtest-stability`, base main `73ba0cc1f772d73155a093382fce051e1e2843ae`.
+- User confirmed Ring entry and external backside doors work on 0.11.19/0.11.20; Ring is improved but remains rough. Hydrogen count, Room 2 return, explicit floor interaction, Tower instructions and Warp diversity are active fixes.
+- Controls contract: Space/W only jumps; E follows the open door; R changes floor at a vertical hatch; gamepad A jumps, X uses the door, LB changes floor, Y fires and B dashes.
+- Warp course: 16 varied layers, at most two gates, no adjacent duplicate families and wider safe gaps. Preserve collision formulas and steering.
+- No WordPress upload. Network mode is deferred until local play and ship/reference identity are stable. Remote browser QA gets HTTP 403; don't bypass the firewall.
+- CI/source validation is pending; no live browser/device pass is claimed.
+
+---
+
+
 ## Mini-Sim 0.11.20 — landing clip, then the same asteroid on foot
 
 - The first Panda line is flight and screens. Screens turn on by flying up to them. The V / Warp button is only in the next line, after the screens have played. V is Warp, not a screen switch and not the hold.
