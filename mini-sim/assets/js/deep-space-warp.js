@@ -4942,20 +4942,30 @@ return axialRoll + ahead * 0.12 +
       const cx = w / 2, cy = h / 2;
       state.stars.forEach((star) => {
         if (state.mode === "tube") {
-          star.z += dt * (0.10 + star.size * 0.04);
-          if (star.z > 1) {
-            star.z = 0;
+          // Class II deliberately reverses the motion logic from Class I/III.
+          const reverseStreaks = activeWarpVisualClass() === 2;
+          star.z += dt * (0.10 + star.size * 0.04) * (reverseStreaks ? -1 : 1);
+          if ((!reverseStreaks && star.z > 1) || (reverseStreaks && star.z < 0)) {
+            star.z = reverseStreaks ? 1 : 0;
             star.x = Math.random();
             star.y = Math.random();
           }
           const sx = cx + (star.x - 0.5) * w * (0.12 + star.z * 1.55);
           const sy = cy + (star.y - 0.5) * h * (0.12 + star.z * 1.55);
           const length = 2 + star.z * 22;
-          ctx.strokeStyle = "rgba(222,240,255," + (0.25 + star.z * 0.65) + ")";
+          const tx = sx + (sx - cx) * length / Math.max(1, w);
+          const ty = sy + (sy - cy) * length / Math.max(1, h);
+          const streak = ctx.createLinearGradient(
+            reverseStreaks ? tx : sx, reverseStreaks ? ty : sy,
+            reverseStreaks ? sx : tx, reverseStreaks ? sy : ty
+          );
+          streak.addColorStop(0, "rgba(222,240,255,0.08)");
+          streak.addColorStop(1, "rgba(222,240,255," + (0.30 + star.z * 0.66) + ")");
+          ctx.strokeStyle = streak;
           ctx.lineWidth = star.size;
           ctx.beginPath();
           ctx.moveTo(sx, sy);
-          ctx.lineTo(sx + (sx - cx) * length / Math.max(1, w), sy + (sy - cy) * length / Math.max(1, h));
+          ctx.lineTo(tx, ty);
           ctx.stroke();
         } else {
           star.phase += dt * 0.1;
