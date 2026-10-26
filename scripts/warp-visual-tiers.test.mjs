@@ -111,8 +111,8 @@ test("Warp menu has an interactive schematic Galaxy map", () => {
 
 test("Mini-Sim doesn't relock the mouse or consume flight keys on the Warp map", async () => {
   const mini = await readFile(new URL("../mini-sim/assets/js/mini-sim.js", import.meta.url), "utf8");
-  assert.match(mini, /!root\.classList\.contains\("bcm-warp-open"\).*?canvas\.requestPointerLock/);
-  assert.match(mini, /!root\.classList\.contains\("bcm-warp-open"\).*?pointerLocked/);
+  assert.match(mini, /canvas\.addEventListener\("click", \(\) => \{[\s\S]{0,180}!root\.classList\.contains\("bcm-warp-open"\)[\s\S]{0,120}canvas\.requestPointerLock/);
+  assert.match(mini, /flightCodes\[e\.code\][\s\S]{0,130}!root\.classList\.contains\("bcm-warp-open"\)[\s\S]{0,90}!pointerLocked/);
   assert.match(mini, /settings\.open \|\| root\.classList\.contains\("bcm-warp-open"\)/);
 });
 
