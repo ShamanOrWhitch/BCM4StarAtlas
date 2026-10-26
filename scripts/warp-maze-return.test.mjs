@@ -113,17 +113,16 @@ test("Warp Tube is a rolling circular cylinder with a curved / corkscrew route",
 });
 
 test("Every generated obstacle layer has a distinct type and a passable opening", () => {
-  const start = warp.indexOf("const gateCount = 22");
+  const start = warp.indexOf("const courseLayerCount = 16");
   const end = warp.indexOf("tubeTitle.textContent", start);
   assert.ok(start > 0 && end > start);
   const body = warp.slice(start, end);
+  assert.match(warp, /function buildWarpObstacleTypes\(rng, count = 16\)/);
   assert.match(body, /safeAngle/);
-  assert.match(body, /gapHalf: type === "gate" \? 0\.76 : 0\.86/);
-  assert.match(body, /type === "sweeper"/);
-  assert.match(body, /type === "spikes"/);
-  assert.match(body, /\? "boost"/);
-  assert.match(body, /"boost" : "launcher"/);
-  assert.match(body, /progress = 0\.08 \+ \(i \/ Math\.max\(1, gateCount - 1\)\) \* 0\.86/);
+  assert.match(body, /const courseTypes = buildWarpObstacleTypes\(rng, courseLayerCount\)/);
+  assert.match(body, /const type = courseTypes\[i\]/);
+  assert.match(body, /gapHalf: type === "gate" \? 0\.94 : 0\.86/);
+  assert.match(body, /progress = 0\.08 \+ \(i \/ Math\.max\(1, courseLayerCount - 1\)\) \* 0\.86/);
 });
 
 test("reopening Warp retains the arrived local sector instead of resetting to the adapter launch sector", () => {
@@ -174,10 +173,10 @@ test("Warp comeback cancellation restores a non-asteroid anchor before resuming 
   assert.ok(teleport >= 0 && unpauseAfter > teleport, "unpause only after the non-asteroid teleport");
 });
 
-test("Warp hazards are faster, denser, randomized per run and visually decoupled from shimmer", () => {
+test("Warp hazards are varied by family, randomized per run and visually decoupled from shimmer", () => {
   assert.match(warp, /function warpObstacleProgress\(elapsed\)/);
   assert.match(warp, /Math\.pow\(warpCourseProgress\(elapsed\), 0\.86\)/);
-  assert.match(warp, /const gateCount = 22/);
+  assert.match(warp, /const courseLayerCount = 16/);
   assert.match(warp, /const runNonce = Date\.now\(\)\.toString\(36\) \+ "-" \+ Math\.random/);
   assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
   assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
