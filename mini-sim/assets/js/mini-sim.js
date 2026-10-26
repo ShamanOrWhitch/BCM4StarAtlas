@@ -5326,9 +5326,17 @@
   function bind() {
     window.addEventListener("keydown", (e) => {
       // V is always Warp, even while the hold is open. Helm is X inside the hold.
-      if (e.code === "KeyV" && !document.getElementById("bcm-ring-platformer") && !document.getElementById("bcm-ring-transition")) {
+      if (e.code === "KeyV" && !root.classList.contains("bcm-warp-open") &&
+          !document.getElementById("bcm-ring-platformer") && !document.getElementById("bcm-ring-transition")) {
         e.preventDefault();
         if (typeof window.BCMDeepSpaceWarpToggle === "function") window.BCMDeepSpaceWarpToggle();
+        return;
+      }
+      // Warp owns keyboard focus while its destination map is open. The Warp
+      // module's capture-phase handler gets navigation keys first; flight keys
+      // must not reopen Warp or alter the ship underneath the map.
+      if (root.classList.contains("bcm-warp-open")) {
+        if (e.code !== "Escape") e.preventDefault();
         return;
       }
       // Hull Dive owns keyboard input while its overlay is open. Do not let
