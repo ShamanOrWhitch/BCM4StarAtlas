@@ -133,6 +133,22 @@ test("Warp draws a real 2D SAGE coordinate plane and a separate sector-location 
   assert.match(css, /data-warp-map-zoom-level/);
 });
 
+test("Galaxy local map combines all supplied mechanics arrays instead of stopping at the first", () => {
+  const local = section(warp, "function renderSectorLocations(sector)", "function renderGalaxyMap()");
+  assert.match(local, /const provided = locationKeys\.flatMap\(\(key\) => Array\.isArray\(raw\[key\]\) \? raw\[key\] : \[\]\)/);
+  assert.doesNotMatch(local, /if \(Array\.isArray\(raw\[key\]\)\) \{ provided = raw\[key\]; break; \}/);
+  assert.match(local, /const seenProvidedLocations = new Set\(\)/);
+  assert.match(local, /seenProvidedLocations\.has\(key\)/);
+
+  const keys = ["gameLocations", "localLocations", "pointsOfInterest", "activities", "mechanics"];
+  const raw = {
+    gameLocations: ["A", "B", "C", "D"],
+    mechanics: ["E", "F", "G", "H"]
+  };
+  const combine = new Function("keys", "raw", "return keys.flatMap((key) => Array.isArray(raw[key]) ? raw[key] : []);");
+  assert.equal(combine(keys, raw).length, 8, "all eight adapter-provided entries must survive across separate arrays");
+});
+
 test("Mini-Sim doesn't relock the mouse or consume flight keys on the Warp map", async () => {
   const mini = await readFile(new URL("../mini-sim/assets/js/mini-sim.js", import.meta.url), "utf8");
   assert.match(mini, /canvas\.addEventListener\("click", \(\) => \{[\s\S]{0,180}!root\.classList\.contains\("bcm-warp-open"\)[\s\S]{0,120}canvas\.requestPointerLock/);
