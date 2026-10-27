@@ -3250,7 +3250,9 @@
         });
         function objectiveNode(fromNode) {
           const mission = window.BCMWorldMission || {};
-          const pending = mission.hydrogenUnlocked && Number(mission.hydrogenCount || 0) < 3
+          const hydrogenRouteActive = !!mission.hydrogenUnlocked &&
+            Number(mission.hydrogenCount || 0) < 3 && routeCrystals.length > 0;
+          const pending = hydrogenRouteActive
             ? routeCrystals.filter((crystal) => !crystal.taken).map((crystal) =>
               nodes.get(keyOf(crystal.cell.x, crystal.cell.y, crystal.cell.z)) || null).filter(Boolean)
             : [];
@@ -3261,6 +3263,14 @@
             if (dist < bestDist) { best = goal; bestDist = dist; }
           });
           if (best) return best;
+
+          // With no active Hydrogen-shard route, guide the pilot through the large
+          // connected area before returning home. Otherwise a two-cell backtrack
+          // incorrectly looked like a completed Ring run and closed the level.
+          const visitedLarge = !!world.cellPath?.visitedLarge;
+          const large = [...nodes.values()].find((candidate) => candidate.large);
+          if (!hydrogenRouteActive && !visitedLarge && large && large !== fromNode) return large;
+
           const home = maze.startCell
             ? nodes.get(keyOf(maze.startCell.x, maze.startCell.y, maze.startCell.z))
             : null;
@@ -3404,6 +3414,7 @@
           hydrogenPickupX: RING_CELL_HOME + 2.6,
           homeX: RING_CELL_HOME, half: ROOM_HALF,
           current: start, heading: firstOpen, previous: null, returnNode: null,
+          visitedLarge: !!start?.large, departed: false, pendingReturn: false,
           respawnMs: 240000, turnQueued: false
         };
         world.inLargeCell = false;
@@ -3547,9 +3558,16 @@
           : null;
         if (home && node !== home) path.departed = true;
         const mission = window.BCMWorldMission || {};
-        const pending = !!mission.hydrogenUnlocked && Number(mission.hydrogenCount || 0) < 3 &&
-          (path.routeCrystals || []).some((crystal) => crystal && !crystal.taken);
-        if (path.departed && home && node === home && !pending) path.pendingReturn = true;
+        const routeCrystals = path.routeCrystals || [];
+        const hydrogenRouteActive = !!mission.hydrogenUnlocked &&
+          Number(mission.hydrogenCount || 0) < 3 && routeCrystals.length > 0;
+        const pending = hydrogenRouteActive && routeCrystals.some((crystal) => crystal && !crystal.taken);
+        const objectiveReached = hydrogenRouteActive
+          ? routeCrystals.every((crystal) => crystal && crystal.taken)
+          : !!path.visitedLarge;
+        // A home revisit is not a win by itself: only finish after collecting the
+        // active route's crystals, or after the no-Hydrogen route visited the large area.
+        if (path.departed && home && node === home && objectiveReached && !pending) path.pendingReturn = true;
       }
 
       function enterRingCell(world, node, fromSide, player) {
@@ -3558,6 +3576,7 @@
         const previous = player ? (player.ringCurrent || path.current) : path.current;
         path.previous = previous;
         path.current = node;
+        if (node.large) path.visitedLarge = true;
         if (player) {
           player.ringPrevious = previous;
           player.ringCurrent = node;
@@ -5218,6 +5237,31 @@ return axialRoll + ahead * 0.12 +
       if (visualClass === 3) {
         g.fillStyle = "rgba(30,11,54,0.34)";
         g.fillRect(0, 0, w, h);
+      }
+
+      // Axial wall streaks make tunnel travel legible even when the background is sparse.
+      // Class II moves these streaks away from the ship; Class I/III bring them toward it.
+      // This is visual-only: collision windows and course progress keep their normal direction.
+      const flowDirection = visualClass === 2 ? -1 : 1;
+      const flowPhase = Number(state.tubeTravel || 0) * 0.018 * flowDirection;
+      for (let streak = 0; streak < 12; streak += 1) {
+        const phase = ((streak / 12 + flowPhase) % 1 + 1) % 1;
+        const d0 = 0.07 + phase * 0.82;
+        const d1 = Math.min(0.97, d0 + 0.045);
+        const theta = streak * Math.PI * 2 / 12;
+        const from = point(d0, theta, -1.9);
+        const to = point(d1, theta, -1.9);
+        g.beginPath();
+        g.moveTo(from.x, from.y);
+        g.lineTo(to.x, to.y);
+        g.strokeStyle = visualClass === 3
+          ? "rgba(207,165,255,0.68)"
+          : visualClass === 2
+            ? "rgba(149,232,242,0.62)"
+            : "rgba(137,245,255,0.74)";
+        g.lineWidth = visualClass === 2 ? 1.55 : 1.2;
+        g.lineCap = "round";
+        g.stroke();
       }
 
       const routeProgress = warpObstacleProgress(state.elapsed);
