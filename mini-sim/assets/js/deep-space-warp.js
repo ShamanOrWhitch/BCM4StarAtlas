@@ -1021,7 +1021,7 @@
         const id = String(location.id || "").trim().toLowerCase();
         const nameKind = String(location.name || "").trim().toLowerCase() + "|" +
           String(location.kind || "").trim().toLowerCase();
-        const key = /^location-\\d+$/.test(id) ? "name:" + nameKind : "id:" + id;
+        const key = /^location-\d+$/.test(id) ? "name:" + nameKind : "id:" + id;
         if (seenProvidedLocations.has(key)) return false;
         seenProvidedLocations.add(key);
         return true;
