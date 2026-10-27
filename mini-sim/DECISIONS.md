@@ -602,3 +602,14 @@ HEAD at the start of the session was `748998250d39ac9ed163b84caa1f7178da920d9a` 
 - Проверки: Warp visual tiers и Warp maze return regression PASS на указанном commit; runtime/test JavaScript parse и целевые in-memory проверки PASS.
 - Browser QA остаётся отдельным и не считается успешным только на основании source CI. Завершившийся run `40487872716` получил HTTP 403 и не нашёл `.bcm-mini-sim`; повторный run на документном HEAD ещё выполняется. Не считать WordPress deploy или ручную игру подтверждёнными.
 - PR: [#85](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/85). Повторно открыть решение, если пользователь обнаружит ранний выход Ring либо Class II по факту движется в прежнем направлении.
+
+
+## D-012 — Завершение PR #85 и механизм отсечения ложных путей
+
+**Статус:** PR #85 merged в main — [merge commit fa88cb0](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/fa88cb0ae06ab0d534994cc3df6420075db902e9). Кодовые проверки PASS; production/live не подтверждён. Дата: 2026-10-27.
+
+- 9/9 source regression workflows прошли на PR head [4e4841a](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/4e4841a912377856a274eb089e9965e7e6c79996). Browser QA [run 40488604679](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40488604679) вернул HTTP 403 до игрового контейнера. Это BLOCKED-ENVIRONMENT, не visual PASS и не дефект игры. Без изменения доступа тот же маршрут повторять не нужно.
+- HTTP 404 NOT_FOUND в GitHub API требует сверки owner/repo/branch/path; после проверки установлен фактический owner ShamanOrWhitch. После исправления идентификатора работа продолжилась через GitHub source/PR/CI без доступа к заблокированному сайту.
+- Цикл для нестабильной среды: короткая ограниченная попытка → классификация ошибки → один осмысленный альтернативный путь. При детерминированном 403/404 или timeout не повторять тот же путь; записать блокер и продолжить независимую проверку.
+- Не создавать обязательное ожидание агента-рецензента и не переносить работу в новый чат ради обхода лимитов. Handoff фиксирует состояние, но не заменяет завершение.
+- Статусы не смешивать: IMPLEMENTED, TESTED-CODE, BLOCKED-ENVIRONMENT, VERIFIED-LIVE, USER-CONFIRMED. Green source CI не доказывает WordPress deployment или работу на физическом устройстве.
