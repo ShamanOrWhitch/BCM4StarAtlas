@@ -1,3 +1,13 @@
+## D-043 — Make Warp reverse flow visible without axial streaks; move Tower P2 jump (27 October 2026)
+
+**Status:** repair candidate on `fix/minisim-warp-flow-p2-right-ctrl-20261027`, code commit [`196dddb`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/196dddb345ba04a53b2d3e3ef24689b2744d1953), draft [PR #88](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/88). Not merged or deployed.
+
+- User playtest report: the visible stripes had disappeared, but reverse tunnel movement remained unreadable. Do not restore the short axial streak overlay. Increase contrast and travel rate of the existing 14 circumferential wall bands. Positive depth means toward the ship; negative phase in Class II means away from the ship toward the vanishing point. Preserve the 12 surface seams and all Warp collision/course behavior.
+- Tower P2 keyboard map is arrows for movement, Right Ctrl for jump and Right Shift for action. `KeyX` no longer jumps for P2. No Tower physics change.
+- The 2D SAGE X/Y map and sector-local location layer are already in main; leave their data model unchanged. Missing sector coordinates remain unknown.
+- Source CI on `196dddb345ba04a53b2d3e3ef24689b2744d1953`: route-contract, Mini-Sim regression, Ring-control, and UI/weapons/cabin suites passed. Other source workflows were pending at last poll; browser QA was not complete and is not evidence of live behavior.
+- Reopen if the user reports no perceptible reverse motion on the correct Class II after this version is actually available, or if Right Ctrl fails to jump for P2. Do not conflate source tests with manual gameplay.
+
 ## D-042 — Mini-Sim 0.11.21 playtest stabilization
 
 **Status:** repair candidate on branch `fix/minisim-0.11.21-playtest-stability`, baseline `73ba0cc1f772d73155a093382fce051e1e2843ae`, Work Lock [#84](https://github.com/ShamanOrWitch/BCM4StarAtlas/issues/84), draft PR [#85](https://github.com/ShamanOrWitch/BCM4StarAtlas/pull/85). Not deployed.

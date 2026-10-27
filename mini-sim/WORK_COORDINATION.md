@@ -1,3 +1,12 @@
+## Active — Warp reverse-flow readability + Tower P2 key fix (27 October 2026)
+
+- Work lock: [#70](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/70). Branch `fix/minisim-warp-flow-p2-right-ctrl-20261027`; draft [PR #88](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/88). Current code commit `196dddb345ba04a53b2d3e3ef24689b2744d1953`.
+- Warp: keep the 12 longitudinal surface seams and do not add axial dash/streak overlays. Make the existing 14 circumferential bands noticeably brighter and faster (phase coefficient 0.052), with Class II moving away from the ship into depth and Classes I/III toward the ship. This is a visual-only change.
+- Tower keyboard P2: arrows = movement; Right Ctrl = jump; Right Shift = action. Remove P2 jump from X. Keep Tower physics unchanged.
+- Preserve the coordinate-based SAGE X/Y map and sector-local locations shipped in PR #85. Adapter points only; do not invent coordinates. No changes to SAGE adapter, Galia Desk/scanner/pricing, or site firewall.
+- Code CI on `196dddb345ba04a53b2d3e3ef24689b2744d1953`: Warp maze/route contract, Mini-Sim regression, Ring controls, and Mini-Sim 0.9.110 UI/weapons/cabin checks have passed; Warp visual tiers, Tower top cap, Warp portal first-frame and UI-layer checks were still running at the last poll. Browser QA was still at setup and is not a live-game pass. Recheck exact run results before closing this lock.
+- No WordPress deploy and no user device/browser visual verification claimed.
+
 ## Active — WORK LOCK #84: stabilize Mini-Sim after the user's playtest (26 October 2026)
 
 - Branch `fix/minisim-0.11.21-playtest-stability`; baseline `73ba0cc1f772d73155a093382fce051e1e2843ae`; candidate Mini-Sim 0.11.21 / Tower 0.2.67; draft PR [#85](https://github.com/ShamanOrWitch/BCM4StarAtlas/pull/85).
