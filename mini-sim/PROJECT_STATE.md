@@ -275,3 +275,13 @@ This entry supersedes the older 0.11.3–0.11.5 candidate notes below; those sec
 ## PR and test tracking
 - PR #60: https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/60
 - CI results are pending; do not label 0.9.114 live-verified until the required Actions and a manual WordPress/device test complete.
+
+
+## Текущий статус PR #85 — 2026-10-27 (переопределяет устаревшие статусы выше для этой ветки)
+
+- Ветка: `fix/minisim-0.11.21-playtest-stability`; PR #85 остаётся draft. `main` и WordPress не менялись.
+- **Galaxy map:** используется реальная 2D-плоскость координат SAGE. Рендерер объединяет предоставленные адаптером массивы `gameLocations`, `localLocations`, POI, activities и mechanics, с удалением дублей; проверка на двух разделённых массивах подтвердила сохранение всех 8 записей. Непереданные координаты/механики не синтезируются.
+- **Ring Maze:** короткий возврат в стартовую комнату больше не завершает уровень сам по себе. Если маршрут Hydrogen не активен, цель сначала большая связанная зона, затем возвращение домой. При активном Hydrogen-маршруте возвращение засчитывается только после сбора его кристаллов.
+- **Warp Class II:** развёрнуто обратное движение не только фоновых звёздных streaks, но и streaks на стенке туннеля. Направление опасностей/коллизий и прогресс трассы не менялись.
+- **TESTED-CODE:** на commit `08e1f27c0502561401b9840c327e37fb76b0fc91` прошли все 9 профильных source workflows, включая Warp visual tiers и Warp maze return. Синтаксис runtime/test-файлов и целевые проверки маршрута/8 записей также прошли.
+- **Не VERIFIED-LIVE:** browser QA на последнем просмотре ещё выполнялся; предыдущая попытка блокировалась HTTP 403 на сайте. Нет подтверждения установки в WordPress или ручного теста на устройстве.
