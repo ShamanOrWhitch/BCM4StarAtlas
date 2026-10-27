@@ -592,13 +592,13 @@ HEAD at the start of the session was `748998250d39ac9ed163b84caa1f7178da920d9a` 
 - Post-merge Mini-Sim regression: PASS — [run 38471956269](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471956269). Warp source-contract: PASS on PR SHA `c92c16d` — [run 38471847602](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471847602). Browser smoke passed on code-identical runtime SHA `be2adbd` — [run 38471671934](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471671934); post-merge browser QA run `38471956003` remained in progress when the record was updated. None of these tests visually verifies liquid-metal appearance.
 
 
-## D-011 — PR #85 follow-up: Ring objective guard, Warp II flow, eight map mechanics
+## D-011 — PR #85 follow-up: Ring objective guard, Warp II flow, eight map directions
 
 **Статус: IMPLEMENTED; TESTED-CODE PASS на `08e1f27c0502561401b9840c327e37fb76b0fc91`; VERIFIED-LIVE — нет.** Дата: 2026-10-27.
 
-- Пользователь подтвердил, что координатная карта уже годится как начальная версия, но локальная механика имеет восемь вариантов. Map renderer больше не ограничивается первым массивом из навигационного adapter: объединяет доступные `gameLocations`, `localLocations`, `locations`, POI, activities и mechanics, затем дедуплицирует.
+- Пользователь подтвердил, что координатная карта уже годится как начальная версия; сетка 3×3 должна показывать все 8 соседних направлений, а не только 4 ортогональных. В live-навигации выбор остаётся ограничен фактическими связями адаптера. Отдельный location renderer объединяет доступные `gameLocations`, `localLocations`, `locations`, POI, activities и mechanics, затем дедуплицирует.
 - Ring Maze возвращался к завершению слишком рано при посещении стартовой комнаты после короткого пути. Completion guard теперь требует цели: большая связанная зона для обычного маршрута, либо собранные route crystals для активного Hydrogen-маршрута.
 - Class II получает обратное течение видимых полос на стенке туннеля помимо фоновых звёзд. Физический прогресс трассы и направления столкновений не обращаются.
 - Проверки: Warp visual tiers и Warp maze return regression PASS на указанном commit; runtime/test JavaScript parse и целевые in-memory проверки PASS.
-- Browser QA остаётся отдельным и не считается успешным только на основании source CI; последний известный контекст — тест выполнялся, предыдущий запуск был заблокирован HTTP 403. Не считать WordPress deploy или ручную игру подтверждёнными.
+- Browser QA остаётся отдельным и не считается успешным только на основании source CI. Завершившийся run `40487872716` получил HTTP 403 и не нашёл `.bcm-mini-sim`; повторный run на документном HEAD ещё выполняется. Не считать WordPress deploy или ручную игру подтверждёнными.
 - PR: [#85](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/85). Повторно открыть решение, если пользователь обнаружит ранний выход Ring либо Class II по факту движется в прежнем направлении.
