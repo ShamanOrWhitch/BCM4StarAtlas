@@ -569,8 +569,14 @@
           '<div class="bcm-warp-source" data-warp-source></div>' +
           '<div class="bcm-warp-galaxy-panel">' +
             '<div class="bcm-warp-galaxy-heading"><strong>GALAXY MAP</strong><span data-warp-galaxy-status>СХЕМА ГАЛАКТИКИ · ТЕКУЩИЙ СЕКТОР</span></div>' +
-            '<canvas class="bcm-warp-galaxy-map" data-warp-galaxy-map tabindex="0" role="img" aria-label="Координатная карта SAGE в плоскости X/Y. Яркие точки — текущий и доступные для Warp секторы; выбор доступной точки показывает маршрут."></canvas>' +
-            '<div class="bcm-warp-galaxy-legend"><span><i class="is-current"></i> CURRENT / CSS</span><span><i class="is-link"></i> WARP-ДОСТУПЕН</span><span><i class="is-route"></i> МАРШРУТ</span><span><i class="is-star"></i> ЗВЕЗДЫ</span><small>Сетка X/Y −50…50. Полные точки секторов рисуются, только если координаты переданы адаптером.</small></div>' +
+            '<div class="bcm-warp-galaxy-map-tools" aria-label="Масштаб карты">' +
+              '<button type="button" data-warp-map-zoom-out aria-label="Уменьшить масштаб карты" disabled>−</button>' +
+              '<button type="button" data-warp-map-zoom-reset aria-label="Общий обзор галактики">ОБЗОР</button>' +
+              '<span data-warp-map-zoom-level>ОБЗОР 1×</span>' +
+              '<button type="button" data-warp-map-zoom-in aria-label="Приблизить текущий сектор">+</button>' +
+            '</div>' +
+            '<canvas class="bcm-warp-galaxy-map" data-warp-galaxy-map tabindex="0" role="application" aria-label="Координатная карта SAGE X/Y. Приближайте карту, чтобы различать соседние секторы; выбирайте доступную точку для прокладки Warp-маршрута."></canvas>' +
+            '<div class="bcm-warp-galaxy-legend"><span><i class="is-current"></i> ТЕКУЩИЙ СЕКТОР</span><span><i class="is-link"></i> WARP-ДОСТУПЕН</span><span><i class="is-route"></i> МАРШРУТ</span><span><i class="is-star"></i> ЗВЁЗДЫ</span><span><i class="is-css"></i> CSS</span><small>Координаты X/Y −50…50. Доступные переходы берутся из адаптера; недостающие секторы не выдумываются.</small></div>' +
             '<div class="bcm-warp-local-area"><div class="bcm-warp-galaxy-heading"><strong>ЛОКАЦИИ ВЫБРАННОГО СЕКТОРА</strong><span data-warp-local-status>Выберите сектор</span></div><div class="bcm-warp-local-locations" data-warp-local-locations></div><div class="bcm-warp-location-kinds"><span><i>◈</i> Астероиды · локальный комплекс</span><span><i>◎</i> Планета · Tower / внутренние мини-игры</span><span><i>✦</i> Deep Space · внешняя зона с отдельной визуальной темой</span></div></div>' +
           '</div>' +
           '<div class="bcm-warp-grid" data-warp-grid hidden aria-label="Соседние клетки вокруг ONI CSS"></div>' +
@@ -608,9 +614,15 @@
     const sourceElement = overlay.querySelector("[data-warp-source]");
     const galaxyMap = overlay.querySelector("[data-warp-galaxy-map]");
     const galaxyMapStatus = overlay.querySelector("[data-warp-galaxy-status]");
+    const galaxyMapZoomOut = overlay.querySelector("[data-warp-map-zoom-out]");
+    const galaxyMapZoomReset = overlay.querySelector("[data-warp-map-zoom-reset]");
+    const galaxyMapZoomIn = overlay.querySelector("[data-warp-map-zoom-in]");
+    const galaxyMapZoomLevel = overlay.querySelector("[data-warp-map-zoom-level]");
     const galaxyMapCtx = galaxyMap ? galaxyMap.getContext("2d") : null;
     const galaxyLocalStatus = overlay.querySelector("[data-warp-local-status]");
     const galaxyLocalLocations = overlay.querySelector("[data-warp-local-locations]");
+    const GALAXY_MAP_ZOOM_LEVELS = [1, 2, 4, 8];
+    let galaxyMapZoom = 1;
     let galaxyMapPoints = [];
     let galaxyCurrentPoint = null;
     const selectedElement = overlay.querySelector("[data-warp-selected]");
@@ -1087,7 +1099,7 @@
       if (!galaxyMap || !galaxyMapCtx) return;
       const rect = galaxyMap.getBoundingClientRect();
       const w = Math.max(240, Math.floor(rect.width || 760));
-      const h = Math.max(150, Math.floor(rect.height || 300));
+      const h = Math.max(150, Math.floor(rect.height || 380));
       const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       if (galaxyMap.width !== Math.round(w * dpr) || galaxyMap.height !== Math.round(h * dpr)) {
         galaxyMap.width = Math.round(w * dpr);
@@ -1099,39 +1111,57 @@
       g.fillStyle = "#070b12";
       g.fillRect(0, 0, w, h);
 
-      // Keep the SAGE coordinate geometry true: X runs left-to-right and Y bottom-to-top.
-      // The coordinate plane is 2D; depth is only a visual layer, not invented geography.
+      const nav = state.nav;
+      const current = nav && nav.current;
+      const targets = nav && Array.isArray(nav.targets) ? nav.targets : [];
+      const adapterSectors = nav && nav.adapter && Array.isArray(nav.adapter.sectors) ? nav.adapter.sectors : [];
+      const zoom = galaxyMapZoom;
+      // Overview is centered on SAGE (0,0). Zoom recenters on current sector,
+      // making adjacent coordinates readable and selectable without false geography.
+      const centerX = zoom > 1 && current && current.x != null && Number.isFinite(Number(current.x)) ? Number(current.x) : 0;
+      const centerY = zoom > 1 && current && current.y != null && Number.isFinite(Number(current.y)) ? Number(current.y) : 0;
       const side = Math.max(100, Math.min(w - 28, h - 34));
       const left = (w - side) / 2;
       const top = (h - side) / 2;
       const scale = side / 100;
       const toPoint = (x, y) => ({
-        x: left + (Number(x) + 50) * scale,
-        y: top + (50 - Number(y)) * scale
+        x: left + side / 2 + (Number(x) - centerX) * scale * zoom,
+        y: top + side / 2 - (Number(y) - centerY) * scale * zoom
       });
       g.fillStyle = "rgba(18,31,45,0.92)";
       g.fillRect(left, top, side, side);
-      g.strokeStyle = "rgba(119,156,184,0.17)";
-      g.lineWidth = 1;
-      for (let grid = -50; grid <= 50; grid += 10) {
-        const a = toPoint(grid, -50);
-        const b = toPoint(grid, 50);
-        const c = toPoint(-50, grid);
-        const d = toPoint(50, grid);
-        g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y);
-        g.moveTo(c.x, c.y); g.lineTo(d.x, d.y); g.stroke();
-      }
       g.strokeStyle = "rgba(176,199,217,0.52)";
+      g.lineWidth = 1;
       g.strokeRect(left + 0.5, top + 0.5, side - 1, side - 1);
+
+      // Clip content to the map viewport. Zoom changes the camera, not SAGE data.
+      g.save();
+      g.beginPath();
+      g.rect(left + 1, top + 1, side - 2, side - 2);
+      g.clip();
+      const halfSpan = 50 / zoom;
+      const gridStep = zoom >= 4 ? 1 : zoom >= 2 ? 5 : 10;
+      const minGridX = Math.max(-50, Math.ceil((centerX - halfSpan) / gridStep) * gridStep);
+      const maxGridX = Math.min(50, Math.floor((centerX + halfSpan) / gridStep) * gridStep);
+      const minGridY = Math.max(-50, Math.ceil((centerY - halfSpan) / gridStep) * gridStep);
+      const maxGridY = Math.min(50, Math.floor((centerY + halfSpan) / gridStep) * gridStep);
+      g.strokeStyle = "rgba(119,156,184,0.20)";
+      g.lineWidth = 1;
+      for (let x = minGridX; x <= maxGridX; x += gridStep) {
+        const a = toPoint(x, centerY - halfSpan);
+        const b = toPoint(x, centerY + halfSpan);
+        g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+      }
+      for (let y = minGridY; y <= maxGridY; y += gridStep) {
+        const a = toPoint(centerX - halfSpan, y);
+        const b = toPoint(centerX + halfSpan, y);
+        g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+      }
       const origin = toPoint(0, 0);
-      g.strokeStyle = "rgba(196,163,90,0.48)";
+      g.strokeStyle = "rgba(196,163,90,0.55)";
       g.beginPath(); g.moveTo(origin.x - 5, origin.y); g.lineTo(origin.x + 5, origin.y);
       g.moveTo(origin.x, origin.y - 5); g.lineTo(origin.x, origin.y + 5); g.stroke();
 
-      const nav = state.nav;
-      const current = nav && nav.current;
-      const targets = nav && Array.isArray(nav.targets) ? nav.targets : [];
-      const adapterSectors = nav && nav.adapter && Array.isArray(nav.adapter.sectors) ? nav.adapter.sectors : [];
       const sectorByCoord = new Set();
       let knownSectorCount = 0;
       adapterSectors.forEach((item, index) => {
@@ -1144,7 +1174,6 @@
         sectorByCoord.add(key);
         knownSectorCount += 1;
       });
-      g.fillStyle = "rgba(111,149,179,0.50)";
       if (knownSectorCount) {
         adapterSectors.forEach((item, index) => {
           const sector = normalizeSector(item, index);
@@ -1152,22 +1181,22 @@
           const x = Number(sector.x), y = Number(sector.y);
           if (!Number.isFinite(x) || !Number.isFinite(y) || x < -50 || x > 50 || y < -50 || y > 50) return;
           const p = toPoint(x, y);
+          g.fillStyle = "rgba(111,149,179,0.50)";
           g.fillRect(p.x - 1, p.y - 1, 2, 2);
         });
       } else {
-        // The checked-in SAGE snapshot contains these stellar reference positions.
-        // Do not mistake them for a complete list of all 8,177 sector accounts.
+        // The checked-in snapshot has reference-star positions, not all 8,177
+        // sector account coordinates. Stars stay distinct from actual sectors.
         SAGE_STAR_REFERENCE_POINTS.forEach(([x, y]) => {
           const p = toPoint(x, y);
-          g.fillStyle = "rgba(230,193,120,0.65)";
-          g.beginPath(); g.arc(p.x, p.y, 1.8, 0, Math.PI * 2); g.fill();
+          g.fillStyle = "rgba(230,193,120,0.72)";
+          g.beginPath(); g.arc(p.x, p.y, zoom >= 4 ? 2.2 : 1.8, 0, Math.PI * 2); g.fill();
         });
       }
 
-      // CSS/planets are separate location markers from the surrounding sector points.
       SAGE_CSS_REFERENCE_POINTS.forEach((css) => {
         const p = toPoint(css.x, css.y);
-        g.beginPath(); g.arc(p.x, p.y, 4.2, 0, Math.PI * 2);
+        g.beginPath(); g.arc(p.x, p.y, zoom >= 4 ? 4.8 : 4.2, 0, Math.PI * 2);
         g.fillStyle = css.color; g.fill();
         g.strokeStyle = "#f3f6f9"; g.lineWidth = 1; g.stroke();
         g.fillStyle = css.color; g.font = "600 9px system-ui,sans-serif";
@@ -1183,14 +1212,6 @@
       if (current && hasPoint(current)) {
         const p = toPoint(current.x, current.y);
         galaxyCurrentPoint = p;
-        g.beginPath(); g.arc(p.x, p.y, 6.2, 0, Math.PI * 2);
-        g.fillStyle = "#f4fbff"; g.fill();
-        g.strokeStyle = "#56f0d0"; g.lineWidth = 2; g.stroke();
-        g.fillStyle = "#f4fbff"; g.font = "700 9px system-ui,sans-serif";
-        g.textAlign = p.x > left + side * 0.72 ? "right" : "left";
-        g.textBaseline = "top";
-        g.fillText("YOU · " + String(current.name || current.id || "CURRENT").slice(0, 20),
-          p.x + (p.x > left + side * 0.72 ? -7 : 7), p.y + 7);
         g.strokeStyle = "rgba(111,176,211,0.55)";
         g.lineWidth = 1.1;
         targets.filter(hasPoint).forEach((target) => {
@@ -1198,7 +1219,6 @@
           g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(q.x, q.y); g.stroke();
         });
       }
-
       targets.forEach((target) => {
         if (!hasPoint(target)) return;
         const p = toPoint(target.x, target.y);
@@ -1214,27 +1234,54 @@
           g.lineTo(p.x - Math.cos(angle + 0.48) * 7, p.y - Math.sin(angle + 0.48) * 7);
           g.stroke();
         }
-        g.beginPath(); g.arc(p.x, p.y, selected ? 5.5 : 3.5, 0, Math.PI * 2);
+        g.beginPath(); g.arc(p.x, p.y, selected ? 5.5 : 4, 0, Math.PI * 2);
         g.fillStyle = selected ? "#56f0d0" : "#8bb8d0"; g.fill();
         g.strokeStyle = selected ? "#e1fff8" : "#b7d5e5"; g.lineWidth = 1; g.stroke();
         galaxyMapPoints.push({ sector: target, x: p.x, y: p.y });
       });
+      if (galaxyCurrentPoint) {
+        // Keep CURRENT visible above adjacent target markers in overview mode.
+        g.beginPath(); g.arc(galaxyCurrentPoint.x, galaxyCurrentPoint.y, zoom >= 4 ? 5.4 : 6.2, 0, Math.PI * 2);
+        g.fillStyle = "#f4fbff"; g.fill();
+        g.strokeStyle = "#56f0d0"; g.lineWidth = 2; g.stroke();
+        g.fillStyle = "#f4fbff"; g.font = "700 9px system-ui,sans-serif";
+        g.textAlign = galaxyCurrentPoint.x > left + side * 0.72 ? "right" : "left";
+        g.textBaseline = "top";
+        g.fillText("YOU · " + String(current.name || current.id || "CURRENT").slice(0, 20),
+          galaxyCurrentPoint.x + (galaxyCurrentPoint.x > left + side * 0.72 ? -7 : 7), galaxyCurrentPoint.y + 7);
+      }
+      g.restore();
 
-      g.fillStyle = "rgba(190,211,225,0.82)";
+      if (galaxyMapZoomLevel) galaxyMapZoomLevel.textContent = zoom === 1 ? "ОБЗОР 1×" : "ОКРЕСТНОСТЬ " + zoom + "×";
+      if (galaxyMapZoomOut) galaxyMapZoomOut.disabled = zoom === GALAXY_MAP_ZOOM_LEVELS[0];
+      if (galaxyMapZoomIn) galaxyMapZoomIn.disabled = zoom === GALAXY_MAP_ZOOM_LEVELS[GALAXY_MAP_ZOOM_LEVELS.length - 1];
+      g.fillStyle = "rgba(190,211,225,0.9)";
       g.font = "9px ui-monospace,Consolas,monospace";
       g.textAlign = "left"; g.textBaseline = "top";
-      g.fillText("SAGE XY · −50 … +50", 8, 8);
+      g.fillText(zoom === 1 ? "SAGE XY · −50 … +50" : "SAGE XY · " + zoom + "× · CENTER " + centerX + "," + centerY, 8, 8);
       const statusText = knownSectorCount
-        ? knownSectorCount.toLocaleString() + " КООРДИНАТ СЕКТОРОВ · АДАПТЕР"
-        : "ТОЧКИ СЕКТОРОВ НЕ ПОЛНЫ · ПОКАЗАНЫ ИЗВЕСТНЫЕ ЗВЁЗДЫ И CSS";
+        ? knownSectorCount.toLocaleString() + " СЕКТОРОВ В АДАПТЕРЕ"
+        : "ПОЛНЫЕ ТОЧКИ СЕКТОРОВ НЕ ДОСТУПНЫ · ЗВЁЗДЫ И CSS — ОРИЕНТИРЫ";
       if (galaxyMapStatus) {
         galaxyMapStatus.textContent = nav && nav.live
           ? statusText
           : "ЛОКАЛЬНЫЙ ТЕСТ · ONI CSS / NEUNO · КООРДИНАТЫ −50…50";
       }
-      const locationSector = state.target || current;
-      renderSectorLocations(locationSector);
+      renderSectorLocations(state.target || current);
     }
+
+    function setGalaxyMapZoom(direction) {
+      const index = GALAXY_MAP_ZOOM_LEVELS.indexOf(galaxyMapZoom);
+      const nextIndex = direction === "reset" ? 0 : Math.max(0, Math.min(
+        GALAXY_MAP_ZOOM_LEVELS.length - 1,
+        index + (direction === "in" ? 1 : -1)
+      ));
+      galaxyMapZoom = GALAXY_MAP_ZOOM_LEVELS[nextIndex];
+      renderGalaxyMap();
+    }
+    galaxyMapZoomOut?.addEventListener("click", () => setGalaxyMapZoom("out"));
+    galaxyMapZoomReset?.addEventListener("click", () => setGalaxyMapZoom("reset"));
+    galaxyMapZoomIn?.addEventListener("click", () => setGalaxyMapZoom("in"));
 
     galaxyMap?.addEventListener("click", (event) => {
       const rect = galaxyMap.getBoundingClientRect();
@@ -1244,7 +1291,13 @@
         const d = Math.hypot(p.x - x, p.y - y);
         if (d < best) { best = d; nearest = p; }
       });
-      if (nearest && best <= 15) selectTarget(nearest.sector);
+      const currentDistance = galaxyCurrentPoint
+        ? Math.hypot(galaxyCurrentPoint.x - x, galaxyCurrentPoint.y - y)
+        : Infinity;
+      // Adjacent dots overlap at overview scale. Zoom in or use the sector list
+      // rather than accidentally selecting a hidden neighbor under CURRENT.
+      const targetCanBePicked = galaxyMapZoom >= 4 || currentDistance > 9;
+      if (nearest && best <= 15 && targetCanBePicked) selectTarget(nearest.sector);
       else galaxyMap.focus({ preventScroll: true });
     });
     galaxyMap?.addEventListener("keydown", (event) => {
