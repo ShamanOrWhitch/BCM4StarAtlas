@@ -37,13 +37,15 @@ test("Tube rendering is a rotating cylinder, not a fixed trapezoid", () => {
 });
 
 test("Tube displays multiple obstacle types and tests collisions against their visible open angles", () => {
-  const create = section(warp, "const gateCount = 22", "tubeTitle.textContent");
+  const create = section(warp, "const courseLayerCount = 22", "tubeTitle.textContent");
   const update = section(warp, "function updateTube(dt, now)", "window.BCMDeepSpaceWarpToggle");
   const draw = section(warp, "function drawTubeTunnel", "function drawBackdrop");
-  assert.match(create, /\? "boost"/);
-  assert.match(create, /: "launcher"/);
-  assert.match(create, /type === "spikes"/);
-  assert.match(create, /type === "sweeper"/);
+  assert.match(create, /const typeRoll = rng\(\)/);
+  assert.match(create, /typeRoll < 0\.34 \? "gate"/);
+  assert.match(create, /typeRoll < 0\.55 \? "sweeper"/);
+  assert.match(create, /typeRoll < 0\.70 \? "spikes"/);
+  assert.match(create, /typeRoll < 0\.86 \? "boost" : "launcher"/);
+  assert.match(create, /gapHalf: type === "gate" \? 0\.94 : 0\.86/);
   assert.match(draw, /layer\.type === "gate"/);
   assert.match(draw, /layer\.type === "sweeper"/);
   assert.match(draw, /layer\.type === "spikes"/);

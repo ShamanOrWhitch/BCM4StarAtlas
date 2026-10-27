@@ -1,3 +1,12 @@
+## Active — WORK LOCK #84: stabilize Mini-Sim after the user's playtest (26 October 2026)
+
+- Branch `fix/minisim-0.11.21-playtest-stability`; baseline `73ba0cc1f772d73155a093382fce051e1e2843ae`; candidate Mini-Sim 0.11.21 / Tower 0.2.67; draft PR [#85](https://github.com/ShamanOrWitch/BCM4StarAtlas/pull/85).
+- Scope: Ring Hydrogen count and explicit door/floor controls; Room 2 central return; restore 22-layer randomized Warp with faster 12x ramp and Class II reversed streaks; mouse/keyboard/gamepad-accessible Warp menu and a true X/Y sector coordinate map, with an adapter-backed full-point layer when available and a distinct per-sector location layer for asteroid/planet/Tower/Deep Space mechanics; Tower Panda copy; focused regression tests and documentation.
+- Preserve USER-CONFIRMED Ring entry and external backside doors. Keep Tower physics, Galia Desk, scanner/pricing, SAGE adapter, planet placement and firewall unchanged.
+- Do not implement network mode in this lock. Local gameplay and ship/reference identity come first. The map is a coordinate plane, not a spiral illustration. Use adapter coordinates for sectors; the static snapshot's 54 stars and 3 CSS positions are references only, not a complete 8,177-sector dump. Keep local asteroid, planet/Tower and Deep Space locations as a separate sector-level layer, and don't assign unknown coordinates. Do not claim live verification; browser/device QA remains separate from source CI.
+
+---
+
 ## Active — Mini-Sim 0.11.20 landing clip, Warp after screens, walkable asteroid (26 October 2026)
 
 - 0.11.19 is already merged (PR #82). This pass puts the Warp button in the second Panda line, restores the landing clip before the Ring menu, skins the side view with this asteroid's textures, and keeps every seed finishable: Hydrogen, then back to the landing. Bosses are occasional, not a gate on every room.
@@ -234,3 +243,11 @@ Handoff / close reason:
 - Remaining hands-on checks: Ring menu on real keyboard/gamepad/touch, RU/EN selector, Warp I–IV at phone width, Hull visibility and controls, weapon feel/damage/cadence, live plugin asset cache update.
 - Strict exclusion: no edits to `wordpress/galia-desk`, scanner, pricing/marketplace shared assets, planet placement, SAGE navigation adapter, global OST mixer or Tower physics.
 
+
+
+## Активный WORK LOCK status — PR #85 / 2026-10-27
+
+- Ветка: `fix/minisim-0.11.21-playtest-stability`; цель — Ring Maze early exit, обратный поток Class II, все 8 направлений карты и объединение массивов локаций.
+- Изменение runtime ограничено `mini-sim/assets/js/deep-space-warp.js`; добавлены contracts в `scripts/warp-maze-return.test.mjs` и `scripts/warp-visual-tiers.test.mjs`. Не менять `main`, WordPress, Galia Desk/scanner/pricing, firewall, planet placement, SAGE adapter или Tower physics.
+- На code/test head `08e1f27c0502561401b9840c327e37fb76b0fc91` Warp visual tiers и Warp maze return CI PASS. Следом добавлен регрессионный тест всех восьми направлений; новый workflow проверяется. Browser QA run `40487872716` завершился HTTP 403 (`.bcm-mini-sim` отсутствует из-за недоступной страницы); повторный run на документном HEAD ещё выполняется.
+- Завершение работы различать по статусам: код изменён; source CI; browser smoke; live WordPress/device. Исторический HTTP 403 не обходить.

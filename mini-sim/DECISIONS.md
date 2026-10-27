@@ -1,3 +1,17 @@
+## D-042 — Mini-Sim 0.11.21 playtest stabilization
+
+**Status:** repair candidate on branch `fix/minisim-0.11.21-playtest-stability`, baseline `73ba0cc1f772d73155a093382fce051e1e2843ae`, Work Lock [#84](https://github.com/ShamanOrWitch/BCM4StarAtlas/issues/84), draft PR [#85](https://github.com/ShamanOrWitch/BCM4StarAtlas/pull/85). Not deployed.
+
+- User playtest confirms Ring entry and backside exterior doors work. Preserve these, the same-seed wall textures, optional boss route, and Tower physics.
+- Ring mission crystals must not mutate the 3D flight's transient crystal flags. `BCMWorldMission.hydrogenCount` remains authoritative; stable crystal IDs prevent duplicates.
+- Space/W is jump only. E follows the marked door route; R / gamepad LB explicitly changes floor at a vertical hatch.
+- Room 2 exits through the central front passage in both directions; collisions outside the opening remain solid.
+- The user's later, longer playtest supersedes the earlier count-reduction idea: retain 22 randomized layers and the original obstacle-family mixture. Accelerate the shared hazard/collision course sooner, reaching 12x. Visual Class II reverses star-streak motion. Keep safe openings collision-aligned. The destination menu releases pointer lock and focuses a usable choice immediately; keyboard/controller selection must work without Escape as a setup step. The Galaxy panel uses the SAGE X/Y coordinate plane (−50…50), not a decorative spiral. Plot the full set of sector points only when the adapter provides coordinates; the checked-in snapshot contains 54 reference-star points and three CSS coordinates, while 8,177 is a count, not a coordinate dataset. Show the current sector, available Warp links and selected route. Sector interiors are a separate location layer for asteroid complexes, planets/Tower and visually distinct Deep Space mechanics; don't fabricate placements where coordinates/metadata aren't available.
+- Tower Panda copy explains the real controls and descent goal. Network play remains deferred while local gameplay and ship/reference identity are unresolved.
+- Source/CI tests must pass before merge. Live WordPress/device behaviour remains unverified.
+
+---
+
 ## D-041 — Mini-Sim 0.11.20: Warp button after the screens, landing clip, same asteroid on foot
 
 **Status:** Source change on top of merged 0.11.19 (PR #82). No WordPress deployment. V is Warp. U is the hold. X is the helm. Do not shrink flyRadius. Do not reopen Tower physics or Room 2 walls.
@@ -576,3 +590,15 @@ HEAD at the start of the session was `748998250d39ac9ed163b84caa1f7178da920d9a` 
 
 - Merge commit: [ad4d8cf](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/ad4d8cf8cdf261cecb30b95ddbf85ceaf7514f02); pull request [#33](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/33).
 - Post-merge Mini-Sim regression: PASS — [run 38471956269](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471956269). Warp source-contract: PASS on PR SHA `c92c16d` — [run 38471847602](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471847602). Browser smoke passed on code-identical runtime SHA `be2adbd` — [run 38471671934](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/38471671934); post-merge browser QA run `38471956003` remained in progress when the record was updated. None of these tests visually verifies liquid-metal appearance.
+
+
+## D-011 — PR #85 follow-up: Ring objective guard, Warp II flow, eight map directions
+
+**Статус: IMPLEMENTED; TESTED-CODE PASS на `08e1f27c0502561401b9840c327e37fb76b0fc91`; VERIFIED-LIVE — нет.** Дата: 2026-10-27.
+
+- Пользователь подтвердил, что координатная карта уже годится как начальная версия; сетка 3×3 должна показывать все 8 соседних направлений, а не только 4 ортогональных. В live-навигации выбор остаётся ограничен фактическими связями адаптера. Отдельный location renderer объединяет доступные `gameLocations`, `localLocations`, `locations`, POI, activities и mechanics, затем дедуплицирует.
+- Ring Maze возвращался к завершению слишком рано при посещении стартовой комнаты после короткого пути. Completion guard теперь требует цели: большая связанная зона для обычного маршрута, либо собранные route crystals для активного Hydrogen-маршрута.
+- Class II получает обратное течение видимых полос на стенке туннеля помимо фоновых звёзд. Физический прогресс трассы и направления столкновений не обращаются.
+- Проверки: Warp visual tiers и Warp maze return regression PASS на указанном commit; runtime/test JavaScript parse и целевые in-memory проверки PASS.
+- Browser QA остаётся отдельным и не считается успешным только на основании source CI. Завершившийся run `40487872716` получил HTTP 403 и не нашёл `.bcm-mini-sim`; повторный run на документном HEAD ещё выполняется. Не считать WordPress deploy или ручную игру подтверждёнными.
+- PR: [#85](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/85). Повторно открыть решение, если пользователь обнаружит ранний выход Ring либо Class II по факту движется в прежнем направлении.

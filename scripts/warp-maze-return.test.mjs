@@ -37,6 +37,19 @@ test("asteroid exit returns to Warp, Ring stays separate and Hull Dive is entera
   assert.match(warp, /maze\.ringCompleted = success/);
 });
 
+test("Ring maze does not finish after a short backtrack before reaching its objective", () => {
+  const attach = section(warp, "function attachAsteroidCellPath", "function applyRingCellLook");
+  assert.match(attach, /const hydrogenRouteActive = !!mission\.hydrogenUnlocked[\s\S]*?routeCrystals\.length > 0/);
+  assert.match(attach, /const large = \[\.\.\.nodes\.values\(\)\]\.find\(\(candidate\) => candidate\.large\)/);
+  assert.match(attach, /if \(!hydrogenRouteActive && !visitedLarge && large && large !== fromNode\) return large/);
+  const route = section(warp, "function faceAsteroidRoute", "function enterRingCell");
+  assert.match(route, /const objectiveReached = hydrogenRouteActive[\s\S]*?: !!path\.visitedLarge/);
+  assert.match(route, /node === home && objectiveReached && !pending/);
+  const enter = section(warp, "function enterRingCell", "const oldBackground = scene.background");
+  assert.match(enter, /if \(node\.large\) path\.visitedLarge = true/);
+  assert.match(attach, /visitedLarge: !!start\?\.large, departed: false, pendingReturn: false/);
+});
+
 test("returning to the sector map keeps the asteroid locale and pauses the ship", () => {
   const body = section(warp, "function returnToWarpMap()", "function resizeBackdrop()");
   assert.doesNotMatch(body, /disposeMaze\(\)/);
@@ -112,18 +125,33 @@ test("Warp Tube is a rolling circular cylinder with a curved / corkscrew route",
   assert.doesNotMatch(body, /const roadY=d=>|const half=d=>|Continuous floor panels and centre dashes/);
 });
 
-test("Every generated obstacle layer has a distinct type and a passable opening", () => {
-  const start = warp.indexOf("const gateCount = 22");
+test("Warp keeps 22 randomized, varied obstacle layers with a collision-safe opening", () => {
+  const start = warp.indexOf("const courseLayerCount = 22");
   const end = warp.indexOf("tubeTitle.textContent", start);
   assert.ok(start > 0 && end > start);
   const body = warp.slice(start, end);
+  assert.match(body, /const typeRoll = rng\(\)/);
+  assert.match(body, /typeRoll < 0\.34 \? "gate"/);
+  assert.match(body, /typeRoll < 0\.55 \? "sweeper"/);
+  assert.match(body, /typeRoll < 0\.70 \? "spikes"/);
+  assert.match(body, /typeRoll < 0\.86 \? "boost" : "launcher"/);
   assert.match(body, /safeAngle/);
-  assert.match(body, /gapHalf: type === "gate" \? 0\.76 : 0\.86/);
-  assert.match(body, /type === "sweeper"/);
-  assert.match(body, /type === "spikes"/);
-  assert.match(body, /\? "boost"/);
-  assert.match(body, /"boost" : "launcher"/);
-  assert.match(body, /progress = 0\.08 \+ \(i \/ Math\.max\(1, gateCount - 1\)\) \* 0\.86/);
+  assert.match(body, /gapHalf: type === "gate" \? 0\.94 : 0\.86/);
+  assert.match(body, /progress = 0\.08 \+ \(i \/ Math\.max\(1, courseLayerCount - 1\)\) \* 0\.86/);
+});
+
+test("Warp opens with a free pointer and keyboard focus, without requiring Escape", () => {
+  const openBody = section(warp, "function openMap()", "function closeOverlay");
+  assert.match(openBody, /engine\.releaseFlightPointerLock\(\)/);
+  assert.match(openBody, /overlay\.hidden = false/);
+  assert.match(openBody, /renderGalaxyMap\(\)/);
+  assert.match(openBody, /focusInitialMapChoice\(\)/);
+  const handlers = section(warp, "function bindWarpInput()", "launchButton.addEventListener");
+  assert.match(handlers, /focusMapChoice\(1\)/);
+  assert.match(handlers, /focusMapChoice\(-1\)/);
+  assert.match(handlers, /active\.click\(\)/);
+  assert.match(warp, /function renderGalaxyMap\(\)/);
+  assert.match(warp, /data-warp-galaxy-map/);
 });
 
 test("reopening Warp retains the arrived local sector instead of resetting to the adapter launch sector", () => {
@@ -174,12 +202,14 @@ test("Warp comeback cancellation restores a non-asteroid anchor before resuming 
   assert.ok(teleport >= 0 && unpauseAfter > teleport, "unpause only after the non-asteroid teleport");
 });
 
-test("Warp hazards are faster, denser, randomized per run and visually decoupled from shimmer", () => {
+test("Warp hazards stay varied across all 22 layers and the faster ramp remains synchronized", () => {
   assert.match(warp, /function warpObstacleProgress\(elapsed\)/);
   assert.match(warp, /Math\.pow\(warpCourseProgress\(elapsed\), 0\.86\)/);
-  assert.match(warp, /const gateCount = 22/);
+  assert.match(warp, /const courseLayerCount = 22/);
   assert.match(warp, /const runNonce = Date\.now\(\)\.toString\(36\) \+ "-" \+ Math\.random/);
-  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
+  assert.match(warp, /Math\.pow\(warpNormalizedTime\(elapsed\), 0\.82\)/);
+  assert.match(warp, /return Math\.pow\(12, t\)/);
+  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.48/);
   assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
   assert.match(warp, /Math\.sin\(shimmerTime \* 1\.35/);
   assert.match(warp, /if \(Math\.abs\(delta\) > 1\.18\)/);
@@ -410,8 +440,12 @@ test("Room 2 collision surfaces do not extend into open space", () => {
   assert.equal(actualSide.ship.position.x, 5.94);
 
   const actualCap = collide({ x: 0, y: 0, z: -46.5 }, { x: 0, y: 0, z: -48.5 });
-  assert.equal(actualCap.blocked, true, "the actual Room 2 front cap remains solid");
-  assert.equal(actualCap.ship.position.z, -47.44);
+  assert.equal(actualCap.blocked, false, "the central Room 2 return opening is passable in both directions");
+  assert.equal(actualCap.ship.position.z, -48.5);
+
+  const offCenterCap = collide({ x: 5.95, y: 0, z: -46.5 }, { x: 5.95, y: 0, z: -48.5 });
+  assert.equal(offCenterCap.blocked, true, "the Room 2 cap stays solid outside the central opening");
+  assert.equal(offCenterCap.ship.position.z, -47.44);
 
   const room2Exit = collide({ x: 0, y: 0, z: -84.4 }, { x: 0, y: 0, z: -84.8 });
   assert.equal(room2Exit.blocked, false, "the normal Room 2 rear exit remains open");

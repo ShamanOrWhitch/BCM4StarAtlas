@@ -28,7 +28,7 @@ test("Flight starts in Room 1 and does not teleport into the asteroid", async ()
   const begin = mini.slice(mini.indexOf("function beginFlight()"), mini.indexOf("const byName = Object.create(null)"));
   assert.doesNotMatch(begin, /BCMDeepSpaceWarpEnterAsteroid\s*\(/);
   assert.match(mini, /ship\.position = new THREE\.Vector3\(0, 0, 2\)/);
-  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.20/);
+  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.21/);
 });
 
 test("Asteroid walls are resolved from the prepared asterwall asset family", async () => {
@@ -86,20 +86,22 @@ test("Tower seed generation is gentler; keyboard/touch slow down without slowing
   assert.match(tower, /\/ 11, -1, 1\)/);
 });
 
-test("Warp Tube speed multiplier climbs from 1x to 8x with shared scene and soundtrack state", async () => {
+test("Warp Tube speed multiplier climbs from 1x to 12x with shared scene and soundtrack state", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(warp, /const WARP_DURATION = 42/);
   assert.match(warp, /function warpSpeedMultiplier\(elapsed\)/);
-  assert.match(warp, /return Math\.pow\(8, warpNormalizedTime\(elapsed\)\)/);
-  assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) - 1\) \/ 7/);
+  assert.match(warp, /const t = Math\.pow\(warpNormalizedTime\(elapsed\), 0\.82\)/);
+  assert.match(warp, /return Math\.pow\(12, t\)/);
+  assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) - 1\) \/ 11/);
   assert.match(warp, /function warpCourseProgress\(elapsed\)/);
   assert.match(warp, /function warpObstacleProgress\(elapsed\)/);
-  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
+  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.48/);
   assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
-  assert.match(warp, /const gateCount = 22/);
+  assert.match(warp, /const courseLayerCount = 22/);
+  assert.match(warp, /const typeRoll = rng\(\)/);
   assert.match(warp, /const runNonce = Date\.now\(\).*Math\.random/);
   assert.match(warp, /const rampMultiplier = warpSpeedMultiplier\(state\.elapsed\)/);
-  assert.match(warp, /Math\.max\(1, Math\.min\(8,/);
+  assert.match(warp, /Math\.max\(1, Math\.min\(12,/);
   assert.match(warp, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
   assert.match(warp, /const runtime = engine\.getRuntime\(\)/);
   assert.match(warp, /if \(engine\.setSpeedMode\) engine\.setSpeedMode\(2\)/);
@@ -236,7 +238,10 @@ test("Astral Y-cells are seed-deterministic and alter movement without rebuildin
   assert.match(warp, /asteroid-crystal-pickup-impact/);
   assert.match(warp, /bcm:mission:hydrogen-shard-collected/);
   assert.doesNotMatch(warp, /nextDirection = path\.nextDirectionTowardLarge\(node\) \|\|/);
-  assert.match(warp, /const verticalDirection = input\.down \? "yn" : "yp"/);
+  assert.match(warp, /if \(action === "floor"\)/);
+  assert.match(warp, /const p1Floor = event\.code === "KeyR"/);
+  assert.match(warp, /statePad\.floor = !!button\(4\)/);
+  assert.doesNotMatch(warp, /const verticalDirection = input\.down \? "yn" : "yp"/);
   assert.match(warp, /sealedWallRight\.visible = !node\.large && !rightDoor/);
   assert.match(warp, /ring-cell-vertical-portal/);
   assert.match(warp, /placeParty\(enterRingCell\(worldState, nextNode,[\s\S]*?player\), player\)/);
@@ -266,8 +271,8 @@ test("Tower handoff preserves the arrival ship snapshot and active Tower seed fo
   assert.match(warp, /window\.BCMDeepSpaceWarpGetReturnSnapshot = \(\) =>/);
   assert.match(tower, /window\.BCMWorldMission\.towerSeed = seed/);
   assert.match(tower, /originShipSnapshot\.towerSeed = seed/);
-  assert.match(towerPhp, /define\('BCM_TOWER_VERSION', '0\.2\.66'\)/);
-  assert.match(tower, /const TOWER_VERSION = "0\.2\.66"/);
+  assert.match(towerPhp, /define\('BCM_TOWER_VERSION', '0\.2\.67'\)/);
+  assert.match(tower, /const TOWER_VERSION = "0\.2\.67"/);
 });
 
 test("Tower shows short controls for the active device and a clear descent/fall objective", async () => {

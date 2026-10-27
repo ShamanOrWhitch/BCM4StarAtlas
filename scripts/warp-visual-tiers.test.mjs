@@ -6,6 +6,16 @@ import { Script } from "node:vm";
 const warp = await readFile(new URL("../mini-sim/assets/js/deep-space-warp.js", import.meta.url), "utf8");
 const plugin = await readFile(new URL("../mini-sim/bcm-mini-sim.php", import.meta.url), "utf8");
 const qa = await readFile(new URL("../scripts/minisim-local-qa.test.mjs", import.meta.url), "utf8");
+const css = await readFile(new URL("../mini-sim/assets/css/mini-sim.css", import.meta.url), "utf8");
+
+function section(source, startMarker, endMarker) {
+  const start = source.indexOf(startMarker);
+  assert.notEqual(start, -1, `missing source marker: ${startMarker}`);
+  const end = source.indexOf(endMarker, start + startMarker.length);
+  assert.notEqual(end, -1, `missing source marker: ${endMarker}`);
+  return source.slice(start, end);
+}
+
 
 test("Warp Drive slot sizes map the intense rail look to XX-Small", () => {
   const start = warp.indexOf("function warpVisualClassForSlotSize(slotSize)");
@@ -63,30 +73,118 @@ test("Warp keeps uncluttered longitudinal strips and clearly visible collision h
   assert.match(update, /layer\.type === "spikes"/);
   assert.match(update, /layer\.type === "boost"/);
   assert.match(update, /layer\.type === "launcher"/);
-  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
+  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.48/);
   assert.match(warp, /window\.BCMDeepSpaceWarpSetDriveSlot = \(slotSize\) =>/);
 });
 
-test("Warp multiplier and displayed speed ramp from 1x to 8x", () => {
+test("Warp multiplier and displayed speed ramp faster from 1x to 12x", () => {
   const start = warp.indexOf("function warpNormalizedTime");
   const end = warp.indexOf("function tubeSectionBlend", start);
   assert.ok(start >= 0 && end > start, "Warp speed helpers should exist");
   const speed = new Script(warp.slice(start, end) + "\n({ warpSpeedMultiplier, warpCourseProgress });")
     .runInNewContext({ WARP_DURATION: 42 });
   assert.equal(speed.warpSpeedMultiplier(0), 1);
-  assert.equal(speed.warpSpeedMultiplier(42), 8);
+  assert.equal(speed.warpSpeedMultiplier(42), 12);
   assert.equal(speed.warpCourseProgress(0), 0);
   assert.equal(speed.warpCourseProgress(42), 1);
+  assert.match(warp, /const t = Math\.pow\(warpNormalizedTime\(elapsed\), 0\.82\)/);
+  assert.match(warp, /return Math\.pow\(12, t\)/);
+  assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) - 1\) \/ 11/);
+  assert.match(warp, /const courseLayerCount = 22/);
+  assert.match(warp, /const typeRoll = rng\(\)/);
+  assert.match(warp, /Math\.max\(1, Math\.min\(12,/);
   assert.match(warp, /tubeMeta\.textContent[\s\S]{0,180}"SPEED " \+ speed\.toFixed\(1\)/);
   assert.match(warp, /if \(distance > 0\.36 \|\| distance <= 0\) return null/);
   assert.match(warp, /return Math\.min\(1, 0\.055 \/ \(distance \+ 0\.05\)\)/);
 });
 
-test("Mini-Sim 0.11.20 cache/version contracts are synchronized", () => {
-  assert.match(plugin, /Version: 0\.11\.20/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.20'\)/);
-  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.20/);
-  assert.match(qa, /Version: 0\.11\.20/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.20'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.20/);
+test("Class II reverses the directional Warp streak logic", () => {
+  const frame = warp.slice(warp.indexOf("function drawBackdrop(now)"), warp.indexOf("function updateTube(dt, now)"));
+  assert.match(frame, /const reverseStreaks = activeWarpVisualClass\(\) === 2/);
+  assert.match(frame, /reverseStreaks \? -1 : 1/);
+  assert.match(frame, /reverseStreaks \? tx : sx/);
+  assert.match(frame, /reverseStreaks \? sx : tx/);
+  const tunnel = section(warp, "function drawTubeTunnel", "function drawBackdrop");
+  assert.match(tunnel, /const flowDirection = visualClass === 2 \? -1 : 1/);
+  assert.match(tunnel, /const flowPhase = Number\(state\.tubeTravel \|\| 0\) \* 0\.018 \* flowDirection/);
+  assert.match(tunnel, /const phase = \(\(streak \/ 12 \+ flowPhase\) % 1 \+ 1\) % 1/);
+  assert.match(tunnel, /Class II moves these streaks away from the ship/);
+});
+
+test("Warp draws a real 2D SAGE coordinate plane and a separate sector-location layer", () => {
+  assert.match(warp, /class="bcm-warp-galaxy-map" data-warp-galaxy-map/);
+  assert.match(warp, /function renderGalaxyMap\(\)/);
+  assert.match(warp, /SAGE_STAR_REFERENCE_POINTS/);
+  assert.match(warp, /SAGE_CSS_REFERENCE_POINTS/);
+  assert.match(warp, /nav\.adapter\.sectors/);
+  assert.match(warp, /if \(knownSectorCount\) \{[\s\S]{0,1100}SAGE_STAR_REFERENCE_POINTS\.forEach/);
+  assert.match(warp, /SAGE XY/);
+  assert.match(warp, /−50 … \+50/);
+  assert.match(warp, /data-warp-map-zoom-in/);
+  assert.match(warp, /const GALAXY_MAP_ZOOM_LEVELS = \[1, 2, 4, 8\]/);
+  assert.match(warp, /const centerX = zoom > 1/);
+  assert.match(warp, /g\.clip\(\)/);
+  assert.match(warp, /galaxyMapZoom >= 4 \|\| currentDistance > 9/);
+  assert.match(warp, /if \(nearest && best <= 15 && targetCanBePicked\) selectTarget\(nearest\.sector\)/);
+  assert.match(warp, /function renderSectorLocations\(sector\)/);
+  assert.match(warp, /local-asteroid-complex/);
+  assert.match(warp, /akenat-planet/);
+  assert.match(warp, /Pearce/);
+  assert.match(warp, /Ioki/);
+  assert.match(warp, /Deep Space · внешняя зона/);
+  assert.doesNotMatch(warp.slice(warp.indexOf("function renderGalaxyMap"), warp.indexOf("galaxyMap?.addEventListener")), /for \(let arm = 0; arm < 4/);
+  assert.match(warp, /renderGalaxyMap\(\);\s*focusInitialMapChoice\(\)/);
+  assert.match(warp, /engine\.releaseFlightPointerLock\(\)/);
+  assert.match(warp, /function focusInitialMapChoice\(\)/);
+  assert.match(warp, /focusMapChoice\(1\)/);
+  assert.match(warp, /focusMapChoice\(-1\)/);
+  assert.match(css, /bcm-warp-galaxy-map-tools/);
+  assert.match(css, /data-warp-map-zoom-level/);
+});
+
+test("Warp navigation preview exposes all eight adjacent SAGE XY sectors", () => {
+  const start = warp.indexOf("const SAGE_SECTOR_NEIGHBOR_OFFSETS = [");
+  const end = warp.indexOf("];", start);
+  assert.ok(start >= 0 && end > start, "shared eight-way neighbor offsets should exist");
+  const offsets = new Function("return " + warp.slice(start + "const SAGE_SECTOR_NEIGHBOR_OFFSETS = ".length, end + 1))();
+  assert.equal(offsets.length, 8);
+  assert.equal(new Set(offsets.map(([x, y]) => x + "," + y)).size, 8);
+  assert.ok(offsets.some(([x, y]) => x !== 0 && y !== 0), "diagonal sectors must be included");
+  assert.ok(offsets.every(([x, y]) => Math.abs(x) <= 1 && Math.abs(y) <= 1 && (x !== 0 || y !== 0)));
+  const navigation = section(warp, "function readNavigation()", "function navigationAfterArrival(sector)");
+  assert.match(navigation, /targets: SAGE_SECTOR_NEIGHBOR_OFFSETS\.map/);
+  const arrival = section(warp, "function navigationAfterArrival(sector)", "function sectorText(sector)");
+  assert.match(arrival, /return SAGE_SECTOR_NEIGHBOR_OFFSETS\.map/);
+});
+
+test("Galaxy local map combines all supplied mechanics arrays instead of stopping at the first", () => {
+  const local = section(warp, "function renderSectorLocations(sector)", "function renderGalaxyMap()");
+  assert.match(local, /const provided = locationKeys\.flatMap\(\(key\) => Array\.isArray\(raw\[key\]\) \? raw\[key\] : \[\]\)/);
+  assert.doesNotMatch(local, /if \(Array\.isArray\(raw\[key\]\)\) \{ provided = raw\[key\]; break; \}/);
+  assert.match(local, /const seenProvidedLocations = new Set\(\)/);
+  assert.match(local, /seenProvidedLocations\.has\(key\)/);
+
+  const keys = ["gameLocations", "localLocations", "pointsOfInterest", "activities", "mechanics"];
+  const raw = {
+    gameLocations: ["A", "B", "C", "D"],
+    mechanics: ["E", "F", "G", "H"]
+  };
+  const combine = new Function("keys", "raw", "return keys.flatMap((key) => Array.isArray(raw[key]) ? raw[key] : []);");
+  assert.equal(combine(keys, raw).length, 8, "all eight adapter-provided entries must survive across separate arrays");
+});
+
+test("Mini-Sim doesn't relock the mouse or consume flight keys on the Warp map", async () => {
+  const mini = await readFile(new URL("../mini-sim/assets/js/mini-sim.js", import.meta.url), "utf8");
+  assert.match(mini, /canvas\.addEventListener\("click", \(\) => \{[\s\S]{0,180}!root\.classList\.contains\("bcm-warp-open"\)[\s\S]{0,120}canvas\.requestPointerLock/);
+  assert.match(mini, /flightCodes\[e\.code\][\s\S]{0,130}!root\.classList\.contains\("bcm-warp-open"\)[\s\S]{0,90}!pointerLocked/);
+  assert.match(mini, /settings\.open \|\| root\.classList\.contains\("bcm-warp-open"\)/);
+});
+
+test("Mini-Sim 0.11.21 cache/version contracts are synchronized", () => {
+  assert.match(plugin, /Version: 0\.11\.21/);
+  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.21'\)/);
+  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.21/);
+  assert.match(qa, /Version: 0\.11\.21/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.21'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.21/);
 });

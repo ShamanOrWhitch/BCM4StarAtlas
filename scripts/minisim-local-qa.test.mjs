@@ -8,7 +8,7 @@ test("Warp OST belongs to the whole Warp stage and loops",async()=>{
   const s=await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(s,/warpAudio\.loop = true/);
   assert.match(s,/const WARP_DURATION = 42/);
-  assert.match(s,/pauseLevelOst\(\);\s*startWarpAudio\(true\);\s*state\.nav = readNavigation\(\)/);
+  assert.match(s,/pauseLevelOst\(\);\s*startWarpAudio\(true\);[\s\S]{0,180}state\.nav = readNavigation\(\)/);
   const tube=s.slice(s.indexOf("function showTube()"),s.indexOf("function finishTube"));
   assert.doesNotMatch(tube,/startWarpAudio/);
   assert.match(s,/function enterAsteroidMaze\(\) \{\s*\/\/ Warp OST owns the whole Warp stage/);
@@ -192,18 +192,19 @@ test("Playwright runner overrides plugin files from local checkout",async()=>{
 });
 
 
-test("Warp hazards preserve depth separation, the 1x–8x ramp, and actual speed telemetry", async () => {
+test("Warp hazards preserve depth separation, accelerate to 12x, and keep actual speed telemetry", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
-  assert.match(warp, /return Math\.pow\(8, warpNormalizedTime\(elapsed\)\)/);
-  assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) - 1\) \/ 7/);
-  assert.match(warp, /Math\.max\(1, Math\.min\(8,/);
+  assert.match(warp, /const t = Math\.pow\(warpNormalizedTime\(elapsed\), 0\.82\)/);
+  assert.match(warp, /return Math\.pow\(12, t\)/);
+  assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) - 1\) \/ 11/);
+  assert.match(warp, /Math\.max\(1, Math\.min\(12,/);
   assert.match(warp, /if \(distance > 0\.36 \|\| distance <= 0\) return null/);
   assert.match(warp, /return Math\.min\(1, 0\.055 \/ \(distance \+ 0\.05\)\)/);
   assert.doesNotMatch(warp, /if \(distance > 0\.68 \|\| distance <= 0\) return null/);
   assert.match(warp, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
-  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
+  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.48/);
   assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
-  assert.match(warp, /const gateCount = 22/);
+  assert.match(warp, /const courseLayerCount = 22/);
   assert.match(warp, /tubeMeta\.textContent[\s\S]{0,180}"SPEED " \+ speed\.toFixed\(1\)/);
 });
 
@@ -232,11 +233,11 @@ test("Mini-Sim and Tower displayed versions match their PHP asset-cache versions
   const miniPhp = await read("mini-sim/bcm-mini-sim.php");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   const tower = await read("mini-sim/tower/assets/js/tower.js");
-  assert.ok(miniPhp.includes("Version: 0.11.20"));
-  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.11.20'"));
-  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.11.20"));
-  assert.ok(towerPhp.includes("BCM_TOWER_VERSION', '0.2.66'"));
-  assert.ok(tower.includes('const TOWER_VERSION = "0.2.66"'));
+  assert.ok(miniPhp.includes("Version: 0.11.21"));
+  assert.ok(miniPhp.includes("BCM_MINI_SIM_VERSION', '0.11.21'"));
+  assert.ok(miniPhp.includes("SPACE LABYRINTH — 0.11.21"));
+  assert.ok(towerPhp.includes("BCM_TOWER_VERSION', '0.2.67'"));
+  assert.ok(tower.includes('const TOWER_VERSION = "0.2.67"'));
 });
 
 
@@ -258,10 +259,10 @@ test("Asteroid collision keeps the 0.11.2 baseline and visible core shards on a 
 
 test("Warp travel motion increases while shimmer rate stays on its own previous clock", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
-  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.12/);
+  assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.48/);
   assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
   assert.match(warp, /Math\.sin\(shimmerTime \* 1\.35/);
   assert.match(warp, /Math\.floor\(shimmerTime \* 8\)/);
   assert.match(warp, /Math\.pow\(warpCourseProgress\(elapsed\), 0\.86\)/);
-  assert.match(warp, /const gateCount = 22/);
+  assert.match(warp, /const courseLayerCount = 22/);
 });

@@ -1,4 +1,16 @@
-## Main state — Mini-Sim 0.11.20 / Tower 0.2.66 (26 October 2026)
+## Repair candidate — Mini-Sim 0.11.21 / Tower 0.2.67 (26 October 2026)
+
+- Branch: `fix/minisim-0.11.21-playtest-stability`; baseline main SHA `73ba0cc1f772d73155a093382fce051e1e2843ae`; Work Lock [#84](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/84); draft PR [#85](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/85).
+- **USER-CONFIRMED:** on 0.11.19/0.11.20 Ring entry works again and external backside doors work. Ring's seeded cells/textures improved, but controls and route playability remain rough.
+- Regressions being repaired: Hydrogen mission counter/route-state desynchronization; Room 2 central return wall; Ring jump/floor input overlap; Warp cursor/menu input and missing galaxy-scale context; outdated obstacle count and speed; Tower Panda copy.
+- Candidate changes: separate Ring route-crystal state driven by `BCMWorldMission.hydrogenCount`; E door + R floor controls (gamepad LB); central Room 2 return opening only; Warp restored to 22 probabilistically varied layers, accelerated earlier to 12x, with Class II streak direction reversed; interactive X/Y sector map (−50…50) with known SAGE star/CSS references, all coordinate points available from the adapter, selected Warp link and a separate per-sector location layer; device-specific Tower instructions.
+- Map note: the checked-in SAGE snapshot has 54 star reference points and the three CSS coordinates; it reports 8,177 sectors but does not include all sector coordinates. The renderer plots every valid adapter sector when that array exists and otherwise labels the view as partial instead of inventing the missing points. Sector-local categories are asteroid complex, planet/Tower and Deep Space; only known/currently wired locations are reported as such.
+- **TESTED-CODE pending** until the latest CI passes. No WordPress deployment and no live/device pass claimed. Remote browser QA previously received HTTP 403; do not bypass site protection.
+- Network mode remains deferred until local gameplay and ship/reference identity are stable.
+
+---
+
+## Previous main baseline — Mini-Sim 0.11.20 / Tower 0.2.66 (26 October 2026)
 
 - First Panda dialog is flight and screen approach. The Warp button (V, or WARP on a phone) is the second dialog, after the screens.
 - Ring entry plays the landing clip, then the menu. The 2s abort stays gone. The side view uses the asteroid seed's wall textures. The forward door follows Hydrogen, then the return to the landing cell, including vertical floors.
@@ -263,3 +275,13 @@ This entry supersedes the older 0.11.3–0.11.5 candidate notes below; those sec
 ## PR and test tracking
 - PR #60: https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/60
 - CI results are pending; do not label 0.9.114 live-verified until the required Actions and a manual WordPress/device test complete.
+
+
+## Текущий статус PR #85 — 2026-10-27 (переопределяет устаревшие статусы выше для этой ветки)
+
+- Ветка: `fix/minisim-0.11.21-playtest-stability`; PR #85 остаётся draft. `main` и WordPress не менялись.
+- **Galaxy map:** используется реальная 2D-плоскость координат SAGE. Локальная сетка 3×3 показывает все восемь соседних направлений, включая диагонали. В live-навигации доступны только подтверждённые адаптером связи — новые live-переходы не выдумываются. Рендерер также объединяет все доступные массивы `gameLocations`, `localLocations`, POI, activities и mechanics с удалением дублей; тест 4+4 разделённых записей сохраняет все 8. Непереданные координаты/механики не синтезируются.
+- **Ring Maze:** короткий возврат в стартовую комнату больше не завершает уровень сам по себе. Если маршрут Hydrogen не активен, цель сначала большая связанная зона, затем возвращение домой. При активном Hydrogen-маршруте возвращение засчитывается только после сбора его кристаллов.
+- **Warp Class II:** развёрнуто обратное движение не только фоновых звёздных streaks, но и streaks на стенке туннеля. Направление опасностей/коллизий и прогресс трассы не менялись.
+- **TESTED-CODE:** на commit `08e1f27c0502561401b9840c327e37fb76b0fc91` прошли профильные source workflows, включая Warp visual tiers и Warp maze return. На следующем кодовом коммите добавлен тест восьми направлений; результат этого последнего тестового коммита нужно сверять отдельно.
+- **Не VERIFIED-LIVE:** завершившийся browser QA на code head `08e1f27` получил HTTP 403 от сайта и не нашёл `.bcm-mini-sim`; повторный запуск на документном HEAD ещё выполняется. Это блокер доступа к сайту, а не проверка игрового поведения. Нет подтверждения установки в WordPress или ручного теста на устройстве.

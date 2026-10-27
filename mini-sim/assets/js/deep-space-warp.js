@@ -547,6 +547,10 @@
 
     const overlay = document.createElement("div");
     overlay.className = "bcm-warp-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "WARP — карта Галактики и выбор сектора назначения");
+    overlay.tabIndex = -1;
     overlay.hidden = true;
     overlay.innerHTML =
       '<canvas class="bcm-warp-backdrop" aria-hidden="true"></canvas>' +
@@ -563,6 +567,18 @@
           '</div>' +
           '<p class="bcm-warp-explainer" data-warp-current></p>' +
           '<div class="bcm-warp-source" data-warp-source></div>' +
+          '<div class="bcm-warp-galaxy-panel">' +
+            '<div class="bcm-warp-galaxy-heading"><strong>GALAXY MAP</strong><span data-warp-galaxy-status>СХЕМА ГАЛАКТИКИ · ТЕКУЩИЙ СЕКТОР</span></div>' +
+            '<div class="bcm-warp-galaxy-map-tools" aria-label="Масштаб карты">' +
+              '<button type="button" data-warp-map-zoom-out aria-label="Уменьшить масштаб карты" disabled>−</button>' +
+              '<button type="button" data-warp-map-zoom-reset aria-label="Общий обзор галактики">ОБЗОР</button>' +
+              '<span data-warp-map-zoom-level>ОБЗОР 1×</span>' +
+              '<button type="button" data-warp-map-zoom-in aria-label="Приблизить текущий сектор">+</button>' +
+            '</div>' +
+            '<canvas class="bcm-warp-galaxy-map" data-warp-galaxy-map tabindex="0" role="application" aria-label="Координатная карта SAGE X/Y. Приближайте карту, чтобы различать соседние секторы; выбирайте доступную точку для прокладки Warp-маршрута."></canvas>' +
+            '<div class="bcm-warp-galaxy-legend"><span><i class="is-current"></i> ТЕКУЩИЙ СЕКТОР</span><span><i class="is-link"></i> WARP-ДОСТУПЕН</span><span><i class="is-route"></i> МАРШРУТ</span><span><i class="is-star"></i> ЗВЁЗДЫ</span><span><i class="is-css"></i> CSS</span><small>Координаты X/Y −50…50. Доступные переходы берутся из адаптера; недостающие секторы не выдумываются.</small></div>' +
+            '<div class="bcm-warp-local-area"><div class="bcm-warp-galaxy-heading"><strong>ЛОКАЦИИ ВЫБРАННОГО СЕКТОРА</strong><span data-warp-local-status>Выберите сектор</span></div><div class="bcm-warp-local-locations" data-warp-local-locations></div><div class="bcm-warp-location-kinds"><span><i>◈</i> Астероиды · локальный комплекс</span><span><i>◎</i> Планета · Tower / внутренние мини-игры</span><span><i>✦</i> Deep Space · внешняя зона с отдельной визуальной темой</span></div></div>' +
+          '</div>' +
           '<div class="bcm-warp-grid" data-warp-grid hidden aria-label="Соседние клетки вокруг ONI CSS"></div>' +
           '<div class="bcm-warp-sector-list" data-warp-sectors></div>' +
           '<form class="bcm-warp-manual" data-warp-manual><label>Доп. тестовая клетка <span>X</span><input name="x" type="number" step="1" value="-39" inputmode="numeric"></label><label><span>Y</span><input name="y" type="number" step="1" value="30" inputmode="numeric"></label><button type="submit">ВЫБРАТЬ</button></form>' +
@@ -596,7 +612,36 @@
     const gridElement = overlay.querySelector("[data-warp-grid]");
     const currentElement = overlay.querySelector("[data-warp-current]");
     const sourceElement = overlay.querySelector("[data-warp-source]");
+    const galaxyMap = overlay.querySelector("[data-warp-galaxy-map]");
+    const galaxyMapStatus = overlay.querySelector("[data-warp-galaxy-status]");
+    const galaxyMapZoomOut = overlay.querySelector("[data-warp-map-zoom-out]");
+    const galaxyMapZoomReset = overlay.querySelector("[data-warp-map-zoom-reset]");
+    const galaxyMapZoomIn = overlay.querySelector("[data-warp-map-zoom-in]");
+    const galaxyMapZoomLevel = overlay.querySelector("[data-warp-map-zoom-level]");
+    const galaxyMapCtx = galaxyMap ? galaxyMap.getContext("2d") : null;
+    const galaxyLocalStatus = overlay.querySelector("[data-warp-local-status]");
+    const galaxyLocalLocations = overlay.querySelector("[data-warp-local-locations]");
+    const GALAXY_MAP_ZOOM_LEVELS = [1, 2, 4, 8];
+    let galaxyMapZoom = 1;
+    let galaxyMapPoints = [];
+    let galaxyCurrentPoint = null;
     const selectedElement = overlay.querySelector("[data-warp-selected]");
+    // Existing SAGE snapshot points reused from src/data/sage-plane.ts.
+    // These are reference stars, not fabricated sector coordinates.
+    const SAGE_STAR_REFERENCE_POINTS = [
+      [-2,-44],[10,-41],[0,-39],[-10,-37],[2,-34],[-15,-33],[12,-31],[21,-26],
+      [-22,-25],[-8,-24],[0,-24],[2,-23],[31,-19],[-30,-16],[-14,-16],[11,-16],
+      [23,-12],[-36,-7],[16,-5],[39,-1],[-16,0],[-40,3],[-23,4],[22,5],[44,10],
+      [-35,12],[25,14],[-45,15],[-25,15],[0,16],[35,16],[49,20],[-28,21],[17,21],
+      [28,21],[-18,23],[-9,24],[-38,25],[38,25],[2,26],[30,28],[-47,30],[-40,30],
+      [-30,30],[40,30],[22,31],[-22,32],[48,32],[-42,35],[-8,35],[42,35],[13,37],
+      [-19,40],[5,44]
+    ];
+    const SAGE_CSS_REFERENCE_POINTS = [
+      { id: "mud-css", name: "MUD CSS", x: 0, y: -39, color: "#e7a18c" },
+      { id: "oni-css", name: "ONI CSS", x: -40, y: 30, color: "#7eb6ff" },
+      { id: "ustur-css", name: "Ustur CSS", x: 40, y: 30, color: "#e6c15a" }
+    ];
     const footnoteElement = overlay.querySelector("[data-warp-footnote]");
     const manualForm = overlay.querySelector("[data-warp-manual]");
     const tubeTitle = overlay.querySelector("[data-tube-title]");
@@ -696,6 +741,14 @@
       };
     }
 
+    // SAGE XY navigation is eight-way: the four diagonal neighbors are valid sectors too.
+    // Keep this preview offset list aligned with the visible 3×3 sector grid.
+    const SAGE_SECTOR_NEIGHBOR_OFFSETS = [
+      [-1, 1], [0, 1], [1, 1],
+      [-1, 0],          [1, 0],
+      [-1, -1], [0, -1], [1, -1]
+    ];
+
     function readNavigation() {
       // After a local sector arrival, keep that session's current sector when
       // the player closes and reopens the Warp menu. The global adapter often
@@ -736,12 +789,12 @@
       }
 
       // The prototype starts at the known ONI CSS position on the NEUNO sector grid.
-      // Only the four adjacent cells are generated locally; no galaxy-wide coordinates are loaded.
+      // Show all eight adjacent XY cells in the 3×3 preview, not just cardinal directions;
+      // preview cells remain explicitly test-only until the live adapter supplies real links.
       const current = { id: "oni-css-neuno--40-30", name: "ONI CSS · NEUNO", x: -40, y: 30, raw: null };
-      const offsets = [[-1, 0], [1, 0], [0, -1], [0, 1]];
       return {
         current,
-        targets: offsets.map((pair) => {
+        targets: SAGE_SECTOR_NEIGHBOR_OFFSETS.map((pair) => {
           const x = current.x + pair[0];
           const y = current.y + pair[1];
           return {
@@ -768,7 +821,7 @@
 
       const makeLocalTargets = (origin) => {
         if (!origin || origin.x == null || origin.y == null) return [];
-        return [[-1, 0], [1, 0], [0, -1], [0, 1]].map((offset) => {
+        return SAGE_SECTOR_NEIGHBOR_OFFSETS.map((offset) => {
           const x = Number(origin.x) + offset[0];
           const y = Number(origin.y) + offset[1];
           return {
@@ -950,6 +1003,327 @@
       }
     }
 
+    function renderSectorLocations(sector) {
+      if (!galaxyLocalLocations || !galaxyLocalStatus) return;
+      galaxyLocalLocations.replaceChildren();
+      const raw = sector && sector.raw && typeof sector.raw === "object" ? sector.raw : {};
+      const locationKeys = [
+        "gameLocations", "game_locations", "localLocations", "local_locations",
+        "locations", "pointsOfInterest", "points_of_interest", "activities", "mechanics"
+      ];
+      // Some adapters split local POIs, mechanics and activities across separate arrays.
+      // Merge every available list instead of silently discarding everything after the first.
+      const provided = locationKeys.flatMap((key) => Array.isArray(raw[key]) ? raw[key] : []);
+      const seenProvidedLocations = new Set();
+      const locations = provided.map((item, index) => {
+        if (typeof item === "string") return { id: "location-" + index, name: item, kind: "location", detail: "", status: "adapter" };
+        if (!item || typeof item !== "object") return null;
+        return {
+          id: String(item.id || item.key || "location-" + index),
+          name: String(item.name || item.title || item.label || item.type || "Локация"),
+          kind: String(item.kind || item.type || item.category || "location").toLowerCase(),
+          detail: String(item.description || item.blurb || item.mechanic || item.game || ""),
+          status: "adapter"
+        };
+      }).filter(Boolean).filter((location) => {
+        const id = String(location.id || "").trim().toLowerCase();
+        const nameKind = String(location.name || "").trim().toLowerCase() + "|" +
+          String(location.kind || "").trim().toLowerCase();
+        const key = /^location-\d+$/.test(id) ? "name:" + nameKind : "id:" + id;
+        if (seenProvidedLocations.has(key)) return false;
+        seenProvidedLocations.add(key);
+        return true;
+      });
+
+      const x = sector && sector.x != null ? Number(sector.x) : NaN;
+      const y = sector && sector.y != null ? Number(sector.y) : NaN;
+      const id = String((sector && sector.id) || "").toLowerCase();
+      const name = String((sector && sector.name) || "").toLowerCase();
+      const isOniCss = (x === -40 && y === 30) || id.includes("oni-css") || name.includes("oni css");
+      const isMudCss = (x === 0 && y === -39) || id.includes("mud-css") || name.includes("mud css");
+      const isUsturCss = (x === 40 && y === 30) || id.includes("ustur-css") || name.includes("ustur css");
+      const hasKind = (pattern) => locations.some((item) => pattern.test(item.name + " " + item.kind));
+      const addKnownLocation = (location) => {
+        if (!locations.some((item) => item.id === location.id || (item.name === location.name && item.kind === location.kind))) {
+          locations.push(location);
+        }
+      };
+      if (isOniCss) {
+        if (!hasKind(/asteroid|астероид/i)) {
+          locations.unshift({
+            id: "local-asteroid-complex",
+            name: "Астероидный комплекс",
+            kind: "asteroid",
+            detail: "Локальная игровая зона рядом с ONI CSS; существующая механика астероидного прохода.",
+            status: "implemented"
+          });
+        }
+        addKnownLocation({ id: "oni-css-station", name: "ONI CSS", kind: "station", detail: "Орбитальная станция и локальный ориентир сектора.", status: "reference" });
+        addKnownLocation({ id: "akenat-planet", name: "Akenat", kind: "planet", detail: "Планетарная локация системы ONI; Tower и внутренние механики здесь пока требуют привязки запуска.", status: "planned" });
+      } else if (isMudCss) {
+        addKnownLocation({ id: "mud-css-station", name: "MUD CSS", kind: "station", detail: "Орбитальная станция системы MUD.", status: "reference" });
+        addKnownLocation({ id: "pearce-planet", name: "Pearce", kind: "planet", detail: "Планетарная локация системы MUD; Tower и внутренние механики требуют привязки запуска.", status: "planned" });
+      } else if (isUsturCss) {
+        addKnownLocation({ id: "ustur-css-station", name: "Ustur CSS", kind: "station", detail: "Орбитальная станция системы Ustur.", status: "reference" });
+        addKnownLocation({ id: "ioki-planet", name: "Ioki", kind: "planet", detail: "Планетарная локация системы Ustur; Tower и внутренние механики требуют привязки запуска.", status: "planned" });
+      }
+
+      galaxyLocalStatus.textContent = sector
+        ? ((sector.x != null && sector.y != null) ? "X " + sector.x + " · Y " + sector.y : "КООРДИНАТЫ НЕ ПЕРЕДАНЫ")
+        : "СЕКТОР НЕ ВЫБРАН";
+
+      const kindInfo = (kind) => {
+        if (/asteroid|rock|астероид/i.test(kind)) return { icon: "◈", label: "АСТЕРОИДЫ" };
+        if (/planet|surface|tower|планет/i.test(kind)) return { icon: "◎", label: "ПЛАНЕТА / TOWER" };
+        if (/deep.?space|void|внешн/i.test(kind)) return { icon: "✦", label: "DEEP SPACE" };
+        if (/station|css|orbit|станц/i.test(kind)) return { icon: "⌖", label: "СТАНЦИЯ / ОРБИТА" };
+        return { icon: "•", label: "ЛОКАЦИЯ СЕКТОРА" };
+      };
+      if (locations.length) {
+        locations.forEach((location) => {
+          const info = kindInfo(location.kind);
+          const item = document.createElement("div");
+          item.className = "bcm-warp-local-location" +
+            (location.status === "implemented" ? " is-implemented" : location.status === "planned" ? " is-planned" : "");
+          const symbol = document.createElement("strong");
+          symbol.className = "bcm-warp-local-icon";
+          symbol.textContent = info.icon;
+          const copy = document.createElement("span");
+          copy.className = "bcm-warp-local-copy";
+          const title = document.createElement("b");
+          title.textContent = location.name;
+          const subtitle = document.createElement("small");
+          subtitle.textContent = location.detail || info.label;
+          const stateText = document.createElement("em");
+          stateText.textContent = location.status === "implemented" ? "В ИГРЕ"
+            : location.status === "planned" ? "НУЖНА ПРИВЯЗКА"
+              : location.status === "reference" ? "ОРИЕНТИР"
+                : "ДАННЫЕ АДАПТЕРА";
+          copy.append(title, subtitle);
+          item.append(symbol, copy, stateText);
+          galaxyLocalLocations.appendChild(item);
+        });
+      } else {
+        const note = document.createElement("p");
+        note.className = "bcm-warp-local-empty";
+        note.textContent = "Навигационный адаптер не передал дополнительные локальные точки для этого сектора. Астероидные комплексы, планеты / Tower и внешние Deep Space-механики остаются отдельными типами локаций, пока их привязка не задана.";
+        galaxyLocalLocations.appendChild(note);
+      }
+    }
+
+    function renderGalaxyMap() {
+      if (!galaxyMap || !galaxyMapCtx) return;
+      const rect = galaxyMap.getBoundingClientRect();
+      const w = Math.max(240, Math.floor(rect.width || 760));
+      const h = Math.max(150, Math.floor(rect.height || 380));
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      if (galaxyMap.width !== Math.round(w * dpr) || galaxyMap.height !== Math.round(h * dpr)) {
+        galaxyMap.width = Math.round(w * dpr);
+        galaxyMap.height = Math.round(h * dpr);
+      }
+      const g = galaxyMapCtx;
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.clearRect(0, 0, w, h);
+      g.fillStyle = "#070b12";
+      g.fillRect(0, 0, w, h);
+
+      const nav = state.nav;
+      const current = nav && nav.current;
+      const targets = nav && Array.isArray(nav.targets) ? nav.targets : [];
+      const adapterSectors = nav && nav.adapter && Array.isArray(nav.adapter.sectors) ? nav.adapter.sectors : [];
+      const zoom = galaxyMapZoom;
+      // Overview is centered on SAGE (0,0). Zoom recenters on current sector,
+      // making adjacent coordinates readable and selectable without false geography.
+      const centerX = zoom > 1 && current && current.x != null && Number.isFinite(Number(current.x)) ? Number(current.x) : 0;
+      const centerY = zoom > 1 && current && current.y != null && Number.isFinite(Number(current.y)) ? Number(current.y) : 0;
+      const side = Math.max(100, Math.min(w - 28, h - 34));
+      const left = (w - side) / 2;
+      const top = (h - side) / 2;
+      const scale = side / 100;
+      const toPoint = (x, y) => ({
+        x: left + side / 2 + (Number(x) - centerX) * scale * zoom,
+        y: top + side / 2 - (Number(y) - centerY) * scale * zoom
+      });
+      g.fillStyle = "rgba(18,31,45,0.92)";
+      g.fillRect(left, top, side, side);
+      g.strokeStyle = "rgba(176,199,217,0.52)";
+      g.lineWidth = 1;
+      g.strokeRect(left + 0.5, top + 0.5, side - 1, side - 1);
+
+      // Clip content to the map viewport. Zoom changes the camera, not SAGE data.
+      g.save();
+      g.beginPath();
+      g.rect(left + 1, top + 1, side - 2, side - 2);
+      g.clip();
+      const halfSpan = 50 / zoom;
+      const gridStep = zoom >= 4 ? 1 : zoom >= 2 ? 5 : 10;
+      const minGridX = Math.max(-50, Math.ceil((centerX - halfSpan) / gridStep) * gridStep);
+      const maxGridX = Math.min(50, Math.floor((centerX + halfSpan) / gridStep) * gridStep);
+      const minGridY = Math.max(-50, Math.ceil((centerY - halfSpan) / gridStep) * gridStep);
+      const maxGridY = Math.min(50, Math.floor((centerY + halfSpan) / gridStep) * gridStep);
+      g.strokeStyle = "rgba(119,156,184,0.20)";
+      g.lineWidth = 1;
+      for (let x = minGridX; x <= maxGridX; x += gridStep) {
+        const a = toPoint(x, centerY - halfSpan);
+        const b = toPoint(x, centerY + halfSpan);
+        g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+      }
+      for (let y = minGridY; y <= maxGridY; y += gridStep) {
+        const a = toPoint(centerX - halfSpan, y);
+        const b = toPoint(centerX + halfSpan, y);
+        g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+      }
+      const origin = toPoint(0, 0);
+      g.strokeStyle = "rgba(196,163,90,0.55)";
+      g.beginPath(); g.moveTo(origin.x - 5, origin.y); g.lineTo(origin.x + 5, origin.y);
+      g.moveTo(origin.x, origin.y - 5); g.lineTo(origin.x, origin.y + 5); g.stroke();
+
+      const sectorByCoord = new Set();
+      let knownSectorCount = 0;
+      adapterSectors.forEach((item, index) => {
+        const sector = normalizeSector(item, index);
+        if (!sector || sector.x == null || sector.y == null) return;
+        const x = Number(sector.x), y = Number(sector.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y) || x < -50 || x > 50 || y < -50 || y > 50) return;
+        const key = x + "," + y;
+        if (sectorByCoord.has(key)) return;
+        sectorByCoord.add(key);
+        knownSectorCount += 1;
+      });
+      if (knownSectorCount) {
+        adapterSectors.forEach((item, index) => {
+          const sector = normalizeSector(item, index);
+          if (!sector || sector.x == null || sector.y == null) return;
+          const x = Number(sector.x), y = Number(sector.y);
+          if (!Number.isFinite(x) || !Number.isFinite(y) || x < -50 || x > 50 || y < -50 || y > 50) return;
+          const p = toPoint(x, y);
+          g.fillStyle = "rgba(111,149,179,0.50)";
+          g.fillRect(p.x - 1, p.y - 1, 2, 2);
+        });
+      }
+      // Keep known star locations as orientation landmarks even with live
+      // sector coordinates; the two data layers are separate on the map.
+      SAGE_STAR_REFERENCE_POINTS.forEach(([x, y]) => {
+        const p = toPoint(x, y);
+        g.fillStyle = "rgba(230,193,120,0.72)";
+        g.beginPath(); g.arc(p.x, p.y, zoom >= 4 ? 2.2 : 1.8, 0, Math.PI * 2); g.fill();
+      });
+
+      SAGE_CSS_REFERENCE_POINTS.forEach((css) => {
+        const p = toPoint(css.x, css.y);
+        g.beginPath(); g.arc(p.x, p.y, zoom >= 4 ? 4.8 : 4.2, 0, Math.PI * 2);
+        g.fillStyle = css.color; g.fill();
+        g.strokeStyle = "#f3f6f9"; g.lineWidth = 1; g.stroke();
+        g.fillStyle = css.color; g.font = "600 9px system-ui,sans-serif";
+        g.textAlign = css.x > 25 ? "right" : "left"; g.textBaseline = "bottom";
+        if (!(zoom > 1 && current && css.x === Number(current.x) && css.y === Number(current.y))) {
+          g.fillText(css.name, p.x + (css.x > 25 ? -6 : 6), p.y - 5);
+        }
+      });
+
+      galaxyMapPoints = [];
+      galaxyCurrentPoint = null;
+      const hasPoint = (node) => node && node.x != null && node.y != null &&
+        Number.isFinite(Number(node.x)) && Number.isFinite(Number(node.y)) &&
+        Number(node.x) >= -50 && Number(node.x) <= 50 && Number(node.y) >= -50 && Number(node.y) <= 50;
+      if (current && hasPoint(current)) {
+        const p = toPoint(current.x, current.y);
+        galaxyCurrentPoint = p;
+        g.strokeStyle = "rgba(111,176,211,0.55)";
+        g.lineWidth = 1.1;
+        targets.filter(hasPoint).forEach((target) => {
+          const q = toPoint(target.x, target.y);
+          g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(q.x, q.y); g.stroke();
+        });
+      }
+      targets.forEach((target) => {
+        if (!hasPoint(target)) return;
+        const p = toPoint(target.x, target.y);
+        const selected = !!(state.target && state.target.id === target.id);
+        if (selected && galaxyCurrentPoint) {
+          g.strokeStyle = "#56f0d0"; g.lineWidth = 2.5;
+          g.beginPath(); g.moveTo(galaxyCurrentPoint.x, galaxyCurrentPoint.y); g.lineTo(p.x, p.y); g.stroke();
+          const angle = Math.atan2(p.y - galaxyCurrentPoint.y, p.x - galaxyCurrentPoint.x);
+          g.beginPath();
+          g.moveTo(p.x, p.y);
+          g.lineTo(p.x - Math.cos(angle - 0.48) * 7, p.y - Math.sin(angle - 0.48) * 7);
+          g.moveTo(p.x, p.y);
+          g.lineTo(p.x - Math.cos(angle + 0.48) * 7, p.y - Math.sin(angle + 0.48) * 7);
+          g.stroke();
+        }
+        g.beginPath(); g.arc(p.x, p.y, selected ? 5.5 : 4, 0, Math.PI * 2);
+        g.fillStyle = selected ? "#56f0d0" : "#8bb8d0"; g.fill();
+        g.strokeStyle = selected ? "#e1fff8" : "#b7d5e5"; g.lineWidth = 1; g.stroke();
+        galaxyMapPoints.push({ sector: target, x: p.x, y: p.y });
+      });
+      if (galaxyCurrentPoint) {
+        // Keep CURRENT visible above adjacent target markers in overview mode.
+        g.beginPath(); g.arc(galaxyCurrentPoint.x, galaxyCurrentPoint.y, zoom >= 4 ? 5.4 : 6.2, 0, Math.PI * 2);
+        g.fillStyle = "#f4fbff"; g.fill();
+        g.strokeStyle = "#56f0d0"; g.lineWidth = 2; g.stroke();
+        g.fillStyle = "#f4fbff"; g.font = "700 9px system-ui,sans-serif";
+        g.textAlign = galaxyCurrentPoint.x > left + side * 0.72 ? "right" : "left";
+        g.textBaseline = "top";
+        g.fillText("YOU · " + String(current.name || current.id || "CURRENT").slice(0, 20),
+          galaxyCurrentPoint.x + (galaxyCurrentPoint.x > left + side * 0.72 ? -7 : 7), galaxyCurrentPoint.y + 7);
+      }
+      g.restore();
+
+      if (galaxyMapZoomLevel) galaxyMapZoomLevel.textContent = zoom === 1 ? "ОБЗОР 1×" : "ОКРЕСТНОСТЬ " + zoom + "×";
+      if (galaxyMapZoomOut) galaxyMapZoomOut.disabled = zoom === GALAXY_MAP_ZOOM_LEVELS[0];
+      if (galaxyMapZoomIn) galaxyMapZoomIn.disabled = zoom === GALAXY_MAP_ZOOM_LEVELS[GALAXY_MAP_ZOOM_LEVELS.length - 1];
+      g.fillStyle = "rgba(190,211,225,0.9)";
+      g.font = "9px ui-monospace,Consolas,monospace";
+      g.textAlign = "left"; g.textBaseline = "top";
+      g.fillText(zoom === 1 ? "SAGE XY · −50 … +50" : "SAGE XY · " + zoom + "× · CENTER " + centerX + "," + centerY, 8, 8);
+      const statusText = knownSectorCount
+        ? knownSectorCount.toLocaleString() + " СЕКТОРОВ В АДАПТЕРЕ"
+        : "ПОЛНЫЕ ТОЧКИ СЕКТОРОВ НЕ ДОСТУПНЫ · ЗВЁЗДЫ И CSS — ОРИЕНТИРЫ";
+      if (galaxyMapStatus) {
+        galaxyMapStatus.textContent = nav && nav.live
+          ? statusText
+          : "ЛОКАЛЬНЫЙ ТЕСТ · ONI CSS / NEUNO · КООРДИНАТЫ −50…50";
+      }
+      renderSectorLocations(state.target || current);
+    }
+
+    function setGalaxyMapZoom(direction) {
+      const index = GALAXY_MAP_ZOOM_LEVELS.indexOf(galaxyMapZoom);
+      const nextIndex = direction === "reset" ? 0 : Math.max(0, Math.min(
+        GALAXY_MAP_ZOOM_LEVELS.length - 1,
+        index + (direction === "in" ? 1 : -1)
+      ));
+      galaxyMapZoom = GALAXY_MAP_ZOOM_LEVELS[nextIndex];
+      renderGalaxyMap();
+    }
+    galaxyMapZoomOut?.addEventListener("click", () => setGalaxyMapZoom("out"));
+    galaxyMapZoomReset?.addEventListener("click", () => setGalaxyMapZoom("reset"));
+    galaxyMapZoomIn?.addEventListener("click", () => setGalaxyMapZoom("in"));
+
+    galaxyMap?.addEventListener("click", (event) => {
+      const rect = galaxyMap.getBoundingClientRect();
+      const x = event.clientX - rect.left, y = event.clientY - rect.top;
+      let nearest = null, best = Infinity;
+      galaxyMapPoints.forEach((p) => {
+        const d = Math.hypot(p.x - x, p.y - y);
+        if (d < best) { best = d; nearest = p; }
+      });
+      const currentDistance = galaxyCurrentPoint
+        ? Math.hypot(galaxyCurrentPoint.x - x, galaxyCurrentPoint.y - y)
+        : Infinity;
+      // Adjacent dots overlap at overview scale. Zoom in or use the sector list
+      // rather than accidentally selecting a hidden neighbor under CURRENT.
+      const targetCanBePicked = galaxyMapZoom >= 4 || currentDistance > 9;
+      if (nearest && best <= 15 && targetCanBePicked) selectTarget(nearest.sector);
+      else galaxyMap.focus({ preventScroll: true });
+    });
+    galaxyMap?.addEventListener("keydown", (event) => {
+      if ((event.code === "Enter" || event.code === "Space") && state.target) {
+        event.preventDefault();
+        startButton.focus({ preventScroll: true });
+      }
+    });
+
     function selectTarget(sector) {
       state.target = sector;
       listElement.querySelectorAll(".bcm-warp-sector").forEach((button) => {
@@ -960,6 +1334,32 @@
       });
       selectedElement.textContent = "DESTINATION · " + sectorText(sector);
       startButton.disabled = false;
+      renderGalaxyMap();
+    }
+
+    function visibleMapChoices() {
+      return [...mapView.querySelectorAll("button:not([disabled]), input:not([disabled]), select:not([disabled])")].filter((node) => {
+        if (node.closest("[hidden]")) return false;
+        const rect = node.getBoundingClientRect();
+        const style = window.getComputedStyle(node);
+        return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+      });
+    }
+
+    function focusMapChoice(step) {
+      const choices = visibleMapChoices();
+      if (!choices.length) { overlay.focus({ preventScroll: true }); return; }
+      let index = choices.indexOf(document.activeElement);
+      if (index < 0) index = 0;
+      else if (step) index = (index + step + choices.length) % choices.length;
+      choices[index].focus({ preventScroll: true });
+      if (choices[index].scrollIntoView) choices[index].scrollIntoView({ block: "nearest" });
+    }
+
+    function focusInitialMapChoice() {
+      const first = listElement.querySelector(".bcm-warp-sector") || manualForm.elements.x || closeButton;
+      if (first && typeof first.focus === "function") first.focus({ preventScroll: true });
+      else overlay.focus({ preventScroll: true });
     }
 
     function openMap() {
@@ -972,6 +1372,8 @@
       }
       pauseLevelOst();
       startWarpAudio(true);
+      if (engine.releaseFlightPointerLock) engine.releaseFlightPointerLock();
+      if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
       state.nav = readNavigation();
       state.target = null;
       state.mode = "map";
@@ -983,7 +1385,6 @@
       state.returnPosition = null;
       state.returnQuaternion = null;
       engine.pauseForWarp(true);
-      if (document.exitPointerLock) document.exitPointerLock();
       currentElement.textContent = "CURRENT · " + sectorText(state.nav.current);
       sourceElement.textContent = state.nav.label;
       sourceElement.classList.toggle("is-preview", !state.nav.live);
@@ -992,6 +1393,7 @@
         : "Стартовая точка ONI CSS · NEUNO: X -40, Y 30. Соседние клетки сгенерированы только для теста. Warp/Tube/лабиринт не меняют состояние Star Atlas.";
       listSectorTargets();
       renderSectorGrid();
+      renderGalaxyMap();
       selectedElement.textContent = "DESTINATION NOT SELECTED";
       startButton.disabled = true;
       mapView.hidden = false;
@@ -1001,7 +1403,10 @@
       overlay.hidden = false;
       root.classList.add("bcm-warp-open");
       launchButton.classList.add("is-active");
+      overlay.style.pointerEvents = "auto";
       resizeBackdrop();
+      renderGalaxyMap();
+      focusInitialMapChoice();
       startBackdropLoop();
     }
 
@@ -1106,9 +1511,9 @@
       const runNonce = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
       const rng = randomFrom(hashSeed(state.nav.current.id + ">" + state.target.id + ":" + state.target.x + ":" + state.target.y + ":" + runNonce));
       state.layers = [];
-      const gateCount = 22;
+      const courseLayerCount = 22;
       let previousSafeAngle = null;
-      for (let i = 0; i < gateCount; i += 1) {
+      for (let i = 0; i < courseLayerCount; i += 1) {
         const typeRoll = rng();
         const type = typeRoll < 0.34 ? "gate"
           : typeRoll < 0.55 ? "sweeper"
@@ -1130,12 +1535,12 @@
           }
           blockedAngles.push(Math.atan2(Math.sin(angle), Math.cos(angle)));
         }
-        const progress = 0.08 + (i / Math.max(1, gateCount - 1)) * 0.86 + (rng() - 0.5) * 0.006;
+        const progress = 0.08 + (i / Math.max(1, courseLayerCount - 1)) * 0.86 + (rng() - 0.5) * 0.006;
         state.layers.push({
           progress,
           type,
           safeAngle,
-          gapHalf: type === "gate" ? 0.76 : 0.86,
+          gapHalf: type === "gate" ? 0.94 : 0.86,
           blockedAngles,
           sweepAngle: rng() * Math.PI * 2 - Math.PI,
           sweepSpeed: (rng() < 0.5 ? -1 : 1) * (0.55 + rng() * 0.38),
@@ -2079,16 +2484,16 @@
       const en = window.BCMDialogue?.language === "en";
       const copy = en ? {
         landing: "LANDING", bosses: "BOSSES", back: "Return to ship", canvas: "Large arena progress",
-        jump: "JUMP", action: "ACTION", laser: "LASER", dash: "DASH",
-        title: "Seeded 3D asteroid cells",
-        description: "This is the same asteroid you just landed on. Each room wears that cell's wall texture. The open door leads to the Hydrogen crystals, then back to the landing. Jump or the action button changes floors. A boss sometimes guards one passage; the pig arena is optional.",
-        controls: "P1: ← → / A D · jump: Space / W · down: S+Space · route: E · fire: Q\nP2: J L · jump: P · down: I+P · route: O · fire: K · dash: U"
+        jump: "JUMP", action: "E · DOOR", floor: "R · FLOOR", laser: "LASER", dash: "DASH",
+        title: "Seeded asteroid cells",
+        description: "This is the same asteroid you just landed on. E follows the marked open door; R / LB changes floor at a glowing hatch. Space / W only jumps. A boss may guard a passage; the pig arena is optional.",
+        controls: "P1: A/D or ←/→ move · Space/W jump · E door · R floor · Q fire · Shift/C dash\nP2: J/L move · P jump · O door · I floor · K fire · U dash\nGamepad: stick move · A jump · X door · LB floor · Y fire · B dash"
       } : {
         landing: "ВЫСАДКА", bosses: "БОССЫ", back: "В корабль", canvas: "Прогресс по аренам",
-        jump: "ПРЫЖОК", action: "ПУТЬ", laser: "ЛАЗЕР", dash: "РЫВОК",
+        jump: "ПРЫЖОК", action: "E · ДВЕРЬ", floor: "R · ЭТАЖ", laser: "ЛАЗЕР", dash: "РЫВОК",
         title: "Высадка на этот астероид",
-        description: "Это тот же астероид и те же текстуры клеток. Открытая дверь ведёт к кристаллам Hydrogen, потом назад к месту высадки. Прыжок или кнопка пути — другой этаж. Иногда проход стережёт босс. Арена со свиньями не обязательна.",
-        controls: "P1: ← → / A D · прыжок: Space / W · вниз: S+Space · путь: E · лазер: Q\nP2: J L · прыжок: P · вниз: I+P · путь: O · лазер: K · рывок: U"
+        description: "Это тот же астероид и те же текстуры клеток. E — пройти через отмеченную открытую дверь; R / LB — перейти на другой этаж у светящегося люка. Space / W — только прыжок. Иногда проход охраняет противник; арена со свиньями необязательна.",
+        controls: "P1: A/D или ←/→ — бег · Space/W — прыжок · E — дверь · R — этаж · Q — лазер · Shift/C — рывок\nP2: J/L — бег · P — прыжок · O — дверь · I — этаж · K — лазер · U — рывок\nГеймпад: стик — бег · A — прыжок · X — дверь · LB — этаж · Y — лазер · B — рывок"
       };
       root2d.innerHTML =
         '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;pointer-events:none;z-index:3">' +
@@ -2107,7 +2512,7 @@
           '<div style="display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,42px);gap:4px;pointer-events:auto">' +
              '<span></span><button type="button" data-ring-action="jump" aria-label="' + copy.jump + '" style="grid-column:2;grid-row:1;min-height:42px">' + copy.jump + '</button><span></span>' +
              '<button type="button" data-ring-action="left" aria-label="' + (en ? "Left" : "Влево") + '" style="min-height:42px">◀</button><span style="display:block"></span><button type="button" data-ring-action="right" aria-label="' + (en ? "Right" : "Вправо") + '" style="min-height:42px">▶</button>' +
-             '<span></span><button type="button" data-ring-action="down" aria-label="' + (en ? "Lower layer with jump" : "Нижний уровень вместе с прыжком") + '" title="' + (en ? "Hold with jump" : "Зажми вместе с прыжком") + '" style="grid-column:2;grid-row:3;min-height:42px">▼</button><span></span>' +
+             '<button type="button" data-ring-action="floor" aria-label="' + copy.floor + '" title="' + (en ? "R / LB: change floor at a glowing hatch" : "R / LB: сменить этаж у светящегося люка") + '" style="grid-column:1 / span 3;grid-row:3;min-height:38px">' + copy.floor + '</button>' +
            '</div>' +
            '<div style="display:flex;gap:6px;align-items:flex-end;pointer-events:auto">' +
             '<button type="button" data-ring-action="activate" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.action + '</button>' +
@@ -2173,7 +2578,7 @@
       const weaponShots = [];
       let weaponShotIndex = 0;
       let masterOfferedThisRun = false;
-      const oneShotActions = new Set(["activate", "dash"]);
+      const oneShotActions = new Set(["activate", "dash", "floor"]);
       const worldSaved = {
         oldMazeVisible: maze.group ? maze.group.visible : true,
         oldShipVisible: runtime.ship.visual ? runtime.ship.visual.visible : true,
@@ -2852,11 +3257,21 @@
           const around = measure(false);
           return Number.isFinite(around) ? around : measure(true);
         }
+        const routeMission = window.BCMWorldMission || {};
+        const routeCrystals = (maze.crystals || []).filter((crystal) => crystal && crystal.cell).map((crystal) => {
+          const cell = { x: crystal.cell.x, y: crystal.cell.y, z: crystal.cell.z };
+          const id = String(maze.seed) + ":" + cell.x + "," + cell.y + "," + cell.z;
+          // Don't inherit a 3D pickup made before the Hydrogen mission unlocked.
+          return { id, cell, taken: !!routeMission.hydrogenCollectedIds?.[id], scouted: false };
+        });
         function objectiveNode(fromNode) {
-          const pending = (maze.crystals || []).map((crystal) => {
-            if (!crystal || crystal.taken || !crystal.cell) return null;
-            return nodes.get(keyOf(crystal.cell.x, crystal.cell.y, crystal.cell.z)) || null;
-          }).filter(Boolean);
+          const mission = window.BCMWorldMission || {};
+          const hydrogenRouteActive = !!mission.hydrogenUnlocked &&
+            Number(mission.hydrogenCount || 0) < 3 && routeCrystals.length > 0;
+          const pending = hydrogenRouteActive
+            ? routeCrystals.filter((crystal) => !crystal.taken).map((crystal) =>
+              nodes.get(keyOf(crystal.cell.x, crystal.cell.y, crystal.cell.z)) || null).filter(Boolean)
+            : [];
           let best = null;
           let bestDist = Infinity;
           pending.forEach((goal) => {
@@ -2864,6 +3279,14 @@
             if (dist < bestDist) { best = goal; bestDist = dist; }
           });
           if (best) return best;
+
+          // With no active Hydrogen-shard route, guide the pilot through the large
+          // connected area before returning home. Otherwise a two-cell backtrack
+          // incorrectly looked like a completed Ring run and closed the level.
+          const visitedLarge = !!world.cellPath?.visitedLarge;
+          const large = [...nodes.values()].find((candidate) => candidate.large);
+          if (!hydrogenRouteActive && !visitedLarge && large && large !== fromNode) return large;
+
           const home = maze.startCell
             ? nodes.get(keyOf(maze.startCell.x, maze.startCell.y, maze.startCell.z))
             : null;
@@ -2995,7 +3418,7 @@
           scouted: false
         };
         world.cellPath = {
-          nodes, neighbor, opposite, keyOf, nextDirectionTowardLarge, nextDirectionToward, objectiveNode,
+          nodes, neighbor, opposite, keyOf, nextDirectionTowardLarge, nextDirectionToward, objectiveNode, routeCrystals,
           nx: maze.dimensions?.nx || 7,
           ny: maze.dimensions?.ny || 3,
           nz: maze.dimensions?.nz || 7,
@@ -3007,6 +3430,7 @@
           hydrogenPickupX: RING_CELL_HOME + 2.6,
           homeX: RING_CELL_HOME, half: ROOM_HALF,
           current: start, heading: firstOpen, previous: null, returnNode: null,
+          visitedLarge: !!start?.large, departed: false, pendingReturn: false,
           respawnMs: 240000, turnQueued: false
         };
         world.inLargeCell = false;
@@ -3093,12 +3517,12 @@
         }
         if (path.hydrogenMesh) {
           const mission = window.BCMWorldMission || {};
-          const crystalHere = (maze.crystals || []).some((crystal) =>
+          const hydrogenActive = !!mission.hydrogenUnlocked && Number(mission.hydrogenCount || 0) < 3;
+          const crystalHere = (path.routeCrystals || []).some((crystal) =>
             crystal && !crystal.taken && crystal.cell &&
             crystal.cell.x === node.x && crystal.cell.y === node.y && crystal.cell.z === node.z);
-          path.hydrogenMesh.visible = !node.large && (crystalHere ||
-            (!!mission.hydrogenUnlocked && !mission.hydrogenCollected &&
-              node === path.hydrogenNode));
+          path.hydrogenMesh.visible = hydrogenActive && !node.large && (crystalHere ||
+            (!(path.routeCrystals || []).length && node === path.hydrogenNode));
         }
         path.nodes.forEach((other) => {
           (other.mobs || []).forEach((mob) => {
@@ -3149,8 +3573,17 @@
           ? path.nodes.get(path.keyOf(maze.startCell.x, maze.startCell.y, maze.startCell.z))
           : null;
         if (home && node !== home) path.departed = true;
-        const pending = (maze.crystals || []).some((crystal) => crystal && !crystal.taken);
-        if (path.departed && home && node === home && !pending) path.pendingReturn = true;
+        const mission = window.BCMWorldMission || {};
+        const routeCrystals = path.routeCrystals || [];
+        const hydrogenRouteActive = !!mission.hydrogenUnlocked &&
+          Number(mission.hydrogenCount || 0) < 3 && routeCrystals.length > 0;
+        const pending = hydrogenRouteActive && routeCrystals.some((crystal) => crystal && !crystal.taken);
+        const objectiveReached = hydrogenRouteActive
+          ? routeCrystals.every((crystal) => crystal && crystal.taken)
+          : !!path.visitedLarge;
+        // A home revisit is not a win by itself: only finish after collecting the
+        // active route's crystals, or after the no-Hydrogen route visited the large area.
+        if (path.departed && home && node === home && objectiveReached && !pending) path.pendingReturn = true;
       }
 
       function enterRingCell(world, node, fromSide, player) {
@@ -3159,6 +3592,7 @@
         const previous = player ? (player.ringCurrent || path.current) : path.current;
         path.previous = previous;
         path.current = node;
+        if (node.large) path.visitedLarge = true;
         if (player) {
           player.ringPrevious = previous;
           player.ringCurrent = node;
@@ -3313,7 +3747,6 @@
           left: !!(keys.left || touch.left || pad.left),
           right: !!(keys.right || touch.right || pad.right),
           jump: !!(keys.jump || touch.jump || pad.jump),
-          down: !!(keys.down || touch.down || pad.down),
           fire: !!(keys.fire || touch.fire || pad.fire)
         };
       }
@@ -3366,7 +3799,10 @@
             statusEl.textContent = en
               ? "ASTEROID CELL · JUMP OR E AT THE GLOW · OTHER FLOOR"
               : "ЯЧЕЙКА АСТЕРОИДА · ПРЫЖОК ИЛИ E У СВЕЧЕНИЯ · ДРУГОЙ ЭТАЖ";
-          } else if (!(maze.crystals || []).some((crystal) => crystal && !crystal.taken) && worldState.cellPath.departed) {
+          } else if (worldState.cellPath.departed &&
+              (!window.BCMWorldMission?.hydrogenUnlocked ||
+               Number(window.BCMWorldMission?.hydrogenCount || 0) >= 3 ||
+               !(worldState.cellPath.routeCrystals || []).some((crystal) => crystal && !crystal.taken))) {
             statusEl.textContent = en
               ? "CELL · OPEN DOOR LEADS BACK TO THE LANDING"
               : "ЯЧЕЙКА · ОТКРЫТАЯ ДВЕРЬ ВЕДЁТ К МЕСТУ ВЫСАДКИ";
@@ -3385,7 +3821,7 @@
         const path = worldState.cellPath;
         const mission = window.BCMWorldMission || {};
         const playerNode = player.ringCurrent || path?.current;
-        if (!path || !path.hydrogenMesh ||
+        if (!path || (path.routeCrystals || []).length || !path.hydrogenMesh ||
             !mission.hydrogenUnlocked || Number(mission.hydrogenCount || 0) >= 3 ||
             path.hydrogen.taken || playerNode !== path.hydrogenNode || playerNode?.large) return false;
         if (Math.abs(player.worldX - path.hydrogenPickupX) > 1.05 ||
@@ -3415,31 +3851,33 @@
         const path = worldState.cellPath;
         const node = player.ringCurrent || path?.current;
         if (!path || !node || node.large) return false;
-        const crystal = (maze.crystals || []).find((item) =>
+        const mission = window.BCMWorldMission || {};
+        if (!mission.hydrogenUnlocked || Number(mission.hydrogenCount || 0) >= 3) return false;
+        const crystal = (path.routeCrystals || []).find((item) =>
           item && !item.taken && item.cell &&
           item.cell.x === node.x && item.cell.y === node.y && item.cell.z === node.z);
         if (!crystal) return false;
         if (Math.abs(player.worldX - path.hydrogenPickupX) > 1.15) return false;
         crystal.taken = true;
         crystal.scouted = true;
-        if (crystal.mesh) crystal.mesh.visible = false;
         if (path.hydrogenMesh) path.hydrogenMesh.visible = false;
         publishAsteroidChart(maze);
-        const mission = window.BCMWorldMission || {};
-        if (mission.hydrogenUnlocked && Number(mission.hydrogenCount || 0) < 3) {
-          window.dispatchEvent(new CustomEvent("bcm:mission:hydrogen-shard-collected", {
-            detail: {
-              crystalId: String(maze.seed) + ":" + crystal.cell.x + "," + crystal.cell.y + "," + crystal.cell.z,
-              asteroidSeed: maze.seed,
-              cell: { x: crystal.cell.x, y: crystal.cell.y, z: crystal.cell.z },
-              type: "asteroid-crystal"
-            }
-          }));
-        }
-        const left = (maze.crystals || []).filter((item) => item && !item.taken).length;
-        updateHud(left
-          ? "HYDROGEN · ЕЩЁ " + left + " · ЯЧЕЙКА · ИДИ В ОТКРЫТУЮ ДВЕРЬ"
-          : "HYDROGEN СОБРАН · ВЕРНИСЬ К МЕСТУ ВЫСАДКИ");
+        window.dispatchEvent(new CustomEvent("bcm:mission:hydrogen-shard-collected", {
+          detail: {
+            crystalId: crystal.id,
+            asteroidSeed: maze.seed,
+            cell: { x: crystal.cell.x, y: crystal.cell.y, z: crystal.cell.z },
+            type: "asteroid-crystal"
+          }
+        }));
+        const count = Number(window.BCMWorldMission?.hydrogenCount || 0);
+        const left = (path.routeCrystals || []).filter((item) => item && !item.taken).length;
+        const en = window.BCMDialogue?.language === "en";
+        updateHud(count >= 3
+          ? (en ? "HYDROGEN 3/3 · RETURN TO THE LANDING CELL" : "HYDROGEN 3/3 · ВЕРНИСЬ К МЕСТУ ВЫСАДКИ")
+          : (en
+            ? "HYDROGEN " + count + "/3 · " + Math.max(0, 3 - count) + " LEFT · FOLLOW THE OPEN DOOR"
+            : "HYDROGEN " + count + "/3 · ОСТАЛОСЬ " + Math.max(0, 3 - count) + " · ИДИ В ОТКРЫТУЮ ДВЕРЬ"));
         faceAsteroidRoute(worldState, node, player);
         return true;
       }
@@ -3648,6 +4086,25 @@
         const player = players[index];
         if (!player || !gameStarted || done) return false;
         const now = performance.now();
+        if (action === "floor") {
+          const path = worldState.cellPath;
+          const node = player.ringCurrent || path?.current;
+          if (!path || !node || node.large) return false;
+          const routeStep = path.routeStep;
+          const preferred = player.ringFloorDirection ||
+            ((routeStep === "yp" || routeStep === "yn") ? routeStep : "yp");
+          const nextDir = [preferred, path.opposite[preferred]].find((dir) => path.neighbor(node, dir));
+          if (!nextDir) {
+            updateHud(window.BCMDialogue?.language === "en"
+              ? "NO FLOOR CONNECTION HERE · FIND A GLOWING HATCH"
+              : "ЗДЕСЬ НЕТ ПЕРЕХОДА МЕЖДУ ЭТАЖАМИ · ИЩИ СВЕТЯЩИЙСЯ ЛЮК");
+            return true;
+          }
+          const nextNode = path.neighbor(node, nextDir);
+          player.ringFloorDirection = path.opposite[nextDir] || "yp";
+          placeParty(enterRingCell(worldState, nextNode, null, player), player);
+          return true;
+        }
         if (action === "activate") {
           const path = worldState.cellPath;
           const node = player.ringCurrent || path?.current;
@@ -3713,9 +4170,9 @@
         }
         const p1 = {
           ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
-          Space: "jump", ArrowUp: "jump", KeyW: "jump", ArrowDown: "down", KeyS: "down"
+          Space: "jump", ArrowUp: "jump", KeyW: "jump"
         };
-        const p2 = { KeyJ: "left", KeyL: "right", KeyP: "jump", KeyI: "down" };
+        const p2 = { KeyJ: "left", KeyL: "right", KeyP: "jump" };
         let index = 0;
         if (event.code === "KeyQ" || (mode === "multi" && event.code === "KeyK")) {
           index = event.code === "KeyK" ? 1 : 0;
@@ -3730,10 +4187,18 @@
           if (action) index = 1;
         }
         const p1Activate = event.code === "KeyE";
+        const p1Floor = event.code === "KeyR";
         const p1Dash = event.code === "ShiftLeft" || event.code === "ShiftRight" || event.code === "KeyC";
         const p2Activate = event.code === "KeyO";
+        const p2Floor = event.code === "KeyI";
         const p2Dash = event.code === "KeyU";
-        if (mode === "multi" && (p2Activate || p2Dash)) index = 1;
+        if (mode === "multi" && (p2Activate || p2Floor || p2Dash)) index = 1;
+        if (p1Floor || p2Floor) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          if (down && !event.repeat) triggerAction(index, "floor");
+          return;
+        }
         if (p1Activate || p2Activate) {
           event.preventDefault();
           event.stopImmediatePropagation();
@@ -3772,13 +4237,14 @@
           statePad.left = !!(button(14) || axisX < -0.42);
           statePad.right = !!(button(15) || axisX > 0.42);
           statePad.jump = !!(button(0) || button(12) || axisY < -0.68);
-          statePad.down = !!(button(13) || axisY > 0.68);
           statePad.dash = !!button(1);
           statePad.activate = !!button(2);
           statePad.fire = !!button(3);
+          statePad.floor = !!button(4);
           if (statePad.activate && !previousPad[i].activate) triggerAction(i, "activate");
           if (statePad.dash && !previousPad[i].dash) triggerAction(i, "dash");
-          previousPad[i] = { activate: statePad.activate, dash: statePad.dash };
+          if (statePad.floor && !previousPad[i].floor) triggerAction(i, "floor");
+          previousPad[i] = { activate: statePad.activate, dash: statePad.dash, floor: statePad.floor };
         }
       }
 
@@ -3964,18 +4430,6 @@
           else if (astralMode === "flux") { gravity = 8.0 + Math.sin(now * 0.0018 + (astralNode.astralPhase || 0)) * 1.8; jumpVelocity = 8.8; }
           else if (astralMode === "dense") { gravity = 14.5; jumpVelocity = 10.2; }
           const jumpPressed = input.jump && !player.wasJumpDown && player.grounded;
-          if (jumpPressed && path && playerNode && !playerInLarge) {
-            const step = path.routeStep;
-            const verticalDirection = input.down ? "yn" : "yp";
-            const floorDir = (step === "yp" || step === "yn") ? step : verticalDirection;
-            const nearPad = (step === "yp" || step === "yn") || Math.abs(player.worldX - path.homeX) < 1.35;
-            const verticalNode = nearPad ? path.neighbor(playerNode, floorDir) : null;
-            if (verticalNode) {
-              player.wasJumpDown = true;
-              placeParty(enterRingCell(worldState, verticalNode, null, player), player);
-              continue;
-            }
-          }
           if (jumpPressed) { player.vy = jumpVelocity; player.grounded = false; player.supportPlatform = null; }
           player.wasJumpDown = input.jump;
           player.vy -= gravity * dt;
@@ -4626,13 +5080,14 @@
     // The visual/collision course accelerates as a single journey: 1x at launch,
     // smoothly reaching 8x by the final second without desynchronizing the gates.
     function warpSpeedMultiplier(elapsed) {
-      // Correct launch/finale profile: 1x at launch, accelerating to 8x.
-      return Math.pow(8, warpNormalizedTime(elapsed));
+      // Start at 1x, ramp sooner than the old 8x curve, and reach 12x at arrival.
+      const t = Math.pow(warpNormalizedTime(elapsed), 0.82);
+      return Math.pow(12, t);
     }
 
     function warpCourseProgress(elapsed) {
-      // Normalize the 1x..8x speed ramp to the complete 0..1 obstacle course.
-      return (warpSpeedMultiplier(elapsed) - 1) / 7;
+      // Visible hazard positions and collision timing share this accelerated 1x..12x curve.
+      return (warpSpeedMultiplier(elapsed) - 1) / 11;
     }
 
     function warpObstacleProgress(elapsed) {
@@ -4800,6 +5255,31 @@ return axialRoll + ahead * 0.12 +
         g.fillRect(0, 0, w, h);
       }
 
+      // Axial wall streaks make tunnel travel legible even when the background is sparse.
+      // Class II moves these streaks away from the ship; Class I/III bring them toward it.
+      // This is visual-only: collision windows and course progress keep their normal direction.
+      const flowDirection = visualClass === 2 ? -1 : 1;
+      const flowPhase = Number(state.tubeTravel || 0) * 0.018 * flowDirection;
+      for (let streak = 0; streak < 12; streak += 1) {
+        const phase = ((streak / 12 + flowPhase) % 1 + 1) % 1;
+        const d0 = 0.07 + phase * 0.82;
+        const d1 = Math.min(0.97, d0 + 0.045);
+        const theta = streak * Math.PI * 2 / 12;
+        const from = point(d0, theta, -1.9);
+        const to = point(d1, theta, -1.9);
+        g.beginPath();
+        g.moveTo(from.x, from.y);
+        g.lineTo(to.x, to.y);
+        g.strokeStyle = visualClass === 3
+          ? "rgba(207,165,255,0.68)"
+          : visualClass === 2
+            ? "rgba(149,232,242,0.62)"
+            : "rgba(137,245,255,0.74)";
+        g.lineWidth = visualClass === 2 ? 1.55 : 1.2;
+        g.lineCap = "round";
+        g.stroke();
+      }
+
       const routeProgress = warpObstacleProgress(state.elapsed);
       const obstacleDepth = (distance) => {
         // Keep only the next section of the course visible at once. The earlier
@@ -4911,20 +5391,30 @@ return axialRoll + ahead * 0.12 +
       const cx = w / 2, cy = h / 2;
       state.stars.forEach((star) => {
         if (state.mode === "tube") {
-          star.z += dt * (0.10 + star.size * 0.04);
-          if (star.z > 1) {
-            star.z = 0;
+          // Class II deliberately reverses the motion logic from Class I/III.
+          const reverseStreaks = activeWarpVisualClass() === 2;
+          star.z += dt * (0.10 + star.size * 0.04) * (reverseStreaks ? -1 : 1);
+          if ((!reverseStreaks && star.z > 1) || (reverseStreaks && star.z < 0)) {
+            star.z = reverseStreaks ? 1 : 0;
             star.x = Math.random();
             star.y = Math.random();
           }
           const sx = cx + (star.x - 0.5) * w * (0.12 + star.z * 1.55);
           const sy = cy + (star.y - 0.5) * h * (0.12 + star.z * 1.55);
           const length = 2 + star.z * 22;
-          ctx.strokeStyle = "rgba(222,240,255," + (0.25 + star.z * 0.65) + ")";
+          const tx = sx + (sx - cx) * length / Math.max(1, w);
+          const ty = sy + (sy - cy) * length / Math.max(1, h);
+          const streak = ctx.createLinearGradient(
+            reverseStreaks ? tx : sx, reverseStreaks ? ty : sy,
+            reverseStreaks ? sx : tx, reverseStreaks ? sy : ty
+          );
+          streak.addColorStop(0, "rgba(222,240,255,0.08)");
+          streak.addColorStop(1, "rgba(222,240,255," + (0.30 + star.z * 0.66) + ")");
+          ctx.strokeStyle = streak;
           ctx.lineWidth = star.size;
           ctx.beginPath();
           ctx.moveTo(sx, sy);
-          ctx.lineTo(sx + (sx - cx) * length / Math.max(1, w), sy + (sy - cy) * length / Math.max(1, h));
+          ctx.lineTo(tx, ty);
           ctx.stroke();
         } else {
           star.phase += dt * 0.1;
@@ -4934,42 +5424,9 @@ return axialRoll + ahead * 0.12 +
       });
 
       if (state.mode === "map") {
-        const nav = state.nav;
-        if (nav) {
-          const nodes = [nav.current].concat(nav.targets || []);
-          const maxDelta = Math.max(1, ...nodes.map((n) => Math.max(Math.abs((n.x == null ? 0 : n.x) - (nav.current.x || 0)), Math.abs((n.y == null ? 0 : n.y) - (nav.current.y || 0)))));
-          const reveal = Math.min(1, Math.max(0, (now - state.openedAt) / 650));
-          const easedReveal = reveal * reveal * (3 - 2 * reveal);
-          const scale = (Math.min(w, h) * 0.27 / maxDelta) * (0.20 + 0.80 * easedReveal);
-          const positions = nodes.map((node, index) => {
-            const angle = ((index - 1) / Math.max(1, nodes.length - 1)) * Math.PI * 2;
-            const dx = node.x == null ? (index === 0 ? 0 : Math.cos(angle) * 1.5) : node.x - (nav.current.x || 0);
-            const dy = node.y == null ? (index === 0 ? 0 : Math.sin(angle) * 1.5) : node.y - (nav.current.y || 0);
-            return { node, x: cx + dx * scale, y: cy - dy * scale };
-          });
-          ctx.strokeStyle = "rgba(100,169,201,.30)";
-          ctx.lineWidth = 1;
-          positions.slice(1).forEach((p) => {
-            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(p.x, p.y); ctx.stroke();
-          });
-          positions.forEach((p, i) => {
-            const isCurrent = i === 0;
-            const isSelected = state.target && state.target.id === p.node.id;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, isCurrent ? 7 : isSelected ? 6 : 3.5, 0, Math.PI * 2);
-            ctx.fillStyle = isCurrent ? "#f2f6ff" : isSelected ? "#56f0d0" : "#8bb8d0";
-            ctx.fill();
-            if (isCurrent || isSelected) {
-              ctx.beginPath();
-              ctx.arc(p.x, p.y, isCurrent ? 15 : 12, 0, Math.PI * 2);
-              ctx.strokeStyle = isCurrent ? "rgba(242,246,255,.55)" : "rgba(86,240,208,.55)";
-              ctx.stroke();
-            }
-          });
-          const pulse = 0.96 + Math.sin(now * 0.00045) * 0.035;
-          ctx.strokeStyle = "rgba(130,186,220,.10)";
-          ctx.beginPath(); ctx.arc(cx, cy, Math.min(w, h) * 0.40 * pulse, 0, Math.PI * 2); ctx.stroke();
-        }
+        // Sector navigation is rendered in the real X/Y coordinate canvas inside the menu.
+        // Keep this full-screen backdrop purely atmospheric so it cannot imply a second,
+        // radial or fabricated sector layout behind the actual map.
       } else if (state.mode === "tube" || state.mode === "result") {
         if (state.mode === "tube") updateTube(dt, now);
         drawTubeTunnel(ctx, w, h, now);
@@ -4985,13 +5442,13 @@ return axialRoll + ahead * 0.12 +
       const rollRates = [0.42, 0.82, 0.55, 1.12, 0.31, 0.72];
       const boosted = state.elapsed < Number(state.tubeBoostUntil || 0);
       const rampMultiplier = warpSpeedMultiplier(state.elapsed);
-      const speed = Math.max(1, Math.min(8,
+      const speed = Math.max(1, Math.min(12,
         tubeSectionBlend(speedBySection, state.elapsed).value * 1.25 *
         rampMultiplier * (boosted ? 1.4 : 1)
       ));
       // Give the tube geometry a modestly faster sense of forward movement,
       // while keeping its established material shimmer tempo independent.
-      state.tubeTravel += dt * speed * 1.12;
+      state.tubeTravel += dt * speed * 1.48;
       state.tubeShimmerTime = Number(state.tubeShimmerTime || 0) + dt * speed;
       state.tubeRoll = Number(state.tubeRoll || 0) + dt * tubeSectionBlend(rollRates, state.elapsed).value * 0.45;
       const routeProgress = warpObstacleProgress(state.elapsed);
@@ -5189,6 +5646,32 @@ return axialRoll + ahead * 0.12 +
 
       document.addEventListener("keydown", (event) => {
         if (overlay.hidden) return;
+        if (state.mode === "map") {
+          if (["ArrowDown", "ArrowRight"].includes(event.code)) {
+            event.preventDefault(); event.stopImmediatePropagation();
+            focusMapChoice(1);
+            return;
+          }
+          if (["ArrowUp", "ArrowLeft"].includes(event.code)) {
+            event.preventDefault(); event.stopImmediatePropagation();
+            focusMapChoice(-1);
+            return;
+          }
+          if (event.code === "Enter" || event.code === "Space") {
+            const active = document.activeElement;
+            if (active && active.closest && active.closest("[data-warp-manual]") && event.code === "Enter") return;
+            if (active && active.matches && active.matches("button:not([disabled])")) {
+              event.preventDefault(); event.stopImmediatePropagation();
+              active.click();
+              return;
+            }
+            if (active === galaxyMap && state.target) {
+              event.preventDefault(); event.stopImmediatePropagation();
+              startButton.focus({ preventScroll: true });
+              return;
+            }
+          }
+        }
         if (event.code === "Escape" || event.code === "Backspace") {
           if (state.mode !== "map") return;
           event.preventDefault(); event.stopImmediatePropagation();
@@ -5254,7 +5737,10 @@ return axialRoll + ahead * 0.12 +
     });
     bindWarpInput();
     window.addEventListener("resize", () => {
-      if (!overlay.hidden) resizeBackdrop();
+      if (!overlay.hidden) {
+        resizeBackdrop();
+        if (state.mode === "map") renderGalaxyMap();
+      }
     });
 
     // In the asteroid maze, keep the main game's requestAnimationFrame loop and WebGL context.

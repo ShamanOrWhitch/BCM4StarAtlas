@@ -1,5 +1,17 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
+## Candidate Mini-Sim 0.11.21 — user playtest stability
+
+- Work Lock [#84](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/84), draft PR [#85](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/85), branch `fix/minisim-0.11.21-playtest-stability`, base main `73ba0cc1f772d73155a093382fce051e1e2843ae`.
+- User confirmed Ring entry and external backside doors work on 0.11.19/0.11.20; Ring is improved but remains rough. Hydrogen count, Room 2 return, explicit floor interaction and Tower instructions remain active fixes. New Warp playtest direction: keep all 22 layers and the randomized obstacle mix, accelerate sooner to 12x, reverse Class II streak direction, and make menu cursor/keyboard/gamepad selection work without an Escape workaround.
+- Controls contract: Space/W only jumps; E follows the open door; R changes floor at a vertical hatch; gamepad A jumps, X uses the door, LB changes floor, Y fires and B dashes.
+- Warp course: restore the 22-layer randomized gate/sweeper/spikes/boost/launcher mix; do not cut layers to reduce repeated-looking visuals. Speed uses a shared collision/visual progress curve, accelerating sooner from 1x to 12x. Class II reverses streak motion. Warp map opens with pointer lock released and an initial focused choice; use arrows/Enter or gamepad navigation. Galaxy panel is a real X/Y coordinate plane (−50…50), using all valid sector positions if the live adapter supplies the full array, plus the checked-in 54 star references and MUD/ONI/Ustur CSS coordinates. The static snapshot records 8,177 sectors but not all 8,177 coordinates; when the adapter lacks them, mark the global point layer as partial rather than fabricating sectors. Highlight current and Warp-connected sectors and the selected direct route. A sector detail layer separates asteroid complexes, planets/Tower surface gameplay and visually distinct Deep Space mechanics; add specific local points only when known or received from sector metadata.
+- No WordPress upload. Network mode is deferred until local play and ship/reference identity are stable. Remote browser QA gets HTTP 403; don't bypass the firewall.
+- CI/source validation is pending; no live browser/device pass is claimed.
+
+---
+
+
 ## Mini-Sim 0.11.20 — landing clip, then the same asteroid on foot
 
 - The first Panda line is flight and screens. Screens turn on by flying up to them. The V / Warp button is only in the next line, after the screens have played. V is Warp, not a screen switch and not the hold.
@@ -260,3 +272,14 @@ This entry supersedes the older 0.11.3–0.11.5 candidate notes below; those sec
 ## PR and test tracking
 - Candidate PR: https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/60
 - Check source-contract tests and browser QA before merge; afterward test entry to Ring, each perpendicular/floor turn, crystal pickup, X fire, Back exit, mouse interaction in Hull Dive, and return to normal flight.
+
+
+## Текущая передача — Mini-Sim 0.11.21 / PR #85 (2026-10-27)
+
+Рабочая ветка `fix/minisim-0.11.21-playtest-stability`, PR [#85](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/85), всё ещё draft; `main` не затронут.
+
+- Карта: настоящая 2D SAGE XY-сетка; локальный 3×3 preview показывает все 8 направлений, включая диагонали. В live режиме переходы должны быть подтверждены адаптером; локальная тестовая сетка явно маркируется как test-only. Отдельно списки локальных механик объединяются из всех поддерживаемых массивов, а тест 4+4 сохраняет 8 записей.
+- Ring Maze: стартовый возврат после пары комнат не должен автоматически завершать уровень. Без активного Hydrogen-маршрута сначала цель — большая связанная зона; затем возврат в старт. При активном маршруте нужны собранные route crystals.
+- Class II Warp: направление движения стеновых полос обращено; не путать с движением препятствий и collision progress, которые остались в прежнем направлении.
+- Source CI на runtime/test head `08e1f27c0502561401b9840c327e37fb76b0fc91`: Warp visual tiers PASS, Warp maze return PASS и остальные профильные исходные проверки PASS. Browser QA был in progress при последнем чтении; live WP/device playtest не подтверждён.
+- Не трогать Galia Desk, scanner/pricing, firewall, planet placement, SAGE adapter или Tower physics. Не публиковать в `main` до отдельного пользовательского решения.

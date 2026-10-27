@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.20",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.21",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.20",
+      title: "SPACE LABYRINTH — 0.11.21",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -326,16 +326,24 @@
     const normalizedLevel = String(level || "").toLowerCase();
     const levelText = {
       ring: {
-        ru: {controlsKeyboard:"Ring: ← → или A/D — бег; Space — прыжок; E — цель; Q — лазер.",controlsTouch:"Ring: ◀ ▶ — бег, ПРЫЖОК — прыжок, ЛАЗЕР — выстрел, действие — цель.",controlsGamepad:"Ring: стик — бег; A — прыжок; X — цель; Y — оружие."},
-        en: {controlsKeyboard:"Ring: ← → or A/D move; Space jumps; E targets; Q fires.",controlsTouch:"Ring: ◀ ▶ move, JUMP jumps, FIRE shoots, action targets.",controlsGamepad:"Ring: stick moves; A jumps; X targets; Y fires."}
+        ru: {controlsKeyboard:"Ring: A/D или ←/→ — бег; Space/W — прыжок; E — дверь; R — этаж; Q — лазер; Shift/C — рывок.",controlsTouch:"Ring: ◀ ▶ — бег; ПРЫЖОК — прыжок; ЭТАЖ — сменить этаж; ДВЕРЬ — пройти; ЛАЗЕР — выстрел; РЫВОК — ускорение.",controlsGamepad:"Ring: стик — бег; A — прыжок; X — дверь; LB — этаж; Y — лазер; B — рывок."},
+        en: {controlsKeyboard:"Ring: A/D or ←/→ move; Space/W jumps; E uses the door; R changes floor; Q fires; Shift/C dashes.",controlsTouch:"Ring: ◀ ▶ move; JUMP jumps; FLOOR changes levels; DOOR enters; LASER fires; DASH dodges.",controlsGamepad:"Ring: stick moves; A jumps; X door; LB floor; Y fire; B dash."}
       },
       hull: {
         ru: {controlsKeyboard:"Кабина: мышь/палец — тащи Crew; удерживай воду для насоса, пробоину — для ремонта.",controlsTouch:"Кабина: тащи Crew; держи палец на воде для насоса и на шве для ремонта.",controlsGamepad:"Кабина: стик двигает Crew; A ремонт, B насос, LB/X — штурвал. V — Warp, не трюм."},
         en: {controlsKeyboard:"Cabin: drag Crew; hold on water to pump or on a seam to repair.",controlsTouch:"Cabin: drag Crew; hold on water to pump and on the seam to repair.",controlsGamepad:"Cabin: stick moves Crew; A repairs, B pumps, LB/X toggles helm. V is Warp, not the hold."}
       },
       tower: {
-        ru: {controlsKeyboard:"Tower: двигайся клавишами или стиком. Esc — выйти.",controlsTouch:"Tower: касайся направлений и прыжка. Esc — выйти.",controlsGamepad:"Tower: левый стик двигает, A — прыжок. Esc — выйти."},
-        en: {controlsKeyboard:"Tower: move with keys or stick. Esc exits.",controlsTouch:"Tower: use direction and jump buttons. Esc exits.",controlsGamepad:"Tower: left stick moves, A jumps. Esc exits."}
+        ru: {
+          controlsKeyboard:"Башня: A/D — движение по площадке; W/S — смещение; Space — прыжок; E — действие; R — новый спуск. Цель — добраться до низа. Падение на 5 пролётов вернёт в начало; Esc — выйти.",
+          controlsTouch:"Башня: наклон — поворот; кнопки направления — движение; ПРЫЖОК — джетпак. Цель — добраться до низа. Падение на 5 пролётов вернёт в начало.",
+          controlsGamepad:"Башня: левый стик — движение/смещение; A — прыжок; X — действие; Y — новый спуск. Цель — добраться до низа; падение на 5 пролётов возвращает в начало."
+        },
+        en: {
+          controlsKeyboard:"Tower: A/D move around the platform; W/S shift; Space jumps; E acts; R starts a new descent. Reach the bottom. Falling 5 landings returns to start; Esc exits.",
+          controlsTouch:"Tower: tilt rotates; direction buttons move; JUMP activates the jetpack. Reach the bottom. Falling 5 landings returns to start.",
+          controlsGamepad:"Tower: left stick moves/shifts; A jumps; X acts; Y starts a new descent. Reach the bottom; falling 5 landings returns to start."
+        }
       }
     };
 
@@ -4657,7 +4665,13 @@
         (Math.abs(before.x) <= 6.2 && Math.abs(before.y) <= 3.7) ||
         (Math.abs(ship.position.x) <= 6.2 && Math.abs(ship.position.y) <= 3.7);
       const crossedFront = shellCrossed(before.z, ship.position.z, frontOpeningZ);
-      if (crossedFront && inCorridorMouth) {
+      const frontDelta = ship.position.z - before.z;
+      const frontT = Math.abs(frontDelta) > 1e-9 ? (frontOpeningZ - before.z) / frontDelta : -1;
+      const frontX = before.x + (ship.position.x - before.x) * frontT;
+      const frontY = before.y + (ship.position.y - before.y) * frontT;
+      const centralFrontOpening = frontT >= 0 && frontT <= 1 &&
+        Math.abs(frontX) <= 5.85 && Math.abs(frontY) <= 3.45;
+      if (crossedFront && inCorridorMouth && !centralFrontOpening) {
         ship.position.z = before.z < frontOpeningZ
           ? frontOpeningZ - 0.06
           : frontOpeningZ + 0.06;
@@ -4777,7 +4791,10 @@
 
       // Front caps occupy only the corridor cross-section.
       const frontPoint = crossingPoint("z", room.frontZ);
-      if (pointOnCap(frontPoint, room)) {
+      const centralFrontOpening = !!frontPoint &&
+        Math.abs(frontPoint.x) <= room.xEdge - 0.15 &&
+        Math.abs(frontPoint.y) <= room.yEdge - 0.05;
+      if (pointOnCap(frontPoint, room) && !centralFrontOpening) {
         ship.position.z = before.z < room.frontZ ? room.frontZ - 0.06 : room.frontZ + 0.06;
         ship.velocity.z = 0;
         blocked = true;
@@ -4908,9 +4925,20 @@
         exteriorFlight = true;
       }
 
-      // Front opens only through the central return opening.
+      // Return through the central front opening into the black-hole volume.
+      // The unconditional clamp made the visible opening an invisible wall.
       if (!exteriorFlight && ship.position.z > -47.46) {
-        ship.position.z = -47.46;
+        const deltaZ = ship.position.z - before.z;
+        const crossingT = Math.abs(deltaZ) > 1e-9 ? (-47.46 - before.z) / deltaZ : -1;
+        const crossingX = before.x + (ship.position.x - before.x) * crossingT;
+        const crossingY = before.y + (ship.position.y - before.y) * crossingT;
+        const throughCentralReturn = crossingT >= 0 && crossingT <= 1 &&
+          Math.abs(crossingX) <= 5.85 && Math.abs(crossingY) <= 3.45;
+        if (throughCentralReturn) {
+          exteriorFlight = true;
+        } else {
+          ship.position.z = -47.46;
+        }
       }
     } else {
       // Outside both corridor footprints: free flight.
@@ -5298,9 +5326,17 @@
   function bind() {
     window.addEventListener("keydown", (e) => {
       // V is always Warp, even while the hold is open. Helm is X inside the hold.
-      if (e.code === "KeyV" && !document.getElementById("bcm-ring-platformer") && !document.getElementById("bcm-ring-transition")) {
+      if (e.code === "KeyV" && !root.classList.contains("bcm-warp-open") &&
+          !document.getElementById("bcm-ring-platformer") && !document.getElementById("bcm-ring-transition")) {
         e.preventDefault();
         if (typeof window.BCMDeepSpaceWarpToggle === "function") window.BCMDeepSpaceWarpToggle();
+        return;
+      }
+      // Warp owns keyboard focus while its destination map is open. The Warp
+      // module's capture-phase handler gets navigation keys first; flight keys
+      // must not reopen Warp or alter the ship underneath the map.
+      if (root.classList.contains("bcm-warp-open")) {
+        if (e.code !== "Escape") e.preventDefault();
         return;
       }
       // Hull Dive owns keyboard input while its overlay is open. Do not let
@@ -5331,7 +5367,7 @@
       }
       if (settings.open) return;
       const flightCodes = { KeyW: 1, KeyA: 1, KeyS: 1, KeyD: 1, KeyQ: 1, KeyE: 1, KeyC: 1, Space: 1 };
-      if (flightCodes[e.code] && running && !pointerLocked && !("ontouchstart" in window) && !(navigator.maxTouchPoints > 0)) {
+      if (flightCodes[e.code] && running && !root.classList.contains("bcm-warp-open") && !pointerLocked && !("ontouchstart" in window) && !(navigator.maxTouchPoints > 0)) {
         if (canvas.requestPointerLock) canvas.requestPointerLock();
       }
       keys[e.code] = true;
@@ -5360,7 +5396,8 @@
     });
     updateControlHelp();
     canvas.addEventListener("click", () => {
-      if (running && canvas.requestPointerLock && !("ontouchstart" in window)) canvas.requestPointerLock();
+      if (running && !root.classList.contains("bcm-warp-open") &&
+          canvas.requestPointerLock && !("ontouchstart" in window)) canvas.requestPointerLock();
     });
     document.addEventListener("pointerlockchange", () => {
       pointerLocked = document.pointerLockElement === canvas;
@@ -5525,8 +5562,9 @@
     };
     window.BCMiniSimAPI.getRuntime = () => ({ renderer, scene, camera, ship, THREE: window.THREE, root, running });
     window.BCMiniSimAPI.requestFlightPointerLock = () => {
-      if (!running || settings.open || !canvas || !canvas.requestPointerLock ||
-          ("ontouchstart" in window) || navigator.maxTouchPoints > 0) return false;
+      if (!running || settings.open || root.classList.contains("bcm-warp-open") ||
+          !canvas || !canvas.requestPointerLock || ("ontouchstart" in window) ||
+          navigator.maxTouchPoints > 0) return false;
       if (document.pointerLockElement === canvas) return true;
       try {
         const request = canvas.requestPointerLock();

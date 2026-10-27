@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.66";
+  const TOWER_VERSION = "0.2.67";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -2990,7 +2990,19 @@
       ShiftRight: [1, "interact"]
     };
 
+    function towerInputSuppressed() {
+      return !!root.hidden || !!root.closest("[hidden]") ||
+        !!document.getElementById("bcm-hull-dive") ||
+        !!document.getElementById("bcm-ring-platformer") ||
+        !!document.getElementById("bcm-ring-transition");
+    }
+
     window.addEventListener("keydown", (event) => {
+      if (towerInputSuppressed()) {
+        clearControls(0);
+        clearControls(1);
+        return;
+      }
       if (event.code === "Escape") {
         clearControls(0);
         clearControls(1);
@@ -3024,6 +3036,11 @@
     });
 
     window.addEventListener("keyup", (event) => {
+      if (towerInputSuppressed()) {
+        clearControls(0);
+        clearControls(1);
+        return;
+      }
       const mapped = keyMap[event.code];
       if (!mapped) return;
       const [index, action] = mapped;
