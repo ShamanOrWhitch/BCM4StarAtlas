@@ -245,9 +245,20 @@ Handoff / close reason:
 
 
 
-## Активный WORK LOCK status — PR #85 / 2026-10-27
+## Завершённый WORK LOCK — PR #85 / 2026-10-27
 
-- Ветка: `fix/minisim-0.11.21-playtest-stability`; цель — Ring Maze early exit, обратный поток Class II, все 8 направлений карты и объединение массивов локаций.
-- Изменение runtime ограничено `mini-sim/assets/js/deep-space-warp.js`; добавлены contracts в `scripts/warp-maze-return.test.mjs` и `scripts/warp-visual-tiers.test.mjs`. Не менять `main`, WordPress, Galia Desk/scanner/pricing, firewall, planet placement, SAGE adapter или Tower physics.
-- На code/test head `08e1f27c0502561401b9840c327e37fb76b0fc91` Warp visual tiers и Warp maze return CI PASS. Следом добавлен регрессионный тест всех восьми направлений; новый workflow проверяется. Browser QA run `40487872716` завершился HTTP 403 (`.bcm-mini-sim` отсутствует из-за недоступной страницы); повторный run на документном HEAD ещё выполняется.
-- Завершение работы различать по статусам: код изменён; source CI; browser smoke; live WordPress/device. Исторический HTTP 403 не обходить.
+- **Статус:** PR [#85](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/85) merged в main; commit [fa88cb0](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/fa88cb0ae06ab0d534994cc3df6420075db902e9).
+- **Сделано:** Ring Maze objective guard; обратный поток Warp Class II; 22 препятствия и разгон до 12×; выбор Warp без Escape; координатная SAGE карта с 8 направлениями локального preview; merge/dedup адаптерных локальных массивов. Tower physics и Galia Desk/scanner/pricing не менялись.
+- **Source CI:** 9/9 workflow PASS на PR code head [4e4841a](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/4e4841a912377856a274eb089e9965e7e6c79996).
+- **Browser QA:** [run 40488604679](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40488604679) — BLOCKED-ENVIRONMENT, HTTP 403 до .bcm-mini-sim. Не блокирует завершение исходников, но и не подтверждает визуальную проверку. Firewall не обходить.
+- **Граница карты:** отсутствующие координаты/связи не выдумывать. Число 8,177 не является полным списком координат; дальнейшее полное покрытие зависит от навигационного адаптера.
+- **Not VERIFIED-LIVE:** WordPress этим merge не обновлён; нет подтверждения production-браузера или физического устройства.
+
+## Протокол отсечения ложных путей
+
+1. До теста определить, какой факт он должен подтвердить и что считается достаточным результатом.
+2. После детерминированного HTTP 403 на одном URL классифицировать путь как BLOCKED-ENVIRONMENT и не повторять его без изменения доступа или тестового маршрута.
+3. После 404 один раз сверить repository owner/name, branch и path; исправить установленную опечатку и продолжить. Не делать вывод о недоступности репозитория по неправильному адресу.
+4. При timeout записать TIMEOUT и перейти к независимой проверке. Не ждать агента-рецензента сверх рабочего лимита; результат отмечать SKIPPED/TIMEOUT, а не PASS.
+5. Не передавать работу в новый чат как стандартный обход ограничений. Перед handoff фиксировать фактические изменения, проверенные факты и единственный следующий шаг.
+6. Разделять IMPLEMENTED, TESTED-CODE, BLOCKED-ENVIRONMENT, VERIFIED-LIVE и USER-CONFIRMED. Source CI не доказывает WordPress deployment или проверку на устройстве.
