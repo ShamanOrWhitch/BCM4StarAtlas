@@ -1,11 +1,10 @@
-## Current follow-up — Warp reverse flow + Tower P2 jump (27 October 2026)
+## Merged follow-up — Warp reverse flow + Tower P2 jump (27 October 2026)
 
-- Active branch `fix/minisim-warp-flow-p2-right-ctrl-20261027`; draft [PR #88](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/88); code head [`196dddb`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/196dddb345ba04a53b2d3e3ef24689b2744d1953). No merge/deploy.
-- Do not re-add axial streaks. The 14 circumferential wall bands are brighter and move faster along the tunnel; Class II uses the reversed phase to travel away from the ship. The 12 longitudinal surface seams remain. Warp hazards, course/collision math, speed ramp and steering are unchanged.
-- Tower keyboard P2: arrows move, Right Ctrl jumps, Right Shift acts. P2 X-jump removed; physics unchanged.
-- Existing 2D SAGE XY Galaxy map from PR #85 remains in main; no fake coordinates or second map.
-- CI at code head: Warp route, Mini-Sim regression, Ring controls and UI/weapons/cabin passed; Warp visual, Tower top-cap, portal and UI-layer checks were pending at last poll. Browser QA still hadn't reached the game; no live visual validation is claimed. Check Actions on PR #88 for latest.
-- Next action: after all source checks complete, manually test Class II flow on the actual updated site and P2 Right Ctrl in Tower. Do not deploy automatically or bypass HTTP 403/firewall protection.
+- PR [#88](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/88) merged into main as [`dee7ae399c3023dd3f3861e3414f185ee5550e67`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/dee7ae399c3023dd3f3861e3414f185ee5550e67). Original code commit: [`196dddb`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/196dddb345ba04a53b2d3e3ef24689b2744d1953).
+- Warp keeps 12 longitudinal surface seams and **does not** re-add axial streaks. The 14 circumferential bands have stronger contrast and a faster depth phase. Class II recedes away from the ship; Classes I/III approach the ship.
+- Tower P2 keyboard: arrows move, Right Ctrl jumps, Right Shift acts. X jump removed; physics unchanged.
+- Existing coordinate-based SAGE XY map from PR #85 is preserved.
+- All 8 source/regression checks passed on [`2b71e3b`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/2b71e3b601a12477aa8dd4a6ed0a29149d3b2838). Browser smoke [40575342708](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40575342708) failed; no live visual/device verification and no WordPress deployment are claimed. Issue #70 remains open awaiting in-game confirmation after deploy.
 
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
