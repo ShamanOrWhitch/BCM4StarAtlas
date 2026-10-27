@@ -1687,6 +1687,50 @@
   pointer-events: auto;
   touch-action: manipulation;
 }
+
+.bcm-mini-sim .bcm-warp-galaxy-map-tools {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 7px;
+}
+.bcm-mini-sim .bcm-warp-galaxy-map-tools button {
+  min-width: 36px;
+  min-height: 32px;
+  padding: 5px 9px;
+  border: 1px solid rgba(123, 198, 218, .38);
+  border-radius: 3px;
+  background: rgba(12, 31, 44, .92);
+  color: #d8f2fa;
+  font: 700 10px/1.2 "IBM Plex Mono", Consolas, monospace;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.bcm-mini-sim .bcm-warp-galaxy-map-tools button:focus-visible {
+  outline: 2px solid #74e8ed;
+  outline-offset: 2px;
+}
+.bcm-mini-sim .bcm-warp-galaxy-map-tools button:disabled {
+  opacity: .38;
+  cursor: default;
+}
+.bcm-mini-sim .bcm-warp-galaxy-map-tools [data-warp-map-zoom-level] {
+  min-width: 112px;
+  color: #91bdcb;
+  text-align: center;
+  font: 600 9px/1.2 "IBM Plex Mono", Consolas, monospace;
+}
+.bcm-mini-sim .bcm-warp-galaxy-legend .is-css {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border: 1px solid #f3f6f9;
+  border-radius: 50%;
+  background: #e6c15a;
+}
+
 .bcm-mini-sim .bcm-warp-local-area {
   margin-top: 8px;
   padding-top: 8px;
