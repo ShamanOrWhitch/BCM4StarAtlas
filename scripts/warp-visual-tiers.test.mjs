@@ -142,6 +142,21 @@ test("Warp draws a real 2D SAGE coordinate plane and a separate sector-location 
   assert.match(css, /data-warp-map-zoom-level/);
 });
 
+test("Warp navigation preview exposes all eight adjacent SAGE XY sectors", () => {
+  const start = warp.indexOf("const SAGE_SECTOR_NEIGHBOR_OFFSETS = [");
+  const end = warp.indexOf("];", start);
+  assert.ok(start >= 0 && end > start, "shared eight-way neighbor offsets should exist");
+  const offsets = new Function("return " + warp.slice(start + "const SAGE_SECTOR_NEIGHBOR_OFFSETS = ".length, end + 1))();
+  assert.equal(offsets.length, 8);
+  assert.equal(new Set(offsets.map(([x, y]) => x + "," + y)).size, 8);
+  assert.ok(offsets.some(([x, y]) => x !== 0 && y !== 0), "diagonal sectors must be included");
+  assert.ok(offsets.every(([x, y]) => Math.abs(x) <= 1 && Math.abs(y) <= 1 && (x !== 0 || y !== 0)));
+  const navigation = section(warp, "function readNavigation()", "function navigationAfterArrival(sector)");
+  assert.match(navigation, /targets: SAGE_SECTOR_NEIGHBOR_OFFSETS\.map/);
+  const arrival = section(warp, "function navigationAfterArrival(sector)", "function sectorText(sector)");
+  assert.match(arrival, /return SAGE_SECTOR_NEIGHBOR_OFFSETS\.map/);
+});
+
 test("Galaxy local map combines all supplied mechanics arrays instead of stopping at the first", () => {
   const local = section(warp, "function renderSectorLocations(sector)", "function renderGalaxyMap()");
   assert.match(local, /const provided = locationKeys\.flatMap\(\(key\) => Array\.isArray\(raw\[key\]\) \? raw\[key\] : \[\]\)/);
