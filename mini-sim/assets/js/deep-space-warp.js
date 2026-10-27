@@ -741,6 +741,14 @@
       };
     }
 
+    // SAGE XY navigation is eight-way: the four diagonal neighbors are valid sectors too.
+    // Keep this preview offset list aligned with the visible 3×3 sector grid.
+    const SAGE_SECTOR_NEIGHBOR_OFFSETS = [
+      [-1, 1], [0, 1], [1, 1],
+      [-1, 0],          [1, 0],
+      [-1, -1], [0, -1], [1, -1]
+    ];
+
     function readNavigation() {
       // After a local sector arrival, keep that session's current sector when
       // the player closes and reopens the Warp menu. The global adapter often
@@ -781,12 +789,12 @@
       }
 
       // The prototype starts at the known ONI CSS position on the NEUNO sector grid.
-      // Only the four adjacent cells are generated locally; no galaxy-wide coordinates are loaded.
+      // Show all eight adjacent XY cells in the 3×3 preview, not just cardinal directions;
+      // preview cells remain explicitly test-only until the live adapter supplies real links.
       const current = { id: "oni-css-neuno--40-30", name: "ONI CSS · NEUNO", x: -40, y: 30, raw: null };
-      const offsets = [[-1, 0], [1, 0], [0, -1], [0, 1]];
       return {
         current,
-        targets: offsets.map((pair) => {
+        targets: SAGE_SECTOR_NEIGHBOR_OFFSETS.map((pair) => {
           const x = current.x + pair[0];
           const y = current.y + pair[1];
           return {
@@ -813,7 +821,7 @@
 
       const makeLocalTargets = (origin) => {
         if (!origin || origin.x == null || origin.y == null) return [];
-        return [[-1, 0], [1, 0], [0, -1], [0, 1]].map((offset) => {
+        return SAGE_SECTOR_NEIGHBOR_OFFSETS.map((offset) => {
           const x = Number(origin.x) + offset[0];
           const y = Number(origin.y) + offset[1];
           return {
