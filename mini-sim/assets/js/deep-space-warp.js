@@ -1003,10 +1003,10 @@
         "gameLocations", "game_locations", "localLocations", "local_locations",
         "locations", "pointsOfInterest", "points_of_interest", "activities", "mechanics"
       ];
-      let provided = [];
-      for (const key of locationKeys) {
-        if (Array.isArray(raw[key])) { provided = raw[key]; break; }
-      }
+      // Some adapters split local POIs, mechanics and activities across separate arrays.
+      // Merge every available list instead of silently discarding everything after the first.
+      const provided = locationKeys.flatMap((key) => Array.isArray(raw[key]) ? raw[key] : []);
+      const seenProvidedLocations = new Set();
       const locations = provided.map((item, index) => {
         if (typeof item === "string") return { id: "location-" + index, name: item, kind: "location", detail: "", status: "adapter" };
         if (!item || typeof item !== "object") return null;
@@ -1017,7 +1017,15 @@
           detail: String(item.description || item.blurb || item.mechanic || item.game || ""),
           status: "adapter"
         };
-      }).filter(Boolean);
+      }).filter(Boolean).filter((location) => {
+        const id = String(location.id || "").trim().toLowerCase();
+        const nameKind = String(location.name || "").trim().toLowerCase() + "|" +
+          String(location.kind || "").trim().toLowerCase();
+        const key = /^location-\\d+$/.test(id) ? "name:" + nameKind : "id:" + id;
+        if (seenProvidedLocations.has(key)) return false;
+        seenProvidedLocations.add(key);
+        return true;
+      });
 
       const x = sector && sector.x != null ? Number(sector.x) : NaN;
       const y = sector && sector.y != null ? Number(sector.y) : NaN;
