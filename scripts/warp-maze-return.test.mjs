@@ -37,6 +37,19 @@ test("asteroid exit returns to Warp, Ring stays separate and Hull Dive is entera
   assert.match(warp, /maze\.ringCompleted = success/);
 });
 
+test("Ring maze does not finish after a short backtrack before reaching its objective", () => {
+  const attach = section(warp, "function attachAsteroidCellPath", "function applyRingCellLook");
+  assert.match(attach, /const hydrogenRouteActive = !!mission\.hydrogenUnlocked[\s\S]*?routeCrystals\.length > 0/);
+  assert.match(attach, /const large = \[\.\.\.nodes\.values\(\)\]\.find\(\(candidate\) => candidate\.large\)/);
+  assert.match(attach, /if \(!hydrogenRouteActive && !visitedLarge && large && large !== fromNode\) return large/);
+  const route = section(warp, "function faceAsteroidRoute", "function enterRingCell");
+  assert.match(route, /const objectiveReached = hydrogenRouteActive[\s\S]*?: !!path\.visitedLarge/);
+  assert.match(route, /node === home && objectiveReached && !pending/);
+  const enter = section(warp, "function enterRingCell", "const oldBackground = scene.background");
+  assert.match(enter, /if \(node\.large\) path\.visitedLarge = true/);
+  assert.match(attach, /visitedLarge: !!start\?\.large, departed: false, pendingReturn: false/);
+});
+
 test("returning to the sector map keeps the asteroid locale and pauses the ship", () => {
   const body = section(warp, "function returnToWarpMap()", "function resizeBackdrop()");
   assert.doesNotMatch(body, /disposeMaze\(\)/);
