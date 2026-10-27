@@ -1184,15 +1184,14 @@
           g.fillStyle = "rgba(111,149,179,0.50)";
           g.fillRect(p.x - 1, p.y - 1, 2, 2);
         });
-      } else {
-        // The checked-in snapshot has reference-star positions, not all 8,177
-        // sector account coordinates. Stars stay distinct from actual sectors.
-        SAGE_STAR_REFERENCE_POINTS.forEach(([x, y]) => {
-          const p = toPoint(x, y);
-          g.fillStyle = "rgba(230,193,120,0.72)";
-          g.beginPath(); g.arc(p.x, p.y, zoom >= 4 ? 2.2 : 1.8, 0, Math.PI * 2); g.fill();
-        });
       }
+      // Keep known star locations as orientation landmarks even with live
+      // sector coordinates; the two data layers are separate on the map.
+      SAGE_STAR_REFERENCE_POINTS.forEach(([x, y]) => {
+        const p = toPoint(x, y);
+        g.fillStyle = "rgba(230,193,120,0.72)";
+        g.beginPath(); g.arc(p.x, p.y, zoom >= 4 ? 2.2 : 1.8, 0, Math.PI * 2); g.fill();
+      });
 
       SAGE_CSS_REFERENCE_POINTS.forEach((css) => {
         const p = toPoint(css.x, css.y);
@@ -1201,7 +1200,9 @@
         g.strokeStyle = "#f3f6f9"; g.lineWidth = 1; g.stroke();
         g.fillStyle = css.color; g.font = "600 9px system-ui,sans-serif";
         g.textAlign = css.x > 25 ? "right" : "left"; g.textBaseline = "bottom";
-        g.fillText(css.name, p.x + (css.x > 25 ? -6 : 6), p.y - 5);
+        if (!(zoom > 1 && current && css.x === Number(current.x) && css.y === Number(current.y))) {
+          g.fillText(css.name, p.x + (css.x > 25 ? -6 : 6), p.y - 5);
+        }
       });
 
       galaxyMapPoints = [];
