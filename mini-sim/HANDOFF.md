@@ -274,12 +274,12 @@ This entry supersedes the older 0.11.3–0.11.5 candidate notes below; those sec
 - Check source-contract tests and browser QA before merge; afterward test entry to Ring, each perpendicular/floor turn, crystal pickup, X fire, Back exit, mouse interaction in Hull Dive, and return to normal flight.
 
 
-## Текущая передача — Mini-Sim 0.11.21 / PR #85 (2026-10-27)
+## Текущая передача — Mini-Sim 0.11.21 после merge PR #85 (2026-10-27)
 
-Рабочая ветка `fix/minisim-0.11.21-playtest-stability`, PR [#85](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/85), всё ещё draft; `main` не затронут.
-
-- Карта: настоящая 2D SAGE XY-сетка; локальный 3×3 preview показывает все 8 направлений, включая диагонали. В live режиме переходы должны быть подтверждены адаптером; локальная тестовая сетка явно маркируется как test-only. Отдельно списки локальных механик объединяются из всех поддерживаемых массивов, а тест 4+4 сохраняет 8 записей.
-- Ring Maze: стартовый возврат после пары комнат не должен автоматически завершать уровень. Без активного Hydrogen-маршрута сначала цель — большая связанная зона; затем возврат в старт. При активном маршруте нужны собранные route crystals.
-- Class II Warp: направление движения стеновых полос обращено; не путать с движением препятствий и collision progress, которые остались в прежнем направлении.
-- Source CI на runtime/test head `08e1f27c0502561401b9840c327e37fb76b0fc91`: Warp visual tiers PASS, Warp maze return PASS и остальные профильные исходные проверки PASS. Browser QA был in progress при последнем чтении; live WP/device playtest не подтверждён.
-- Не трогать Galia Desk, scanner/pricing, firewall, planet placement, SAGE adapter или Tower physics. Не публиковать в `main` до отдельного пользовательского решения.
+- **Main:** PR [#85](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/85) merged в main, commit [fa88cb0](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/fa88cb0ae06ab0d534994cc3df6420075db902e9).
+- **Карта Warp:** 2D SAGE XY −50…50; известные snapshot-звёзды/CSS, текущий сектор, цели/переходы из адаптера, выбранный маршрут; обзор и масштаб 2×/4×/8×. Нет выдуманных live-переходов или координат. Детали сектора объединяют массивы locations, POI, activities и mechanics с дедупликацией. Показаны ONI asteroid complex, планеты со статусом planned и категория Deep Space.
+- **Оставшийся пробел:** snapshot сообщает 8,177 sector accounts, но не содержит полного списка координат. Полное отображение всех секторов зависит от адаптера.
+- **TESTED-CODE:** 9/9 source regression workflows PASS на PR head [4e4841a](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/4e4841a912377856a274eb089e9965e7e6c79996). См. [Warp visual tiers](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40488604832), [Warp maze return](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40488604529), [Mini-Sim regression](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40488604765).
+- **Browser QA:** [run 40488604679](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40488604679) получил HTTP 403 до .bcm-mini-sim. Это BLOCKED-ENVIRONMENT, не PASS и не gameplay FAIL. Не запускать тот же путь повторно, пока доступ не изменился; firewall не обходить.
+- **Не подтверждено:** WordPress deployment и ручная визуальная проверка на браузере/телефоне/геймпаде.
+- **Следующий шаг:** пользовательский playtest после обновления assets на сайте; при новой ошибке фиксировать точный симптом и менять только нужный путь. Не повторять старый 403-маршрут.
