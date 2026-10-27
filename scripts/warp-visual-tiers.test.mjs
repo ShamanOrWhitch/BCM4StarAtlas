@@ -110,7 +110,7 @@ test("Warp draws a real 2D SAGE coordinate plane and a separate sector-location 
   assert.match(warp, /const centerX = zoom > 1/);
   assert.match(warp, /g\.clip\(\)/);
   assert.match(warp, /galaxyMapZoom >= 4 \|\| currentDistance > 9/);
-  assert.match(warp, /if \(nearest && best <= 15\) selectTarget\(nearest\.sector\)/);
+  assert.match(warp, /if \(nearest && best <= 15 && targetCanBePicked\) selectTarget\(nearest\.sector\)/);
   assert.match(warp, /function renderSectorLocations\(sector\)/);
   assert.match(warp, /local-asteroid-complex/);
   assert.match(warp, /akenat-planet/);
