@@ -6,6 +6,7 @@ import { Script } from "node:vm";
 const warp = await readFile(new URL("../mini-sim/assets/js/deep-space-warp.js", import.meta.url), "utf8");
 const plugin = await readFile(new URL("../mini-sim/bcm-mini-sim.php", import.meta.url), "utf8");
 const qa = await readFile(new URL("../scripts/minisim-local-qa.test.mjs", import.meta.url), "utf8");
+const css = await readFile(new URL("../mini-sim/assets/css/mini-sim.css", import.meta.url), "utf8");
 
 test("Warp Drive slot sizes map the intense rail look to XX-Small", () => {
   const start = warp.indexOf("function warpVisualClassForSlotSize(slotSize)");
@@ -104,6 +105,11 @@ test("Warp draws a real 2D SAGE coordinate plane and a separate sector-location 
   assert.match(warp, /nav\.adapter\.sectors/);
   assert.match(warp, /SAGE XY/);
   assert.match(warp, /−50 … \+50/);
+  assert.match(warp, /data-warp-map-zoom-in/);
+  assert.match(warp, /const GALAXY_MAP_ZOOM_LEVELS = \[1, 2, 4, 8\]/);
+  assert.match(warp, /const centerX = zoom > 1/);
+  assert.match(warp, /g\.clip\(\)/);
+  assert.match(warp, /galaxyMapZoom >= 4 \|\| currentDistance > 9/);
   assert.match(warp, /if \(nearest && best <= 15\) selectTarget\(nearest\.sector\)/);
   assert.match(warp, /function renderSectorLocations\(sector\)/);
   assert.match(warp, /local-asteroid-complex/);
@@ -117,6 +123,8 @@ test("Warp draws a real 2D SAGE coordinate plane and a separate sector-location 
   assert.match(warp, /function focusInitialMapChoice\(\)/);
   assert.match(warp, /focusMapChoice\(1\)/);
   assert.match(warp, /focusMapChoice\(-1\)/);
+  assert.match(css, /bcm-warp-galaxy-map-tools/);
+  assert.match(css, /data-warp-map-zoom-level/);
 });
 
 test("Mini-Sim doesn't relock the mouse or consume flight keys on the Warp map", async () => {
