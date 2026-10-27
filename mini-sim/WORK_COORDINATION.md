@@ -247,7 +247,7 @@ Handoff / close reason:
 
 ## Активный WORK LOCK status — PR #85 / 2026-10-27
 
-- Ветка: `fix/minisim-0.11.21-playtest-stability`; текущая цель — Ring Maze early exit, Class II Warp direction and the eight-entry Galaxy location layer.
+- Ветка: `fix/minisim-0.11.21-playtest-stability`; цель — Ring Maze early exit, обратный поток Class II, все 8 направлений карты и объединение массивов локаций.
 - Изменение runtime ограничено `mini-sim/assets/js/deep-space-warp.js`; добавлены contracts в `scripts/warp-maze-return.test.mjs` и `scripts/warp-visual-tiers.test.mjs`. Не менять `main`, WordPress, Galia Desk/scanner/pricing, firewall, planet placement, SAGE adapter или Tower physics.
-- Latest checked runtime/test head: `08e1f27c0502561401b9840c327e37fb76b0fc91`; Warp visual tiers и Warp maze return CI PASS. Browser QA выполнялся отдельно, его нельзя называть pass до результата.
+- На code/test head `08e1f27c0502561401b9840c327e37fb76b0fc91` Warp visual tiers и Warp maze return CI PASS. Следом добавлен регрессионный тест всех восьми направлений; новый workflow проверяется. Browser QA run `40487872716` завершился HTTP 403 (`.bcm-mini-sim` отсутствует из-за недоступной страницы); повторный run на документном HEAD ещё выполняется.
 - Завершение работы различать по статусам: код изменён; source CI; browser smoke; live WordPress/device. Исторический HTTP 403 не обходить.
