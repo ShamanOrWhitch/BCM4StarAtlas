@@ -1,6 +1,6 @@
 ## Current candidate — Warp flow visual correction / Mini-Sim 0.11.22 (27 October 2026)
 
-- **Branch:** `fix/minisim-0.11.22-warp-flow-bands`; based on main `e1b46b6da1bf54a6d775732cfa3d23f694c19bd5`; follow-up draft PR [#86](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/86).
+- **Branch:** `fix/minisim-0.11.22-warp-flow-bands`; based on main `e1b46b6da1bf54a6d775732cfa3d23f694c19bd5`; follow-up draft PR [#86](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/87).
 - **Scope:** remove the short axial motion streak overlay; animate 14 low-contrast horizontal/circumferential bands across the entire tube wall. Class II carries those bands deeper into the tunnel; Classes I and III bring them toward the ship. Their rate follows the existing accelerated `tubeTravel` clock.
 - **Preserve:** existing 12 longitudinal surface seams, 22 randomized hazard layers, collisions, obstacle timing, course progress, Ring behavior and Tower physics.
 - **Galaxy map:** the practical 2D SAGE XY overview is already in main from merged PR [#85](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/85). It uses checked-in star/CSS landmarks, live adapter-supplied sector positions, zoom and eight adjacent local destinations plus a separate sector-location layer. This is not a claim that the 8,177 sector coordinates are all present; missing topology is not fabricated.
