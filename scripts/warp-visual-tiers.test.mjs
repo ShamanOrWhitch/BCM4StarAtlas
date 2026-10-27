@@ -8,6 +8,15 @@ const plugin = await readFile(new URL("../mini-sim/bcm-mini-sim.php", import.met
 const qa = await readFile(new URL("../scripts/minisim-local-qa.test.mjs", import.meta.url), "utf8");
 const css = await readFile(new URL("../mini-sim/assets/css/mini-sim.css", import.meta.url), "utf8");
 
+function section(source, startMarker, endMarker) {
+  const start = source.indexOf(startMarker);
+  assert.notEqual(start, -1, `missing source marker: ${startMarker}`);
+  const end = source.indexOf(endMarker, start + startMarker.length);
+  assert.notEqual(end, -1, `missing source marker: ${endMarker}`);
+  return source.slice(start, end);
+}
+
+
 test("Warp Drive slot sizes map the intense rail look to XX-Small", () => {
   const start = warp.indexOf("function warpVisualClassForSlotSize(slotSize)");
   const end = warp.indexOf("\n    function currentWarpDriveSlotSize()", start);
