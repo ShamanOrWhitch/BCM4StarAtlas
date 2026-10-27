@@ -95,6 +95,11 @@ test("Class II reverses the directional Warp streak logic", () => {
   assert.match(frame, /reverseStreaks \? -1 : 1/);
   assert.match(frame, /reverseStreaks \? tx : sx/);
   assert.match(frame, /reverseStreaks \? sx : tx/);
+  const tunnel = section(warp, "function drawTubeTunnel", "function drawBackdrop");
+  assert.match(tunnel, /const flowDirection = visualClass === 2 \? -1 : 1/);
+  assert.match(tunnel, /const flowPhase = Number\(state\.tubeTravel \|\| 0\) \* 0\.018 \* flowDirection/);
+  assert.match(tunnel, /const phase = \(\(streak \/ 12 \+ flowPhase\) % 1 \+ 1\) % 1/);
+  assert.match(tunnel, /Class II moves these streaks away from the ship/);
 });
 
 test("Warp draws a real 2D SAGE coordinate plane and a separate sector-location layer", () => {
