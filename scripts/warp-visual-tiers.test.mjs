@@ -103,6 +103,7 @@ test("Warp draws a real 2D SAGE coordinate plane and a separate sector-location 
   assert.match(warp, /SAGE_STAR_REFERENCE_POINTS/);
   assert.match(warp, /SAGE_CSS_REFERENCE_POINTS/);
   assert.match(warp, /nav\.adapter\.sectors/);
+  assert.match(warp, /if \(knownSectorCount\) \{[\s\S]{0,1100}SAGE_STAR_REFERENCE_POINTS\.forEach/);
   assert.match(warp, /SAGE XY/);
   assert.match(warp, /−50 … \+50/);
   assert.match(warp, /data-warp-map-zoom-in/);
