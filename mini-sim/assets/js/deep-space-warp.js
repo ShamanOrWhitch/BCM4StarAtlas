@@ -5255,29 +5255,21 @@ return axialRoll + ahead * 0.12 +
         g.fillRect(0, 0, w, h);
       }
 
-      // Axial wall streaks make tunnel travel legible even when the background is sparse.
-      // Class II moves these streaks away from the ship; Class I/III bring them toward it.
-      // This is visual-only: collision windows and course progress keep their normal direction.
+      // These are the tube's own horizontal/circumferential wall bands, wrapping the full radius.
+      // Increasing depth approaches the ship; decreasing depth recedes into the vanishing point.
+      // Class II keeps the inward flow; Classes I and III move toward the ship.
+      // tubeTravel already accelerates with flight, so the wall bands accelerate with it.
       const flowDirection = visualClass === 2 ? -1 : 1;
-      const flowPhase = Number(state.tubeTravel || 0) * 0.018 * flowDirection;
-      for (let streak = 0; streak < 12; streak += 1) {
-        const phase = ((streak / 12 + flowPhase) % 1 + 1) % 1;
-        const d0 = 0.07 + phase * 0.82;
-        const d1 = Math.min(0.97, d0 + 0.045);
-        const theta = streak * Math.PI * 2 / 12;
-        const from = point(d0, theta, -1.9);
-        const to = point(d1, theta, -1.9);
-        g.beginPath();
-        g.moveTo(from.x, from.y);
-        g.lineTo(to.x, to.y);
-        g.strokeStyle = visualClass === 3
-          ? "rgba(207,165,255,0.68)"
-          : visualClass === 2
-            ? "rgba(149,232,242,0.62)"
-            : "rgba(137,245,255,0.74)";
-        g.lineWidth = visualClass === 2 ? 1.55 : 1.2;
-        g.lineCap = "round";
-        g.stroke();
+      const bandPhase = ((Number(state.tubeTravel || 0) * 0.018 * flowDirection) % 1 + 1) % 1;
+      const bandCount = 14;
+      const bandRgb = visualClass === 3 ? "181,139,255" : visualClass === 2 ? "149,220,229" : "110,222,238";
+      for (let band = 0; band < bandCount; band += 1) {
+        const phase = ((band / bandCount + bandPhase) % 1 + 1) % 1;
+        const depth = 0.055 + phase * 0.90;
+        const accent = band % 4 === 0;
+        const alpha = (accent ? 0.32 : 0.14) * (visualClass === 2 ? 0.84 : 1);
+        const color = "rgba(" + bandRgb + "," + alpha.toFixed(3) + ")";
+        drawArc(depth, 0, Math.PI * 2, color, accent ? 1.1 : 0.72);
       }
 
       const routeProgress = warpObstacleProgress(state.elapsed);
@@ -5389,39 +5381,15 @@ return axialRoll + ahead * 0.12 +
       ctx.fillStyle = "#02050b";
       ctx.fillRect(0, 0, w, h);
       const cx = w / 2, cy = h / 2;
-      state.stars.forEach((star) => {
-        if (state.mode === "tube") {
-          // Class II deliberately reverses the motion logic from Class I/III.
-          const reverseStreaks = activeWarpVisualClass() === 2;
-          star.z += dt * (0.10 + star.size * 0.04) * (reverseStreaks ? -1 : 1);
-          if ((!reverseStreaks && star.z > 1) || (reverseStreaks && star.z < 0)) {
-            star.z = reverseStreaks ? 1 : 0;
-            star.x = Math.random();
-            star.y = Math.random();
-          }
-          const sx = cx + (star.x - 0.5) * w * (0.12 + star.z * 1.55);
-          const sy = cy + (star.y - 0.5) * h * (0.12 + star.z * 1.55);
-          const length = 2 + star.z * 22;
-          const tx = sx + (sx - cx) * length / Math.max(1, w);
-          const ty = sy + (sy - cy) * length / Math.max(1, h);
-          const streak = ctx.createLinearGradient(
-            reverseStreaks ? tx : sx, reverseStreaks ? ty : sy,
-            reverseStreaks ? sx : tx, reverseStreaks ? sy : ty
-          );
-          streak.addColorStop(0, "rgba(222,240,255,0.08)");
-          streak.addColorStop(1, "rgba(222,240,255," + (0.30 + star.z * 0.66) + ")");
-          ctx.strokeStyle = streak;
-          ctx.lineWidth = star.size;
-          ctx.beginPath();
-          ctx.moveTo(sx, sy);
-          ctx.lineTo(tx, ty);
-          ctx.stroke();
-        } else {
+      // Keep stars as static atmosphere outside the tube; the tube wall itself
+      // carries the animated directional cue through circumferential bands below.
+      if (state.mode !== "tube" && state.mode !== "result") {
+        state.stars.forEach((star) => {
           star.phase += dt * 0.1;
           ctx.fillStyle = "rgba(225,239,255," + (0.35 + Math.sin(star.phase) * 0.15) + ")";
           ctx.fillRect(star.x * w, star.y * h, star.size, star.size);
-        }
-      });
+        });
+      }
 
       if (state.mode === "map") {
         // Sector navigation is rendered in the real X/Y coordinate canvas inside the menu.
