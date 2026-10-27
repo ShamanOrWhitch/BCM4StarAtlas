@@ -243,3 +243,11 @@ Handoff / close reason:
 - Remaining hands-on checks: Ring menu on real keyboard/gamepad/touch, RU/EN selector, Warp I–IV at phone width, Hull visibility and controls, weapon feel/damage/cadence, live plugin asset cache update.
 - Strict exclusion: no edits to `wordpress/galia-desk`, scanner, pricing/marketplace shared assets, planet placement, SAGE navigation adapter, global OST mixer or Tower physics.
 
+
+
+## Активный WORK LOCK status — PR #85 / 2026-10-27
+
+- Ветка: `fix/minisim-0.11.21-playtest-stability`; текущая цель — Ring Maze early exit, Class II Warp direction and the eight-entry Galaxy location layer.
+- Изменение runtime ограничено `mini-sim/assets/js/deep-space-warp.js`; добавлены contracts в `scripts/warp-maze-return.test.mjs` и `scripts/warp-visual-tiers.test.mjs`. Не менять `main`, WordPress, Galia Desk/scanner/pricing, firewall, planet placement, SAGE adapter или Tower physics.
+- Latest checked runtime/test head: `08e1f27c0502561401b9840c327e37fb76b0fc91`; Warp visual tiers и Warp maze return CI PASS. Browser QA выполнялся отдельно, его нельзя называть pass до результата.
+- Завершение работы различать по статусам: код изменён; source CI; browser smoke; live WordPress/device. Исторический HTTP 403 не обходить.
