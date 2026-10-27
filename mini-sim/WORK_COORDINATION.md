@@ -262,3 +262,11 @@ Handoff / close reason:
 4. При timeout записать TIMEOUT и перейти к независимой проверке. Не ждать агента-рецензента сверх рабочего лимита; результат отмечать SKIPPED/TIMEOUT, а не PASS.
 5. Не передавать работу в новый чат как стандартный обход ограничений. Перед handoff фиксировать фактические изменения, проверенные факты и единственный следующий шаг.
 6. Разделять IMPLEMENTED, TESTED-CODE, BLOCKED-ENVIRONMENT, VERIFIED-LIVE и USER-CONFIRMED. Source CI не доказывает WordPress deployment или проверку на устройстве.
+
+
+## Active follow-up — Mini-Sim 0.11.22 Warp wall-flow cue (27 October 2026)
+
+- PR [#86](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/86), branch `fix/minisim-0.11.22-warp-flow-bands`, based on current main.
+- Only visual scope: animate 14 full-circumference horizontal wall bands; Class II recedes into the tunnel, Classes I and III move toward the ship. Remove the extra short axial streaks; retain the original 12 longitudinal seams.
+- No edits to SAGE adapter, map data, Ring logic, Tower physics, Galia Desk/scanner/pricing, planet placement or firewall. Preserve the existing 22 obstacle layers, collision windows and course progress.
+- Wait for the focused source regression workflows before calling this TESTED-CODE; no WP deployment or live/browser/device pass is claimed.
