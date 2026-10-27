@@ -588,3 +588,12 @@ test("asteroid Hydrogen pickup has an obvious H+1 effect and updates the real mi
   assert.equal(events.filter((event) => event.type === "bcm:mission:medusa-unlocked").length, 1);
   assert.ok(labels.includes(1) && labels.includes(2) && labels.includes(3));
 });
+
+
+test("Tower Player 2 jump uses Right Ctrl instead of the X key", () => {
+  const map = section(tower, "const keyMap =", "function towerInputSuppressed()");
+  assert.match(map, /ControlRight: \[1, "jump"\]/);
+  assert.doesNotMatch(map, /KeyX: \[1, "jump"\]/);
+  assert.match(tower, /P2: ←\/→ \+ ↑\/↓ \+ Right Ctrl \+ Shift/);
+  assert.doesNotMatch(tower, /P2: ←\/→ \+ ↑\/↓ \+ X \+ Shift/);
+});
