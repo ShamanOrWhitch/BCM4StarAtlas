@@ -264,9 +264,10 @@ Handoff / close reason:
 6. Разделять IMPLEMENTED, TESTED-CODE, BLOCKED-ENVIRONMENT, VERIFIED-LIVE и USER-CONFIRMED. Source CI не доказывает WordPress deployment или проверку на устройстве.
 
 
-## Active follow-up — Mini-Sim 0.11.22 Warp wall-flow cue (27 October 2026)
+## Completed follow-up — Mini-Sim 0.11.22 Warp wall-flow cue (27 October 2026)
 
-- PR [#86](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/87), branch `fix/minisim-0.11.22-warp-flow-bands`, based on current main.
-- Only visual scope: animate 14 full-circumference horizontal wall bands; Class II recedes into the tunnel, Classes I and III move toward the ship. Remove the extra short axial streaks; retain the original 12 longitudinal seams.
-- No edits to SAGE adapter, map data, Ring logic, Tower physics, Galia Desk/scanner/pricing, planet placement or firewall. Preserve the existing 22 obstacle layers, collision windows and course progress.
-- **Source CI PASS** on code head `f68541e`: Warp visual tiers, Warp course/portal first frame, Warp maze return, Ring menu controls, Mini-Sim regression, UI layer, Tower top cap and UI/weapons/cabin all passed. Browser smoke [40501469335](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40501469335) was still in progress at last inspection; prior access to the same site route returned HTTP 403. No WordPress deployment or live/device verification is claimed.
+- **Status:** PR [#87](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/87) merged to main at [204636e72b94df954829fd739d050434e22ba28b](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/204636e72b94df954829fd739d050434e22ba28b).
+- **Change:** 14 horizontal/circumferential bands traverse the full tube wall. Class II recedes into the tunnel; Classes I/III move toward the ship. The extra axial streak overlay was removed; original longitudinal seams remain.
+- **Source CI:** 8/8 source workflows PASS on tested PR head `b4ec426`: Warp visual tiers, Warp course/portal first frame, Warp maze return, Ring menu controls, Mini-Sim regression, UI layer, Tower top cap and UI/weapons/cabin.
+- **Browser QA:** [40501631745](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40501631745) is BLOCKED-ENVIRONMENT (HTTP 403 before `.bcm-mini-sim` appears). No WordPress deployment or live/device verification is claimed.
+- **Preserved boundaries:** no SAGE adapter, map data, Ring logic, Tower physics, Galia Desk/scanner/pricing, planet placement, or firewall changes. The existing map's unknown sector coordinates remain unknown rather than fabricated.

@@ -1,13 +1,15 @@
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
-## Candidate Mini-Sim 0.11.21 — user playtest stability
+## Merged update — Mini-Sim 0.11.22 Warp flow correction (27 October 2026)
 
-- Current follow-up: draft PR [#86](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/87), branch `fix/minisim-0.11.22-warp-flow-bands`, based on current main `e1b46b6da1bf54a6d775732cfa3d23f694c19bd5`. PR #85 already merged the 2D SAGE map/stability work; this follow-up is only the Warp flow visual correction.
-- User confirmed Ring entry and external backside doors work on 0.11.19/0.11.20; Ring is improved but remains rough. Hydrogen count, Room 2 return, explicit floor interaction and Tower instructions remain active fixes. New Warp playtest direction: preserve all 22 layers and the randomized obstacle mix; keep the 12x acceleration; use 14 moving horizontal/circumferential wall bands as the flow cue (Class II into depth; Classes I/III toward the ship); remove the added short axial streaks; keep menu cursor/keyboard/gamepad selection usable without Escape.
+- PR [#87](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/87) merged into main as [204636e72b94df954829fd739d050434e22ba28b](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/204636e72b94df954829fd739d050434e22ba28b). This follow-up only changes the Warp flow cue; PR #85 already merged the 2D SAGE map/stability work.
+- Warp now uses 14 moving horizontal/circumferential wall bands: Class II carries them into depth, Classes I/III toward the ship. The added short axial streaks are removed. Original longitudinal seams, all 22 course layers, collision timing and course progress are preserved.
+- Ring entry, external backside doors, explicit door/floor controls and Tower instructions remain in the prior merged baseline. Tower physics and Galia Desk/scanner/pricing were not touched by this follow-up.
 - Controls contract: Space/W only jumps; E follows the open door; R changes floor at a vertical hatch; gamepad A jumps, X uses the door, LB changes floor, Y fires and B dashes.
-- Warp course: restore the 22-layer randomized gate/sweeper/spikes/boost/launcher mix; do not cut layers to reduce repeated-looking visuals. Speed uses a shared collision/visual progress curve, accelerating sooner from 1x to 12x. The 14 horizontal/circumferential wall bands show flow: Class II moves deeper; Classes I/III move toward the ship. The added short axial streak overlay is removed. Warp map opens with pointer lock released and an initial focused choice; use arrows/Enter or gamepad navigation. Galaxy panel is a real X/Y coordinate plane (−50…50), using all valid sector positions if the live adapter supplies the full array, plus the checked-in 54 star references and MUD/ONI/Ustur CSS coordinates. The static snapshot records 8,177 sectors but not all 8,177 coordinates; when the adapter lacks them, mark the global point layer as partial rather than fabricating sectors. Highlight current and Warp-connected sectors and the selected direct route. A sector detail layer separates asteroid complexes, planets/Tower surface gameplay and visually distinct Deep Space mechanics; add specific local points only when known or received from sector metadata.
-- No WordPress upload. Network mode is deferred until local play and ship/reference identity are stable. Remote browser QA gets HTTP 403; don't bypass the firewall.
-- CI/source validation is pending; no live browser/device pass is claimed.
+- Galaxy map: the 2D SAGE XY overview is in main, with the known reference stars and CSS points, zoom, eight adjacent local destinations, and a separate sector mechanics list. All 8,177 sector coordinates are not in the checked-in snapshot; unknown positions are not fabricated.
+- Source CI: 8/8 relevant regression workflows passed on PR head `b4ec426`; JavaScript and test-file syntax checks pass. Browser QA [40501631745](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40501631745) failed at HTTP 403 for the site's `/bcm4sa/` path; classify as BLOCKED-ENVIRONMENT, not a gameplay result.
+- No WordPress upload or live/device verification. Do not bypass the firewall or repeat the same blocked smoke route without changed access conditions.
+
 
 ---
 
