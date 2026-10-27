@@ -1,12 +1,12 @@
-## D-043 — Make Warp reverse flow visible without axial streaks; move Tower P2 jump (27 October 2026)
+## D-043 — Reverse Warp wall-band flow and remap Tower P2 jump (27 October 2026)
 
-**Status:** repair candidate on `fix/minisim-warp-flow-p2-right-ctrl-20261027`, code commit [`196dddb`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/196dddb345ba04a53b2d3e3ef24689b2744d1953), draft [PR #88](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/88). Not merged or deployed.
+**Status:** merged via [PR #88](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/88), main commit [`dee7ae399c3023dd3f3861e3414f185ee5550e67`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/dee7ae399c3023dd3f3861e3414f185ee5550e67). Not deployed to WordPress.
 
-- User playtest report: the visible stripes had disappeared, but reverse tunnel movement remained unreadable. Do not restore the short axial streak overlay. Increase contrast and travel rate of the existing 14 circumferential wall bands. Positive depth means toward the ship; negative phase in Class II means away from the ship toward the vanishing point. Preserve the 12 surface seams and all Warp collision/course behavior.
-- Tower P2 keyboard map is arrows for movement, Right Ctrl for jump and Right Shift for action. `KeyX` no longer jumps for P2. No Tower physics change.
-- The 2D SAGE X/Y map and sector-local location layer are already in main; leave their data model unchanged. Missing sector coordinates remain unknown.
-- Source CI on `196dddb345ba04a53b2d3e3ef24689b2744d1953`: route-contract, Mini-Sim regression, Ring-control, and UI/weapons/cabin suites passed. Other source workflows were pending at last poll; browser QA was not complete and is not evidence of live behavior.
-- Reopen if the user reports no perceptible reverse motion on the correct Class II after this version is actually available, or if Right Ctrl fails to jump for P2. Do not conflate source tests with manual gameplay.
+- User reported the short visible stripes were gone but the tunnel still did not read as flowing backward. Do not restore axial streaks. The existing 14 circumferential wall bands now move faster with stronger contrast. Class II reverses the phase so bands recede into depth; Classes I/III flow toward the ship. Preserve 12 longitudinal seams and all course/collision behavior.
+- Tower P2 uses arrows to move, Right Ctrl to jump and Right Shift to act. Remove `KeyX` as P2 jump; preserve Tower physics.
+- Keep the existing 2D SAGE XY map and sector-local location layer unchanged. Unknown sector locations remain unknown.
+- **TESTED-CODE:** 8/8 source/regression workflows passed on `2b71e3b601a12477aa8dd4a6ed0a29149d3b2838`. Browser smoke [40575342708](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40575342708) failed at browser QA; live appearance and controls have not been confirmed. Issue #70 remains open for the user's live playtest after deploy.
+- Reopen this code decision only if the user reports that the deployed Class II still does not visibly recede or Right Ctrl fails for P2.
 
 ## D-042 — Mini-Sim 0.11.21 playtest stabilization
 

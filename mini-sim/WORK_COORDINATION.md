@@ -1,11 +1,11 @@
-## Active — Warp reverse-flow readability + Tower P2 key fix (27 October 2026)
+## Completed code change — Warp reverse flow + Tower P2 Right Ctrl (27 October 2026)
 
-- Work lock: [#70](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/70). Branch `fix/minisim-warp-flow-p2-right-ctrl-20261027`; draft [PR #88](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/88). Current code commit `196dddb345ba04a53b2d3e3ef24689b2744d1953`.
-- Warp: keep the 12 longitudinal surface seams and do not add axial dash/streak overlays. Make the existing 14 circumferential bands noticeably brighter and faster (phase coefficient 0.052), with Class II moving away from the ship into depth and Classes I/III toward the ship. This is a visual-only change.
-- Tower keyboard P2: arrows = movement; Right Ctrl = jump; Right Shift = action. Remove P2 jump from X. Keep Tower physics unchanged.
-- Preserve the coordinate-based SAGE X/Y map and sector-local locations shipped in PR #85. Adapter points only; do not invent coordinates. No changes to SAGE adapter, Galia Desk/scanner/pricing, or site firewall.
-- Code CI on `196dddb345ba04a53b2d3e3ef24689b2744d1953`: Warp maze/route contract, Mini-Sim regression, Ring controls, and Mini-Sim 0.9.110 UI/weapons/cabin checks have passed; Warp visual tiers, Tower top cap, Warp portal first-frame and UI-layer checks were still running at the last poll. Browser QA was still at setup and is not a live-game pass. Recheck exact run results before closing this lock.
-- No WordPress deploy and no user device/browser visual verification claimed.
+- **Merged:** [PR #88](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/88), main commit [`dee7ae3`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/dee7ae399c3023dd3f3861e3414f185ee5550e67). Code change originated at [`196dddb`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/196dddb345ba04a53b2d3e3ef24689b2744d1953).
+- Warp: the extra short axial streak overlay stays removed. The existing 14 circumferential wall bands are brighter and travel faster; Class II moves from the ship into depth, Classes I/III move toward the ship. Preserve 12 longitudinal surface seams, all 22 course layers, hazard placements, course progress and collision timing.
+- Tower P2 keyboard: arrows = movement, Right Ctrl = jump, Right Shift = action. X no longer jumps for P2. Tower physics remains unchanged.
+- The coordinate-based SAGE X/Y galaxy map and sector-local location layer from PR #85 remain unchanged. No missing sector coordinates are invented.
+- **Source CI:** 8/8 source/regression workflows passed on code/docs tree [`2b71e3b`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/2b71e3b601a12477aa8dd4a6ed0a29149d3b2838): Warp visual tiers, Warp route/return, Tower top cap, Warp portal first-frame, Mini-Sim UI layer, Mini-Sim regression, Ring controls, and UI/weapons/cabin.
+- **Live status:** browser smoke run [40575342708](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40575342708) failed at its browser-smoke step. It is not a gameplay visual pass. WordPress has not been deployed by this change; issue [#70](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/70) remains open for live verification after the updated plugin is available.
 
 ## Active — WORK LOCK #84: stabilize Mini-Sim after the user's playtest (26 October 2026)
 
