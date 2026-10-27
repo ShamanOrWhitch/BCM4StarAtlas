@@ -272,3 +272,14 @@ This entry supersedes the older 0.11.3–0.11.5 candidate notes below; those sec
 ## PR and test tracking
 - Candidate PR: https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/60
 - Check source-contract tests and browser QA before merge; afterward test entry to Ring, each perpendicular/floor turn, crystal pickup, X fire, Back exit, mouse interaction in Hull Dive, and return to normal flight.
+
+
+## Текущая передача — Mini-Sim 0.11.21 / PR #85 (2026-10-27)
+
+Рабочая ветка `fix/minisim-0.11.21-playtest-stability`, PR [#85](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/85), всё ещё draft; `main` не затронут.
+
+- Карта: настоящая 2D SAGE XY-сетка и доступные координаты адаптера. Локальные списки механик теперь объединяются из всех поддерживаемых полей, а не берутся только из первого массива — тестовый случай с четырьмя + четырьмя записями даёт 8.
+- Ring Maze: стартовый возврат после пары комнат не должен автоматически завершать уровень. Без активного Hydrogen-маршрута сначала цель — большая связанная зона; затем возврат в старт. При активном маршруте нужны собранные route crystals.
+- Class II Warp: направление движения стеновых полос обращено; не путать с движением препятствий и collision progress, которые остались в прежнем направлении.
+- Source CI на runtime/test head `08e1f27c0502561401b9840c327e37fb76b0fc91`: Warp visual tiers PASS, Warp maze return PASS и остальные профильные исходные проверки PASS. Browser QA был in progress при последнем чтении; live WP/device playtest не подтверждён.
+- Не трогать Galia Desk, scanner/pricing, firewall, planet placement, SAGE adapter или Tower physics. Не публиковать в `main` до отдельного пользовательского решения.
