@@ -5119,6 +5119,10 @@
       const t = state.tubeTravel;
       const shimmerTime = Number(state.tubeShimmerTime || 0);
       const visualClass = activeWarpVisualClass();
+      // Make wall-band translation clearly visible without adding axial streaks or permanent rails.
+      // Class II recedes into the tunnel; Classes I and III approach the ship.
+      const flowDirection = visualClass === 2 ? -1 : 1;
+      const bandFlowPhase = ((Number(state.tubeTravel || 0) * 0.052 * flowDirection) % 1 + 1) % 1;
       // 45% of the former roll rate: midway between the old over-rotation and the current almost-static tube.
       const axialRoll = Number(state.tubeRoll || 0) + Math.sin(t * 0.13) * 0.126;
       const mid = w * 0.5;
@@ -5255,21 +5259,18 @@ return axialRoll + ahead * 0.12 +
         g.fillRect(0, 0, w, h);
       }
 
-      // These are the tube's own horizontal/circumferential wall bands, wrapping the full radius.
-      // Increasing depth approaches the ship; decreasing depth recedes into the vanishing point.
-      // Class II keeps the inward flow; Classes I and III move toward the ship.
-      // tubeTravel already accelerates with flight, so the wall bands accelerate with it.
-      const flowDirection = visualClass === 2 ? -1 : 1;
-      const bandPhase = ((Number(state.tubeTravel || 0) * 0.018 * flowDirection) % 1 + 1) % 1;
+      // These moving wall bands are the flow cue: increasing depth approaches the ship,
+      // and Class II reverses the same accelerated tube clock to recede into depth.
+      const bandPhase = bandFlowPhase;
       const bandCount = 14;
       const bandRgb = visualClass === 3 ? "181,139,255" : visualClass === 2 ? "149,220,229" : "110,222,238";
       for (let band = 0; band < bandCount; band += 1) {
         const phase = ((band / bandCount + bandPhase) % 1 + 1) % 1;
         const depth = 0.055 + phase * 0.90;
         const accent = band % 4 === 0;
-        const alpha = (accent ? 0.32 : 0.14) * (visualClass === 2 ? 0.84 : 1);
+        const alpha = accent ? 0.56 : 0.30;
         const color = "rgba(" + bandRgb + "," + alpha.toFixed(3) + ")";
-        drawArc(depth, 0, Math.PI * 2, color, accent ? 1.1 : 0.72);
+        drawArc(depth, 0, Math.PI * 2, color, accent ? 1.55 : 1.0);
       }
 
       const routeProgress = warpObstacleProgress(state.elapsed);

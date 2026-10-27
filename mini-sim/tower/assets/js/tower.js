@@ -2986,7 +2986,7 @@
       ArrowRight: [1, "right"],
       ArrowUp: [1, "up"],
       ArrowDown: [1, "down"],
-      KeyX: [1, "jump"],
+      ControlRight: [1, "jump"],
       ShiftRight: [1, "interact"]
     };
 
@@ -3319,7 +3319,7 @@
         } else if (count >= 2) {
           gamepadLine = "Управление · P1/P2: левый стик — поворот/высота · A — прыжок · X — действие · Y — новый спуск";
         } else {
-          gamepadLine = "Управление · P1: A/D + W/S + Space + E · P2: ←/→ + ↑/↓ + X + Shift";
+          gamepadLine = "Управление · P1: A/D + W/S + Space + E · P2: ←/→ + ↑/↓ + Right Ctrl + Shift";
         }
       } else {
         gamepadLine = "Управление · левый стик — поворот/высота · A — прыжок · X — действие · Y — новый спуск";

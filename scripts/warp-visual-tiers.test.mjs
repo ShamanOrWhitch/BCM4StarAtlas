@@ -98,22 +98,23 @@ test("Warp multiplier and displayed speed ramp faster from 1x to 12x", () => {
   assert.match(warp, /return Math\.min\(1, 0\.055 \/ \(distance \+ 0\.05\)\)/);
 });
 
-test("Warp uses animated circumferential wall bands instead of extra axial streaks", () => {
+test("Warp wall bands show stronger forward flow and reverse direction in Class II without axial streaks", () => {
   const frame = warp.slice(warp.indexOf("function drawBackdrop(now)"), warp.indexOf("function updateTube(dt, now)"));
   assert.doesNotMatch(frame, /reverseStreaks/);
   assert.doesNotMatch(frame, /const length = 2 \+ star\.z \* 22/);
 
   const tunnel = section(warp, "function drawTubeTunnel", "function drawBackdrop");
   assert.match(tunnel, /const flowDirection = visualClass === 2 \? -1 : 1/);
-  assert.match(tunnel, /const bandPhase = \(\(Number\(state\.tubeTravel \|\| 0\) \* 0\.018 \* flowDirection\) % 1 \+ 1\) % 1/);
+  assert.match(tunnel, /const bandFlowPhase = \(\(Number\(state\.tubeTravel \|\| 0\) \* 0\.052 \* flowDirection\) % 1 \+ 1\) % 1/);
   assert.match(tunnel, /const bandCount = 14/);
+  assert.match(tunnel, /const bandPhase = bandFlowPhase/);
+  assert.match(tunnel, /const alpha = accent \? 0\.56 : 0\.30/);
+  assert.match(tunnel, /drawArc\(depth, 0, Math\.PI \* 2, color, accent \? 1\.55 : 1\.0\)/);
+  assert.match(tunnel, /Class II recedes into the tunnel; Classes I and III approach the ship/);
   assert.match(tunnel, /for \(let band = 0; band < bandCount; band \+= 1\)/);
-  assert.match(tunnel, /drawArc\(depth, 0, Math\.PI \* 2, color, accent \? 1\.1 : 0\.72\)/);
-  assert.match(tunnel, /Class II keeps the inward flow; Classes I and III move toward the ship/);
-  assert.doesNotMatch(tunnel, /Axial wall streaks|for \(let streak = 0; streak < 12; streak \+= 1\)/);
   assert.match(tunnel, /for \(let seam = 0; seam < 12; seam \+= 1\)/);
+  assert.doesNotMatch(tunnel, /streakPhase|streakStart|axialFlowPhase|Bright axial dashes/);
 });
-
 test("Warp draws a real 2D SAGE coordinate plane and a separate sector-location layer", () => {
   assert.match(warp, /class="bcm-warp-galaxy-map" data-warp-galaxy-map/);
   assert.match(warp, /function renderGalaxyMap\(\)/);

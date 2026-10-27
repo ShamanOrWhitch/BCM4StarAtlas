@@ -1,3 +1,12 @@
+## Current follow-up — Warp reverse flow + Tower P2 jump (27 October 2026)
+
+- Active branch `fix/minisim-warp-flow-p2-right-ctrl-20261027`; draft [PR #88](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/88); code head [`196dddb`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/196dddb345ba04a53b2d3e3ef24689b2744d1953). No merge/deploy.
+- Do not re-add axial streaks. The 14 circumferential wall bands are brighter and move faster along the tunnel; Class II uses the reversed phase to travel away from the ship. The 12 longitudinal surface seams remain. Warp hazards, course/collision math, speed ramp and steering are unchanged.
+- Tower keyboard P2: arrows move, Right Ctrl jumps, Right Shift acts. P2 X-jump removed; physics unchanged.
+- Existing 2D SAGE XY Galaxy map from PR #85 remains in main; no fake coordinates or second map.
+- CI at code head: Warp route, Mini-Sim regression, Ring controls and UI/weapons/cabin passed; Warp visual, Tower top-cap, portal and UI-layer checks were pending at last poll. Browser QA still hadn't reached the game; no live visual validation is claimed. Check Actions on PR #88 for latest.
+- Next action: after all source checks complete, manually test Class II flow on the actual updated site and P2 Right Ctrl in Tower. Do not deploy automatically or bypass HTTP 403/firewall protection.
+
 # BCM4StarAtlas / Mini-Sim — актуальная передача
 
 ## Merged update — Mini-Sim 0.11.22 Warp flow correction (27 October 2026)

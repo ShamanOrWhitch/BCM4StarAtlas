@@ -1,3 +1,13 @@
+## Active repair candidate — Warp reverse flow + Tower P2 Right Ctrl (27 October 2026)
+
+- **Branch:** `fix/minisim-warp-flow-p2-right-ctrl-20261027`; **draft PR:** [#88](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/88); **code commit:** [`196dddb`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/196dddb345ba04a53b2d3e3ef24689b2744d1953). Main remains unchanged; not deployed.
+- **Warp:** removed the newly added axial streak overlays again. The 14 existing circumferential bands now move more visibly using phase coefficient `0.052` (previously `0.018`), stronger opacity (`0.56/0.30`) and line widths (`1.55/1.0`). Class II reverses the phase and recedes into the tunnel; Classes I/III move toward the ship. Preserve the 12 longitudinal seams, 22 randomized course layers, hazards, collision timing, speed ramp and steering.
+- **Tower keyboard:** P2 uses arrow keys for movement, Right Ctrl for jump and Right Shift for action. X no longer triggers P2 jump. Tower physics untouched.
+- **Galaxy map:** preserve the existing SAGE XY coordinate map and separate sector-location layer from PR #85. Do not create duplicate map UI or fabricate missing sector positions.
+- **Automated checks on code commit:** Warp maze return / route contract, Mini-Sim regression, Ring menu controls and UI/weapons/cabin passed. Warp visual tiers, Tower top cap, portal first-frame and UI-layer runs were pending at the latest status poll; consult Actions links in PR #88. Browser QA had not reached the game and remains separate from source CI.
+- **Not verified:** live WordPress/browser appearance, reverse-flow perception on the user's device, Right Ctrl manual play. Prior browser runs can stop at HTTP 403; do not bypass site protection.
+- **Next:** finish source CI, then the user can try the same Warp Class II and two-keyboard-player Tower cases on the deployed version. Do not deploy from this PR automatically.
+
 ## Merged follow-up — Mini-Sim 0.11.22 Warp flow visual correction (27 October 2026)
 
 - **Main:** [PR #87 merged](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/87); merge commit [204636e72b94df954829fd739d050434e22ba28b](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/204636e72b94df954829fd739d050434e22ba28b).
