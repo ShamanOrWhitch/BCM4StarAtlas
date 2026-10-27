@@ -98,25 +98,23 @@ test("Warp multiplier and displayed speed ramp faster from 1x to 12x", () => {
   assert.match(warp, /return Math\.min\(1, 0\.055 \/ \(distance \+ 0\.05\)\)/);
 });
 
-test("Warp axial wall streaks make tunnel flow visible and reverse in Class II", () => {
+test("Warp wall bands show stronger forward flow and reverse direction in Class II without axial streaks", () => {
   const frame = warp.slice(warp.indexOf("function drawBackdrop(now)"), warp.indexOf("function updateTube(dt, now)"));
   assert.doesNotMatch(frame, /reverseStreaks/);
   assert.doesNotMatch(frame, /const length = 2 \+ star\.z \* 22/);
 
   const tunnel = section(warp, "function drawTubeTunnel", "function drawBackdrop");
   assert.match(tunnel, /const flowDirection = visualClass === 2 \? -1 : 1/);
-  assert.match(tunnel, /const axialFlowPhase = \(\(Number\(state\.tubeTravel \|\| 0\) \* 0\.018 \* flowDirection\) % 1 \+ 1\) % 1/);
-  assert.match(tunnel, /const streakPhase = \(axialFlowPhase \+ seam \/ 12\) % 1/);
-  assert.match(tunnel, /const streakStart = 0\.06 \+ streakPhase \* 0\.80/);
-  assert.match(tunnel, /const bandPhase = axialFlowPhase/);
+  assert.match(tunnel, /const bandFlowPhase = \(\(Number\(state\.tubeTravel \|\| 0\) \* 0\.052 \* flowDirection\) % 1 \+ 1\) % 1/);
   assert.match(tunnel, /const bandCount = 14/);
+  assert.match(tunnel, /const bandPhase = bandFlowPhase/);
+  assert.match(tunnel, /const alpha = accent \? 0\.56 : 0\.30/);
+  assert.match(tunnel, /drawArc\(depth, 0, Math\.PI \* 2, color, accent \? 1\.55 : 1\.0\)/);
+  assert.match(tunnel, /Class II recedes into the tunnel; Classes I and III approach the ship/);
   assert.match(tunnel, /for \(let band = 0; band < bandCount; band \+= 1\)/);
-  assert.match(tunnel, /drawArc\(depth, 0, Math\.PI \* 2, color, accent \? 1\.1 : 0\.72\)/);
-  assert.match(tunnel, /Class II travels away from the ship; Classes I and III approach the ship/);
   assert.match(tunnel, /for \(let seam = 0; seam < 12; seam \+= 1\)/);
-  assert.match(tunnel, /g\.lineWidth = seam % 3 === 0 \? 2\.7 : 1\.7/);
+  assert.doesNotMatch(tunnel, /streakPhase|streakStart|axialFlowPhase|Bright axial dashes/);
 });
-
 test("Warp draws a real 2D SAGE coordinate plane and a separate sector-location layer", () => {
   assert.match(warp, /class="bcm-warp-galaxy-map" data-warp-galaxy-map/);
   assert.match(warp, /function renderGalaxyMap\(\)/);

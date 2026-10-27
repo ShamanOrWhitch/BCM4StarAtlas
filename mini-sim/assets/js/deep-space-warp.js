@@ -5119,10 +5119,10 @@
       const t = state.tubeTravel;
       const shimmerTime = Number(state.tubeShimmerTime || 0);
       const visualClass = activeWarpVisualClass();
-      // One visible flow direction drives both the moving axial dashes and the subtle wall bands.
-      // Class II travels away from the ship; Classes I and III approach the ship.
+      // Make wall-band translation clearly visible without adding axial streaks or permanent rails.
+      // Class II recedes into the tunnel; Classes I and III approach the ship.
       const flowDirection = visualClass === 2 ? -1 : 1;
-      const axialFlowPhase = ((Number(state.tubeTravel || 0) * 0.018 * flowDirection) % 1 + 1) % 1;
+      const bandFlowPhase = ((Number(state.tubeTravel || 0) * 0.052 * flowDirection) % 1 + 1) % 1;
       // 45% of the former roll rate: midway between the old over-rotation and the current almost-static tube.
       const axialRoll = Number(state.tubeRoll || 0) + Math.sin(t * 0.13) * 0.126;
       const mid = w * 0.5;
@@ -5250,27 +5250,6 @@ return axialRoll + ahead * 0.12 +
             : (seam % 3 === 0 ? "rgba(110,239,246,0.72)" : "rgba(110,191,210,0.25)");
         g.lineWidth = seam % 3 === 0 ? 1.25 : 0.65;
         g.stroke();
-
-        // Bright axial dashes make tunnel travel readable without extra rails or permanent hoops.
-        // Their depth phase moves toward the ship for I/III and back toward the vanishing point for II.
-        const streakPhase = (axialFlowPhase + seam / 12) % 1;
-        const streakStart = 0.06 + streakPhase * 0.80;
-        const streakEnd = Math.min(1, streakStart + 0.08);
-        g.beginPath();
-        for (let streakStep = 0; streakStep <= 6; streakStep += 1) {
-          const d = streakStart + (streakEnd - streakStart) * (streakStep / 6);
-          const p = point(d, theta + (d - 0.92) * 0.36, -1.9);
-          if (!streakStep) g.moveTo(p.x, p.y);
-          else g.lineTo(p.x, p.y);
-        }
-        g.strokeStyle = visualClass === 3
-          ? (seam % 3 === 0 ? "rgba(222,190,255,0.98)" : "rgba(183,145,238,0.78)")
-          : visualClass === 2
-            ? (seam % 3 === 0 ? "rgba(217,252,255,0.99)" : "rgba(155,235,246,0.84)")
-            : (seam % 3 === 0 ? "rgba(194,255,255,0.98)" : "rgba(125,237,249,0.78)");
-        g.lineWidth = seam % 3 === 0 ? 2.7 : 1.7;
-        g.lineCap = "round";
-        g.stroke();
       }
 
       // Class II is a quieter tint of the same tunnel, not a second set of rails.
@@ -5280,18 +5259,18 @@ return axialRoll + ahead * 0.12 +
         g.fillRect(0, 0, w, h);
       }
 
-      // The subtle circumferential shading bands share the same phase as the axial streaks.
-      // Increasing depth approaches the ship; Class II's reversed phase recedes into the vanishing point.
-      const bandPhase = axialFlowPhase;
+      // These moving wall bands are the flow cue: increasing depth approaches the ship,
+      // and Class II reverses the same accelerated tube clock to recede into depth.
+      const bandPhase = bandFlowPhase;
       const bandCount = 14;
       const bandRgb = visualClass === 3 ? "181,139,255" : visualClass === 2 ? "149,220,229" : "110,222,238";
       for (let band = 0; band < bandCount; band += 1) {
         const phase = ((band / bandCount + bandPhase) % 1 + 1) % 1;
         const depth = 0.055 + phase * 0.90;
         const accent = band % 4 === 0;
-        const alpha = (accent ? 0.32 : 0.14) * (visualClass === 2 ? 0.84 : 1);
+        const alpha = accent ? 0.56 : 0.30;
         const color = "rgba(" + bandRgb + "," + alpha.toFixed(3) + ")";
-        drawArc(depth, 0, Math.PI * 2, color, accent ? 1.1 : 0.72);
+        drawArc(depth, 0, Math.PI * 2, color, accent ? 1.55 : 1.0);
       }
 
       const routeProgress = warpObstacleProgress(state.elapsed);
