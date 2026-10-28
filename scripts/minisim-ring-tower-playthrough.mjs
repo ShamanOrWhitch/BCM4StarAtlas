@@ -541,7 +541,7 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
             await shot(page, "14-tower-progress-" + journey.towerProgress.length + ".png");
           }
         }
-        if (p.finished || currentLevel === 0) {
+        if (p.finished) {
           addCheck("Tower descent reaches the base/finish state", true, {
             finished: p.finished, level: currentLevel, status: q.status, levels: q.levels,
             steps: journey.towerProgress.length
