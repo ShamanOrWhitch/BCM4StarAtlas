@@ -55,19 +55,22 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
     }, null, { timeout: 30000 });
     await wait(400);
   };
+  const keyboardName = (code) => ({
+    KeyA: "A", KeyD: "D", KeyQ: "Q", KeyR: "R", KeyE: "E", KeyW: "W", KeyS: "S"
+  })[code] || code;
   const setKey = async (key, down, held) => {
     const present = held.has(key);
     if (down && !present) {
-      await page.keyboard.down(key);
+      await page.keyboard.down(keyboardName(key));
       held.add(key);
     } else if (!down && present) {
-      await page.keyboard.up(key);
+      await page.keyboard.up(keyboardName(key));
       held.delete(key);
     }
   };
   const releaseKeys = async (held) => {
     for (const key of [...held]) {
-      try { await page.keyboard.up(key); } catch (_) {}
+      try { await page.keyboard.up(keyboardName(key)); } catch (_) {}
       held.delete(key);
     }
   };
@@ -332,13 +335,13 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
           await setKey("KeyD", false, held);
           await setKey("KeyA", false, held);
           if (lastFloorCell !== nodeKey) {
-            await page.keyboard.press("KeyR");
+            await page.keyboard.press("R");
             lastFloorCell = nodeKey;
             floorAttempts++;
           } else if (Date.now() - cellSince > 2200) {
             // Retry the hatch interaction once, then walk to the next horizontal
             // passage rather than leaving the agent stuck in a floor transition.
-            await page.keyboard.press("KeyR");
+            await page.keyboard.press("R");
             floorAttempts++;
           }
         } else {
@@ -346,7 +349,7 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
           await setKey("KeyA", false, held);
           await setKey("KeyD", true, held);
           if (Date.now() - cellSince > 2400) {
-            await page.keyboard.press("KeyE");
+            await page.keyboard.press("E");
             cellSince = Date.now() - 1000;
           }
         }
@@ -411,12 +414,12 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
     let currentRuntime = await getQA();
     for (const wp of boundaries) {
       if (wp.open) {
-        await page.keyboard.press("KeyR");
+        await page.keyboard.press("R");
         await wait(450);
       }
       let result = await pilotFlightWaypoint({ x: zone.x, y: zone.y, z: wp.z }, wp.label, 7500);
       if (!result.reached && (wp.z === -32 || wp.z === -54 || wp.z === -94)) {
-        await page.keyboard.press("KeyR");
+        await page.keyboard.press("R");
         await wait(650);
         result = await pilotFlightWaypoint({ x: zone.x, y: zone.y, z: wp.z }, wp.label + " retry after door action", 5000);
       }
@@ -426,7 +429,7 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
         break;
       }
       if (wp.openAfter) {
-        await page.keyboard.press("KeyR");
+        await page.keyboard.press("R");
         await wait(500);
       }
       currentRuntime = await getQA();
