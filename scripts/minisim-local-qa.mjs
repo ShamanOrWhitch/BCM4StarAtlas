@@ -50,7 +50,7 @@ report.handleAliases=[...handleMap.entries()].map(([requested,file])=>({requeste
 let browser,page;
 try{
  browser=await chromium.launch({headless:!headed});
- const context=await browser.newContext({viewport:{width:1440,height:900},ignoreHTTPSErrors:true});
+ const context=await browser.newContext({viewport:{width:960,height:600},deviceScaleFactor:1,ignoreHTTPSErrors:true});
  await context.addInitScript(({ qaEnabled })=>{
    window.__BCM_QA_ENABLED=!!qaEnabled;
    window.__BCM_QA_MEDIA=new Set();window.__BCM_QA_MEDIA_EVENTS=[];
