@@ -3538,6 +3538,45 @@
       });
       return root;
     };
+    // Read-only runtime state for the opt-in browser QA runner only.
+    // Normal game sessions do not expose internal player or route state.
+    if (window.__BCM_QA_ENABLED === true) {
+      window.BCMTowerAPI.getQAState = () => {
+        if (window.__BCM_QA_ENABLED !== true) return null;
+        const cell = (value) => value ? {
+          level: Number(value.level) || 0,
+          sector: Number(value.sector) || 0,
+          surface: String(value.surface || ""),
+          object: String(value.object || ""),
+          liftHazard: String(value.liftHazard || ""),
+          boostType: String(value.boostType || ""),
+          collected: !!value.collected
+        } : null;
+        return {
+          version: TOWER_VERSION,
+          status: status?.textContent || "",
+          mode,
+          gameStarted: !!gameStarted,
+          seed: tower?.seed ?? seed,
+          levels: Number(tower?.levels) || 0,
+          sectors: Number(tower?.sectors) || 0,
+          stepY: Number(tower?.stepY) || 0,
+          route: Array.isArray(tower?.path) ? tower.path.slice() : [],
+          cells: tower?.cells instanceof Map ? [...tower.cells.values()].map(cell) : [],
+          players: players.map((player) => ({
+            y: Number(player.y) || 0,
+            vy: Number(player.vy) || 0,
+            angle: Number(player.angle) || 0,
+            radial: Number(player.radial) || 0,
+            grounded: !!player.grounded,
+            finished: !!player.finished,
+            jumps: Number(player.jumps) || 0,
+            levelText: tower && typeof currentLevelText === "function" ? currentLevelText(player) : "",
+            currentCell: cell(player.currentCell)
+          }))
+        };
+      };
+    }
 
     resize();
     window.addEventListener("resize", resize);
