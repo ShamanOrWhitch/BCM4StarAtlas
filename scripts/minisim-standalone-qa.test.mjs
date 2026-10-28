@@ -69,6 +69,10 @@ test("full Ring/Tower playthrough uses opt-in read-only telemetry and live game 
   const standalone = await read("scripts/minisim-standalone-qa.mjs");
   assert.match(local, /argv\.includes\("--ring-tower"\)/);
   assert.match(local, /window\.__BCM_QA_ENABLED=!!qaEnabled/);
+  assert.doesNotMatch(local, /requestPointerLock=function/);
+  const mini = await read("mini-sim/assets/js/mini-sim.js");
+  assert.match(mini, /window\.__BCM_QA_ENABLED === true/);
+  assert.match(mini, /const hands = touchDevice \|\| pointerLocked \|\| pointerLockBlocked \|\| padLive \|\|/);
   assert.match(local, /runRingTowerPlaythrough\(\{page,report,shot\}\)/);
   assert.match(standalone, /"--ring-tower"/);
   assert.match(journey, /pilotFlightWaypoint/);
