@@ -56,6 +56,6 @@ test("browser QA uses an explicit Tube result/cancel contract rather than Escape
 
 test("standalone QA report labels its fixture honestly instead of calling it WordPress", async () => {
   const runner = await read("scripts/minisim-local-qa.mjs");
-  assert.match(runner, /standalone\\?"Standalone QA fixture responds successfully":"WordPress page responds successfully"/);
-  assert.match(runner, /standalone\\?"Mini-Sim fixture root is present":"Mini-Sim shortcode is present"/);
+  assert.match(runner, /standalone\?"Standalone QA fixture responds successfully":"WordPress page responds successfully"/);
+  assert.match(runner, /standalone\?"Mini-Sim fixture root is present":"Mini-Sim shortcode is present"/);
 });
