@@ -4861,6 +4861,10 @@
               vy: Number(p.vy) || 0,
               grounded: !!p.grounded,
               hp: Number(p.hp) || 0,
+              ringReturnNode: p.ringReturnNode ? {
+                x: p.ringReturnNode.x, y: p.ringReturnNode.y, z: p.ringReturnNode.z,
+                large: !!p.ringReturnNode.large
+              } : null,
               current: p.ringCurrent ? {
                 x: p.ringCurrent.x, y: p.ringCurrent.y, z: p.ringCurrent.z,
                 large: !!p.ringCurrent.large
@@ -5568,6 +5572,9 @@ return axialRoll + ahead * 0.12 +
           current: node(path.current),
           objective: typeof path.objectiveNode === "function" ? node(path.objectiveNode(path.current)) : null,
           routeStep: path.routeStep || null,
+          homeX: Number(path.homeX) || 0,
+          half: Number(path.half) || 0,
+          exitX: Number(path.exitX) || 0,
           departed: !!path.departed,
           visitedLarge: !!path.visitedLarge,
           pendingReturn: !!path.pendingReturn,
@@ -5588,6 +5595,8 @@ return axialRoll + ahead * 0.12 +
             active: !!maze.active, seed: maze.seed,
             startCell: maze.startCell, exitCell: maze.exitCell,
             ringCompleted: !!maze.ringCompleted,
+            ringTransitionActive: !!state.ringTransitionActive,
+            ringPlatformer: !!state.ringPlatformer,
             beacon, center: point(maze.center),
             dimensions: maze.dimensions,
             cellSize: Number(maze.cellSize) || 6.8,
