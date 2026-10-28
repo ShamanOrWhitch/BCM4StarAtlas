@@ -75,7 +75,8 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
   // Use the same map and Tube widgets as a player. A tiny deterministic coordinate
   // adjacent to ONI CSS is the local fixture's real asteroid destination.
   const openDestination = async (x, y) => {
-    await page.keyboard.press("V");
+    const alreadyOpen = await page.locator(".bcm-warp-overlay:not([hidden])").count();
+    if (!alreadyOpen) await page.keyboard.press("V");
     await page.locator(".bcm-warp-overlay:not([hidden])").first().waitFor({ state: "visible", timeout: 15000 });
     const form = page.locator("[data-warp-manual]").first();
     await form.waitFor({ state: "visible", timeout: 10000 });
@@ -389,11 +390,11 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
     const current = await getQA();
     if (!current.runtime?.running) await freshFlight();
     const boundaries = [
-      { z: -20, open: false, label: "Room 1 door approach" },
+      { z: -20, openAfter: true, label: "Room 1 door approach" },
       { z: -32, open: false, label: "Room 1 front door crossing" },
-      { z: -42, open: true, label: "Room 2 door approach" },
+      { z: -42, openAfter: true, label: "Room 2 door approach" },
       { z: -54, open: false, label: "Room 2 front door crossing" },
-      { z: -77, open: true, label: "Outer hull door approach" },
+      { z: -77, openAfter: true, label: "Outer hull door approach" },
       { z: -94, open: false, label: "Outer hull crossing" },
       { z: -114, open: false, label: "Deep-space approach 1" },
       { z: -140, open: false, label: "Deep-space approach 2" },
@@ -419,6 +420,10 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
         reachedAll = false;
         journey.flightWaypoints.push({ label: "blocked before " + wp.label, reached: false, ship: result.runtime?.position });
         break;
+      }
+      if (wp.openAfter) {
+        await page.keyboard.press("KeyR");
+        await wait(500);
       }
       currentRuntime = await getQA();
       if (wp.z === -230) {
@@ -455,7 +460,7 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
       // a pass for physical travel through the whole corridor.
       const status = await getQA();
       if (!status.runtime?.running) await freshFlight();
-      await page.evaluate((z) => window.BCMiniSimAPI.teleport({ x: 0, y: -2, z: z + 30, yaw: 0 }), zone);
+      await page.evaluate((target) => window.BCMiniSimAPI.teleport({ x: target.x, y: target.y, z: target.z + 30, yaw: 0 }), zone);
       await wait(1300);
       const v = await isVideoPlaying("onicss.mp4");
       journey.videoChecks.push({ filename: "onicss.mp4 (QA stage fallback)", ...v });
