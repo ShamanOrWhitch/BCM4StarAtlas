@@ -23,6 +23,15 @@ jobs:
     steps:
       - name: Check out tested commit
         uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            .github/workflows
+            mini-sim
+            package.json
+            scripts
+            tools/minisim-qa
+          sparse-checkout-cone-mode: true
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
