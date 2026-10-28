@@ -31,7 +31,7 @@ test("standalone runner preserves actual repository media and writes an explicit
   assert.match(runner, /scanAssets/);
   assert.match(runner, /crew-roster\.json/);
   assert.match(runner, /mini-sim\/assets/);
-  assert.match(runner, /BCMTowerConfig/);
+  assert.match(runner, /towerConfig/);
   assert.match(runner, /targetType = "standalone repository build/);
   assert.match(runner, /wpIntegrationVerified = false/);
   assert.match(runner, /scripts\/minisim-local-qa\.mjs/);
