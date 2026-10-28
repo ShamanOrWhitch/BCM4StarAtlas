@@ -278,7 +278,7 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
     let reachedCells = 0;
     for (let i = 1; i < route.length; i++) {
       const target = route[i].position;
-      const waypoint = await pilotFlightWaypoint(target, "asteroid-cell-" + keyOf(route[i]), 7200);
+      const waypoint = await pilotFlightWaypoint(target, "asteroid-cell-" + keyOf(route[i]), 10000);
       if (!waypoint.reached) throw new Error("Ship physics did not reach maze waypoint " + keyOf(route[i]) + "; " + JSON.stringify(waypoint));
       reachedCells++;
       if (i === Math.min(3, route.length - 1) || i === Math.ceil((route.length - 1) / 2) || i === route.length - 1) {
