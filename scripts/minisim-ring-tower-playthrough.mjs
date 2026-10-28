@@ -158,9 +158,25 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
     try {
       while (Date.now() - started < timeoutMs) {
         const state = await page.evaluate((goal) => {
+          const qa = window.BCMDeepSpaceWarpQA?.() || null;
           const runtime = window.BCMiniSimAPI?.getRuntime?.();
           const ship = runtime?.ship, THREE = runtime?.THREE;
           if (!runtime || !ship || !THREE || !ship.position || !ship.velocity) return null;
+          const pNow = { x: ship.position.x, y: ship.position.y, z: ship.position.z };
+          // The beacon auto-enters Ring and intentionally pauses flight inside its
+          // capture radius. Treat that real trigger as success for the final path
+          // leg instead of waiting for the ship to cross into the beacon itself.
+          if (qa?.maze?.ringTransitionActive || qa?.maze?.ringPlatformer) {
+            const target = new THREE.Vector3(goal.x, goal.y, goal.z);
+            return {
+              p: pNow,
+              v: { x: ship.velocity.x, y: ship.velocity.y, z: ship.velocity.z, speed: ship.velocity.length() },
+              distance: target.distanceTo(ship.position),
+              accelLength: 0,
+              throttle: false,
+              gateTriggered: true
+            };
+          }
           const target = new THREE.Vector3(goal.x, goal.y, goal.z);
           const delta = target.clone().sub(ship.position);
           const distance = delta.length();
@@ -186,6 +202,11 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
           return { p, v, distance, accelLength, throttle: accelLength > 0.16 };
         }, target);
         if (!state) throw new Error("Flight runtime was lost at " + label);
+        if (state.gateTriggered) {
+          reached = true;
+          trace.push({ at: Date.now() - started, gateTriggered: true, distance: Number(state.distance.toFixed(2)), p: state.p, v: state.v });
+          break;
+        }
         await setKey("KeyW", !!state.throttle, held);
         if (trace.length === 0 || Date.now() - trace[trace.length - 1].at >= 700) {
           trace.push({ at: Date.now() - started, distance: Number(state.distance.toFixed(2)), p: state.p, v: state.v, accel: Number(state.accelLength.toFixed(2)), throttle: state.throttle });
@@ -269,15 +290,22 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
     }
     const result = await getQA();
     const ringButton = await page.locator(".bcm-warp-ring-enter").isVisible().catch(() => false);
-    need(ringButton, "Physical flight reaches the Ring proximity gate", {
-      edges: reachedCells, totalEdges: route.length - 1,
+    const ringAutoStarted = !!(result.warp?.maze?.ringTransitionActive || result.warp?.maze?.ringPlatformer) ||
+      await page.locator("#bcm-ring-transition, #bcm-ring-platformer").count() > 0;
+    need(ringButton || ringAutoStarted, "Physical flight reaches the Ring proximity gate", {
+      edges: reachedCells, totalEdges: route.length - 1, ringAutoStarted,
       ship: result.runtime?.position, maze: result.warp?.maze, status: result.status
     });
-    return { reachedCells, totalEdges: route.length - 1, seed: maze.seed };
+    return { reachedCells, totalEdges: route.length - 1, seed: maze.seed, ringAutoStarted };
   };
 
   const playRing = async () => {
-    await page.locator(".bcm-warp-ring-enter").first().click({ timeout: 10000 });
+    const current = await getQA();
+    const transitionOrRingExists = !!(current.warp?.maze?.ringTransitionActive || current.warp?.maze?.ringPlatformer) ||
+      (await page.locator("#bcm-ring-transition, #bcm-ring-platformer").count() > 0);
+    if (!transitionOrRingExists) {
+      await page.locator(".bcm-warp-ring-enter").first().click({ timeout: 10000 });
+    }
     const transitionStart = page.locator('#bcm-ring-transition [aria-label="Start the Ring level"]');
     try {
       await transitionStart.waitFor({ state: "visible", timeout: 12000 });
