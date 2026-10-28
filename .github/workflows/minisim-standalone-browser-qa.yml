@@ -9,6 +9,7 @@ on:
       - "scripts/minisim-local-qa.mjs"
       - "scripts/minisim-standalone-qa.mjs"
       - "scripts/minisim-standalone-qa.test.mjs"
+      - "scripts/minisim-ring-tower-playthrough.mjs"
       - "tools/minisim-qa/**"
       - "package.json"
       - ".github/workflows/minisim-standalone-browser-qa.yml"
@@ -19,7 +20,7 @@ permissions:
 jobs:
   standalone-browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 22
     steps:
       - name: Check out tested commit
         uses: actions/checkout@v4
@@ -43,8 +44,8 @@ jobs:
         working-directory: tools/minisim-qa
       - name: Run Mini-Sim source assertions
         run: npm run test:minisim
-      - name: Run real browser smoke against standalone fixture
-        run: npm run qa:minisim:standalone
+      - name: Run full browser playthrough: Warp → asteroid → Ring → ONI CSS → Tower
+        run: npm run qa:minisim:standalone -- --ring-tower --full-media
       - name: Upload browser screenshots and report
         if: always()
         uses: actions/upload-artifact@v4
