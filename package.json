@@ -20,8 +20,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "start": "node .output/server/index.mjs",
-    "test:minisim": "node --test scripts/minisim-local-qa.test.mjs",
-    "qa:minisim": "node scripts/minisim-local-qa.mjs"
+    "test:minisim": "node --test scripts/minisim-local-qa.test.mjs scripts/minisim-standalone-qa.test.mjs",
+    "qa:minisim": "node scripts/minisim-local-qa.mjs",
+    "qa:minisim:standalone": "node scripts/minisim-standalone-qa.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",
