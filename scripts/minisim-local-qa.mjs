@@ -2,6 +2,7 @@
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { createRequire } from "node:module";
+import { runRingTowerPlaythrough } from "./minisim-ring-tower-playthrough.mjs";
 
 const HANDLE_FILES={
  "bcm-mini-sim-js":"mini-sim/assets/js/mini-sim.js",
@@ -29,7 +30,7 @@ let chromium;
 try { ({chromium}=requireQa("playwright")); }
 catch(e) { console.error("Playwright is not installed in tools/minisim-qa. Run: cd tools/minisim-qa && npm install && npx playwright install chromium"); process.exit(2); }
 const arg=k=>{const i=argv.indexOf(k);return i>=0?argv[i+1]:"";};
-const url=arg("--url")||process.env.MINISIM_URL||"",full=argv.includes("--full-media"),headed=argv.includes("--headed");
+const url=arg("--url")||process.env.MINISIM_URL||"",full=argv.includes("--full-media"),headed=argv.includes("--headed"),ringTower=argv.includes("--ring-tower");
 const standalone=process.env.MINISIM_QA_TARGET_KIND==="standalone-repository-build";
 const out=resolve(root,".qa-artifacts");
 const report={targetUrl:url,mode:full?"full-media":"light-media",startedAt:new Date().toISOString(),overrides:[],pluginAssetRequests:[],blockedVideos:[],httpErrors:[],consoleErrors:[],pageErrors:[],failedRequests:[],checks:[],screenshots:[]};
@@ -50,15 +51,17 @@ let browser,page;
 try{
  browser=await chromium.launch({headless:!headed});
  const context=await browser.newContext({viewport:{width:1440,height:900},ignoreHTTPSErrors:true});
- await context.addInitScript(()=>{
+ await context.addInitScript(({ qaEnabled })=>{
+   window.__BCM_QA_ENABLED=!!qaEnabled;
    window.__BCM_QA_MEDIA=new Set();window.__BCM_QA_MEDIA_EVENTS=[];
+   if(qaEnabled&&typeof HTMLCanvasElement!=="undefined")HTMLCanvasElement.prototype.requestPointerLock=function(){return Promise.reject(new Error("Playwright QA: pointer lock disabled so the real keyboard fallback can be exercised"));};
    const create=Document.prototype.createElement;
    Document.prototype.createElement=function(name,options){const node=create.call(this,name,options);if(["audio","video"].includes(String(name).toLowerCase()))window.__BCM_QA_MEDIA.add(node);return node;};
    const play=HTMLMediaElement.prototype.play;
    HTMLMediaElement.prototype.play=function(){window.__BCM_QA_MEDIA.add(this);window.__BCM_QA_MEDIA_EVENTS.push({action:"play",tag:this.tagName,src:this.currentSrc||this.src||"",at:performance.now()});return play.apply(this,arguments);};
    const pause=HTMLMediaElement.prototype.pause;
    HTMLMediaElement.prototype.pause=function(){window.__BCM_QA_MEDIA.add(this);window.__BCM_QA_MEDIA_EVENTS.push({action:"pause",tag:this.tagName,src:this.currentSrc||this.src||"",at:performance.now()});return pause.apply(this,arguments);};
- });
+ },{qaEnabled:ringTower});
  page=await context.newPage();
  page.setDefaultTimeout(20000);
  page.setDefaultNavigationTimeout(60000);
@@ -131,6 +134,7 @@ try{
  report.afterCancel=after;await shot(page,"05-after-cancel.png");
  check(!!before&&!!after.position&&after.position.every((v,i)=>Math.abs(v-before[i])<1),"cancel restores the ship position");
  check(after.audio.length===1&&!/warp\\.mp3/i.test(after.audio[0]),"cancel stops Warp OST and restores the normal flight OST");
+ if(ringTower)await runRingTowerPlaythrough({page,report,shot});
  const benignConsole=text=>!full&&/ERR_BLOCKED_BY_CLIENT/.test(text);
  const benignPage=text=>{const m=String(text).match(/base64,([A-Za-z0-9+/=]+)/);if(!m)return false;try{return Buffer.from(m[1],"base64").toString("utf8").includes("wy-preloader");}catch(e){return false;}};
  report.seriousConsoleErrors=report.consoleErrors.filter(text=>!benignConsole(text));
@@ -143,5 +147,5 @@ finally{
  try{await writeFile(resolve(out,"minisim-qa-report.json"),JSON.stringify(report,null,2)+"\n","utf8");}catch(e){}
  if(browser)await browser.close().catch(()=>{});
 }
-console.log(JSON.stringify({status:report.status,url:report.targetUrl,checks:report.checks,localOverrides:report.overrides.length,overriddenFiles:[...new Set(report.overrides.map(item=>item.file))],pluginHttpErrors:report.pluginHttpErrors,httpErrors:report.httpErrors,blockedVideoRequests:report.blockedVideos.length,seriousConsoleErrors:report.seriousConsoleErrors,seriousPageErrors:report.seriousPageErrors,consoleErrors:report.consoleErrors,pageErrors:report.pageErrors,failedRequests:report.failedRequests,screenshots:report.screenshots,report:".qa-artifacts/minisim-qa-report.json",error:report.error},null,2));
+console.log(JSON.stringify({status:report.status,url:report.targetUrl,checks:report.checks,journey:report.journey?.summary||null,localOverrides:report.overrides.length,overriddenFiles:[...new Set(report.overrides.map(item=>item.file))],pluginHttpErrors:report.pluginHttpErrors,httpErrors:report.httpErrors,blockedVideoRequests:report.blockedVideos.length,seriousConsoleErrors:report.seriousConsoleErrors,seriousPageErrors:report.seriousPageErrors,consoleErrors:report.consoleErrors,pageErrors:report.pageErrors,failedRequests:report.failedRequests,screenshots:report.screenshots,report:".qa-artifacts/minisim-qa-report.json",error:report.error},null,2));
 if(report.status!=="PASS")process.exitCode=1;
