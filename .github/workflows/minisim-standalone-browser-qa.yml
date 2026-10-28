@@ -28,9 +28,11 @@ jobs:
         with:
           node-version: 22
       - name: Install the isolated Playwright dependency
-        run: npm install --prefix tools/minisim-qa
+        run: npm install
+        working-directory: tools/minisim-qa
       - name: Install Chromium and system dependencies
-        run: npx --prefix tools/minisim-qa playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: tools/minisim-qa
       - name: Run Mini-Sim source assertions
         run: npm run test:minisim
       - name: Run real browser smoke against standalone fixture
