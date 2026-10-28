@@ -525,7 +525,7 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
       startCell: q.tower?.players?.[0]?.currentCell, levelText: q.tower?.players?.[0]?.levelText
     });
     const held = new Set();
-    let currentLevel = null, lowestLevel = Infinity, lastProgress = Date.now(), jumpForLevel = null;
+    let currentLevel = null, lowestLevel = Infinity, lastProgress = Date.now(), jumpForLevel = null, jumpAt = 0;
     const started = Date.now(), towerTimeout = 125000;
     try {
       while (Date.now() - started < towerTimeout) {
@@ -564,11 +564,13 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
           const turnKey = Math.abs(diff) < 0.045 ? "" : (diff > 0 ? "KeyD" : "KeyA");
           await setKey("KeyA", turnKey === "KeyA", held);
           await setKey("KeyD", turnKey === "KeyD", held);
-          if (p.grounded && jumpForLevel !== currentLevel) {
-            await setKey("KeyA", false, held);
-            await setKey("KeyD", false, held);
+          // Retry after a short interval if the jump was absorbed by a bird,
+          // missed the next platform, or landed back on the same level. A single
+          // attempt per level left the agent stranded at the roof in earlier runs.
+          if (p.grounded && (jumpForLevel !== currentLevel || Date.now() - jumpAt > 1800)) {
             await page.keyboard.press("Space");
             jumpForLevel = currentLevel;
+            jumpAt = Date.now();
           }
         }
         await wait(65);
