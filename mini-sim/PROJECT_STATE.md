@@ -1,3 +1,16 @@
+## Standalone Playwright QA harness — WORK LOCK #90 (28 October 2026)
+
+- Branch: `feat/minisim-standalone-browser-qa`, baseline `e940be64f2e280dcab321c2f0f739974e1b7bce9`.
+- Added `tools/minisim-qa/standalone-shell.html`, a browser fixture mirroring the Mini-Sim/Tower shortcode DOM contract while using the existing repository assets.
+- `scripts/minisim-standalone-qa.mjs` builds the test config from the current Mini-Sim/Tower PHP version constants and scans the checked-out assets; it serves the fixture on localhost and delegates to the existing Playwright interaction test. The existing runner intercepts plugin asset requests and serves current JS/CSS/media from the checkout, so the test does not need live `walkingyog.com/bcm4sa/` access.
+- New command: `npm run qa:minisim:standalone`. `npm run qa:minisim -- --url "https://your-wp-page/"` remains the separate live-WordPress path.
+- Added `.github/workflows/minisim-standalone-browser-qa.yml`: PR/manual browser run on GitHub Actions, and screenshot/JSON artifacts under `.qa-artifacts/`.
+- **VERIFIED standalone browser PASS:** [GitHub Actions run #40724817635](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40724817635), PR head `17cd69fee55a9463e32ed5b34d22dcce69c66eb3` (the PR run executed merge tree `fc6438baa61f930f213c58a492bdbbea9d588021`). 14/14 browser checks PASS: local fixture and current repo JS/CSS are served, flight starts from Crew preflight, Warp map opens, only `warp.mp3` plays on the map and Tube, OST continues without reset, the result/cancel UI opens, cancel restores ship coordinates and Starbase OST. No serious page errors or plugin HTTP errors. [Screenshots + JSON report artifact](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40724817635) (14-day retention).
+- **TESTED-CODE PASS:** [Mini-Sim regression workflow #40724818031](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40724818031) passed on PR head `17cd69fee55a9463e32ed5b34d22dcce69c66eb3`. The separate live WordPress browser run remains **BLOCKED-ENVIRONMENT** because the host returns HTTP 403 before the app; it is not a gameplay failure. The standalone fixture does not verify PHP shortcode rendering, active `walkingyog-theme`, remote API availability, actual Ring gameplay, Tower gameplay, or physical phone/gamepad behavior. It does not bypass the firewall.
+- Exclusions preserved: `wordpress/galia-desk`, scanner/pricing, shared assets, firewall and gameplay logic unchanged.
+
+---
+
 ## Merged fix — Warp reverse flow + Tower P2 Right Ctrl (27 October 2026)
 
 - **Main:** [PR #88 merged](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/88) as [`dee7ae399c3023dd3f3861e3414f185ee5550e67`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/dee7ae399c3023dd3f3861e3414f185ee5550e67). Source change: [`196dddb`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/196dddb345ba04a53b2d3e3ef24689b2744d1953). Not deployed to WordPress.

@@ -30,6 +30,7 @@ try { ({chromium}=requireQa("playwright")); }
 catch(e) { console.error("Playwright is not installed in tools/minisim-qa. Run: cd tools/minisim-qa && npm install && npx playwright install chromium"); process.exit(2); }
 const arg=k=>{const i=argv.indexOf(k);return i>=0?argv[i+1]:"";};
 const url=arg("--url")||process.env.MINISIM_URL||"",full=argv.includes("--full-media"),headed=argv.includes("--headed");
+const standalone=process.env.MINISIM_QA_TARGET_KIND==="standalone-repository-build";
 const out=resolve(root,".qa-artifacts");
 const report={targetUrl:url,mode:full?"full-media":"light-media",startedAt:new Date().toISOString(),overrides:[],pluginAssetRequests:[],blockedVideos:[],httpErrors:[],consoleErrors:[],pageErrors:[],failedRequests:[],checks:[],screenshots:[]};
 const check=(ok,message)=>{report.checks.push({ok:!!ok,message});if(!ok)throw Error(message);};
@@ -95,8 +96,8 @@ try{
  await page.locator(".bcm-mini-sim").first().waitFor({state:"attached",timeout:30000});
  await page.locator(".bcm-mini-sim-canvas").first().waitFor({state:"visible",timeout:30000});
  await page.waitForTimeout(900);await shot(page,"01-menu.png");
- check(!!response&&response.status()<400,"WordPress page responds successfully");
- check(await page.locator(".bcm-mini-sim").count()>0,"Mini-Sim shortcode is present");
+ check(!!response&&response.status()<400,standalone?"Standalone QA fixture responds successfully":"WordPress page responds successfully");
+ check(await page.locator(".bcm-mini-sim").count()>0,standalone?"Mini-Sim fixture root is present":"Mini-Sim shortcode is present");
  check(report.overrides.some(item=>item.file==="mini-sim/assets/js/mini-sim.js"),"Main Mini-Sim JavaScript is served from this GitHub commit");
  check(report.overrides.some(item=>item.file==="mini-sim/assets/js/deep-space-warp.js"),"Warp JavaScript is served from this GitHub commit");
  check(report.overrides.some(item=>item.file==="mini-sim/assets/css/mini-sim.css"),"Mini-Sim CSS is served from this GitHub commit");
@@ -121,7 +122,11 @@ try{
  const during=await activeAudio();report.audioDuringTube=during;
  check(during.length===1&&/warp\.mp3/i.test(during[0].src),"Warp OST remains the only audible track in Tube");
  check(during[0].time>mapTrackTime,"Warp OST continues forward instead of resetting when Tube begins");
- await page.keyboard.press("Escape");await page.waitForFunction(()=>!!document.querySelector(".bcm-warp-overlay[hidden]"),null,{timeout:8000});await page.waitForTimeout(350);
+ await page.locator("[data-tube-abort]").waitFor({state:"visible",timeout:55000});
+  check(true,"Tube reaches its result screen and exposes the explicit cancel action");
+  await shot(page,"04b-tube-result.png");
+  await page.locator("[data-tube-abort]").click();
+  await page.waitForFunction(()=>!!document.querySelector(".bcm-warp-overlay[hidden]"),null,{timeout:8000});await page.waitForTimeout(350);
  const after=await page.evaluate(()=>{const p=window.BCMiniSimAPI?.getRuntime?.()?.ship?.position,all=new Set([...(window.__BCM_QA_MEDIA||[]),...document.querySelectorAll("audio")]);return{position:p?[p.x,p.y,p.z]:null,audio:[...all].filter(a=>a&&a.tagName==="AUDIO"&&!a.paused&&!a.ended&&!a.muted&&a.volume>0).map(a=>a.currentSrc||a.src||"")};});
  report.afterCancel=after;await shot(page,"05-after-cancel.png");
  check(!!before&&!!after.position&&after.position.every((v,i)=>Math.abs(v-before[i])<1),"cancel restores the ship position");
