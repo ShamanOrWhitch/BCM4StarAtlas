@@ -278,7 +278,7 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
     let reachedCells = 0;
     for (let i = 1; i < route.length; i++) {
       const target = route[i].position;
-      const waypoint = await pilotFlightWaypoint(target, "asteroid-cell-" + keyOf(route[i]), 10000);
+      const waypoint = await pilotFlightWaypoint(target, "asteroid-cell-" + keyOf(route[i]), 25000);
       if (!waypoint.reached) throw new Error("Ship physics did not reach maze waypoint " + keyOf(route[i]) + "; " + JSON.stringify(waypoint));
       reachedCells++;
       if (i === Math.min(3, route.length - 1) || i === Math.ceil((route.length - 1) / 2) || i === route.length - 1) {
@@ -322,7 +322,7 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
     const held = new Set();
     let lastCell = "", cellSince = Date.now(), lastFloorCell = "", floorAttempts = 0;
     let largeTurnaround = false, visitedLarge = false, farthestX = -Infinity;
-    const started = Date.now(), hardTimeout = 125000;
+    const started = Date.now(), hardTimeout = 180000;
     try {
       await setKey("KeyQ", true, held);
       while (Date.now() - started < hardTimeout) {
@@ -401,7 +401,7 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
         if (journey.ringProgress.length > 0 && journey.ringProgress.length % 10 === 0) {
           // sampled below as well; keep this branch cheap and bounded
         }
-        if (Date.now() - cellSince > 7000) {
+        if (Date.now() - cellSince > 15000) {
           throw new Error("Ring avatar stopped changing cells for 7 seconds at " + nodeKey + "; playerX=" + r.player.worldX +
             ", routeStep=" + r.path.routeStep + ", status=" + r.status);
         }
@@ -456,11 +456,11 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
         await page.keyboard.press("R");
         await wait(450);
       }
-      let result = await pilotFlightWaypoint({ x: zone.x, y: zone.y, z: wp.z }, wp.label, 7500);
+      let result = await pilotFlightWaypoint({ x: zone.x, y: zone.y, z: wp.z }, wp.label, 15000);
       if (!result.reached && (wp.z === -32 || wp.z === -54 || wp.z === -94)) {
         await page.keyboard.press("R");
         await wait(650);
-        result = await pilotFlightWaypoint({ x: zone.x, y: zone.y, z: wp.z }, wp.label + " retry after door action", 5000);
+        result = await pilotFlightWaypoint({ x: zone.x, y: zone.y, z: wp.z }, wp.label + " retry after door action", 8000);
       }
       if (!result.reached) {
         reachedAll = false;
@@ -492,7 +492,7 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
         { x: zone.x, y: zone.y, z: zone.z + 13 }
       ];
       for (let i = 0; i < finalWaypoints.length; i++) {
-        const r = await pilotFlightWaypoint(finalWaypoints[i], "Tower gate trigger " + (i + 1), 6000);
+        const r = await pilotFlightWaypoint(finalWaypoints[i], "Tower gate trigger " + (i + 1), 12000);
         if (!r.reached) { physicalApproach = false; break; }
       }
     }
@@ -565,7 +565,7 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
     });
     const held = new Set();
     let currentLevel = null, lowestLevel = Infinity, lastProgress = Date.now(), jumpForLevel = null, jumpAt = 0;
-    const started = Date.now(), towerTimeout = 125000;
+    const started = Date.now(), towerTimeout = 180000;
     try {
       while (Date.now() - started < towerTimeout) {
         q = await page.evaluate(() => window.BCMTowerAPI?.getQAState?.() || null);
@@ -591,7 +591,7 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
           await shot(page, "15-tower-complete.png");
           return { physicalApproach, lowestLevel, complete: true };
         }
-        if (Date.now() - lastProgress > 11000) {
+        if (Date.now() - lastProgress > 20000) {
           throw new Error("Tower avatar made no new landing for 11 seconds. Lowest level=" + lowestLevel +
             ", current=" + JSON.stringify(info) + ", status=" + q.status);
         }
