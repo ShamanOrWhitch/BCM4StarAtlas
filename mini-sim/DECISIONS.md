@@ -1,3 +1,15 @@
+## D-044 — Standalone browser QA without WordPress route dependency (28 October 2026)
+
+**Status:** implemented on branch `feat/minisim-standalone-browser-qa`; linked WORK LOCK [#90](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/90). CI status must be updated after the PR workflow executes.
+
+- The previous Playwright runner required the live WordPress shortcode page to load before it could exercise current locally overridden plugin files. External automation repeatedly received HTTP 403 before `.bcm-mini-sim`, so it never reached the gameplay checks.
+- New standalone mode serves a separate HTML fixture that mirrors the Mini-Sim/Tower shortcode DOM, derives current asset URLs and version strings from the checked-out repo, and then delegates to the existing Playwright smoke test. Requests for plugin assets are fulfilled from this checkout. It exercises start, Crew preflight, Warp map, Tube entry, OST exclusivity/continuity and Warp cancellation/return in Chromium.
+- Use `npm run qa:minisim:standalone`; it emits the JSON report and screenshots under `.qa-artifacts/`. A GitHub Actions workflow installs Playwright in the isolated `tools/minisim-qa` workspace, runs focused tests and uploads artifacts.
+- This is a real browser-runtime test, not merely a static assertion, but it is not a live WordPress/theme deployment test and does not confirm gamepad/mobile hardware. No firewall bypass, live change or `wordpress/galia-desk` edit is involved.
+- Revisit only if the standalone harness fails to start against a fresh checkout or diverges from a required shortcode DOM/config contract; keep its scope separate from game mechanics.
+
+---
+
 ## D-043 — Reverse Warp wall-band flow and remap Tower P2 jump (27 October 2026)
 
 **Status:** merged via [PR #88](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/88), main commit [`dee7ae399c3023dd3f3861e3414f185ee5550e67`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/dee7ae399c3023dd3f3861e3414f185ee5550e67). Not deployed to WordPress.
