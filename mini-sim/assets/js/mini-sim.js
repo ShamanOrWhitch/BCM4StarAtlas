@@ -989,7 +989,8 @@
     // Start stays Room 1 at (0, 0, 2). Do not teleport into the asteroid:
     // the first location test needs the site objects that live here.
 
-    if (canvas.requestPointerLock && !("ontouchstart" in window)) {
+    if (canvas.requestPointerLock && !("ontouchstart" in window) &&
+        window.__BCM_QA_ENABLED !== true) {
       canvas.requestPointerLock();
     }
 
@@ -4556,7 +4557,10 @@
     // Touch and a live gamepad stay independent so a phone or pad is not stuck.
     const touchDevice = ("ontouchstart" in window) || (navigator.maxTouchPoints > 0);
     const padLive = Math.abs(pad.lx) + Math.abs(pad.ly) + Math.abs(pad.rx) + Math.abs(pad.ry) + Math.abs(pad.roll) + Math.abs(pad.vert) > 0.04;
-    const hands = touchDevice || pointerLocked || pointerLockBlocked || padLive;
+    // The opt-in Playwright runner simulates keyboard events without OS pointer lock.
+    // This branch is inert in ordinary gameplay and in the live WordPress page.
+    const hands = touchDevice || pointerLocked || pointerLockBlocked || padLive ||
+      window.__BCM_QA_ENABLED === true;
     const keyOn = (code) => !!(hands && keys[code]);
     return {
       thrust: (keyOn("KeyW") || touch.thrust ? 1 : 0) - (keyOn("KeyS") || touch.brake ? 1 : 0) - pad.ly,
@@ -5367,7 +5371,9 @@
       }
       if (settings.open) return;
       const flightCodes = { KeyW: 1, KeyA: 1, KeyS: 1, KeyD: 1, KeyQ: 1, KeyE: 1, KeyC: 1, Space: 1 };
-      if (flightCodes[e.code] && running && !root.classList.contains("bcm-warp-open") && !pointerLocked && !("ontouchstart" in window) && !(navigator.maxTouchPoints > 0)) {
+      if (window.__BCM_QA_ENABLED !== true && flightCodes[e.code] && running &&
+          !root.classList.contains("bcm-warp-open") && !pointerLocked &&
+          !("ontouchstart" in window) && !(navigator.maxTouchPoints > 0)) {
         if (canvas.requestPointerLock) canvas.requestPointerLock();
       }
       keys[e.code] = true;

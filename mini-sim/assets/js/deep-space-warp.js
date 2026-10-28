@@ -2056,6 +2056,7 @@
         // The 2D Ring mode reuses this exact maze instance and topology, not a second RNG.
         seed,
         dimensions: { nx: NX, ny: NY, nz: NZ },
+        cellSize: CELL,
         startCell: { x: startNode.x, y: startNode.y, z: startNode.z },
         exitCell: { x: exitNode.x, y: exitNode.y, z: exitNode.z },
         cells,
@@ -4842,10 +4843,35 @@
         worldState,
         scene,
         maze,
+        players,
         oldMazeVisible: worldSaved.oldMazeVisible,
         oldShipVisible: worldSaved.oldShipVisible,
         oldBackground,
-        runtime
+        runtime,
+        qa: {
+          isStarted: () => gameStarted,
+          isDone: () => done,
+          getStatus: () => statusEl.textContent,
+          getCount: () => countEl.textContent,
+          getPlayer: () => {
+            const p = players[0];
+            return p ? {
+              worldX: Number(p.worldX) || 0,
+              worldY: Number(p.worldY) || 0,
+              vy: Number(p.vy) || 0,
+              grounded: !!p.grounded,
+              hp: Number(p.hp) || 0,
+              ringReturnNode: p.ringReturnNode ? {
+                x: p.ringReturnNode.x, y: p.ringReturnNode.y, z: p.ringReturnNode.z,
+                large: !!p.ringReturnNode.large
+              } : null,
+              current: p.ringCurrent ? {
+                x: p.ringCurrent.x, y: p.ringCurrent.y, z: p.ringCurrent.z,
+                large: !!p.ringCurrent.large
+              } : null
+            } : null;
+          }
+        }
       };
       window.BCMDeepSpaceWarpRender = renderRingViews;
 
@@ -5498,6 +5524,115 @@ return axialRoll + ahead * 0.12 +
         "SPEED " + speed.toFixed(1) + "× · " +
         Math.round(playerAngle * 180 / Math.PI) + "°";
       tubeShield.style.width = state.shields + "%";
+    }
+
+    // Read-only diagnostics are exposed only to the repository's opt-in browser QA harness.
+    // No gameplay control is exported; production sessions do not enable this surface.
+    if (window.__BCM_QA_ENABLED === true) {
+      window.BCMDeepSpaceWarpQA = function () {
+        const runtime = api()?.getRuntime?.() || null;
+        const point = (value) => value ? {
+          x: Number(value.x) || 0, y: Number(value.y) || 0, z: Number(value.z) || 0
+        } : null;
+        const node = (value) => value ? {
+          x: value.x, y: value.y, z: value.z, large: !!value.large,
+          gate: !!value.gate, gateCleared: !!value.gateCleared
+        } : null;
+        const maze = state.maze;
+        const ring = state.ringRenderState;
+        const path = ring?.worldState?.cellPath || null;
+        const shipPosition = runtime?.ship?.position || null;
+        const nearbyWalls = maze && shipPosition
+          ? (maze.walls || []).filter((wall) =>
+              Math.abs(shipPosition.x - wall.x) <= wall.sx / 2 + 1.45 &&
+              Math.abs(shipPosition.y - wall.y) <= wall.sy / 2 + 1.45 &&
+              Math.abs(shipPosition.z - wall.z) <= wall.sz / 2 + 1.45
+            ).slice(0, 16).map((wall) => ({
+              x: wall.x, y: wall.y, z: wall.z,
+              sx: wall.sx, sy: wall.sy, sz: wall.sz,
+              cell: wall.cell ? { x: wall.cell.x, y: wall.cell.y, z: wall.cell.z } : null
+            }))
+          : [];
+        const ringPlayer = ring?.qa?.getPlayer?.() || null;
+        const tubeMode = state.mode === "tube" || state.mode === "result";
+        const hitTime = (progress) => {
+          const course = Math.pow(Math.max(0, Number(progress) || 0), 1 / 0.86);
+          const multiplier = 1 + 11 * course;
+          return Math.pow(Math.max(0, Math.log(multiplier) / Math.log(12)), 1 / 0.82) * WARP_DURATION;
+        };
+        let beacon = null;
+        if (maze?.beacon && runtime?.THREE) {
+          try { beacon = point(maze.beacon.getWorldPosition(new runtime.THREE.Vector3())); }
+          catch (e) { beacon = point(maze.beacon.position); }
+        }
+        const tube = tubeMode ? {
+          elapsed: Number(state.elapsed) || 0,
+          duration: WARP_DURATION,
+          shields: Number(state.shields) || 0,
+          playerAngle: Number(state.playerAngle) || 0,
+          routeProgress: warpObstacleProgress(state.elapsed),
+          layers: (state.layers || []).map((layer, index) => ({
+            index, type: layer.type, progress: layer.progress,
+            safeAngle: layer.safeAngle, gapHalf: layer.gapHalf,
+            sweepAngle: layer.sweepAngle, sweepSpeed: layer.sweepSpeed,
+            obstacleWidth: layer.obstacleWidth,
+            blockedAngles: Array.isArray(layer.blockedAngles) ? layer.blockedAngles.slice() : [],
+            resolved: !!layer.resolved, hitAt: hitTime(layer.progress)
+          }))
+        } : null;
+        const ringPath = path ? {
+          current: node(path.current),
+          objective: typeof path.objectiveNode === "function" ? node(path.objectiveNode(path.current)) : null,
+          routeStep: path.routeStep || null,
+          homeX: Number(path.homeX) || 0,
+          half: Number(path.half) || 0,
+          exitX: Number(path.exitX) || 0,
+          departed: !!path.departed,
+          visitedLarge: !!path.visitedLarge,
+          pendingReturn: !!path.pendingReturn,
+          remainingCrystals: (path.routeCrystals || []).filter((crystal) => crystal && !crystal.taken).length,
+          hasLarge: !!path.visitedLarge
+        } : null;
+        return {
+          mode: state.mode,
+          target: state.target ? {
+            id: state.target.id, name: state.target.name,
+            x: state.target.x, y: state.target.y
+          } : null,
+          navigation: state.nav?.current ? {
+            id: state.nav.current.id, name: state.nav.current.name,
+            x: state.nav.current.x, y: state.nav.current.y
+          } : null,
+          maze: maze ? {
+            active: !!maze.active, seed: maze.seed,
+            startCell: maze.startCell, exitCell: maze.exitCell,
+            ringCompleted: !!maze.ringCompleted,
+            ringTransitionActive: !!state.ringTransitionActive,
+            ringPlatformer: !!state.ringPlatformer,
+            beacon, center: point(maze.center),
+            dimensions: maze.dimensions,
+            cellSize: Number(maze.cellSize) || 6.8,
+            nearbyWalls,
+            cells: Array.isArray(maze.cells) ? maze.cells.map((cell) => ({
+              x: cell.x, y: cell.y, z: cell.z,
+              open: { ...(cell.open || {}) },
+              position: {
+                x: (Number(maze.center?.x) || 0) + (cell.x - ((Number(maze.dimensions?.nx) || 7) - 1) / 2) * (Number(maze.cellSize) || 6.8),
+                y: (Number(maze.center?.y) || 0) + (cell.y - ((Number(maze.dimensions?.ny) || 3) - 1) / 2) * (Number(maze.cellSize) || 6.8),
+                z: (Number(maze.center?.z) || 0) + (((Number(maze.dimensions?.nz) || 7) - 1) / 2 - cell.z) * (Number(maze.cellSize) || 6.8)
+              }
+            })) : []
+          } : null,
+          ring: ring ? {
+            started: !!ring.qa?.isStarted?.(), done: !!ring.qa?.isDone?.(),
+            status: ring.qa?.getStatus?.() || "",
+            count: ring.qa?.getCount?.() || "",
+            player: ringPlayer,
+            path: ringPath
+          } : null,
+          tube
+        };
+      };
     }
 
     window.BCMDeepSpaceWarpToggle = function () {

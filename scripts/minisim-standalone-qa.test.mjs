@@ -59,3 +59,30 @@ test("standalone QA report labels its fixture honestly instead of calling it Wor
   assert.match(runner, /standalone\?"Standalone QA fixture responds successfully":"WordPress page responds successfully"/);
   assert.match(runner, /standalone\?"Mini-Sim fixture root is present":"Mini-Sim shortcode is present"/);
 });
+
+
+test("full Ring/Tower playthrough uses opt-in read-only telemetry and live game controls", async () => {
+  const local = await read("scripts/minisim-local-qa.mjs");
+  const journey = await read("scripts/minisim-ring-tower-playthrough.mjs");
+  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  const tower = await read("mini-sim/tower/assets/js/tower.js");
+  const standalone = await read("scripts/minisim-standalone-qa.mjs");
+  assert.match(local, /argv\.includes\("--ring-tower"\)/);
+  assert.match(local, /window\.__BCM_QA_ENABLED=!!qaEnabled/);
+  assert.doesNotMatch(local, /requestPointerLock=function/);
+  const mini = await read("mini-sim/assets/js/mini-sim.js");
+  assert.match(mini, /window\.__BCM_QA_ENABLED === true/);
+  assert.match(mini, /const hands = touchDevice \|\| pointerLocked \|\| pointerLockBlocked \|\| padLive \|\|/);
+  assert.match(local, /runRingTowerPlaythrough\(\{page,report,shot\}\)/);
+  assert.match(standalone, /"--ring-tower"/);
+  assert.match(journey, /pilotFlightWaypoint/);
+  assert.match(journey, /BCMDeepSpaceWarpQA/);
+  assert.match(journey, /BCMTowerAPI\?\.getQAState/);
+  assert.match(journey, /data-ring-single/);
+  assert.match(journey, /data-tower-mode="single"/);
+  assert.match(journey, /Flight physics reaches the Tower gate from ONI CSS without teleporting/);
+  assert.match(warp, /if \(window\.__BCM_QA_ENABLED === true\)/);
+  assert.match(warp, /window\.BCMDeepSpaceWarpQA = function/);
+  assert.match(tower, /window\.BCMTowerAPI\.getQAState = \(\) =>/);
+  assert.match(tower, /if \(window\.__BCM_QA_ENABLED === true\)/);
+});

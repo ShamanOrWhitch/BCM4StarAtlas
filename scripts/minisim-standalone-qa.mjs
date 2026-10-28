@@ -162,7 +162,7 @@ await new Promise((resolveListen, reject) => {
 });
 const origin = "http://127.0.0.1:" + server.address().port;
 const targetUrl = origin + "/";
-const flags = process.argv.slice(2).filter((x) => ["--headed", "--full-media"].includes(x));
+const flags = process.argv.slice(2).filter((x) => ["--headed", "--full-media", "--ring-tower"].includes(x));
 console.log("[standalone-qa] Serving current repository build at " + targetUrl);
 console.log("[standalone-qa] This fixture tests the repository browser runtime, not live WordPress integration or physical hardware.");
 const child = spawn(process.execPath, [resolve(root, "scripts/minisim-local-qa.mjs"), "--url", targetUrl, ...flags], {
