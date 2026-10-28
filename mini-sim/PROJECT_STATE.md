@@ -1,3 +1,15 @@
+## Standalone Playwright QA harness — WORK LOCK #90 (28 October 2026)
+
+- Branch: `feat/minisim-standalone-browser-qa`, baseline `e940be64f2e280dcab321c2f0f739974e1b7bce9`.
+- Added `tools/minisim-qa/standalone-shell.html`, a browser fixture mirroring the Mini-Sim/Tower shortcode DOM contract while using the existing repository assets.
+- `scripts/minisim-standalone-qa.mjs` builds the test config from the current Mini-Sim/Tower PHP version constants and scans the checked-out assets; it serves the fixture on localhost and delegates to the existing Playwright interaction test. The existing runner intercepts plugin asset requests and serves current JS/CSS/media from the checkout, so the test does not need live `walkingyog.com/bcm4sa/` access.
+- New command: `npm run qa:minisim:standalone`. `npm run qa:minisim -- --url "https://your-wp-page/"` remains the separate live-WordPress path.
+- Added `.github/workflows/minisim-standalone-browser-qa.yml`: PR/manual browser run on GitHub Actions, and screenshot/JSON artifacts under `.qa-artifacts/`.
+- **Scope of evidence:** standalone browser runtime against real repo JS/CSS/asset files. It does not verify WP shortcode registration, the active theme, production deployment, remote API availability, or physical gamepad/mobile behavior. It does not bypass the site's firewall. Report status starts as IMPLEMENTED; CI result is recorded after PR workflow execution.
+- Exclusions preserved: `wordpress/galia-desk`, scanner/pricing, shared assets, firewall and gameplay logic unchanged.
+
+---
+
 ## Merged fix — Warp reverse flow + Tower P2 Right Ctrl (27 October 2026)
 
 - **Main:** [PR #88 merged](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/88) as [`dee7ae399c3023dd3f3861e3414f185ee5550e67`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/dee7ae399c3023dd3f3861e3414f185ee5550e67). Source change: [`196dddb`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/196dddb345ba04a53b2d3e3ef24689b2744d1953). Not deployed to WordPress.
