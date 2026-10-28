@@ -2056,6 +2056,7 @@
         // The 2D Ring mode reuses this exact maze instance and topology, not a second RNG.
         seed,
         dimensions: { nx: NX, ny: NY, nz: NZ },
+        cellSize: CELL,
         startCell: { x: startNode.x, y: startNode.y, z: startNode.z },
         exitCell: { x: exitNode.x, y: exitNode.y, z: exitNode.z },
         cells,
@@ -5589,7 +5590,16 @@ return axialRoll + ahead * 0.12 +
             ringCompleted: !!maze.ringCompleted,
             beacon, center: point(maze.center),
             dimensions: maze.dimensions,
-            cells: Array.isArray(maze.cells) ? maze.cells.length : 0
+            cellSize: Number(maze.cellSize) || 6.8,
+            cells: Array.isArray(maze.cells) ? maze.cells.map((cell) => ({
+              x: cell.x, y: cell.y, z: cell.z,
+              open: { ...(cell.open || {}) },
+              position: {
+                x: (Number(maze.center?.x) || 0) + (cell.x - ((Number(maze.dimensions?.nx) || 7) - 1) / 2) * (Number(maze.cellSize) || 6.8),
+                y: (Number(maze.center?.y) || 0) + (cell.y - ((Number(maze.dimensions?.ny) || 3) - 1) / 2) * (Number(maze.cellSize) || 6.8),
+                z: (Number(maze.center?.z) || 0) + (((Number(maze.dimensions?.nz) || 7) - 1) / 2 - cell.z) * (Number(maze.cellSize) || 6.8)
+              }
+            })) : []
           } : null,
           ring: ring ? {
             started: !!ring.qa?.isStarted?.(), done: !!ring.qa?.isDone?.(),
