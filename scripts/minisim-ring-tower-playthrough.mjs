@@ -150,10 +150,11 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
 
   // The autopilot only aims the ship and presses W. Position, velocity, corridor
   // collisions, the seeded maze and the Ring proximity trigger remain live.
-  const pilotFlightWaypoint = async (target, label, timeoutMs = 7500) => {
+  const pilotFlightWaypoint = async (target, label, timeoutMs = 10000) => {
     const held = new Set();
     const started = Date.now();
-    let bestDistance = Infinity, lastProgress = Date.now(), lastPosition = null, reached = false;
+    let bestDistance = Infinity, lastProgress = Date.now(), reached = false;
+    const trace = [];
     try {
       while (Date.now() - started < timeoutMs) {
         const state = await page.evaluate((goal) => {
@@ -164,33 +165,39 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
           const delta = target.clone().sub(ship.position);
           const distance = delta.length();
           const desiredSpeed = Math.min(4.2, distance * 0.92);
-          const desiredVelocity = delta.lengthSq() > 1e-8 ? delta.normalize().multiplyScalar(desiredSpeed) : new THREE.Vector3();
+          const desiredVelocity = delta.lengthSq() > 1e-8
+            ? delta.clone().normalize().multiplyScalar(desiredSpeed)
+            : new THREE.Vector3();
           const accel = desiredVelocity.sub(ship.velocity).multiplyScalar(1.25);
           const accelLength = accel.length();
-          if (accelLength > 0.55) {
-            const direction = accel.normalize();
+          // Aim the ship along the required acceleration vector, then hold forward
+          // thrust continuously. A time-modulo throttle pulse was starving vertical
+          // moves and could synchronize with the frame clock, leaving the agent short
+          // of a perfectly valid open hatch while velocity appeared nonzero.
+          if (accelLength > 0.12) {
+            const direction = accel.clone().normalize();
             const targetQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), direction);
             ship.angularVelocity?.set(0, 0, 0);
-            ship.quaternion.slerp(targetQuat, 0.48);
+            ship.quaternion.slerp(targetQuat, 0.42);
           }
           const speed = ship.velocity.length();
-          return {
-            p: { x: ship.position.x, y: ship.position.y, z: ship.position.z },
-            v: { x: ship.velocity.x, y: ship.velocity.y, z: ship.velocity.z, speed },
-            distance, accelLength,
-            throttle: accelLength > 0.65 && (((performance.now() % 260) / 260) < Math.min(0.82, Math.max(0.06, accelLength / 14)))
-          };
+          const p = { x: ship.position.x, y: ship.position.y, z: ship.position.z };
+          const v = { x: ship.velocity.x, y: ship.velocity.y, z: ship.velocity.z, speed };
+          return { p, v, distance, accelLength, throttle: accelLength > 0.16 };
         }, target);
         if (!state) throw new Error("Flight runtime was lost at " + label);
         await setKey("KeyW", !!state.throttle, held);
-        if (state.distance < 1.3 && state.v.speed < 2.0) { reached = true; lastPosition = state.p; break; }
-        if (state.distance < bestDistance - 0.25) { bestDistance = state.distance; lastProgress = Date.now(); }
-        if (Date.now() - lastProgress > 1900) {
-          // A bulkhead can legitimately block the direct route; door interaction is
-          // attempted by the caller only at known door boundaries, never by noclip.
+        if (trace.length === 0 || Date.now() - trace[trace.length - 1].at >= 700) {
+          trace.push({ at: Date.now() - started, distance: Number(state.distance.toFixed(2)), p: state.p, v: state.v, accel: Number(state.accelLength.toFixed(2)), throttle: state.throttle });
+          if (trace.length > 12) trace.shift();
+        }
+        if (state.distance < 1.3 && state.v.speed < 2.0) { reached = true; break; }
+        if (state.distance < bestDistance - 0.2) { bestDistance = state.distance; lastProgress = Date.now(); }
+        if (Date.now() - lastProgress > 4200 && state.v.speed < 0.35) {
+          // A stationary bulkhead hit is meaningful evidence; allow momentum and
+          // real acceleration enough time before diagnosing a stall.
           break;
         }
-        lastPosition = state.p;
         await wait(55);
       }
       const final = await getQA();
@@ -198,7 +205,11 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
         ? Math.hypot(target.x - final.runtime.position.x, target.y - final.runtime.position.y, target.z - final.runtime.position.z)
         : Infinity;
       if (!reached && dist < 1.6 && (final.runtime?.velocity?.speed || 0) < 2.2) reached = true;
-      const detail = { target, reached, distance: Number.isFinite(dist) ? Number(dist.toFixed(2)) : null, runtime: final.runtime };
+      const detail = {
+        target, reached,
+        distance: Number.isFinite(dist) ? Number(dist.toFixed(2)) : null,
+        runtime: final.runtime, trace
+      };
       journey.flightWaypoints.push({ label, ...detail });
       return detail;
     } finally {
@@ -564,10 +575,12 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
           const turnKey = Math.abs(diff) < 0.045 ? "" : (diff > 0 ? "KeyD" : "KeyA");
           await setKey("KeyA", turnKey === "KeyA", held);
           await setKey("KeyD", turnKey === "KeyD", held);
-          // Retry after a short interval if the jump was absorbed by a bird,
-          // missed the next platform, or landed back on the same level. A single
-          // attempt per level left the agent stranded at the roof in earlier runs.
-          if (p.grounded && (jumpForLevel !== currentLevel || Date.now() - jumpAt > 1800)) {
+          // Do not jump immediately from the current sector. First align with the
+          // guaranteed safe route on the next lower level; otherwise the first jump
+          // often lands back on the roof and birds keep resetting the same sector.
+          const routeAligned = Math.abs(diff) < 0.11;
+          if (p.grounded && routeAligned &&
+              (jumpForLevel !== currentLevel || Date.now() - jumpAt > 1800)) {
             await page.keyboard.press("Space");
             jumpForLevel = currentLevel;
             jumpAt = Date.now();
