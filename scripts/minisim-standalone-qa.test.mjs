@@ -44,3 +44,18 @@ test("standalone browser QA workflow runs Playwright and uploads its report", as
   assert.match(workflow, /upload-artifact/);
   assert.match(workflow, /\.qa-artifacts/);
 });
+
+
+test("browser QA uses an explicit Tube result/cancel contract rather than Escape during active flight", async () => {
+  const runner = await read("scripts/minisim-local-qa.mjs");
+  assert.match(runner, /\[data-tube-abort\].*state:"visible",timeout:55000/);
+  assert.match(runner, /Tube reaches its result screen and exposes the explicit cancel action/);
+  assert.match(runner, /\[data-tube-abort\]"\)\.click\(\)/);
+  assert.doesNotMatch(runner, /keyboard\.press\("Escape"\);await page\.waitForFunction\(\(\)=>!!document\.querySelector\("\.bcm-warp-overlay\[hidden\]"\)/);
+});
+
+test("standalone QA report labels its fixture honestly instead of calling it WordPress", async () => {
+  const runner = await read("scripts/minisim-local-qa.mjs");
+  assert.match(runner, /standalone\?"Standalone QA fixture responds successfully":"WordPress page responds successfully"/);
+  assert.match(runner, /standalone\?"Mini-Sim fixture root is present":"Mini-Sim shortcode is present"/);
+});
