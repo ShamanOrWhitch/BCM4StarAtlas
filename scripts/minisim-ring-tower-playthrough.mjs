@@ -301,7 +301,10 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
         if (nodeKey !== lastCell) {
           lastCell = nodeKey;
           cellSince = Date.now();
-          if (node?.large) visitedLarge = true;
+          if (node?.large) {
+            visitedLarge = true;
+            largeTurnaround = false;
+          }
           journey.ringProgress.push({
             elapsedMs: Date.now() - started,
             cell: node,
@@ -315,14 +318,15 @@ export async function runRingTowerPlaythrough({ page, report, shot }) {
         if (node?.large) {
           const x = Number(r.player.worldX) || 0;
           const exitX = Number(r.path.exitX) || 81;
-          if (x < exitX - 1.2) {
-            largeTurnaround = false;
-            await setKey("KeyA", false, held);
-            await setKey("KeyD", true, held);
-          } else {
-            largeTurnaround = true;
+          // Commit the turn once the far end is reached. Otherwise the controller
+          // oscillates around the threshold and never crosses the large arena.
+          if (!largeTurnaround && x >= exitX - 1.2) largeTurnaround = true;
+          if (largeTurnaround) {
             await setKey("KeyD", false, held);
             await setKey("KeyA", true, held);
+          } else {
+            await setKey("KeyA", false, held);
+            await setKey("KeyD", true, held);
           }
         } else if (r.path.routeStep === "yp" || r.path.routeStep === "yn") {
           await setKey("KeyD", false, held);
