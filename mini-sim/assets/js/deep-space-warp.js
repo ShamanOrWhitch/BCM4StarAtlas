@@ -5541,6 +5541,18 @@ return axialRoll + ahead * 0.12 +
         const maze = state.maze;
         const ring = state.ringRenderState;
         const path = ring?.worldState?.cellPath || null;
+        const shipPosition = runtime?.ship?.position || null;
+        const nearbyWalls = maze && shipPosition
+          ? (maze.walls || []).filter((wall) =>
+              Math.abs(shipPosition.x - wall.x) <= wall.sx / 2 + 1.45 &&
+              Math.abs(shipPosition.y - wall.y) <= wall.sy / 2 + 1.45 &&
+              Math.abs(shipPosition.z - wall.z) <= wall.sz / 2 + 1.45
+            ).slice(0, 16).map((wall) => ({
+              x: wall.x, y: wall.y, z: wall.z,
+              sx: wall.sx, sy: wall.sy, sz: wall.sz,
+              cell: wall.cell ? { x: wall.cell.x, y: wall.cell.y, z: wall.cell.z } : null
+            }))
+          : [];
         const ringPlayer = ring?.qa?.getPlayer?.() || null;
         const tubeMode = state.mode === "tube" || state.mode === "result";
         const hitTime = (progress) => {
@@ -5600,6 +5612,7 @@ return axialRoll + ahead * 0.12 +
             beacon, center: point(maze.center),
             dimensions: maze.dimensions,
             cellSize: Number(maze.cellSize) || 6.8,
+            nearbyWalls,
             cells: Array.isArray(maze.cells) ? maze.cells.map((cell) => ({
               x: cell.x, y: cell.y, z: cell.z,
               open: { ...(cell.open || {}) },
