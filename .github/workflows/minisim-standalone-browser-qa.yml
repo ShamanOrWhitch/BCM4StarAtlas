@@ -28,7 +28,6 @@ jobs:
           sparse-checkout: |
             .github/workflows
             mini-sim
-            package.json
             scripts
             tools/minisim-qa
           sparse-checkout-cone-mode: true
