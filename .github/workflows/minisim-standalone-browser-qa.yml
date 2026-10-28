@@ -44,7 +44,7 @@ jobs:
         working-directory: tools/minisim-qa
       - name: Run Mini-Sim source assertions
         run: npm run test:minisim
-      - name: Run full browser playthrough: Warp → asteroid → Ring → ONI CSS → Tower
+      - name: "Run full browser playthrough: Warp → asteroid → Ring → ONI CSS → Tower"
         run: npm run qa:minisim:standalone -- --ring-tower --full-media
       - name: Upload browser screenshots and report
         if: always()
