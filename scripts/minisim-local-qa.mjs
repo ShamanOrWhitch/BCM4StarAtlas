@@ -54,7 +54,6 @@ try{
  await context.addInitScript(({ qaEnabled })=>{
    window.__BCM_QA_ENABLED=!!qaEnabled;
    window.__BCM_QA_MEDIA=new Set();window.__BCM_QA_MEDIA_EVENTS=[];
-   if(qaEnabled&&typeof HTMLCanvasElement!=="undefined")HTMLCanvasElement.prototype.requestPointerLock=function(){return Promise.reject(new Error("Playwright QA: pointer lock disabled so the real keyboard fallback can be exercised"));};
    const create=Document.prototype.createElement;
    Document.prototype.createElement=function(name,options){const node=create.call(this,name,options);if(["audio","video"].includes(String(name).toLowerCase()))window.__BCM_QA_MEDIA.add(node);return node;};
    const play=HTMLMediaElement.prototype.play;
