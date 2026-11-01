@@ -20,7 +20,7 @@ function bcm_mini_sim_get_assets()
 {
     $assets = array();
     $base_path = BCM_MINI_SIM_PATH . 'assets/';
-    $allowed = array('png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'ogg', 'mp3', 'm4a', 'wav');
+    $allowed = array('png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'ogg', 'mp3', 'm4a', 'wav', 'glb');
 
     if (!is_dir($base_path)) {
         return $assets;
@@ -43,6 +43,8 @@ function bcm_mini_sim_get_assets()
                 $type = 'video';
             } elseif (in_array($extension, array('mp3', 'm4a', 'wav', 'ogg'), true)) {
                 $type = 'audio';
+            } elseif ($extension === 'glb') {
+                $type = 'model';
             } else {
                 $type = 'image';
             }
@@ -790,6 +792,8 @@ function bcm_mini_sim_enqueue_assets()
         'crewServerAjax' => admin_url('admin-ajax.php'),
         'crewServerNonce' => wp_create_nonce('bcm_mini_sim_crew'),
         'threeUrl' => BCM_MINI_SIM_URL . 'assets/js/three.min.js',
+        // Loaded lazily only when the asteroid wall-decoration model is first needed.
+        'gltfLoaderUrl' => BCM_MINI_SIM_URL . 'assets/js/GLTFLoader.js?ver=' . BCM_MINI_SIM_VERSION,
         'towerApproach' => array(
             // Preload around the actual automatic Tower gate: onicss.mp4.
             'x' => 0.0,
