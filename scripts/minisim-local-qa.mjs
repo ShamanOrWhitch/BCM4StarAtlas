@@ -150,7 +150,21 @@ try{
      const position=node.geometry.getAttribute("position");
      triangles+=index?index.count/3:(position?position.count/3:0);
    }));
-   return {modelCount:models.length,meshCount:meshes,triangles};
+   const runtime=window.BCMiniSimAPI?.getRuntime?.();
+   const THREE=runtime?.THREE;
+   const shipPosition=runtime?.ship?.position;
+   const placements=models.map(model=>{
+     const p=new THREE.Vector3();
+     model.getWorldPosition(p);
+     return {
+       name:model.name,
+       routeIndex:Number(model.userData?.bcmWallRouteIndex)||0,
+       cell:model.userData?.bcmWallCell||null,
+       position:{x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2)},
+       distanceToShip:shipPosition?+shipPosition.distanceTo(p).toFixed(2):null
+     };
+   });
+   return {modelCount:models.length,meshCount:meshes,triangles,placements};
  });
  report.asteroidWallCrystals=wallCrystalState;
  check(wallCrystalState.modelCount>0&&wallCrystalState.meshCount>0&&wallCrystalState.triangles>0,"GLB mineral deposits load as real meshes on asteroid wall panels");
@@ -167,5 +181,5 @@ finally{
  try{await writeFile(resolve(out,"minisim-qa-report.json"),JSON.stringify(report,null,2)+"\n","utf8");}catch(e){}
  if(browser)await browser.close().catch(()=>{});
 }
-console.log(JSON.stringify({status:report.status,url:report.targetUrl,checks:report.checks,localOverrides:report.overrides.length,overriddenFiles:[...new Set(report.overrides.map(item=>item.file))],pluginHttpErrors:report.pluginHttpErrors,httpErrors:report.httpErrors,blockedVideoRequests:report.blockedVideos.length,seriousConsoleErrors:report.seriousConsoleErrors,seriousPageErrors:report.seriousPageErrors,consoleErrors:report.consoleErrors,pageErrors:report.pageErrors,failedRequests:report.failedRequests,screenshots:report.screenshots,report:".qa-artifacts/minisim-qa-report.json",error:report.error},null,2));
+console.log(JSON.stringify({status:report.status,url:report.targetUrl,checks:report.checks,asteroidWallCrystals:report.asteroidWallCrystals,localOverrides:report.overrides.length,overriddenFiles:[...new Set(report.overrides.map(item=>item.file))],pluginHttpErrors:report.pluginHttpErrors,httpErrors:report.httpErrors,blockedVideoRequests:report.blockedVideos.length,seriousConsoleErrors:report.seriousConsoleErrors,seriousPageErrors:report.seriousPageErrors,consoleErrors:report.consoleErrors,pageErrors:report.pageErrors,failedRequests:report.failedRequests,screenshots:report.screenshots,report:".qa-artifacts/minisim-qa-report.json",error:report.error},null,2));
 if(report.status!=="PASS")process.exitCode=1;
