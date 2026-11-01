@@ -19,8 +19,9 @@ test("Separate Twinsun rock and color crystal parts are exposed as local GLB mod
   assert.match(gltfLoader, /THREE\.GLTFLoader = GLTFLoader/);
   assert.ok(warp.includes('const asteroidWallCrystalAssetRoot = "mesh/twinsun_pack01/twinsun_pack01/parts/"'));
   assert.ok(warp.includes('asteroidWallCrystalAssetRoot + "rock_cluster.glb"'));
+  assert.ok(warp.includes('const assetName = asteroidWallCrystalAssetRoot + "crystal_" + part + "_" + selectedColor + ".glb"'));
   for (const part of ["main", "side", "small"]) {
-    assert.ok(warp.includes('"crystal_' + part + '_"'), "loads a separate " + part + " crystal");
+    assert.ok(warp.includes('getPart("' + part + '")'), "loads a separate " + part + " crystal");
   }
   for (const color of ["cyan", "violet", "amber", "green"]) {
     assert.ok(warp.includes('"' + color + '"') || warp.includes("'" + color + "'"), "supports " + color + " crystals");
