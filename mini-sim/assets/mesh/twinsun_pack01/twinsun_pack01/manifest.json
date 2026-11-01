@@ -1,0 +1,33 @@
+{
+  "files_triangles": {
+    "assembled/crystal_rock_cyan.glb": 786,
+    "parts/crystals_cyan_cluster.glb": 66,
+    "parts/crystal_main_cyan.glb": 22,
+    "parts/crystal_side_cyan.glb": 22,
+    "parts/crystal_small_cyan.glb": 22,
+    "assembled/crystal_rock_violet.glb": 786,
+    "parts/crystals_violet_cluster.glb": 66,
+    "parts/crystal_main_violet.glb": 22,
+    "parts/crystal_side_violet.glb": 22,
+    "parts/crystal_small_violet.glb": 22,
+    "assembled/crystal_rock_amber.glb": 786,
+    "parts/crystals_amber_cluster.glb": 66,
+    "parts/crystal_main_amber.glb": 22,
+    "parts/crystal_side_amber.glb": 22,
+    "parts/crystal_small_amber.glb": 22,
+    "assembled/crystal_rock_green.glb": 786,
+    "parts/crystals_green_cluster.glb": 66,
+    "parts/crystal_main_green.glb": 22,
+    "parts/crystal_side_green.glb": 22,
+    "parts/crystal_small_green.glb": 22,
+    "parts/rock_cluster.glb": 720,
+    "parts/main_rock.glb": 320,
+    "parts/rock_left.glb": 80,
+    "parts/rock_right.glb": 80,
+    "parts/rock_front.glb": 80,
+    "parts/pebble_left.glb": 80,
+    "parts/pebble_right.glb": 80
+  },
+  "origin": "All parts retain the assembled asset coordinate system (glTF Y-up).",
+  "textures": "none; vertex colors"
+}
