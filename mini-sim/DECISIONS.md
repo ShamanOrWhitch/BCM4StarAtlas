@@ -1,3 +1,17 @@
+## D-045 — Mini-Sim 0.11.22: separate Twinsun crystals on existing asteroid walls (1 November 2026)
+
+**Status:** merged via [PR #94](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/94), main commit [`6d5d475`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/6d5d4757d30e5f21a2e1e1046756db939e469e33). Work lock [#93](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/93) closed. Mini-Sim 0.11.22; Tower stays 0.2.67.
+
+- Use the new `twinsun_pack01` source assets: `rock_cluster.glb` + separate `crystal_main`, `crystal_side`, `crystal_small` GLBs. All component origins remain aligned; no per-part offset.
+- Attach up to four deposits to already-generated vertical side panels in the middle layer, with early route cells preferred. The decoration has no collider; the base is inset and crystal growth faces the free cell.
+- A salted decoration RNG does not advance the maze RNG. Existing wall list, topology, seed, route, wall texture selection, Hydrogen locations, collision and ship physics stay authoritative. A seeded rotation of the four-colour palette ensures all four variants appear when four deposits fit.
+- Load Three.js r128 GLTFLoader lazily; cache rock and coloured crystal templates. The GLB child parts remain independently addressable. Emissive tint is applied only to crystal materials.
+- **TESTED-CODE:** 9/9 source/regression workflows PASS; standalone Chromium [41349618593](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/41349618593) PASS, 19/19 checks. Four deposits / 36 mesh objects / 3,144 triangles; four palette colours present; no serious JS or local asset errors.
+- **BLOCKED-ENVIRONMENT:** live WordPress runner [41349618506](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/41349618506) gets HTTP 403 before the shortcode root. This is not a gameplay result.
+- No plugin deployment or physical-device confirmation. Preserve this boundary until the user explicitly deploys and playtests.
+
+---
+
 ## D-044 — Standalone browser QA without WordPress route dependency (28 October 2026)
 
 **Status:** verified on PR branch `feat/minisim-standalone-browser-qa`; linked WORK LOCK [#90](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/90). Source/regression CI PASS and standalone Chromium browser run PASS on tested PR head `17cd69fee55a9463e32ed5b34d22dcce69c66eb3` ([browser report + screenshots](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40724817635), [source regression](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40724818031)).
