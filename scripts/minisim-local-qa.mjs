@@ -143,13 +143,21 @@ try{
    const group=scene?.getObjectByName("asteroid-wall-crystal-decorations");
    const models=group?.children||[];
    let meshes=0,triangles=0;
-   models.forEach(model=>model.traverse(node=>{
-     if(!node?.isMesh||!node.geometry)return;
-     meshes++;
-     const index=node.geometry.index;
-     const position=node.geometry.getAttribute("position");
-     triangles+=index?index.count/3:(position?position.count/3:0);
-   }));
+   const parts=[];
+   const colors=[];
+   models.forEach(model=>{
+     if(model.userData?.bcmWallColor)colors.push(model.userData.bcmWallColor);
+     model.children.forEach(child=>{
+       if(child.userData?.bcmDepositPart)parts.push(child.userData.bcmDepositPart);
+     });
+     model.traverse(node=>{
+       if(!node?.isMesh||!node.geometry)return;
+       meshes++;
+       const index=node.geometry.index;
+       const position=node.geometry.getAttribute("position");
+       triangles+=index?index.count/3:(position?position.count/3:0);
+     });
+   });
    const runtime=window.BCMiniSimAPI?.getRuntime?.();
    const THREE=runtime?.THREE;
    const shipPosition=runtime?.ship?.position;
@@ -164,10 +172,11 @@ try{
        distanceToShip:shipPosition?+shipPosition.distanceTo(p).toFixed(2):null
      };
    });
-   return {modelCount:models.length,meshCount:meshes,triangles,placements};
+   return {modelCount:models.length,meshCount:meshes,triangles,parts,colors,placements};
  });
  report.asteroidWallCrystals=wallCrystalState;
  check(wallCrystalState.modelCount>0&&wallCrystalState.meshCount>0&&wallCrystalState.triangles>0,"GLB mineral deposits load as real meshes on asteroid wall panels");
+ check(wallCrystalState.parts.length===wallCrystalState.modelCount*4&&["rock","crystal-main","crystal-side","crystal-small"].every(part=>wallCrystalState.parts.includes(part)),"each deposit keeps the rock and three crystals as separate child parts");
  await shot(page,"06-asteroid-wall-crystal.png");
  const benignConsole=text=>!full&&/ERR_BLOCKED_BY_CLIENT/.test(text);
  const benignPage=text=>{const m=String(text).match(/base64,([A-Za-z0-9+/=]+)/);if(!m)return false;try{return Buffer.from(m[1],"base64").toString("utf8").includes("wy-preloader");}catch(e){return false;}};
