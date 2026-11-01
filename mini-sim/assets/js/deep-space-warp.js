@@ -2217,8 +2217,10 @@
           inward.normalize();
 
           const up = new THREE.Vector3(0, 1, 0);
-          const tangent = up.clone().cross(inward).normalize();
-          const basis = new THREE.Matrix4().makeBasis(tangent, up, inward);
+          // The GLB's local +Y is its crystal-growth axis. Rotate that axis
+          // onto the wall normal so the deposit grows outward into the cell.
+          const tangent = inward.clone().cross(up).normalize();
+          const basis = new THREE.Matrix4().makeBasis(tangent, inward, up);
           const quaternion = new THREE.Quaternion().setFromRotationMatrix(basis);
           const wallThickness = Math.min(wall.sx, wall.sz);
           const scale = 0.34 + placementRng() * 0.04;
