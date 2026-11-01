@@ -1,0 +1,67 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+const read = (path) => readFile(new URL("../" + path, import.meta.url), "utf8");
+
+const [warp, php, standaloneRunner, localQa, gltfLoader] = await Promise.all([
+  read("mini-sim/assets/js/deep-space-warp.js"),
+  read("mini-sim/bcm-mini-sim.php"),
+  read("scripts/minisim-standalone-qa.mjs"),
+  read("scripts/minisim-local-qa.mjs"),
+  read("mini-sim/assets/js/GLTFLoader.js")
+]);
+
+test("GLB models are exposed as model assets and the r128 loader URL is available", () => {
+  assert.match(php, /'glb'\s*\)/);
+  assert.match(php, /\$extension === 'glb'[\s\S]{0,80}\$type = 'model'/);
+  assert.match(php, /'gltfLoaderUrl'\s*=>\s*BCM_MINI_SIM_URL\s*\.\s*'assets\/js\/GLTFLoader\.js/);
+  assert.match(gltfLoader, /THREE\.GLTFLoader = GLTFLoader/);
+});
+
+test("wall crystal placement uses an independent seeded stream and existing vertical side panels only", () => {
+  const start = warp.indexOf("function attachAsteroidWallCrystals()");
+  const end = warp.indexOf("attachAsteroidWallCrystals();", start);
+  assert.ok(start >= 0 && end > start, "wall crystal placement helper exists");
+  const source = warp.slice(start, end);
+  assert.match(source, /randomFrom\(hashSeed\(String\(seed\) \+ "\\|wall-crystal-layout"\)\)/);
+  assert.doesNotMatch(source, /\brng\s*\(/, "decoration must not consume the maze RNG stream");
+  assert.match(source, /walls\.forEach\(/);
+  assert.match(source, /cell\.y !== 1/, "first test decorates only the normal middle layer");
+  assert.match(source, /wall\.sy <= Math\.min\(wall\.sx, wall\.sz\)/, "floor and ceiling panels are excluded");
+  assert.match(source, /endpoint\(cell, maze\.startCell\)/);
+  assert.match(source, /endpoint\(cell, maze\.exitCell\)/);
+  assert.match(source, /group\.add\(decorationGroup\)/);
+  assert.match(source, /wall\.sy <= Math\.min\(wall\.sx, wall\.sz\)/);
+  assert.doesNotMatch(source, /walls\.(?:push|splice|pop|sort)\(/, "the collision wall array is read-only");
+  assert.doesNotMatch(source, /maze\.walls\s*=|maze\.satellites\s*=/);
+  assert.match(source, /wallThickness \* 0\.5 - 0\.08/, "model base is embedded into the wall face");
+  assert.match(source, /model\.clone\(true\)/);
+  assert.match(source, /model\.quaternion\.copy\(placement\.quaternion\)/);
+  assert.match(source, /model\.scale\.setScalar\(placement\.scale\)/);
+  assert.match(source, /state\.maze !== maze/, "late loader callbacks cannot attach to a disposed maze");
+});
+
+test("GLTFLoader is lazy and its template is cached without disposing shared geometry", () => {
+  assert.match(warp, /function ensureAsteroidGltfLoader\(THREE\)/);
+  assert.match(warp, /if \(THREE && THREE\.GLTFLoader\) return Promise\.resolve/);
+  assert.match(warp, /document\.createElement\("script"\)/);
+  assert.match(warp, /function loadAsteroidWallCrystalTemplate\(THREE\)/);
+  assert.match(warp, /asteroidWallCrystalTemplatePromise/);
+  const disposeStart = warp.indexOf("function disposeMaze()");
+  const disposeEnd = warp.indexOf("function nextWarpDestinationLabel()", disposeStart);
+  const dispose = warp.slice(disposeStart, disposeEnd);
+  assert.match(dispose, /maze\.group\.parent\.remove\(maze\.group\)/);
+  assert.doesNotMatch(dispose, /wallCrystalGroup[\s\S]{0,200}geometry\.dispose/);
+});
+
+test("standalone QA serves the GLB and exercises the actual asteroid scene with Chromium", () => {
+  assert.match(standaloneRunner, /"\.glb"/);
+  assert.match(standaloneRunner, /"\.glb": "model\/gltf-binary"/);
+  assert.match(standaloneRunner, /extension === "glb" \? "model"/);
+  assert.match(standaloneRunner, /gltfLoaderUrl:/);
+  assert.match(localQa, /"\.glb":"model\/gltf-binary"/);
+  assert.match(localQa, /BCMDeepSpaceWarpEnterAsteroid/);
+  assert.match(localQa, /asteroid-wall-crystal-decorations/);
+  assert.match(localQa, /GLB mineral deposits load as real meshes on asteroid wall panels/);
+});
