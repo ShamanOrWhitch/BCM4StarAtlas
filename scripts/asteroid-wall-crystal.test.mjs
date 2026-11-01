@@ -66,6 +66,8 @@ test("GLTFLoader is lazy and its template is cached without disposing shared geo
   assert.match(warp, /asteroidWallCrystalPartPromises/);
   assert.match(warp, /const deposit = new THREE.Group\(\)/);
   assert.match(warp, /\[rock, main, side, small\]\.forEach/);
+  assert.match(warp, /const crystalGlow = \{/);
+  assert.match(warp, /copy\.emissiveIntensity = 0\.42/);
   const disposeStart = warp.indexOf("function disposeMaze()");
   const disposeEnd = warp.indexOf("function nextWarpDestinationLabel()", disposeStart);
   const dispose = warp.slice(disposeStart, disposeEnd);
