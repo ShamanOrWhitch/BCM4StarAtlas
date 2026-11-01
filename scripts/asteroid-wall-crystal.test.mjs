@@ -17,7 +17,8 @@ test("Separate Twinsun rock and color crystal parts are exposed as local GLB mod
   assert.match(php, /\$extension === 'glb'[\s\S]{0,80}\$type = 'model'/);
   assert.match(php, /'gltfLoaderUrl'\s*=>\s*BCM_MINI_SIM_URL\s*\.\s*'assets\/js\/GLTFLoader\.js/);
   assert.match(gltfLoader, /THREE\.GLTFLoader = GLTFLoader/);
-  assert.ok(warp.includes('mesh/twinsun_pack01/twinsun_pack01/parts/rock_cluster.glb'));
+  assert.ok(warp.includes('const asteroidWallCrystalAssetRoot = "mesh/twinsun_pack01/twinsun_pack01/parts/"'));
+  assert.ok(warp.includes('asteroidWallCrystalAssetRoot + "rock_cluster.glb"'));
   for (const part of ["main", "side", "small"]) {
     assert.ok(warp.includes('"crystal_' + part + '_"'), "loads a separate " + part + " crystal");
   }
