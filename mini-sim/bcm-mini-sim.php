@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.11.21
+ * Version: 0.11.22
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.11.21');
+define('BCM_MINI_SIM_VERSION', '0.11.22');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -20,7 +20,7 @@ function bcm_mini_sim_get_assets()
 {
     $assets = array();
     $base_path = BCM_MINI_SIM_PATH . 'assets/';
-    $allowed = array('png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'ogg', 'mp3', 'm4a', 'wav');
+    $allowed = array('png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'ogg', 'mp3', 'm4a', 'wav', 'glb');
 
     if (!is_dir($base_path)) {
         return $assets;
@@ -43,6 +43,8 @@ function bcm_mini_sim_get_assets()
                 $type = 'video';
             } elseif (in_array($extension, array('mp3', 'm4a', 'wav', 'ogg'), true)) {
                 $type = 'audio';
+            } elseif ($extension === 'glb') {
+                $type = 'model';
             } else {
                 $type = 'image';
             }
@@ -790,6 +792,8 @@ function bcm_mini_sim_enqueue_assets()
         'crewServerAjax' => admin_url('admin-ajax.php'),
         'crewServerNonce' => wp_create_nonce('bcm_mini_sim_crew'),
         'threeUrl' => BCM_MINI_SIM_URL . 'assets/js/three.min.js',
+        // Loaded lazily only when the asteroid wall-decoration model is first needed.
+        'gltfLoaderUrl' => BCM_MINI_SIM_URL . 'assets/js/GLTFLoader.js?ver=' . BCM_MINI_SIM_VERSION,
         'towerApproach' => array(
             // Preload around the actual automatic Tower gate: onicss.mp4.
             'x' => 0.0,
@@ -869,7 +873,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.11.21</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.11.22</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS</div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>

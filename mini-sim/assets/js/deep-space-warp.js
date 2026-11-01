@@ -709,6 +709,154 @@
       };
     }
 
+    // The GLTF loader and crystal scene are lazy, shared page-level resources.
+    // They are requested only when an asteroid maze is actually constructed.
+    let asteroidGltfLoaderPromise = null;
+    let asteroidWallRockTemplatePromise = null;
+    const asteroidWallCrystalPartPromises = new Map();
+    const asteroidWallCrystalTemplatePromises = new Map();
+    const asteroidWallCrystalColors = ["cyan", "violet", "amber", "green"];
+    const asteroidWallCrystalAssetRoot = "mesh/twinsun_pack01/twinsun_pack01/parts/";
+
+    function ensureAsteroidGltfLoader(THREE) {
+      if (THREE && THREE.GLTFLoader) return Promise.resolve(THREE.GLTFLoader);
+      if (asteroidGltfLoaderPromise) return asteroidGltfLoaderPromise;
+      const loaderUrl = String(config.gltfLoaderUrl || "").trim();
+      if (!loaderUrl) return Promise.reject(new Error("Local GLTFLoader URL is not configured"));
+
+      asteroidGltfLoaderPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = loaderUrl;
+        script.async = true;
+        script.dataset.bcmR128GltfLoader = "1";
+        script.onload = () => {
+          if (THREE && THREE.GLTFLoader) resolve(THREE.GLTFLoader);
+          else reject(new Error("Local GLTFLoader loaded without registering THREE.GLTFLoader"));
+        };
+        script.onerror = () => reject(new Error("Local GLTFLoader request failed"));
+        document.head.appendChild(script);
+      }).catch((error) => {
+        asteroidGltfLoaderPromise = null;
+        throw error;
+      });
+      return asteroidGltfLoaderPromise;
+    }
+
+    function loadAsteroidWallAssetTemplate(THREE, assetName, cache, cacheKey) {
+      if (cache.has(cacheKey)) return cache.get(cacheKey);
+      const assets = Array.isArray(config.assets) ? config.assets : [];
+      const wanted = String(assetName || "").toLowerCase();
+      const asset = assets.find((item) =>
+        item && item.type === "model" &&
+        String(item.name || "").toLowerCase() === wanted &&
+        typeof item.url === "string" && item.url
+      );
+      if (!asset) return Promise.reject(new Error("Missing local GLB model asset: " + assetName));
+
+      const promise = ensureAsteroidGltfLoader(THREE)
+        .then(() => new Promise((resolve, reject) => {
+          const loader = new THREE.GLTFLoader();
+          loader.load(asset.url, (gltf) => {
+            const root = gltf && (gltf.scene || (Array.isArray(gltf.scenes) ? gltf.scenes[0] : null));
+            let meshes = 0;
+            if (root && typeof root.traverse === "function") {
+              root.traverse((node) => {
+                if (!node || !node.isMesh) return;
+                meshes += 1;
+                node.castShadow = false;
+                node.receiveShadow = false;
+              });
+            }
+            if (!root || meshes === 0) {
+              reject(new Error("GLB contains no renderable meshes: " + assetName));
+              return;
+            }
+            resolve(root);
+          }, undefined, reject);
+        }))
+        .catch((error) => {
+          cache.delete(cacheKey);
+          throw error;
+        });
+      cache.set(cacheKey, promise);
+      return promise;
+    }
+
+    function loadAsteroidWallRockTemplate(THREE) {
+      if (asteroidWallRockTemplatePromise) return asteroidWallRockTemplatePromise;
+      const assetName = asteroidWallCrystalAssetRoot + "rock_cluster.glb";
+      asteroidWallRockTemplatePromise = loadAsteroidWallAssetTemplate(
+        THREE, assetName, new Map(), "wall-rock"
+      ).catch((error) => {
+        asteroidWallRockTemplatePromise = null;
+        throw error;
+      });
+      return asteroidWallRockTemplatePromise;
+    }
+
+    function loadAsteroidWallCrystalTemplate(THREE, color) {
+      const selectedColor = asteroidWallCrystalColors.includes(String(color).toLowerCase())
+        ? String(color).toLowerCase()
+        : "cyan";
+      if (asteroidWallCrystalTemplatePromises.has(selectedColor)) {
+        return asteroidWallCrystalTemplatePromises.get(selectedColor);
+      }
+
+      const getPart = (part) => {
+        const assetName = asteroidWallCrystalAssetRoot + "crystal_" + part + "_" + selectedColor + ".glb";
+        const cacheKey = selectedColor + ":" + part;
+        return loadAsteroidWallAssetTemplate(THREE, assetName, asteroidWallCrystalPartPromises, cacheKey);
+      };
+
+      const promise = Promise.all([
+        loadAsteroidWallRockTemplate(THREE),
+        getPart("main"),
+        getPart("side"),
+        getPart("small")
+      ]).then(([rock, main, side, small]) => {
+        // The four GLBs deliberately retain one shared authoring coordinate
+        // system. Keep the stone and all three crystals as separate child nodes.
+        const deposit = new THREE.Group();
+        deposit.name = "twinsun-crystal-deposit-" + selectedColor;
+        const crystalGlow = {
+          cyan: 0x22cbd4,
+          violet: 0xa45be5,
+          amber: 0xe38a25,
+          green: 0x61c83e
+        }[selectedColor] || 0x22cbd4;
+        [rock, main, side, small].forEach((part) => {
+          const child = part.clone(true);
+          child.userData = child.userData || {};
+          child.userData.bcmDepositPart = part === rock ? "rock" : part === main ? "crystal-main" :
+            part === side ? "crystal-side" : "crystal-small";
+          if (part !== rock) {
+            // Subtle per-colour emission keeps the crystals readable against dark
+            // asteroid textures without adding lights or affecting the rock base.
+            child.traverse((node) => {
+              if (!node || !node.isMesh || !node.material) return;
+              const brighten = (material) => {
+                const copy = material.clone();
+                if (copy.emissive) copy.emissive.setHex(crystalGlow);
+                copy.emissiveIntensity = 0.42;
+                copy.needsUpdate = true;
+                return copy;
+              };
+              node.material = Array.isArray(node.material)
+                ? node.material.map(brighten)
+                : brighten(node.material);
+            });
+          }
+          deposit.add(child);
+        });
+        return deposit;
+      }).catch((error) => {
+        asteroidWallCrystalTemplatePromises.delete(selectedColor);
+        throw error;
+      });
+      asteroidWallCrystalTemplatePromises.set(selectedColor, promise);
+      return promise;
+    }
+
     function parseCoords(value) {
       if (Array.isArray(value) && value.length >= 2) {
         const x = Number(value[0]);
@@ -2101,8 +2249,128 @@
       state.savedSpeedMode = engine.getSpeedMode ? engine.getSpeedMode() : 1;
       if (engine.setSpeedMode) engine.setSpeedMode(2);
       state.maze = maze;
-      publishAsteroidChart(maze);
       maze.pickupEffects = [];
+
+      // Wall-mounted crystal deposits are purely decorative. Their placement
+      // uses a separate seed stream so it cannot alter maze topology, exits,
+      // Hydrogen cells, wall textures or the existing collision list.
+      function attachAsteroidWallCrystals() {
+        const decorationGroup = new THREE.Group();
+        decorationGroup.name = "asteroid-wall-crystal-decorations";
+        maze.wallCrystalGroup = decorationGroup;
+        group.add(decorationGroup);
+
+        const placementRng = randomFrom(hashSeed(String(seed) + "|wall-crystal-layout"));
+        const endpoint = (cell, point) => !!cell && !!point &&
+          cell.x === point.x && cell.y === point.y && cell.z === point.z;
+        const byCell = new Map();
+
+        walls.forEach((wall) => {
+          const cell = wall && wall.cell;
+          if (!cell || cell.y !== 1 || endpoint(cell, maze.startCell) || endpoint(cell, maze.exitCell)) return;
+
+          // Only the vertical side panels are decorated. Floor/ceiling panels
+          // and passage openings stay visually clear.
+          if (wall.sy <= Math.min(wall.sx, wall.sz)) return;
+          const key = cell.x + ":" + cell.y + ":" + cell.z;
+          if (!byCell.has(key)) byCell.set(key, []);
+          byCell.get(key).push(wall);
+        });
+
+        // Prefer the first traversable middle-layer cells so the pilot can
+        // see a deposit early in the asteroid run. This only ranks the existing
+        // wall list; route generation and its seeded RNG are not modified.
+        const routeIndexByCell = new Map();
+        routeCells.forEach((cell, index) => {
+          routeIndexByCell.set(cell.x + ":" + cell.y + ":" + cell.z, index);
+        });
+        const candidates = [];
+        byCell.forEach((cellWalls, key) => {
+          const routeIndex = routeIndexByCell.get(key);
+          if (!Number.isFinite(routeIndex) || routeIndex <= 0) return;
+          if (!cellWalls.length) return;
+          const pick = Math.floor(placementRng() * cellWalls.length);
+          candidates.push({ wall: cellWalls[pick], routeIndex });
+        });
+        candidates.sort((a, b) => a.routeIndex - b.routeIndex);
+
+        const placementCount = Math.min(4, candidates.length);
+        // Rotate the four-colour palette by one seeded offset. A full set of
+        // four deposits therefore shows all four authored variants, while the
+        // asteroid seed still changes which colour appears first.
+        const paletteOffset = Math.floor(placementRng() * asteroidWallCrystalColors.length);
+        const placements = candidates.slice(0, placementCount).map((candidate, index) => {
+          const wall = candidate.wall;
+          const routeIndex = candidate.routeIndex;
+          const cellCenter = cellPosition(wall.cell.x, wall.cell.y, wall.cell.z);
+          const inward = cellCenter.sub(new THREE.Vector3(wall.x, wall.y, wall.z));
+          inward.y = 0;
+          if (inward.lengthSq() < 1e-6) return null;
+          inward.normalize();
+
+          const up = new THREE.Vector3(0, 1, 0);
+          // The separate crystal GLBs retain their shared source coordinates.
+          // Their growth axis is local +Z; map it out from the wall and keep +Y vertical.
+          const tangent = up.clone().cross(inward).normalize();
+          const basis = new THREE.Matrix4().makeBasis(tangent, up, inward);
+          const quaternion = new THREE.Quaternion().setFromRotationMatrix(basis);
+          const wallThickness = Math.min(wall.sx, wall.sz);
+          const scale = 0.28 + placementRng() * 0.025;
+          const color = asteroidWallCrystalColors[(index + paletteOffset) % asteroidWallCrystalColors.length];
+          const position = new THREE.Vector3(wall.x, wall.y, wall.z)
+            .addScaledVector(inward, wallThickness * 0.5 - 0.08)
+            .addScaledVector(tangent, (placementRng() - 0.5) * 2.4)
+            .addScaledVector(up, (placementRng() - 0.5) * 1.6);
+          return { wall, position, quaternion, scale, routeIndex, color, index };
+        }).filter(Boolean);
+
+        maze.wallCrystalPlacementCount = placements.length;
+        maze.wallCrystalPlacements = placements.map((placement) => ({
+          cell: { x: placement.wall.cell.x, y: placement.wall.cell.y, z: placement.wall.cell.z },
+          routeIndex: placement.routeIndex,
+          color: placement.color
+        }));
+        if (!placements.length) {
+          group.remove(decorationGroup);
+          maze.wallCrystalGroup = null;
+          return;
+        }
+
+        Promise.all(placements.map((placement) =>
+          loadAsteroidWallCrystalTemplate(THREE, placement.color)
+            .then((template) => ({ placement, template }))
+        )).then((loaded) => {
+          // A load may finish after the pilot has left and disposed this maze.
+          if (!maze.active || state.maze !== maze || decorationGroup.parent !== group) return;
+          loaded.forEach(({ placement, template }) => {
+            const model = template.clone(true);
+            model.name = "asteroid-wall-crystal-" + placement.index;
+            model.position.copy(placement.position);
+            model.quaternion.copy(placement.quaternion);
+            model.scale.setScalar(placement.scale);
+            model.userData.bcmWallDecoration = true;
+            model.userData.bcmWallColor = placement.color;
+            model.userData.bcmWallCell = { x: placement.wall.cell.x, y: placement.wall.cell.y, z: placement.wall.cell.z };
+            model.userData.bcmWallRouteIndex = placement.routeIndex;
+            model.traverse((node) => {
+              if (!node || !node.isMesh) return;
+              node.frustumCulled = true;
+              node.castShadow = false;
+              node.receiveShadow = false;
+            });
+            decorationGroup.add(model);
+          });
+          maze.wallCrystalCount = loaded.length;
+        }).catch((error) => {
+          if (decorationGroup.parent === group) group.remove(decorationGroup);
+          if (maze.wallCrystalGroup === decorationGroup) maze.wallCrystalGroup = null;
+          maze.wallCrystalCount = 0;
+          try { console.warn("[BCM] Asteroid wall crystal model was skipped:", error); } catch (e) {}
+        });
+      }
+
+      attachAsteroidWallCrystals();
+      publishAsteroidChart(maze);
       function spawnCrystalPickupEffect(position, pickupLabel) {
         const effect = new THREE.Group();
         effect.name = "asteroid-crystal-pickup-impact";
