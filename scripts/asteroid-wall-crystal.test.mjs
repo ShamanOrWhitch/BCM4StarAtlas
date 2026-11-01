@@ -12,11 +12,18 @@ const [warp, php, standaloneRunner, localQa, gltfLoader] = await Promise.all([
   read("mini-sim/assets/js/GLTFLoader.js")
 ]);
 
-test("GLB models are exposed as model assets and the r128 loader URL is available", () => {
+test("Separate Twinsun rock and color crystal parts are exposed as local GLB model assets", () => {
   assert.match(php, /'glb'\s*\)/);
   assert.match(php, /\$extension === 'glb'[\s\S]{0,80}\$type = 'model'/);
   assert.match(php, /'gltfLoaderUrl'\s*=>\s*BCM_MINI_SIM_URL\s*\.\s*'assets\/js\/GLTFLoader\.js/);
   assert.match(gltfLoader, /THREE\.GLTFLoader = GLTFLoader/);
+  assert.ok(warp.includes('mesh/twinsun_pack01/twinsun_pack01/parts/rock_cluster.glb'));
+  for (const part of ["main", "side", "small"]) {
+    assert.ok(warp.includes('"crystal_' + part + '_"'), "loads a separate " + part + " crystal");
+  }
+  for (const color of ["cyan", "violet", "amber", "green"]) {
+    assert.ok(warp.includes('"' + color + '"') || warp.includes("'" + color + "'"), "supports " + color + " crystals");
+  }
 });
 
 test("wall crystal placement uses an independent seeded stream and existing vertical side panels only", () => {
@@ -38,8 +45,8 @@ test("wall crystal placement uses an independent seeded stream and existing vert
   assert.match(source, /wallThickness \* 0\.5 - 0\.08/, "model base is embedded into the wall face");
   assert.match(source, /template\.clone\(true\)/);
   assert.match(source, /model\.quaternion\.copy\(placement\.quaternion\)/);
-  assert.match(source, /const tangent = inward\.clone\(\)\.cross\(up\)\.normalize\(\)/);
-  assert.match(source, /makeBasis\(tangent, inward, up\)/, "GLB local +Y growth axis points out from the wall");
+  assert.match(source, /const tangent = up\.clone\(\)\.cross\(inward\)\.normalize\(\)/);
+  assert.match(source, /makeBasis\(tangent, up, inward\)/, "new pack local +Z growth axis points out from the wall");
   assert.match(source, /model\.scale\.setScalar\(placement\.scale\)/);
   assert.match(source, /state\.maze !== maze/, "late loader callbacks cannot attach to a disposed maze");
 });
@@ -48,8 +55,12 @@ test("GLTFLoader is lazy and its template is cached without disposing shared geo
   assert.match(warp, /function ensureAsteroidGltfLoader\(THREE\)/);
   assert.match(warp, /if \(THREE && THREE\.GLTFLoader\) return Promise\.resolve/);
   assert.match(warp, /document\.createElement\("script"\)/);
-  assert.match(warp, /function loadAsteroidWallCrystalTemplate\(THREE\)/);
-  assert.match(warp, /asteroidWallCrystalTemplatePromise/);
+  assert.match(warp, /function loadAsteroidWallCrystalTemplate\(THREE, color\)/);
+  assert.match(warp, /function loadAsteroidWallRockTemplate\(THREE\)/);
+  assert.match(warp, /asteroidWallCrystalTemplatePromises/);
+  assert.match(warp, /asteroidWallCrystalPartPromises/);
+  assert.match(warp, /const deposit = new THREE.Group\(\)/);
+  assert.match(warp, /\[rock, main, side, small\]\.forEach/);
   const disposeStart = warp.indexOf("function disposeMaze()");
   const disposeEnd = warp.indexOf("function nextWarpDestinationLabel()", disposeStart);
   const dispose = warp.slice(disposeStart, disposeEnd);
