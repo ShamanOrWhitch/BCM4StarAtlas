@@ -177,7 +177,43 @@ try{
  report.asteroidWallCrystals=wallCrystalState;
  check(wallCrystalState.modelCount>0&&wallCrystalState.meshCount>0&&wallCrystalState.triangles>0,"GLB mineral deposits load as real meshes on asteroid wall panels");
  check(wallCrystalState.parts.length===wallCrystalState.modelCount*4&&["rock","crystal-main","crystal-side","crystal-small"].every(part=>wallCrystalState.parts.includes(part)),"each deposit keeps the rock and three crystals as separate child parts");
- await shot(page,"06-asteroid-wall-crystal.png");
+ await shot(page,"06-asteroid-ship-view.png");
+ const crystalPreview=await page.evaluate(async()=>{
+   const runtime=window.BCMiniSimAPI?.getRuntime?.();
+   const scene=runtime?.scene,THREE=runtime?.THREE,renderer=runtime?.renderer;
+   const group=scene?.getObjectByName("asteroid-wall-crystal-decorations");
+   const model=group?.children?.[0];
+   if(!runtime||!scene||!THREE||!renderer||!model)return null;
+
+   // Stop the QA fixture's next frame after it has finished drawing the ship view.
+   // Then render this same live scene once from a close inspection camera. This
+   // changes neither ship position nor any maze/gameplay state.
+   const schedule=window.requestAnimationFrame.bind(window);
+   window.requestAnimationFrame=()=>0;
+   await new Promise(resolve=>schedule(()=>resolve()));
+
+   const position=model.getWorldPosition(new THREE.Vector3());
+   const quaternion=model.getWorldQuaternion(new THREE.Quaternion());
+   const outward=new THREE.Vector3(0,0,1).applyQuaternion(quaternion).normalize();
+   const tangent=new THREE.Vector3(1,0,0).applyQuaternion(quaternion).normalize();
+   const canvas=renderer.domElement;
+   const preview=new THREE.PerspectiveCamera(52,Math.max(1,canvas.clientWidth)/Math.max(1,canvas.clientHeight),0.05,400);
+   preview.position.copy(position)
+     .addScaledVector(outward,2.0)
+     .addScaledVector(tangent,1.1)
+     .add(new THREE.Vector3(0,0.55,0));
+   preview.lookAt(position.clone().addScaledVector(outward,0.18).add(new THREE.Vector3(0,0.2,0)));
+   preview.updateProjectionMatrix();
+   renderer.render(scene,preview);
+   return {
+     color:model.userData?.bcmWallColor||"",
+     axis:{x:+outward.x.toFixed(3),y:+outward.y.toFixed(3),z:+outward.z.toFixed(3)},
+     wallPosition:{x:+position.x.toFixed(2),y:+position.y.toFixed(2),z:+position.z.toFixed(2)}
+   };
+ });
+ report.asteroidWallCrystalPreview=crystalPreview;
+ check(!!crystalPreview,"close-up inspection camera can render a mounted crystal without moving the ship");
+ await shot(page,"07-asteroid-wall-crystal-closeup.png");
  const benignConsole=text=>!full&&/ERR_BLOCKED_BY_CLIENT/.test(text);
  const benignPage=text=>{const m=String(text).match(/base64,([A-Za-z0-9+/=]+)/);if(!m)return false;try{return Buffer.from(m[1],"base64").toString("utf8").includes("wy-preloader");}catch(e){return false;}};
  report.seriousConsoleErrors=report.consoleErrors.filter(text=>!benignConsole(text));
@@ -190,5 +226,5 @@ finally{
  try{await writeFile(resolve(out,"minisim-qa-report.json"),JSON.stringify(report,null,2)+"\n","utf8");}catch(e){}
  if(browser)await browser.close().catch(()=>{});
 }
-console.log(JSON.stringify({status:report.status,url:report.targetUrl,checks:report.checks,asteroidWallCrystals:report.asteroidWallCrystals,localOverrides:report.overrides.length,overriddenFiles:[...new Set(report.overrides.map(item=>item.file))],pluginHttpErrors:report.pluginHttpErrors,httpErrors:report.httpErrors,blockedVideoRequests:report.blockedVideos.length,seriousConsoleErrors:report.seriousConsoleErrors,seriousPageErrors:report.seriousPageErrors,consoleErrors:report.consoleErrors,pageErrors:report.pageErrors,failedRequests:report.failedRequests,screenshots:report.screenshots,report:".qa-artifacts/minisim-qa-report.json",error:report.error},null,2));
+console.log(JSON.stringify({status:report.status,url:report.targetUrl,checks:report.checks,asteroidWallCrystals:report.asteroidWallCrystals,asteroidWallCrystalPreview:report.asteroidWallCrystalPreview,localOverrides:report.overrides.length,overriddenFiles:[...new Set(report.overrides.map(item=>item.file))],pluginHttpErrors:report.pluginHttpErrors,httpErrors:report.httpErrors,blockedVideoRequests:report.blockedVideos.length,seriousConsoleErrors:report.seriousConsoleErrors,seriousPageErrors:report.seriousPageErrors,consoleErrors:report.consoleErrors,pageErrors:report.pageErrors,failedRequests:report.failedRequests,screenshots:report.screenshots,report:".qa-artifacts/minisim-qa-report.json",error:report.error},null,2));
 if(report.status!=="PASS")process.exitCode=1;
