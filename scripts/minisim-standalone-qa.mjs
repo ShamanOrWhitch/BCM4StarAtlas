@@ -7,14 +7,14 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const shellPath = resolve(root, "tools/minisim-qa/standalone-shell.html");
-const allowedExt = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".webm", ".ogg", ".mp3", ".m4a", ".wav"]);
+const allowedExt = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".webm", ".ogg", ".mp3", ".m4a", ".wav", ".glb"]);
 const mime = (file) => ({
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8", ".json": "application/json; charset=utf-8",
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
   ".webp": "image/webp", ".gif": "image/gif", ".mp4": "video/mp4",
   ".webm": "video/webm", ".ogg": "audio/ogg", ".mp3": "audio/mpeg",
-  ".m4a": "audio/mp4", ".wav": "audio/wav",
+  ".m4a": "audio/mp4", ".wav": "audio/wav", ".glb": "model/gltf-binary",
 }[extname(file).toLowerCase()] || "application/octet-stream");
 
 async function scanAssets(directory, urlPrefix) {
@@ -27,7 +27,8 @@ async function scanAssets(directory, urlPrefix) {
       else if (entry.isFile() && allowedExt.has(extname(entry.name).toLowerCase())) {
         const extension = extname(entry.name).slice(1).toLowerCase();
         const type = ["mp4", "webm"].includes(extension) ? "video"
-          : ["mp3", "m4a", "wav", "ogg"].includes(extension) ? "audio" : "image";
+          : ["mp3", "m4a", "wav", "ogg"].includes(extension) ? "audio"
+          : extension === "glb" ? "model" : "image";
         const encoded = rel.split("/").map(encodeURIComponent).join("/");
         output.push({ name: rel.replaceAll("\\", "/"), type, extension, url: urlPrefix + "/" + encoded });
       }
@@ -77,6 +78,7 @@ const server = createServer(async (req, res) => {
         crewServerAjax: origin + "/wp-admin/admin-ajax.php",
         crewServerNonce: "standalone-qa-no-wallet",
         threeUrl: assetUrl("assets/js/three.min.js"),
+        gltfLoaderUrl: assetUrl("assets/js/GLTFLoader.js") + "?ver=" + encodeURIComponent(miniVersion),
         towerApproach: { x: 0, y: -2, z: -260, preloadRadius: 150, coverageThreshold: 0.69, uiRadius: 200, gateAutoProgress: 0.85, portalCoverageThreshold: 0.60, backPortalDistance: 8.5 },
         towerJsUrl: assetUrl("tower/assets/js/tower.js") + "?ver=" + encodeURIComponent(towerVersion),
         towerCssUrl: assetUrl("tower/assets/css/tower.css") + "?ver=" + encodeURIComponent(towerVersion),
