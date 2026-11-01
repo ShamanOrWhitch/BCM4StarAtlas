@@ -2282,10 +2282,8 @@
           inward.normalize();
 
           const up = new THREE.Vector3(0, 1, 0);
-          // The GLB's local +Y is its crystal-growth axis. Rotate that axis
-          // onto the wall normal so the deposit grows outward into the cell.
-          // This asset pack stores the crystal-growth direction along local +Z.
-          // Map that axis onto the outward wall normal; keep local +Y vertical.
+          // The separate crystal GLBs retain their shared source coordinates.
+          // Their growth axis is local +Z; map it out from the wall and keep +Y vertical.
           const tangent = up.clone().cross(inward).normalize();
           const basis = new THREE.Matrix4().makeBasis(tangent, up, inward);
           const quaternion = new THREE.Quaternion().setFromRotationMatrix(basis);
