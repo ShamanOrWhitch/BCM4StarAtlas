@@ -35,7 +35,7 @@ const out=resolve(root,".qa-artifacts");
 const report={targetUrl:url,mode:full?"full-media":"light-media",startedAt:new Date().toISOString(),overrides:[],pluginAssetRequests:[],blockedVideos:[],httpErrors:[],consoleErrors:[],pageErrors:[],failedRequests:[],checks:[],screenshots:[]};
 const check=(ok,message)=>{report.checks.push({ok:!!ok,message});if(!ok)throw Error(message);};
 const shot=async(page,name)=>{await page.screenshot({path:resolve(out,name),fullPage:false});report.screenshots.push(".qa-artifacts/"+name);};
-const mime=p=>({".js":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".json":"application/json; charset=utf-8",".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".webp":"image/webp",".gif":"image/gif",".mp4":"video/mp4",".webm":"video/webm",".mp3":"audio/mpeg",".wav":"audio/wav",".m4a":"audio/mp4",".ogg":"audio/ogg"}[extname(p).toLowerCase()]||"application/octet-stream");
+const mime=p=>({".js":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".json":"application/json; charset=utf-8",".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".webp":"image/webp",".gif":"image/gif",".mp4":"video/mp4",".webm":"video/webm",".mp3":"audio/mpeg",".wav":"audio/wav",".m4a":"audio/mp4",".ogg":"audio/ogg",".glb":"model/gltf-binary"}[extname(p).toLowerCase()]||"application/octet-stream");
 const isVideo=p=>/\.(mp4|webm|mov|m4v)(?:$|\?)/i.test(p);
 if(!url){console.error('Usage: npm run qa:minisim -- --url "http://localhost/mini-sim-page/" [--headed] [--full-media]');process.exit(2);}
 await mkdir(out,{recursive:true});
@@ -131,6 +131,30 @@ try{
  report.afterCancel=after;await shot(page,"05-after-cancel.png");
  check(!!before&&!!after.position&&after.position.every((v,i)=>Math.abs(v-before[i])<1),"cancel restores the ship position");
  check(after.audio.length===1&&!/warp\\.mp3/i.test(after.audio[0]),"cancel stops Warp OST and restores the normal flight OST");
+ const asteroidEntered=await page.evaluate(()=>typeof window.BCMDeepSpaceWarpEnterAsteroid==="function"&&window.BCMDeepSpaceWarpEnterAsteroid()===true);
+ check(asteroidEntered,"asteroid test entry uses the existing Mini-Sim runtime");
+ await page.waitForFunction(()=>{
+   const scene=window.BCMiniSimAPI?.getRuntime?.()?.scene;
+   const decorations=scene?.getObjectByName("asteroid-wall-crystal-decorations");
+   return !!decorations&&decorations.children.length>0;
+ },null,{timeout:20000});
+ const wallCrystalState=await page.evaluate(()=>{
+   const scene=window.BCMiniSimAPI?.getRuntime?.()?.scene;
+   const group=scene?.getObjectByName("asteroid-wall-crystal-decorations");
+   const models=group?.children||[];
+   let meshes=0,triangles=0;
+   models.forEach(model=>model.traverse(node=>{
+     if(!node?.isMesh||!node.geometry)return;
+     meshes++;
+     const index=node.geometry.index;
+     const position=node.geometry.getAttribute("position");
+     triangles+=index?index.count/3:(position?position.count/3:0);
+   }));
+   return {modelCount:models.length,meshCount:meshes,triangles};
+ });
+ report.asteroidWallCrystals=wallCrystalState;
+ check(wallCrystalState.modelCount>0&&wallCrystalState.meshCount>0&&wallCrystalState.triangles>0,"GLB mineral deposits load as real meshes on asteroid wall panels");
+ await shot(page,"06-asteroid-wall-crystal.png");
  const benignConsole=text=>!full&&/ERR_BLOCKED_BY_CLIENT/.test(text);
  const benignPage=text=>{const m=String(text).match(/base64,([A-Za-z0-9+/=]+)/);if(!m)return false;try{return Buffer.from(m[1],"base64").toString("utf8").includes("wy-preloader");}catch(e){return false;}};
  report.seriousConsoleErrors=report.consoleErrors.filter(text=>!benignConsole(text));
