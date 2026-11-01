@@ -709,6 +709,73 @@
       };
     }
 
+    // The GLTF loader and crystal scene are lazy, shared page-level resources.
+    // They are requested only when an asteroid maze is actually constructed.
+    let asteroidGltfLoaderPromise = null;
+    let asteroidWallCrystalTemplatePromise = null;
+
+    function ensureAsteroidGltfLoader(THREE) {
+      if (THREE && THREE.GLTFLoader) return Promise.resolve(THREE.GLTFLoader);
+      if (asteroidGltfLoaderPromise) return asteroidGltfLoaderPromise;
+      const loaderUrl = String(config.gltfLoaderUrl || "").trim();
+      if (!loaderUrl) return Promise.reject(new Error("Local GLTFLoader URL is not configured"));
+
+      asteroidGltfLoaderPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = loaderUrl;
+        script.async = true;
+        script.dataset.bcmR128GltfLoader = "1";
+        script.onload = () => {
+          if (THREE && THREE.GLTFLoader) resolve(THREE.GLTFLoader);
+          else reject(new Error("Local GLTFLoader loaded without registering THREE.GLTFLoader"));
+        };
+        script.onerror = () => reject(new Error("Local GLTFLoader request failed"));
+        document.head.appendChild(script);
+      }).catch((error) => {
+        asteroidGltfLoaderPromise = null;
+        throw error;
+      });
+      return asteroidGltfLoaderPromise;
+    }
+
+    function loadAsteroidWallCrystalTemplate(THREE) {
+      if (asteroidWallCrystalTemplatePromise) return asteroidWallCrystalTemplatePromise;
+      const assets = Array.isArray(config.assets) ? config.assets : [];
+      const asset = assets.find((item) =>
+        item && item.type === "model" &&
+        String(item.name || "").replace(/\\\\/g, "/").toLowerCase() === "mesh/twinsun_crystal.glb" &&
+        typeof item.url === "string" && item.url
+      );
+      if (!asset) return Promise.reject(new Error("mesh/twinsun_crystal.glb is not present in Mini-Sim assets"));
+
+      asteroidWallCrystalTemplatePromise = ensureAsteroidGltfLoader(THREE)
+        .then(() => new Promise((resolve, reject) => {
+          const loader = new THREE.GLTFLoader();
+          loader.load(asset.url, (gltf) => {
+            const root = gltf && (gltf.scene || (Array.isArray(gltf.scenes) ? gltf.scenes[0] : null));
+            let meshes = 0;
+            if (root && typeof root.traverse === "function") {
+              root.traverse((node) => {
+                if (!node || !node.isMesh) return;
+                meshes += 1;
+                node.castShadow = false;
+                node.receiveShadow = false;
+              });
+            }
+            if (!root || meshes === 0) {
+              reject(new Error("Crystal GLB contains no renderable meshes"));
+              return;
+            }
+            resolve(root);
+          }, undefined, reject);
+        }))
+        .catch((error) => {
+          asteroidWallCrystalTemplatePromise = null;
+          throw error;
+        });
+      return asteroidWallCrystalTemplatePromise;
+    }
+
     function parseCoords(value) {
       if (Array.isArray(value) && value.length >= 2) {
         const x = Number(value[0]);
@@ -2101,8 +2168,103 @@
       state.savedSpeedMode = engine.getSpeedMode ? engine.getSpeedMode() : 1;
       if (engine.setSpeedMode) engine.setSpeedMode(2);
       state.maze = maze;
-      publishAsteroidChart(maze);
       maze.pickupEffects = [];
+
+      // Wall-mounted crystal deposits are purely decorative. Their placement
+      // uses a separate seed stream so it cannot alter maze topology, exits,
+      // Hydrogen cells, wall textures or the existing collision list.
+      function attachAsteroidWallCrystals() {
+        const decorationGroup = new THREE.Group();
+        decorationGroup.name = "asteroid-wall-crystal-decorations";
+        maze.wallCrystalGroup = decorationGroup;
+        group.add(decorationGroup);
+
+        const placementRng = randomFrom(hashSeed(String(seed) + "|wall-crystal-layout"));
+        const endpoint = (cell, point) => !!cell && !!point &&
+          cell.x === point.x && cell.y === point.y && cell.z === point.z;
+        const byCell = new Map();
+
+        walls.forEach((wall) => {
+          const cell = wall && wall.cell;
+          if (!cell || cell.y !== 1 || endpoint(cell, maze.startCell) || endpoint(cell, maze.exitCell)) return;
+
+          // Only the vertical side panels are decorated. Floor/ceiling panels
+          // and passage openings stay visually clear.
+          if (wall.sy <= wall.sx || wall.sy <= wall.sz) return;
+          const key = cell.x + ":" + cell.y + ":" + cell.z;
+          if (!byCell.has(key)) byCell.set(key, []);
+          byCell.get(key).push(wall);
+        });
+
+        const candidates = [];
+        byCell.forEach((cellWalls) => {
+          if (cellWalls.length) {
+            const pick = Math.floor(placementRng() * cellWalls.length);
+            candidates.push(cellWalls[pick]);
+          }
+        });
+        for (let i = candidates.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(placementRng() * (i + 1));
+          [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+        }
+
+        const placementCount = Math.min(4, candidates.length);
+        const placements = candidates.slice(0, placementCount).map((wall, index) => {
+          const cellCenter = cellPosition(wall.cell.x, wall.cell.y, wall.cell.z);
+          const inward = cellCenter.sub(new THREE.Vector3(wall.x, wall.y, wall.z));
+          inward.y = 0;
+          if (inward.lengthSq() < 1e-6) return null;
+          inward.normalize();
+
+          const up = new THREE.Vector3(0, 1, 0);
+          const tangent = up.clone().cross(inward).normalize();
+          const basis = new THREE.Matrix4().makeBasis(tangent, up, inward);
+          const quaternion = new THREE.Quaternion().setFromRotationMatrix(basis);
+          const wallThickness = Math.min(wall.sx, wall.sz);
+          const scale = 0.34 + placementRng() * 0.04;
+          const position = new THREE.Vector3(wall.x, wall.y, wall.z)
+            .addScaledVector(inward, wallThickness * 0.5 - 0.08)
+            .addScaledVector(tangent, (placementRng() - 0.5) * 2.4)
+            .addScaledVector(up, (placementRng() - 0.5) * 1.6);
+          return { wall, position, quaternion, scale, index };
+        }).filter(Boolean);
+
+        maze.wallCrystalPlacementCount = placements.length;
+        if (!placements.length) {
+          group.remove(decorationGroup);
+          maze.wallCrystalGroup = null;
+          return;
+        }
+
+        loadAsteroidWallCrystalTemplate(THREE).then((template) => {
+          // A load may finish after the pilot has left and disposed this maze.
+          if (!maze.active || state.maze !== maze || decorationGroup.parent !== group) return;
+          placements.forEach((placement) => {
+            const model = template.clone(true);
+            model.name = "asteroid-wall-crystal-" + placement.index;
+            model.position.copy(placement.position);
+            model.quaternion.copy(placement.quaternion);
+            model.scale.setScalar(placement.scale);
+            model.userData.bcmWallDecoration = true;
+            model.traverse((node) => {
+              if (!node || !node.isMesh) return;
+              node.frustumCulled = true;
+              node.castShadow = false;
+              node.receiveShadow = false;
+            });
+            decorationGroup.add(model);
+          });
+          maze.wallCrystalCount = placements.length;
+        }).catch((error) => {
+          if (decorationGroup.parent === group) group.remove(decorationGroup);
+          if (maze.wallCrystalGroup === decorationGroup) maze.wallCrystalGroup = null;
+          maze.wallCrystalCount = 0;
+          try { console.warn("[BCM] Asteroid wall crystal model was skipped:", error); } catch (e) {}
+        });
+      }
+
+      attachAsteroidWallCrystals();
+      publishAsteroidChart(maze);
       function spawnCrystalPickupEffect(position, pickupLabel) {
         const effect = new THREE.Group();
         effect.name = "asteroid-crystal-pickup-impact";
