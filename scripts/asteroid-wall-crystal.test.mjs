@@ -79,4 +79,6 @@ test("standalone QA serves the GLB and exercises the actual asteroid scene with 
   assert.match(localQa, /BCMDeepSpaceWarpEnterAsteroid/);
   assert.match(localQa, /asteroid-wall-crystal-decorations/);
   assert.match(localQa, /GLB mineral deposits load as real meshes on asteroid wall panels/);
+  assert.match(localQa, /07-asteroid-wall-crystal-closeup\.png/);
+  assert.match(localQa, /inspection camera can render a mounted crystal without moving the ship/);
 });
