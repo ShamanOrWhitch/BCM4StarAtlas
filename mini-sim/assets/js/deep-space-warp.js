@@ -2196,20 +2196,27 @@
           byCell.get(key).push(wall);
         });
 
-        const candidates = [];
-        byCell.forEach((cellWalls) => {
-          if (cellWalls.length) {
-            const pick = Math.floor(placementRng() * cellWalls.length);
-            candidates.push(cellWalls[pick]);
-          }
+        // Prefer the first traversable middle-layer cells so the pilot can
+        // see a deposit early in the asteroid run. This only ranks the existing
+        // wall list; route generation and its seeded RNG are not modified.
+        const routeIndexByCell = new Map();
+        routeCells.forEach((cell, index) => {
+          routeIndexByCell.set(cell.x + ":" + cell.y + ":" + cell.z, index);
         });
-        for (let i = candidates.length - 1; i > 0; i -= 1) {
-          const j = Math.floor(placementRng() * (i + 1));
-          [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-        }
+        const candidates = [];
+        byCell.forEach((cellWalls, key) => {
+          const routeIndex = routeIndexByCell.get(key);
+          if (!Number.isFinite(routeIndex) || routeIndex <= 0) return;
+          if (!cellWalls.length) return;
+          const pick = Math.floor(placementRng() * cellWalls.length);
+          candidates.push({ wall: cellWalls[pick], routeIndex });
+        });
+        candidates.sort((a, b) => a.routeIndex - b.routeIndex);
 
         const placementCount = Math.min(4, candidates.length);
-        const placements = candidates.slice(0, placementCount).map((wall, index) => {
+        const placements = candidates.slice(0, placementCount).map((candidate, index) => {
+          const wall = candidate.wall;
+          const routeIndex = candidate.routeIndex;
           const cellCenter = cellPosition(wall.cell.x, wall.cell.y, wall.cell.z);
           const inward = cellCenter.sub(new THREE.Vector3(wall.x, wall.y, wall.z));
           inward.y = 0;
@@ -2228,10 +2235,14 @@
             .addScaledVector(inward, wallThickness * 0.5 - 0.08)
             .addScaledVector(tangent, (placementRng() - 0.5) * 2.4)
             .addScaledVector(up, (placementRng() - 0.5) * 1.6);
-          return { wall, position, quaternion, scale, index };
+          return { wall, position, quaternion, scale, routeIndex, index };
         }).filter(Boolean);
 
         maze.wallCrystalPlacementCount = placements.length;
+        maze.wallCrystalPlacements = placements.map((placement) => ({
+          cell: { x: placement.wall.cell.x, y: placement.wall.cell.y, z: placement.wall.cell.z },
+          routeIndex: placement.routeIndex
+        }));
         if (!placements.length) {
           group.remove(decorationGroup);
           maze.wallCrystalGroup = null;
@@ -2248,6 +2259,8 @@
             model.quaternion.copy(placement.quaternion);
             model.scale.setScalar(placement.scale);
             model.userData.bcmWallDecoration = true;
+            model.userData.bcmWallCell = { x: placement.wall.cell.x, y: placement.wall.cell.y, z: placement.wall.cell.z };
+            model.userData.bcmWallRouteIndex = placement.routeIndex;
             model.traverse((node) => {
               if (!node || !node.isMesh) return;
               node.frustumCulled = true;
