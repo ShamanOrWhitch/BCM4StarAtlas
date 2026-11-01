@@ -38,6 +38,8 @@ test("wall crystal placement uses an independent seeded stream and existing vert
   assert.match(source, /wallThickness \* 0\.5 - 0\.08/, "model base is embedded into the wall face");
   assert.match(source, /template\.clone\(true\)/);
   assert.match(source, /model\.quaternion\.copy\(placement\.quaternion\)/);
+  assert.match(source, /const tangent = inward\.clone\(\)\.cross\(up\)\.normalize\(\)/);
+  assert.match(source, /makeBasis\(tangent, inward, up\)/, "GLB local +Y growth axis points out from the wall");
   assert.match(source, /model\.scale\.setScalar\(placement\.scale\)/);
   assert.match(source, /state\.maze !== maze/, "late loader callbacks cannot attach to a disposed maze");
 });
