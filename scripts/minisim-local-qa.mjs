@@ -177,6 +177,7 @@ try{
  report.asteroidWallCrystals=wallCrystalState;
  check(wallCrystalState.modelCount>0&&wallCrystalState.meshCount>0&&wallCrystalState.triangles>0,"GLB mineral deposits load as real meshes on asteroid wall panels");
  check(wallCrystalState.parts.length===wallCrystalState.modelCount*4&&["rock","crystal-main","crystal-side","crystal-small"].every(part=>wallCrystalState.parts.includes(part)),"each deposit keeps the rock and three crystals as separate child parts");
+ check(wallCrystalState.modelCount!==4||new Set(wallCrystalState.colors).size===4,"a full four-deposit run displays all four crystal colours");
  await shot(page,"06-asteroid-ship-view.png");
  const crystalPreview=await page.evaluate(async()=>{
    const runtime=window.BCMiniSimAPI?.getRuntime?.();
