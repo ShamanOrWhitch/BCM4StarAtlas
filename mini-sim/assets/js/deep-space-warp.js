@@ -2295,6 +2295,10 @@
         candidates.sort((a, b) => a.routeIndex - b.routeIndex);
 
         const placementCount = Math.min(4, candidates.length);
+        // Rotate the four-colour palette by one seeded offset. A full set of
+        // four deposits therefore shows all four authored variants, while the
+        // asteroid seed still changes which colour appears first.
+        const paletteOffset = Math.floor(placementRng() * asteroidWallCrystalColors.length);
         const placements = candidates.slice(0, placementCount).map((candidate, index) => {
           const wall = candidate.wall;
           const routeIndex = candidate.routeIndex;
@@ -2312,7 +2316,7 @@
           const quaternion = new THREE.Quaternion().setFromRotationMatrix(basis);
           const wallThickness = Math.min(wall.sx, wall.sz);
           const scale = 0.28 + placementRng() * 0.025;
-          const color = asteroidWallCrystalColors[Math.floor(placementRng() * asteroidWallCrystalColors.length)];
+          const color = asteroidWallCrystalColors[(index + paletteOffset) % asteroidWallCrystalColors.length];
           const position = new THREE.Vector3(wall.x, wall.y, wall.z)
             .addScaledVector(inward, wallThickness * 0.5 - 0.08)
             .addScaledVector(tangent, (placementRng() - 0.5) * 2.4)
