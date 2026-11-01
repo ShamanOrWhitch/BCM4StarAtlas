@@ -1,3 +1,14 @@
+## Completed — Mini-Sim 0.11.22 Twinsun crystal wall integration (1 November 2026)
+
+- **Merged to main:** [PR #94](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/94), commit [`6d5d475`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/6d5d4757d30e5f21a2e1e1046756db939e469e33). Work lock [#93](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/93) closed.
+- Mini-Sim 0.11.22, Tower 0.2.67 unchanged. Each deposit is assembled from separate rock + main/side/small crystal GLBs from `twinsun_pack01`; cyan/violet/amber/green all appear in a complete four-deposit run.
+- Up to four deposits attach to existing closed vertical panels in the middle layer, preferentially near the start of the established route. Separate deterministic decoration RNG; no mutation of wall panels/list, maze topology, Hydrogen cells, collisions, flight physics or global light. Crystal parts keep their own child roots and receive a modest local emissive tint.
+- **Source/regression CI:** 9/9 workflows PASS. **Our own standalone Chromium:** [41349618593](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/41349618593) PASS, 19/19 checks; 4 deposits, 36 meshes, 3,144 triangles, all four colours, no serious console/page errors or local plugin 4xx. Report + screenshots are in the run artifact.
+- **Live WordPress path:** [41349618506](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/41349618506) BLOCKED-ENVIRONMENT by HTTP 403 before Mini-Sim markup. This is separate from and does not negate the standalone browser pass.
+- **Deployment:** not uploaded to WordPress; no verified production browser or physical device result. Do not modify firewall or Galia Desk/scanner/pricing to work around this test.
+
+---
+
 ## Completed code change — Warp reverse flow + Tower P2 Right Ctrl (27 October 2026)
 
 - **Merged:** [PR #88](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/88), main commit [`dee7ae3`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/dee7ae399c3023dd3f3861e3414f185ee5550e67). Code change originated at [`196dddb`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/196dddb345ba04a53b2d3e3ef24689b2744d1953).
