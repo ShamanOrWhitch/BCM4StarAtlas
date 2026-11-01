@@ -1,3 +1,11 @@
+/*!
+ * Three.js GLTFLoader r128
+ * Copyright (c) 2010-2021 three.js authors
+ * SPDX-License-Identifier: MIT
+ * Source: https://github.com/mrdoob/three.js/tree/r128/examples/js/loaders/GLTFLoader.js
+ * License text: GLTFLoader-LICENSE.txt
+ */
+
 ( function () {
 
 	class GLTFLoader extends THREE.Loader {
