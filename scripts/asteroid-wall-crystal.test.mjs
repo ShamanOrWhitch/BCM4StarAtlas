@@ -4,12 +4,13 @@ import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL("../" + path, import.meta.url), "utf8");
 
-const [warp, php, standaloneRunner, localQa, gltfLoader] = await Promise.all([
+const [warp, php, standaloneRunner, localQa, gltfLoader, gltfLicense] = await Promise.all([
   read("mini-sim/assets/js/deep-space-warp.js"),
   read("mini-sim/bcm-mini-sim.php"),
   read("scripts/minisim-standalone-qa.mjs"),
   read("scripts/minisim-local-qa.mjs"),
-  read("mini-sim/assets/js/GLTFLoader.js")
+  read("mini-sim/assets/js/GLTFLoader.js"),
+  read("mini-sim/assets/js/GLTFLoader-LICENSE.txt")
 ]);
 
 test("Separate Twinsun rock and color crystal parts are exposed as local GLB model assets", () => {
@@ -17,6 +18,8 @@ test("Separate Twinsun rock and color crystal parts are exposed as local GLB mod
   assert.match(php, /\$extension === 'glb'[\s\S]{0,80}\$type = 'model'/);
   assert.match(php, /'gltfLoaderUrl'\s*=>\s*BCM_MINI_SIM_URL\s*\.\s*'assets\/js\/GLTFLoader\.js/);
   assert.match(gltfLoader, /THREE\.GLTFLoader = GLTFLoader/);
+  assert.match(gltfLicense, /Copyright © 2010-2021 three\.js authors/);
+  assert.match(gltfLoader, /SPDX-License-Identifier: MIT/);
   assert.ok(warp.includes('const asteroidWallCrystalAssetRoot = "mesh/twinsun_pack01/twinsun_pack01/parts/"'));
   assert.ok(warp.includes('asteroidWallCrystalAssetRoot + "rock_cluster.glb"'));
   assert.ok(warp.includes('const assetName = asteroidWallCrystalAssetRoot + "crystal_" + part + "_" + selectedColor + ".glb"'));
