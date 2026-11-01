@@ -53,6 +53,8 @@ test("wall crystal placement uses an independent seeded stream and existing vert
   assert.match(source, /const tangent = up\.clone\(\)\.cross\(inward\)\.normalize\(\)/);
   assert.match(source, /makeBasis\(tangent, up, inward\)/, "new pack local +Z growth axis points out from the wall");
   assert.match(source, /model\.scale\.setScalar\(placement\.scale\)/);
+  assert.match(source, /const paletteOffset = Math\.floor\(placementRng\(\) \* asteroidWallCrystalColors\.length\)/);
+  assert.match(source, /asteroidWallCrystalColors\[\(index \+ paletteOffset\) % asteroidWallCrystalColors\.length\]/, "four deposits cycle through all four colours");
   assert.match(source, /state\.maze !== maze/, "late loader callbacks cannot attach to a disposed maze");
 });
 
