@@ -712,7 +712,11 @@
     // The GLTF loader and crystal scene are lazy, shared page-level resources.
     // They are requested only when an asteroid maze is actually constructed.
     let asteroidGltfLoaderPromise = null;
-    let asteroidWallCrystalTemplatePromise = null;
+    let asteroidWallRockTemplatePromise = null;
+    const asteroidWallCrystalPartPromises = new Map();
+    const asteroidWallCrystalTemplatePromises = new Map();
+    const asteroidWallCrystalColors = ["cyan", "violet", "amber", "green"];
+    const asteroidWallCrystalAssetRoot = "mesh/twinsun_pack01/twinsun_pack01/parts/";
 
     function ensureAsteroidGltfLoader(THREE) {
       if (THREE && THREE.GLTFLoader) return Promise.resolve(THREE.GLTFLoader);
@@ -738,17 +742,18 @@
       return asteroidGltfLoaderPromise;
     }
 
-    function loadAsteroidWallCrystalTemplate(THREE) {
-      if (asteroidWallCrystalTemplatePromise) return asteroidWallCrystalTemplatePromise;
+    function loadAsteroidWallAssetTemplate(THREE, assetName, cache, cacheKey) {
+      if (cache.has(cacheKey)) return cache.get(cacheKey);
       const assets = Array.isArray(config.assets) ? config.assets : [];
+      const wanted = String(assetName || "").toLowerCase();
       const asset = assets.find((item) =>
         item && item.type === "model" &&
-        String(item.name || "").toLowerCase() === "mesh/twinsun_crystal.glb" &&
+        String(item.name || "").toLowerCase() === wanted &&
         typeof item.url === "string" && item.url
       );
-      if (!asset) return Promise.reject(new Error("mesh/twinsun_crystal.glb is not present in Mini-Sim assets"));
+      if (!asset) return Promise.reject(new Error("Missing local GLB model asset: " + assetName));
 
-      asteroidWallCrystalTemplatePromise = ensureAsteroidGltfLoader(THREE)
+      const promise = ensureAsteroidGltfLoader(THREE)
         .then(() => new Promise((resolve, reject) => {
           const loader = new THREE.GLTFLoader();
           loader.load(asset.url, (gltf) => {
@@ -763,17 +768,70 @@
               });
             }
             if (!root || meshes === 0) {
-              reject(new Error("Crystal GLB contains no renderable meshes"));
+              reject(new Error("GLB contains no renderable meshes: " + assetName));
               return;
             }
             resolve(root);
           }, undefined, reject);
         }))
         .catch((error) => {
-          asteroidWallCrystalTemplatePromise = null;
+          cache.delete(cacheKey);
           throw error;
         });
-      return asteroidWallCrystalTemplatePromise;
+      cache.set(cacheKey, promise);
+      return promise;
+    }
+
+    function loadAsteroidWallRockTemplate(THREE) {
+      if (asteroidWallRockTemplatePromise) return asteroidWallRockTemplatePromise;
+      const assetName = asteroidWallCrystalAssetRoot + "rock_cluster.glb";
+      asteroidWallRockTemplatePromise = loadAsteroidWallAssetTemplate(
+        THREE, assetName, new Map(), "wall-rock"
+      ).catch((error) => {
+        asteroidWallRockTemplatePromise = null;
+        throw error;
+      });
+      return asteroidWallRockTemplatePromise;
+    }
+
+    function loadAsteroidWallCrystalTemplate(THREE, color) {
+      const selectedColor = asteroidWallCrystalColors.includes(String(color).toLowerCase())
+        ? String(color).toLowerCase()
+        : "cyan";
+      if (asteroidWallCrystalTemplatePromises.has(selectedColor)) {
+        return asteroidWallCrystalTemplatePromises.get(selectedColor);
+      }
+
+      const getPart = (part) => {
+        const assetName = asteroidWallCrystalAssetRoot + "crystal_" + part + "_" + selectedColor + ".glb";
+        const cacheKey = selectedColor + ":" + part;
+        return loadAsteroidWallAssetTemplate(THREE, assetName, asteroidWallCrystalPartPromises, cacheKey);
+      };
+
+      const promise = Promise.all([
+        loadAsteroidWallRockTemplate(THREE),
+        getPart("main"),
+        getPart("side"),
+        getPart("small")
+      ]).then(([rock, main, side, small]) => {
+        // The four GLBs deliberately retain one shared authoring coordinate
+        // system. Keep the stone and all three crystals as separate child nodes.
+        const deposit = new THREE.Group();
+        deposit.name = "twinsun-crystal-deposit-" + selectedColor;
+        [rock, main, side, small].forEach((part) => {
+          const child = part.clone(true);
+          child.userData = child.userData || {};
+          child.userData.bcmDepositPart = part === rock ? "rock" : part === main ? "crystal-main" :
+            part === side ? "crystal-side" : "crystal-small";
+          deposit.add(child);
+        });
+        return deposit;
+      }).catch((error) => {
+        asteroidWallCrystalTemplatePromises.delete(selectedColor);
+        throw error;
+      });
+      asteroidWallCrystalTemplatePromises.set(selectedColor, promise);
+      return promise;
     }
 
     function parseCoords(value) {
@@ -2226,22 +2284,26 @@
           const up = new THREE.Vector3(0, 1, 0);
           // The GLB's local +Y is its crystal-growth axis. Rotate that axis
           // onto the wall normal so the deposit grows outward into the cell.
-          const tangent = inward.clone().cross(up).normalize();
-          const basis = new THREE.Matrix4().makeBasis(tangent, inward, up);
+          // This asset pack stores the crystal-growth direction along local +Z.
+          // Map that axis onto the outward wall normal; keep local +Y vertical.
+          const tangent = up.clone().cross(inward).normalize();
+          const basis = new THREE.Matrix4().makeBasis(tangent, up, inward);
           const quaternion = new THREE.Quaternion().setFromRotationMatrix(basis);
           const wallThickness = Math.min(wall.sx, wall.sz);
-          const scale = 0.34 + placementRng() * 0.04;
+          const scale = 0.28 + placementRng() * 0.025;
+          const color = asteroidWallCrystalColors[Math.floor(placementRng() * asteroidWallCrystalColors.length)];
           const position = new THREE.Vector3(wall.x, wall.y, wall.z)
             .addScaledVector(inward, wallThickness * 0.5 - 0.08)
             .addScaledVector(tangent, (placementRng() - 0.5) * 2.4)
             .addScaledVector(up, (placementRng() - 0.5) * 1.6);
-          return { wall, position, quaternion, scale, routeIndex, index };
+          return { wall, position, quaternion, scale, routeIndex, color, index };
         }).filter(Boolean);
 
         maze.wallCrystalPlacementCount = placements.length;
         maze.wallCrystalPlacements = placements.map((placement) => ({
           cell: { x: placement.wall.cell.x, y: placement.wall.cell.y, z: placement.wall.cell.z },
-          routeIndex: placement.routeIndex
+          routeIndex: placement.routeIndex,
+          color: placement.color
         }));
         if (!placements.length) {
           group.remove(decorationGroup);
@@ -2249,16 +2311,20 @@
           return;
         }
 
-        loadAsteroidWallCrystalTemplate(THREE).then((template) => {
+        Promise.all(placements.map((placement) =>
+          loadAsteroidWallCrystalTemplate(THREE, placement.color)
+            .then((template) => ({ placement, template }))
+        )).then((loaded) => {
           // A load may finish after the pilot has left and disposed this maze.
           if (!maze.active || state.maze !== maze || decorationGroup.parent !== group) return;
-          placements.forEach((placement) => {
+          loaded.forEach(({ placement, template }) => {
             const model = template.clone(true);
             model.name = "asteroid-wall-crystal-" + placement.index;
             model.position.copy(placement.position);
             model.quaternion.copy(placement.quaternion);
             model.scale.setScalar(placement.scale);
             model.userData.bcmWallDecoration = true;
+            model.userData.bcmWallColor = placement.color;
             model.userData.bcmWallCell = { x: placement.wall.cell.x, y: placement.wall.cell.y, z: placement.wall.cell.z };
             model.userData.bcmWallRouteIndex = placement.routeIndex;
             model.traverse((node) => {
@@ -2269,7 +2335,7 @@
             });
             decorationGroup.add(model);
           });
-          maze.wallCrystalCount = placements.length;
+          maze.wallCrystalCount = loaded.length;
         }).catch((error) => {
           if (decorationGroup.parent === group) group.remove(decorationGroup);
           if (maze.wallCrystalGroup === decorationGroup) maze.wallCrystalGroup = null;
