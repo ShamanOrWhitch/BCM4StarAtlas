@@ -743,7 +743,7 @@
       const assets = Array.isArray(config.assets) ? config.assets : [];
       const asset = assets.find((item) =>
         item && item.type === "model" &&
-        String(item.name || "").replace(/\\\\/g, "/").toLowerCase() === "mesh/twinsun_crystal.glb" &&
+        String(item.name || "").toLowerCase() === "mesh/twinsun_crystal.glb" &&
         typeof item.url === "string" && item.url
       );
       if (!asset) return Promise.reject(new Error("mesh/twinsun_crystal.glb is not present in Mini-Sim assets"));
@@ -2190,7 +2190,7 @@
 
           // Only the vertical side panels are decorated. Floor/ceiling panels
           // and passage openings stay visually clear.
-          if (wall.sy <= wall.sx || wall.sy <= wall.sz) return;
+          if (wall.sy <= Math.min(wall.sx, wall.sz)) return;
           const key = cell.x + ":" + cell.y + ":" + cell.z;
           if (!byCell.has(key)) byCell.set(key, []);
           byCell.get(key).push(wall);
