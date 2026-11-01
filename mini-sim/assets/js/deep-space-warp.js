@@ -818,11 +818,34 @@
         // system. Keep the stone and all three crystals as separate child nodes.
         const deposit = new THREE.Group();
         deposit.name = "twinsun-crystal-deposit-" + selectedColor;
+        const crystalGlow = {
+          cyan: 0x22cbd4,
+          violet: 0xa45be5,
+          amber: 0xe38a25,
+          green: 0x61c83e
+        }[selectedColor] || 0x22cbd4;
         [rock, main, side, small].forEach((part) => {
           const child = part.clone(true);
           child.userData = child.userData || {};
           child.userData.bcmDepositPart = part === rock ? "rock" : part === main ? "crystal-main" :
             part === side ? "crystal-side" : "crystal-small";
+          if (part !== rock) {
+            // Subtle per-colour emission keeps the crystals readable against dark
+            // asteroid textures without adding lights or affecting the rock base.
+            child.traverse((node) => {
+              if (!node || !node.isMesh || !node.material) return;
+              const brighten = (material) => {
+                const copy = material.clone();
+                if (copy.emissive) copy.emissive.setHex(crystalGlow);
+                copy.emissiveIntensity = 0.42;
+                copy.needsUpdate = true;
+                return copy;
+              };
+              node.material = Array.isArray(node.material)
+                ? node.material.map(brighten)
+                : brighten(node.material);
+            });
+          }
           deposit.add(child);
         });
         return deposit;
