@@ -24,7 +24,7 @@ test("wall crystal placement uses an independent seeded stream and existing vert
   const end = warp.indexOf("attachAsteroidWallCrystals();", start);
   assert.ok(start >= 0 && end > start, "wall crystal placement helper exists");
   const source = warp.slice(start, end);
-  assert.match(source, /randomFrom\(hashSeed\(String\(seed\) \+ "\\|wall-crystal-layout"\)\)/);
+  assert.ok(source.includes('randomFrom(hashSeed(String(seed) + "|wall-crystal-layout"))'), "wall decorations use a separate deterministic seed");
   assert.doesNotMatch(source, /\brng\s*\(/, "decoration must not consume the maze RNG stream");
   assert.match(source, /walls\.forEach\(/);
   assert.match(source, /cell\.y !== 1/, "first test decorates only the normal middle layer");
