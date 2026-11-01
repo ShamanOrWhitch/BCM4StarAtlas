@@ -36,7 +36,7 @@ test("wall crystal placement uses an independent seeded stream and existing vert
   assert.doesNotMatch(source, /walls\.(?:push|splice|pop|sort)\(/, "the collision wall array is read-only");
   assert.doesNotMatch(source, /maze\.walls\s*=|maze\.satellites\s*=/);
   assert.match(source, /wallThickness \* 0\.5 - 0\.08/, "model base is embedded into the wall face");
-  assert.match(source, /model\.clone\(true\)/);
+  assert.match(source, /template\.clone\(true\)/);
   assert.match(source, /model\.quaternion\.copy\(placement\.quaternion\)/);
   assert.match(source, /model\.scale\.setScalar\(placement\.scale\)/);
   assert.match(source, /state\.maze !== maze/, "late loader callbacks cannot attach to a disposed maze");
