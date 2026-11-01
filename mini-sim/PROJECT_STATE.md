@@ -1,3 +1,15 @@
+## Completed — Mini-Sim 0.11.22 Twinsun wall minerals (1 November 2026)
+
+- **Merged:** [PR #94](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/94), main commit [`6d5d475`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/6d5d4757d30e5f21a2e1e1046756db939e469e33). Closed work lock [#93](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/93). Mini-Sim is now `0.11.22`; Tower remains `0.2.67`.
+- **Geometry:** use the new `twinsun_pack01` models already uploaded to main. Each wall deposit is a parent with four separately addressable parts: a rock cluster plus main, side and small crystal GLBs. Four variants are supported (cyan, violet, amber, green); a seeded palette rotation displays all four on a full four-deposit run.
+- **Placement:** at most four small mineral deposits are attached to existing vertical side panels in the middle maze layer, prioritizing early route cells. The rock base is partially embedded; crystal growth points into free cell space. A subtle emissive tint applies to crystal parts only. No new colliders.
+- **Preserved:** decoration uses a dedicated seed stream. Existing topology/seed, route cells, wall array and transforms, wall textures, Hydrogen pickups, collision and flight physics are unchanged. No edits to Ring/Tower/Onicss/Warp/Hull/Crew mechanics, Galia Desk, scanner/pricing or WP layout.
+- **TESTED-CODE:** 9/9 source/regression workflows passed on PR head `b4145672fa99b68deefe07a06fd73d8f14cae282`. The repository's own standalone Chromium run [41349618593](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/41349618593) passed 19/19 checks, including asset loads, four distinct child parts, all four colours, and a close-up render from the same scene without moving the ship. Browser metrics: 4 deposits, 36 mesh objects, 3,144 triangles; no serious console/page errors or local plugin HTTP errors. Screenshots + JSON report are attached to the workflow run artifact (14-day retention).
+- **BLOCKED-ENVIRONMENT, not a game failure:** separate live-page runner [41349618506](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/41349618506) received HTTP 403 from `https://walkingyog.com/bcm4sa/` before `.bcm-mini-sim` appeared. No firewall bypass or repeat of the identical route.
+- **Not deployed / not VERIFIED-LIVE:** PR merge changed GitHub main only. No WordPress plugin upload, production-page verification, phone or gamepad test is claimed.
+
+---
+
 ## Standalone Playwright QA harness — WORK LOCK #90 (28 October 2026)
 
 - Branch: `feat/minisim-standalone-browser-qa`, baseline `e940be64f2e280dcab321c2f0f739974e1b7bce9`.
