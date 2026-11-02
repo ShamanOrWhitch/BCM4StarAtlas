@@ -39,7 +39,7 @@ test("wall crystal placement uses an independent seeded stream and existing vert
   assert.ok(source.includes('randomFrom(hashSeed(String(seed) + "|wall-crystal-layout"))'), "wall decorations use a separate deterministic seed");
   assert.doesNotMatch(source, /\brng\s*\(/, "decoration must not consume the maze RNG stream");
   assert.match(source, /walls\.forEach\(/);
-  assert.match(source, /cell\.y !== 1/, "first test decorates only the normal middle layer");
+  assert.doesNotMatch(source, /cell\.y !== 1/, "vertical wall panels may be decorated at any maze height");
   assert.match(source, /wall\.sy <= Math\.min\(wall\.sx, wall\.sz\)/, "floor and ceiling panels are excluded");
   assert.match(source, /endpoint\(cell, maze\.startCell\)/);
   assert.match(source, /endpoint\(cell, maze\.exitCell\)/);
