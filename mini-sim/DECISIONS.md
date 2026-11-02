@@ -651,3 +651,22 @@ HEAD at the start of the session was `748998250d39ac9ed163b84caa1f7178da920d9a` 
 - Цикл для нестабильной среды: короткая ограниченная попытка → классификация ошибки → один осмысленный альтернативный путь. При детерминированном 403/404 или timeout не повторять тот же путь; записать блокер и продолжить независимую проверку.
 - Не создавать обязательное ожидание агента-рецензента и не переносить работу в новый чат ради обхода лимитов. Handoff фиксирует состояние, но не заменяет завершение.
 - Статусы не смешивать: IMPLEMENTED, TESTED-CODE, BLOCKED-ENVIRONMENT, VERIFIED-LIVE, USER-CONFIRMED. Green source CI не доказывает WordPress deployment или работу на физическом устройстве.
+
+
+## D-046 — Планетарная библиотека Twinsun остаётся отдельно от астероидного лабиринта (2026-11-02)
+
+**Статус:** принято как граница интеграции; ассеты загружены, gameplay-интеграция не выполнялась.
+
+- Новые `twinsun_characters_test`, `twinsun_pack02`, `twinsun_pack03` и `twinsun_crystal.glb/.obj` считать прототипной библиотекой для будущих планетарных локаций.
+- Не разбрасывать мебель, растения, грибы, сундуки, мосты или персонажей по астероидным стенам. Астероидная геология остаётся отдельным набором камней/кристаллов.
+- Текущие ограничения: blockout-персонажи статичные; нет skeleton/skin/animation. Большинство props — vertex color без UV/textures; эффекты, физика и colliders в GLB не реализованы. Перед интеграцией проверять Three.js r128, ориентацию/масштаб, draw calls и конкретные интерактивные состояния.
+- Источники: upload commits [8104ec2](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/8104ec2fbfb2317493d776704f791768778d47ca), [011b843](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/011b84324db4d27a44beb76b6b6b0a2b68cdead0), [ba62355](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/ba623558525a7f5cbe9a21cbcc2e640ab898ce89).
+
+## D-047 — Warp flow follows original longitudinal frame; simplify faction names and crystal readability (2026-11-02)
+
+**Статус:** candidate branch for Issue #95; merge and validation pending.
+
+- Reuse existing 12 longitudinal tunnel seams for moving flow; do not add fresh transverse rings or arrow-like lines. Class II reverses direction. Warp course and collision logic remain unchanged.
+- Map labels show MUD / ONI / Ustur without "CSS"; sector coordinates and identifiers remain intact.
+- Asteroid crystals: up to eight, scale 0.43–0.475, route-first deterministic placement on existing middle-level wall panels. Decorative only; preserve the maze RNG, topology, wall collision list and gameplay.
+- Branch: `fix/warp-original-frame-flow-map-labels-crystal-visibility`; issue [#95](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/95). Mini-Sim candidate 0.11.23. Do not call merged, CI-passing or live-tested until the corresponding checks report those facts.
