@@ -5400,11 +5400,11 @@
       const t = state.tubeTravel;
       const shimmerTime = Number(state.tubeShimmerTime || 0);
       const visualClass = activeWarpVisualClass();
-      // Reuse the original longitudinal tunnel frame for directional flow.
-      // Class II reverses travel along those same rails; no new ring bands.
+      // Drive a colour pulse down the original longitudinal frame itself.
+      // Class II reverses the pulse; no new lines, dashes or transverse rings.
       const flowDirection = visualClass === 2 ? -1 : 1;
-      const flowDashPeriod = 118;
-      const flowDashOffset = -((Number(state.tubeTravel || 0) * 3.2 * flowDirection) % flowDashPeriod);
+      const flowPhase = ((Number(state.tubeTravel || 0) * 0.052 * flowDirection + 0.12) % 1 + 1) % 1;
+      const flowPulsePosition = 1 - flowPhase;
       // 45% of the former roll rate: midway between the old over-rotation and the current almost-static tube.
       const axialRoll = Number(state.tubeRoll || 0) + Math.sin(t * 0.13) * 0.126;
       const mid = w * 0.5;
@@ -5514,38 +5514,47 @@ return axialRoll + ahead * 0.12 +
         }
       }
 
-      // Keep the established 12 longitudinal strips. A restrained depth-only skew
-      // stops them reading as straight vertical bars while leaving the near opening aligned.
+      // Keep the established 12 longitudinal frame lines. Their geometry and
+      // width stay unchanged; only a colour pulse moves along each same path.
       for (let seam = 0; seam < 12; seam += 1) {
         const theta = seam * Math.PI * 2 / 12;
         g.beginPath();
+        let frameStart = null;
+        let frameEnd = null;
         for (let step = 0; step <= 35; step += 1) {
           const d = 0.04 + (step / 35) * 0.96;
           const p = point(d, theta + (d - 0.92) * 0.36, -1.5);
-          if (!step) g.moveTo(p.x, p.y);
-          else g.lineTo(p.x, p.y);
+          if (!step) {
+            frameStart = p;
+            g.moveTo(p.x, p.y);
+          } else {
+            if (step === 35) frameEnd = p;
+            g.lineTo(p.x, p.y);
+          }
         }
-        g.strokeStyle = visualClass === 3
+
+        const baseColor = visualClass === 3
           ? (seam % 3 === 0 ? "rgba(189,139,246,0.86)" : "rgba(131,96,184,0.36)")
           : visualClass === 2
             ? (seam % 3 === 0 ? "rgba(115,193,206,0.56)" : "rgba(110,191,210,0.22)")
             : (seam % 3 === 0 ? "rgba(110,239,246,0.72)" : "rgba(110,191,210,0.25)");
+        const pulseColor = visualClass === 3
+          ? "rgba(230,205,255,1)"
+          : visualClass === 2
+            ? "rgba(190,244,250,0.98)"
+            : "rgba(190,255,255,1)";
+        const flowGradient = g.createLinearGradient(frameStart.x, frameStart.y, frameEnd.x, frameEnd.y);
+        const pulseWidth = 0.085;
+        const pulseStart = Math.max(0, flowPulsePosition - pulseWidth);
+        const pulseEnd = Math.min(1, flowPulsePosition + pulseWidth);
+        flowGradient.addColorStop(0, baseColor);
+        if (pulseStart > 0) flowGradient.addColorStop(pulseStart, baseColor);
+        flowGradient.addColorStop(flowPulsePosition, pulseColor);
+        if (pulseEnd < 1) flowGradient.addColorStop(pulseEnd, baseColor);
+        flowGradient.addColorStop(1, baseColor);
+        g.strokeStyle = flowGradient;
         g.lineWidth = seam % 3 === 0 ? 1.25 : 0.65;
         g.stroke();
-
-        // A moving highlight rides the exact same path as the established frame.
-        // It changes only dash phase; it creates no additional rails.
-        g.save();
-        g.setLineDash([18, 100]);
-        g.lineDashOffset = flowDashOffset;
-        g.strokeStyle = visualClass === 3
-          ? "rgba(210,174,255,0.78)"
-          : visualClass === 2
-            ? "rgba(160,220,232,0.66)"
-            : "rgba(145,248,255,0.82)";
-        g.lineWidth = seam % 3 === 0 ? 1.8 : 1.05;
-        g.stroke();
-        g.restore();
       }
 
       // Class II is a quieter tint of the same tunnel, not a second set of rails.
