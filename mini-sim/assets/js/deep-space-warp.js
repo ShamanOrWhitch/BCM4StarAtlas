@@ -576,10 +576,10 @@
               '<button type="button" data-warp-map-zoom-in aria-label="Приблизить текущий сектор">+</button>' +
             '</div>' +
             '<canvas class="bcm-warp-galaxy-map" data-warp-galaxy-map tabindex="0" role="application" aria-label="Координатная карта SAGE X/Y. Приближайте карту, чтобы различать соседние секторы; выбирайте доступную точку для прокладки Warp-маршрута."></canvas>' +
-            '<div class="bcm-warp-galaxy-legend"><span><i class="is-current"></i> ТЕКУЩИЙ СЕКТОР</span><span><i class="is-link"></i> WARP-ДОСТУПЕН</span><span><i class="is-route"></i> МАРШРУТ</span><span><i class="is-star"></i> ЗВЁЗДЫ</span><span><i class="is-css"></i> CSS</span><small>Координаты X/Y −50…50. Доступные переходы берутся из адаптера; недостающие секторы не выдумываются.</small></div>' +
+            '<div class="bcm-warp-galaxy-legend"><span><i class="is-current"></i> ТЕКУЩИЙ СЕКТОР</span><span><i class="is-link"></i> WARP-ДОСТУПЕН</span><span><i class="is-route"></i> МАРШРУТ</span><span><i class="is-star"></i> ЗВЁЗДЫ</span><span><i class="is-css"></i> ФРАКЦИИ</span><small>Координаты X/Y −50…50. Доступные переходы берутся из адаптера; недостающие секторы не выдумываются.</small></div>' +
             '<div class="bcm-warp-local-area"><div class="bcm-warp-galaxy-heading"><strong>ЛОКАЦИИ ВЫБРАННОГО СЕКТОРА</strong><span data-warp-local-status>Выберите сектор</span></div><div class="bcm-warp-local-locations" data-warp-local-locations></div><div class="bcm-warp-location-kinds"><span><i>◈</i> Астероиды · локальный комплекс</span><span><i>◎</i> Планета · Tower / внутренние мини-игры</span><span><i>✦</i> Deep Space · внешняя зона с отдельной визуальной темой</span></div></div>' +
           '</div>' +
-          '<div class="bcm-warp-grid" data-warp-grid hidden aria-label="Соседние клетки вокруг ONI CSS"></div>' +
+          '<div class="bcm-warp-grid" data-warp-grid hidden aria-label="Соседние клетки вокруг ONI"></div>' +
           '<div class="bcm-warp-sector-list" data-warp-sectors></div>' +
           '<form class="bcm-warp-manual" data-warp-manual><label>Доп. тестовая клетка <span>X</span><input name="x" type="number" step="1" value="-39" inputmode="numeric"></label><label><span>Y</span><input name="y" type="number" step="1" value="30" inputmode="numeric"></label><button type="submit">ВЫБРАТЬ</button></form>' +
           '<div class="bcm-warp-selected" data-warp-selected>Назначение не выбрано</div>' +
@@ -638,9 +638,9 @@
       [-19,40],[5,44]
     ];
     const SAGE_CSS_REFERENCE_POINTS = [
-      { id: "mud-css", name: "MUD CSS", x: 0, y: -39, color: "#e7a18c" },
-      { id: "oni-css", name: "ONI CSS", x: -40, y: 30, color: "#7eb6ff" },
-      { id: "ustur-css", name: "Ustur CSS", x: 40, y: 30, color: "#e6c15a" }
+      { id: "mud-css", name: "MUD", x: 0, y: -39, color: "#e7a18c" },
+      { id: "oni-css", name: "ONI", x: -40, y: 30, color: "#7eb6ff" },
+      { id: "ustur-css", name: "Ustur", x: 40, y: 30, color: "#e6c15a" }
     ];
     const footnoteElement = overlay.querySelector("[data-warp-footnote]");
     const manualForm = overlay.querySelector("[data-warp-manual]");
@@ -939,7 +939,7 @@
       // The prototype starts at the known ONI CSS position on the NEUNO sector grid.
       // Show all eight adjacent XY cells in the 3×3 preview, not just cardinal directions;
       // preview cells remain explicitly test-only until the live adapter supplies real links.
-      const current = { id: "oni-css-neuno--40-30", name: "ONI CSS · NEUNO", x: -40, y: 30, raw: null };
+      const current = { id: "oni-css-neuno--40-30", name: "ONI · NEUNO", x: -40, y: 30, raw: null };
       return {
         current,
         targets: SAGE_SECTOR_NEIGHBOR_OFFSETS.map((pair) => {
@@ -954,7 +954,7 @@
         live: false,
         localPreview: true,
         adapter: null,
-        label: "LOCAL TEST · ONI CSS / NEUNO · START X -40, Y 30 · NEIGHBOR CELLS ARE TEST ONLY",
+        label: "LOCAL TEST · ONI / NEUNO · START X -40, Y 30 · NEIGHBOR CELLS ARE TEST ONLY",
         coordsKnown: true
       };
     }
@@ -1202,17 +1202,17 @@
             id: "local-asteroid-complex",
             name: "Астероидный комплекс",
             kind: "asteroid",
-            detail: "Локальная игровая зона рядом с ONI CSS; существующая механика астероидного прохода.",
+            detail: "Локальная игровая зона рядом с ONI; существующая механика астероидного прохода.",
             status: "implemented"
           });
         }
-        addKnownLocation({ id: "oni-css-station", name: "ONI CSS", kind: "station", detail: "Орбитальная станция и локальный ориентир сектора.", status: "reference" });
+        addKnownLocation({ id: "oni-css-station", name: "ONI", kind: "station", detail: "Орбитальная станция и локальный ориентир сектора.", status: "reference" });
         addKnownLocation({ id: "akenat-planet", name: "Akenat", kind: "planet", detail: "Планетарная локация системы ONI; Tower и внутренние механики здесь пока требуют привязки запуска.", status: "planned" });
       } else if (isMudCss) {
-        addKnownLocation({ id: "mud-css-station", name: "MUD CSS", kind: "station", detail: "Орбитальная станция системы MUD.", status: "reference" });
+        addKnownLocation({ id: "mud-css-station", name: "MUD", kind: "station", detail: "Орбитальная станция системы MUD.", status: "reference" });
         addKnownLocation({ id: "pearce-planet", name: "Pearce", kind: "planet", detail: "Планетарная локация системы MUD; Tower и внутренние механики требуют привязки запуска.", status: "planned" });
       } else if (isUsturCss) {
-        addKnownLocation({ id: "ustur-css-station", name: "Ustur CSS", kind: "station", detail: "Орбитальная станция системы Ustur.", status: "reference" });
+        addKnownLocation({ id: "ustur-css-station", name: "Ustur", kind: "station", detail: "Орбитальная станция системы Ustur.", status: "reference" });
         addKnownLocation({ id: "ioki-planet", name: "Ioki", kind: "planet", detail: "Планетарная локация системы Ustur; Tower и внутренние механики требуют привязки запуска.", status: "planned" });
       }
 
@@ -1426,11 +1426,11 @@
       g.fillText(zoom === 1 ? "SAGE XY · −50 … +50" : "SAGE XY · " + zoom + "× · CENTER " + centerX + "," + centerY, 8, 8);
       const statusText = knownSectorCount
         ? knownSectorCount.toLocaleString() + " СЕКТОРОВ В АДАПТЕРЕ"
-        : "ПОЛНЫЕ ТОЧКИ СЕКТОРОВ НЕ ДОСТУПНЫ · ЗВЁЗДЫ И CSS — ОРИЕНТИРЫ";
+        : "ПОЛНЫЕ ТОЧКИ СЕКТОРОВ НЕ ДОСТУПНЫ · ЗВЁЗДЫ И ФРАКЦИИ — ОРИЕНТИРЫ";
       if (galaxyMapStatus) {
         galaxyMapStatus.textContent = nav && nav.live
           ? statusText
-          : "ЛОКАЛЬНЫЙ ТЕСТ · ONI CSS / NEUNO · КООРДИНАТЫ −50…50";
+          : "ЛОКАЛЬНЫЙ ТЕСТ · ONI / NEUNO · КООРДИНАТЫ −50…50";
       }
       renderSectorLocations(state.target || current);
     }
@@ -1538,7 +1538,7 @@
       sourceElement.classList.toggle("is-preview", !state.nav.live);
       footnoteElement.textContent = state.nav.live
         ? "Маршрут показывает данные, переданные внешним SAGE-адаптером. Сам Warp — локальная мини-игра и не запускает перемещение в SAGE."
-        : "Стартовая точка ONI CSS · NEUNO: X -40, Y 30. Соседние клетки сгенерированы только для теста. Warp/Tube/лабиринт не меняют состояние Star Atlas.";
+        : "Стартовая точка ONI · NEUNO: X -40, Y 30. Соседние клетки сгенерированы только для теста. Warp/Tube/лабиринт не меняют состояние Star Atlas.";
       listSectorTargets();
       renderSectorGrid();
       renderGalaxyMap();
@@ -1758,12 +1758,12 @@
       if (homeRecord) {
         state.nav = navigationAfterArrival(homeRecord);
         if (state.nav && state.nav.current) {
-          state.nav.current.name = "ONI CSS · NEUNO";
+          state.nav.current.name = "ONI · NEUNO";
           state.nav.current.x = -40;
           state.nav.current.y = 30;
         }
       } else {
-        const home = { id: "oni-css-neuno--40-30", name: "ONI CSS · NEUNO", x: -40, y: 30, raw: null };
+        const home = { id: "oni-css-neuno--40-30", name: "ONI · NEUNO", x: -40, y: 30, raw: null };
         state.nav = {
           current: home,
           targets: [[-1, 0], [1, 0], [0, -1], [0, 1]].map(([dx, dy]) => {
@@ -1774,7 +1774,7 @@
           live: false,
           localPreview: true,
           adapter: null,
-          label: "LOCAL TEST · RETURNED TO ONI CSS / NEUNO · X -40, Y 30",
+          label: "LOCAL TEST · RETURNED TO ONI / NEUNO · X -40, Y 30",
           coordsKnown: true
         };
       }
@@ -1787,7 +1787,7 @@
         engine.teleport({ x: 0, y: 0, z: 2, yaw: 0 }, null);
       }
       const status = root.querySelector(".bcm-mini-sim-status");
-      if (status) status.textContent = "ARRIVED · ONI CSS / NEUNO · LOCAL SIMULATION";
+      if (status) status.textContent = "ARRIVED · ONI / NEUNO · LOCAL SIMULATION";
     }
 
     function makeMazeTexture(THREE) {
@@ -2287,14 +2287,26 @@
         const candidates = [];
         byCell.forEach((cellWalls, key) => {
           const routeIndex = routeIndexByCell.get(key);
-          if (!Number.isFinite(routeIndex) || routeIndex <= 0) return;
+          if (Number.isFinite(routeIndex) && routeIndex <= 0) return;
           if (!cellWalls.length) return;
           const pick = Math.floor(placementRng() * cellWalls.length);
-          candidates.push({ wall: cellWalls[pick], routeIndex });
+          const onRoute = Number.isFinite(routeIndex);
+          candidates.push({
+            wall: cellWalls[pick],
+            routeIndex: onRoute ? routeIndex : null,
+            routePriority: onRoute ? 0 : 1,
+            sortSalt: placementRng()
+          });
         });
-        candidates.sort((a, b) => a.routeIndex - b.routeIndex);
+        // Use the main route first, then fill nearby branches if it has fewer
+        // than eight eligible panels. This reads, but never mutates, the wall list.
+        candidates.sort((a, b) =>
+          a.routePriority - b.routePriority ||
+          (a.routeIndex ?? Number.MAX_SAFE_INTEGER) - (b.routeIndex ?? Number.MAX_SAFE_INTEGER) ||
+          a.sortSalt - b.sortSalt
+        );
 
-        const placementCount = Math.min(4, candidates.length);
+        const placementCount = Math.min(8, candidates.length);
         // Rotate the four-colour palette by one seeded offset. A full set of
         // four deposits therefore shows all four authored variants, while the
         // asteroid seed still changes which colour appears first.
@@ -2315,7 +2327,7 @@
           const basis = new THREE.Matrix4().makeBasis(tangent, up, inward);
           const quaternion = new THREE.Quaternion().setFromRotationMatrix(basis);
           const wallThickness = Math.min(wall.sx, wall.sz);
-          const scale = 0.28 + placementRng() * 0.025;
+          const scale = 0.43 + placementRng() * 0.045;
           const color = asteroidWallCrystalColors[(index + paletteOffset) % asteroidWallCrystalColors.length];
           const position = new THREE.Vector3(wall.x, wall.y, wall.z)
             .addScaledVector(inward, wallThickness * 0.5 - 0.08)
@@ -2352,6 +2364,7 @@
             model.userData.bcmWallColor = placement.color;
             model.userData.bcmWallCell = { x: placement.wall.cell.x, y: placement.wall.cell.y, z: placement.wall.cell.z };
             model.userData.bcmWallRouteIndex = placement.routeIndex;
+            model.userData.bcmWallScale = placement.scale;
             model.traverse((node) => {
               if (!node || !node.isMesh) return;
               node.frustumCulled = true;
@@ -5387,10 +5400,11 @@
       const t = state.tubeTravel;
       const shimmerTime = Number(state.tubeShimmerTime || 0);
       const visualClass = activeWarpVisualClass();
-      // Make wall-band translation clearly visible without adding axial streaks or permanent rails.
-      // Class II recedes into the tunnel; Classes I and III approach the ship.
+      // Reuse the original longitudinal tunnel frame for directional flow.
+      // Class II reverses travel along those same rails; no new ring bands.
       const flowDirection = visualClass === 2 ? -1 : 1;
-      const bandFlowPhase = ((Number(state.tubeTravel || 0) * 0.052 * flowDirection) % 1 + 1) % 1;
+      const flowDashPeriod = 118;
+      const flowDashOffset = -((Number(state.tubeTravel || 0) * 3.2 * flowDirection) % flowDashPeriod);
       // 45% of the former roll rate: midway between the old over-rotation and the current almost-static tube.
       const axialRoll = Number(state.tubeRoll || 0) + Math.sin(t * 0.13) * 0.126;
       const mid = w * 0.5;
@@ -5518,6 +5532,20 @@ return axialRoll + ahead * 0.12 +
             : (seam % 3 === 0 ? "rgba(110,239,246,0.72)" : "rgba(110,191,210,0.25)");
         g.lineWidth = seam % 3 === 0 ? 1.25 : 0.65;
         g.stroke();
+
+        // A moving highlight rides the exact same path as the established frame.
+        // It changes only dash phase; it creates no additional rails.
+        g.save();
+        g.setLineDash([18, 100]);
+        g.lineDashOffset = flowDashOffset;
+        g.strokeStyle = visualClass === 3
+          ? "rgba(210,174,255,0.78)"
+          : visualClass === 2
+            ? "rgba(160,220,232,0.66)"
+            : "rgba(145,248,255,0.82)";
+        g.lineWidth = seam % 3 === 0 ? 1.8 : 1.05;
+        g.stroke();
+        g.restore();
       }
 
       // Class II is a quieter tint of the same tunnel, not a second set of rails.
@@ -5525,20 +5553,6 @@ return axialRoll + ahead * 0.12 +
       if (visualClass === 3) {
         g.fillStyle = "rgba(30,11,54,0.34)";
         g.fillRect(0, 0, w, h);
-      }
-
-      // These moving wall bands are the flow cue: increasing depth approaches the ship,
-      // and Class II reverses the same accelerated tube clock to recede into depth.
-      const bandPhase = bandFlowPhase;
-      const bandCount = 14;
-      const bandRgb = visualClass === 3 ? "181,139,255" : visualClass === 2 ? "149,220,229" : "110,222,238";
-      for (let band = 0; band < bandCount; band += 1) {
-        const phase = ((band / bandCount + bandPhase) % 1 + 1) % 1;
-        const depth = 0.055 + phase * 0.90;
-        const accent = band % 4 === 0;
-        const alpha = accent ? 0.56 : 0.30;
-        const color = "rgba(" + bandRgb + "," + alpha.toFixed(3) + ")";
-        drawArc(depth, 0, Math.PI * 2, color, accent ? 1.55 : 1.0);
       }
 
       const routeProgress = warpObstacleProgress(state.elapsed);
