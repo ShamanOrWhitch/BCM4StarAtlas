@@ -664,9 +664,9 @@ HEAD at the start of the session was `748998250d39ac9ed163b84caa1f7178da920d9a` 
 
 ## D-047 — Warp flow follows original longitudinal frame; simplify faction names and crystal readability (2026-11-02)
 
-**Статус:** candidate branch for Issue #95; merge and validation pending.
+**Статус:** merged into main (2026-11-02), commit 2bdc86b60bb1e464a4c136347e64b5373a7e901d.
 
 - Reuse existing 12 longitudinal tunnel seams for moving flow; do not add fresh transverse rings or arrow-like lines. Class II reverses direction. Warp course and collision logic remain unchanged.
 - Map labels show MUD / ONI / Ustur without "CSS"; sector coordinates and identifiers remain intact.
 - Asteroid crystals: up to twelve, scale 0.60–0.67, route-first deterministic placement on existing vertical side panels on all maze levels. Decorative only; preserve the maze RNG, topology, wall collision list and gameplay.
-- Branch: `fix/warp-original-frame-flow-map-labels-crystal-visibility`; issue [#95](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/95). Mini-Sim candidate 0.11.23. Do not call merged, CI-passing or live-tested until the corresponding checks report those facts.
+- Branch: `fix/warp-original-frame-flow-map-labels-crystal-visibility`; issue [#95](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/95). Mini-Sim 0.11.23: source CI 9/9 PASS; standalone Chromium 20/20 PASS. WordPress browser QA returned HTTP 403 before the game DOM; status BLOCKED-ENVIRONMENT, no deployment.
