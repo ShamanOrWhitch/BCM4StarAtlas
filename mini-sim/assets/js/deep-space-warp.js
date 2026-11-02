@@ -2299,14 +2299,14 @@
           });
         });
         // Use the main route first, then fill other eligible middle-layer cells
-        // if it has fewer than eight panels. The wall list remains read-only.
+        // if it has fewer than twelve panels. The wall list remains read-only.
         candidates.sort((a, b) =>
           a.routePriority - b.routePriority ||
           (a.routeIndex ?? Number.MAX_SAFE_INTEGER) - (b.routeIndex ?? Number.MAX_SAFE_INTEGER) ||
           a.sortSalt - b.sortSalt
         );
 
-        const placementCount = Math.min(8, candidates.length);
+        const placementCount = Math.min(12, candidates.length);
         // Rotate the four-colour palette by one seeded offset. A full set of
         // four deposits therefore shows all four authored variants, while the
         // asteroid seed still changes which colour appears first.
@@ -2327,7 +2327,7 @@
           const basis = new THREE.Matrix4().makeBasis(tangent, up, inward);
           const quaternion = new THREE.Quaternion().setFromRotationMatrix(basis);
           const wallThickness = Math.min(wall.sx, wall.sz);
-          const scale = 0.43 + placementRng() * 0.045;
+          const scale = 0.60 + placementRng() * 0.07;
           const color = asteroidWallCrystalColors[(index + paletteOffset) % asteroidWallCrystalColors.length];
           const position = new THREE.Vector3(wall.x, wall.y, wall.z)
             .addScaledVector(inward, wallThickness * 0.5 - 0.08)
