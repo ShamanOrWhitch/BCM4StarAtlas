@@ -2298,8 +2298,8 @@
             sortSalt: placementRng()
           });
         });
-        // Use the main route first, then fill nearby branches if it has fewer
-        // than eight eligible panels. This reads, but never mutates, the wall list.
+        // Use the main route first, then fill other eligible middle-layer cells
+        // if it has fewer than eight panels. The wall list remains read-only.
         candidates.sort((a, b) =>
           a.routePriority - b.routePriority ||
           (a.routeIndex ?? Number.MAX_SAFE_INTEGER) - (b.routeIndex ?? Number.MAX_SAFE_INTEGER) ||
