@@ -1,0 +1,34 @@
+{
+  "mushrooms_violet": {
+    "triangles": 1968,
+    "parts": 28
+  },
+  "mushrooms_teal": {
+    "triangles": 1968,
+    "parts": 28
+  },
+  "treasure_chest": {
+    "triangles": 96,
+    "parts": 8
+  },
+  "crystal_pedestal": {
+    "triangles": 90,
+    "parts": 5
+  },
+  "floor_button": {
+    "triangles": 152,
+    "parts": 4
+  },
+  "coin_gold": {
+    "triangles": 140,
+    "parts": 3
+  },
+  "rune_stone": {
+    "triangles": 116,
+    "parts": 4
+  },
+  "potion_blue": {
+    "triangles": 400,
+    "parts": 3
+  }
+}

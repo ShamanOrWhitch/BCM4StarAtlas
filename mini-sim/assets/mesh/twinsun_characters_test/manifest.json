@@ -1,0 +1,14 @@
+{
+  "spherical_robot_blockout": {
+    "triangles": 1360,
+    "parts": 17
+  },
+  "hooded_traveller_blockout": {
+    "triangles": 1036,
+    "parts": 12
+  },
+  "one_eye_robot_blockout": {
+    "triangles": 512,
+    "parts": 14
+  }
+}
