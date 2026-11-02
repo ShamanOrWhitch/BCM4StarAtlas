@@ -98,19 +98,21 @@ test("Warp multiplier and displayed speed ramp faster from 1x to 12x", () => {
   assert.match(warp, /return Math\.min\(1, 0\.055 \/ \(distance \+ 0\.05\)\)/);
 });
 
-test("Warp directional flow reuses the established longitudinal frame, not added ring bands", () => {
+test("Warp directional flow animates the original longitudinal frame lines without adding marks", () => {
   const frame = warp.slice(warp.indexOf("function drawBackdrop(now)"), warp.indexOf("function updateTube(dt, now)"));
   assert.ok(!frame.includes("reverseStreaks"));
   assert.ok(!frame.includes("const length = 2 + star.z * 22"));
 
   const tunnel = section(warp, "function drawTubeTunnel", "function drawBackdrop");
   assert.ok(tunnel.includes("const flowDirection = visualClass === 2 ? -1 : 1"));
-  assert.ok(tunnel.includes("const flowDashPeriod = 118"));
-  assert.ok(tunnel.includes("flowDashOffset = -((Number(state.tubeTravel || 0) * 3.2 * flowDirection) % flowDashPeriod)"));
+  assert.ok(tunnel.includes("const flowPhase = ((Number(state.tubeTravel || 0) * 0.052 * flowDirection + 0.12) % 1 + 1) % 1"));
+  assert.ok(tunnel.includes("const flowPulsePosition = 1 - flowPhase"));
   assert.ok(tunnel.includes("for (let seam = 0; seam < 12; seam += 1)"));
-  assert.ok(tunnel.includes("g.setLineDash([18, 100])"));
-  assert.ok(tunnel.includes("g.lineDashOffset = flowDashOffset"));
-  assert.ok(tunnel.includes("moving highlight rides the exact same path as the established frame"));
+  assert.ok(tunnel.includes("const flowGradient = g.createLinearGradient(frameStart.x, frameStart.y, frameEnd.x, frameEnd.y)"));
+  assert.ok(tunnel.includes("flowGradient.addColorStop(flowPulsePosition, pulseColor)"));
+  assert.ok(tunnel.includes("g.strokeStyle = flowGradient"));
+  assert.ok(!tunnel.includes("g.setLineDash"));
+  assert.ok(!tunnel.includes("g.lineDashOffset"));
   assert.ok(!tunnel.includes("const bandCount = 14"));
   assert.ok(!tunnel.includes("bandFlowPhase"));
   assert.ok(!tunnel.includes("drawArc(depth, 0, Math.PI * 2, color"));
