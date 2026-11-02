@@ -176,10 +176,10 @@ try{
    return {modelCount:models.length,meshCount:meshes,triangles,parts,colors,placements};
  });
  report.asteroidWallCrystals=wallCrystalState;
- check(wallCrystalState.modelCount>=6&&wallCrystalState.modelCount<=8&&wallCrystalState.meshCount>0&&wallCrystalState.triangles>0,"six to eight GLB mineral deposits load on asteroid wall panels");
+ check(wallCrystalState.modelCount>=10&&wallCrystalState.modelCount<=12&&wallCrystalState.meshCount>0&&wallCrystalState.triangles>0,"ten to twelve GLB mineral deposits load on asteroid wall panels");
  check(wallCrystalState.parts.length===wallCrystalState.modelCount*4&&["rock","crystal-main","crystal-side","crystal-small"].every(part=>wallCrystalState.parts.includes(part)),"each deposit keeps the rock and three crystals as separate child parts");
  check(new Set(wallCrystalState.colors).size===4,"all four authored crystal colours appear in the expanded deposit set");
- check(wallCrystalState.placements.length===wallCrystalState.modelCount&&wallCrystalState.placements.every(item=>item.scale>=0.43&&item.scale<=0.475),"every crystal deposit uses the larger readable scale");
+ check(wallCrystalState.placements.length===wallCrystalState.modelCount&&wallCrystalState.placements.every(item=>item.scale>=0.60&&item.scale<=0.67),"every crystal deposit uses the larger readable planetary-mineral scale");
  await shot(page,"06-asteroid-ship-view.png");
  const crystalPreview=await page.evaluate(async()=>{
    const runtime=window.BCMiniSimAPI?.getRuntime?.();
