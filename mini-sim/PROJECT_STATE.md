@@ -327,3 +327,21 @@ Issue #28 остаётся открытым только для полной г�
 4. При таймауте пометить TIMEOUT, записать, что именно не завершилось, и перейти к следующей независимой проверке. Не ждать рецензента/агента сверх рабочего лимита; ставить SKIPPED/TIMEOUT, а не PASS.
 5. Не завершать работу только передачей задачи в новый чат. Перед handoff зафиксировать фактические изменения, проверки, блокеры и следующий конкретный шаг.
 6. Разделять IMPLEMENTED, TESTED-CODE, BLOCKED-ENVIRONMENT, VERIFIED-LIVE и USER-CONFIRMED. Source CI не доказывает production deployment или проверку на физическом устройстве.
+
+
+## 2026-11-02 — свежая библиотека Twinsun и follow-up Warp / asteroid
+
+### Новые пользовательские ассеты (только библиотека прототипов)
+- Upload commit [8104ec2](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/8104ec2fbfb2317493d776704f791768778d47ca) добавил три статичных character blockout в `mini-sim/assets/mesh/twinsun_characters_test/`: `spherical_robot_blockout.glb` (1,360 tris / 17 parts), `hooded_traveller_blockout.glb` (1,036 / 12), `one_eye_robot_blockout.glb` (512 / 14). Итого 2,908 tris / 43 parts. Нет skeleton/skin/animation, UV/textures, colliders или игровых настроек.
+- `twinsun_pack02/`: восемь прототипов — грибы (teal/violet), сундук, пьедестал кристаллов, кнопка, монета, рунический камень, синее зелье; 4,930 tris суммарно. Части отдельные; крышка и кнопка без анимации/шарниров.
+- `twinsun_pack03/`: семнадцать пропов — ключ, рычаг, нажимная плита, парящий травяной остров, сфера, забор, скамья, фонарь, растение в горшке, папоротник, кувшинки, коралл, дерево, жаровня, светящийся бутон, мост, раковина; 5,382 tris суммарно. Y-up, vertex colors; без UV/textures, animation или collisions.
+- Отдельный upload [011b843](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/011b84324db4d27a44beb76b6b6b0a2b68cdead0) добавил `twinsun_crystal.glb/.obj` для планетного камня. Предыдущий [pack01](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/ba623558525a7f5cbe9a21cbcc2e640ab898ce89) содержит отдельные скальные и кристаллические детали.
+- **Решение:** перечисленные наборы пока являются test/prototype asset library для будущих планетарных поверхностей. Не размещать эти пропы и blockout-персонажей в астероидном коридоре. До массового размещения проверить импорт в Three.js r128, материалы/оси, draw calls, оптимизацию, анимацию и коллизии по конкретному gameplay-сценарию.
+
+### Активный кандидат — Issue #95
+- Work branch: `fix/warp-original-frame-flow-map-labels-crystal-visibility`; baseline main после upload: `8104ec2fbfb2317493d776704f791768778d47ca`. Issue [#95](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/95).
+- Warp: направленный поток переводится на существующие 12 продольных линий обрамления через движущуюся dash-фазу по тому же canvas path; Class II разворачивает направление. Отдельные 14 поперечных flow bands удалены. Course, obstacle progress и collisions не меняются.
+- Карта: видимые названия MUD / ONI / Ustur очищены от суффикса CSS; координаты, reference IDs и nav adapter остаются прежними.
+- Asteroid: декоративные wall deposits увеличены до scale 0.43–0.475, количество — до 8; сначала используются eligible панели основного маршрута, при нехватке — другие eligible панели среднего слоя. Отдельный RNG; collision wall list / topology / Hydrogen / flight physics не меняются.
+- Cache version candidate: Mini-Sim 0.11.23; Tower остаётся без изменений.
+- **Статус на момент записи:** candidate branch only; CI/standalone Chromium pending; не merged и не deployed. Не маркировать как TESTED-CODE до зелёного CI и как VERIFIED-LIVE без проверки реального WordPress/runtime.
