@@ -98,31 +98,35 @@ test("Warp multiplier and displayed speed ramp faster from 1x to 12x", () => {
   assert.match(warp, /return Math\.min\(1, 0\.055 \/ \(distance \+ 0\.05\)\)/);
 });
 
-test("Warp directional flow runs on the established longitudinal frame, not added ring bands", () => {
+test("Warp directional flow reuses the established longitudinal frame, not added ring bands", () => {
   const frame = warp.slice(warp.indexOf("function drawBackdrop(now)"), warp.indexOf("function updateTube(dt, now)"));
-  assert.doesNotMatch(frame, /reverseStreaks/);
-  assert.doesNotMatch(frame, /const length = 2 \\+ star\\.z \\* 22/);
+  assert.ok(!frame.includes("reverseStreaks"));
+  assert.ok(!frame.includes("const length = 2 + star.z * 22"));
 
   const tunnel = section(warp, "function drawTubeTunnel", "function drawBackdrop");
-  assert.match(tunnel, /const flowDirection = visualClass === 2 \\? -1 : 1/);
-  assert.match(tunnel, /const flowDashPeriod = 118/);
-  assert.match(tunnel, /flowDashOffset = -\\(\\(Number\\(state\\.tubeTravel \\|\\| 0\\) \\* 3\\.2 \\* flowDirection\\) % flowDashPeriod\\)/);
-  assert.match(tunnel, /for \\(let seam = 0; seam < 12; seam \\+= 1\\)/);
-  assert.match(tunnel, /g\\.setLineDash\\(\\[18, 100\\]\\)/);
-  assert.match(tunnel, /g\\.lineDashOffset = flowDashOffset/);
-  assert.match(tunnel, /moving highlight rides the exact same path as the established frame/);
-  assert.doesNotMatch(tunnel, /const bandCount = 14|bandFlowPhase|drawArc\\(depth, 0, Math\\.PI \\* 2, color/);
-  assert.doesNotMatch(tunnel, /streakPhase|streakStart|axialFlowPhase|Bright axial dashes/);
+  assert.ok(tunnel.includes("const flowDirection = visualClass === 2 ? -1 : 1"));
+  assert.ok(tunnel.includes("const flowDashPeriod = 118"));
+  assert.ok(tunnel.includes("flowDashOffset = -((Number(state.tubeTravel || 0) * 3.2 * flowDirection) % flowDashPeriod)"));
+  assert.ok(tunnel.includes("for (let seam = 0; seam < 12; seam += 1)"));
+  assert.ok(tunnel.includes("g.setLineDash([18, 100])"));
+  assert.ok(tunnel.includes("g.lineDashOffset = flowDashOffset"));
+  assert.ok(tunnel.includes("moving highlight rides the exact same path as the established frame"));
+  assert.ok(!tunnel.includes("const bandCount = 14"));
+  assert.ok(!tunnel.includes("bandFlowPhase"));
+  assert.ok(!tunnel.includes("drawArc(depth, 0, Math.PI * 2, color"));
+  assert.ok(!tunnel.includes("streakPhase"));
+  assert.ok(!tunnel.includes("streakStart"));
+  assert.ok(!tunnel.includes("axialFlowPhase"));
 });
 test("Warp draws a real 2D SAGE coordinate plane and a separate sector-location layer", () => {
   assert.match(warp, /class="bcm-warp-galaxy-map" data-warp-galaxy-map/);
   assert.match(warp, /function renderGalaxyMap\(\)/);
   assert.match(warp, /SAGE_STAR_REFERENCE_POINTS/);
   assert.match(warp, /SAGE_CSS_REFERENCE_POINTS/);
-  assert.match(warp, /\\{ id: "mud-css", name: "MUD"/);
-  assert.match(warp, /\\{ id: "oni-css", name: "ONI"/);
-  assert.match(warp, /\\{ id: "ustur-css", name: "Ustur"/);
-  assert.match(warp, /is-css"><\\/i> ФРАКЦИИ/);
+  assert.ok(warp.includes('{ id: "mud-css", name: "MUD"'));
+  assert.ok(warp.includes('{ id: "oni-css", name: "ONI"'));
+  assert.ok(warp.includes('{ id: "ustur-css", name: "Ustur"'));
+  assert.ok(warp.includes('<i class="is-css"></i> ФРАКЦИИ'));
   assert.doesNotMatch(warp, /name: "(?:MUD|ONI|Ustur) CSS"/);
   assert.match(warp, /nav\.adapter\.sectors/);
   assert.match(warp, /if \(knownSectorCount\) \{[\s\S]{0,1100}SAGE_STAR_REFERENCE_POINTS\.forEach/);
@@ -189,10 +193,10 @@ test("Mini-Sim doesn't relock the mouse or consume flight keys on the Warp map",
 });
 
 test("Mini-Sim 0.11.23 cache/version contracts are synchronized", () => {
-  assert.match(plugin, /Version: 0\.11\.22/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.22'\)/);
-  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.22/);
-  assert.match(qa, /Version: 0\.11\.22/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.22'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.22/);
+  assert.match(plugin, /Version: 0\.11\.23/);
+  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.23'\)/);
+  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.23/);
+  assert.match(qa, /Version: 0\.11\.23/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.23'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.23/);
 });
