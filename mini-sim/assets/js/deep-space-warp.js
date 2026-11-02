@@ -2267,7 +2267,7 @@
 
         walls.forEach((wall) => {
           const cell = wall && wall.cell;
-          if (!cell || cell.y !== 1 || endpoint(cell, maze.startCell) || endpoint(cell, maze.exitCell)) return;
+          if (!cell || endpoint(cell, maze.startCell) || endpoint(cell, maze.exitCell)) return;
 
           // Only the vertical side panels are decorated. Floor/ceiling panels
           // and passage openings stay visually clear.
@@ -2277,7 +2277,7 @@
           byCell.get(key).push(wall);
         });
 
-        // Prefer the first traversable middle-layer cells so the pilot can
+        // Prefer the first traversable route cells across all heights so the pilot can
         // see a deposit early in the asteroid run. This only ranks the existing
         // wall list; route generation and its seeded RNG are not modified.
         const routeIndexByCell = new Map();
@@ -2298,7 +2298,7 @@
             sortSalt: placementRng()
           });
         });
-        // Use the main route first, then fill other eligible middle-layer cells
+        // Use the main route first, then fill other eligible cells across the maze
         // if it has fewer than twelve panels. The wall list remains read-only.
         candidates.sort((a, b) =>
           a.routePriority - b.routePriority ||
