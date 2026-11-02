@@ -169,15 +169,17 @@ try{
        routeIndex:Number(model.userData?.bcmWallRouteIndex)||0,
        cell:model.userData?.bcmWallCell||null,
        position:{x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2)},
+       scale:Number(model.userData?.bcmWallScale)||0,
        distanceToShip:shipPosition?+shipPosition.distanceTo(p).toFixed(2):null
      };
    });
    return {modelCount:models.length,meshCount:meshes,triangles,parts,colors,placements};
  });
  report.asteroidWallCrystals=wallCrystalState;
- check(wallCrystalState.modelCount>0&&wallCrystalState.meshCount>0&&wallCrystalState.triangles>0,"GLB mineral deposits load as real meshes on asteroid wall panels");
+ check(wallCrystalState.modelCount>=10&&wallCrystalState.modelCount<=12&&wallCrystalState.meshCount>0&&wallCrystalState.triangles>0,"ten to twelve GLB mineral deposits load on asteroid wall panels");
  check(wallCrystalState.parts.length===wallCrystalState.modelCount*4&&["rock","crystal-main","crystal-side","crystal-small"].every(part=>wallCrystalState.parts.includes(part)),"each deposit keeps the rock and three crystals as separate child parts");
- check(wallCrystalState.modelCount!==4||new Set(wallCrystalState.colors).size===4,"a full four-deposit run displays all four crystal colours");
+ check(new Set(wallCrystalState.colors).size===4,"all four authored crystal colours appear in the expanded deposit set");
+ check(wallCrystalState.placements.length===wallCrystalState.modelCount&&wallCrystalState.placements.every(item=>item.scale>=0.60&&item.scale<=0.67),"every crystal deposit uses the larger readable planetary-mineral scale");
  await shot(page,"06-asteroid-ship-view.png");
  const crystalPreview=await page.evaluate(async()=>{
    const runtime=window.BCMiniSimAPI?.getRuntime?.();

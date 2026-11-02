@@ -38,7 +38,7 @@ test("Tube view exposes three selectable visual classes; Class IV remains disabl
   for (const tier of [1, 2, 3]) assert.ok(warp.includes('data-warp-tier="' + tier + '"'));
   assert.match(warp, /data-warp-tier="4"[^>]*disabled/);
   assert.match(warp, /data-warp-tier-preview aria-label="Выбор оформления Warp"/);
-  assert.match(warp, /Keep the established 12 longitudinal strips/);
+  assert.match(warp, /Keep the established 12 longitudinal frame lines/);
   assert.doesNotMatch(warp, /Circumferential rings and seams make the enclosing cylinder legible/);
   assert.match(warp, /window\.BCMDeepSpaceWarpPreviewClass = setWarpVisualPreviewClass/);
   assert.match(warp, /function activeWarpVisualClass\(\)[\s\S]*?Number\(state\.warpPreviewClass\) \|\| Number\(state\.warpVisualClass\)/);
@@ -98,28 +98,38 @@ test("Warp multiplier and displayed speed ramp faster from 1x to 12x", () => {
   assert.match(warp, /return Math\.min\(1, 0\.055 \/ \(distance \+ 0\.05\)\)/);
 });
 
-test("Warp wall bands show stronger forward flow and reverse direction in Class II without axial streaks", () => {
+test("Warp directional flow animates the original longitudinal frame lines without adding marks", () => {
   const frame = warp.slice(warp.indexOf("function drawBackdrop(now)"), warp.indexOf("function updateTube(dt, now)"));
-  assert.doesNotMatch(frame, /reverseStreaks/);
-  assert.doesNotMatch(frame, /const length = 2 \+ star\.z \* 22/);
+  assert.ok(!frame.includes("reverseStreaks"));
+  assert.ok(!frame.includes("const length = 2 + star.z * 22"));
 
   const tunnel = section(warp, "function drawTubeTunnel", "function drawBackdrop");
-  assert.match(tunnel, /const flowDirection = visualClass === 2 \? -1 : 1/);
-  assert.match(tunnel, /const bandFlowPhase = \(\(Number\(state\.tubeTravel \|\| 0\) \* 0\.052 \* flowDirection\) % 1 \+ 1\) % 1/);
-  assert.match(tunnel, /const bandCount = 14/);
-  assert.match(tunnel, /const bandPhase = bandFlowPhase/);
-  assert.match(tunnel, /const alpha = accent \? 0\.56 : 0\.30/);
-  assert.match(tunnel, /drawArc\(depth, 0, Math\.PI \* 2, color, accent \? 1\.55 : 1\.0\)/);
-  assert.match(tunnel, /Class II recedes into the tunnel; Classes I and III approach the ship/);
-  assert.match(tunnel, /for \(let band = 0; band < bandCount; band \+= 1\)/);
-  assert.match(tunnel, /for \(let seam = 0; seam < 12; seam \+= 1\)/);
-  assert.doesNotMatch(tunnel, /streakPhase|streakStart|axialFlowPhase|Bright axial dashes/);
+  assert.ok(tunnel.includes("const flowDirection = visualClass === 2 ? -1 : 1"));
+  assert.ok(tunnel.includes("const flowPhase = ((Number(state.tubeTravel || 0) * 0.052 * flowDirection + 0.12) % 1 + 1) % 1"));
+  assert.ok(tunnel.includes("const flowPulsePosition = 1 - flowPhase"));
+  assert.ok(tunnel.includes("for (let seam = 0; seam < 12; seam += 1)"));
+  assert.ok(tunnel.includes("const flowGradient = g.createLinearGradient(frameStart.x, frameStart.y, frameEnd.x, frameEnd.y)"));
+  assert.ok(tunnel.includes("flowGradient.addColorStop(flowPulsePosition, pulseColor)"));
+  assert.ok(tunnel.includes("g.strokeStyle = flowGradient"));
+  assert.ok(!tunnel.includes("g.setLineDash"));
+  assert.ok(!tunnel.includes("g.lineDashOffset"));
+  assert.ok(!tunnel.includes("const bandCount = 14"));
+  assert.ok(!tunnel.includes("bandFlowPhase"));
+  assert.ok(!tunnel.includes("drawArc(depth, 0, Math.PI * 2, color"));
+  assert.ok(!tunnel.includes("streakPhase"));
+  assert.ok(!tunnel.includes("streakStart"));
+  assert.ok(!tunnel.includes("axialFlowPhase"));
 });
 test("Warp draws a real 2D SAGE coordinate plane and a separate sector-location layer", () => {
   assert.match(warp, /class="bcm-warp-galaxy-map" data-warp-galaxy-map/);
   assert.match(warp, /function renderGalaxyMap\(\)/);
   assert.match(warp, /SAGE_STAR_REFERENCE_POINTS/);
   assert.match(warp, /SAGE_CSS_REFERENCE_POINTS/);
+  assert.ok(warp.includes('{ id: "mud-css", name: "MUD"'));
+  assert.ok(warp.includes('{ id: "oni-css", name: "ONI"'));
+  assert.ok(warp.includes('{ id: "ustur-css", name: "Ustur"'));
+  assert.ok(warp.includes('<i class="is-css"></i> ФРАКЦИИ'));
+  assert.doesNotMatch(warp, /name: "(?:MUD|ONI|Ustur) CSS"/);
   assert.match(warp, /nav\.adapter\.sectors/);
   assert.match(warp, /if \(knownSectorCount\) \{[\s\S]{0,1100}SAGE_STAR_REFERENCE_POINTS\.forEach/);
   assert.match(warp, /SAGE XY/);
@@ -184,11 +194,11 @@ test("Mini-Sim doesn't relock the mouse or consume flight keys on the Warp map",
   assert.match(mini, /settings\.open \|\| root\.classList\.contains\("bcm-warp-open"\)/);
 });
 
-test("Mini-Sim 0.11.22 cache/version contracts are synchronized", () => {
-  assert.match(plugin, /Version: 0\.11\.22/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.22'\)/);
-  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.22/);
-  assert.match(qa, /Version: 0\.11\.22/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.22'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.11\.22/);
+test("Mini-Sim 0.11.23 cache/version contracts are synchronized", () => {
+  assert.match(plugin, /Version: 0\.11\.23/);
+  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.23'\)/);
+  assert.match(plugin, /SPACE LABYRINTH — 0\.11\.23/);
+  assert.match(qa, /Version: 0\.11\.23/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.11\.23'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.11\.23/);
 });

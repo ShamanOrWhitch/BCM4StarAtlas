@@ -39,7 +39,7 @@ test("wall crystal placement uses an independent seeded stream and existing vert
   assert.ok(source.includes('randomFrom(hashSeed(String(seed) + "|wall-crystal-layout"))'), "wall decorations use a separate deterministic seed");
   assert.doesNotMatch(source, /\brng\s*\(/, "decoration must not consume the maze RNG stream");
   assert.match(source, /walls\.forEach\(/);
-  assert.match(source, /cell\.y !== 1/, "first test decorates only the normal middle layer");
+  assert.doesNotMatch(source, /cell\.y !== 1/, "vertical wall panels may be decorated at any maze height");
   assert.match(source, /wall\.sy <= Math\.min\(wall\.sx, wall\.sz\)/, "floor and ceiling panels are excluded");
   assert.match(source, /endpoint\(cell, maze\.startCell\)/);
   assert.match(source, /endpoint\(cell, maze\.exitCell\)/);
@@ -53,6 +53,10 @@ test("wall crystal placement uses an independent seeded stream and existing vert
   assert.match(source, /const tangent = up\.clone\(\)\.cross\(inward\)\.normalize\(\)/);
   assert.match(source, /makeBasis\(tangent, up, inward\)/, "new pack local +Z growth axis points out from the wall");
   assert.match(source, /model\.scale\.setScalar\(placement\.scale\)/);
+  assert.match(source, /const placementCount = Math\.min\(12, candidates\.length\)/);
+  assert.match(source, /routePriority: onRoute \? 0 : 1/);
+  assert.match(source, /const scale = 0\.60 \+ placementRng\(\) \* 0\.07/);
+  assert.match(source, /model\.userData\.bcmWallScale = placement\.scale/);
   assert.match(source, /const paletteOffset = Math\.floor\(placementRng\(\) \* asteroidWallCrystalColors\.length\)/);
   assert.match(source, /asteroidWallCrystalColors\[\(index \+ paletteOffset\) % asteroidWallCrystalColors\.length\]/, "four deposits cycle through all four colours");
   assert.match(source, /state\.maze !== maze/, "late loader callbacks cannot attach to a disposed maze");
@@ -85,7 +89,9 @@ test("standalone QA serves the GLB and exercises the actual asteroid scene with 
   assert.match(localQa, /"\.glb":"model\/gltf-binary"/);
   assert.match(localQa, /BCMDeepSpaceWarpEnterAsteroid/);
   assert.match(localQa, /asteroid-wall-crystal-decorations/);
-  assert.match(localQa, /GLB mineral deposits load as real meshes on asteroid wall panels/);
+  assert.match(localQa, /ten to twelve GLB mineral deposits load on asteroid wall panels/);
+  assert.match(localQa, /all four authored crystal colours appear in the expanded deposit set/);
+  assert.match(localQa, /every crystal deposit uses the larger readable planetary-mineral scale/);
   assert.match(localQa, /07-asteroid-wall-crystal-closeup\.png/);
   assert.match(localQa, /inspection camera can render a mounted crystal without moving the ship/);
 });
