@@ -53,9 +53,9 @@ test("wall crystal placement uses an independent seeded stream and existing vert
   assert.match(source, /const tangent = up\.clone\(\)\.cross\(inward\)\.normalize\(\)/);
   assert.match(source, /makeBasis\(tangent, up, inward\)/, "new pack local +Z growth axis points out from the wall");
   assert.match(source, /model\.scale\.setScalar\(placement\.scale\)/);
-  assert.match(source, /const placementCount = Math\.min\(8, candidates\.length\)/);
+  assert.match(source, /const placementCount = Math\.min\(12, candidates\.length\)/);
   assert.match(source, /routePriority: onRoute \? 0 : 1/);
-  assert.match(source, /const scale = 0\.43 \+ placementRng\(\) \* 0\.045/);
+  assert.match(source, /const scale = 0\.60 \+ placementRng\(\) \* 0\.07/);
   assert.match(source, /model\.userData\.bcmWallScale = placement\.scale/);
   assert.match(source, /const paletteOffset = Math\.floor\(placementRng\(\) \* asteroidWallCrystalColors\.length\)/);
   assert.match(source, /asteroidWallCrystalColors\[\(index \+ paletteOffset\) % asteroidWallCrystalColors\.length\]/, "four deposits cycle through all four colours");
