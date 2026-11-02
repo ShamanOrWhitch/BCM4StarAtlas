@@ -668,5 +668,5 @@ HEAD at the start of the session was `748998250d39ac9ed163b84caa1f7178da920d9a` 
 
 - Reuse existing 12 longitudinal tunnel seams for moving flow; do not add fresh transverse rings or arrow-like lines. Class II reverses direction. Warp course and collision logic remain unchanged.
 - Map labels show MUD / ONI / Ustur without "CSS"; sector coordinates and identifiers remain intact.
-- Asteroid crystals: up to twelve, scale 0.60–0.67, route-first deterministic placement on existing middle-level wall panels. Decorative only; preserve the maze RNG, topology, wall collision list and gameplay.
+- Asteroid crystals: up to twelve, scale 0.60–0.67, route-first deterministic placement on existing vertical side panels on all maze levels. Decorative only; preserve the maze RNG, topology, wall collision list and gameplay.
 - Branch: `fix/warp-original-frame-flow-map-labels-crystal-visibility`; issue [#95](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/95). Mini-Sim candidate 0.11.23. Do not call merged, CI-passing or live-tested until the corresponding checks report those facts.
