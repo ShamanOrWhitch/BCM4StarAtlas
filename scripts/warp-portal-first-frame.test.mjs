@@ -69,7 +69,7 @@ test("a successful Warp to (-40,30) returns home only after the continue button"
   assert.match(confirm, /enterAsteroidMaze\(\)/);
   const home = section(warp, "function returnToOniCss()", "function makeMazeTexture");
   assert.match(home, /candidate\.x === -40 && candidate\.y === 30/);
-  assert.match(home, /name = "ONI CSS · NEUNO"/);
+  assert.match(home, /name = "ONI · NEUNO"/);
   assert.match(home, /closeOverlay\(false\)/);
   assert.match(home, /engine\.teleport\(\{ x: 0, y: 0, z: 2, yaw: 0 \}, null\)/);
   assert.match(warp, /tubeAbort\.addEventListener\("click", \(\) => closeOverlay\(true\)\)/);
