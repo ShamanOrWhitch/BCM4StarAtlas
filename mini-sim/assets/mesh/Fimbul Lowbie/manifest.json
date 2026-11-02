@@ -1,0 +1,18 @@
+{
+  "hovercar_red_off": {
+    "triangles": 3276,
+    "parts": 20
+  },
+  "hovercar_red_blue": {
+    "triangles": 3916,
+    "parts": 22
+  },
+  "hovercar_red_orange": {
+    "triangles": 3916,
+    "parts": 22
+  },
+  "hovercar_red_violet": {
+    "triangles": 3916,
+    "parts": 22
+  }
+}
