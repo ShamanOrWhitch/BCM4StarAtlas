@@ -340,8 +340,8 @@ Issue #28 остаётся открытым только для полной г�
 
 ### Активный кандидат — Issue #95
 - Work branch: `fix/warp-original-frame-flow-map-labels-crystal-visibility`; baseline main после upload: `8104ec2fbfb2317493d776704f791768778d47ca`. Issue [#95](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/95).
-- Warp: направленный поток переводится на существующие 12 продольных линий обрамления через движущуюся dash-фазу по тому же canvas path; Class II разворачивает направление. Отдельные 14 поперечных flow bands удалены. Course, obstacle progress и collisions не меняются.
+- Warp: направленный поток переводится на существующие 12 продольных линий обрамления через движущийся цветовой импульс в градиенте той же линии, без второго штриха или слоя; Class II разворачивает направление. Отдельные 14 поперечных flow bands удалены. Course, obstacle progress и collisions не меняются.
 - Карта: видимые названия MUD / ONI / Ustur очищены от суффикса CSS; координаты, reference IDs и nav adapter остаются прежними.
-- Asteroid: декоративные wall deposits увеличены до scale 0.43–0.475, количество — до 8; сначала используются eligible панели основного маршрута, при нехватке — другие eligible панели среднего слоя. Отдельный RNG; collision wall list / topology / Hydrogen / flight physics не меняются.
+- Asteroid: декоративные wall deposits увеличены до scale 0.60–0.67, количество — до 12; сначала используются eligible панели основного маршрута, при нехватке — другие eligible панели среднего слоя. Отдельный RNG; collision wall list / topology / Hydrogen / flight physics не меняются.
 - Cache version candidate: Mini-Sim 0.11.23; Tower остаётся без изменений.
-- **Статус на момент записи:** candidate branch only; CI/standalone Chromium pending; не merged и не deployed. Не маркировать как TESTED-CODE до зелёного CI и как VERIFIED-LIVE без проверки реального WordPress/runtime.
+- **Статус на момент записи:** candidate branch only; увеличенная плотность до 12 и scale 0.60–0.67 подлежат повторному CI/standalone Chromium; не merged и не deployed. Не маркировать как TESTED-CODE до зелёного CI и как VERIFIED-LIVE без проверки реального WordPress/runtime.
