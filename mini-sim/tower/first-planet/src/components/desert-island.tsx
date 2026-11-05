@@ -168,7 +168,8 @@ export function DesertIsland({
           <p className="mt-3 text-sm text-muted">
             Дюнный посад. У входа стоит байк — на нём можно подняться над крышами. Внизу дома,
             оазис и трое жителей с поручениями. Северное кольцо ведёт на береговую гонку. На
-            посадочной площадке светится портал в Tower: вход запускает ту же сохранённую башню.
+            рядом с посадочной площадкой светится портал в Tower: подойди к нему и нажми E,
+            чтобы пройти ту же сохранённую башню снизу вверх.
           </p>
           <button
             type="button"
@@ -189,16 +190,6 @@ export function DesertIsland({
             className="mt-2 h-12 w-full rounded-xl border border-line text-fg"
           >
             Сразу к гонке
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              towerEntered.current = true;
-              onTowerEnterRef.current();
-            }}
-            className="mt-2 h-12 w-full rounded-xl border border-primary/60 bg-primary/10 font-medium text-primary"
-          >
-            Войти в Tower · тот же seed
           </button>
           <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
             <div className="rounded-xl border border-line bg-bg/50 p-3">
