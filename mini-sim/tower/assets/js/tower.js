@@ -2624,6 +2624,7 @@
           transition.hidden = true;
           transition.style.backgroundImage = "";
         }
+        if (status) status.textContent = "ПОДГОТОВКА FIRST PLANET…";
         root.dispatchEvent(new CustomEvent("bcm:tower:planet-ready", { detail }));
       };
 

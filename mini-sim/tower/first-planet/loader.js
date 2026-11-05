@@ -56,7 +56,7 @@
       status.textContent = "Загрузка First Planet…";
       preparePromise = loadBundle().then((api) => {
         if (!mounted) {
-          api.mount(mount);
+          await api.mount(mount);
           mounted = true;
         }
         status.hidden = true;

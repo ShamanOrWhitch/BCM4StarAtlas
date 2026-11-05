@@ -121,7 +121,11 @@ function sunSprite(color: string, size: number) {
   return sprite;
 }
 
-export function createIsland(canvas: HTMLCanvasElement, onProps?: () => void): IslandWorld {
+export function createIsland(
+  canvas: HTMLCanvasElement,
+  onProps?: () => void,
+  onLoadError?: (error: unknown) => void,
+): IslandWorld {
   const sim = createSim();
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   const host = canvas.parentElement ?? canvas;
@@ -634,6 +638,7 @@ export function createIsland(canvas: HTMLCanvasElement, onProps?: () => void): I
     onProps?.();
   })().catch((err) => {
     console.error(err);
+    onLoadError?.(err);
   });
   void props;
 

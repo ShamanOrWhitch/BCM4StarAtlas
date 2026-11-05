@@ -21,7 +21,15 @@ const EMPTY: IslandHud = {
   depart: false,
 };
 
-export function DesertIsland({ onRace }: { onRace: () => void }) {
+export function DesertIsland({
+  onRace,
+  onReady,
+  onLoadError,
+}: {
+  onRace: () => void;
+  onReady?: () => void;
+  onLoadError?: (error: unknown) => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mapRef = useRef<HTMLCanvasElement>(null);
   const worldRef = useRef<IslandWorld | null>(null);
@@ -34,15 +42,27 @@ export function DesertIsland({ onRace }: { onRace: () => void }) {
 
   const onRaceRef = useRef(onRace);
   onRaceRef.current = onRace;
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
+  const onLoadErrorRef = useRef(onLoadError);
+  onLoadErrorRef.current = onLoadError;
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     let world: IslandWorld;
     try {
-      world = createIsland(canvas, () => setReady(true));
+      world = createIsland(
+        canvas,
+        () => {
+          setReady(true);
+          onReadyRef.current?.();
+        },
+        (loadError) => onLoadErrorRef.current?.(loadError),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось открыть остров");
+      onLoadErrorRef.current?.(err);
       return;
     }
     worldRef.current = world;
