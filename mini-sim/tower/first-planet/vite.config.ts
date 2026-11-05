@@ -1,5 +1,5 @@
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
+import { createReadStream, readdirSync, readFileSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
@@ -142,6 +142,77 @@ function authPopupPlugin(): Plugin {
   };
 }
 
+
+/**
+ * First Planet models are stored once under mini-sim/assets.
+ * The Grok preview reads that directory in dev/build; WordPress reads it from
+ * its existing asset scanner via BCMFirstPlanetConfig.meshBase.
+ */
+function firstPlanetMeshPlugin(): Plugin {
+  const meshRoot = resolve(import.meta.dirname, "../../assets/first-planet/mesh");
+
+  return {
+    name: "bcm-first-planet-shared-mesh",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const rawPath = (req.url ?? "").split("?", 1)[0] ?? "";
+        const match = rawPath.match(/(?:^|\/)mesh\/([^/]+)$/);
+        if (!match) {
+          next();
+          return;
+        }
+
+        let name = "";
+        try {
+          name = decodeURIComponent(match[1]);
+        } catch {
+          res.statusCode = 400;
+          res.end("Bad mesh path");
+          return;
+        }
+        if (!/^[a-z0-9_-]+\.glb$/i.test(name)) {
+          res.statusCode = 404;
+          res.end("Not found");
+          return;
+        }
+
+        const file = join(meshRoot, name);
+        try {
+          const stat = statSync(file);
+          if (!stat.isFile()) {
+            next();
+            return;
+          }
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "model/gltf-binary");
+          res.setHeader("Content-Length", String(stat.size));
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+          createReadStream(file).pipe(res);
+        } catch {
+          res.statusCode = 404;
+          res.end("Not found");
+        }
+      });
+    },
+    generateBundle() {
+      for (const name of readdirSync(meshRoot)) {
+        if (!/^[a-z0-9_-]+\.glb$/i.test(name)) continue;
+        const file = join(meshRoot, name);
+        try {
+          if (!statSync(file).isFile()) continue;
+          this.emitFile({
+            type: "asset",
+            fileName: `mesh/${name}`,
+            source: readFileSync(file),
+          });
+        } catch {
+          // One optional missing model must not abort the world build.
+        }
+      }
+    },
+  };
+}
+
 // `0.0.0.0:8080` is the live-preview contract — don't change host/port.
 // The dev server starts once `src/router.tsx` and `src/routes/` exist — see
 // AGENTS.md § "First scaffold".
@@ -163,6 +234,7 @@ export default defineConfig(({ command, isPreview }) => ({
     authPopupPlugin(),
     // Dev-only /__app-env, read by scripts/check-auth-invariant.mjs.
     appEnvPlugin(),
+    firstPlanetMeshPlugin(),
     // PWA head + ?install=1 tutorial page; runs before Start/Nitro.
     grokPwaPlugin(),
     tailwindcss(),

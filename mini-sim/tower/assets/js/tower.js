@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.67";
+  const TOWER_VERSION = "0.2.68";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -1003,6 +1003,8 @@
     let mode = null;
     let gameStarted = false;
     let transitionStarted = false;
+    let planetHandoffStarted = false;
+    let frameHandle = 0;
     let towerAudio = null;
     let landingFirstFrameCallback = null;
     let landingHandoffPending = false;
@@ -2304,7 +2306,9 @@
         p.vy = 0;
         p.grounded = false;
         status.textContent = mode === "multi" ? "ИГРОК ДОШЁЛ ДО ОСНОВАНИЯ" : "СПУСК ЗАВЕРШЁН";
-        showEndLevelMarker();
+        if (mode !== "multi" || players.slice(0, 2).every((candidate) => candidate.finished)) {
+          showEndLevelMarker();
+        }
         return;
       }
 
@@ -2577,6 +2581,97 @@
       return (tower.levels - 1 - level) + "/" + (tower.levels - 1);
     }
 
+
+    function beginFirstPlanetHandoff() {
+      if (planetHandoffStarted) return;
+      const activePlayers = players.slice(0, mode === "multi" ? 2 : 1);
+      if (!activePlayers.length || !activePlayers.every((player) => player.finished)) return;
+
+      planetHandoffStarted = true;
+      if (restartButton) restartButton.hidden = true;
+      if (transitionClose) transitionClose.hidden = true;
+      stopTowerAudio();
+
+      const detail = {
+        mode: mode || "single",
+        seed: tower ? tower.seed : null,
+        players: activePlayers.map((player, index) => ({
+          player: index + 1,
+          finished: !!player.finished,
+          collected: Number(player.collected || 0)
+        }))
+      };
+
+      root.dispatchEvent(new CustomEvent("bcm:tower:planet-preload", { detail }));
+
+      let completed = false;
+      const finish = () => {
+        if (completed) return;
+        completed = true;
+        window.clearTimeout(showEndLevelMarker.timer);
+        if (transitionVideo) {
+          transitionVideo.pause();
+          transitionVideo.onended = null;
+          transitionVideo.onerror = null;
+          transitionVideo.onloadeddata = null;
+          transitionVideo.oncanplay = null;
+          transitionVideo.onplaying = null;
+          transitionVideo.removeAttribute("src");
+          transitionVideo.load();
+          transitionVideo.style.opacity = "0";
+        }
+        if (transition) {
+          transition.hidden = true;
+          transition.style.backgroundImage = "";
+        }
+        root.dispatchEvent(new CustomEvent("bcm:tower:planet-ready", { detail }));
+      };
+
+      const url = String(CONFIG.planetTransition || "");
+      const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (!url || !transitionVideo || reduceMotion) {
+        finish();
+        return;
+      }
+
+      if (transition) {
+        transition.hidden = false;
+        transition.style.backgroundImage = "";
+      }
+      const label = root.querySelector(".bcm-tower-transition-label");
+      if (label) label.textContent = "ПОСАДКА · FIRST PLANET";
+
+      transitionVideo.pause();
+      transitionVideo.muted = true;
+      transitionVideo.defaultMuted = true;
+      transitionVideo.setAttribute("muted", "");
+      transitionVideo.setAttribute("playsinline", "");
+      transitionVideo.setAttribute("webkit-playsinline", "");
+      transitionVideo.playsInline = true;
+      transitionVideo.preload = "auto";
+      transitionVideo.style.opacity = "0";
+
+      let playbackRequested = false;
+      const requestPlayback = () => {
+        if (playbackRequested || completed || transitionVideo.readyState < 2) return;
+        playbackRequested = true;
+        try { transitionVideo.currentTime = 0; } catch (e) {}
+        const result = transitionVideo.play();
+        if (result && typeof result.catch === "function") result.catch(finish);
+      };
+
+      transitionVideo.onplaying = () => {
+        if (!completed) transitionVideo.style.opacity = "1";
+      };
+      transitionVideo.onloadeddata = requestPlayback;
+      transitionVideo.oncanplay = requestPlayback;
+      transitionVideo.onended = finish;
+      transitionVideo.onerror = finish;
+      transitionVideo.src = url;
+      transitionVideo.load();
+      if (transitionVideo.readyState >= 2) requestPlayback();
+    }
+
     function updateHud() {
       if (!tower || !gameStarted) return;
       if (mode === "single") {
@@ -2607,8 +2702,9 @@
         crewEl.textContent = "CREW: готов к подключению NFT";
       }
 
-      if (players.every(p => p.finished)) {
-        restartButton.hidden = false;
+      const activePlayers = players.slice(0, mode === "multi" ? 2 : 1);
+      if (activePlayers.length && activePlayers.every((player) => player.finished)) {
+        beginFirstPlanetHandoff();
       }
       updateCrewMatrix();
       exposeCrewMatrix();
@@ -2960,8 +3056,11 @@
 
     function startNewTower() {
       if (!gameStarted) return;
+      planetHandoffStarted = false;
+      if (transitionClose) transitionClose.hidden = false;
       buildTower(makeSeed());
       status.textContent = mode === "multi" ? "НОВАЯ ОБЩАЯ БАШНЯ" : "НОВЫЙ SEED";
+      if (!frameHandle) frameHandle = requestAnimationFrame(frame);
     }
 
     function setAction(index, action, value) {
@@ -3442,6 +3541,7 @@
     let previousTime = performance.now();
 
     function frame(now) {
+      frameHandle = 0;
       const dt = Math.min(0.034, Math.max(0.001, (now - previousTime) / 1000));
       previousTime = now;
 
@@ -3465,7 +3565,7 @@
         renderViews();
       }
 
-      requestAnimationFrame(frame);
+      if (!planetHandoffStarted) frameHandle = requestAnimationFrame(frame);
     }
 
     window.BCMTowerAPI = window.BCMTowerAPI || {};
@@ -3558,7 +3658,7 @@
       if (!root.classList.contains("bcm-tower-embedded")) showMenu();
     }
     setInterval(pollGamepads, 60);
-    requestAnimationFrame(frame);
+    frameHandle = requestAnimationFrame(frame);
   }
 
   function bootAll() {

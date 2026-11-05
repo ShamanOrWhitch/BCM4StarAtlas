@@ -514,3 +514,22 @@
 .bcm-tower.has-gamepad .bcm-tower-help-gamepad {
     display: block !important;
 }
+
+/* First Planet loads beneath the Tower landing clip and then takes over the viewport. */
+.bcm-first-planet-host {
+  position: fixed; inset: 0; z-index: 1000003;
+  overflow: hidden; background: #102027;
+  opacity: 1; transition: opacity .25s ease;
+}
+.bcm-first-planet-host[hidden] { display: none !important; }
+.bcm-first-planet-host.is-preloading { opacity: 0; pointer-events: none; }
+.bcm-first-planet-root { width: 100%; height: 100%; min-height: 100dvh; overflow: hidden; }
+.bcm-first-planet-load-status {
+  position: absolute; z-index: 20; left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  transform: translateX(-50%); max-width: min(92vw, 520px);
+  padding: 12px 18px; border: 1px solid rgba(255,255,255,.2);
+  border-radius: 12px; color: #f4efe4; background: rgba(8,14,22,.88);
+  font: 600 13px/1.4 system-ui, sans-serif; text-align: center;
+}
+.bcm-first-planet-load-status[hidden] { display: none !important; }

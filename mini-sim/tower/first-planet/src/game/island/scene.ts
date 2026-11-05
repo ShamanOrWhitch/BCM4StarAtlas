@@ -84,6 +84,14 @@ function fireSprite() {
 }
 
 function meshUrl(file: string) {
+  const sharedBase =
+    typeof window === "undefined"
+      ? ""
+      : (window as Window & { BCMFirstPlanetConfig?: { meshBase?: string } }).BCMFirstPlanetConfig?.meshBase;
+  if (sharedBase) {
+    return `${sharedBase.replace(/\/?$/, "/")}${encodeURIComponent(file)}`;
+  }
+
   const prefix =
     typeof window === "undefined"
       ? ""
