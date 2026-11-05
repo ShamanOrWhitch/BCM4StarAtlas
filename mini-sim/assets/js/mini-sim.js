@@ -3743,6 +3743,10 @@
       if (pendingLocalReturn.wallet) window.BCMiniCrewWallet = pendingLocalReturn.wallet;
       if (crewPreflight) crewPreflight.hidden = true;
       beginFlight();
+      if (running && snapshot?.navigation &&
+          typeof window.BCMDeepSpaceWarpRestoreReturnSnapshot === "function") {
+        window.BCMDeepSpaceWarpRestoreReturnSnapshot(snapshot.navigation);
+      }
       if (running) {
         try { sessionStorage.removeItem(LOCAL_RETURN_STORAGE_KEY); } catch (error) {}
         worldMission.returnShipAvailable = false;
