@@ -19,14 +19,21 @@ const EMPTY: IslandHud = {
   z: 0,
   yaw: 0,
   depart: false,
+  towerEnter: false,
 };
 
 export function DesertIsland({
+  context,
   onRace,
+  onTowerEnter,
+  onStartAudio,
   onReady,
   onLoadError,
 }: {
+  context: { planetSeed?: number; sessionSeed?: number };
   onRace: () => void;
+  onTowerEnter: () => void;
+  onStartAudio: () => void;
   onReady?: () => void;
   onLoadError?: (error: unknown) => void;
 }) {
@@ -39,9 +46,14 @@ export function DesertIsland({
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const left = useRef(false);
+  const towerEntered = useRef(false);
 
   const onRaceRef = useRef(onRace);
   onRaceRef.current = onRace;
+  const onTowerEnterRef = useRef(onTowerEnter);
+  onTowerEnterRef.current = onTowerEnter;
+  const onStartAudioRef = useRef(onStartAudio);
+  onStartAudioRef.current = onStartAudio;
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
   const onLoadErrorRef = useRef(onLoadError);
@@ -59,6 +71,7 @@ export function DesertIsland({
           onReadyRef.current?.();
         },
         (loadError) => onLoadErrorRef.current?.(loadError),
+        { planetSeed: Number(context.planetSeed) >>> 0 },
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось открыть остров");
@@ -90,6 +103,10 @@ export function DesertIsland({
         setHud(next);
         const map = mapRef.current;
         if (map && phaseRef.current !== "gate") world.paintMap(map);
+        if (next.towerEnter && !towerEntered.current) {
+          towerEntered.current = true;
+          onTowerEnterRef.current();
+        }
         if (next.depart && !left.current) {
           left.current = true;
           onRaceRef.current();
@@ -149,23 +166,39 @@ export function DesertIsland({
           </p>
           <h1 className="font-display mt-2 text-4xl leading-none font-medium">Остров пустыни</h1>
           <p className="mt-3 text-sm text-muted">
-            Дюнный посад. У входа стоит байк — на нём можно подняться над крышами. Внизу дома, в
-            которые заходят, оазис и трое жителей с поручениями. Северное кольцо ведёт на береговой
-            круг.
+            Дюнный посад. У входа стоит байк — на нём можно подняться над крышами. Внизу дома,
+            оазис и трое жителей с поручениями. Северное кольцо ведёт на береговую гонку. На
+            посадочной площадке светится портал в Tower: вход запускает ту же сохранённую башню.
           </p>
           <button
             type="button"
-            onClick={() => setPhaseBoth("play")}
+            onClick={() => {
+              onStartAudioRef.current();
+              setPhaseBoth("play");
+            }}
             className="mt-4 h-12 w-full rounded-xl bg-primary font-medium text-bg"
           >
             Start
           </button>
           <button
             type="button"
-            onClick={onRace}
+            onClick={() => {
+              onStartAudioRef.current();
+              onRaceRef.current();
+            }}
             className="mt-2 h-12 w-full rounded-xl border border-line text-fg"
           >
             Сразу к гонке
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              towerEntered.current = true;
+              onTowerEnterRef.current();
+            }}
+            className="mt-2 h-12 w-full rounded-xl border border-primary/60 bg-primary/10 font-medium text-primary"
+          >
+            Войти в Tower · тот же seed
           </button>
           <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
             <div className="rounded-xl border border-line bg-bg/50 p-3">
