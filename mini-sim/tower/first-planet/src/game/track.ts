@@ -10,6 +10,7 @@ export type Sample = {
 };
 
 export type Track = {
+  seed: number;
   samples: Sample[];
   length: number;
   halfWidth: number;
@@ -91,7 +92,7 @@ function resample(pts: { x: number; z: number }[], spacing: number) {
   return { pts: out, length };
 }
 
-export function buildTrack(): Track {
+export function buildTrack(seed = 0): Track {
   const dense = densify(RAW);
   const { pts, length } = resample(dense, 2.4);
   const n = pts.length;
@@ -124,7 +125,7 @@ export function buildTrack(): Track {
   }
   const gates = 8;
   const checkpoints = Array.from({ length: gates }, (_, i) => (i / gates) * length);
-  return { samples, length, halfWidth: 7.4, checkpoints };
+  return { seed: Number(seed) >>> 0, samples, length, halfWidth: 7.4, checkpoints };
 }
 
 export function sampleAt(track: Track, s: number): Sample {
