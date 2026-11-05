@@ -124,11 +124,11 @@ test("Hidden Tower does not steal Ring's R floor action", () => {
 });
 
 test("Mini-Sim 0.11.23 and Tower 0.2.67 versions agree across PHP and UI", () => {
-  assert.match(php, /Version: 0\.11\.23/);
-  assert.match(php, /define\('BCM_MINI_SIM_VERSION', '0\.11\.23'\)/);
-  assert.match(php, /SPACE LABYRINTH — 0\.11\.23/);
-  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.23/);
-  assert.match(mini, /SPACE LABYRINTH — 0\.11\.23/);
-  assert.match(towerPhp, /define\('BCM_TOWER_VERSION', '0\.2\.67'\)/);
-  assert.match(tower, /const TOWER_VERSION = "0\.2\.67"/);
+  assert.match(php, /Version: 0\.12\.0/);
+  assert.match(php, /define\('BCM_MINI_SIM_VERSION', '0\.12\.0'\)/);
+  assert.match(php, /SPACE LABYRINTH — 0\.12\.0/);
+  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.12\.0/);
+  assert.match(mini, /SPACE LABYRINTH — 0\.12\.0/);
+  assert.match(towerPhp, /define\('BCM_TOWER_VERSION', '0\.2\.69'\)/);
+  assert.match(tower, /const TOWER_VERSION = "0\.2\.69"/);
 });

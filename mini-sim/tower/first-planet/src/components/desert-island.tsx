@@ -19,17 +19,27 @@ const EMPTY: IslandHud = {
   z: 0,
   yaw: 0,
   depart: false,
+  towerEnter: false,
 };
 
 export function DesertIsland({
+  context,
+  live = true,
   onRace,
+  onTowerEnter,
+  onStartAudio,
   onReady,
   onLoadError,
 }: {
+  context: { planetSeed?: number; sessionSeed?: number };
+  live?: boolean;
   onRace: () => void;
+  onTowerEnter: () => void;
+  onStartAudio: () => void;
   onReady?: () => void;
   onLoadError?: (error: unknown) => void;
 }) {
+  const planetSeed = Number(context.planetSeed) >>> 0;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mapRef = useRef<HTMLCanvasElement>(null);
   const worldRef = useRef<IslandWorld | null>(null);
@@ -39,9 +49,16 @@ export function DesertIsland({
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const left = useRef(false);
+  const towerEntered = useRef(false);
+  const liveRef = useRef(live);
+  liveRef.current = live;
 
   const onRaceRef = useRef(onRace);
   onRaceRef.current = onRace;
+  const onTowerEnterRef = useRef(onTowerEnter);
+  onTowerEnterRef.current = onTowerEnter;
+  const onStartAudioRef = useRef(onStartAudio);
+  onStartAudioRef.current = onStartAudio;
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
   const onLoadErrorRef = useRef(onLoadError);
@@ -59,6 +76,7 @@ export function DesertIsland({
           onReadyRef.current?.();
         },
         (loadError) => onLoadErrorRef.current?.(loadError),
+        { planetSeed },
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось открыть остров");
@@ -81,8 +99,13 @@ export function DesertIsland({
 
     let frame = 0;
     let lastHud = 0;
+    let warmup = 0;
     const loop = (now: number) => {
       frame = requestAnimationFrame(loop);
+      // While Tower is still being played the planet stays mounted but does not
+      // render every frame. Two warmup frames upload shaders during the descent.
+      if (!liveRef.current && warmup >= 2) return;
+      if (!liveRef.current) warmup += 1;
       world.frame(now, phaseRef.current);
       if (now - lastHud > 90) {
         lastHud = now;
@@ -90,6 +113,10 @@ export function DesertIsland({
         setHud(next);
         const map = mapRef.current;
         if (map && phaseRef.current !== "gate") world.paintMap(map);
+        if (next.towerEnter && !towerEntered.current) {
+          towerEntered.current = true;
+          onTowerEnterRef.current();
+        }
         if (next.depart && !left.current) {
           left.current = true;
           onRaceRef.current();
@@ -118,7 +145,7 @@ export function DesertIsland({
       world.dispose();
       worldRef.current = null;
     };
-  }, []);
+  }, [planetSeed]);
 
   function setPhaseBoth(next: Phase) {
     phaseRef.current = next;
@@ -149,20 +176,26 @@ export function DesertIsland({
           </p>
           <h1 className="font-display mt-2 text-4xl leading-none font-medium">Остров пустыни</h1>
           <p className="mt-3 text-sm text-muted">
-            Дюнный посад. У входа стоит байк — на нём можно подняться над крышами. Внизу дома, в
-            которые заходят, оазис и трое жителей с поручениями. Северное кольцо ведёт на береговой
-            круг.
+            Дюнный посад. У входа стоит байк — на нём можно подняться над крышами. Внизу дома,
+            оазис и трое жителей с поручениями. Северное кольцо ведёт на береговую гонку. На
+            рядом с посадочной площадкой светится портал в Tower: подойди к нему и нажми E,
+            чтобы пройти ту же сохранённую башню снизу вверх.
           </p>
           <button
             type="button"
-            onClick={() => setPhaseBoth("play")}
+            onClick={() => {
+              onStartAudioRef.current();
+              setPhaseBoth("play");
+            }}
             className="mt-4 h-12 w-full rounded-xl bg-primary font-medium text-bg"
           >
             Start
           </button>
           <button
             type="button"
-            onClick={onRace}
+            onClick={() => {
+              onRaceRef.current();
+            }}
             className="mt-2 h-12 w-full rounded-xl border border-line text-fg"
           >
             Сразу к гонке

@@ -28,7 +28,7 @@ test("Flight starts in Room 1 and does not teleport into the asteroid", async ()
   const begin = mini.slice(mini.indexOf("function beginFlight()"), mini.indexOf("const byName = Object.create(null)"));
   assert.doesNotMatch(begin, /BCMDeepSpaceWarpEnterAsteroid\s*\(/);
   assert.match(mini, /ship\.position = new THREE\.Vector3\(0, 0, 2\)/);
-  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.11\.23/);
+  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.12\.0/);
 });
 
 test("Asteroid walls are resolved from the prepared asterwall asset family", async () => {
@@ -99,7 +99,10 @@ test("Warp Tube speed multiplier climbs from 1x to 12x with shared scene and sou
   assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
   assert.match(warp, /const courseLayerCount = 22/);
   assert.match(warp, /const typeRoll = rng\(\)/);
-  assert.match(warp, /const runNonce = Date\.now\(\).*Math\.random/);
+  assert.match(warp, /const warpRun = Number\(runCounters\.warp \|\| 0\) \+ 1/);
+  assert.match(warp, /const warpBaseSeed = Number\.isSafeInteger\(Number\(locationSeeds\.warp\)\)/);
+  assert.match(warp, /const warpRunSeed = hashSeed\(warpBaseSeed \+/);
+  assert.match(warp, /localSession\.activeSeeds\.warp = warpRunSeed/);
   assert.match(warp, /const rampMultiplier = warpSpeedMultiplier\(state\.elapsed\)/);
   assert.match(warp, /Math\.max\(1, Math\.min\(12,/);
   assert.match(warp, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
@@ -271,8 +274,8 @@ test("Tower handoff preserves the arrival ship snapshot and active Tower seed fo
   assert.match(warp, /window\.BCMDeepSpaceWarpGetReturnSnapshot = \(\) =>/);
   assert.match(tower, /window\.BCMWorldMission\.towerSeed = seed/);
   assert.match(tower, /originShipSnapshot\.towerSeed = seed/);
-  assert.match(towerPhp, /define\('BCM_TOWER_VERSION', '0\.2\.67'\)/);
-  assert.match(tower, /const TOWER_VERSION = "0\.2\.67"/);
+  assert.match(towerPhp, /define\('BCM_TOWER_VERSION', '0\.2\.69'\)/);
+  assert.match(tower, /const TOWER_VERSION = "0\.2\.69"/);
 });
 
 test("Tower shows short controls for the active device and a clear descent/fall objective", async () => {

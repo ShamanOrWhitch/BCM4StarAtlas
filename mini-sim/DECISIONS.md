@@ -1,3 +1,18 @@
+## D-046 — Mini-Sim 0.12.1 local whole-journey session (5 November 2026)
+
+**Status:** 0.12.1 on branch `feat/minisim-0.12.1-planet-bundle`, WORK LOCK [#97](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/97). Local Single and split-screen Multi only. The WordPress plugin now contains `first-planet/wp-dist` so the planet image is part of the install, and Tower preloads that image during the descent.
+
+- User's guiding principle: Mini-Sim is a continuous journey of different games; transitions between activities are first-class gameplay, not independent event-locked games. A common local session must survive transitions through multiple locations.
+- Preserve local offline Single and split-screen Multi. 0.12.1 does not add or enable remote network play. Keep the future network architecture in Issue #48; later it can provide authoritative session/seed values to the same location contracts.
+- Use one local session seed and stable derived location seeds for Space Labyrinth, Warp, asteroid, Ring, Tower, First Planet and Shoal Race. Asset families added later should use salted PRNG streams so new decoration never reshuffles route topology, pickups or physics.
+- Preserve arrival ship pose, selected Crew, Tower seed/mode, mission, local session, internal Hull Repair compartments and Warp sector context. Rebuild the original Space Labyrinth after the reverse Tower exit rather than relying on a new browser-random seed.
+- The ONICSS forward clip remains the Tower → First Planet handoff. Planet Tower entry is an E interaction at a visible in-world portal. First Planet is unmounted before Tower ascent to release the planetary WebGL resources. The same Tower seed and route are rebuilt from the bottom; upward completion plays the same ONICSS video from end to beginning, then returns to the original Space Labyrinth session.
+- Optional Planet soundtrack asset name is `FP.mp3`. It is not required to build or run; start only on user interaction and keep one audio instance through island/race changes.
+- Build First Planet's WordPress bundle during test ZIP creation and verify both JavaScript and CSS are included.
+- Do not mark the complete transition chain USER-CONFIRMED until the user has manually tested the full route. Source tests/standalone smoke are not equivalent to a real manual game run. Live WordPress HTTP 403 remains a separate environment blocker.
+
+---
+
 ## D-045 — Mini-Sim 0.11.22: separate Twinsun crystals on existing asteroid walls (1 November 2026)
 
 **Status:** merged via [PR #94](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/94), main commit [`6d5d475`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/6d5d4757d30e5f21a2e1e1046756db939e469e33). Work lock [#93](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/93) closed. Mini-Sim 0.11.22; Tower stays 0.2.67.

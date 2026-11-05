@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.11.23",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.1",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.11.23",
+      title: "SPACE LABYRINTH — 0.12.1",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -1027,7 +1027,23 @@
     return hash >>> 0;
   }
 
+  const LOCAL_RETURN_STORAGE_KEY = "bcm-minisim-local-return-v1";
+  function readPendingLocalReturn() {
+    try {
+      const value = JSON.parse(sessionStorage.getItem(LOCAL_RETURN_STORAGE_KEY) || "null");
+      return value && value.version === 1 ? value : null;
+    } catch (error) {
+      return null;
+    }
+  }
+  const pendingLocalReturn = readPendingLocalReturn();
+
   function makeLabyrinthSeed() {
+    // A return token represents the active local session and outranks any
+    // static URL/config seed. URL seed is only for a fresh standalone run.
+    const fromReturn = parseLabyrinthSeed(pendingLocalReturn?.sessionSeed ?? pendingLocalReturn?.mission?.sessionSeed);
+    if (fromReturn) return fromReturn;
+
     const query = new URLSearchParams(window.location.search || "");
     const fromUrl = parseLabyrinthSeed(query.get("seed"));
     if (fromUrl) return fromUrl;
@@ -1047,7 +1063,7 @@
 
   // Mission state is local to this game session. Screen video counts only after
   // actual playback; three distinct Hydrogen shard IDs unlock Medusa and the return trip.
-  const previousMission = window.BCMWorldMission;
+  const previousMission = window.BCMWorldMission || pendingLocalReturn?.mission || null;
   const worldMission = previousMission && previousMission.sessionSeed === labyrinthSeed
     ? previousMission
     : {
@@ -1076,6 +1092,39 @@
   worldMission.medusaUnlocked = !!worldMission.medusaUnlocked && worldMission.hydrogenCollected;
   worldMission.introShown = !!worldMission.introShown;
   window.BCMWorldMission = worldMission;
+
+  function deriveLocalLocationSeed(baseSeed, label) {
+    let hash = 2166136261 >>> 0;
+    const input = String(baseSeed >>> 0) + "|" + String(label || "");
+    for (let i = 0; i < input.length; i += 1) {
+      hash ^= input.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+
+  const restoredLocalSession = pendingLocalReturn?.session &&
+    Number(pendingLocalReturn.session.sessionSeed) === labyrinthSeed
+      ? pendingLocalReturn.session
+      : {};
+  const locationSeeds = Object.assign({
+    spaceLabyrinth: labyrinthSeed,
+    warp: deriveLocalLocationSeed(labyrinthSeed, "warp"),
+    asteroid: deriveLocalLocationSeed(labyrinthSeed, "asteroid"),
+    ring: deriveLocalLocationSeed(labyrinthSeed, "ring"),
+    tower: Number(worldMission.towerSeed) >>> 0 || deriveLocalLocationSeed(labyrinthSeed, "tower"),
+    firstPlanet: deriveLocalLocationSeed(labyrinthSeed, "first-planet"),
+    shoalRace: deriveLocalLocationSeed(labyrinthSeed, "first-planet|shoal-race")
+  }, restoredLocalSession.locationSeeds || {});
+  window.BCMMiniSimSession = {
+    version: 1,
+    localOnly: true,
+    sessionId: restoredLocalSession.sessionId || ("local-" + labyrinthSeed.toString(16).padStart(8, "0")),
+    sessionSeed: labyrinthSeed,
+    mode: restoredLocalSession.mode || worldMission.towerMode || "single",
+    currentLocation: "space-labyrinth",
+    locationSeeds
+  };
 
   function registerMissionScreen(screenId, required = true) {
     const id = String(screenId || "").trim();
@@ -3585,14 +3634,135 @@
         ? window.BCMDeepSpaceWarpGetReturnSnapshot()
         : null,
       speedMode: Number(window.BCMDeepSpaceWarpGetSpeedMode?.()) || null,
-      towerSeed: Number.isFinite(Number(mission.towerSeed)) ? Number(mission.towerSeed) >>> 0 : null
+      towerSeed: Number.isFinite(Number(mission.towerSeed)) ? Number(mission.towerSeed) >>> 0 : null,
+      towerMode: window.BCMMiniSimSession?.mode || mission.towerMode || "single",
+      crew: Array.isArray(window.BCMMiniCrewSelection?.players)
+        ? window.BCMMiniCrewSelection.players.map((crew) => ({
+            id: String(crew.id || crew.mint || ""),
+            mint: String(crew.mint || ""),
+            name: String(crew.name || ""),
+            species: String(crew.species || crew.spec || ""),
+            sex: String(crew.sex || ""),
+            image: String(crew.image || ""),
+            profession: Array.isArray(crew.profession) ? crew.profession.slice() : [],
+            traits: Array.isArray(crew.traits) ? crew.traits : [],
+            characteristics: crew.characteristics && typeof crew.characteristics === "object" ? crew.characteristics : {},
+            seats: String(crew.seats || ""),
+            ocean: String(crew.ocean || ""),
+            mission: String(crew.mission || ""),
+            source: String(crew.source || "restored")
+          }))
+        : []
     };
     mission.originShipSnapshot = snapshot;
     mission.returnShipAvailable = true;
+    if (window.BCMMiniSimSession) {
+      window.BCMMiniSimSession.locationSeeds.tower = Number(mission.towerSeed) >>> 0 || window.BCMMiniSimSession.locationSeeds.tower;
+      window.BCMMiniSimSession.mode = mission.towerMode || window.BCMMiniSimSession.mode;
+    }
     window.dispatchEvent(new CustomEvent("bcm:tower:arrival-ship-saved", {
       detail: { sessionSeed: mission.sessionSeed, capturedAt: snapshot.capturedAt }
     }));
     return snapshot;
+  }
+
+  window.BCMPrepareMiniSimReturn = () => {
+    try {
+      const payload = {
+        version: 1,
+        sessionSeed: labyrinthSeed,
+        mission: JSON.parse(JSON.stringify(window.BCMWorldMission || worldMission)),
+        session: JSON.parse(JSON.stringify(window.BCMMiniSimSession || {})),
+        crewSelection: JSON.parse(JSON.stringify(window.BCMMiniCrewSelection || {})),
+        wallet: JSON.parse(JSON.stringify(window.BCMiniCrewWallet || {})),
+        hullRepair: {
+          compartments: Array.isArray(window.BCMHullRepairState?.compartments)
+            ? JSON.parse(JSON.stringify(window.BCMHullRepairState.compartments))
+            : []
+        },
+        savedAt: Date.now()
+      };
+      sessionStorage.setItem(LOCAL_RETURN_STORAGE_KEY, JSON.stringify(payload));
+      return true;
+    } catch (error) {
+      try { console.error("Could not save local Mini-Sim return state", error); } catch (e) {}
+      return false;
+    }
+  };
+
+  function restoreShipFromLocalReturn() {
+    const snapshot = pendingLocalReturn?.mission?.originShipSnapshot;
+    const saved = snapshot?.ship;
+    if (!saved?.position || !saved?.quaternion || !ship.position || !ship.quaternion) return false;
+    const setVector = (target, value) => {
+      if (!target || !value) return;
+      target.set(Number(value.x) || 0, Number(value.y) || 0, Number(value.z) || 0);
+    };
+    setVector(ship.position, saved.position);
+    ship.quaternion.set(
+      Number(saved.quaternion.x) || 0,
+      Number(saved.quaternion.y) || 0,
+      Number(saved.quaternion.z) || 0,
+      Number.isFinite(Number(saved.quaternion.w)) ? Number(saved.quaternion.w) : 1
+    );
+    setVector(ship.velocity, saved.velocity);
+    setVector(ship.angularVelocity, saved.angularVelocity);
+    if (camera) {
+      camera.position.copy(ship.position);
+      camera.quaternion.copy(ship.quaternion);
+    }
+    if (ship.visual) {
+      ship.visual.position.copy(ship.position);
+      ship.visual.quaternion.copy(ship.quaternion);
+    }
+    if (snapshot.speedMode) setSpeedMode(snapshot.speedMode);
+    return true;
+  }
+
+  function resumeLocalSessionAfterReturn() {
+    const snapshot = pendingLocalReturn?.mission?.originShipSnapshot;
+    const savedSelection = pendingLocalReturn?.crewSelection || {};
+    const savedCrew = Array.isArray(savedSelection.players) && savedSelection.players.length
+      ? savedSelection.players
+      : Array.isArray(snapshot?.crew) ? snapshot.crew : [];
+    loadCrewRoster().then(() => {
+      if (Array.isArray(pendingLocalReturn?.hullRepair?.compartments)) {
+        const currentRepair = window.BCMHullRepairState || (window.BCMHullRepairState = {});
+        currentRepair.compartments = JSON.parse(JSON.stringify(pendingLocalReturn.hullRepair.compartments));
+      }
+      if (savedCrew.length) {
+        const restoredRows = savedCrew.map((crew) => normalizeCrewRow(crew));
+        const ids = new Set(restoredRows.map((crew) => crew.id));
+        crewRoster = restoredRows.concat(crewRoster.filter((crew) => !ids.has(crew.id)));
+        playerCapacity = Math.max(2, Number(savedSelection.maxPlayers) || restoredRows.length || 2);
+        if (savedSelection.fleet && typeof savedSelection.fleet === "object") fleetCapacityData = savedSelection.fleet;
+        crewSelection = restoredRows.slice(0, playerCapacity).map((crew) => crew.id);
+      }
+      renderCrewPreflight();
+      crewSlotSelects.forEach((select, index) => {
+        if (crewSelection[index]) select.value = crewSelection[index];
+      });
+      if (pendingLocalReturn.wallet) window.BCMiniCrewWallet = pendingLocalReturn.wallet;
+      if (crewPreflight) crewPreflight.hidden = true;
+      beginFlight();
+      if (running && snapshot?.navigation &&
+          typeof window.BCMDeepSpaceWarpRestoreReturnSnapshot === "function") {
+        window.BCMDeepSpaceWarpRestoreReturnSnapshot(snapshot.navigation);
+      }
+      if (running) {
+        try { sessionStorage.removeItem(LOCAL_RETURN_STORAGE_KEY); } catch (error) {}
+        worldMission.returnShipAvailable = false;
+        worldMission.returnedToSpaceLabyrinth = true;
+        window.BCMMiniSimSession.currentLocation = "space-labyrinth";
+        setStatus("SPACE LABYRINTH · ВОЗВРАТ НА ONICSS · СЕССИЯ ВОССТАНОВЛЕНА");
+      } else {
+        if (crewPreflight) crewPreflight.hidden = false;
+        crewSetStatus("Не удалось автоматически восстановить Crew · выбери экипаж и нажми Играть.");
+      }
+    }).catch((error) => {
+      if (crewPreflight) crewPreflight.hidden = false;
+      crewSetStatus(error?.message || "Не удалось восстановить Crew после возвращения.");
+    });
   }
 
   let towerGateTriggered = false;
@@ -3634,6 +3804,7 @@
         // trigger or when the async Tower script/video merely starts loading.
         transitionLoading = false;
         transitionBusy = true;
+        if (window.BCMMiniSimSession) window.BCMMiniSimSession.currentLocation = "tower";
         // Store the actual arrival pose before freezing it for Tower's handoff.
         captureArrivalShipSnapshot();
         ship.velocity.set(0, 0, 0);
@@ -5679,9 +5850,13 @@
       bind();
       resize();
       setSpeedMode(1);
-      setStatus("ENGINE READY · LOCAL r128 · " + (config.version || "0.9.49") + " · SPEED 1");
+      const restored = restoreShipFromLocalReturn();
+      setStatus(restored
+        ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.12.1") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
+      if (restored) resumeLocalSessionAfterReturn();
     } catch (err) {
       setStatus("ERROR: " + (err && err.message ? err.message : "start"));
     }

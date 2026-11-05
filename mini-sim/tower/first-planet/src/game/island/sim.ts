@@ -12,6 +12,7 @@ import {
   RING,
   SKY_NOTE,
   SPAWN,
+  TOWER_GATE,
   footY,
   houseAabbs,
   hoverFloor,
@@ -52,9 +53,10 @@ export type IslandHud = {
   z: number;
   yaw: number;
   depart: boolean;
+  towerEnter: boolean;
 };
 
-function loadSave(): Save {
+function loadSave(storageKey = SAVE_KEY): Save {
   const blank: Save = {
     v: 1,
     crystals: [false, false, false],
@@ -65,7 +67,7 @@ function loadSave(): Save {
     chest: false,
   };
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return blank;
     const parsed = JSON.parse(raw) as Save;
     if (parsed.v !== 1 || parsed.crystals?.length !== 3) return blank;
@@ -161,9 +163,12 @@ function lines(id: QuestId, status: Quest, ready: boolean) {
 
 export type Sim = ReturnType<typeof createSim>;
 
-export function createSim() {
-  const save = loadSave();
+export function createSim(seed = 0) {
+  const locationSeed = Number(seed) >>> 0;
+  const storageKey = locationSeed ? SAVE_KEY + "-" + locationSeed.toString(16) : SAVE_KEY;
+  const save = loadSave(storageKey);
   const sim = {
+    seed: locationSeed,
     x: SPAWN.x,
     y: footY(SPAWN.x, SPAWN.z, 0),
     z: SPAWN.z,
@@ -186,6 +191,7 @@ export function createSim() {
     dialogue: null as Dialogue | null,
     prompt: "",
     depart: false,
+    towerEnter: false,
     walls: [] as Aabb[],
     usePrev: false,
     respawnPrev: false,
@@ -210,7 +216,7 @@ export function createSim() {
         chest: this.chest,
       };
       try {
-        localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+        localStorage.setItem(storageKey, JSON.stringify(data));
       } catch {
         /* private mode */
       }
@@ -327,6 +333,10 @@ export function createSim() {
         ]);
         return;
       }
+      if (hit(TOWER_GATE.x, TOWER_GATE.z, TOWER_GATE.radius)) {
+        this.towerEnter = true;
+        return;
+      }
       if (hit(RING.x, RING.z, 3.4)) {
         this.depart = true;
         return;
@@ -361,6 +371,7 @@ export function createSim() {
       }
     },
     respawn() {
+      this.towerEnter = false;
       this.mode = "foot";
       this.x = SPAWN.x;
       this.z = SPAWN.z;
@@ -393,6 +404,7 @@ export function createSim() {
       else if (hit(JOURNAL.x, JOURNAL.z, 1.8)) this.prompt = "E — журнал";
       else if (hit(LETTER.x, LETTER.z, 1.7)) this.prompt = "E — записка";
       else if (hit(SKY_NOTE.x, SKY_NOTE.z, 3) && this.y > 10) this.prompt = "E — плита трассы";
+      else if (hit(TOWER_GATE.x, TOWER_GATE.z, TOWER_GATE.radius)) this.prompt = "E — войти в Tower · тот же seed команды";
       else if (hit(RING.x, RING.z, 3.4)) this.prompt = "E — берег цитадели, гонка";
       else if (this.mode === "foot" && hit(this.bikeX, this.bikeZ, 3.8)) this.prompt = "E — сесть на байк";
       else if (this.mode === "bike") this.prompt = "E — спешиться";
@@ -544,6 +556,7 @@ export function createSim() {
         z: this.z,
         yaw: this.yaw,
         depart: this.depart,
+        towerEnter: this.towerEnter,
       };
     },
   };

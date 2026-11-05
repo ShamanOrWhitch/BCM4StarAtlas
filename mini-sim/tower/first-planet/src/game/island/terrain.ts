@@ -150,6 +150,8 @@ export const CHEST = { x: 0.2, z: 4.6 };
 export const JOURNAL = { x: -14.4, z: -1.2 };
 export const LETTER = { x: 11.1, z: 15 };
 export const RING = { x: 0.2, z: -42 };
+// ONICSS/Tower portal on the shared arrival pad.
+export const TOWER_GATE = { x: 0.4, z: 32.6, radius: 3.3 };
 export const SKY_NOTE = { x: SKY.x, z: SKY.z };
 
 export const NPC = {

@@ -374,15 +374,83 @@
       publishAsteroidChart(maze);
     });
 
+    const compactSector = (sector) => sector ? {
+      id: String(sector.id || ""),
+      name: String(sector.name || ""),
+      x: sector.x != null && Number.isFinite(Number(sector.x)) ? Number(sector.x) : null,
+      y: sector.y != null && Number.isFinite(Number(sector.y)) ? Number(sector.y) : null
+    } : null;
+
     window.BCMDeepSpaceWarpGetReturnSnapshot = () => ({
       mode: state.mode,
       currentSectorId: state.nav?.current?.id ?? null,
       targetSectorId: state.target?.id ?? null,
+      current: compactSector(state.nav?.current),
+      targets: (state.nav?.targets || []).map(compactSector).filter(Boolean),
+      live: !!state.nav?.live,
+      localPreview: !!state.nav?.localPreview,
+      label: String(state.nav?.label || ""),
       sectorProgressed: !!state.sectorProgressed,
       launchSectorProgressed: !!state.launchSectorProgressed,
       ringCompleted: !!state.maze?.ringCompleted,
       hydrogenCollected: !!window.BCMWorldMission?.hydrogenCollected
     });
+
+    // Rebind the saved local expedition location after Space Labyrinth is rebuilt.
+    // Saved preview coordinates remain preview data; they are never promoted to live SAGE data.
+    window.BCMDeepSpaceWarpRestoreReturnSnapshot = (snapshot) => {
+      if (!snapshot || typeof snapshot !== "object") return false;
+      const savedCurrent = snapshot.current && typeof snapshot.current === "object"
+        ? snapshot.current
+        : null;
+      const savedId = String(snapshot.currentSectorId || savedCurrent?.id || "");
+      if (!savedId) return false;
+
+      const currentNavigation = readNavigation();
+      const adapter = snapshot.live && currentNavigation && currentNavigation.adapter
+        ? currentNavigation.adapter
+        : null;
+      const compact = (row) => {
+        if (!row || typeof row !== "object" || !row.id) return null;
+        if (adapter && Array.isArray(adapter.sectors)) {
+          const match = adapter.sectors.find((item, index) => {
+            const normalized = normalizeSector(item, index);
+            return normalized && normalized.id === String(row.id);
+          });
+          if (match) return normalizeSector(match, 0);
+        }
+        return {
+          id: String(row.id),
+          name: String(row.name || row.id),
+          x: row.x != null && Number.isFinite(Number(row.x)) ? Number(row.x) : null,
+          y: row.y != null && Number.isFinite(Number(row.y)) ? Number(row.y) : null,
+          raw: null
+        };
+      };
+
+      const current = compact(savedCurrent || { id: savedId });
+      if (!current) return false;
+      const targets = (Array.isArray(snapshot.targets) ? snapshot.targets : [])
+        .map(compact)
+        .filter((row) => row && row.id !== current.id);
+      state.nav = {
+        current,
+        targets,
+        live: !!snapshot.live && !!adapter && !!current.raw,
+        localPreview: !!snapshot.localPreview || !snapshot.live,
+        adapter: adapter || null,
+        label: String(snapshot.label || (snapshot.localPreview
+          ? "LOCAL TEST · RESTORED EXPEDITION"
+          : "SAVED EXPEDITION")),
+        coordsKnown: current.x != null && current.y != null
+      };
+      state.target = null;
+      state.sectorProgressed = !!snapshot.sectorProgressed;
+      state.launchSectorProgressed = !!snapshot.launchSectorProgressed;
+      state.mode = "closed";
+      state.place = null;
+      return true;
+    };
 
     // Small public bridge for the later NFT/Galaxy selection integration.
     // It only changes decorative rendering; route, collision, speed and controls stay untouched.
@@ -1654,10 +1722,28 @@
       state.tubeBoostUntil = 0;
       state.statusText = "";
       state.touch.left = state.touch.right = state.touch.up = state.touch.down = false;
-      // Repeated trips through the same sector pair should still create a fresh
-      // obstacle run rather than showing the exact same 22-piece sequence.
-      const runNonce = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
-      const rng = randomFrom(hashSeed(state.nav.current.id + ">" + state.target.id + ":" + state.target.x + ":" + state.target.y + ":" + runNonce));
+      // Each Tube run gets its own seed derived from this local session's Warp
+      // stream and a per-session run counter. A future server can authoritatively
+      // supply the same counter/seed to every client in one party.
+      const localSession = window.BCMMiniSimSession || null;
+      const locationSeeds = localSession && localSession.locationSeeds
+        ? localSession.locationSeeds
+        : {};
+      const runCounters = localSession
+        ? (localSession.runCounters || (localSession.runCounters = {}))
+        : {};
+      const warpRun = Number(runCounters.warp || 0) + 1;
+      runCounters.warp = warpRun;
+      const warpBaseSeed = Number.isSafeInteger(Number(locationSeeds.warp))
+        ? Number(locationSeeds.warp) >>> 0
+        : hashSeed(String(state.nav.current.id) + "|warp");
+      const warpRunSeed = hashSeed(warpBaseSeed + "|" + warpRun + "|" +
+        state.nav.current.id + ">" + state.target.id + ":" + state.target.x + ":" + state.target.y);
+      if (localSession) {
+        localSession.activeSeeds = localSession.activeSeeds || {};
+        localSession.activeSeeds.warp = warpRunSeed;
+      }
+      const rng = randomFrom(warpRunSeed);
       state.layers = [];
       const courseLayerCount = 22;
       let previousSafeAngle = null;
@@ -1887,8 +1973,24 @@
       const NX = 7, NY = 3, NZ = 7, CELL = 6.8, WALL = 0.46;
       // Keep the test maze off-axis and away from the old negative-Z texture-preload trigger.
       const center = new THREE.Vector3(230, 0, 150);
-      const runNonce = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
-      const seed = hashSeed(state.nav.current.id + "->" + state.target.id + ":" + state.target.x + ":" + state.target.y + ":" + runNonce);
+      const localSession = window.BCMMiniSimSession || null;
+      const locationSeeds = localSession && localSession.locationSeeds
+        ? localSession.locationSeeds
+        : {};
+      const runCounters = localSession
+        ? (localSession.runCounters || (localSession.runCounters = {}))
+        : {};
+      const asteroidRun = Number(runCounters.asteroid || 0) + 1;
+      runCounters.asteroid = asteroidRun;
+      const asteroidBaseSeed = Number.isSafeInteger(Number(locationSeeds.asteroid))
+        ? Number(locationSeeds.asteroid) >>> 0
+        : hashSeed(String(state.nav.current.id) + "|asteroid");
+      const seed = hashSeed(asteroidBaseSeed + "|" + asteroidRun + "|" +
+        state.nav.current.id + "->" + state.target.id + ":" + state.target.x + ":" + state.target.y);
+      if (localSession) {
+        localSession.activeSeeds = localSession.activeSeeds || {};
+        localSession.activeSeeds.asteroid = seed;
+      }
       const rng = randomFrom(seed);
       const cells = [];
       function idx(x, y, z) { return (z * NY + y) * NX + x; }
@@ -2244,7 +2346,7 @@
         }
       };
       if (window.BCMWorldMission) {
-        if (!window.BCMWorldMission.asteroidSeed) window.BCMWorldMission.asteroidSeed = seed;
+        window.BCMWorldMission.asteroidSeed = seed;
       }
       state.savedSpeedMode = engine.getSpeedMode ? engine.getSpeedMode() : 1;
       if (engine.setSpeedMode) engine.setSpeedMode(2);
