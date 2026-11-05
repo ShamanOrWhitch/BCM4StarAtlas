@@ -31,6 +31,13 @@ test("one persistent local session derives independent deterministic location se
   assert.match(seed, /export function deriveLocationSeed\(sessionSeed: number, locationId: string\)/);
   assert.match(seed, /export function createSeededRandom\(seed: number, salt = ""\)/);
   assert.match(seed, /export function seededShuffle/);
+  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  assert.match(warp, /const warpRun = Number\(runCounters\.warp \|\| 0\) \+ 1/);
+  assert.match(warp, /const warpBaseSeed = Number\.isSafeInteger\(Number\(locationSeeds\.warp\)\)/);
+  assert.match(warp, /localSession\.activeSeeds\.warp = warpRunSeed/);
+  assert.match(warp, /const asteroidRun = Number\(runCounters\.asteroid \|\| 0\) \+ 1/);
+  assert.match(warp, /const asteroidBaseSeed = Number\.isSafeInteger\(Number\(locationSeeds\.asteroid\)\)/);
+  assert.match(warp, /localSession\.activeSeeds\.asteroid = seed/);
 });
 
 test("Tower returns through the original same-seed layout from bottom to top", async () => {
@@ -44,6 +51,9 @@ test("Tower returns through the original same-seed layout from bottom to top", a
   assert.match(tower, /const reachedExit = ascentMode \? p\.y > topY \+ 4\.2 : p\.y < bottomY - 4\.2/);
   assert.match(tower, /ВОСХОЖДЕНИЕ · ТОТ ЖЕ SEED/);
   assert.match(tower, /window\.BCMWorldMission\.towerSeed = seed/);
+  assert.match(tower, /window\.BCMMiniSimSession\.locationSeeds\.tower = seed/);
+  assert.match(tower, /const sessionTowerSeed = Number\(window\.BCMWorldMission\?\.towerSeed \?\?/);
+  assert.match(tower, /buildTower\(initialTowerSeed\)/);
   assert.match(tower, /function startNewTower\(\) \{\s*if \(!gameStarted\) return;\s*ascentMode = false/);
 });
 
