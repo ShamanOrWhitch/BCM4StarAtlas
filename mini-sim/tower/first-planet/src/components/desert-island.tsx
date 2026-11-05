@@ -24,6 +24,7 @@ const EMPTY: IslandHud = {
 
 export function DesertIsland({
   context,
+  live = true,
   onRace,
   onTowerEnter,
   onStartAudio,
@@ -31,6 +32,7 @@ export function DesertIsland({
   onLoadError,
 }: {
   context: { planetSeed?: number; sessionSeed?: number };
+  live?: boolean;
   onRace: () => void;
   onTowerEnter: () => void;
   onStartAudio: () => void;
@@ -48,6 +50,8 @@ export function DesertIsland({
   const [error, setError] = useState("");
   const left = useRef(false);
   const towerEntered = useRef(false);
+  const liveRef = useRef(live);
+  liveRef.current = live;
 
   const onRaceRef = useRef(onRace);
   onRaceRef.current = onRace;
@@ -95,8 +99,13 @@ export function DesertIsland({
 
     let frame = 0;
     let lastHud = 0;
+    let warmup = 0;
     const loop = (now: number) => {
       frame = requestAnimationFrame(loop);
+      // While Tower is still being played the planet stays mounted but does not
+      // render every frame. Two warmup frames upload shaders during the descent.
+      if (!liveRef.current && warmup >= 2) return;
+      if (!liveRef.current) warmup += 1;
       world.frame(now, phaseRef.current);
       if (now - lastHud > 90) {
         lastHud = now;

@@ -1,6 +1,6 @@
-## Active — WORK LOCK #97: Mini-Sim 0.12.0 local transition loop (5 November 2026)
+## Active — WORK LOCK #97: Mini-Sim 0.12.1 local transition loop (5 November 2026)
 
-- **Branch:** `feat/minisim-0.12.0-local-transitions-20261105`. **Draft PR:** [#98](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/98). **Base:** `main` at `ff2df27cdec3018f220de12f0661e2060bdd524b`. **Latest tested candidate:** `b6aa3875a2625c19c6e4457dad7df45dbacd445b`.
+- **Branch:** `feat/minisim-0.12.1-planet-bundle`. **Base:** `main` plus the 0.12.0 local-transition branch. Supersedes draft [#98](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/98).
 - Local Single and local split-screen Multi only. Do not enable remote networking here; keep Issue #48 open for later whole-Mini-Sim remote-session work.
 - Scope: stable local session + per-location seeds; existing ONICSS → Tower descent; First Planet WordPress bundle and visible portal; same-seed Tower ascent; reverse ONICSS clip; restore Space Labyrinth ship, Crew, mission, repair and Warp navigation state; optional `FP.mp3`; focused regression/build/standalone QA.
 - Preserve existing Starbase/Labyrinth physics, Tower route generator/physics, current split-screen semantics, and user-confirmed earlier paths. New asset variation must use independent salted seed streams. Do not mix future asset-library ingestion with this code lock.

@@ -1,8 +1,8 @@
-## Active — Mini-Sim 0.12.0 local transition loop (5 November 2026)
+## Active — Mini-Sim 0.12.1 local transition loop (5 November 2026)
 
-- **WORK LOCK:** [#97](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/97). **Draft PR:** [#98](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/98). Branch: `feat/minisim-0.12.0-local-transitions-20261105`. Base: `main` at `ff2df27cdec3018f220de12f0661e2060bdd524b`. Latest audit head at this note: `b6aa3875a2625c19c6e4457dad7df45dbacd445b`.
-- Product scope is **local one-browser play only** for 0.12.0. Preserve offline Single and current local split-screen Multi. No remote sockets, matchmaking, auth or online session service in this version. Issue #48 remains the later whole-Mini-Sim network architecture.
-- Mini-Sim PHP/JS version: `0.12.0`; Tower PHP/JS version: `0.2.69`.
+- **WORK LOCK:** [#97](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/97). Branch: `feat/minisim-0.12.1-planet-bundle`, merged toward `main`. The 0.12.0 draft was [#98](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/98).
+- Product scope is **local one-browser play only** for 0.12.1. Preserve offline Single and current local split-screen Multi. No remote sockets, matchmaking, auth or online session service in this version. Issue #48 remains the later whole-Mini-Sim network architecture.
+- Mini-Sim PHP/JS version: `0.12.1`; Tower PHP/JS version: `0.2.70`.
 - Adds `window.BCMMiniSimSession` as a local session context with a stable session seed and separate deterministic seeds for Space Labyrinth, Warp, asteroid, Ring, Tower, First Planet and Shoal Race. First Planet's island save and Shoal Race pickup placements consume their location seed; the existing track topology and Tower generator/physics remain unchanged.
 - Tower entry keeps its existing ONICSS forward landing handoff. The arrival snapshot carries ship position/quaternion/velocity, Crew roster, Tower seed/mode, Warp navigation context, session and mission state. The internal Hull Repair compartment snapshot is preserved.
 - After completing First Planet, a visible Tower portal is available on the landing area and uses the local E interaction. The planet unmounts before Tower is brought back to avoid keeping two WebGL worlds active. Tower rebuilds the exact saved seed from its bottom, in the opposite traversal direction. Reaching the upper exit uses the existing ONICSS clip in reverse (native reverse playback with frame-seek fallback), then returns to the original Space Labyrinth page/session.

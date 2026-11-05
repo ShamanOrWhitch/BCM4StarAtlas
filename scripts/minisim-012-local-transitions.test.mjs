@@ -5,16 +5,16 @@ import { readFile } from "node:fs/promises";
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 
-test("Mini-Sim 0.12.0 and Tower 0.2.69 versions stay synchronized", async () => {
+test("Mini-Sim 0.12.1 and Tower 0.2.70 versions stay synchronized", async () => {
   const miniPhp = await read("mini-sim/bcm-mini-sim.php");
   const miniJs = await read("mini-sim/assets/js/mini-sim.js");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   const towerJs = await read("mini-sim/tower/assets/js/tower.js");
-  assert.match(miniPhp, /Version: 0\.12\.0/);
-  assert.match(miniPhp, /BCM_MINI_SIM_VERSION\', \'0\.12\.0\'/);
-  assert.match(miniJs, /SPACE LABYRINTH — 0\.12\.0/);
-  assert.match(towerPhp, /BCM_TOWER_VERSION\', \'0\.2\.69\'/);
-  assert.match(towerJs, /const TOWER_VERSION = "0\.2\.69"/);
+  assert.match(miniPhp, /Version: 0\.12\.1/);
+  assert.match(miniPhp, /BCM_MINI_SIM_VERSION\', \'0\.12\.1\'/);
+  assert.match(miniJs, /SPACE LABYRINTH — 0\.12\.1/);
+  assert.match(towerPhp, /BCM_TOWER_VERSION\', \'0\.2\.70\'/);
+  assert.match(towerJs, /const TOWER_VERSION = "0\.2\.70"/);
 });
 
 test("one persistent local session derives independent deterministic location seeds", async () => {
@@ -154,11 +154,29 @@ test("return snapshot preserves Crew, ship pose, mission, local seeds and intern
   assert.match(loader, /window\.BCMPrepareMiniSimReturn\(\)/);
 });
 
-test("0.12.0 package workflow builds and includes the First Planet WordPress bundle", async () => {
+test("0.12.1 package workflow builds and includes the First Planet WordPress bundle", async () => {
   const workflow = await read(".github/workflows/minisim-test-package.yml");
   assert.match(workflow, /pull_request:/);
   assert.match(workflow, /npm ci/);
   assert.match(workflow, /npm run build:wordpress/);
   assert.match(workflow, /first-planet\/wp-dist\/first-planet\.js/);
   assert.match(workflow, /first-planet\/wp-dist\/first-planet\.css/);
+  assert.match(workflow, /Require the committed First Planet bundle/);
+});
+
+test("Tower preloads First Planet during the descent and the bundle exports mount", async () => {
+  const tower = await read("mini-sim/tower/assets/js/tower.js");
+  const loader = await read("mini-sim/tower/first-planet/loader.js");
+  const embed = await read("mini-sim/tower/first-planet/src/first-planet-embed.tsx");
+  const vite = await read("mini-sim/tower/first-planet/vite.wordpress.config.ts");
+  const start = tower.slice(tower.indexOf("function startMode(nextMode)"), tower.indexOf("function showMenu()"));
+  assert.match(tower, /function queuePlanetPreload\(\)/);
+  assert.match(start, /queuePlanetPreload\(\)/);
+  assert.match(tower, /bcm:tower:planet-preload/);
+  assert.match(loader, /context\.preload === true/);
+  assert.match(loader, /BCMFirstPlanet\.setLive\(mount, true\)/);
+  assert.match(embed, /export default api/);
+  assert.match(embed, /setLive\(target: HTMLElement, live: boolean\)/);
+  assert.match(vite, /external: \[\]/);
+  assert.match(vite, /exports: "default"/);
 });

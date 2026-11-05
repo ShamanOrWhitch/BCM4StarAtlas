@@ -22,5 +22,14 @@ export default defineConfig({
       fileName: () => "first-planet.js",
       cssFileName: "first-planet",
     },
+    rollupOptions: {
+      // WordPress has no React/Three globals. Ship one self-contained file,
+      // and make the IIFE global the default export (so .mount is real).
+      external: [],
+      output: {
+        exports: "default",
+        inlineDynamicImports: true,
+      },
+    },
   },
 });

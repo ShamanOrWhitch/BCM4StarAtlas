@@ -1,9 +1,9 @@
-## D-046 — Mini-Sim 0.12.0 local whole-journey session (5 November 2026)
+## D-046 — Mini-Sim 0.12.1 local whole-journey session (5 November 2026)
 
-**Status:** in progress on branch `feat/minisim-0.12.0-local-transitions-20261105`, WORK LOCK [#97](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/97), draft PR [#98](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/98). This is a local-only release candidate, not a deployed build.
+**Status:** 0.12.1 on branch `feat/minisim-0.12.1-planet-bundle`, WORK LOCK [#97](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/97). Local Single and split-screen Multi only. The WordPress plugin now contains `first-planet/wp-dist` so the planet image is part of the install, and Tower preloads that image during the descent.
 
 - User's guiding principle: Mini-Sim is a continuous journey of different games; transitions between activities are first-class gameplay, not independent event-locked games. A common local session must survive transitions through multiple locations.
-- Preserve local offline Single and split-screen Multi. 0.12.0 does not add or enable remote network play. Keep the future network architecture in Issue #48; later it can provide authoritative session/seed values to the same location contracts.
+- Preserve local offline Single and split-screen Multi. 0.12.1 does not add or enable remote network play. Keep the future network architecture in Issue #48; later it can provide authoritative session/seed values to the same location contracts.
 - Use one local session seed and stable derived location seeds for Space Labyrinth, Warp, asteroid, Ring, Tower, First Planet and Shoal Race. Asset families added later should use salted PRNG streams so new decoration never reshuffles route topology, pickups or physics.
 - Preserve arrival ship pose, selected Crew, Tower seed/mode, mission, local session, internal Hull Repair compartments and Warp sector context. Rebuild the original Space Labyrinth after the reverse Tower exit rather than relying on a new browser-random seed.
 - The ONICSS forward clip remains the Tower → First Planet handoff. Planet Tower entry is an E interaction at a visible in-world portal. First Planet is unmounted before Tower ascent to release the planetary WebGL resources. The same Tower seed and route are rebuilt from the bottom; upward completion plays the same ONICSS video from end to beginning, then returns to the original Space Labyrinth session.

@@ -14,6 +14,7 @@ type PlanetContext = {
   players?: Array<{ id?: string; name?: string; image?: string; species?: string }>;
   audioUrl?: string;
   raceAudioUrl?: string;
+  live?: boolean;
 };
 
 declare global {
@@ -26,25 +27,34 @@ declare global {
     BCMFirstPlanet?: {
       mount: (target: HTMLElement, context?: PlanetContext) => Promise<void>;
       unmount: (target: HTMLElement) => void;
+      setLive?: (target: HTMLElement, live: boolean) => void;
     };
   }
 }
 
 const roots = new WeakMap<HTMLElement, Root>();
 const readiness = new WeakMap<HTMLElement, Promise<void>>();
+const liveSetters = new WeakMap<HTMLElement, (live: boolean) => void>();
 
 function FirstPlanetApp({
   context,
+  registerLive,
   onReady,
   onLoadError,
 }: {
   context: PlanetContext;
+  registerLive: (setter: (live: boolean) => void) => void;
   onReady: () => void;
   onLoadError: (error: unknown) => void;
 }) {
   const [mode, setMode] = useState<"island" | "race">("island");
+  const [live, setLive] = useState(context.live !== false);
   const planetMusicRef = useRef<HTMLAudioElement | null>(null);
   const raceMusicRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    registerLive(setLive);
+  }, [registerLive]);
 
   useEffect(() => {
     const makeAudio = (url: string | undefined) => {
@@ -116,6 +126,7 @@ function FirstPlanetApp({
     ? <ShoalRace seed={Number(context.raceSeed) >>> 0} onLeave={leaveRace} onStartAudio={startRaceMusic} />
     : <DesertIsland
         context={context}
+        live={live}
         onRace={() => {
           planetMusicRef.current?.pause();
           setMode("race");
@@ -127,7 +138,7 @@ function FirstPlanetApp({
       />;
 }
 
-window.BCMFirstPlanet = {
+const api = {
   mount(target: HTMLElement, context: PlanetContext = {}) {
     let ready = readiness.get(target);
     if (ready) return ready;
@@ -142,11 +153,16 @@ window.BCMFirstPlanet = {
       ...context,
       audioUrl: String(context.audioUrl || ""),
       raceAudioUrl: String(context.raceAudioUrl || ""),
+      live: context.live !== false,
+    };
+    const registerLive = (setter: (live: boolean) => void) => {
+      liveSetters.set(target, setter);
     };
     ready = new Promise<void>((resolve, reject) => {
       root!.render(
         <FirstPlanetApp
           context={safeContext}
+          registerLive={registerLive}
           onReady={resolve}
           onLoadError={reject}
         />,
@@ -161,5 +177,12 @@ window.BCMFirstPlanet = {
     root.unmount();
     roots.delete(target);
     readiness.delete(target);
+    liveSetters.delete(target);
+  },
+  setLive(target: HTMLElement, live: boolean) {
+    liveSetters.get(target)?.(live);
   },
 };
+
+window.BCMFirstPlanet = api;
+export default api;

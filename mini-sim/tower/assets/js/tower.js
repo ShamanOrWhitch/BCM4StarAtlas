@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.69";
+  const TOWER_VERSION = "0.2.70";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -1004,6 +1004,7 @@
     let gameStarted = false;
     let transitionStarted = false;
     let planetHandoffStarted = false;
+    let planetPreloadQueued = false;
     let ascentMode = false;
     let frameHandle = 0;
     let towerAudio = null;
@@ -2713,6 +2714,42 @@
       transitionVideo.load();
     }
 
+    function currentPlanetDetail(preload) {
+      const activePlayers = players.slice(0, mode === "multi" ? 2 : 1);
+      const sessionSeed = Number(window.BCMWorldMission?.sessionSeed) >>> 0;
+      return {
+        mode: mode || "single",
+        seed: tower ? tower.seed : null,
+        sessionSeed,
+        planetSeed: Number(window.BCMMiniSimSession?.locationSeeds?.firstPlanet) >>> 0,
+        raceSeed: Number(window.BCMMiniSimSession?.locationSeeds?.shoalRace) >>> 0,
+        sessionId: String(window.BCMMiniSimSession?.sessionId || ("local-" + sessionSeed.toString(16))),
+        crew: Array.isArray(window.BCMMiniCrewSelection?.players) ? window.BCMMiniCrewSelection.players : [],
+        players: activePlayers.map((player, index) => ({
+          player: index + 1,
+          finished: !!player.finished,
+          collected: Number(player.collected || 0)
+        })),
+        preload: !!preload
+      };
+    }
+
+    function queuePlanetPreload() {
+      if (planetPreloadQueued || ascentMode) return;
+      planetPreloadQueued = true;
+      // Tower stays responsive. The planet bundle and meshes start a moment
+      // after the descent begins, so the landing does not wait on a cold load.
+      window.setTimeout(() => {
+        if (!gameStarted || ascentMode || planetHandoffStarted) {
+          planetPreloadQueued = false;
+          return;
+        }
+        root.dispatchEvent(new CustomEvent("bcm:tower:planet-preload", {
+          detail: currentPlanetDetail(true)
+        }));
+      }, 700);
+    }
+
     function beginFirstPlanetHandoff() {
       if (ascentMode) {
         beginReverseSpaceLabyrinthReturn();
@@ -2727,21 +2764,7 @@
       if (transitionClose) transitionClose.hidden = true;
       stopTowerAudio();
 
-      const sessionSeed = Number(window.BCMWorldMission?.sessionSeed) >>> 0;
-      const detail = {
-        mode: mode || "single",
-        seed: tower ? tower.seed : null,
-        sessionSeed,
-        planetSeed: Number(window.BCMMiniSimSession?.locationSeeds?.firstPlanet) >>> 0,
-        raceSeed: Number(window.BCMMiniSimSession?.locationSeeds?.shoalRace) >>> 0,
-        sessionId: String(window.BCMMiniSimSession?.sessionId || ("local-" + sessionSeed.toString(16))),
-        crew: Array.isArray(window.BCMMiniCrewSelection?.players) ? window.BCMMiniCrewSelection.players : [],
-        players: activePlayers.map((player, index) => ({
-          player: index + 1,
-          finished: !!player.finished,
-          collected: Number(player.collected || 0)
-        }))
-      };
+      const detail = currentPlanetDetail(false);
 
       root.dispatchEvent(new CustomEvent("bcm:tower:planet-preload", { detail }));
 
@@ -3010,6 +3033,7 @@
         mobile?.classList.remove("is-multi");
         status.textContent = "ПОРА СПУСТИТЬСЯ ВНИЗ";
       }
+      queuePlanetPreload();
     }
 
     function showMenu() {

@@ -38,6 +38,14 @@ jobs:
           echo "tower_version=$TOWER_VERSION" >> "$GITHUB_OUTPUT"
           echo "Building Mini-Sim $VERSION with Tower $TOWER_VERSION"
 
+      - name: Require the committed First Planet bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s mini-sim/tower/first-planet/wp-dist/first-planet.js
+          test -s mini-sim/tower/first-planet/wp-dist/first-planet.css
+          grep -q "mount" mini-sim/tower/first-planet/wp-dist/first-planet.js
+
       - name: Install First Planet build dependencies
         run: npm ci
         working-directory: mini-sim/tower/first-planet

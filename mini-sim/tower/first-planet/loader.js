@@ -27,9 +27,18 @@
       script.src = config.bundleUrl;
       script.async = true;
       script.onload = () => {
-        const api = window.BCMFirstPlanet;
-        if (api && typeof api.mount === "function") resolve(api);
-        else reject(new Error("Сборка не создала BCMFirstPlanet.mount"));
+        const raw = window.BCMFirstPlanet;
+        const api = raw && typeof raw.mount === "function"
+          ? raw
+          : raw && raw.default && typeof raw.default.mount === "function"
+            ? raw.default
+            : null;
+        if (api) {
+          window.BCMFirstPlanet = api;
+          resolve(api);
+        } else {
+          reject(new Error("Сборка не создала BCMFirstPlanet.mount"));
+        }
       };
       script.onerror = () => reject(new Error("Не найдена wp-dist/first-planet.js"));
       document.head.appendChild(script);
@@ -52,23 +61,26 @@
     function prepare(context) {
       if (context && typeof context === "object") planetContext = context;
       if (preparePromise) return preparePromise;
+      const live = !(context && context.preload === true);
       host.hidden = false;
       host.classList.add("is-preloading");
-      status.hidden = false;
-      status.textContent = "Загрузка First Planet…";
+      status.hidden = true;
       preparePromise = loadBundle().then(async (api) => {
         if (!mounted) {
           try {
-            await api.mount(mount, Object.assign({}, planetContext || {}, { audioUrl: config.audioUrl || "", raceAudioUrl: config.raceAudioUrl || "" }));
+            await api.mount(mount, Object.assign({}, planetContext || {}, { audioUrl: config.audioUrl || "", raceAudioUrl: config.raceAudioUrl || "", live: live }));
             mounted = true;
           } catch (error) {
-            api.unmount(mount);
+            try { api.unmount(mount); } catch (ignore) { /* already torn down */ }
             throw error;
           }
         }
+        if (live && typeof api.setLive === "function") api.setLive(mount, true);
         status.hidden = true;
         return true;
       }).catch((error) => {
+        preparePromise = null;
+        mounted = false;
         status.hidden = false;
         status.textContent = "First Planet не собрана: " + (error && error.message ? error.message : "ошибка загрузки");
         return false;
@@ -90,6 +102,9 @@
         const restart = root.querySelector(".bcm-tower-restart");
         if (restart) restart.hidden = false;
         return;
+      }
+      if (window.BCMFirstPlanet && typeof window.BCMFirstPlanet.setLive === "function") {
+        window.BCMFirstPlanet.setLive(mount, true);
       }
       root.hidden = true;
       host.classList.remove("is-preloading");
