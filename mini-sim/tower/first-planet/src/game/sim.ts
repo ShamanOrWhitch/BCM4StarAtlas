@@ -153,6 +153,7 @@ function rollItem(nudge: number): ItemKind {
 }
 
 export type Race = {
+  seed: number;
   track: Track;
   cars: Car[];
   boxes: Box[];
@@ -382,9 +383,11 @@ const ROSTER = [
   { name: "Halo", you: false, color: 0xd7d2c8, offset: 0.4 },
 ];
 
-export function createRace(): Race {
-  const track = buildTrack();
+export function createRace(seed = 0): Race {
+  const locationSeed = Number(seed) >>> 0;
+  const track = buildTrack(locationSeed);
   const race: Race = {
+    seed: locationSeed,
     track,
     cars: ROSTER.map((spec, i) => makeCar(track, i, spec)),
     boxes: layoutBoxes(track),
