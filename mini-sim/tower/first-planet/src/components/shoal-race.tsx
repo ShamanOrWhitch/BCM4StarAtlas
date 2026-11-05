@@ -35,7 +35,7 @@ const EMPTY: Hud = {
   go: 0,
 };
 
-export function ShoalRace({ onLeave }: { onLeave?: () => void } = {}) {
+export function ShoalRace({ onLeave, onStartAudio, seed = 0 }: { onLeave?: () => void; onStartAudio?: () => void; seed?: number } = {}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mapRef = useRef<HTMLCanvasElement>(null);
   const phaseRef = useRef<Phase>("gate");
@@ -54,7 +54,7 @@ export function ShoalRace({ onLeave }: { onLeave?: () => void } = {}) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const race = createRace();
+    const race = createRace(Number(seed) >>> 0);
     raceRef.current = race;
     const world = createWorld(canvas);
     const unbind = bindKeyboard(window);
@@ -170,6 +170,7 @@ export function ShoalRace({ onLeave }: { onLeave?: () => void } = {}) {
   }
 
   function start() {
+    onStartAudio?.();
     const race = raceRef.current;
     if (!race) return;
     race.reset();
