@@ -374,15 +374,83 @@
       publishAsteroidChart(maze);
     });
 
+    const compactSector = (sector) => sector ? {
+      id: String(sector.id || ""),
+      name: String(sector.name || ""),
+      x: Number.isFinite(Number(sector.x)) ? Number(sector.x) : null,
+      y: Number.isFinite(Number(sector.y)) ? Number(sector.y) : null
+    } : null;
+
     window.BCMDeepSpaceWarpGetReturnSnapshot = () => ({
       mode: state.mode,
       currentSectorId: state.nav?.current?.id ?? null,
       targetSectorId: state.target?.id ?? null,
+      current: compactSector(state.nav?.current),
+      targets: (state.nav?.targets || []).map(compactSector).filter(Boolean),
+      live: !!state.nav?.live,
+      localPreview: !!state.nav?.localPreview,
+      label: String(state.nav?.label || ""),
       sectorProgressed: !!state.sectorProgressed,
       launchSectorProgressed: !!state.launchSectorProgressed,
       ringCompleted: !!state.maze?.ringCompleted,
       hydrogenCollected: !!window.BCMWorldMission?.hydrogenCollected
     });
+
+    // Rebind the saved local expedition location after Space Labyrinth is rebuilt.
+    // Saved preview coordinates remain preview data; they are never promoted to live SAGE data.
+    window.BCMDeepSpaceWarpRestoreReturnSnapshot = (snapshot) => {
+      if (!snapshot || typeof snapshot !== "object") return false;
+      const savedCurrent = snapshot.current && typeof snapshot.current === "object"
+        ? snapshot.current
+        : null;
+      const savedId = String(snapshot.currentSectorId || savedCurrent?.id || "");
+      if (!savedId) return false;
+
+      const currentNavigation = readNavigation();
+      const adapter = snapshot.live && currentNavigation && currentNavigation.adapter
+        ? currentNavigation.adapter
+        : null;
+      const compact = (row) => {
+        if (!row || typeof row !== "object" || !row.id) return null;
+        if (adapter && Array.isArray(adapter.sectors)) {
+          const match = adapter.sectors.find((item, index) => {
+            const normalized = normalizeSector(item, index);
+            return normalized && normalized.id === String(row.id);
+          });
+          if (match) return normalizeSector(match, 0);
+        }
+        return {
+          id: String(row.id),
+          name: String(row.name || row.id),
+          x: Number.isFinite(Number(row.x)) ? Number(row.x) : null,
+          y: Number.isFinite(Number(row.y)) ? Number(row.y) : null,
+          raw: null
+        };
+      };
+
+      const current = compact(savedCurrent || { id: savedId });
+      if (!current) return false;
+      const targets = (Array.isArray(snapshot.targets) ? snapshot.targets : [])
+        .map(compact)
+        .filter((row) => row && row.id !== current.id);
+      state.nav = {
+        current,
+        targets,
+        live: !!snapshot.live && !!adapter,
+        localPreview: !!snapshot.localPreview || !snapshot.live,
+        adapter: adapter || null,
+        label: String(snapshot.label || (snapshot.localPreview
+          ? "LOCAL TEST · RESTORED EXPEDITION"
+          : "SAVED EXPEDITION")),
+        coordsKnown: current.x != null && current.y != null
+      };
+      state.target = null;
+      state.sectorProgressed = !!snapshot.sectorProgressed;
+      state.launchSectorProgressed = !!snapshot.launchSectorProgressed;
+      state.mode = "closed";
+      state.place = null;
+      return true;
+    };
 
     // Small public bridge for the later NFT/Galaxy selection integration.
     // It only changes decorative rendering; route, collision, speed and controls stay untouched.
