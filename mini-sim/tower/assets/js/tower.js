@@ -3090,7 +3090,7 @@
     };
 
     function towerInputSuppressed() {
-      return !!root.hidden || !!root.closest("[hidden]") ||
+      return planetHandoffStarted || !!root.hidden || !!root.closest("[hidden]") ||
         !!document.getElementById("bcm-hull-dive") ||
         !!document.getElementById("bcm-ring-platformer") ||
         !!document.getElementById("bcm-ring-transition");
@@ -3439,7 +3439,7 @@
       // An embedded/hidden Tower must never consume a controller's held A button
       // as a menu confirmation. Hull Dive and the Ring platformer own input while
       // their overlays are open, so suppress Tower polling until they close.
-      const inputSuppressed = !!root.hidden || !!root.closest("[hidden]") ||
+      const inputSuppressed = planetHandoffStarted || !!root.hidden || !!root.closest("[hidden]") ||
         !!document.getElementById("bcm-hull-dive") ||
         !!document.getElementById("bcm-ring-platformer") ||
         !!document.getElementById("bcm-ring-transition");
