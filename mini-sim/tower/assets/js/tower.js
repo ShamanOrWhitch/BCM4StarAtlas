@@ -1004,6 +1004,7 @@
     let gameStarted = false;
     let transitionStarted = false;
     let planetHandoffStarted = false;
+    let ascentMode = false;
     let frameHandle = 0;
     let towerAudio = null;
     let landingFirstFrameCallback = null;
@@ -1917,8 +1918,9 @@
 
     function resetPlayer(index, angleOffset) {
       const p = players[index];
-      const topSector = tower.path[0];
-      const cell = tower.cells.get((tower.levels - 1) + ":" + topSector);
+      const startLevel = ascentMode ? 0 : tower.levels - 1;
+      const topSector = ascentMode ? tower.path[tower.path.length - 1] : tower.path[0];
+      const cell = tower.cells.get(startLevel + ":" + topSector);
       const startY = cell ? cellWorldY(cell) + 0.9 : 0;
       p.y = startY;
       p.vy = 0;
@@ -2301,11 +2303,15 @@
       p.y += p.vy * dt;
 
       const bottomY = -((tower.levels - 1) * tower.stepY);
-      if (p.y < bottomY - 4.2) {
+      const topY = 6;
+      const reachedExit = ascentMode ? p.y > topY + 4.2 : p.y < bottomY - 4.2;
+      if (reachedExit) {
         p.finished = true;
         p.vy = 0;
         p.grounded = false;
-        status.textContent = mode === "multi" ? "ИГРОК ДОШЁЛ ДО ОСНОВАНИЯ" : "СПУСК ЗАВЕРШЁН";
+        status.textContent = ascentMode
+          ? (mode === "multi" ? "ИГРОК ДОСТИГ ВЕРХНЕЙ ДВЕРИ" : "ВОСХОЖДЕНИЕ ЗАВЕРШЕНО")
+          : (mode === "multi" ? "ИГРОК ДОШЁЛ ДО ОСНОВАНИЯ" : "СПУСК ЗАВЕРШЁН");
         if (mode !== "multi" || players.slice(0, 2).every((candidate) => candidate.finished)) {
           showEndLevelMarker();
         }
@@ -2578,11 +2584,136 @@
         0,
         tower.levels - 1
       );
-      return (tower.levels - 1 - level) + "/" + (tower.levels - 1);
+      return (ascentMode ? level : tower.levels - 1 - level) + "/" + (tower.levels - 1);
     }
 
 
+    function beginReverseSpaceLabyrinthReturn() {
+      if (planetHandoffStarted) return;
+      planetHandoffStarted = true;
+      if (restartButton) restartButton.hidden = true;
+      if (transitionClose) transitionClose.hidden = true;
+      stopTowerAudio();
+
+      const detail = {
+        mode: mode || window.BCMWorldMission?.towerMode || "single",
+        seed: Number(window.BCMWorldMission?.towerSeed ?? tower?.seed) >>> 0,
+        sessionSeed: Number(window.BCMWorldMission?.sessionSeed) >>> 0
+      };
+      const finish = () => {
+        if (finish.done) return;
+        finish.done = true;
+        if (transitionVideo) {
+          transitionVideo.pause();
+          transitionVideo.onended = null;
+          transitionVideo.onerror = null;
+          transitionVideo.onloadeddata = null;
+          transitionVideo.oncanplay = null;
+          transitionVideo.onplaying = null;
+          transitionVideo.onseeked = null;
+          transitionVideo.removeAttribute("src");
+          transitionVideo.load();
+          transitionVideo.style.opacity = "0";
+        }
+        if (transition) {
+          transition.hidden = true;
+          transition.style.backgroundImage = "";
+        }
+        status.textContent = "ВОЗВРАЩЕНИЕ В SPACE LABYRINTH…";
+        root.dispatchEvent(new CustomEvent("bcm:tower:space-return", { detail }));
+      };
+      finish.done = false;
+
+      const url = String(CONFIG.planetTransition || "");
+      const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (!url || !transitionVideo || reduceMotion) {
+        finish();
+        return;
+      }
+
+      if (transition) {
+        transition.hidden = false;
+        transition.style.backgroundImage = "";
+      }
+      const label = root.querySelector(".bcm-tower-transition-label");
+      if (label) label.textContent = "ВОЗВРАТ · ONICSS";
+
+      transitionVideo.pause();
+      transitionVideo.muted = true;
+      transitionVideo.defaultMuted = true;
+      transitionVideo.setAttribute("muted", "");
+      transitionVideo.setAttribute("playsinline", "");
+      transitionVideo.setAttribute("webkit-playsinline", "");
+      transitionVideo.playsInline = true;
+      transitionVideo.preload = "auto";
+      transitionVideo.style.opacity = "0";
+
+      let fallbackStarted = false;
+      let fallbackSeeking = false;
+      let fallbackAt = 0;
+      const runSeekFallback = () => {
+        if (fallbackStarted || finish.done) return;
+        fallbackStarted = true;
+        transitionVideo.pause();
+        try { transitionVideo.playbackRate = 1; } catch (e) {}
+        fallbackAt = performance.now();
+        const step = (now) => {
+          if (finish.done) return;
+          const dt = Math.min(0.12, Math.max(0, (now - fallbackAt) / 1000));
+          fallbackAt = now;
+          if (!fallbackSeeking && transitionVideo.readyState >= 2) {
+            const nextTime = Math.max(0, transitionVideo.currentTime - dt);
+            if (nextTime <= 0.025) {
+              try { transitionVideo.currentTime = 0; } catch (e) {}
+              finish();
+              return;
+            }
+            fallbackSeeking = true;
+            try { transitionVideo.currentTime = nextTime; }
+            catch (e) { finish(); return; }
+          }
+          requestAnimationFrame(step);
+        };
+        transitionVideo.onseeked = () => { fallbackSeeking = false; };
+        requestAnimationFrame(step);
+      };
+
+      transitionVideo.onloadedmetadata = () => {
+        try { transitionVideo.currentTime = Number(transitionVideo.duration) || 0; }
+        catch (e) { runSeekFallback(); }
+      };
+      transitionVideo.onloadeddata = () => {
+        if (finish.done || fallbackStarted) return;
+        transitionVideo.style.opacity = "1";
+        try {
+          transitionVideo.currentTime = Math.max(0, (Number(transitionVideo.duration) || 0) - 0.04);
+          transitionVideo.playbackRate = -1;
+          const result = transitionVideo.play();
+          if (result && typeof result.catch === "function") result.catch(runSeekFallback);
+          window.setTimeout(() => {
+            if (!finish.done && (transitionVideo.paused || transitionVideo.playbackRate >= 0)) runSeekFallback();
+          }, 300);
+        } catch (e) {
+          runSeekFallback();
+        }
+      };
+      transitionVideo.onplaying = () => {
+        if (!finish.done && !fallbackStarted) transitionVideo.style.opacity = "1";
+      };
+      transitionVideo.ontimeupdate = () => {
+        if (!fallbackStarted && transitionVideo.currentTime <= 0.025) finish();
+      };
+      transitionVideo.onended = finish;
+      transitionVideo.onerror = finish;
+      transitionVideo.src = url;
+      transitionVideo.load();
+    }
+
     function beginFirstPlanetHandoff() {
+      if (ascentMode) {
+        beginReverseSpaceLabyrinthReturn();
+        return;
+      }
       if (planetHandoffStarted) return;
       const activePlayers = players.slice(0, mode === "multi" ? 2 : 1);
       if (!activePlayers.length || !activePlayers.every((player) => player.finished)) return;
@@ -2592,9 +2723,15 @@
       if (transitionClose) transitionClose.hidden = true;
       stopTowerAudio();
 
+      const sessionSeed = Number(window.BCMWorldMission?.sessionSeed) >>> 0;
       const detail = {
         mode: mode || "single",
         seed: tower ? tower.seed : null,
+        sessionSeed,
+        planetSeed: Number(window.BCMMiniSimSession?.locationSeeds?.firstPlanet) >>> 0,
+        raceSeed: Number(window.BCMMiniSimSession?.locationSeeds?.shoalRace) >>> 0,
+        sessionId: String(window.BCMMiniSimSession?.sessionId || ("local-" + sessionSeed.toString(16))),
+        crew: Array.isArray(window.BCMMiniCrewSelection?.players) ? window.BCMMiniCrewSelection.players : [],
         players: activePlayers.map((player, index) => ({
           player: index + 1,
           finished: !!player.finished,
@@ -2677,21 +2814,21 @@
       if (!tower || !gameStarted) return;
       if (mode === "single") {
         levelEl.textContent =
-          "СПУСК: " + currentLevelText(players[0]) +
+          (ascentMode ? "ВОСХОЖДЕНИЕ: " : "СПУСК: ") + currentLevelText(players[0]) +
           " · SECTOR " + wrapSector(Math.round(players[0].angle / sectorWidth()), tower.sectors) +
           " · SEED " + tower.seed;
         if (modeEl) {
-          modeEl.textContent = mode === "multi"
-            ? "КТО ПЕРВЫМ СПУСТИТСЯ ВНИЗ?"
-            : "ПОРА СПУСТИТЬСЯ ВНИЗ";
+          modeEl.textContent = ascentMode
+            ? (mode === "multi" ? "КОМАНДА ВОЗВРАЩАЕТСЯ К ВЕРХНЕЙ ДВЕРИ" : "НАЙДИ ВЕРХНЮЮ ДВЕРЬ")
+            : (mode === "multi" ? "КТО ПЕРВЫМ СПУСТИТСЯ ВНИЗ?" : "ПОРА СПУСТИТЬСЯ ВНИЗ");
         }
       } else {
         levelEl.textContent =
-          "P1: " + currentLevelText(players[0]) +
+          (ascentMode ? "ВОСХОЖДЕНИЕ · P1: " : "P1: ") + currentLevelText(players[0]) +
           " · P2: " + currentLevelText(players[1]) +
           " · SEED " + tower.seed;
         if (modeEl) {
-          modeEl.textContent = "КТО ПЕРВЫМ СПУСТИТСЯ ВНИЗ?";
+          modeEl.textContent = ascentMode ? "КОМАНДА ВОСХОДИТ ПО ТОМУ ЖЕ МАРШРУТУ" : "КТО ПЕРВЫМ СПУСТИТСЯ ВНИЗ?";
         }
       }
 
@@ -2851,6 +2988,9 @@
         return;
       }
 
+      ascentMode = false;
+      if (window.BCMMiniSimSession) window.BCMMiniSimSession.mode = mode;
+      if (window.BCMWorldMission) window.BCMWorldMission.towerMode = mode;
       if (mode === "multi") {
         mobile?.classList.add("is-multi");
         status.textContent = "КТО ПЕРВЫМ СПУСТИТСЯ ВНИЗ?";
@@ -3628,6 +3768,64 @@
       landingHandoffPending = !!landingFirstFrameCallback;
       landingFrameNotified = false;
       return window.BCMTowerAPI.enter({ deferHandoff: landingHandoffPending });
+    };
+    window.BCMTowerAPI.beginAscent = (options = {}) => {
+      const wantedSeed = Number(options.seed ?? window.BCMWorldMission?.towerSeed ?? seed);
+      if (!Number.isSafeInteger(wantedSeed) || wantedSeed < 0 || wantedSeed > 0xffffffff) {
+        status.textContent = "НЕ УДАЛОСЬ ВОССТАНОВИТЬ SEED TOWER";
+        return false;
+      }
+      const requestedMode = options.mode || window.BCMWorldMission?.towerMode || window.BCMMiniSimSession?.mode;
+      mode = requestedMode === "multi" ? "multi" : "single";
+      ascentMode = true;
+      planetHandoffStarted = false;
+      transitionStarted = false;
+      root.hidden = false;
+      root.style.zIndex = "1000001";
+      root.style.pointerEvents = "";
+      root.style.background = "";
+      canvas.style.visibility = "";
+      menu.hidden = true;
+      if (transition) transition.hidden = true;
+      if (transitionVideo) transitionVideo.style.opacity = "0";
+      mobile?.setAttribute("aria-hidden", "false");
+      mobile?.querySelector(".bcm-tower-mobile-p2")?.toggleAttribute("hidden", mode !== "multi");
+      root.classList.toggle("is-multi", mode === "multi");
+      mobile?.classList.toggle("is-multi", mode === "multi");
+      if (window.BCMWorldMission) window.BCMWorldMission.towerMode = mode;
+      if (window.BCMMiniSimSession) {
+        window.BCMMiniSimSession.mode = mode;
+        window.BCMMiniSimSession.currentLocation = "tower-ascent";
+        window.BCMMiniSimSession.locationSeeds.tower = wantedSeed >>> 0;
+      }
+      try {
+        buildTower(wantedSeed >>> 0);
+        for (let i = 0; i < 2; i += 1) {
+          clearControls(i);
+          doorTransit[i] = null;
+          if (doorTransitLayers[i]) doorTransitLayers[i].hidden = true;
+          if (i < (mode === "multi" ? 2 : 1)) resetPlayer(i, i === 0 ? 0 : 0.85);
+          else players[i].finished = true;
+        }
+        gameStarted = true;
+        restartButton.hidden = true;
+        if (modeEl) modeEl.textContent = mode === "multi"
+          ? "КОМАНДА ВОСХОДИТ ПО ТОМУ ЖЕ МАРШРУТУ"
+          : "НАЙДИ ВЕРХНЮЮ ДВЕРЬ";
+        status.textContent = "ВОСХОЖДЕНИЕ · ТОТ ЖЕ SEED " + wantedSeed;
+        updateCrewMatrix();
+        exposeCrewMatrix();
+        resize();
+        renderViews();
+        playTowerAudio();
+        if (!frameHandle) frameHandle = requestAnimationFrame(frame);
+        return true;
+      } catch (error) {
+        gameStarted = false;
+        status.textContent = "ОШИБКА ВОСХОЖДЕНИЯ: " + (error?.message || "TOWER BUILD FAILED");
+        console.error("BCM Tower ascent failed", error);
+        return false;
+      }
     };
     window.BCMTowerAPI.mount = (targetRoot) => {
       if (targetRoot && targetRoot !== root) {
