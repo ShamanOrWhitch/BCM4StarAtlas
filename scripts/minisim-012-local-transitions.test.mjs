@@ -21,6 +21,8 @@ test("one persistent local session derives independent deterministic location se
   const mini = await read("mini-sim/assets/js/mini-sim.js");
   const seed = await read("mini-sim/tower/first-planet/src/game/seed.ts");
   assert.match(mini, /function deriveLocalLocationSeed\(baseSeed, label\)/);
+  const seedFactory = mini.slice(mini.indexOf("function makeLabyrinthSeed()"), mini.indexOf("const labyrinthSeed = makeLabyrinthSeed()"));
+  assert.ok(seedFactory.indexOf("fromReturn") < seedFactory.indexOf("fromUrl"), "the saved session seed outranks the URL seed on a return");
   assert.match(mini, /localOnly: true/);
   assert.match(mini, /spaceLabyrinth: labyrinthSeed/);
   assert.match(mini, /warp: deriveLocalLocationSeed\(labyrinthSeed, "warp"\)/);
