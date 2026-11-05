@@ -37,6 +37,7 @@ export function DesertIsland({
   onReady?: () => void;
   onLoadError?: (error: unknown) => void;
 }) {
+  const planetSeed = Number(context.planetSeed) >>> 0;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mapRef = useRef<HTMLCanvasElement>(null);
   const worldRef = useRef<IslandWorld | null>(null);
@@ -71,7 +72,7 @@ export function DesertIsland({
           onReadyRef.current?.();
         },
         (loadError) => onLoadErrorRef.current?.(loadError),
-        { planetSeed: Number(context.planetSeed) >>> 0 },
+        { planetSeed },
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось открыть остров");
@@ -135,7 +136,7 @@ export function DesertIsland({
       world.dispose();
       worldRef.current = null;
     };
-  }, []);
+  }, [planetSeed]);
 
   function setPhaseBoth(next: Phase) {
     phaseRef.current = next;
