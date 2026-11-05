@@ -1039,12 +1039,14 @@
   const pendingLocalReturn = readPendingLocalReturn();
 
   function makeLabyrinthSeed() {
+    // A return token represents the active local session and outranks any
+    // static URL/config seed. URL seed is only for a fresh standalone run.
+    const fromReturn = parseLabyrinthSeed(pendingLocalReturn?.sessionSeed ?? pendingLocalReturn?.mission?.sessionSeed);
+    if (fromReturn) return fromReturn;
+
     const query = new URLSearchParams(window.location.search || "");
     const fromUrl = parseLabyrinthSeed(query.get("seed"));
     if (fromUrl) return fromUrl;
-
-    const fromReturn = parseLabyrinthSeed(pendingLocalReturn?.sessionSeed ?? pendingLocalReturn?.mission?.sessionSeed);
-    if (fromReturn) return fromReturn;
 
     const fromConfig = parseLabyrinthSeed(config.labyrinthSeed);
     if (fromConfig) return fromConfig;
