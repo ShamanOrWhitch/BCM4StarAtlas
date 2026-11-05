@@ -1,5 +1,3 @@
-import { createSeededRandom } from "./seed";
-
 export type Sample = {
   x: number;
   z: number;
