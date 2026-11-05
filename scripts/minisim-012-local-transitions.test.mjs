@@ -102,17 +102,32 @@ test("Shoal Race receives its own seed without changing the established track ro
   assert.match(embed, /<ShoalRace seed=\{Number\(context\.raceSeed\) >>> 0\}/);
 });
 
-test("First Planet soundtrack is optional, starts on a user gesture and survives island/race switching", async () => {
+test("FP and Desert Race soundtracks are separate, optional and resume across location switches", async () => {
   const php = await read("mini-sim/tower/bcm-tower.php");
+  const loader = await read("mini-sim/tower/first-planet/loader.js");
   const embed = await read("mini-sim/tower/first-planet/src/first-planet-embed.tsx");
-  const component = await read("mini-sim/tower/first-planet/src/components/desert-island.tsx");
-  assert.match(php, /bcm_tower_pick_asset\(\$assets, array\(\'FP\.mp3\'\), \'audio\'\)/);
-  assert.match(php, /\'audioUrl\' => bcm_tower_pick_asset/);
-  assert.match(embed, /const audioUrl = String\(context\.audioUrl \|\| ""\)/);
-  assert.match(embed, /audio\.preload = "none"/);
-  assert.match(embed, /const result = audio\.play\(\)/);
-  assert.match(embed, /audio\.pause\(\)/);
-  assert.match(component, /onStartAudioRef\.current\(\)/);
+  const island = await read("mini-sim/tower/first-planet/src/components/desert-island.tsx");
+  const race = await read("mini-sim/tower/first-planet/src/components/shoal-race.tsx");
+  assert.match(php, /'firstPlanetAudio' => bcm_tower_pick_asset/);
+  assert.match(php, /'desertRaceAudio' => bcm_tower_pick_asset/);
+  assert.match(php, /'audioUrl' => bcm_tower_pick_asset/);
+  assert.match(php, /'raceAudioUrl' => bcm_tower_pick_asset/);
+  assert.match(php, /assets\\/FP\\.mp3/);
+  assert.match(php, /assets\\/desertrace\\.mp3/);
+  assert.match(loader, /audioUrl: config\\.audioUrl \\|\\| ""/);
+  assert.match(loader, /raceAudioUrl: config\\.raceAudioUrl \\|\\| ""/);
+  assert.match(embed, /const planetMusicRef = useRef/);
+  assert.match(embed, /const raceMusicRef = useRef/);
+  assert.match(embed, /audio\\.preload = "none"/);
+  assert.match(embed, /audio\\.loop = true/);
+  assert.match(embed, /const startPlanetMusic = \\(\\) =>/);
+  assert.match(embed, /const startRaceMusic = \\(\\) =>/);
+  assert.match(embed, /raceMusicRef\\.current\\?\\.pause\\(\\)/);
+  assert.match(embed, /planetMusicRef\\.current\\?\\.pause\\(\\)/);
+  assert.match(embed, /function leaveRace/);
+  assert.match(embed, /onStartAudio=\\{startRaceMusic\\}/);
+  assert.match(race, /onStartAudio\\?\\.\\(\\)/);
+  assert.match(island, /onStartAudioRef\\.current\\(\\)/);
 });
 
 test("return snapshot preserves Crew, ship pose, mission, local seeds and internal repair compartments", async () => {
