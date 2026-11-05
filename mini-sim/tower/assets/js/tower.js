@@ -3492,7 +3492,7 @@
       const synced = syncCrewSelectionFromMiniSim();
       if (!synced || !tower || gameStarted) return;
       try {
-        buildTower(seed == null ? makeSeed() : seed);
+        buildTower(getSessionTowerSeed());
         requestAnimationFrame(() => {
           resize();
           renderViews();
