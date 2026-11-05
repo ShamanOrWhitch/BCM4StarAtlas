@@ -15,6 +15,7 @@ import {
   RING,
   SKY,
   SPAWN,
+  TOWER_GATE,
   footY,
   groundY,
   houseAabbs,
@@ -125,8 +126,9 @@ export function createIsland(
   canvas: HTMLCanvasElement,
   onProps?: () => void,
   onLoadError?: (error: unknown) => void,
+  context: { planetSeed?: number } = {},
 ): IslandWorld {
-  const sim = createSim();
+  const sim = createSim(Number(context.planetSeed) >>> 0);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   const host = canvas.parentElement ?? canvas;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
@@ -311,6 +313,58 @@ export function createIsland(
   padRing.position.set(0.4, groundY(0.4, 38) + 0.12, 38);
   track(padRing);
   scene.add(padRing);
+
+  // A visible, walk-up Tower portal on the shared arrival pad.
+  const towerGateY = groundY(TOWER_GATE.x, TOWER_GATE.z);
+  const towerPortal = new THREE.Mesh(
+    new THREE.TorusGeometry(2.55, 0.2, 14, 64),
+    new THREE.MeshStandardMaterial({
+      color: 0x8deaff,
+      emissive: 0x1689b3,
+      emissiveIntensity: 1.15,
+      metalness: 0.52,
+      roughness: 0.28,
+      transparent: true,
+      opacity: 0.94,
+      side: THREE.DoubleSide,
+    }),
+  );
+  towerPortal.position.set(TOWER_GATE.x, towerGateY + 3.05, TOWER_GATE.z - 2.35);
+  track(towerPortal);
+  scene.add(towerPortal);
+  const towerPortalCore = new THREE.Mesh(
+    new THREE.CircleGeometry(2.34, 48),
+    new THREE.MeshBasicMaterial({
+      color: 0x42bfe0,
+      transparent: true,
+      opacity: 0.17,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    }),
+  );
+  towerPortalCore.position.set(TOWER_GATE.x, towerGateY + 3.05, TOWER_GATE.z - 2.31);
+  track(towerPortalCore);
+  scene.add(towerPortalCore);
+  const towerPortalPostMaterial = new THREE.MeshStandardMaterial({
+    color: 0x2e6278,
+    emissive: 0x12536c,
+    emissiveIntensity: 0.5,
+    metalness: 0.66,
+    roughness: 0.34,
+  });
+  for (const side of [-1, 1]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.32, 4.9, 0.42), towerPortalPostMaterial);
+    post.position.set(TOWER_GATE.x + side * 2.55, towerGateY + 2.45, TOWER_GATE.z - 2.35);
+    track(post);
+    scene.add(post);
+  }
+  const towerPortalLabel = makeLabel("TOWER · ВХОД");
+  towerPortalLabel.position.set(TOWER_GATE.x, towerGateY + 6.0, TOWER_GATE.z - 2.35);
+  towerPortalLabel.scale.set(8.2, 2.05, 1);
+  scene.add(towerPortalLabel);
+  const towerPortalLight = new THREE.PointLight(0x54d7f4, 1.8, 18, 2);
+  towerPortalLight.position.set(TOWER_GATE.x, towerGateY + 3.1, TOWER_GATE.z - 2.1);
+  scene.add(towerPortalLight);
 
   for (let z = 30; z >= -6; z -= 4) {
     const y = groundY(0, z);
