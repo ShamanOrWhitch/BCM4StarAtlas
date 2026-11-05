@@ -54,10 +54,15 @@
       host.classList.add("is-preloading");
       status.hidden = false;
       status.textContent = "Загрузка First Planet…";
-      preparePromise = loadBundle().then((api) => {
+      preparePromise = loadBundle().then(async (api) => {
         if (!mounted) {
-          await api.mount(mount);
-          mounted = true;
+          try {
+            await api.mount(mount);
+            mounted = true;
+          } catch (error) {
+            api.unmount(mount);
+            throw error;
+          }
         }
         status.hidden = true;
         return true;
