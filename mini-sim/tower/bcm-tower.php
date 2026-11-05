@@ -130,6 +130,7 @@ function bcm_tower_get_client_config($assets = null) {
         'transitionFallbacks' => array(),
         'towerAudio' => bcm_tower_pick_asset($assets, array('tower.mp3'), 'audio'),
         'planetTransition' => bcm_tower_pick_asset($assets, array('onicss.mp4'), 'video'),
+        'firstPlanetAudio' => bcm_tower_pick_asset($assets, array('FP.mp3'), 'audio'),
         'towerWallJpgPool' => bcm_tower_asset_urls($assets, '/^(towerwall|wall)[^\\/]*\\.(jpg|jpeg)$/i'),
         'towerWallPngPool' => bcm_tower_asset_urls($assets, '/^towerwall[^\\/]*\\.png$/i'),
         'platformPool' => bcm_tower_asset_urls($assets, '/^(platform|paltform)(?!lava|ice)[^\\/]*\\.(png|jpg|jpeg|webp)$/i'),
@@ -206,6 +207,7 @@ function bcm_tower_enqueue_assets() {
         'bundleUrl' => BCM_TOWER_URL . 'first-planet/wp-dist/first-planet.js',
         'styleUrl' => BCM_TOWER_URL . 'first-planet/wp-dist/first-planet.css',
         'meshBase' => BCM_MINI_SIM_URL . 'assets/first-planet/mesh/',
+        'audioUrl' => bcm_tower_pick_asset($assets, array('FP.mp3'), 'audio'),
     ));
 }
 
