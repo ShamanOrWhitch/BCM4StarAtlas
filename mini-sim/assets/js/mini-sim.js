@@ -3804,6 +3804,7 @@
         // trigger or when the async Tower script/video merely starts loading.
         transitionLoading = false;
         transitionBusy = true;
+        if (window.BCMMiniSimSession) window.BCMMiniSimSession.currentLocation = "tower";
         // Store the actual arrival pose before freezing it for Tower's handoff.
         captureArrivalShipSnapshot();
         ship.velocity.set(0, 0, 0);
