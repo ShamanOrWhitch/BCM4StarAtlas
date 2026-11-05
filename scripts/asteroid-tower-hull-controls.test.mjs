@@ -99,7 +99,10 @@ test("Warp Tube speed multiplier climbs from 1x to 12x with shared scene and sou
   assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
   assert.match(warp, /const courseLayerCount = 22/);
   assert.match(warp, /const typeRoll = rng\(\)/);
-  assert.match(warp, /const runNonce = Date\.now\(\).*Math\.random/);
+  assert.match(warp, /const warpRun = Number\(runCounters\.warp \|\| 0\) \+ 1/);
+  assert.match(warp, /const warpBaseSeed = Number\.isSafeInteger\(Number\(locationSeeds\.warp\)\)/);
+  assert.match(warp, /const warpRunSeed = hashSeed\(warpBaseSeed \+/);
+  assert.match(warp, /localSession\.activeSeeds\.warp = warpRunSeed/);
   assert.match(warp, /const rampMultiplier = warpSpeedMultiplier\(state\.elapsed\)/);
   assert.match(warp, /Math\.max\(1, Math\.min\(12,/);
   assert.match(warp, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
