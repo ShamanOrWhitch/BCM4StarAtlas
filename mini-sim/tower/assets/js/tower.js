@@ -3197,6 +3197,7 @@
 
     function startNewTower() {
       if (!gameStarted) return;
+      ascentMode = false;
       planetHandoffStarted = false;
       if (transitionClose) transitionClose.hidden = false;
       buildTower(makeSeed());
@@ -3796,6 +3797,7 @@
       if (window.BCMMiniSimSession) {
         window.BCMMiniSimSession.mode = mode;
         window.BCMMiniSimSession.currentLocation = "tower-ascent";
+        window.BCMMiniSimSession.locationSeeds = window.BCMMiniSimSession.locationSeeds || {};
         window.BCMMiniSimSession.locationSeeds.tower = wantedSeed >>> 0;
       }
       try {
