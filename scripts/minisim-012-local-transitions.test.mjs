@@ -126,7 +126,7 @@ test("FP and Desert Race soundtracks are separate, optional and resume across lo
   assert.ok(embed.includes("const startRaceMusic = () =>"));
   assert.ok(embed.includes("raceMusicRef.current?.pause()"));
   assert.ok(embed.includes("planetMusicRef.current?.pause()"));
-  assert.ok(embed.includes("function leaveRace"));
+  assert.ok(embed.includes("const leaveRace = () =>"));
   assert.ok(embed.includes("onStartAudio={startRaceMusic}"));
   assert.ok(race.includes("onStartAudio?.()"));
   assert.ok(island.includes("onStartAudioRef.current()"));
