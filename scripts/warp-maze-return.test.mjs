@@ -206,7 +206,12 @@ test("Warp hazards stay varied across all 22 layers and the faster ramp remains 
   assert.match(warp, /function warpObstacleProgress\(elapsed\)/);
   assert.match(warp, /Math\.pow\(warpCourseProgress\(elapsed\), 0\.86\)/);
   assert.match(warp, /const courseLayerCount = 22/);
-  assert.match(warp, /const runNonce = Date\.now\(\)\.toString\(36\) \+ "-" \+ Math\.random/);
+  assert.match(warp, /const warpRun = Number\(runCounters\.warp \|\| 0\) \+ 1/);
+  assert.match(warp, /const warpBaseSeed = Number\.isSafeInteger\(Number\(locationSeeds\.warp\)\)/);
+  assert.match(warp, /const warpRunSeed = hashSeed\(warpBaseSeed \+ "\\|" \+ warpRun/);
+  assert.match(warp, /localSession\.activeSeeds\.warp = warpRunSeed/);
+  assert.match(warp, /const asteroidRun = Number\(runCounters\.asteroid \|\| 0\) \+ 1/);
+  assert.match(warp, /localSession\.activeSeeds\.asteroid = seed/);
   assert.match(warp, /Math\.pow\(warpNormalizedTime\(elapsed\), 0\.82\)/);
   assert.match(warp, /return Math\.pow\(12, t\)/);
   assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.48/);
