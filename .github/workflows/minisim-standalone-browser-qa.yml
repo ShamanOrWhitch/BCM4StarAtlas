@@ -9,6 +9,7 @@ on:
       - "scripts/minisim-local-qa.mjs"
       - "scripts/minisim-standalone-qa.mjs"
       - "scripts/minisim-standalone-qa.test.mjs"
+      - "scripts/minisim-012-local-transitions.test.mjs"
       - "tools/minisim-qa/**"
       - "package.json"
       - ".github/workflows/minisim-standalone-browser-qa.yml"
