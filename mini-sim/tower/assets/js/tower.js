@@ -1651,6 +1651,10 @@
       tower = generateTower(seed);
       // Keep the exact geometry seed in the session so a future city exit can
       // rebuild this same tower rather than silently creating a new route.
+      if (window.BCMMiniSimSession) {
+        window.BCMMiniSimSession.locationSeeds = window.BCMMiniSimSession.locationSeeds || {};
+        window.BCMMiniSimSession.locationSeeds.tower = seed;
+      }
       if (window.BCMWorldMission) {
         window.BCMWorldMission.towerSeed = seed;
         if (window.BCMWorldMission.originShipSnapshot &&
@@ -2974,7 +2978,13 @@
       syncTowerInputHelp();
 
       try {
-        buildTower(makeSeed());
+        const sessionTowerSeed = Number(window.BCMWorldMission?.towerSeed ??
+          window.BCMMiniSimSession?.locationSeeds?.tower);
+        const initialTowerSeed = Number.isSafeInteger(sessionTowerSeed) &&
+          sessionTowerSeed >= 0 && sessionTowerSeed <= 0xffffffff
+            ? sessionTowerSeed >>> 0
+            : makeSeed();
+        buildTower(initialTowerSeed);
         gameStarted = true;
         requestAnimationFrame(() => {
           resize();
