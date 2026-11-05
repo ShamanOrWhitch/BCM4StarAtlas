@@ -59,7 +59,7 @@
       preparePromise = loadBundle().then(async (api) => {
         if (!mounted) {
           try {
-            await api.mount(mount, Object.assign({}, planetContext || {}, { audioUrl: config.audioUrl || "" }));
+            await api.mount(mount, Object.assign({}, planetContext || {}, { audioUrl: config.audioUrl || "", raceAudioUrl: config.raceAudioUrl || "" }));
             mounted = true;
           } catch (error) {
             api.unmount(mount);
