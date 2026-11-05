@@ -2965,6 +2965,14 @@
       } catch (e) {}
     }
 
+    function getSessionTowerSeed() {
+      const candidate = Number(window.BCMWorldMission?.towerSeed ??
+        window.BCMMiniSimSession?.locationSeeds?.tower);
+      return Number.isSafeInteger(candidate) && candidate >= 0 && candidate <= 0xffffffff
+        ? candidate >>> 0
+        : makeSeed();
+    }
+
     function startMode(nextMode) {
       mode = nextMode === "multi" ? "multi" : "single";
       enableTowerTilt();
@@ -2978,13 +2986,7 @@
       syncTowerInputHelp();
 
       try {
-        const sessionTowerSeed = Number(window.BCMWorldMission?.towerSeed ??
-          window.BCMMiniSimSession?.locationSeeds?.tower);
-        const initialTowerSeed = Number.isSafeInteger(sessionTowerSeed) &&
-          sessionTowerSeed >= 0 && sessionTowerSeed <= 0xffffffff
-            ? sessionTowerSeed >>> 0
-            : makeSeed();
-        buildTower(initialTowerSeed);
+        buildTower(getSessionTowerSeed());
         gameStarted = true;
         requestAnimationFrame(() => {
           resize();
@@ -3022,7 +3024,7 @@
       // Build a preview behind the menu. This also starts loading the Tower
       // textures before SINGLE/MULTI is selected, so the handoff is visibly alive.
       if (!tower) {
-        buildTower(makeSeed());
+        buildTower(getSessionTowerSeed());
       }
       requestAnimationFrame(() => {
         resize();
@@ -3754,7 +3756,7 @@
       menu.hidden = true;
       status.textContent = "LANDING VIDEO · PREPARING TOWER...";
       try {
-        if (!tower) buildTower(makeSeed());
+        if (!tower) buildTower(getSessionTowerSeed());
       } catch (error) {
         gameStarted = false;
         status.textContent = "TOWER ERROR: " + (error?.message || "BUILD FAILED");
