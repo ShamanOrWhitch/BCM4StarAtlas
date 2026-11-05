@@ -20,7 +20,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "start": "node .output/server/index.mjs",
-    "test:minisim": "node --test scripts/minisim-local-qa.test.mjs scripts/minisim-standalone-qa.test.mjs scripts/asteroid-wall-crystal.test.mjs",
+    "test:minisim": "node --test scripts/minisim-local-qa.test.mjs scripts/minisim-standalone-qa.test.mjs scripts/minisim-012-local-transitions.test.mjs scripts/asteroid-wall-crystal.test.mjs",
     "qa:minisim": "node scripts/minisim-local-qa.mjs",
     "qa:minisim:standalone": "node scripts/minisim-standalone-qa.mjs"
   },
