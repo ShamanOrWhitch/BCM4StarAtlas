@@ -52,8 +52,9 @@ test("Tower returns through the original same-seed layout from bottom to top", a
   assert.match(tower, /ВОСХОЖДЕНИЕ · ТОТ ЖЕ SEED/);
   assert.match(tower, /window\.BCMWorldMission\.towerSeed = seed/);
   assert.match(tower, /window\.BCMMiniSimSession\.locationSeeds\.tower = seed/);
-  assert.match(tower, /const sessionTowerSeed = Number\(window\.BCMWorldMission\?\.towerSeed \?\?/);
-  assert.match(tower, /buildTower\(initialTowerSeed\)/);
+  assert.match(tower, /function getSessionTowerSeed\(\)/);
+  assert.match(tower, /const candidate = Number\(window\.BCMWorldMission\?\.towerSeed \?\?/);
+  assert.match(tower, /buildTower\(getSessionTowerSeed\(\)\)/);
   assert.match(tower, /function startNewTower\(\) \{\s*if \(!gameStarted\) return;\s*ascentMode = false/);
 });
 
