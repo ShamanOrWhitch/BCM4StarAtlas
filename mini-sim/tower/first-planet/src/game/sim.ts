@@ -1,3 +1,4 @@
+import { createSeededRandom } from "./seed";
 import {
   buildTrack,
   crossedForward,
@@ -167,12 +168,15 @@ export type Race = {
   respawnYou: () => void;
 };
 
-function layoutBoxes(track: Track): Box[] {
+function layoutBoxes(track: Track, seed: number): Box[] {
   const marks = [0.12, 0.27, 0.41, 0.55, 0.7, 0.86];
+  const random = createSeededRandom(seed, "shoal-race-boxes");
   return marks.map((fraction, i) => {
-    const s = fraction * track.length;
+    // Keep the established six pickup zones; seed only their small offsets.
+    const s = (fraction + (random() - 0.5) * 0.018) * track.length;
     const p = sampleAt(track, s);
-    const lat = i % 2 === 0 ? 2.4 : -2.4;
+    const side = i % 2 === 0 ? 1 : -1;
+    const lat = side * (2.15 + random() * 0.5);
     return { s, lat, x: p.x + p.nx * lat, z: p.z + p.nz * lat, alive: true, cooldown: 0 };
   });
 }
@@ -390,7 +394,7 @@ export function createRace(seed = 0): Race {
     seed: locationSeed,
     track,
     cars: ROSTER.map((spec, i) => makeCar(track, i, spec)),
-    boxes: layoutBoxes(track),
+    boxes: layoutBoxes(track, locationSeed),
     slicks: [],
     time: 0,
     go: 0,
