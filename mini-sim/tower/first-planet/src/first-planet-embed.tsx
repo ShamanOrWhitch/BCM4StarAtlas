@@ -13,6 +13,7 @@ type PlanetContext = {
   mode?: "single" | "multi";
   players?: Array<{ id?: string; name?: string; image?: string; species?: string }>;
   audioUrl?: string;
+  raceAudioUrl?: string;
 };
 
 declare global {
@@ -42,26 +43,35 @@ function FirstPlanetApp({
   onLoadError: (error: unknown) => void;
 }) {
   const [mode, setMode] = useState<"island" | "race">("island");
-  const musicRef = useRef<HTMLAudioElement | null>(null);
+  const planetMusicRef = useRef<HTMLAudioElement | null>(null);
+  const raceMusicRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    const audioUrl = String(context.audioUrl || "");
-    if (!audioUrl) return;
-    const audio = new Audio(audioUrl);
-    audio.preload = "none";
-    audio.loop = false;
-    audio.volume = 0.58;
-    musicRef.current = audio;
-    return () => {
-      audio.pause();
-      audio.removeAttribute("src");
-      audio.load();
-      musicRef.current = null;
+    const makeAudio = (url: string | undefined) => {
+      if (!url) return null;
+      const audio = new Audio(url);
+      audio.preload = "none";
+      audio.loop = true;
+      audio.volume = 0.58;
+      return audio;
     };
-  }, [context.audioUrl]);
+    const planetAudio = makeAudio(context.audioUrl);
+    const raceAudio = makeAudio(context.raceAudioUrl);
+    planetMusicRef.current = planetAudio;
+    raceMusicRef.current = raceAudio;
+    return () => {
+      [planetAudio, raceAudio].forEach((audio) => {
+        if (!audio) return;
+        audio.pause();
+        audio.removeAttribute("src");
+        audio.load();
+      });
+      planetMusicRef.current = null;
+      raceMusicRef.current = null;
+    };
+  }, [context.audioUrl, context.raceAudioUrl]);
 
-  const startPlanetMusic = () => {
-    const audio = musicRef.current;
+  const playTrack = (audio: HTMLAudioElement | null) => {
     if (!audio || (!audio.paused && !audio.ended)) return;
     if (audio.ended) {
       try { audio.currentTime = 0; } catch { /* metadata may not be ready */ }
@@ -70,6 +80,22 @@ function FirstPlanetApp({
     if (result && typeof result.catch === "function") result.catch(() => {
       // Browser autoplay policy: the next explicit user action can retry.
     });
+  };
+
+  const startPlanetMusic = () => {
+    raceMusicRef.current?.pause();
+    playTrack(planetMusicRef.current);
+  };
+
+  const startRaceMusic = () => {
+    planetMusicRef.current?.pause();
+    playTrack(raceMusicRef.current);
+  };
+
+  const leaveRace = () => {
+    raceMusicRef.current?.pause();
+    setMode("island");
+    startPlanetMusic();
   };
 
   const enterTower = () => {
@@ -87,11 +113,11 @@ function FirstPlanetApp({
   if (window.BCMMiniSimSession) window.BCMMiniSimSession.currentLocation = "first-planet";
 
   return mode === "race"
-    ? <ShoalRace seed={Number(context.raceSeed) >>> 0} onLeave={() => setMode("island")} onStartAudio={startPlanetMusic} />
+    ? <ShoalRace seed={Number(context.raceSeed) >>> 0} onLeave={leaveRace} onStartAudio={startRaceMusic} />
     : <DesertIsland
         context={context}
         onRace={() => {
-          startPlanetMusic();
+          planetMusicRef.current?.pause();
           setMode("race");
         }}
         onTowerEnter={enterTower}
@@ -115,6 +141,7 @@ window.BCMFirstPlanet = {
     const safeContext: PlanetContext = {
       ...context,
       audioUrl: String(context.audioUrl || ""),
+      raceAudioUrl: String(context.raceAudioUrl || ""),
     };
     ready = new Promise<void>((resolve, reject) => {
       root!.render(
