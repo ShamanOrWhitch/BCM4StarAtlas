@@ -44,6 +44,7 @@ test("Tower returns through the original same-seed layout from bottom to top", a
   assert.match(tower, /const reachedExit = ascentMode \? p\.y > topY \+ 4\.2 : p\.y < bottomY - 4\.2/);
   assert.match(tower, /ВОСХОЖДЕНИЕ · ТОТ ЖЕ SEED/);
   assert.match(tower, /window\.BCMWorldMission\.towerSeed = seed/);
+  assert.match(tower, /function startNewTower\(\) \{\s*if \(!gameStarted\) return;\s*ascentMode = false/);
 });
 
 test("Tower reverse ONICSS transition reuses the existing landing clip and has a seek fallback", async () => {
@@ -115,6 +116,13 @@ test("return snapshot preserves Crew, ship pose, mission, local seeds and intern
   assert.match(mini, /function restoreShipFromLocalReturn\(\)/);
   assert.match(mini, /function resumeLocalSessionAfterReturn\(\)/);
   assert.match(mini, /currentRepair\.compartments = JSON\.parse/);
+  assert.match(mini, /BCMDeepSpaceWarpRestoreReturnSnapshot\(snapshot\.navigation\)/);
+  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  assert.match(warp, /current: compactSector\(state\.nav\?\.current\)/);
+  assert.match(warp, /targets: \(state\.nav\?\.targets \|\| \[\]\)\.map\(compactSector\)/);
+  assert.match(warp, /window\.BCMDeepSpaceWarpRestoreReturnSnapshot = \(snapshot\) =>/);
+  assert.match(warp, /state\.sectorProgressed = !!snapshot\.sectorProgressed/);
+  assert.match(warp, /live: !!snapshot\.live && !!adapter && !!current\.raw/);
   assert.match(loader, /window\.BCMPrepareMiniSimReturn\(\)/);
 });
 
