@@ -1,5 +1,6 @@
 import { createReadStream, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
@@ -149,7 +150,7 @@ function authPopupPlugin(): Plugin {
  * its existing asset scanner via BCMFirstPlanetConfig.meshBase.
  */
 function firstPlanetMeshPlugin(): Plugin {
-  const meshRoot = resolve(import.meta.dirname, "../../assets/first-planet/mesh");
+  const meshRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "../../assets/first-planet/mesh");
 
   return {
     name: "bcm-first-planet-shared-mesh",
