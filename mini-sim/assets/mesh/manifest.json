@@ -1,0 +1,203 @@
+{
+  "coast_straight": {
+    "triangles": 84,
+    "meshes": 1,
+    "units": "meters",
+    "road_width": 2,
+    "surface_y_gltf": 0,
+    "connectors_gltf": [
+      {
+        "position": [
+          -2,
+          0,
+          0
+        ],
+        "outward": [
+          -1,
+          0,
+          0
+        ]
+      },
+      {
+        "position": [
+          2,
+          0,
+          0
+        ],
+        "outward": [
+          1,
+          0,
+          0
+        ]
+      }
+    ]
+  },
+  "coast_turn_90": {
+    "triangles": 732,
+    "meshes": 1,
+    "units": "meters",
+    "road_width": 2,
+    "radius_centerline": 4,
+    "surface_y_gltf": 0,
+    "connectors_gltf": [
+      {
+        "position": [
+          4,
+          0,
+          0
+        ],
+        "outward": [
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "position": [
+          0,
+          0,
+          -4
+        ],
+        "outward": [
+          -1,
+          0,
+          0
+        ]
+      }
+    ]
+  },
+  "desert_straight": {
+    "triangles": 36,
+    "meshes": 1,
+    "units": "meters",
+    "road_width": 2,
+    "surface_y_gltf": 0,
+    "connectors_gltf": [
+      {
+        "position": [
+          -2,
+          0,
+          0
+        ],
+        "outward": [
+          -1,
+          0,
+          0
+        ]
+      },
+      {
+        "position": [
+          2,
+          0,
+          0
+        ],
+        "outward": [
+          1,
+          0,
+          0
+        ]
+      }
+    ]
+  },
+  "desert_turn_90": {
+    "triangles": 588,
+    "meshes": 1,
+    "units": "meters",
+    "road_width": 2,
+    "radius_centerline": 4,
+    "surface_y_gltf": 0,
+    "connectors_gltf": [
+      {
+        "position": [
+          4,
+          0,
+          0
+        ],
+        "outward": [
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "position": [
+          0,
+          0,
+          -4
+        ],
+        "outward": [
+          -1,
+          0,
+          0
+        ]
+      }
+    ]
+  },
+  "ice_straight": {
+    "triangles": 36,
+    "meshes": 1,
+    "units": "meters",
+    "road_width": 2,
+    "surface_y_gltf": 0,
+    "connectors_gltf": [
+      {
+        "position": [
+          -2,
+          0,
+          0
+        ],
+        "outward": [
+          -1,
+          0,
+          0
+        ]
+      },
+      {
+        "position": [
+          2,
+          0,
+          0
+        ],
+        "outward": [
+          1,
+          0,
+          0
+        ]
+      }
+    ]
+  },
+  "ice_turn_90": {
+    "triangles": 588,
+    "meshes": 1,
+    "units": "meters",
+    "road_width": 2,
+    "radius_centerline": 4,
+    "surface_y_gltf": 0,
+    "connectors_gltf": [
+      {
+        "position": [
+          4,
+          0,
+          0
+        ],
+        "outward": [
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "position": [
+          0,
+          0,
+          -4
+        ],
+        "outward": [
+          -1,
+          0,
+          0
+        ]
+      }
+    ]
+  }
+}
