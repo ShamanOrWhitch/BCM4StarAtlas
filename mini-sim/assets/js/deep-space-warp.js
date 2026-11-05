@@ -377,8 +377,8 @@
     const compactSector = (sector) => sector ? {
       id: String(sector.id || ""),
       name: String(sector.name || ""),
-      x: Number.isFinite(Number(sector.x)) ? Number(sector.x) : null,
-      y: Number.isFinite(Number(sector.y)) ? Number(sector.y) : null
+      x: sector.x != null && Number.isFinite(Number(sector.x)) ? Number(sector.x) : null,
+      y: sector.y != null && Number.isFinite(Number(sector.y)) ? Number(sector.y) : null
     } : null;
 
     window.BCMDeepSpaceWarpGetReturnSnapshot = () => ({
@@ -422,8 +422,8 @@
         return {
           id: String(row.id),
           name: String(row.name || row.id),
-          x: Number.isFinite(Number(row.x)) ? Number(row.x) : null,
-          y: Number.isFinite(Number(row.y)) ? Number(row.y) : null,
+          x: row.x != null && Number.isFinite(Number(row.x)) ? Number(row.x) : null,
+          y: row.y != null && Number.isFinite(Number(row.y)) ? Number(row.y) : null,
           raw: null
         };
       };
@@ -436,7 +436,7 @@
       state.nav = {
         current,
         targets,
-        live: !!snapshot.live && !!adapter,
+        live: !!snapshot.live && !!adapter && !!current.raw,
         localPreview: !!snapshot.localPreview || !snapshot.live,
         adapter: adapter || null,
         label: String(snapshot.label || (snapshot.localPreview
