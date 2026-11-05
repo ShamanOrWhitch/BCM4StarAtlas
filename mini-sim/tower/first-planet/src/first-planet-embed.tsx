@@ -75,7 +75,7 @@ function FirstPlanetApp({
   const enterTower = () => {
     window.dispatchEvent(new CustomEvent("bcm:planet:tower-enter", {
       detail: {
-        seed: Number(context.seed ?? context.players?.length ?? 0) || undefined,
+        seed: Number(context.seed) >>> 0,
         mode: context.mode || "single",
         sessionSeed: context.sessionSeed,
         planetSeed: context.planetSeed,
@@ -84,8 +84,10 @@ function FirstPlanetApp({
     }));
   };
 
+  if (window.BCMMiniSimSession) window.BCMMiniSimSession.currentLocation = "first-planet";
+
   return mode === "race"
-    ? <ShoalRace onLeave={() => setMode("island")} onStartAudio={startPlanetMusic} />
+    ? <ShoalRace seed={Number(context.raceSeed) >>> 0} onLeave={() => setMode("island")} onStartAudio={startPlanetMusic} />
     : <DesertIsland
         context={context}
         onRace={() => {
