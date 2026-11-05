@@ -185,7 +185,6 @@ export function DesertIsland({
           <button
             type="button"
             onClick={() => {
-              onStartAudioRef.current();
               onRaceRef.current();
             }}
             className="mt-2 h-12 w-full rounded-xl border border-line text-fg"
