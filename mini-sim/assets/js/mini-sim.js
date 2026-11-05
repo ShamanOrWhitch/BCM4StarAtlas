@@ -3673,6 +3673,11 @@
         session: JSON.parse(JSON.stringify(window.BCMMiniSimSession || {})),
         crewSelection: JSON.parse(JSON.stringify(window.BCMMiniCrewSelection || {})),
         wallet: JSON.parse(JSON.stringify(window.BCMiniCrewWallet || {})),
+        hullRepair: {
+          compartments: Array.isArray(window.BCMHullRepairState?.compartments)
+            ? JSON.parse(JSON.stringify(window.BCMHullRepairState.compartments))
+            : []
+        },
         savedAt: Date.now()
       };
       sessionStorage.setItem(LOCAL_RETURN_STORAGE_KEY, JSON.stringify(payload));
@@ -3719,6 +3724,10 @@
       ? savedSelection.players
       : Array.isArray(snapshot?.crew) ? snapshot.crew : [];
     loadCrewRoster().then(() => {
+      if (Array.isArray(pendingLocalReturn?.hullRepair?.compartments)) {
+        const currentRepair = window.BCMHullRepairState || (window.BCMHullRepairState = {});
+        currentRepair.compartments = JSON.parse(JSON.stringify(pendingLocalReturn.hullRepair.compartments));
+      }
       if (savedCrew.length) {
         const restoredRows = savedCrew.map((crew) => normalizeCrewRow(crew));
         const ids = new Set(restoredRows.map((crew) => crew.id));
