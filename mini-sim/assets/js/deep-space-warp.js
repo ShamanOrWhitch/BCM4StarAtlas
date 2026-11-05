@@ -1722,10 +1722,28 @@
       state.tubeBoostUntil = 0;
       state.statusText = "";
       state.touch.left = state.touch.right = state.touch.up = state.touch.down = false;
-      // Repeated trips through the same sector pair should still create a fresh
-      // obstacle run rather than showing the exact same 22-piece sequence.
-      const runNonce = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
-      const rng = randomFrom(hashSeed(state.nav.current.id + ">" + state.target.id + ":" + state.target.x + ":" + state.target.y + ":" + runNonce));
+      // Each Tube run gets its own seed derived from this local session's Warp
+      // stream and a per-session run counter. A future server can authoritatively
+      // supply the same counter/seed to every client in one party.
+      const localSession = window.BCMMiniSimSession || null;
+      const locationSeeds = localSession && localSession.locationSeeds
+        ? localSession.locationSeeds
+        : {};
+      const runCounters = localSession
+        ? (localSession.runCounters || (localSession.runCounters = {}))
+        : {};
+      const warpRun = Number(runCounters.warp || 0) + 1;
+      runCounters.warp = warpRun;
+      const warpBaseSeed = Number.isSafeInteger(Number(locationSeeds.warp))
+        ? Number(locationSeeds.warp) >>> 0
+        : hashSeed(String(state.nav.current.id) + "|warp");
+      const warpRunSeed = hashSeed(warpBaseSeed + "|" + warpRun + "|" +
+        state.nav.current.id + ">" + state.target.id + ":" + state.target.x + ":" + state.target.y);
+      if (localSession) {
+        localSession.activeSeeds = localSession.activeSeeds || {};
+        localSession.activeSeeds.warp = warpRunSeed;
+      }
+      const rng = randomFrom(warpRunSeed);
       state.layers = [];
       const courseLayerCount = 22;
       let previousSafeAngle = null;
@@ -1955,8 +1973,24 @@
       const NX = 7, NY = 3, NZ = 7, CELL = 6.8, WALL = 0.46;
       // Keep the test maze off-axis and away from the old negative-Z texture-preload trigger.
       const center = new THREE.Vector3(230, 0, 150);
-      const runNonce = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
-      const seed = hashSeed(state.nav.current.id + "->" + state.target.id + ":" + state.target.x + ":" + state.target.y + ":" + runNonce);
+      const localSession = window.BCMMiniSimSession || null;
+      const locationSeeds = localSession && localSession.locationSeeds
+        ? localSession.locationSeeds
+        : {};
+      const runCounters = localSession
+        ? (localSession.runCounters || (localSession.runCounters = {}))
+        : {};
+      const asteroidRun = Number(runCounters.asteroid || 0) + 1;
+      runCounters.asteroid = asteroidRun;
+      const asteroidBaseSeed = Number.isSafeInteger(Number(locationSeeds.asteroid))
+        ? Number(locationSeeds.asteroid) >>> 0
+        : hashSeed(String(state.nav.current.id) + "|asteroid");
+      const seed = hashSeed(asteroidBaseSeed + "|" + asteroidRun + "|" +
+        state.nav.current.id + "->" + state.target.id + ":" + state.target.x + ":" + state.target.y);
+      if (localSession) {
+        localSession.activeSeeds = localSession.activeSeeds || {};
+        localSession.activeSeeds.asteroid = seed;
+      }
       const rng = randomFrom(seed);
       const cells = [];
       function idx(x, y, z) { return (z * NY + y) * NX + x; }
@@ -2312,7 +2346,7 @@
         }
       };
       if (window.BCMWorldMission) {
-        if (!window.BCMWorldMission.asteroidSeed) window.BCMWorldMission.asteroidSeed = seed;
+        window.BCMWorldMission.asteroidSeed = seed;
       }
       state.savedSpeedMode = engine.getSpeedMode ? engine.getSpeedMode() : 1;
       if (engine.setSpeedMode) engine.setSpeedMode(2);
