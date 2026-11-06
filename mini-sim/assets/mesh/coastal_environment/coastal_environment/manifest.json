@@ -1,0 +1,18 @@
+{
+  "lighthouse": {
+    "triangles": 864,
+    "parts": 20
+  },
+  "navigation_buoy_red": {
+    "triangles": 232,
+    "parts": 7
+  },
+  "palm_tree": {
+    "triangles": 304,
+    "parts": 22
+  },
+  "race_finish_gate": {
+    "triangles": 388,
+    "parts": 21
+  }
+}
