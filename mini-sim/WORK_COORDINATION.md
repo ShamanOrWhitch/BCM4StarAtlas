@@ -1,3 +1,16 @@
+## Active — WORK LOCK #104: First Planet desert settlement population (6 November 2026)
+
+- **Branch:** `feat/first-planet-desert-population-20261106`; base `main` at `00ff78815f6ed0ba372e158015f7b798f3534351`. Issue [#104](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/104).
+- Scope is First Planet scenery only: use the freshly uploaded `desert_pack01`, `desert_details` and `desert_oasis_pack` GLBs in the Desert Island.
+- Preserve the existing 29 legacy First Planet meshes and their `meshBase`. Add a separate nested `meshLibraryBase` and matching allowlisted preview/build route for selected `assets/mesh/**` files; do not duplicate the GLB binaries.
+- Imported multi-part models are baked to one mesh. Repeated cacti, shrubs, rocks, columns and race banners use `InstancedMesh`; optional desert models load in batches of four.
+- Decoration placements use separate `createSeededRandom(planetSeed, salt)` streams. Keep scenery non-colliding; do not change terrain/house/bridge colliders, spawn, quest/crystal/key locations, NPCs, island/race physics, Tower gate, or transitions.
+- Mini-Sim cache version moves to `0.12.3`; Tower cache version moves to `0.2.72`.
+- Status: implementation and focused regression are on the branch; automated regression, WordPress bundle/package, and browser checks are pending. No live WordPress or manual device result is claimed.
+- Do not mix with local transition work #97, Tower city #67 or QA-only PR #92. Do not touch Galia Desk, scanner/pricing, firewall or remote networking.
+
+---
+
 ## Completed — WORK LOCK #101: Mini-Sim single-level artifact packaging (6 November 2026)
 
 - **Merged:** [PR #102](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/102), main commit [`f6903fcb7b67663b8bece272baafd78a230ebb74`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/f6903fcb7b67663b8bece272baafd78a230ebb74). Mini-Sim remains `0.12.2`; Tower remains `0.2.71`.
