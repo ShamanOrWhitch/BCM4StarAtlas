@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.71";
+  const TOWER_VERSION = "0.2.72";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -1361,8 +1361,48 @@
       return texture;
     }
 
+    function makeSpaceExit(cell) {
+      const sectorAngle = (cell.sector / tower.sectors) * Math.PI * 2;
+      const url = helipadMarkerUrl();
+      const tex = url ? assetTexture(url, renderer, { removeWhite: true }) : null;
+      const material = tex
+        ? new THREE.MeshBasicMaterial({
+            map: tex,
+            transparent: true,
+            alphaTest: 0.04,
+            side: THREE.DoubleSide,
+            depthWrite: false
+          })
+        : new THREE.MeshBasicMaterial({
+            color: 0x8fe7ff,
+            transparent: true,
+            opacity: 0.92,
+            side: THREE.DoubleSide
+          });
+      const radial = radius + 0.85;
+      const y = cellWorldY(cell);
+      const pad = new THREE.Mesh(new THREE.CircleGeometry(1.55, 28), material);
+      pad.rotation.x = -Math.PI / 2;
+      pad.position.set(Math.sin(sectorAngle) * radial, y + 0.34, Math.cos(sectorAngle) * radial);
+      const card = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 2.5), material);
+      card.position.set(Math.sin(sectorAngle) * radial, y + 1.7, Math.cos(sectorAngle) * radial);
+      card.rotation.y = sectorAngle;
+      for (const mesh of [pad, card]) {
+        mesh.userData.cell = cell;
+        mesh.userData.objectType = "landing";
+        mesh.userData.assetUrl = url || "";
+        mesh.userData.spaceExit = true;
+        towerRoot.add(mesh);
+        objectMeshes.push(mesh);
+      }
+      return pad;
+    }
+
     function makeObject(cell) {
       if (!cell.object) return null;
+      if (cell.object === "landing" && cell.level === tower.levels - 1) {
+        return makeSpaceExit(cell);
+      }
 
       const objectRandom = mulberry32(seed ^ 0x6f41 ^ (cell.level * 97) ^ cell.sector);
       let url = "";
@@ -2308,8 +2348,10 @@
       p.y += p.vy * dt;
 
       const bottomY = -((tower.levels - 1) * tower.stepY);
-      const topY = 6;
-      const reachedExit = ascentMode ? p.y > topY + 4.2 : p.y < bottomY - 4.2;
+      const onSpaceExit = ascentMode && p.grounded && p.currentCell
+        && p.currentCell.level === tower.levels - 1
+        && p.currentCell.object === "landing";
+      const reachedExit = ascentMode ? onSpaceExit : p.y < bottomY - 4.2;
       if (reachedExit) {
         p.finished = true;
         p.vy = 0;
@@ -2846,7 +2888,7 @@
           " · SEED " + tower.seed;
         if (modeEl) {
           modeEl.textContent = ascentMode
-            ? (mode === "multi" ? "КОМАНДА ВОЗВРАЩАЕТСЯ К ВЕРХНЕЙ ДВЕРИ" : "НАЙДИ ВЕРХНЮЮ ДВЕРЬ")
+            ? (mode === "multi" ? "КОМАНДА ВОЗВРАЩАЕТСЯ К H1" : "ВСТАНЬ НА H1 · ВЫХОД В КОСМОС")
             : (mode === "multi" ? "КТО ПЕРВЫМ СПУСТИТСЯ ВНИЗ?" : "ПОРА СПУСТИТЬСЯ ВНИЗ");
         }
       } else {
@@ -3849,7 +3891,7 @@
         restartButton.hidden = true;
         if (modeEl) modeEl.textContent = mode === "multi"
           ? "КОМАНДА ВОСХОДИТ ПО ТОМУ ЖЕ МАРШРУТУ"
-          : "НАЙДИ ВЕРХНЮЮ ДВЕРЬ";
+          : "ВСТАНЬ НА H1 · ВЫХОД В КОСМОС";
         status.textContent = "ВОСХОЖДЕНИЕ · ТОТ ЖЕ SEED " + wantedSeed;
         updateCrewMatrix();
         exposeCrewMatrix();

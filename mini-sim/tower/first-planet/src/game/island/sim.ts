@@ -404,7 +404,7 @@ export function createSim(seed = 0) {
       else if (hit(JOURNAL.x, JOURNAL.z, 1.8)) this.prompt = "E — журнал";
       else if (hit(LETTER.x, LETTER.z, 1.7)) this.prompt = "E — записка";
       else if (hit(SKY_NOTE.x, SKY_NOTE.z, 3) && this.y > 10) this.prompt = "E — плита трассы";
-      else if (hit(TOWER_GATE.x, TOWER_GATE.z, TOWER_GATE.radius)) this.prompt = "E — войти в Tower · тот же seed команды";
+      else if (hit(TOWER_GATE.x, TOWER_GATE.z, TOWER_GATE.radius)) this.prompt = "E — маяк · подъём в Tower";
       else if (hit(RING.x, RING.z, 3.4)) this.prompt = "E — берег цитадели, гонка";
       else if (this.mode === "foot" && hit(this.bikeX, this.bikeZ, 3.8)) this.prompt = "E — сесть на байк";
       else if (this.mode === "bike") this.prompt = "E — спешиться";

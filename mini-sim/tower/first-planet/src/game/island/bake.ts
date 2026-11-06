@@ -68,13 +68,13 @@ export function bake(root: THREE.Object3D, target: number, axis: "y" | "xz") {
   merged.translate(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
   merged.scale(scale, scale, scale);
   const mesh = new THREE.Mesh(merged, shared);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
+  mesh.castShadow = false;
+  mesh.receiveShadow = false;
   return mesh;
 }
 
-/** Blockout vehicles are long on X. Turn the nose onto local −Z (our forward). */
+/** Blockout vehicles are long on +X and the nose is +X. Turn that nose onto −Z, which is forward. */
 export function faceForward(mesh: THREE.Object3D) {
-  mesh.rotation.y = -Math.PI / 2;
+  mesh.rotation.y = Math.PI / 2;
   return mesh;
 }

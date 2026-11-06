@@ -155,9 +155,9 @@ export const TOWER_GATE = { x: 0.4, z: 32.6, radius: 3.3 };
 export const SKY_NOTE = { x: SKY.x, z: SKY.z };
 
 export const NPC = {
-  sera: { x: -5.7, z: 17, yaw: -Math.PI / 2, name: "Сера Венн" },
-  orr: { x: -6.4, z: -1.2, yaw: -Math.PI / 2, name: "Орр-1" },
-  bulb: { x: 1.5, z: 6.6, yaw: Math.PI, name: "Ламп" },
+  sera: { x: -5.7, z: 17, yaw: Math.PI / 2, name: "Сера Венн" },
+  orr: { x: -6.4, z: -1.2, yaw: Math.PI / 2, name: "Орр-1" },
+  bulb: { x: 1.5, z: 6.6, yaw: 0, name: "Ламп" },
 };
 
 export function regionName(x: number, z: number, y: number) {
