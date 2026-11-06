@@ -1,14 +1,14 @@
 ## D-047 — Mini-Sim delivery artifact has exactly one ZIP layer (6 November 2026)
 
-**Status:** Work Lock [#101](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/101), branch `fix/minisim-single-level-artifact-20261106`, based on main `8753eaceb69b3608408f728d4fd76ca7dad6a073`.
+**Status:** Merged via [PR #102](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/102) as main commit [`f6903fcb7b67663b8bece272baafd78a230ebb74`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/f6903fcb7b67663b8bece272baafd78a230ebb74). WORK LOCK [#101](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/101) completed. Mini-Sim 0.12.2 / Tower 0.2.71.
 
 - GitHub Actions `actions/upload-artifact` creates its own ZIP. Never pre-create a plugin ZIP and upload that archive; that creates an archive inside an archive and forces unnecessary extraction.
-- Upload the complete `mini-sim/` directory tree directly with an artifact path pattern that preserves `mini-sim/` as the top-level folder. The downloaded Actions artifact is the single installable ZIP.
+- Upload the complete `mini-sim/` directory tree directly with `path: '**/mini-sim/**/*'`; the downloaded Actions artifact is the single ZIP and retains `mini-sim/` as its top-level folder.
 - Verify that `bcm-mini-sim.php`, First Planet `wp-dist/first-planet.js` and `wp-dist/first-planet.css` are present before upload. Fail if any `.zip` exists inside `mini-sim/`.
-- No intermediate extraction or user-machine `%TEMP%` / `C:\\Temp` staging. Do build and verification within the ephemeral Actions runner.
-- CI on the PR branch found two stale version literals in `scripts/asteroid-tower-hull-controls.test.mjs` left behind by the 0.12.2 / 0.2.71 bump. The test now reads the versions from PHP and verifies the user-visible Mini-Sim version plus Tower PHP/JS synchronization; it no longer blocks future version increments.
-- This is a packaging rule only. It does not prove live WordPress installation or manual gameplay.
-
+- No intermediate extraction or user-machine `%TEMP%` / `C:\\Temp` staging. Build and verify inside the ephemeral Actions runner.
+- Two stale version literals in `scripts/asteroid-tower-hull-controls.test.mjs` were replaced with version-aware assertions derived from the PHP headers.
+- **PR checks:** 5/5 PASS (package, Mini-Sim regression, standalone Chromium browser smoke, Tower top cap, Hull Dive RU/EN copy). **Main post-merge:** package [run #42226266489](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/42226266489), Mini-Sim regression [#42226266351](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/42226266351), Tower top cap [#42226266396](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/42226266396) all PASS. Artifact ID `13505538107`, 336,967,592 bytes.
+- Packaging only: no WordPress production deployment or manual end-to-end gameplay confirmation is implied.
 ---
 
 ## D-046 — Mini-Sim 0.12.1 local whole-journey session (5 November 2026)
