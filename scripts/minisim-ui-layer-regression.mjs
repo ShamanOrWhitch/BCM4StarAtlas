@@ -11,7 +11,7 @@ const hull = read("mini-sim/assets/js/hull-dive.js");
 const warp = read("mini-sim/assets/js/deep-space-warp.js");
 const audit = read("mini-sim/assets/js/ui-layer-audit.js");
 
-const miniVersion = php.match(/Version:\\s+([0-9.]+)/)?.[1];
+const miniVersion = php.match(/Version:\s+([0-9.]+)/)?.[1];
 assert.ok(miniVersion, "Mini-Sim plugin header exposes its version");
 assert.ok(
   php.includes(`define('BCM_MINI_SIM_VERSION', '${miniVersion}')`),
