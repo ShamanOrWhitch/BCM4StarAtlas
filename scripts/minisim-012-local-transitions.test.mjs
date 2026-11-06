@@ -180,3 +180,56 @@ test("Tower preloads First Planet during the descent and the bundle exports moun
   assert.match(vite, /external: \[\]/);
   assert.match(vite, /exports: "default"/);
 });
+
+test("First Planet populates the desert from the shared nested mesh library without changing gameplay geometry", async () => {
+  const scene = await read("mini-sim/tower/first-planet/src/game/island/scene.ts");
+  const terrain = await read("mini-sim/tower/first-planet/src/game/island/terrain.ts");
+  const bake = await read("mini-sim/tower/first-planet/src/game/island/bake.ts");
+  const vite = await read("mini-sim/tower/first-planet/vite.config.ts");
+  const towerPhp = await read("mini-sim/tower/bcm-tower.php");
+  assert.ok(towerPhp.includes("'meshLibraryBase' => BCM_MINI_SIM_URL . 'assets/mesh/'"));
+  assert.match(scene, /meshLibraryBase\?: string/);
+  assert.match(scene, /file\.split\("\/"\)\.map\(\(part\) => encodeURIComponent\(part\)\)/);
+  assert.match(scene, /mesh-library/);
+  assert.match(scene, /loadLibraryMesh\("desert_pack01\/cactus_tall\.glb"/);
+  assert.match(scene, /loadLibraryMesh\("desert_oasis_pack\/desert_oasis_pack\/oasis_orchid_palms\.glb"/);
+  assert.match(scene, /createSeededRandom\(planetSeed, salt\)/);
+  assert.match(scene, /new THREE\.InstancedMesh/);
+  assert.match(scene, /instances\.computeBoundingSphere\(\)/);
+  assert.match(bake, /mergeGeometries\(parts, false\)/);
+  assert.match(vite, /FIRST_PLANET_DESERT_MESH_FILES/);
+  assert.match(vite, /mesh-library/);
+  assert.match(vite, /relative\(root, file\)/);
+
+  const binaries = [
+    "mini-sim/assets/mesh/desert_pack01/cactus_tall.glb",
+    "mini-sim/assets/mesh/desert_pack01/cactus_cluster.glb",
+    "mini-sim/assets/mesh/desert_pack01/barrel_cactus_flower.glb",
+    "mini-sim/assets/mesh/desert_pack01/sandstone_boulders.glb",
+    "mini-sim/assets/mesh/desert_pack01/sandstone_arch.glb",
+    "mini-sim/assets/mesh/desert_pack01/stepped_desert_temple.glb",
+    "mini-sim/assets/mesh/desert_pack01/desert_market_awning.glb",
+    "mini-sim/assets/mesh/desert_pack01/dead_desert_tree.glb",
+    "mini-sim/assets/mesh/desert_details/shrub_dry.glb",
+    "mini-sim/assets/mesh/desert_details/shrub_green.glb",
+    "mini-sim/assets/mesh/desert_details/shrub_sage.glb",
+    "mini-sim/assets/mesh/desert_details/cairn_wide.glb",
+    "mini-sim/assets/mesh/desert_details/cactus_branching.glb",
+    "mini-sim/assets/mesh/desert_details/rocks_gray.glb",
+    "mini-sim/assets/mesh/desert_oasis_pack/desert_oasis_pack/oasis_orchid_palms.glb",
+    "mini-sim/assets/mesh/desert_oasis_pack/desert_oasis_pack/oasis_flower_garden.glb",
+    "mini-sim/assets/mesh/desert_oasis_pack/desert_oasis_pack/rare_turquoise_bloom.glb",
+    "mini-sim/assets/mesh/desert_oasis_pack/desert_oasis_pack/orchid_pink.glb",
+    "mini-sim/assets/mesh/desert_oasis_pack/desert_oasis_pack/orchid_white.glb",
+  ];
+  for (const path of binaries) {
+    const data = await readFile(new URL(path, root));
+    assert.ok(data.byteLength > 1000, path + " must be present as a real GLB");
+  }
+
+  const scenery = scene.slice(scene.indexOf("// The village square"), scene.indexOf("isle.geometry.computeBoundingBox"));
+  assert.doesNotMatch(scenery, /sim\.walls|houseAabbs|collision/);
+  assert.match(terrain, /export const TOWER_GATE =/);
+  assert.match(terrain, /export const CRYSTALS =/);
+});
+
