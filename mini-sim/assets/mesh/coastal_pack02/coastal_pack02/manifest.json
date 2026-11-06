@@ -1,0 +1,58 @@
+{
+  "rock_cluster": {
+    "triangles": 240,
+    "parts": 3
+  },
+  "sea_rock_arch": {
+    "triangles": 800,
+    "parts": 10
+  },
+  "shore_rocks": {
+    "triangles": 400,
+    "parts": 5
+  },
+  "dock_straight": {
+    "triangles": 320,
+    "parts": 18
+  },
+  "dock_platform": {
+    "triangles": 132,
+    "parts": 11
+  },
+  "barrier_sandstone": {
+    "triangles": 12,
+    "parts": 1
+  },
+  "barrier_redwhite": {
+    "triangles": 36,
+    "parts": 3
+  },
+  "bridge_support": {
+    "triangles": 36,
+    "parts": 3
+  },
+  "life_ring": {
+    "triangles": 640,
+    "parts": 5
+  },
+  "buoy_yellow": {
+    "triangles": 208,
+    "parts": 6
+  },
+  "buoy_green": {
+    "triangles": 208,
+    "parts": 6
+  },
+  "small_sand_islet": {
+    "triangles": 328,
+    "parts": 9
+  },
+  "wooden_boat": {
+    "triangles": 40,
+    "parts": 2
+  },
+  "driftwood": {
+    "triangles": 68,
+    "parts": 2
+  }
+}
