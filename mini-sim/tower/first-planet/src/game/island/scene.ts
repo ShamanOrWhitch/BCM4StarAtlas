@@ -589,27 +589,43 @@ export function createIsland(
 
     // Desert props come from the shared mesh library. Each multi-part GLB is
     // baked to a single mesh before instancing, keeping draw calls bounded.
-    const desertEntries = await Promise.all([
-      loadLibraryMesh("desert_pack01/cactus_tall.glb", 2.9, "y"),
-      loadLibraryMesh("desert_pack01/cactus_cluster.glb", 3.7, "y"),
-      loadLibraryMesh("desert_pack01/barrel_cactus_flower.glb", 1.55, "y"),
-      loadLibraryMesh("desert_pack01/sandstone_boulders.glb", 2.7, "xz"),
-      loadLibraryMesh("desert_pack01/sandstone_arch.glb", 4.6, "y"),
-      loadLibraryMesh("desert_pack01/stepped_desert_temple.glb", 4.4, "y"),
-      loadLibraryMesh("desert_pack01/desert_market_awning.glb", 6.8, "xz"),
-      loadLibraryMesh("desert_pack01/dead_desert_tree.glb", 4.1, "y"),
-      loadLibraryMesh("desert_details/shrub_dry.glb", 1.55, "y"),
-      loadLibraryMesh("desert_details/shrub_green.glb", 1.55, "y"),
-      loadLibraryMesh("desert_details/shrub_sage.glb", 1.5, "y"),
-      loadLibraryMesh("desert_details/cairn_wide.glb", 1.45, "y"),
-      loadLibraryMesh("desert_details/cactus_branching.glb", 2.65, "y"),
-      loadLibraryMesh("desert_details/rocks_gray.glb", 2.45, "xz"),
-      loadLibraryMesh("desert_oasis_pack/desert_oasis_pack/oasis_orchid_palms.glb", 11.8, "xz"),
-      loadLibraryMesh("desert_oasis_pack/desert_oasis_pack/oasis_flower_garden.glb", 11.2, "xz"),
-      loadLibraryMesh("desert_oasis_pack/desert_oasis_pack/rare_turquoise_bloom.glb", 1.85, "y"),
-      loadLibraryMesh("desert_oasis_pack/desert_oasis_pack/orchid_pink.glb", 1.5, "y"),
-      loadLibraryMesh("desert_oasis_pack/desert_oasis_pack/orchid_white.glb", 1.5, "y"),
-    ]);
+    // Load optional desert scenery in small batches: the planet may warm up
+    // while Tower is active, but its hidden preparation must not flood requests.
+    const desertRequests: Array<[string, number, "y" | "xz"]> = [
+      ["desert_pack01/cactus_tall.glb", 2.9, "y"],
+      ["desert_pack01/cactus_cluster.glb", 3.7, "y"],
+      ["desert_pack01/barrel_cactus_flower.glb", 1.55, "y"],
+      ["desert_pack01/sandstone_boulders.glb", 2.7, "xz"],
+      ["desert_pack01/sandstone_arch.glb", 4.6, "y"],
+      ["desert_pack01/stepped_desert_temple.glb", 4.4, "y"],
+      ["desert_pack01/desert_market_awning.glb", 6.8, "xz"],
+      ["desert_pack01/dead_desert_tree.glb", 4.1, "y"],
+      ["desert_pack01/small_oasis.glb", 5.8, "xz"],
+      ["desert_pack01/sandstone_column.glb", 2.1, "y"],
+      ["desert_pack01/desert_race_banner.glb", 3.3, "y"],
+      ["desert_details/shrub_dry.glb", 1.55, "y"],
+      ["desert_details/shrub_green.glb", 1.55, "y"],
+      ["desert_details/shrub_sage.glb", 1.5, "y"],
+      ["desert_details/cairn_wide.glb", 1.45, "y"],
+      ["desert_details/cairn_tall.glb", 2.0, "y"],
+      ["desert_details/cactus_branching.glb", 2.65, "y"],
+      ["desert_details/rocks_gray.glb", 2.45, "xz"],
+      ["desert_oasis_pack/desert_oasis_pack/oasis_orchid_palms.glb", 11.8, "xz"],
+      ["desert_oasis_pack/desert_oasis_pack/oasis_flower_garden.glb", 11.2, "xz"],
+      ["desert_oasis_pack/desert_oasis_pack/rare_turquoise_bloom.glb", 1.85, "y"],
+      ["desert_oasis_pack/desert_oasis_pack/orchid_pink.glb", 1.5, "y"],
+      ["desert_oasis_pack/desert_oasis_pack/orchid_white.glb", 1.5, "y"],
+    ];
+    const desertEntries: Array<THREE.Mesh | null> = [];
+    for (let i = 0; i < desertRequests.length; i += 4) {
+      const batch = await Promise.all(
+        desertRequests.slice(i, i + 4).map(([file, target, axis]) =>
+          loadLibraryMesh(file, target, axis),
+        ),
+      );
+      desertEntries.push(...batch);
+      if (!alive) return;
+    }
     if (!alive) return;
     const [
       cactusTall,
@@ -620,10 +636,14 @@ export function createIsland(
       desertTemple,
       marketAwning,
       deadDesertTree,
+      smallOasis,
+      sandstoneColumn,
+      raceBanner,
       shrubDry,
       shrubGreen,
       shrubSage,
       cairnWide,
+      cairnTall,
       cactusBranching,
       grayRocks,
       oasisPalms,
@@ -780,6 +800,17 @@ export function createIsland(
     if (marketAwning) drop(marketAwning, 8.2, 23.8, -0.12);
     if (sandstoneArch) drop(sandstoneArch, -24.5, 1.8, Math.PI / 2);
     if (desertTemple) drop(desertTemple, 37.5, -8.5, 0.35);
+    if (smallOasis) drop(smallOasis, 29, -25, 0.42).scale.setScalar(0.86);
+    if (sandstoneColumn) drop(sandstoneColumn, -28.4, 8.8, 0.18);
+    if (sandstoneColumn) drop(sandstoneColumn, 42.5, 17.8, 1.6);
+    if (sandstoneColumn) drop(sandstoneColumn, 35.5, -32.8, -0.4);
+    if (cairnTall) drop(cairnTall, -39.5, -30.2, 0.8);
+
+    // Keep the ring approach corridor open; banners frame it from both sides.
+    if (raceBanner) {
+      drop(raceBanner, -9.2, -36.5, 0.12);
+      drop(raceBanner, 9.2, -36.5, -0.12);
+    }
 
     // Two distinct planted-water clearings extend the existing oasis basin.
     if (oasisPalms) drop(oasisPalms, -8.7, -18.2, 0.24).scale.setScalar(0.96);
