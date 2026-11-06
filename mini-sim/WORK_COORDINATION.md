@@ -1,12 +1,12 @@
-## Active — WORK LOCK #101: Mini-Sim single-level artifact packaging (6 November 2026)
+## Completed — WORK LOCK #101: Mini-Sim single-level artifact packaging (6 November 2026)
 
-- **Branch:** `fix/minisim-single-level-artifact-20261106`; base `main` at `8753eaceb69b3608408f728d4fd76ca7dad6a073`. Issue [#101](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/101).
-- This is a packaging-only change. It does not change Mini-Sim gameplay, Tower, First Planet source, Galia Desk, scanner/pricing, firewall or WordPress deployment.
-- Remove the plugin ZIP creation step. Upload the `mini-sim/` tree directly through `actions/upload-artifact`; GitHub creates the one downloadable ZIP. Preserve `mini-sim/` as the artifact's top-level folder.
-- Reject any `.zip` file inside the plugin tree. Never unpack intermediate archives or create user-machine `%TEMP%` / `C:\\Temp` staging.
-- CI also exposed two pre-existing hard-coded version checks in `scripts/asteroid-tower-hull-controls.test.mjs` (0.12.0 / Tower 0.2.69) after PR #100 moved main to 0.12.2 / 0.2.71. They now derive versions from the PHP headers and check the UI/JS version synchronization, rather than failing on every version bump.
-- Keep the full First Planet bundle and plugin tree in the artifact. Record the tested workflow run and merge SHA before closing this lock.
-
+- **Merged:** [PR #102](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/102), main commit [`f6903fcb7b67663b8bece272baafd78a230ebb74`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/f6903fcb7b67663b8bece272baafd78a230ebb74). Mini-Sim remains `0.12.2`; Tower remains `0.2.71`.
+- The package workflow no longer creates a plugin ZIP before uploading. It uploads the `mini-sim/` directory directly with `actions/upload-artifact`; GitHub creates the single downloadable ZIP and preserves `mini-sim/` as the top-level plugin folder.
+- The workflow verifies the First Planet WordPress bundle (`wp-dist/first-planet.js` + `.css`) and rejects any `.zip` inside `mini-sim/`. No intermediate archive extraction or user-machine `%TEMP%` / `C:\\Temp` staging is used.
+- **PR checks:** Mini-Sim regression, standalone Chromium browser smoke, Tower top cap, Hull Dive RU/EN copy, and package workflow all PASS on PR head `528152ca3887c3f9884e1f497736d4db0874a68e`.
+- **Main verification:** [package run #42226266489](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/42226266489) PASS; artifact [`bcm-mini-sim-0.12.2-test`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/42226266489/artifacts/13505538107), 336,967,592 bytes. Main Mini-Sim regression [#42226266351](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/42226266351) and Tower top cap [#42226266396](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/42226266396) also PASS.
+- CI exposed two stale version literals in `scripts/asteroid-tower-hull-controls.test.mjs`; these now derive versions from PHP headers and verify UI/JS version synchronization.
+- **Scope:** packaging, agent instructions and version-aware tests only. No gameplay changes, WordPress deployment or manual end-to-end game confirmation are claimed.
 ---
 
 ## Active — WORK LOCK #97: Mini-Sim 0.12.1 local transition loop (5 November 2026)
