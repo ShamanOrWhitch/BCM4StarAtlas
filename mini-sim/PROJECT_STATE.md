@@ -1,3 +1,12 @@
+## Active — Mini-Sim 0.12.2 package delivery correction (6 November 2026)
+
+- Latest gameplay source is already **merged to `main`** through [PR #100](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/100), merge commit [`8753eaceb69b3608408f728d4fd76ca7dad6a073`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/8753eaceb69b3608408f728d4fd76ca7dad6a073). Mini-Sim: `0.12.2`; Tower: `0.2.71`.
+- The user supplied package workflow [42221013821](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/42221013821): SUCCESS on `main` commit above. It built First Planet successfully, but the packaging procedure created a plugin ZIP and then uploaded that ZIP as a GitHub artifact, resulting in a nested ZIP.
+- **WORK LOCK #101:** remove the inner ZIP and upload the `mini-sim/` directory tree directly via Actions. The Actions artifact is itself the only ZIP and keeps the plugin folder at its root. Reject ZIP archives inside `mini-sim/`.
+- Do not extract intermediate packages or stage them under the user's Windows `%TEMP%` / `C:\\Temp`. Keep build and checks inside the ephemeral Actions runner.
+- CI on PR #102 initially exposed two stale, hard-coded version assertions in `scripts/asteroid-tower-hull-controls.test.mjs` (expected Mini-Sim 0.12.0 and Tower 0.2.69). Updated them to read versions from PHP headers and assert that Mini-Sim's visible label and Tower JS remain synchronized. This is a test-only compatibility correction; gameplay code is unchanged.
+- Status before packaging correction: gameplay code is merged; the user has not yet confirmed the 0.12.2 full gameplay route on the live WordPress site. Package-workflow success is not live WordPress or manual game verification.
+
 ## Active — Mini-Sim 0.12.1 local transition loop (5 November 2026)
 
 - **WORK LOCK:** [#97](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/97). Branch: `feat/minisim-0.12.1-planet-bundle`, merged toward `main`. The 0.12.0 draft was [#98](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/98).
