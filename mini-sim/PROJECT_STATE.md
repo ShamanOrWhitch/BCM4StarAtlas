@@ -1,3 +1,13 @@
+## Active — Mini-Sim 0.12.3: First Planet desert settlement (6 November 2026)
+
+- **WORK LOCK:** [#104](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/104). **Branch:** `feat/first-planet-desert-population-20261106`; base `main` at `00ff78815f6ed0ba372e158015f7b798f3534351`.
+- Mini-Sim version: `0.12.3`; Tower version: `0.2.72` (cache-busting for the updated plugin assets).
+- Reuses the new `mini-sim/assets/mesh/desert_pack01/`, `desert_details/` and `desert_oasis_pack/desert_oasis_pack/` GLBs without copying the binaries. PHP exposes `meshLibraryBase`; existing `meshBase` and the 29 legacy models remain unchanged. Vite dev/preview/build supports a safe allowlisted nested `mesh-library/` route.
+- Desert scenery includes a market awning, sandstone arch and temple, small oasis, two oasis/flower gardens, rare blooms/orchids, cacti, dry/green/sage shrubs, boulders/rocks, cairns, dead trees, sandstone columns and race banners.
+- Models are baked/merged into single meshes. Repeated model families use `InstancedMesh`. Optional GLBs load in batches of four to bound concurrent requests. Decoration uses isolated salted location-seed streams.
+- Gameplay contract preserved: no edits to terrain height, house/bridge collision geometry, spawn, Tower gate, existing quest/key/crystal placements, NPC logic, island/race physics or session transitions.
+- **Status before verification:** IMPLEMENTED on the feature branch; focused regression includes checks for real GLB files, the safe nested asset route, version synchronization, bounded batch loading, seeded instancing and non-collision. CI/build/browser status pending. Live WordPress and manual mobile/device scene validation remain unknown.
+
 ## Completed — Mini-Sim 0.12.2 package delivery correction (6 November 2026)
 
 - Gameplay source was already merged through [PR #100](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/100), merge commit [`8753eaceb69b3608408f728d4fd76ca7dad6a073`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/8753eaceb69b3608408f728d4fd76ca7dad6a073). Mini-Sim: `0.12.2`; Tower: `0.2.71`.
