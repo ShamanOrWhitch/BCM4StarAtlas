@@ -195,10 +195,10 @@ test("Mini-Sim doesn't relock the mouse or consume flight keys on the Warp map",
 });
 
 test("Mini-Sim 0.11.23 cache/version contracts are synchronized", () => {
-  assert.match(plugin, /Version: 0\.12\.0/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.12\.0'\)/);
-  assert.match(plugin, /SPACE LABYRINTH — 0\.12\.0/);
-  assert.match(qa, /Version: 0\.12\.0/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.12\.0'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.12\.0/);
+  assert.match(plugin, /Version: 0\.12\.3/);
+  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.12\.3'\)/);
+  assert.match(plugin, /SPACE LABYRINTH — 0\.12\.3/);
+  assert.match(qa, /Version: 0\.12\.3/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.12\.3'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.12\.3/);
 });
