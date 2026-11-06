@@ -61,21 +61,22 @@ jobs:
           test -s mini-sim/tower/first-planet/wp-dist/first-planet.js
           test -s mini-sim/tower/first-planet/wp-dist/first-planet.css
 
-      - name: Build installable plugin ZIP
+      - name: Verify single-level package contents
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p dist
-          zip -qr "dist/bcm-mini-sim-${{ steps.version.outputs.version }}-test.zip" mini-sim
-          unzip -t "dist/bcm-mini-sim-${{ steps.version.outputs.version }}-test.zip"
-          unzip -l "dist/bcm-mini-sim-${{ steps.version.outputs.version }}-test.zip" | grep -F 'mini-sim/bcm-mini-sim.php'
-          unzip -l "dist/bcm-mini-sim-${{ steps.version.outputs.version }}-test.zip" | grep -F 'mini-sim/tower/first-planet/wp-dist/first-planet.js'
-          unzip -l "dist/bcm-mini-sim-${{ steps.version.outputs.version }}-test.zip" | grep -F 'mini-sim/tower/first-planet/wp-dist/first-planet.css'
+          test -s mini-sim/bcm-mini-sim.php
+          test -s mini-sim/tower/first-planet/wp-dist/first-planet.js
+          test -s mini-sim/tower/first-planet/wp-dist/first-planet.css
+          if find mini-sim -type f -iname '*.zip' -print -quit | grep -q .; then
+            echo "Nested ZIP archives are forbidden inside the Mini-Sim package." >&2
+            exit 1
+          fi
 
       - name: Publish downloadable test artifact
         uses: actions/upload-artifact@v4
         with:
           name: bcm-mini-sim-${{ steps.version.outputs.version }}-test
-          path: dist/bcm-mini-sim-${{ steps.version.outputs.version }}-test.zip
+          # upload-artifact creates the single downloadable ZIP itself.\n          # The leading ** keeps mini-sim/ as the top-level plugin folder.\n          path: '**/mini-sim/**/*'
           if-no-files-found: error
           retention-days: 14
