@@ -1,6 +1,10 @@
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { previewPathPrefix } from "@/lib/preview-path-prefix";
+import { bake } from "./island/bake";
+import { createSeededRandom } from "./seed";
 import type { Race } from "./sim";
-import { ROAD_Y, type Track } from "./track";
+import { ROAD_Y, sampleAt, type Track } from "./track";
 
 export type Phase = "gate" | "race" | "pause" | "finish";
 
@@ -104,7 +108,7 @@ function glow(color: string) {
   return tex;
 }
 
-export function createWorld(canvas: HTMLCanvasElement): World {
+export function createWorld(canvas: HTMLCanvasElement, seed = 0): World {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   const host = canvas.parentElement ?? canvas;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
@@ -240,6 +244,185 @@ export function createWorld(canvas: HTMLCanvasElement): World {
   const look = new THREE.Vector3();
   const lookS = new THREE.Vector3(0, 8, 0);
   let sized = false;
+  const worldSeed = Number(seed) >>> 0;
+  const coastalRoot = new THREE.Group();
+  coastalRoot.name = "shoal-race-coastal-scenery";
+  scene.add(coastalRoot);
+  const coastalLoader = new GLTFLoader();
+  const coastalGeometries = new Set<THREE.BufferGeometry>();
+  const coastalMaterials = new Set<THREE.Material>();
+  let coastalTrack: Track | null = null;
+  let disposed = false;
+  let simpleGantry: THREE.Group | null = null;
+
+  const coastalUrl = (file: string) => {
+    const config = (window as Window & {
+      BCMFirstPlanetConfig?: { meshLibraryBase?: string };
+    }).BCMFirstPlanetConfig;
+    const encoded = file.split("/").map((part) => encodeURIComponent(part)).join("/");
+    if (config?.meshLibraryBase) {
+      return config.meshLibraryBase.replace(/\\/?$/, "/") + encoded;
+    }
+    const prefix = previewPathPrefix(window.location.hostname, window.location.pathname) ?? "";
+    return `${prefix}/mesh-library/${encoded}`;
+  };
+
+  const coastalSpecs = [
+    { key: "lighthouse", file: "coastal_environment/coastal_environment/lighthouse.glb", target: 18, axis: "y" as const },
+    { key: "redBuoy", file: "coastal_environment/coastal_environment/navigation_buoy_red.glb", target: 2.8, axis: "y" as const },
+    { key: "palm", file: "coastal_environment/coastal_environment/palm_tree.glb", target: 8.5, axis: "y" as const },
+    { key: "finishGate", file: "coastal_environment/coastal_environment/race_finish_gate.glb", target: 18, axis: "xz" as const },
+    { key: "shoreRocks", file: "coastal_pack02/coastal_pack02/shore_rocks.glb", target: 6.5, axis: "xz" as const },
+    { key: "seaArch", file: "coastal_pack02/coastal_pack02/sea_rock_arch.glb", target: 15, axis: "xz" as const },
+    { key: "dock", file: "coastal_pack02/coastal_pack02/dock_straight.glb", target: 20, axis: "xz" as const },
+    { key: "dockPlatform", file: "coastal_pack02/coastal_pack02/dock_platform.glb", target: 12, axis: "xz" as const },
+    { key: "barrierSandstone", file: "coastal_pack02/coastal_pack02/barrier_sandstone.glb", target: 5, axis: "xz" as const },
+    { key: "barrierRed", file: "coastal_pack02/coastal_pack02/barrier_redwhite.glb", target: 5.5, axis: "xz" as const },
+    { key: "buoyYellow", file: "coastal_pack02/coastal_pack02/buoy_yellow.glb", target: 2.8, axis: "y" as const },
+    { key: "buoyGreen", file: "coastal_pack02/coastal_pack02/buoy_green.glb", target: 2.8, axis: "y" as const },
+    { key: "sandIslet", file: "coastal_pack02/coastal_pack02/small_sand_islet.glb", target: 8, axis: "xz" as const },
+    { key: "boat", file: "coastal_pack02/coastal_pack02/wooden_boat.glb", target: 6.5, axis: "xz" as const },
+    { key: "driftwood", file: "coastal_pack02/coastal_pack02/driftwood.glb", target: 3.5, axis: "xz" as const },
+  ];
+
+  async function loadCoastalScenery(track: Track) {
+    if (coastalTrack === track) return;
+    coastalTrack = track;
+    const models = new Map<string, THREE.Mesh>();
+    const loadOne = async (spec: (typeof coastalSpecs)[number]) => {
+      try {
+        const gltf = await coastalLoader.loadAsync(coastalUrl(spec.file));
+        const mesh = bake(gltf.scene, spec.target, spec.axis);
+        mesh.material = mesh.material.clone();
+        return { key: spec.key, mesh };
+      } catch (error) {
+        console.warn("Shoal Race coastal prop skipped:", spec.file, error);
+        return null;
+      }
+    };
+    for (let i = 0; i < coastalSpecs.length; i += 3) {
+      const batch = await Promise.all(coastalSpecs.slice(i, i + 3).map(loadOne));
+      if (disposed) {
+        batch.forEach((entry) => {
+          if (!entry) return;
+          entry.mesh.geometry.dispose();
+          (entry.mesh.material as THREE.Material).dispose();
+        });
+        return;
+      }
+      batch.forEach((entry) => {
+        if (!entry) return;
+        models.set(entry.key, entry.mesh);
+        coastalGeometries.add(entry.mesh.geometry);
+        coastalMaterials.add(entry.mesh.material as THREE.Material);
+      });
+    }
+    if (disposed) return;
+
+    const pointAt = (fraction: number, side: number, lateral: number) => {
+      const sample = sampleAt(track, fraction * track.length);
+      return {
+        x: sample.x + sample.nx * side * lateral,
+        z: sample.z + sample.nz * side * lateral,
+        yaw: Math.atan2(-sample.tx, -sample.tz),
+      };
+    };
+
+    const place = (
+      key: string,
+      fraction: number,
+      side: number,
+      lateral: number,
+      scale = 1,
+      y = 1.08,
+      yawOffset = 0,
+    ) => {
+      const source = models.get(key);
+      if (!source) return;
+      const p = pointAt(fraction, side, lateral);
+      const mesh = new THREE.Mesh(source.geometry, source.material);
+      mesh.position.set(p.x, y, p.z);
+      mesh.rotation.y = p.yaw + yawOffset;
+      mesh.scale.setScalar(scale);
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      coastalRoot.add(mesh);
+    };
+
+    const scatter = (
+      key: string,
+      fractions: number[],
+      lateral: number,
+      salt: string,
+      options: { jitter?: number; minScale?: number; maxScale?: number; y?: number; randomYaw?: boolean } = {},
+    ) => {
+      const source = models.get(key);
+      if (!source || !fractions.length) return;
+      const random = createSeededRandom(worldSeed, salt);
+      const instances = new THREE.InstancedMesh(source.geometry, source.material, fractions.length);
+      const transform = new THREE.Object3D();
+      fractions.forEach((fraction, index) => {
+        const side = index % 2 === 0 ? 1 : -1;
+        const p = pointAt(fraction, side, lateral + (random() - 0.5) * (options.jitter ?? 1.6));
+        transform.position.set(p.x, options.y ?? 1.08, p.z);
+        transform.rotation.set(0, p.yaw + (options.randomYaw ? random() * Math.PI * 2 : (random() - 0.5) * 0.18), 0);
+        const minScale = options.minScale ?? 0.88;
+        const maxScale = options.maxScale ?? 1.12;
+        transform.scale.setScalar(minScale + random() * (maxScale - minScale));
+        transform.updateMatrix();
+        instances.setMatrixAt(index, transform.matrix);
+      });
+      instances.instanceMatrix.needsUpdate = true;
+      instances.castShadow = false;
+      instances.receiveShadow = false;
+      instances.computeBoundingBox();
+      instances.computeBoundingSphere();
+      coastalRoot.add(instances);
+    };
+
+    // The GLB replaces the simple blockout gate when it loads; if it fails,
+    // the existing gate stays visible. Racing physics and the road are untouched.
+    place("finishGate", 0, 0, 0, 1, ROAD_Y, 0);
+    if (models.has("finishGate") && simpleGantry) simpleGantry.visible = false;
+
+    // A navigational landmark beyond the outer racing edge.
+    place("lighthouse", 0.29, -1, 27.5, 1, 1.08, 0.15);
+    place("seaArch", 0.56, 1, 24.5, 0.94, 1.08, -0.25);
+
+    // A compact working harbour on the broad shoal, away from the road.
+    place("dock", 0.76, 1, 24.5, 0.94, 1.08, 0);
+    place("dockPlatform", 0.76, 1, 16.5, 0.9, 1.08, 0);
+    place("boat", 0.775, 1, 13.2, 1, 0.56, 0.24);
+    place("sandIslet", 0.18, -1, 29, 0.9, 0.72, 0.2);
+    place("sandIslet", 0.48, 1, 30.5, 0.82, 0.72, -0.3);
+
+    // Repeated shoreline dressing is instanced per family, deterministic per
+    // race seed and deliberately non-colliding.
+    scatter("palm", [0.035, 0.14, 0.245, 0.36, 0.485, 0.61, 0.735, 0.86, 0.955], 22, "race-coastal-palms", {
+      jitter: 2.8, minScale: 0.88, maxScale: 1.16, randomYaw: true,
+    });
+    scatter("shoreRocks", [0.02, 0.095, 0.19, 0.28, 0.39, 0.49, 0.59, 0.69, 0.8, 0.9], 18.6, "race-shore-rocks", {
+      jitter: 2.4, minScale: 0.82, maxScale: 1.18, randomYaw: true,
+    });
+    scatter("redBuoy", [0.08, 0.31, 0.56, 0.82], 26, "race-red-buoys", {
+      jitter: 1.4, minScale: 0.88, maxScale: 1.12, y: 0.48, randomYaw: true,
+    });
+    scatter("buoyYellow", [0.18, 0.43, 0.68, 0.93], 28, "race-yellow-buoys", {
+      jitter: 1.5, minScale: 0.9, maxScale: 1.12, y: 0.48, randomYaw: true,
+    });
+    scatter("buoyGreen", [0.055, 0.295, 0.545, 0.795], 30, "race-green-buoys", {
+      jitter: 1.5, minScale: 0.9, maxScale: 1.12, y: 0.48, randomYaw: true,
+    });
+    scatter("barrierRed", [0.12, 0.16, 0.35, 0.39, 0.62, 0.66, 0.86, 0.9], 10.9, "race-redwhite-barriers", {
+      jitter: 0.55, minScale: 0.9, maxScale: 1.08,
+    });
+    scatter("barrierSandstone", [0.24, 0.47, 0.73], 12.2, "race-sandstone-barriers", {
+      jitter: 0.7, minScale: 0.9, maxScale: 1.08,
+    });
+    scatter("driftwood", [0.21, 0.52, 0.88], 24, "race-driftwood", {
+      jitter: 2, minScale: 0.8, maxScale: 1.18, randomYaw: true,
+    });
+  }
 
   function ensureTrack(track: Track) {
     if (trackRef.current === track && road) return;
@@ -283,6 +466,7 @@ export function createWorld(canvas: HTMLCanvasElement): World {
     beam.position.set(start.x, ROAD_Y + 4.6, start.z);
     beam.rotation.y = Math.atan2(start.tx, start.tz);
     gantry.add(beam);
+    simpleGantry = gantry;
     scene.add(gantry);
 
     const dashCount = Math.floor(track.length / 7);
@@ -335,6 +519,7 @@ export function createWorld(canvas: HTMLCanvasElement): World {
       rock.castShadow = true;
       scene.add(rock);
     }
+    void loadCoastalScenery(track);
   }
 
   function resize() {
@@ -353,7 +538,11 @@ export function createWorld(canvas: HTMLCanvasElement): World {
   return {
     resize,
     dispose() {
+      disposed = true;
       observer.disconnect();
+      coastalGeometries.forEach((geometry) => geometry.dispose());
+      coastalMaterials.forEach((material) => material.dispose());
+      coastalRoot.clear();
       renderer.dispose();
     },
     update(race, phase, view, dt, elapsed) {
