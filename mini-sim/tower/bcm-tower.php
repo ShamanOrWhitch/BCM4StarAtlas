@@ -208,6 +208,7 @@ function bcm_tower_enqueue_assets() {
         'bundleUrl' => BCM_TOWER_URL . 'first-planet/wp-dist/first-planet.js?ver=' . BCM_TOWER_VERSION,
         'styleUrl' => BCM_TOWER_URL . 'first-planet/wp-dist/first-planet.css?ver=' . BCM_TOWER_VERSION,
         'meshBase' => BCM_MINI_SIM_URL . 'assets/first-planet/mesh/',
+        'meshLibraryBase' => BCM_MINI_SIM_URL . 'assets/mesh/',
         'audioUrl' => bcm_tower_pick_asset($assets, array('FP.mp3'), 'audio') ?: 'https://raw.githubusercontent.com/ShamanOrWhitch/BCM4StarAtlas/main/mini-sim/assets/FP.mp3',
         'raceAudioUrl' => bcm_tower_pick_asset($assets, array('desertrace.mp3'), 'audio') ?: 'https://raw.githubusercontent.com/ShamanOrWhitch/BCM4StarAtlas/main/mini-sim/assets/desertrace.mp3',
     ));
