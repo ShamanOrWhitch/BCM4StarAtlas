@@ -1,3 +1,12 @@
+## 0. Artifact and release packaging — one ZIP layer only
+
+- GitHub Actions `actions/upload-artifact` already creates the downloadable ZIP. **Never create a plugin ZIP and then upload that ZIP as an Actions artifact**; that creates ZIP-inside-ZIP.
+- The Mini-Sim package workflow uploads the `mini-sim/` directory tree directly with a path pattern that preserves `mini-sim/` as the top-level folder (currently `'**/mini-sim/**/*'`). Do not add a separate `zip` packaging step.
+- Do not add intermediate archive extraction, nested ZIP validation by unpacking, or user-machine staging under `%TEMP%` / `C:\\Temp`. Build and verify in the ephemeral GitHub Actions runner; the downloaded artifact itself is the one ZIP to install or extract once.
+- Keep the First Planet WordPress bundle (`first-planet/wp-dist/first-planet.js` and `.css`) and the full plugin tree inside that single artifact. A missing bundle must fail the workflow before upload.
+
+---
+
 # Инструкция агентам: BCM Mini-Sim
 
 ## 1. ОБЯЗАТЕЛЬНО: сначала проверить общие задачи и Git, а не начинать с нуля
