@@ -181,6 +181,51 @@ test("Tower preloads First Planet during the descent and the bundle exports moun
   assert.match(vite, /exports: "default"/);
 });
 
+test("Shoal Race populates the coastal course from the shared mesh library without changing race geometry", async () => {
+  const world = await read("mini-sim/tower/first-planet/src/game/world.ts");
+  const component = await read("mini-sim/tower/first-planet/src/components/shoal-race.tsx");
+  const track = await read("mini-sim/tower/first-planet/src/game/track.ts");
+  const vite = await read("mini-sim/tower/first-planet/vite.config.ts");
+  assert.match(world, /new GLTFLoader\(\)/);
+  assert.match(world, /meshLibraryBase\?: string/);
+  assert.match(world, /mesh-library/);
+  assert.match(world, /new THREE\.InstancedMesh\(source\.geometry, source\.material, fractions\.length\)/);
+  assert.match(world, /createSeededRandom\(worldSeed, salt\)/);
+  assert.match(world, /loadCoastalScenery\(track\)/);
+  assert.match(world, /coastalRoot/);
+  assert.match(world, /place\("lighthouse"/);
+  assert.match(world, /place\("dock"/);
+  assert.match(world, /scatter\("palm"/);
+  assert.match(world, /scatter\("barrierRed"/);
+  assert.match(component, /createWorld\(canvas, raceSeed\)/);
+  assert.match(vite, /FIRST_PLANET_COASTAL_MESH_FILES/);
+  assert.match(vite, /coastal_pack02\/coastal_pack02\/race_finish_gate/);
+  assert.match(track, /halfWidth: 7\.4/);
+  assert.match(world, /ROAD_Y/);
+
+  const coastalBinaries = [
+    "mini-sim/assets/mesh/coastal_environment/coastal_environment/lighthouse.glb",
+    "mini-sim/assets/mesh/coastal_environment/coastal_environment/navigation_buoy_red.glb",
+    "mini-sim/assets/mesh/coastal_environment/coastal_environment/palm_tree.glb",
+    "mini-sim/assets/mesh/coastal_environment/coastal_environment/race_finish_gate.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/shore_rocks.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/sea_rock_arch.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/dock_straight.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/dock_platform.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/barrier_sandstone.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/barrier_redwhite.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/buoy_yellow.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/buoy_green.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/small_sand_islet.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/wooden_boat.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/driftwood.glb",
+  ];
+  for (const path of coastalBinaries) {
+    const data = await readFile(new URL(path, root));
+    assert.ok(data.byteLength > 1000, path + " must be present as a real GLB");
+  }
+});
+
 test("First Planet populates the desert from the shared nested mesh library without changing gameplay geometry", async () => {
   const scene = await read("mini-sim/tower/first-planet/src/game/island/scene.ts");
   const terrain = await read("mini-sim/tower/first-planet/src/game/island/terrain.ts");
