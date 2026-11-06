@@ -10,11 +10,11 @@ test("Mini-Sim 0.12.3 and Tower 0.2.72 versions stay synchronized", async () => 
   const miniJs = await read("mini-sim/assets/js/mini-sim.js");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   const towerJs = await read("mini-sim/tower/assets/js/tower.js");
-  assert.match(miniPhp, /Version: 0\.12\.2/);
-  assert.match(miniPhp, /BCM_MINI_SIM_VERSION\', \'0\.12\.2\'/);
-  assert.match(miniJs, /SPACE LABYRINTH — 0\.12\.2/);
-  assert.match(towerPhp, /BCM_TOWER_VERSION\', \'0\.2\.71\'/);
-  assert.match(towerJs, /const TOWER_VERSION = "0\.2\.71"/);
+  assert.match(miniPhp, /Version: 0\.12\.3/);
+  assert.match(miniPhp, /BCM_MINI_SIM_VERSION\', \'0\.12\.3\'/);
+  assert.match(miniJs, /SPACE LABYRINTH — 0\.12\.3/);
+  assert.match(towerPhp, /BCM_TOWER_VERSION\', \'0\.2\.72\'/);
+  assert.match(towerJs, /const TOWER_VERSION = "0\.2\.72"/);
 });
 
 test("one persistent local session derives independent deterministic location seeds", async () => {
@@ -191,8 +191,8 @@ test("First Planet populates the desert from the shared nested mesh library with
   assert.match(scene, /meshLibraryBase\?: string/);
   assert.match(scene, /file\.split\("\/"\)\.map\(\(part\) => encodeURIComponent\(part\)\)/);
   assert.match(scene, /mesh-library/);
-  assert.match(scene, /loadLibraryMesh\("desert_pack01\/cactus_tall\.glb"/);
-  assert.match(scene, /loadLibraryMesh\("desert_oasis_pack\/desert_oasis_pack\/oasis_orchid_palms\.glb"/);
+  assert.match(scene, /\["desert_pack01\/cactus_tall\.glb", 2\.9, "y"\]/);
+  assert.match(scene, /\["desert_oasis_pack\/desert_oasis_pack\/oasis_orchid_palms\.glb", 11\.8, "xz"\]/);
   assert.match(scene, /createSeededRandom\(planetSeed, salt\)/);
   assert.match(scene, /new THREE\.InstancedMesh/);
   assert.match(scene, /instances\.computeBoundingSphere\(\)/);
