@@ -3,7 +3,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { previewPathPrefix } from "@/lib/preview-path-prefix";
 import { bake, faceForward } from "./bake";
 import { createSim, type Sim } from "./sim";
-import { createSeededRandom } from "./seed";
+import { createSeededRandom } from "../seed";
 import {
   BIKE_PARK,
   BRAZIERS,
