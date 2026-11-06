@@ -1,0 +1,50 @@
+{
+  "cairn_low": {
+    "triangles": 240,
+    "parts": 3
+  },
+  "cairn_tall": {
+    "triangles": 400,
+    "parts": 5
+  },
+  "cairn_wide": {
+    "triangles": 320,
+    "parts": 4
+  },
+  "rocks_sandstone": {
+    "triangles": 400,
+    "parts": 2
+  },
+  "rocks_gray": {
+    "triangles": 400,
+    "parts": 2
+  },
+  "shrub_green": {
+    "triangles": 360,
+    "parts": 27
+  },
+  "shrub_dry": {
+    "triangles": 360,
+    "parts": 27
+  },
+  "shrub_sage": {
+    "triangles": 360,
+    "parts": 27
+  },
+  "cactus_barrel_round": {
+    "triangles": 360,
+    "parts": 6
+  },
+  "cactus_barrel_tall": {
+    "triangles": 360,
+    "parts": 6
+  },
+  "cactus_branching": {
+    "triangles": 412,
+    "parts": 8
+  },
+  "cactus_cluster_spires": {
+    "triangles": 348,
+    "parts": 6
+  }
+}
