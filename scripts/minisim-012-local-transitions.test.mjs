@@ -5,16 +5,16 @@ import { readFile } from "node:fs/promises";
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 
-test("Mini-Sim 0.12.1 and Tower 0.2.70 versions stay synchronized", async () => {
+test("Mini-Sim 0.12.2 and Tower 0.2.71 versions stay synchronized", async () => {
   const miniPhp = await read("mini-sim/bcm-mini-sim.php");
   const miniJs = await read("mini-sim/assets/js/mini-sim.js");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   const towerJs = await read("mini-sim/tower/assets/js/tower.js");
-  assert.match(miniPhp, /Version: 0\.12\.1/);
-  assert.match(miniPhp, /BCM_MINI_SIM_VERSION\', \'0\.12\.1\'/);
-  assert.match(miniJs, /SPACE LABYRINTH — 0\.12\.1/);
-  assert.match(towerPhp, /BCM_TOWER_VERSION\', \'0\.2\.70\'/);
-  assert.match(towerJs, /const TOWER_VERSION = "0\.2\.70"/);
+  assert.match(miniPhp, /Version: 0\.12\.2/);
+  assert.match(miniPhp, /BCM_MINI_SIM_VERSION\', \'0\.12\.2\'/);
+  assert.match(miniJs, /SPACE LABYRINTH — 0\.12\.2/);
+  assert.match(towerPhp, /BCM_TOWER_VERSION\', \'0\.2\.71\'/);
+  assert.match(towerJs, /const TOWER_VERSION = "0\.2\.71"/);
 });
 
 test("one persistent local session derives independent deterministic location seeds", async () => {
@@ -154,7 +154,7 @@ test("return snapshot preserves Crew, ship pose, mission, local seeds and intern
   assert.match(loader, /window\.BCMPrepareMiniSimReturn\(\)/);
 });
 
-test("0.12.1 package workflow builds and includes the First Planet WordPress bundle", async () => {
+test("0.12.2 package workflow builds and includes the First Planet WordPress bundle", async () => {
   const workflow = await read(".github/workflows/minisim-test-package.yml");
   assert.match(workflow, /pull_request:/);
   assert.match(workflow, /npm ci/);

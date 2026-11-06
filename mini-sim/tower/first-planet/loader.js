@@ -23,6 +23,7 @@
         reject(new Error("Не задан URL сборки First Planet"));
         return;
       }
+      window.process = window.process || { env: { NODE_ENV: "production" } };
       const script = document.createElement("script");
       script.src = config.bundleUrl;
       script.async = true;
