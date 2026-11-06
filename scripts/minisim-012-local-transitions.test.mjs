@@ -196,6 +196,9 @@ test("First Planet populates the desert from the shared nested mesh library with
   assert.match(scene, /createSeededRandom\(planetSeed, salt\)/);
   assert.match(scene, /new THREE\.InstancedMesh/);
   assert.match(scene, /instances\.computeBoundingSphere\(\)/);
+  assert.match(scene, /for \(let i = 0; i < desertRequests\.length; i \+= 4\)/);
+  assert.match(scene, /desert-shrub-green/);
+  assert.match(scene, /desert-race-banners/);
   assert.match(bake, /mergeGeometries\(parts, false\)/);
   assert.match(vite, /FIRST_PLANET_DESERT_MESH_FILES/);
   assert.match(vite, /mesh-library/);
@@ -210,10 +213,14 @@ test("First Planet populates the desert from the shared nested mesh library with
     "mini-sim/assets/mesh/desert_pack01/stepped_desert_temple.glb",
     "mini-sim/assets/mesh/desert_pack01/desert_market_awning.glb",
     "mini-sim/assets/mesh/desert_pack01/dead_desert_tree.glb",
+    "mini-sim/assets/mesh/desert_pack01/small_oasis.glb",
+    "mini-sim/assets/mesh/desert_pack01/sandstone_column.glb",
+    "mini-sim/assets/mesh/desert_pack01/desert_race_banner.glb",
     "mini-sim/assets/mesh/desert_details/shrub_dry.glb",
     "mini-sim/assets/mesh/desert_details/shrub_green.glb",
     "mini-sim/assets/mesh/desert_details/shrub_sage.glb",
     "mini-sim/assets/mesh/desert_details/cairn_wide.glb",
+    "mini-sim/assets/mesh/desert_details/cairn_tall.glb",
     "mini-sim/assets/mesh/desert_details/cactus_branching.glb",
     "mini-sim/assets/mesh/desert_details/rocks_gray.glb",
     "mini-sim/assets/mesh/desert_oasis_pack/desert_oasis_pack/oasis_orchid_palms.glb",
