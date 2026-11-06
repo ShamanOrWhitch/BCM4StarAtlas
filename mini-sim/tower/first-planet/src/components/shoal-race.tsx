@@ -57,7 +57,7 @@ export function ShoalRace({ onLeave, onStartAudio, seed = 0 }: { onLeave?: () =>
     if (!canvas) return;
     const race = createRace(raceSeed);
     raceRef.current = race;
-    const world = createWorld(canvas);
+    const world = createWorld(canvas, raceSeed);
     const unbind = bindKeyboard(window);
     let audio: { ctx: AudioContext; osc: OscillatorNode; gain: GainNode } | null = null;
 
