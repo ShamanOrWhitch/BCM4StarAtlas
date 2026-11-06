@@ -801,17 +801,9 @@ export function createIsland(
     if (sandstoneArch) drop(sandstoneArch, -24.5, 1.8, Math.PI / 2);
     if (desertTemple) drop(desertTemple, 37.5, -8.5, 0.35);
     if (smallOasis) drop(smallOasis, 29, -25, 0.42).scale.setScalar(0.86);
-    if (sandstoneColumn) drop(sandstoneColumn, -28.4, 8.8, 0.18);
-    if (sandstoneColumn) drop(sandstoneColumn, 42.5, 17.8, 1.6);
-    if (sandstoneColumn) drop(sandstoneColumn, 35.5, -32.8, -0.4);
-    if (cairnTall) drop(cairnTall, -39.5, -30.2, 0.8);
+    if (cairnTall) drop(cairnTall, -41, -7.2, 0.8);
 
     // Keep the ring approach corridor open; banners frame it from both sides.
-    if (raceBanner) {
-      drop(raceBanner, -9.2, -36.5, 0.12);
-      drop(raceBanner, 9.2, -36.5, -0.12);
-    }
-
     // Two distinct planted-water clearings extend the existing oasis basin.
     if (oasisPalms) drop(oasisPalms, -8.7, -18.2, 0.24).scale.setScalar(0.96);
     if (oasisGarden) drop(oasisGarden, 13.8, -18.6, -0.36).scale.setScalar(0.9);
@@ -850,14 +842,14 @@ export function createIsland(
       1.15,
     ), true);
     scatter(shrubDry, seededSpots(
-      [[-16, 25], [16, 25], [-18, -5], [20, -7], [-31, 1]],
+      [[-18, 24], [18, 23], [-19.5, -8], [20, -11], [-31, 1]],
       "desert-shrub-dry",
       2.1,
       0.85,
       1.16,
     ));
     scatter(shrubGreen, seededSpots(
-      [[-14, 19], [15, 19], [-15, -1], [17, -4]],
+      [[-18, 17], [18, 16], [-19, -1], [19, -5]],
       "desert-shrub-green",
       1.7,
       0.84,
@@ -898,6 +890,20 @@ export function createIsland(
       0.86,
       1.18,
     ), true);
+    scatter(sandstoneColumn, seededSpots(
+      [[-28.4, 8.8], [42.5, 17.8], [35.5, -32.8]],
+      "desert-sandstone-columns",
+      0.8,
+      0.92,
+      1.08,
+    ));
+    scatter(raceBanner, seededSpots(
+      [[-9.2, -36.5], [9.2, -36.5]],
+      "desert-race-banners",
+      0.5,
+      0.96,
+      1.04,
+    ));
 
     isle.geometry.computeBoundingBox();
     const isleH = isle.geometry.boundingBox?.max.y ?? 4;
