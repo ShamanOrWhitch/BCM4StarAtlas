@@ -1,5 +1,5 @@
 import { createReadStream, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
@@ -149,35 +149,83 @@ function authPopupPlugin(): Plugin {
  * The Grok preview reads that directory in dev/build; WordPress reads it from
  * its existing asset scanner via BCMFirstPlanetConfig.meshBase.
  */
+const FIRST_PLANET_DESERT_MESH_FILES = [
+  "desert_pack01/cactus_tall.glb",
+  "desert_pack01/cactus_cluster.glb",
+  "desert_pack01/barrel_cactus_flower.glb",
+  "desert_pack01/sandstone_boulders.glb",
+  "desert_pack01/sandstone_arch.glb",
+  "desert_pack01/stepped_desert_temple.glb",
+  "desert_pack01/desert_market_awning.glb",
+  "desert_pack01/dead_desert_tree.glb",
+  "desert_details/shrub_dry.glb",
+  "desert_details/shrub_green.glb",
+  "desert_details/shrub_sage.glb",
+  "desert_details/cairn_wide.glb",
+  "desert_details/cactus_branching.glb",
+  "desert_details/rocks_gray.glb",
+  "desert_oasis_pack/desert_oasis_pack/oasis_orchid_palms.glb",
+  "desert_oasis_pack/desert_oasis_pack/oasis_flower_garden.glb",
+  "desert_oasis_pack/desert_oasis_pack/rare_turquoise_bloom.glb",
+  "desert_oasis_pack/desert_oasis_pack/orchid_pink.glb",
+  "desert_oasis_pack/desert_oasis_pack/orchid_white.glb",
+];
+
+/**
+ * First Planet keeps its original flat mesh folder and also reads the shared
+ * Mini-Sim asset library. The library route accepts safe nested GLB paths.
+ */
 function firstPlanetMeshPlugin(): Plugin {
-  const meshRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "../../assets/first-planet/mesh");
+  const assetRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "../../assets");
+  const legacyMeshRoot = join(assetRoot, "first-planet", "mesh");
+  const libraryMeshRoot = join(assetRoot, "mesh");
 
   return {
     name: "bcm-first-planet-shared-mesh",
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const rawPath = (req.url ?? "").split("?", 1)[0] ?? "";
-        const match = rawPath.match(/(?:^|\/)mesh\/([^/]+)$/);
-        if (!match) {
+        const legacyMatch = rawPath.match(/(?:^|\/)mesh\/([^/]+)$/);
+        const libraryMatch = rawPath.match(/(?:^|\/)mesh-library\/(.+)$/);
+        if (!legacyMatch && !libraryMatch) {
           next();
           return;
         }
 
-        let name = "";
+        const relativeName = (libraryMatch?.[1] ?? legacyMatch?.[1] ?? "");
+        let segments: string[];
         try {
-          name = decodeURIComponent(match[1]);
+          segments = relativeName.split("/").map((part) => decodeURIComponent(part));
         } catch {
           res.statusCode = 400;
           res.end("Bad mesh path");
           return;
         }
-        if (!/^[a-z0-9_-]+\.glb$/i.test(name)) {
+        const validSegments = segments.length > 0 &&
+          segments.every((part, index) =>
+            index === segments.length - 1
+              ? /^[a-z0-9_-]+\.glb$/i.test(part)
+              : /^[a-z0-9_-]+$/i.test(part),
+          );
+        if (
+          !validSegments ||
+          (!libraryMatch && segments.length !== 1) ||
+          (libraryMatch && (segments.length < 2 || segments.length > 4))
+        ) {
           res.statusCode = 404;
           res.end("Not found");
           return;
         }
 
-        const file = join(meshRoot, name);
+        const root = libraryMatch ? libraryMeshRoot : legacyMeshRoot;
+        const file = resolve(root, ...segments);
+        const relativeFile = relative(root, file);
+        if (!relativeFile || relativeFile.startsWith("..") || isAbsolute(relativeFile)) {
+          res.statusCode = 404;
+          res.end("Not found");
+          return;
+        }
+
         try {
           const stat = statSync(file);
           if (!stat.isFile()) {
@@ -196,18 +244,32 @@ function firstPlanetMeshPlugin(): Plugin {
       });
     },
     generateBundle() {
-      for (const name of readdirSync(meshRoot)) {
+      for (const name of readdirSync(legacyMeshRoot)) {
         if (!/^[a-z0-9_-]+\.glb$/i.test(name)) continue;
-        const file = join(meshRoot, name);
+        const file = join(legacyMeshRoot, name);
         try {
           if (!statSync(file).isFile()) continue;
           this.emitFile({
             type: "asset",
-            fileName: `mesh/${name}`,
+            fileName: "mesh/" + name,
             source: readFileSync(file),
           });
         } catch {
-          // One optional missing model must not abort the world build.
+          // One optional legacy model must not abort the world build.
+        }
+      }
+
+      for (const name of FIRST_PLANET_DESERT_MESH_FILES) {
+        const file = join(libraryMeshRoot, ...name.split("/"));
+        try {
+          if (!statSync(file).isFile()) continue;
+          this.emitFile({
+            type: "asset",
+            fileName: "mesh-library/" + name,
+            source: readFileSync(file),
+          });
+        } catch {
+          // Missing optional scenery stays absent rather than breaking First Planet.
         }
       }
     },
