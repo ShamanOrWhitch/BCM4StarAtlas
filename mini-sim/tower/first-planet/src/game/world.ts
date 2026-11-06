@@ -261,7 +261,7 @@ export function createWorld(canvas: HTMLCanvasElement, seed = 0): World {
     }).BCMFirstPlanetConfig;
     const encoded = file.split("/").map((part) => encodeURIComponent(part)).join("/");
     if (config?.meshLibraryBase) {
-      return config.meshLibraryBase.replace(/\\/?$/, "/") + encoded;
+      return config.meshLibraryBase.replace(/\/?$/, "/") + encoded;
     }
     const prefix = previewPathPrefix(window.location.hostname, window.location.pathname) ?? "";
     return `${prefix}/mesh-library/${encoded}`;
