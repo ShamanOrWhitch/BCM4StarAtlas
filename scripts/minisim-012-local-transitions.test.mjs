@@ -199,7 +199,7 @@ test("Shoal Race populates the coastal course from the shared mesh library witho
   assert.match(world, /scatter\("barrierRed"/);
   assert.match(component, /createWorld\(canvas, raceSeed\)/);
   assert.match(vite, /FIRST_PLANET_COASTAL_MESH_FILES/);
-  assert.match(vite, /coastal_pack02\/coastal_pack02\/race_finish_gate/);
+  assert.match(vite, /coastal_environment\/coastal_environment\/race_finish_gate\.glb/);
   assert.match(track, /halfWidth: 7\.4/);
   assert.match(world, /ROAD_Y/);
 
