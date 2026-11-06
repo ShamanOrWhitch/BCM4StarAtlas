@@ -1,0 +1,34 @@
+{
+  "orchid_purple": {
+    "triangles": 176,
+    "parts": 10
+  },
+  "orchid_pink": {
+    "triangles": 176,
+    "parts": 10
+  },
+  "orchid_white": {
+    "triangles": 176,
+    "parts": 10
+  },
+  "rare_turquoise_bloom": {
+    "triangles": 496,
+    "parts": 14
+  },
+  "oasis_orchid_palms": {
+    "triangles": 3520,
+    "parts": 68
+  },
+  "oasis_flower_garden": {
+    "triangles": 3744,
+    "parts": 51
+  },
+  "oasis_rare_bloom": {
+    "triangles": 3616,
+    "parts": 50
+  },
+  "oasis_crystal_spring": {
+    "triangles": 3306,
+    "parts": 44
+  }
+}

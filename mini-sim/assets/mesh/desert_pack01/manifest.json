@@ -1,0 +1,50 @@
+{
+  "cactus_tall": {
+    "triangles": 404,
+    "parts": 8
+  },
+  "cactus_cluster": {
+    "triangles": 888,
+    "parts": 17
+  },
+  "barrel_cactus_flower": {
+    "triangles": 360,
+    "parts": 6
+  },
+  "sandstone_boulders": {
+    "triangles": 240,
+    "parts": 3
+  },
+  "sandstone_arch": {
+    "triangles": 880,
+    "parts": 11
+  },
+  "sandstone_column": {
+    "triangles": 48,
+    "parts": 4
+  },
+  "stepped_desert_temple": {
+    "triangles": 120,
+    "parts": 10
+  },
+  "desert_pyramid": {
+    "triangles": 8,
+    "parts": 1
+  },
+  "small_oasis": {
+    "triangles": 768,
+    "parts": 22
+  },
+  "desert_market_awning": {
+    "triangles": 136,
+    "parts": 5
+  },
+  "dead_desert_tree": {
+    "triangles": 116,
+    "parts": 4
+  },
+  "desert_race_banner": {
+    "triangles": 88,
+    "parts": 4
+  }
+}
