@@ -175,6 +175,24 @@ const FIRST_PLANET_DESERT_MESH_FILES = [
   "desert_oasis_pack/desert_oasis_pack/orchid_white.glb",
 ];
 
+const FIRST_PLANET_COASTAL_MESH_FILES = [
+  "coastal_environment/coastal_environment/lighthouse.glb",
+  "coastal_environment/coastal_environment/navigation_buoy_red.glb",
+  "coastal_environment/coastal_environment/palm_tree.glb",
+  "coastal_environment/coastal_environment/race_finish_gate.glb",
+  "coastal_pack02/coastal_pack02/shore_rocks.glb",
+  "coastal_pack02/coastal_pack02/sea_rock_arch.glb",
+  "coastal_pack02/coastal_pack02/dock_straight.glb",
+  "coastal_pack02/coastal_pack02/dock_platform.glb",
+  "coastal_pack02/coastal_pack02/barrier_sandstone.glb",
+  "coastal_pack02/coastal_pack02/barrier_redwhite.glb",
+  "coastal_pack02/coastal_pack02/buoy_yellow.glb",
+  "coastal_pack02/coastal_pack02/buoy_green.glb",
+  "coastal_pack02/coastal_pack02/small_sand_islet.glb",
+  "coastal_pack02/coastal_pack02/wooden_boat.glb",
+  "coastal_pack02/coastal_pack02/driftwood.glb",
+];
+
 /**
  * First Planet keeps its original flat mesh folder and also reads the shared
  * Mini-Sim asset library. The library route accepts safe nested GLB paths.
@@ -263,7 +281,7 @@ function firstPlanetMeshPlugin(): Plugin {
         }
       }
 
-      for (const name of FIRST_PLANET_DESERT_MESH_FILES) {
+      for (const name of [...FIRST_PLANET_DESERT_MESH_FILES, ...FIRST_PLANET_COASTAL_MESH_FILES]) {
         const file = join(libraryMeshRoot, ...name.split("/"));
         try {
           if (!statSync(file).isFile()) continue;
