@@ -78,6 +78,7 @@ jobs:
         with:
           name: bcm-mini-sim-${{ steps.version.outputs.version }}-test
           # upload-artifact creates the single downloadable ZIP itself.
-          # The leading ** keeps mini-sim/ as the top-level plugin folder.\n          path: '**/mini-sim/**/*'
+          # The leading ** keeps mini-sim/ as the top-level plugin folder.
+          path: '**/mini-sim/**/*'
           if-no-files-found: error
           retention-days: 14
