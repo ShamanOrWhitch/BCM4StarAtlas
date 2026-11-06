@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.1",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.2",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.12.1",
+      title: "SPACE LABYRINTH — 0.12.2",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -2968,6 +2968,20 @@
       );
       mesh.position.set(zone.x || 0, zone.y || 0, zone.z || -36);
       mesh.name = "space-video-zone-" + index;
+      // The ONICSS picture is a flat video. Turn it toward the ship so a
+      // side approach still shows the face, and keep a real sphere beside it.
+      if (zone.towerGate) {
+        mesh.userData.facePlayer = true;
+        const companion = new THREE.Mesh(
+          new THREE.SphereGeometry(3.15, 28, 20),
+          textured("OniStation.png", 0x9ec4d4)
+        );
+        companion.name = "onicss-companion-sphere";
+        companion.position.set((zone.x || 0) + 5.6, (zone.y || 0) + 1.4, (Number(zone.z) || -260) + 8);
+        scene.add(companion);
+        spacePlanet.mesh = companion;
+        spacePlanet.visible = true;
+      }
       mesh.renderOrder = 22;
       scene.add(mesh);
 
@@ -4479,7 +4493,11 @@
 
     const candidates = [];
 
+    if (spacePlanet.mesh) spacePlanet.mesh.rotation.y += 0.004;
     cinema.zones.forEach((zone) => {
+      if (zone.mesh && zone.mesh.userData.facePlayer && camera) {
+        zone.mesh.lookAt(camera.position);
+      }
       zone.distance = zone.mesh.position.distanceTo(ship.position);
       if (zone.preloadRadius > 0 && zone.distance <= zone.preloadRadius &&
           running && !transitionBusy && !settings.open && !zone.loaded && zone.url) {
@@ -5853,7 +5871,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.12.1") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.12.2") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();

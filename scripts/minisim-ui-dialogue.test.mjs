@@ -131,8 +131,11 @@ test("Hydrogen mission unlocks only after required screens really play and is an
   assert.match(warp, /new CustomEvent\("bcm:mission:hydrogen-shard-collected"/);
 });
 
-test("ONICSS uses the paused video frame at distance and never a duplicate station-textured planet", () => {
+test("ONICSS faces the ship and keeps a companion sphere beside the planet", () => {
   assert.ok(mini.includes("spacePlanet.mesh = null"));
+  assert.ok(mini.includes('companion.name = "onicss-companion-sphere"'));
+  assert.ok(mini.includes("mesh.userData.facePlayer = true"));
+  assert.ok(mini.includes("zone.mesh.lookAt(camera.position)"));
   assert.ok(mini.includes('const posterMaterial = null;'));
   assert.ok(mini.includes('video.addEventListener("loadeddata", () => {'));
   assert.ok(mini.includes('if (item.towerGate && item.url)'));
@@ -175,13 +178,13 @@ test("SafeMode, animated faces, readable dialog timing and flight pointer-lock h
   assert.match(css, /\.bcm-comic-dialog-copy p\{[\s\S]{0,150}font-size:19px/);
 });
 
-test("0.12.1 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
-  assert.match(php, /Version: 0\.12\.1/);
-  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.12\.1'/);
-  assert.match(php, /SPACE LABYRINTH — 0\.12\.1/);
-  assert.match(qa, /Version: 0\.12\.1/);
-  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.12\.1'/);
-  assert.match(qa, /SPACE LABYRINTH — 0\.12\.1/);
+test("0.12.2 asset version, regression assertions and long-operation timeout budgets are synchronized", () => {
+  assert.match(php, /Version: 0\.12\.2/);
+  assert.match(php, /BCM_MINI_SIM_VERSION', '0\.12\.2'/);
+  assert.match(php, /SPACE LABYRINTH — 0\.12\.2/);
+  assert.match(qa, /Version: 0\.12\.2/);
+  assert.match(qa, /BCM_MINI_SIM_VERSION', '0\.12\.2'/);
+  assert.match(qa, /SPACE LABYRINTH — 0\.12\.2/);
   assert.match(browserWorkflow, /timeout-minutes: 45/);
   assert.match(browserWorkflow, /timeout-minutes: 20/);
   assert.match(browserWorkflow, /timeout-minutes: 25/);
