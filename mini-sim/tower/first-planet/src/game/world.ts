@@ -1,6 +1,9 @@
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { Race } from "./sim";
 import { ROAD_Y, type Track } from "./track";
+import { bake, faceForward } from "./island/bake";
+import { meshUrl, propUrl } from "./mesh-url";
 
 export type Phase = "gate" | "race" | "pause" | "finish";
 
@@ -107,9 +110,9 @@ function glow(color: string) {
 export function createWorld(canvas: HTMLCanvasElement): World {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   const host = canvas.parentElement ?? canvas;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
   renderer.setSize(host.clientWidth || 1, host.clientHeight || 1, false);
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = false;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   canvas.style.width = "100%";
   canvas.style.height = "100%";
@@ -125,14 +128,7 @@ export function createWorld(canvas: HTMLCanvasElement): World {
   const hemi = new THREE.HemisphereLight(0xfff1d2, 0x1a6e82, 0.9);
   const sun = new THREE.DirectionalLight(0xffe0a8, 1.45);
   sun.position.set(90, 70, 30);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
-  sun.shadow.camera.near = 10;
-  sun.shadow.camera.far = 220;
-  sun.shadow.camera.left = -90;
-  sun.shadow.camera.right = 90;
-  sun.shadow.camera.top = 90;
-  sun.shadow.camera.bottom = -90;
+  sun.castShadow = false;
   const coral = new THREE.DirectionalLight(0xe25b3a, 0.45);
   coral.position.set(-70, 40, -40);
   scene.add(hemi, sun, coral);
@@ -219,6 +215,44 @@ export function createWorld(canvas: HTMLCanvasElement): World {
   const curbCoral = new THREE.Color(0xe25b3a);
 
   const karts: Kart[] = [];
+  const vehicleTemplates: THREE.Object3D[] = [];
+  const vehicleLoader = new GLTFLoader();
+  void (async () => {
+    try {
+      const loaded = await Promise.all([
+        vehicleLoader.loadAsync(meshUrl("hovercar.glb")),
+        vehicleLoader.loadAsync(meshUrl("spacebike.glb")),
+      ]);
+      const sizes = [3.6, 3.2];
+      loaded.forEach((gltf, i) => {
+        const mesh = bake(gltf.scene, sizes[i], "xz");
+        faceForward(mesh);
+        mesh.castShadow = false;
+        mesh.receiveShadow = false;
+        vehicleTemplates.push(mesh);
+      });
+    } catch (err) {
+      console.warn("BCM race cars kept the block karts", err);
+    }
+  })();
+  function makeModelKart(index: number, color: number): Kart | null {
+    const template = vehicleTemplates[index % vehicleTemplates.length];
+    if (!template) return null;
+    const shell = new THREE.MeshStandardMaterial({
+      color,
+      emissive: color,
+      emissiveIntensity: 0,
+      roughness: 0.45,
+    });
+    const group = new THREE.Group();
+    const model = template.clone();
+    model.position.y = 0.08;
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(1.15, 14), shell);
+    glow.rotation.x = -Math.PI / 2;
+    glow.position.y = 0.04;
+    group.add(model, glow);
+    return { group, wheels: [], shell };
+  }
   const boxMesh = new THREE.Mesh(
     new THREE.BoxGeometry(1.15, 1.15, 1.15),
     new THREE.MeshStandardMaterial({
@@ -301,6 +335,58 @@ export function createWorld(canvas: HTMLCanvasElement): World {
     }
     scene.add(dashes);
 
+    const railCount = Math.max(12, Math.floor(track.length / 12));
+    const railWhite = new THREE.MeshStandardMaterial({ color: 0xf4efe4, roughness: 0.55 });
+    const railRed = new THREE.MeshStandardMaterial({ color: 0xc4493a, roughness: 0.55 });
+    const railGeo = new THREE.BoxGeometry(0.34, 0.62, 2.15);
+    const rails = [
+      new THREE.InstancedMesh(railGeo, railWhite, railCount + 2),
+      new THREE.InstancedMesh(railGeo, railRed, railCount + 2),
+    ];
+    const railDummy = new THREE.Object3D();
+    let whiteIndex = 0;
+    let redIndex = 0;
+    for (let i = 0; i < railCount * 2; i++) {
+      const sample = track.samples[Math.floor((i / (railCount * 2)) * track.samples.length) % track.samples.length];
+      const side = i % 2 === 0 ? 1 : -1;
+      railDummy.position.set(
+        sample.x + sample.nx * side * (track.halfWidth + 1.35),
+        ROAD_Y + 0.36,
+        sample.z + sample.nz * side * (track.halfWidth + 1.35),
+      );
+      railDummy.rotation.set(0, Math.atan2(sample.tx, sample.tz), 0);
+      railDummy.updateMatrix();
+      if ((Math.floor(i / 2) % 2) === 0) rails[0].setMatrixAt(whiteIndex++, railDummy.matrix);
+      else rails[1].setMatrixAt(redIndex++, railDummy.matrix);
+    }
+    rails[0].count = whiteIndex;
+    rails[1].count = redIndex;
+    scene.add(rails[0], rails[1]);
+
+    const barrierUrl = propUrl("coastal_pack02/coastal_pack02/barrier_redwhite.glb");
+    if (barrierUrl) {
+      const barrierLoader = new GLTFLoader();
+      void barrierLoader.loadAsync(barrierUrl).then((gltf) => {
+        const source = bake(gltf.scene, 1.7, "xz");
+        const count = Math.max(8, Math.floor(track.length / 28));
+        const mesh = new THREE.InstancedMesh(source.geometry, source.material, count);
+        const dummy = new THREE.Object3D();
+        for (let i = 0; i < count; i++) {
+          const sample = track.samples[Math.floor((i / count) * track.samples.length) % track.samples.length];
+          const side = i % 2 === 0 ? 1 : -1;
+          dummy.position.set(
+            sample.x + sample.nx * side * (track.halfWidth + 3.4),
+            ROAD_Y,
+            sample.z + sample.nz * side * (track.halfWidth + 3.4),
+          );
+          dummy.rotation.y = Math.atan2(sample.tx, sample.tz);
+          dummy.updateMatrix();
+          mesh.setMatrixAt(i, dummy.matrix);
+        }
+        scene.add(mesh);
+      }).catch(() => {});
+    }
+
     for (let a = 0; a < 16; a++) {
       const ang = (a / 16) * Math.PI * 2;
       const x = Math.cos(ang) * 58;
@@ -325,14 +411,15 @@ export function createWorld(canvas: HTMLCanvasElement): World {
       scene.add(palm);
     }
 
-    for (let i = 0; i < 7; i++) {
-      const ang = (i / 7) * Math.PI * 2 + 0.4;
+    for (let i = 0; i < 14; i++) {
+      const sample = track.samples[Math.floor((i / 14) * track.samples.length)];
+      const side = i % 2 === 0 ? 1 : -1;
+      const reach = track.halfWidth + 8 + (i % 3) * 2.2;
       const rock = new THREE.Mesh(
-        new THREE.DodecahedronGeometry(2.4 + (i % 3)),
+        new THREE.DodecahedronGeometry(0.9 + (i % 3) * 0.45, 0),
         new THREE.MeshStandardMaterial({ color: 0x8d8478, roughness: 0.95 }),
       );
-      rock.position.set(Math.cos(ang) * 150, 1.2, Math.sin(ang) * 150);
-      rock.castShadow = true;
+      rock.position.set(sample.x + sample.nx * side * reach, ROAD_Y + 0.4, sample.z + sample.nz * side * reach);
       scene.add(rock);
     }
   }
@@ -363,6 +450,18 @@ export function createWorld(canvas: HTMLCanvasElement): World {
         const kart = makeKart(race.cars[karts.length].color);
         scene.add(kart.group);
         karts.push(kart);
+      }
+      if (vehicleTemplates.length) {
+        for (let i = 0; i < karts.length; i++) {
+          if (karts[i].wheels.length === 0) continue;
+          const next = makeModelKart(i, race.cars[i].color);
+          if (!next) continue;
+          next.group.position.copy(karts[i].group.position);
+          next.group.rotation.copy(karts[i].group.rotation);
+          scene.add(next.group);
+          scene.remove(karts[i].group);
+          karts[i] = next;
+        }
       }
       race.cars.forEach((car, i) => {
         const kart = karts[i];

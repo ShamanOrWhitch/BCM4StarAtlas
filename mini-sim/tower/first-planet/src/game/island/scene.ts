@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { previewPathPrefix } from "@/lib/preview-path-prefix";
 import { bake, faceForward } from "./bake";
+import { meshUrl, propUrl } from "../mesh-url";
 import { createSim, type Sim } from "./sim";
 import {
   BIKE_PARK,
@@ -84,22 +84,6 @@ function fireSprite() {
   return sprite;
 }
 
-function meshUrl(file: string) {
-  const sharedBase =
-    typeof window === "undefined"
-      ? ""
-      : (window as Window & { BCMFirstPlanetConfig?: { meshBase?: string } }).BCMFirstPlanetConfig?.meshBase;
-  if (sharedBase) {
-    return `${sharedBase.replace(/\/?$/, "/")}${encodeURIComponent(file)}`;
-  }
-
-  const prefix =
-    typeof window === "undefined"
-      ? ""
-      : (previewPathPrefix(window.location.hostname, window.location.pathname) ?? "");
-  return `${prefix}/mesh/${file}`;
-}
-
 function sunSprite(color: string, size: number) {
   const board = document.createElement("canvas");
   board.width = 128;
@@ -131,8 +115,8 @@ export function createIsland(
   const sim = createSim(Number(context.planetSeed) >>> 0);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   const host = canvas.parentElement ?? canvas;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
-  renderer.shadowMap.enabled = true;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
+  renderer.shadowMap.enabled = false;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
@@ -151,14 +135,7 @@ export function createIsland(
   const hemi = new THREE.HemisphereLight(0xffe6c4, 0x8a6246, 0.85);
   const sun = new THREE.DirectionalLight(0xffd7a1, 1.55);
   sun.position.set(40, 54, 24);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
-  sun.shadow.camera.near = 8;
-  sun.shadow.camera.far = 140;
-  sun.shadow.camera.left = -36;
-  sun.shadow.camera.right = 36;
-  sun.shadow.camera.top = 36;
-  sun.shadow.camera.bottom = -36;
+  sun.castShadow = false;
   scene.add(hemi, sun, sun.target);
   const fill = new THREE.DirectionalLight(0xe25b3a, 0.28);
   fill.position.set(-30, 20, -20);
@@ -314,56 +291,55 @@ export function createIsland(
   track(padRing);
   scene.add(padRing);
 
-  // A visible, walk-up Tower portal on the shared arrival pad.
+  // The return to Tower is a lighthouse with a door, not a floating ring.
+  // The door faces +Z, toward the landing pad the player walks in from.
   const towerGateY = groundY(TOWER_GATE.x, TOWER_GATE.z);
-  const towerPortal = new THREE.Mesh(
-    new THREE.TorusGeometry(2.55, 0.2, 14, 64),
-    new THREE.MeshStandardMaterial({
-      color: 0x8deaff,
-      emissive: 0x1689b3,
-      emissiveIntensity: 1.15,
-      metalness: 0.52,
-      roughness: 0.28,
-      transparent: true,
-      opacity: 0.94,
-      side: THREE.DoubleSide,
-    }),
+  const beacon = new THREE.Group();
+  beacon.name = "tower-beacon";
+  beacon.position.set(TOWER_GATE.x, towerGateY, TOWER_GATE.z);
+  const beaconWhite = new THREE.MeshStandardMaterial({ color: 0xf4efe4, roughness: 0.72 });
+  const beaconRed = new THREE.MeshStandardMaterial({ color: 0xc4493a, roughness: 0.62 });
+  const beaconDoor = new THREE.MeshStandardMaterial({ color: 0x24343c, roughness: 0.55 });
+  mats.add(beaconWhite);
+  mats.add(beaconRed);
+  mats.add(beaconDoor);
+  const beaconStandIn: THREE.Object3D[] = [];
+  const addBeacon = (mesh: THREE.Mesh, standIn: boolean) => {
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    track(mesh);
+    beacon.add(mesh);
+    if (standIn) beaconStandIn.push(mesh);
+    return mesh;
+  };
+  addBeacon(new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.45, 6.6, 12), beaconWhite), true).position.y = 3.3;
+  const beaconStripe = addBeacon(new THREE.Mesh(new THREE.CylinderGeometry(1.22, 1.38, 0.72, 12), beaconRed), true);
+  beaconStripe.position.y = 4.6;
+  const beaconLamp = addBeacon(
+    new THREE.Mesh(
+      new THREE.CylinderGeometry(1.35, 1.35, 1.15, 12),
+      new THREE.MeshStandardMaterial({
+        color: 0xffe08a,
+        emissive: 0xe4a322,
+        emissiveIntensity: 0.85,
+        roughness: 0.35,
+      }),
+    ),
+    true,
   );
-  towerPortal.position.set(TOWER_GATE.x, towerGateY + 3.05, TOWER_GATE.z - 2.35);
-  track(towerPortal);
-  scene.add(towerPortal);
-  const towerPortalCore = new THREE.Mesh(
-    new THREE.CircleGeometry(2.34, 48),
-    new THREE.MeshBasicMaterial({
-      color: 0x42bfe0,
-      transparent: true,
-      opacity: 0.17,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-    }),
-  );
-  towerPortalCore.position.set(TOWER_GATE.x, towerGateY + 3.05, TOWER_GATE.z - 2.31);
-  track(towerPortalCore);
-  scene.add(towerPortalCore);
-  const towerPortalPostMaterial = new THREE.MeshStandardMaterial({
-    color: 0x2e6278,
-    emissive: 0x12536c,
-    emissiveIntensity: 0.5,
-    metalness: 0.66,
-    roughness: 0.34,
-  });
-  for (const side of [-1, 1]) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.32, 4.9, 0.42), towerPortalPostMaterial);
-    post.position.set(TOWER_GATE.x + side * 2.55, towerGateY + 2.45, TOWER_GATE.z - 2.35);
-    track(post);
-    scene.add(post);
-  }
-  const towerPortalLabel = makeLabel("TOWER · ВХОД");
-  towerPortalLabel.position.set(TOWER_GATE.x, towerGateY + 6.0, TOWER_GATE.z - 2.35);
+  beaconLamp.position.y = 7.05;
+  addBeacon(new THREE.Mesh(new THREE.ConeGeometry(1.55, 1.15, 12), beaconRed), true).position.y = 8.15;
+  const beaconDoorMesh = addBeacon(new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.2, 0.16), beaconDoor), false);
+  beaconDoorMesh.position.set(0, 1.15, 1.35);
+  addBeacon(new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.35, 0.22), beaconRed), false).position.set(-0.68, 1.15, 1.36);
+  addBeacon(new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.35, 0.22), beaconRed), false).position.set(0.68, 1.15, 1.36);
+  scene.add(beacon);
+  const towerPortalLabel = makeLabel("МАЯК · ПОДЪЁМ");
+  towerPortalLabel.position.set(TOWER_GATE.x, towerGateY + 9.2, TOWER_GATE.z);
   towerPortalLabel.scale.set(8.2, 2.05, 1);
   scene.add(towerPortalLabel);
-  const towerPortalLight = new THREE.PointLight(0x54d7f4, 1.8, 18, 2);
-  towerPortalLight.position.set(TOWER_GATE.x, towerGateY + 3.1, TOWER_GATE.z - 2.1);
+  const towerPortalLight = new THREE.PointLight(0xffd27a, 2.1, 24, 2);
+  towerPortalLight.position.set(TOWER_GATE.x, towerGateY + 7.1, TOWER_GATE.z);
   scene.add(towerPortalLight);
 
   for (let z = 30; z >= -6; z -= 4) {
@@ -502,6 +478,7 @@ export function createIsland(
   }
 
   const loader = new GLTFLoader();
+  let alive = true;
   const loadMesh = async (url: string, target: number, axis: "y" | "xz") => {
     const gltf = await loader.loadAsync(url);
     const mesh = bake(gltf.scene, target, axis);
@@ -509,7 +486,40 @@ export function createIsland(
     return mesh;
   };
 
-  let alive = true;
+  void (async () => {
+    const lighthouse = propUrl("coastal_environment/coastal_environment/lighthouse.glb");
+    if (lighthouse) {
+      try {
+        const model = await loadMesh(lighthouse, 8.6, "y");
+        if (!alive) return;
+        beacon.add(model);
+        for (const part of beaconStandIn) part.visible = false;
+      } catch (err) {
+        console.warn("BCM lighthouse kept the built beacon", err);
+      }
+    }
+    const scatter: Array<[string, number, Array<[number, number]>]> = [
+      ["desert_pack01/cactus_tall.glb", 2.6, [[-18, 29], [22, 26], [-24, 12], [26, -6], [-10, -26], [16, -24], [-28, -4], [8, -30]]],
+      ["desert_details/rocks_gray.glb", 1.5, [[-12, 34], [14, 35], [-26, 20], [28, 10], [4, -32], [-18, -14]]],
+    ];
+    for (const [file, height, spots] of scatter) {
+      const url = propUrl(file);
+      if (!url || !alive) continue;
+      try {
+        const mesh = await loadMesh(url, height, "y");
+        if (!alive) return;
+        spots.forEach(([x, z], i) => {
+          const clone = mesh.clone();
+          clone.position.set(x, groundY(x, z), z);
+          clone.rotation.y = i * 0.7;
+          scene.add(clone);
+        });
+      } catch (err) {
+        console.warn("BCM prop skipped", file, err);
+      }
+    }
+  })();
+
   const props = (async () => {
     const entries = await Promise.all([
       loadMesh(meshUrl("airbike_off.glb"), 1.15, "y"),
