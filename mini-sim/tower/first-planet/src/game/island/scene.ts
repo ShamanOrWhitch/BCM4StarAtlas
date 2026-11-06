@@ -3,6 +3,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { previewPathPrefix } from "@/lib/preview-path-prefix";
 import { bake, faceForward } from "./bake";
 import { createSim, type Sim } from "./sim";
+import { createSeededRandom } from "../seed";
 import {
   BIKE_PARK,
   BRAZIERS,
@@ -84,20 +85,22 @@ function fireSprite() {
   return sprite;
 }
 
-function meshUrl(file: string) {
-  const sharedBase =
+function meshUrl(file: string, library = false) {
+  const config =
     typeof window === "undefined"
-      ? ""
-      : (window as Window & { BCMFirstPlanetConfig?: { meshBase?: string } }).BCMFirstPlanetConfig?.meshBase;
-  if (sharedBase) {
-    return `${sharedBase.replace(/\/?$/, "/")}${encodeURIComponent(file)}`;
-  }
+      ? {}
+      : (window as Window & {
+          BCMFirstPlanetConfig?: { meshBase?: string; meshLibraryBase?: string };
+        }).BCMFirstPlanetConfig ?? {};
+  const sharedBase = library ? config.meshLibraryBase : config.meshBase;
+  const encodedPath = file.split("/").map((part) => encodeURIComponent(part)).join("/");
+  if (sharedBase) return sharedBase.replace(/\/?$/, "/") + encodedPath;
 
   const prefix =
     typeof window === "undefined"
       ? ""
       : (previewPathPrefix(window.location.hostname, window.location.pathname) ?? "");
-  return `${prefix}/mesh/${file}`;
+  return prefix + (library ? "/mesh-library/" : "/mesh/") + encodedPath;
 }
 
 function sunSprite(color: string, size: number) {
@@ -508,6 +511,15 @@ export function createIsland(
     track(mesh);
     return mesh;
   };
+  const loadLibraryMesh = async (file: string, target: number, axis: "y" | "xz") => {
+    try {
+      return await loadMesh(meshUrl(file, true), target, axis);
+    } catch (error) {
+      // Scenery is optional: a missing decoration must never prevent landing.
+      console.warn("First Planet desert prop skipped:", file, error);
+      return null;
+    }
+  };
 
   let alive = true;
   const props = (async () => {
@@ -574,6 +586,72 @@ export function createIsland(
       bud,
       isle,
     ] = entries;
+
+    // Desert props come from the shared mesh library. Each multi-part GLB is
+    // baked to a single mesh before instancing, keeping draw calls bounded.
+    // Load optional desert scenery in small batches: the planet may warm up
+    // while Tower is active, but its hidden preparation must not flood requests.
+    const desertRequests: Array<[string, number, "y" | "xz"]> = [
+      ["desert_pack01/cactus_tall.glb", 2.9, "y"],
+      ["desert_pack01/cactus_cluster.glb", 3.7, "y"],
+      ["desert_pack01/barrel_cactus_flower.glb", 1.55, "y"],
+      ["desert_pack01/sandstone_boulders.glb", 2.7, "xz"],
+      ["desert_pack01/sandstone_arch.glb", 4.6, "y"],
+      ["desert_pack01/stepped_desert_temple.glb", 4.4, "y"],
+      ["desert_pack01/desert_market_awning.glb", 6.8, "xz"],
+      ["desert_pack01/dead_desert_tree.glb", 4.1, "y"],
+      ["desert_pack01/small_oasis.glb", 5.8, "xz"],
+      ["desert_pack01/sandstone_column.glb", 2.1, "y"],
+      ["desert_pack01/desert_race_banner.glb", 3.3, "y"],
+      ["desert_details/shrub_dry.glb", 1.55, "y"],
+      ["desert_details/shrub_green.glb", 1.55, "y"],
+      ["desert_details/shrub_sage.glb", 1.5, "y"],
+      ["desert_details/cairn_wide.glb", 1.45, "y"],
+      ["desert_details/cairn_tall.glb", 2.0, "y"],
+      ["desert_details/cactus_branching.glb", 2.65, "y"],
+      ["desert_details/rocks_gray.glb", 2.45, "xz"],
+      ["desert_oasis_pack/desert_oasis_pack/oasis_orchid_palms.glb", 11.8, "xz"],
+      ["desert_oasis_pack/desert_oasis_pack/oasis_flower_garden.glb", 11.2, "xz"],
+      ["desert_oasis_pack/desert_oasis_pack/rare_turquoise_bloom.glb", 1.85, "y"],
+      ["desert_oasis_pack/desert_oasis_pack/orchid_pink.glb", 1.5, "y"],
+      ["desert_oasis_pack/desert_oasis_pack/orchid_white.glb", 1.5, "y"],
+    ];
+    const desertEntries: Array<THREE.Mesh | null> = [];
+    for (let i = 0; i < desertRequests.length; i += 4) {
+      const batch = await Promise.all(
+        desertRequests.slice(i, i + 4).map(([file, target, axis]) =>
+          loadLibraryMesh(file, target, axis),
+        ),
+      );
+      desertEntries.push(...batch);
+      if (!alive) return;
+    }
+    if (!alive) return;
+    const [
+      cactusTall,
+      cactusCluster,
+      barrelCactus,
+      sandstoneBoulders,
+      sandstoneArch,
+      desertTemple,
+      marketAwning,
+      deadDesertTree,
+      smallOasis,
+      sandstoneColumn,
+      raceBanner,
+      shrubDry,
+      shrubGreen,
+      shrubSage,
+      cairnWide,
+      cairnTall,
+      cactusBranching,
+      grayRocks,
+      oasisPalms,
+      oasisGarden,
+      rareBloom,
+      orchidPink,
+      orchidWhite,
+    ] = desertEntries;
     faceForward(airOff);
     faceForward(airFull);
     faceForward(hover);
@@ -589,6 +667,46 @@ export function createIsland(
       pivot.rotation.y = yaw;
       scene.add(pivot);
       return pivot;
+    };
+
+    type DesertSpot = { x: number; z: number; yaw: number; scale: number };
+    const seededSpots = (
+      anchors: ReadonlyArray<readonly [number, number]>,
+      salt: string,
+      jitter = 1.6,
+      minScale = 0.84,
+      maxScale = 1.16,
+    ): DesertSpot[] => {
+      const random = createSeededRandom(planetSeed, salt);
+      return anchors.map(([x, z]) => ({
+        x: x + (random() - 0.5) * jitter,
+        z: z + (random() - 0.5) * jitter,
+        yaw: random() * Math.PI * 2,
+        scale: minScale + random() * (maxScale - minScale),
+      }));
+    };
+    const scatter = (
+      source: THREE.Mesh | null,
+      spots: DesertSpot[],
+      castShadow = false,
+    ) => {
+      if (!source || spots.length === 0) return;
+      const instances = new THREE.InstancedMesh(source.geometry, source.material, spots.length);
+      const transform = new THREE.Object3D();
+      spots.forEach((spot, index) => {
+        transform.position.set(spot.x, groundY(spot.x, spot.z), spot.z);
+        transform.rotation.set(0, spot.yaw, 0);
+        transform.scale.setScalar(spot.scale);
+        transform.updateMatrix();
+        instances.setMatrixAt(index, transform.matrix);
+      });
+      instances.instanceMatrix.needsUpdate = true;
+      instances.castShadow = castShadow;
+      instances.receiveShadow = true;
+      instances.computeBoundingBox();
+      instances.computeBoundingSphere();
+      track(instances);
+      scene.add(instances);
     };
 
     drop(hover, 21.2, 30.8, 2.4);
@@ -677,6 +795,115 @@ export function createIsland(
     drop(coral, -0.6, -19.2, 1.2, -0.35);
     drop(lily, 3.6, -16.8, 0.4, -0.32);
     drop(lily, 1.1, -18.6, 1.5, -0.32);
+
+    // The village square gets a market canopy and a sandstone entrance marker.
+    if (marketAwning) drop(marketAwning, 8.2, 23.8, -0.12);
+    if (sandstoneArch) drop(sandstoneArch, -24.5, 1.8, Math.PI / 2);
+    if (desertTemple) drop(desertTemple, 37.5, -8.5, 0.35);
+    if (smallOasis) drop(smallOasis, 29, -25, 0.42).scale.setScalar(0.86);
+    if (cairnTall) drop(cairnTall, -41, -7.2, 0.8);
+
+    // Keep the ring approach corridor open; banners frame it from both sides.
+    // Two distinct planted-water clearings extend the existing oasis basin.
+    if (oasisPalms) drop(oasisPalms, -8.7, -18.2, 0.24).scale.setScalar(0.96);
+    if (oasisGarden) drop(oasisGarden, 13.8, -18.6, -0.36).scale.setScalar(0.9);
+    if (rareBloom) drop(rareBloom, 8.7, -25.2, 0.3);
+    if (orchidPink) drop(orchidPink, -11.5, -24.1, 1.1).scale.setScalar(0.9);
+    if (orchidWhite) drop(orchidWhite, 16.8, -24.8, 2.1).scale.setScalar(0.9);
+
+    // Repeated scenery uses one InstancedMesh per model family. The dedicated
+    // salts keep decoration deterministic without consuming quest/route RNG.
+    scatter(cactusTall, seededSpots(
+      [[-38, 17], [37, 17], [-39, -3], [41, -13], [24, -34]],
+      "desert-cactus-tall",
+      2.6,
+      0.9,
+      1.14,
+    ), true);
+    scatter(cactusCluster, seededSpots(
+      [[32, 27], [44, 3], [-42, -20], [-34, 30]],
+      "desert-cactus-cluster",
+      2.2,
+      0.86,
+      1.12,
+    ), true);
+    scatter(barrelCactus, seededSpots(
+      [[25, 16], [-23, 20], [35, -31], [-36, -6]],
+      "desert-barrel-cactus",
+      1.8,
+      0.82,
+      1.2,
+    ));
+    scatter(cactusBranching, seededSpots(
+      [[19, -28], [-29, 5], [-41, 8]],
+      "desert-cactus-branching",
+      2.0,
+      0.9,
+      1.15,
+    ), true);
+    scatter(shrubDry, seededSpots(
+      [[-18, 24], [18, 23], [-19.5, -8], [20, -11], [-31, 1]],
+      "desert-shrub-dry",
+      2.1,
+      0.85,
+      1.16,
+    ));
+    scatter(shrubGreen, seededSpots(
+      [[-18, 17], [18, 16], [-19, -1], [19, -5]],
+      "desert-shrub-green",
+      1.7,
+      0.84,
+      1.14,
+    ));
+    scatter(shrubSage, seededSpots(
+      [[-9, -24], [8, -26], [-20, -18], [18, -17]],
+      "desert-shrub-sage",
+      1.8,
+      0.9,
+      1.13,
+    ));
+    scatter(sandstoneBoulders, seededSpots(
+      [[-28, 18], [25, 8], [-25, -30], [34, -31]],
+      "desert-sandstone-boulders",
+      2.8,
+      0.9,
+      1.2,
+    ));
+    scatter(grayRocks, seededSpots(
+      [[25, -12], [-28, 4], [40, 20]],
+      "desert-gray-rocks",
+      2.0,
+      0.9,
+      1.15,
+    ));
+    scatter(cairnWide, seededSpots(
+      [[-36, -33], [40, -20], [-41, 10]],
+      "desert-cairns",
+      1.8,
+      0.9,
+      1.1,
+    ));
+    scatter(deadDesertTree, seededSpots(
+      [[-28, 24], [30, 26], [38, -10]],
+      "desert-dead-trees",
+      2.4,
+      0.86,
+      1.18,
+    ), true);
+    scatter(sandstoneColumn, seededSpots(
+      [[-28.4, 8.8], [42.5, 17.8], [35.5, -32.8]],
+      "desert-sandstone-columns",
+      0.8,
+      0.92,
+      1.08,
+    ));
+    scatter(raceBanner, seededSpots(
+      [[-9.2, -36.5], [9.2, -36.5]],
+      "desert-race-banners",
+      0.5,
+      0.96,
+      1.04,
+    ));
 
     isle.geometry.computeBoundingBox();
     const isleH = isle.geometry.boundingBox?.max.y ?? 4;

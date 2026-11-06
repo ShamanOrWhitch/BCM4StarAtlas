@@ -1,3 +1,15 @@
+## Active — Mini-Sim 0.12.3: Desert Island + Shoal Race scenery (6 November 2026)
+
+- **WORK LOCK:** [#104](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/104). **PR:** [#105](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/105). **Branch:** `feat/first-planet-desert-population-20261106`; base main `00ff78815f6ed0ba372e158015f7b798f3534351`.
+- Mini-Sim version `0.12.3`; Tower version `0.2.72` (asset cache invalidation).
+- **Desert Island props:** from `desert_pack01`, `desert_details`, `desert_oasis_pack`: settlement market canopy, sandstone arch/temple, small oasis, two garden/orchid oasis models, rare blooms/orchids, multiple cactus/shrub/rock/cairn families, dead trees, sandstone columns and race banners.
+- **Shoal Race props:** from `coastal_environment`, `coastal_pack02`: GLB finish gate, lighthouse, palms, three buoy families, shore rocks/sea arch, dock/platform, boat, sand islets, driftwood and outer-edge barriers.
+- Preserve all uploaded GLBs in their existing `mini-sim/assets/mesh/**` folders. The 29 legacy First Planet models remain under `assets/first-planet/mesh`. PHP exposes a separate `meshLibraryBase`; Vite exposes safe nested `mesh-library/` routes for preview.
+- Each multi-part GLB is baked to a merged geometry. Repeated copies use `InstancedMesh`; desert assets load in batches of four and race assets in batches of three. The new props have no colliders and load asynchronously.
+- Decoration has independent salted seeds. No changes to desert terrain, houses/bridge, spawn, mission/quest placements, NPCs, Tower gate, race route geometry, track width/checkpoints, pickups, or vehicle physics.
+- **TESTED-CODE:** Mini-Sim regression PASS, including real binary presence and deterministic island/coastal placement assertions. UI Layer PASS; Tower top cap PASS; Warp regressions PASS; Hull Dive RU/EN PASS. First Planet WordPress bundle and package artifact PASS: [run #42237620172](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/42237620172), artifact ID `13512592368`, `bcm-mini-sim-0.12.3-test`, 337,966,505 bytes. The artifact is a direct one-level Actions ZIP, with no plugin ZIP inside.
+- **Browser boundary:** standalone Chromium Mini-Sim smoke PASS [#42237620327](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/42237620327), but it does not yet visually exercise the new Island/Race props. Live WordPress page smoke [#42237620425](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/42237620425) BLOCKED by HTTP 403 before gameplay. No manual device playtest or live deployment is claimed.
+- Status: IMPLEMENTED / TESTED-CODE on PR branch; awaiting visual/manual Island and Race review before merge/deploy.
 ## Completed — Mini-Sim 0.12.2 package delivery correction (6 November 2026)
 
 - Gameplay source was already merged through [PR #100](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/100), merge commit [`8753eaceb69b3608408f728d4fd76ca7dad6a073`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/8753eaceb69b3608408f728d4fd76ca7dad6a073). Mini-Sim: `0.12.2`; Tower: `0.2.71`.

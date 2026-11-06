@@ -1,3 +1,17 @@
+## Active — WORK LOCK #104: Desert Island + Shoal Race mesh population (6 November 2026)
+
+- **Branch:** `feat/first-planet-desert-population-20261106`; base `main` at `00ff78815f6ed0ba372e158015f7b798f3534351`. Issue [#104](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/104). PR [#105](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/105).
+- **Desert Island:** use `desert_pack01`, `desert_details` and `desert_oasis_pack` for market canopy, sandstone arch/temple, small and large oases, flowers, cacti, shrubs, rocks/cairns, dead trees, columns and race banners.
+- **Shoal Race:** use `coastal_environment` and `coastal_pack02` for the imported finish gate, lighthouse, palms, buoys, shore rocks/arch, dock/platform, boat, sand islets, driftwood and outer-edge barriers.
+- Preserve the existing 29 legacy First Planet meshes and their `meshBase`. WordPress uses separate `meshLibraryBase`; the Vite preview/build uses an allowlisted nested `mesh-library/` path. GLBs stay in their original repository folders; do not duplicate binaries.
+- Bake imported multi-part GLBs to one mesh. Repeated desert/coastal families use `InstancedMesh`. Desert optional meshes load in batches of four; coastal meshes load in batches of three. All new scenery is non-colliding.
+- Decoration uses salted deterministic seed streams. Preserve terrain/house/bridge colliders, house doorways, spawn, quests/crystals/key, NPCs, Tower gate, race road/half-width/checkpoints, pickup positions, vehicle physics, and local transition logic.
+- Mini-Sim version `0.12.3`; Tower version `0.2.72` for asset cache invalidation.
+- **TESTED-CODE:** Mini-Sim regression and the separate UI Layer, Tower top cap, Warp and Hull Dive checks PASS on head `9f26e7de272ecd4eb90df28edadd82bd228c9eb7`. First Planet WordPress bundle + single-level test artifact PASS: [run #42237620172](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/42237620172), artifact `bcm-mini-sim-0.12.3-test`, ID `13512592368`, 337,966,505 bytes. Standalone Chromium smoke PASS: [run #42237620327](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/42237620327).
+- **Verification boundary:** the standalone smoke is not a visual/manual test of the new Island or Race scenery. Live WordPress smoke [#42237620425](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/42237620425) is BLOCKED by HTTP 403 before Mini-Sim markup. No production upload or manual low-end-device validation is claimed.
+- Keep local transition work #97, Tower city #67 and QA-only PR #92 independent. Do not touch Galia Desk, scanner/pricing, firewall or remote networking.
+---
+
 ## Completed — WORK LOCK #101: Mini-Sim single-level artifact packaging (6 November 2026)
 
 - **Merged:** [PR #102](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/102), main commit [`f6903fcb7b67663b8bece272baafd78a230ebb74`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/f6903fcb7b67663b8bece272baafd78a230ebb74). Mini-Sim remains `0.12.2`; Tower remains `0.2.71`.

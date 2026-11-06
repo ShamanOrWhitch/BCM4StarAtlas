@@ -5,16 +5,16 @@ import { readFile } from "node:fs/promises";
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 
-test("Mini-Sim 0.12.2 and Tower 0.2.71 versions stay synchronized", async () => {
+test("Mini-Sim 0.12.3 and Tower 0.2.72 versions stay synchronized", async () => {
   const miniPhp = await read("mini-sim/bcm-mini-sim.php");
   const miniJs = await read("mini-sim/assets/js/mini-sim.js");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   const towerJs = await read("mini-sim/tower/assets/js/tower.js");
-  assert.match(miniPhp, /Version: 0\.12\.2/);
-  assert.match(miniPhp, /BCM_MINI_SIM_VERSION\', \'0\.12\.2\'/);
-  assert.match(miniJs, /SPACE LABYRINTH — 0\.12\.2/);
-  assert.match(towerPhp, /BCM_TOWER_VERSION\', \'0\.2\.71\'/);
-  assert.match(towerJs, /const TOWER_VERSION = "0\.2\.71"/);
+  assert.match(miniPhp, /Version: 0\.12\.3/);
+  assert.match(miniPhp, /BCM_MINI_SIM_VERSION\', \'0\.12\.3\'/);
+  assert.match(miniJs, /SPACE LABYRINTH — 0\.12\.3/);
+  assert.match(towerPhp, /BCM_TOWER_VERSION\', \'0\.2\.72\'/);
+  assert.match(towerJs, /const TOWER_VERSION = "0\.2\.72"/);
 });
 
 test("one persistent local session derives independent deterministic location seeds", async () => {
@@ -154,7 +154,7 @@ test("return snapshot preserves Crew, ship pose, mission, local seeds and intern
   assert.match(loader, /window\.BCMPrepareMiniSimReturn\(\)/);
 });
 
-test("0.12.2 package workflow builds and includes the First Planet WordPress bundle", async () => {
+test("0.12.3 package workflow builds and includes the First Planet WordPress bundle", async () => {
   const workflow = await read(".github/workflows/minisim-test-package.yml");
   assert.match(workflow, /pull_request:/);
   assert.match(workflow, /npm ci/);
@@ -180,3 +180,108 @@ test("Tower preloads First Planet during the descent and the bundle exports moun
   assert.match(vite, /external: \[\]/);
   assert.match(vite, /exports: "default"/);
 });
+
+test("Shoal Race populates the coastal course from the shared mesh library without changing race geometry", async () => {
+  const world = await read("mini-sim/tower/first-planet/src/game/world.ts");
+  const component = await read("mini-sim/tower/first-planet/src/components/shoal-race.tsx");
+  const track = await read("mini-sim/tower/first-planet/src/game/track.ts");
+  const vite = await read("mini-sim/tower/first-planet/vite.config.ts");
+  assert.match(world, /new GLTFLoader\(\)/);
+  assert.match(world, /meshLibraryBase\?: string/);
+  assert.match(world, /mesh-library/);
+  assert.match(world, /new THREE\.InstancedMesh\(source\.geometry, source\.material, fractions\.length\)/);
+  assert.match(world, /createSeededRandom\(worldSeed, salt\)/);
+  assert.match(world, /loadCoastalScenery\(track\)/);
+  assert.match(world, /coastalRoot/);
+  assert.match(world, /place\("lighthouse"/);
+  assert.match(world, /place\("dock"/);
+  assert.match(world, /scatter\("palm"/);
+  assert.match(world, /scatter\("barrierRed"/);
+  assert.match(component, /createWorld\(canvas, raceSeed\)/);
+  assert.match(vite, /FIRST_PLANET_COASTAL_MESH_FILES/);
+  assert.match(vite, /coastal_environment\/coastal_environment\/race_finish_gate\.glb/);
+  assert.match(track, /halfWidth: 7\.4/);
+  assert.match(world, /ROAD_Y/);
+
+  const coastalBinaries = [
+    "mini-sim/assets/mesh/coastal_environment/coastal_environment/lighthouse.glb",
+    "mini-sim/assets/mesh/coastal_environment/coastal_environment/navigation_buoy_red.glb",
+    "mini-sim/assets/mesh/coastal_environment/coastal_environment/palm_tree.glb",
+    "mini-sim/assets/mesh/coastal_environment/coastal_environment/race_finish_gate.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/shore_rocks.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/sea_rock_arch.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/dock_straight.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/dock_platform.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/barrier_sandstone.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/barrier_redwhite.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/buoy_yellow.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/buoy_green.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/small_sand_islet.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/wooden_boat.glb",
+    "mini-sim/assets/mesh/coastal_pack02/coastal_pack02/driftwood.glb",
+  ];
+  for (const path of coastalBinaries) {
+    const data = await readFile(new URL(path, root));
+    assert.ok(data.byteLength > 1000, path + " must be present as a real GLB");
+  }
+});
+
+test("First Planet populates the desert from the shared nested mesh library without changing gameplay geometry", async () => {
+  const scene = await read("mini-sim/tower/first-planet/src/game/island/scene.ts");
+  const terrain = await read("mini-sim/tower/first-planet/src/game/island/terrain.ts");
+  const bake = await read("mini-sim/tower/first-planet/src/game/island/bake.ts");
+  const vite = await read("mini-sim/tower/first-planet/vite.config.ts");
+  const towerPhp = await read("mini-sim/tower/bcm-tower.php");
+  assert.ok(towerPhp.includes("'meshLibraryBase' => BCM_MINI_SIM_URL . 'assets/mesh/'"));
+  assert.match(scene, /meshLibraryBase\?: string/);
+  assert.match(scene, /file\.split\("\/"\)\.map\(\(part\) => encodeURIComponent\(part\)\)/);
+  assert.match(scene, /mesh-library/);
+  assert.match(scene, /\["desert_pack01\/cactus_tall\.glb", 2\.9, "y"\]/);
+  assert.match(scene, /\["desert_oasis_pack\/desert_oasis_pack\/oasis_orchid_palms\.glb", 11\.8, "xz"\]/);
+  assert.match(scene, /createSeededRandom\(planetSeed, salt\)/);
+  assert.match(scene, /new THREE\.InstancedMesh/);
+  assert.match(scene, /instances\.computeBoundingSphere\(\)/);
+  assert.match(scene, /for \(let i = 0; i < desertRequests\.length; i \+= 4\)/);
+  assert.match(scene, /desert-shrub-green/);
+  assert.match(scene, /desert-race-banners/);
+  assert.match(bake, /mergeGeometries\(parts, false\)/);
+  assert.match(vite, /FIRST_PLANET_DESERT_MESH_FILES/);
+  assert.match(vite, /mesh-library/);
+  assert.match(vite, /relative\(root, file\)/);
+
+  const binaries = [
+    "mini-sim/assets/mesh/desert_pack01/cactus_tall.glb",
+    "mini-sim/assets/mesh/desert_pack01/cactus_cluster.glb",
+    "mini-sim/assets/mesh/desert_pack01/barrel_cactus_flower.glb",
+    "mini-sim/assets/mesh/desert_pack01/sandstone_boulders.glb",
+    "mini-sim/assets/mesh/desert_pack01/sandstone_arch.glb",
+    "mini-sim/assets/mesh/desert_pack01/stepped_desert_temple.glb",
+    "mini-sim/assets/mesh/desert_pack01/desert_market_awning.glb",
+    "mini-sim/assets/mesh/desert_pack01/dead_desert_tree.glb",
+    "mini-sim/assets/mesh/desert_pack01/small_oasis.glb",
+    "mini-sim/assets/mesh/desert_pack01/sandstone_column.glb",
+    "mini-sim/assets/mesh/desert_pack01/desert_race_banner.glb",
+    "mini-sim/assets/mesh/desert_details/shrub_dry.glb",
+    "mini-sim/assets/mesh/desert_details/shrub_green.glb",
+    "mini-sim/assets/mesh/desert_details/shrub_sage.glb",
+    "mini-sim/assets/mesh/desert_details/cairn_wide.glb",
+    "mini-sim/assets/mesh/desert_details/cairn_tall.glb",
+    "mini-sim/assets/mesh/desert_details/cactus_branching.glb",
+    "mini-sim/assets/mesh/desert_details/rocks_gray.glb",
+    "mini-sim/assets/mesh/desert_oasis_pack/desert_oasis_pack/oasis_orchid_palms.glb",
+    "mini-sim/assets/mesh/desert_oasis_pack/desert_oasis_pack/oasis_flower_garden.glb",
+    "mini-sim/assets/mesh/desert_oasis_pack/desert_oasis_pack/rare_turquoise_bloom.glb",
+    "mini-sim/assets/mesh/desert_oasis_pack/desert_oasis_pack/orchid_pink.glb",
+    "mini-sim/assets/mesh/desert_oasis_pack/desert_oasis_pack/orchid_white.glb",
+  ];
+  for (const path of binaries) {
+    const data = await readFile(new URL(path, root));
+    assert.ok(data.byteLength > 1000, path + " must be present as a real GLB");
+  }
+
+  const scenery = scene.slice(scene.indexOf("// The village square"), scene.indexOf("isle.geometry.computeBoundingBox"));
+  assert.doesNotMatch(scenery, /sim\.walls|houseAabbs|collision/);
+  assert.match(terrain, /export const TOWER_GATE =/);
+  assert.match(terrain, /export const CRYSTALS =/);
+});
+

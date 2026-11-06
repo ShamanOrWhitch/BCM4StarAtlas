@@ -1,3 +1,18 @@
+## D-048 — First Planet Desert Island and Shoal Race use the shared mesh library (6 November 2026)
+
+**Status:** Implemented on PR [#105](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/105), branch `feat/first-planet-desert-population-20261106`, WORK LOCK [#104](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/104). Main baseline `00ff78815f6ed0ba372e158015f7b798f3534351`. Mini-Sim `0.12.3` / Tower `0.2.72`.
+
+- Reuse the uploaded desert GLBs from `assets/mesh/desert_pack01`, `desert_details`, `desert_oasis_pack/desert_oasis_pack` in the Desert Island. Decoration covers village market/landmarks, dunes, cactus/shrub/rock families, dead trees, oasis gardens and rare flowers.
+- Reuse coastal GLBs from `assets/mesh/coastal_environment/coastal_environment` and `coastal_pack02/coastal_pack02` in Shoal Race: finish gate, lighthouse, palms, red/yellow/green buoys, shoreline rocks/arch, dock/platform, boat, sand islets, driftwood and edge barriers.
+- Keep the existing 29 legacy First Planet meshes under `assets/first-planet/mesh`. WordPress exposes a separate `BCMFirstPlanetConfig.meshLibraryBase`; Vite preview serves nested safe `/mesh-library/{path}` requests. Do not copy/re-export source binaries.
+- Bake each multi-part GLB to a single merged geometry. Repeated families use `InstancedMesh`; optional desert assets are loaded in batches of four and coastal assets in batches of three. Shared assets remain non-colliding.
+- Use a separate salted PRNG stream for each decoration family. Do not consume the island quest/RNG stream or alter track generation. Preserve island terrain, houses, bridge, spawn, quest placements, NPCs, Tower gate, race road/halfWidth/checkpoints, pickups and vehicle physics.
+- **TESTED-CODE:** focused Mini-Sim regression PASS on head `9f26e7de272ecd4eb90df28edadd82bd228c9eb7`; UI Layer, Tower top cap, Warp and Hull Dive checks PASS. First Planet WordPress bundle/package PASS: [run #42237620172](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/42237620172), single-level artifact ID `13512592368`, 337,966,505 bytes. Standalone Chromium smoke PASS [#42237620327](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/42237620327).
+- The standalone smoke does not yet visually exercise the new First Planet scenes. Live WordPress runner [#42237620425](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/42237620425) is BLOCKED by HTTP 403 before the Mini-Sim markup. No manual device confirmation or deployment is implied.
+
+
+---
+
 ## D-047 — Mini-Sim delivery artifact has exactly one ZIP layer (6 November 2026)
 
 **Status:** Merged via [PR #102](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/102) as main commit [`f6903fcb7b67663b8bece272baafd78a230ebb74`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/f6903fcb7b67663b8bece272baafd78a230ebb74). WORK LOCK [#101](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/101) completed. Mini-Sim 0.12.2 / Tower 0.2.71.
