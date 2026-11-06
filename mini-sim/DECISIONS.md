@@ -6,6 +6,7 @@
 - Upload the complete `mini-sim/` directory tree directly with an artifact path pattern that preserves `mini-sim/` as the top-level folder. The downloaded Actions artifact is the single installable ZIP.
 - Verify that `bcm-mini-sim.php`, First Planet `wp-dist/first-planet.js` and `wp-dist/first-planet.css` are present before upload. Fail if any `.zip` exists inside `mini-sim/`.
 - No intermediate extraction or user-machine `%TEMP%` / `C:\\Temp` staging. Do build and verification within the ephemeral Actions runner.
+- CI on the PR branch found two stale version literals in `scripts/asteroid-tower-hull-controls.test.mjs` left behind by the 0.12.2 / 0.2.71 bump. The test now reads the versions from PHP and verifies the user-visible Mini-Sim version plus Tower PHP/JS synchronization; it no longer blocks future version increments.
 - This is a packaging rule only. It does not prove live WordPress installation or manual gameplay.
 
 ---
