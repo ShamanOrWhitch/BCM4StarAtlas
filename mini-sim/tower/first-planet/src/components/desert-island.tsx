@@ -4,6 +4,17 @@ import { bindKeyboard, held, setForced } from "@/game/input";
 import { createIsland, type IslandWorld, type Phase } from "@/game/island/scene";
 import type { IslandHud } from "@/game/island/sim";
 
+const MOOD_NAME = {
+  walk: "Пешком",
+  sport: "Спорт",
+  fight: "Агрессия",
+  stealth: "Стелс",
+} as const;
+
+function moodName(mood: IslandHud["mood"]) {
+  return MOOD_NAME[mood] || "Пешком";
+}
+
 const EMPTY: IslandHud = {
   mode: "foot",
   speed: 0,
@@ -18,6 +29,7 @@ const EMPTY: IslandHud = {
   x: 0,
   z: 0,
   yaw: 0,
+  mood: "walk",
   depart: false,
   towerEnter: false,
 };
@@ -211,9 +223,8 @@ export function DesertIsland({
             </div>
           </dl>
           <p className="mt-4 text-sm text-muted">
-            Пешком и на байке: W вперёд, S назад, A влево, D вправо, E говорить и садиться. На байке
-            пробел вверх, C вниз, Shift форсаж. R возвращает на плиту. Висячий остров ждёт трассу —
-            пресеты встанут туда следующим заходом.
+            Пешком: W A S D, пробел — прыжок, C — настроение (обычный, спорт, агрессия, стелс).
+            На байке: пробел вверх, Q вниз, Shift форсаж. E говорить и садиться. R на плиту.
           </p>
           <p className="mt-2 text-xs text-muted">{ready ? "Меши на острове." : "Байк и жители ещё садятся…"}</p>
         </section>
@@ -228,7 +239,7 @@ export function DesertIsland({
                 {hud.region}
               </p>
               <p className="font-display text-2xl leading-none">
-                {hud.mode === "bike" ? "Байк" : "Пешком"}
+                {hud.mode === "bike" ? "Байк" : moodName(hud.mood)}
               </p>
               <p className="mt-1 flex items-center gap-1 text-sm">
                 <Gauge className="size-4 text-primary" aria-hidden />

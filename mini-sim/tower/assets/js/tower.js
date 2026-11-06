@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.72";
+  const TOWER_VERSION = "0.2.73";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -1037,7 +1037,9 @@
     // slightly weaker so it extends the first jump without turning the game
     // into unrestricted vertical flight.
     const jumpVelocity = 15.0;
+    const ascentJumpVelocity = 18.8;
     const doubleJumpVelocity = 11.25;
+    const ascentDoubleJumpVelocity = 13.6;
     const fallResetSpeed = 23.0;
     const baseTurnSpeed = 2.2;
     const trimPower = 10.5;
@@ -2067,7 +2069,8 @@
     function triggerDoubleJump(player) {
       const powered = Number(player.jetCharges || 0) > 0;
       if (powered) player.jetCharges -= 1;
-      player.vy = doubleJumpVelocity * (powered ? 1.42 : 1);
+      const base = ascentMode ? ascentDoubleJumpVelocity : doubleJumpVelocity;
+      player.vy = base * (powered ? 1.42 : 1);
       player.jetFxUntil = performance.now() + (powered ? 650 : 390);
       player.jetFxPower = powered ? 1.32 : 1;
     }
@@ -2079,7 +2082,8 @@
       if (p.grounded) {
         const springBoosted = Number(p.springCharges || 0) > 0;
         if (springBoosted) p.springCharges -= 1;
-        p.vy = jumpVelocity * (springBoosted ? 1.27 : 1);
+        const launch = ascentMode ? ascentJumpVelocity : jumpVelocity;
+        p.vy = launch * (springBoosted ? 1.27 : 1);
         if (springBoosted) status.textContent = "SPRING BOOST · УСИЛЕННЫЙ ПРЫЖОК";
         p.grounded = false;
         p.jumps = 1;
@@ -2696,64 +2700,59 @@
       transitionVideo.style.opacity = "0";
 
       let fallbackStarted = false;
-      let fallbackSeeking = false;
-      let fallbackAt = 0;
-      const runSeekFallback = () => {
+      const showClip = () => {
+        transitionVideo.style.opacity = "1";
+      };
+      const playReverse = () => {
         if (fallbackStarted || finish.done) return;
         fallbackStarted = true;
-        transitionVideo.pause();
-        try { transitionVideo.playbackRate = 1; } catch (e) {}
-        fallbackAt = performance.now();
+        showClip();
+        const duration = Number(transitionVideo.duration) || 0;
+        const started = performance.now();
+        try { transitionVideo.currentTime = Math.max(0, duration - 0.04); } catch (e) {}
+        let native = false;
+        try {
+          transitionVideo.playbackRate = -1;
+          const result = transitionVideo.play();
+          if (result && typeof result.catch === "function") result.catch(() => {});
+        } catch (e) {}
         const step = (now) => {
           if (finish.done) return;
-          const dt = Math.min(0.12, Math.max(0, (now - fallbackAt) / 1000));
-          fallbackAt = now;
-          if (!fallbackSeeking && transitionVideo.readyState >= 2) {
-            const nextTime = Math.max(0, transitionVideo.currentTime - dt);
-            if (nextTime <= 0.025) {
-              try { transitionVideo.currentTime = 0; } catch (e) {}
+          const elapsed = (now - started) / 1000;
+          const time = Number(transitionVideo.currentTime) || 0;
+          if (!native && transitionVideo.playbackRate < 0 && time < duration - 0.35) native = true;
+          if (!native) {
+            const next = Math.max(0, duration - elapsed * 2);
+            try {
+              transitionVideo.pause();
+              transitionVideo.currentTime = next;
+            } catch (e) {}
+            if (next <= 0.04 || elapsed > 16) {
               finish();
               return;
             }
-            fallbackSeeking = true;
-            try { transitionVideo.currentTime = nextTime; }
-            catch (e) { finish(); return; }
+          } else if (time <= 0.04 || elapsed > duration + 2) {
+            finish();
+            return;
           }
           requestAnimationFrame(step);
         };
-        transitionVideo.onseeked = () => { fallbackSeeking = false; };
         requestAnimationFrame(step);
       };
 
       transitionVideo.onloadedmetadata = () => {
-        try { transitionVideo.currentTime = Number(transitionVideo.duration) || 0; }
-        catch (e) { runSeekFallback(); }
+        showClip();
+        playReverse();
       };
-      transitionVideo.onloadeddata = () => {
-        if (finish.done || fallbackStarted) return;
-        transitionVideo.style.opacity = "1";
-        try {
-          transitionVideo.currentTime = Math.max(0, (Number(transitionVideo.duration) || 0) - 0.04);
-          transitionVideo.playbackRate = -1;
-          const result = transitionVideo.play();
-          if (result && typeof result.catch === "function") result.catch(runSeekFallback);
-          window.setTimeout(() => {
-            if (!finish.done && (transitionVideo.paused || transitionVideo.playbackRate >= 0)) runSeekFallback();
-          }, 300);
-        } catch (e) {
-          runSeekFallback();
-        }
-      };
-      transitionVideo.onplaying = () => {
-        if (!finish.done && !fallbackStarted) transitionVideo.style.opacity = "1";
-      };
-      transitionVideo.ontimeupdate = () => {
-        if (!fallbackStarted && transitionVideo.currentTime <= 0.025) finish();
-      };
-      transitionVideo.onended = finish;
+      transitionVideo.onloadeddata = showClip;
+      transitionVideo.onplaying = showClip;
       transitionVideo.onerror = finish;
       transitionVideo.src = url;
-      transitionVideo.load();
+      if (!(transitionVideo.readyState >= 1 && Number(transitionVideo.duration) > 0.5)) {
+        transitionVideo.load();
+      } else {
+        playReverse();
+      }
     }
 
     function currentPlanetDetail(preload) {
@@ -3893,6 +3892,16 @@
           ? "КОМАНДА ВОСХОДИТ ПО ТОМУ ЖЕ МАРШРУТУ"
           : "ВСТАНЬ НА H1 · ВЫХОД В КОСМОС";
         status.textContent = "ВОСХОЖДЕНИЕ · ТОТ ЖЕ SEED " + wantedSeed;
+        if (transitionVideo && CONFIG.planetTransition) {
+          const absolute = (value) => {
+            try { return new URL(value, document.baseURI).href; } catch (e) { return String(value || ""); }
+          };
+          if (absolute(transitionVideo.getAttribute("src") || "") !== absolute(CONFIG.planetTransition)) {
+            transitionVideo.preload = "auto";
+            transitionVideo.src = CONFIG.planetTransition;
+            transitionVideo.load();
+          }
+        }
         updateCrewMatrix();
         exposeCrewMatrix();
         resize();

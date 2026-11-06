@@ -32,12 +32,13 @@ export function groundY(x: number, z: number) {
     const disk = Math.exp(-((x - px) ** 2) / 26 - ((z - pz) ** 2) / 20);
     h = lerp(h, 0.74, Math.min(1, disk * 1.4));
   }
-  if (Math.abs(x - 2.2) < 2.6 && z <= -6.5 && z >= -12.4) h = Math.max(h, 0.66);
+  if (Math.abs(x - 2.2) < 2.4 && z <= -8.4 && z >= -10.4) h = Math.max(h, 0.42);
+  if (Math.abs(x - 2.2) < 2.4 && z <= -23.2 && z >= -26.2) h = Math.max(h, 0.42);
   return lerp(-1.7, h, inland);
 }
 
 export const SKY = { x: 24, z: -36, y: 14.2, r: 5.2 };
-export const BRIDGE = { x: 2.2, z0: -22, z1: -11, half: 1.25, deck: 0.92 };
+export const BRIDGE = { x: 2.2, z0: -24.2, z1: -8.8, half: 0.85, deck: 0.42 };
 
 export function onBridge(x: number, z: number) {
   return Math.abs(x - BRIDGE.x) < BRIDGE.half && z > BRIDGE.z0 && z < BRIDGE.z1;
@@ -96,16 +97,17 @@ const GAP = 1.7;
 export function houseAabbs(house: House, blockDoor: boolean): Aabb[] {
   const y0 = groundY(house.x, house.z);
   const y1 = y0 + house.h;
+  const wallTop = y1;
   const x0 = house.x - house.w / 2;
   const x1 = house.x + house.w / 2;
   const z0 = house.z - house.d / 2;
   const z1 = house.z + house.d / 2;
   const boxes: Aabb[] = [];
-  const add = (minX: number, maxX: number, minZ: number, maxZ: number, minY = y0, maxY = y1) => {
+  const add = (minX: number, maxX: number, minZ: number, maxZ: number, minY = y0, maxY = wallTop) => {
     if (maxX - minX < 0.05 || maxZ - minZ < 0.05) return;
     boxes.push({ minX, maxX, minY, maxY, minZ, maxZ });
   };
-  add(x0, x1, z0, z1, y1 - 0.26, y1 + 0.02);
+  add(x0 - 0.35, x1 + 0.35, z0 - 0.35, z1 + 0.35, y1 + 0.04, y1 + 0.28);
   const splitX = (minX: number, maxX: number, minZ: number, maxZ: number, along: "z" | "x") => {
     if (blockDoor) {
       add(minX, maxX, minZ, maxZ);
@@ -157,7 +159,7 @@ export const SKY_NOTE = { x: SKY.x, z: SKY.z };
 export const NPC = {
   sera: { x: -5.7, z: 17, yaw: Math.PI / 2, name: "Сера Венн" },
   orr: { x: -6.4, z: -1.2, yaw: Math.PI / 2, name: "Орр-1" },
-  bulb: { x: 1.5, z: 6.6, yaw: 0, name: "Ламп" },
+  bulb: { x: 4.6, z: 9.4, yaw: Math.PI, name: "Ламп" },
 };
 
 export function regionName(x: number, z: number, y: number) {

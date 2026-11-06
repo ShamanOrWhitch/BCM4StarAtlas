@@ -231,6 +231,27 @@ export function createWorld(canvas: HTMLCanvasElement): World {
         mesh.receiveShadow = false;
         vehicleTemplates.push(mesh);
       });
+      const pearce = [
+        "pearce x 4/spacebike_red_off.glb",
+        "pearce x 4/spacebike_blue_off.glb",
+        "pearce x 4/spacebike_yellow_off.glb",
+        "pearce x 4/spacebike_white_off.glb",
+        "pearce x 4/spacebike_black_off.glb",
+      ];
+      for (const file of pearce) {
+        const url = propUrl(file);
+        if (!url) continue;
+        try {
+          const gltf = await vehicleLoader.loadAsync(url);
+          const mesh = bake(gltf.scene, 3.3, "xz");
+          faceForward(mesh);
+          mesh.castShadow = false;
+          mesh.receiveShadow = false;
+          vehicleTemplates.push(mesh);
+        } catch (err) {
+          console.warn("BCM pearce bike skipped", file, err);
+        }
+      }
     } catch (err) {
       console.warn("BCM race cars kept the block karts", err);
     }

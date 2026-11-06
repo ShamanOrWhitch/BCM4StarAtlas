@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.3",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.4",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.12.3",
+      title: "SPACE LABYRINTH — 0.12.4",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -3729,8 +3729,40 @@
       ship.visual.position.copy(ship.position);
       ship.visual.quaternion.copy(ship.quaternion);
     }
+    pushShipOffTowerGate();
     if (snapshot.speedMode) setSpeedMode(snapshot.speedMode);
     return true;
+  }
+
+  let returnGateGraceUntil = 0;
+
+  function pushShipOffTowerGate() {
+    const gate = getTowerGateZone();
+    if (!gate || !gate.mesh || !ship.position) return;
+    const gatePosition = gate.mesh.getWorldPosition(new THREE.Vector3());
+    const dx = ship.position.x - gatePosition.x;
+    const dy = ship.position.y - gatePosition.y;
+    const dz = ship.position.z - gatePosition.z;
+    const dist = Math.hypot(dx, dy, dz) || 1;
+    const hold = 52;
+    if (dist < hold) {
+      ship.position.set(
+        gatePosition.x + (dx / dist) * hold,
+        gatePosition.y + (dy / dist) * hold,
+        gatePosition.z + (dz / dist) * hold
+      );
+    }
+    ship.velocity.set(0, 0, 0);
+    ship.angularVelocity.set(0, 0, 0);
+    if (camera) {
+      camera.position.copy(ship.position);
+      camera.quaternion.copy(ship.quaternion);
+    }
+    if (ship.visual) {
+      ship.visual.position.copy(ship.position);
+      ship.visual.quaternion.copy(ship.quaternion);
+    }
+    returnGateGraceUntil = performance.now() + 8000;
   }
 
   function resumeLocalSessionAfterReturn() {
@@ -5274,7 +5306,7 @@
       }
     }
 
-    if (gate && gateDistance <= 14) beginTowerLanding();
+    if (gate && gateDistance <= 14 && performance.now() > returnGateGraceUntil) beginTowerLanding();
 
     if (!cinema.focus) {
       const portalCoverageThreshold = Number(config.towerApproach?.portalCoverageThreshold) || 0.60;
@@ -5871,7 +5903,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.12.3") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.12.4") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();

@@ -92,8 +92,33 @@ function resample(pts: { x: number; z: number }[], spacing: number) {
   return { pts: out, length };
 }
 
+function controlPoints(seed: number): [number, number][] {
+  const nSeed = Number(seed) >>> 0;
+  if (!nSeed) return RAW;
+  let state = nSeed;
+  const rand = () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+  // A positive radius around the origin cannot cross itself, so every seed stays a lap.
+  const lobes = 5 + Math.floor(rand() * 3);
+  const base = 84 + rand() * 14;
+  const amp = 8 + rand() * 10;
+  const phase = rand() * Math.PI * 2;
+  const squash = 0.86 + rand() * 0.1;
+  const count = 16;
+  const pts: [number, number][] = [];
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2;
+    const radius = base + Math.sin(angle * lobes + phase) * amp;
+    pts.push([Math.cos(angle) * radius, Math.sin(angle) * radius * squash]);
+  }
+  return pts;
+}
+
 export function buildTrack(seed = 0): Track {
-  const dense = densify(RAW);
+  const nSeed = Number(seed) >>> 0;
+  const dense = densify(controlPoints(nSeed));
   const { pts, length } = resample(dense, 2.4);
   const n = pts.length;
   const samples: Sample[] = [];
@@ -125,7 +150,7 @@ export function buildTrack(seed = 0): Track {
   }
   const gates = 8;
   const checkpoints = Array.from({ length: gates }, (_, i) => (i / gates) * length);
-  return { seed: Number(seed) >>> 0, samples, length, halfWidth: 7.4, checkpoints };
+  return { seed: nSeed, samples, length, halfWidth: 7.4, checkpoints };
 }
 
 export function sampleAt(track: Track, s: number): Sample {

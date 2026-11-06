@@ -54,6 +54,7 @@ export type IslandHud = {
   yaw: number;
   depart: boolean;
   towerEnter: boolean;
+  mood: "walk" | "sport" | "fight" | "stealth";
 };
 
 function loadSave(storageKey = SAVE_KEY): Save {
@@ -192,18 +193,27 @@ export function createSim(seed = 0) {
     prompt: "",
     depart: false,
     towerEnter: false,
+    mood: "walk" as "walk" | "sport" | "fight" | "stealth",
     walls: [] as Aabb[],
+    props: [] as Aabb[],
     usePrev: false,
     respawnPrev: false,
+    jumpPrev: false,
+    moodPrev: false,
+    dash: 0,
     dirty: false,
     saveAt: 0,
     rebuild() {
-      const walls: Aabb[] = [];
+      const walls: Aabb[] = this.props.slice();
       for (const house of HOUSES) {
         walls.push(...houseAabbs(house, house.id === "archive" && this.quests.orr !== "done"));
       }
       walls.push(...VEHICLES);
       this.walls = walls;
+    },
+    addProp(box: Aabb) {
+      this.props.push(box);
+      this.walls.push(box);
     },
     persist() {
       const data: Save = {
@@ -419,6 +429,12 @@ export function createSim(seed = 0) {
       const brake = keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0;
       const use = keys.has("KeyE") || keys.has("KeyF");
       const respawn = keys.has("KeyR");
+      if (this.mode === "foot" && keys.has("KeyC") && !this.moodPrev && !this.dialogue) {
+        const order = ["walk", "sport", "fight", "stealth"] as const;
+        const index = order.indexOf(this.mood);
+        this.mood = order[(index + 1) % order.length];
+      }
+      this.moodPrev = this.mode === "foot" && keys.has("KeyC");
       if (use && !this.usePrev) this.interact();
       this.usePrev = use;
       if (respawn && !this.respawnPrev) this.respawn();
@@ -433,7 +449,9 @@ export function createSim(seed = 0) {
         let forward = this.vx * fx + this.vz * fz;
         const wish = throttle - brake;
         const boost = keys.has("ShiftLeft") || keys.has("ShiftRight");
-        const max = this.mode === "bike" ? (boost ? 28 : 16) : 6.1;
+        const pace =
+          this.mood === "sport" ? 9.4 : this.mood === "stealth" ? 2.7 : this.mood === "fight" ? 6.6 : 5.6;
+        const max = this.mode === "bike" ? (boost ? 28 : 16) : pace;
         const accel = this.mode === "bike" ? 16 : 24;
         const target = wish * (this.mode === "foot" && brake && !throttle ? 3.2 : max);
         const signedTarget = throttle ? target : brake ? - (this.mode === "foot" ? 3.2 : 7) : 0;
@@ -441,6 +459,10 @@ export function createSim(seed = 0) {
         forward += delta;
         if (!throttle && !brake) forward *= Math.exp((this.mode === "bike" ? -0.55 : -3.4) * dt);
         if (Math.abs(forward) < 0.02) forward = 0;
+        if (this.mode === "foot" && this.dash > 0) {
+          forward += 8.5;
+          this.dash = Math.max(0, this.dash - dt);
+        }
         this.vx = fx * forward;
         this.vz = fz * forward;
         this.speed = forward;
@@ -462,11 +484,26 @@ export function createSim(seed = 0) {
         this.x = hit.x;
         this.z = hit.z;
         if (this.mode === "foot") {
-          this.y = footY(this.x, this.z, this.y);
-          this.vy = 0;
+          const ground = footY(this.x, this.z, this.y);
+          const airborne = this.y > ground + 0.08;
+          if (keys.has("Space") && !this.jumpPrev && !airborne && this.mood !== "stealth") {
+            if (this.mood === "fight") {
+              this.dash = 0.22;
+              this.vy = 3.4;
+            } else {
+              this.vy = this.mood === "sport" ? 8.6 : 6.4;
+            }
+          }
+          this.vy -= 24 * dt;
+          let ny = this.y + this.vy * dt;
+          const landed = footY(this.x, this.z, ny);
+          if (ny <= landed) {
+            ny = landed;
+            if (this.vy < 0) this.vy = 0;
+          }
+          this.y = ny;
         } else {
-          const climb =
-            (keys.has("Space") ? 1 : 0) - (keys.has("KeyC") || keys.has("KeyQ") ? 1 : 0);
+          const climb = (keys.has("Space") ? 1 : 0) - (keys.has("KeyQ") ? 1 : 0);
           if (climb !== 0) this.vy += climb * 26 * dt;
           else this.vy *= Math.exp(-2.4 * dt);
           this.vy = Math.min(12, Math.max(-12, this.vy));
@@ -491,6 +528,7 @@ export function createSim(seed = 0) {
         this.speed = 0;
         this.steer = 0;
       }
+      this.jumpPrev = keys.has("Space");
       this.refreshPrompt();
       this.saveAt += dt;
       if (this.dirty && this.saveAt > 0.4) {
@@ -555,6 +593,7 @@ export function createSim(seed = 0) {
         x: this.x,
         z: this.z,
         yaw: this.yaw,
+        mood: this.mood,
         depart: this.depart,
         towerEnter: this.towerEnter,
       };

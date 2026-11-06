@@ -5,22 +5,22 @@ import { readFile } from "node:fs/promises";
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 
-test("Mini-Sim 0.12.3 and Tower 0.2.72 versions stay synchronized", async () => {
+test("Mini-Sim 0.12.4 and Tower 0.2.73 versions stay synchronized", async () => {
   const miniPhp = await read("mini-sim/bcm-mini-sim.php");
   const miniJs = await read("mini-sim/assets/js/mini-sim.js");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   const towerJs = await read("mini-sim/tower/assets/js/tower.js");
-  assert.match(miniPhp, /Version: 0\.12\.3/);
-  assert.match(miniPhp, /BCM_MINI_SIM_VERSION\', \'0\.12\.3\'/);
-  assert.match(miniJs, /SPACE LABYRINTH — 0\.12\.3/);
-  assert.match(towerPhp, /BCM_TOWER_VERSION\', \'0\.2\.72\'/);
-  assert.match(towerJs, /const TOWER_VERSION = "0\.2\.72"/);
+  assert.match(miniPhp, /Version: 0\.12\.4/);
+  assert.match(miniPhp, /BCM_MINI_SIM_VERSION\', \'0\.12\.4\'/);
+  assert.match(miniJs, /SPACE LABYRINTH — 0\.12\.4/);
+  assert.match(towerPhp, /BCM_TOWER_VERSION\', \'0\.2\.73\'/);
+  assert.match(towerJs, /const TOWER_VERSION = "0\.2\.73"/);
   assert.match(towerJs, /function makeSpaceExit\(cell\)/);
   assert.match(towerJs, /const reachedExit = ascentMode \? onSpaceExit : p\.y < bottomY - 4\.2/);
   assert.doesNotMatch(towerJs, /p\.y > topY \+ 4\.2/);
 });
 
-test("First Planet 0.12.3 faces the crew outward, rides the bike forward, and keeps the world light", async () => {
+test("First Planet 0.12.4 faces the crew outward, rides the bike forward, and keeps the world light", async () => {
   const scene = await read("mini-sim/tower/first-planet/src/game/island/scene.ts");
   const bake = await read("mini-sim/tower/first-planet/src/game/island/bake.ts");
   const terrain = await read("mini-sim/tower/first-planet/src/game/island/terrain.ts");
@@ -32,7 +32,7 @@ test("First Planet 0.12.3 faces the crew outward, rides the bike forward, and ke
   assert.match(scene, /МАЯК · ПОДЪЁМ/);
   assert.match(bake, /mesh\.rotation\.y = Math\.PI \/ 2/);
   assert.match(terrain, /sera: \{ x: -5\.7, z: 17, yaw: Math\.PI \/ 2/);
-  assert.match(terrain, /bulb: \{ x: 1\.5, z: 6\.6, yaw: 0/);
+  assert.match(terrain, /bulb: \{ x: 4\.6, z: 9\.4, yaw: Math\.PI/);
   assert.match(sim, /маяк · подъём в Tower/);
   assert.match(world, /renderer\.shadowMap\.enabled = false/);
   assert.match(world, /hovercar\.glb/);
@@ -90,7 +90,7 @@ test("Tower reverse ONICSS transition reuses the existing landing clip and has a
   assert.match(tower, /function beginReverseSpaceLabyrinthReturn\(\)/);
   assert.match(tower, /const url = String\(CONFIG\.planetTransition \|\| ""\)/);
   assert.match(tower, /transitionVideo\.playbackRate = -1/);
-  assert.match(tower, /transitionVideo\.currentTime - dt/);
+  assert.match(tower, /duration - elapsed \* 2/);
   assert.match(tower, /bcm:tower:space-return/);
   assert.match(loader, /bcm:tower:space-return/);
   assert.match(loader, /window\.location\.reload\(\)/);
@@ -178,7 +178,7 @@ test("return snapshot preserves Crew, ship pose, mission, local seeds and intern
   assert.match(loader, /window\.BCMPrepareMiniSimReturn\(\)/);
 });
 
-test("0.12.3 package workflow builds and includes the First Planet WordPress bundle", async () => {
+test("0.12.4 package workflow builds and includes the First Planet WordPress bundle", async () => {
   const workflow = await read(".github/workflows/minisim-test-package.yml");
   assert.match(workflow, /pull_request:/);
   assert.match(workflow, /npm ci/);

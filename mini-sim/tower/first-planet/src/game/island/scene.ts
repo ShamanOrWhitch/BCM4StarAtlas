@@ -115,7 +115,7 @@ export function createIsland(
   const sim = createSim(Number(context.planetSeed) >>> 0);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   const host = canvas.parentElement ?? canvas;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1));
   renderer.shadowMap.enabled = false;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -177,7 +177,13 @@ export function createIsland(
   };
 
   const wallMat = new THREE.MeshStandardMaterial({ color: 0xe0c7a2, roughness: 0.92 });
-  const roofMat = new THREE.MeshStandardMaterial({ color: 0x8d5340, roughness: 0.86 });
+  const roofMat = new THREE.MeshStandardMaterial({
+    color: 0x8d5340,
+    roughness: 0.86,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
+  });
   const floorMat = new THREE.MeshStandardMaterial({ color: 0xc9ae84, roughness: 0.95 });
   const stoneMat = new THREE.MeshStandardMaterial({ color: 0xb7aea0, roughness: 0.8 });
   const pathMat = new THREE.MeshStandardMaterial({
@@ -210,8 +216,8 @@ export function createIsland(
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
     mesh.position.set(cx, cy, cz);
     mesh.rotation.y = yaw;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
     track(mesh);
     scene.add(mesh);
     return mesh;
@@ -347,12 +353,6 @@ export function createIsland(
     addBox(0, y + 0.05, z, 3.1, 0.06, 3.6, pathMat);
   }
 
-  for (const house of HOUSES) {
-    const glow = new THREE.PointLight(0xffe2b8, 0.85, 10, 2);
-    glow.position.set(house.x, groundY(house.x, house.z) + 2.15, house.z);
-    scene.add(glow);
-  }
-
   const archiveDoor = { mesh: null as THREE.Mesh | null };
   for (const house of HOUSES) {
     const boxes = houseAabbs(house, false);
@@ -486,6 +486,30 @@ export function createIsland(
     return mesh;
   };
 
+  function fits(x: number, z: number, pad: number) {
+    for (const house of HOUSES) {
+      if (Math.abs(x - house.x) < house.w / 2 + pad && Math.abs(z - house.z) < house.d / 2 + pad) return false;
+    }
+    if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 6.5) return false;
+    if (Math.hypot(x - TOWER_GATE.x, z - TOWER_GATE.z) < 5.5) return false;
+    if (Math.abs(x - BRIDGE.x) < BRIDGE.half + pad && z > BRIDGE.z0 - 1.5 && z < BRIDGE.z1 + 1.5) return false;
+    for (const person of Object.values(NPC)) {
+      if (Math.hypot(x - person.x, z - person.z) < pad + 1.2) return false;
+    }
+    return true;
+  }
+  function block(x: number, z: number, radius: number, height: number) {
+    const y = groundY(x, z);
+    sim.addProp({
+      minX: x - radius,
+      maxX: x + radius,
+      minY: y,
+      maxY: y + height,
+      minZ: z - radius,
+      maxZ: z + radius,
+    });
+  }
+
   void (async () => {
     const lighthouse = propUrl("coastal_environment/coastal_environment/lighthouse.glb");
     if (lighthouse) {
@@ -509,10 +533,12 @@ export function createIsland(
         const mesh = await loadMesh(url, height, "y");
         if (!alive) return;
         spots.forEach(([x, z], i) => {
+          if (!fits(x, z, height > 2 ? 2.8 : 2.4)) return;
           const clone = mesh.clone();
           clone.position.set(x, groundY(x, z), z);
           clone.rotation.y = i * 0.7;
           scene.add(clone);
+          block(x, z, height > 2 ? 0.7 : 1.15, height);
         });
       } catch (err) {
         console.warn("BCM prop skipped", file, err);
@@ -639,15 +665,23 @@ export function createIsland(
       [8, 22],
       [-16, 4],
     ];
-    trees.forEach(([x, z], i) => drop(tree, x, z, i * 0.8));
+    trees.forEach(([x, z], i) => {
+      if (!fits(x, z, 2.8)) return;
+      drop(tree, x, z, i * 0.8);
+      block(x, z, 0.55, 2.4);
+    });
 
     for (let z = 24; z <= 32; z += 2.4) {
       drop(fence, -5.4, z, Math.PI / 2);
       drop(fence, 5.4, z, Math.PI / 2);
     }
-    for (let i = 0; i < 4; i++) {
-      const z = BRIDGE.z0 + 1.2 + i * 2.7;
-      drop(bridge, BRIDGE.x, z, Math.PI / 2, -0.05);
+    const segment = 3.05;
+    const count = Math.max(3, Math.round((BRIDGE.z1 - BRIDGE.z0) / segment));
+    const used = count * segment;
+    const zStart = (BRIDGE.z0 + BRIDGE.z1) / 2 - used / 2 + segment / 2;
+    for (let i = 0; i < count; i++) {
+      // Planks sit 0.41 above the baked pivot. Feet use BRIDGE.deck, so the body is not left hanging on the rails.
+      drop(bridge, BRIDGE.x, zStart + i * segment, Math.PI / 2, BRIDGE.deck - 0.41);
     }
     const lamps = [
       [-4.2, 26],
@@ -658,6 +692,8 @@ export function createIsland(
     lamps.forEach(([x, z]) => drop(lamp, x, z, 0));
     drop(bench, 2.4, 6.4, 0.2);
     drop(bench, -2.2, 5.2, 2.6);
+    block(2.4, 6.4, 0.7, 0.9);
+    block(-2.2, 5.2, 0.7, 0.9);
     BRAZIERS.forEach((spot, i) => {
       const y = i === 1 ? BRIDGE.deck : groundY(spot.x, spot.z);
       drop(brazier, spot.x, spot.z, i, y);
@@ -680,9 +716,14 @@ export function createIsland(
     drop(rune, -8.2, -3.4, 0.5);
     drop(shroom, -22, -8, 0.4);
     drop(shroom, 16, -28, 1.1);
-    drop(fern, -3.5, 22, 0.8);
-    drop(fern, 3.2, 12, 1.4);
-    drop(fern, -8, -8, 0.2);
+    for (const [x, z, yaw] of [
+      [-6.4, -20.6, 0.4],
+      [7.4, -21.4, 1.1],
+      [-14.2, -18.2, 0.2],
+    ] as const) {
+      if (!fits(x, z, 1.2)) continue;
+      drop(fern, x, z, yaw);
+    }
     drop(coral, 6.2, -15.4, 0.5, -0.25);
     drop(coral, -0.6, -19.2, 1.2, -0.35);
     drop(lily, 3.6, -16.8, 0.4, -0.32);
@@ -771,7 +812,9 @@ export function createIsland(
     pilot.visible = sim.mode === "foot";
     pilot.position.set(sim.x, sim.mode === "foot" ? sim.y : footY(sim.x, sim.z, sim.y), sim.z);
     pilot.rotation.y = sim.yaw;
-    pilot.position.y += sim.mode === "foot" && Math.abs(sim.speed) > 0.35 ? Math.abs(Math.sin(elapsed * 11)) * 0.05 : 0;
+    const stance = sim.mood === "stealth" ? 0.62 : 1;
+    pilot.scale.set(sim.mood === "fight" ? 1.08 : 1, stance, sim.mood === "fight" ? 1.08 : 1);
+    pilot.position.y += sim.mode === "foot" && Math.abs(sim.speed) > 0.35 ? Math.abs(Math.sin(elapsed * (sim.mood === "sport" ? 14 : 11))) * 0.05 : 0;
 
     if (sim.mode === "bike") {
       bike.position.set(sim.x, sim.y, sim.z);
