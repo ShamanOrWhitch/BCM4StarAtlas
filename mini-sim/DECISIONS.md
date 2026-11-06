@@ -1,3 +1,15 @@
+## D-047 — Mini-Sim delivery artifact has exactly one ZIP layer (6 November 2026)
+
+**Status:** Work Lock [#101](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/101), branch `fix/minisim-single-level-artifact-20261106`, based on main `8753eaceb69b3608408f728d4fd76ca7dad6a073`.
+
+- GitHub Actions `actions/upload-artifact` creates its own ZIP. Never pre-create a plugin ZIP and upload that archive; that creates an archive inside an archive and forces unnecessary extraction.
+- Upload the complete `mini-sim/` directory tree directly with an artifact path pattern that preserves `mini-sim/` as the top-level folder. The downloaded Actions artifact is the single installable ZIP.
+- Verify that `bcm-mini-sim.php`, First Planet `wp-dist/first-planet.js` and `wp-dist/first-planet.css` are present before upload. Fail if any `.zip` exists inside `mini-sim/`.
+- No intermediate extraction or user-machine `%TEMP%` / `C:\\Temp` staging. Do build and verification within the ephemeral Actions runner.
+- This is a packaging rule only. It does not prove live WordPress installation or manual gameplay.
+
+---
+
 ## D-046 — Mini-Sim 0.12.1 local whole-journey session (5 November 2026)
 
 **Status:** 0.12.1 on branch `feat/minisim-0.12.1-planet-bundle`, WORK LOCK [#97](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/97). Local Single and split-screen Multi only. The WordPress plugin now contains `first-planet/wp-dist` so the planet image is part of the install, and Tower preloads that image during the descent.
