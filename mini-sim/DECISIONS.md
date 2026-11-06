@@ -1,3 +1,16 @@
+## D-048 — First Planet desert settlement uses the shared mesh library (6 November 2026)
+
+**Status:** Implementation on `feat/first-planet-desert-population-20261106`, WORK LOCK [#104](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/104). Base `main` SHA `00ff78815f6ed0ba372e158015f7b798f3534351`. Mini-Sim `0.12.3` / Tower `0.2.72`.
+
+- Read the uploaded desert scenery from `assets/mesh/desert_pack01`, `assets/mesh/desert_details` and `assets/mesh/desert_oasis_pack/desert_oasis_pack`. Keep the existing 29 legacy First Planet GLBs in `assets/first-planet/mesh`; do not copy/re-export binaries.
+- WordPress uses a separate `BCMFirstPlanetConfig.meshLibraryBase`. The First Planet Vite mesh plugin serves the corresponding nested `/mesh-library/{safe-path}` route and emits only the allowlisted desert GLBs into the preview/build output. Keep path traversal protection and the old flat `/mesh/{file}` route.
+- Bake every multi-part source GLB into a single merged geometry. Use `InstancedMesh` for repeated families, and load optional library models in batches of four. Missing optional props must not block First Planet.
+- Decorate the village, outer dunes and oasis with the market awning, sandstone landmarks, small/full oases, flowers, cactus and shrub families, rocks/cairns, dead desert trees and race banners.
+- Place props outside doorways/roads. They have no collision; do not alter sim walls, terrain height, house/bridge colliders, spawn, quest items, Tower gate or race path. Use a distinct salted seed for each decorative family so the saved planet layout is repeatable and unrelated gameplay RNG is unchanged.
+- **Verification pending at decision creation:** source regression and package/build/browser checks will be recorded in the completed work-lock entry after CI. Do not claim live WordPress or manual device confirmation from source tests alone.
+
+---
+
 ## D-047 — Mini-Sim delivery artifact has exactly one ZIP layer (6 November 2026)
 
 **Status:** Merged via [PR #102](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/102) as main commit [`f6903fcb7b67663b8bece272baafd78a230ebb74`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/f6903fcb7b67663b8bece272baafd78a230ebb74). WORK LOCK [#101](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/101) completed. Mini-Sim 0.12.2 / Tower 0.2.71.
