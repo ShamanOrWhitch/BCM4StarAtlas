@@ -28,7 +28,10 @@ test("Flight starts in Room 1 and does not teleport into the asteroid", async ()
   const begin = mini.slice(mini.indexOf("function beginFlight()"), mini.indexOf("const byName = Object.create(null)"));
   assert.doesNotMatch(begin, /BCMDeepSpaceWarpEnterAsteroid\s*\(/);
   assert.match(mini, /ship\.position = new THREE\.Vector3\(0, 0, 2\)/);
-  assert.match(mini, /КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.12\.0/);
+  const miniPhp = await read("mini-sim/bcm-mini-sim.php");
+  const miniVersion = miniPhp.match(/Version:\s+([0-9.]+)/)?.[1];
+  assert.ok(miniVersion, "Mini-Sim plugin header exposes its version");
+  assert.ok(mini.includes(`КОСМИЧЕСКИЙ ЛАБИРИНТ — ${miniVersion}`), "in-game label matches the plugin version");
 });
 
 test("Asteroid walls are resolved from the prepared asterwall asset family", async () => {
@@ -274,8 +277,9 @@ test("Tower handoff preserves the arrival ship snapshot and active Tower seed fo
   assert.match(warp, /window\.BCMDeepSpaceWarpGetReturnSnapshot = \(\) =>/);
   assert.match(tower, /window\.BCMWorldMission\.towerSeed = seed/);
   assert.match(tower, /originShipSnapshot\.towerSeed = seed/);
-  assert.match(towerPhp, /define\('BCM_TOWER_VERSION', '0\.2\.69'\)/);
-  assert.match(tower, /const TOWER_VERSION = "0\.2\.69"/);
+  const towerVersion = towerPhp.match(/define\('BCM_TOWER_VERSION', '([^']+)'\)/)?.[1];
+  assert.ok(towerVersion, "Tower PHP exposes its version");
+  assert.ok(tower.includes(`const TOWER_VERSION = "${towerVersion}"`), "Tower JS and PHP versions stay synchronized");
 });
 
 test("Tower shows short controls for the active device and a clear descent/fall objective", async () => {
