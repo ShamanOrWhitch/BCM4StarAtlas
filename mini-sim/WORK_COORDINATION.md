@@ -1,3 +1,13 @@
+## Active — WORK LOCK #101: Mini-Sim single-level artifact packaging (6 November 2026)
+
+- **Branch:** `fix/minisim-single-level-artifact-20261106`; base `main` at `8753eaceb69b3608408f728d4fd76ca7dad6a073`. Issue [#101](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/101).
+- This is a packaging-only change. It does not change Mini-Sim gameplay, Tower, First Planet source, Galia Desk, scanner/pricing, firewall or WordPress deployment.
+- Remove the plugin ZIP creation step. Upload the `mini-sim/` tree directly through `actions/upload-artifact`; GitHub creates the one downloadable ZIP. Preserve `mini-sim/` as the artifact's top-level folder.
+- Reject any `.zip` file inside the plugin tree. Never unpack intermediate archives or create user-machine `%TEMP%` / `C:\\Temp` staging.
+- Keep the full First Planet bundle and plugin tree in the artifact. Record the tested workflow run and merge SHA before closing this lock.
+
+---
+
 ## Active — WORK LOCK #97: Mini-Sim 0.12.1 local transition loop (5 November 2026)
 
 - **Branch:** `feat/minisim-0.12.1-planet-bundle`. **Base:** `main` plus the 0.12.0 local-transition branch. Supersedes draft [#98](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/98).
