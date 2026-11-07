@@ -1,0 +1,34 @@
+{
+  "mesa_tall": {
+    "triangles": 236,
+    "parts": 3
+  },
+  "mesa_wide": {
+    "triangles": 156,
+    "parts": 2
+  },
+  "red_rock_spires": {
+    "triangles": 228,
+    "parts": 3
+  },
+  "red_boulder_cluster": {
+    "triangles": 240,
+    "parts": 3
+  },
+  "desert_dome_house": {
+    "triangles": 512,
+    "parts": 7
+  },
+  "ruined_watchtower": {
+    "triangles": 164,
+    "parts": 8
+  },
+  "ruined_wall": {
+    "triangles": 208,
+    "parts": 6
+  },
+  "desert_flat_canopy_tree": {
+    "triangles": 1444,
+    "parts": 25
+  }
+}
