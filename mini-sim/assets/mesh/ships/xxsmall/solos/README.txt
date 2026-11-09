@@ -1,0 +1,1 @@
+VZUS solos-inspired low-poly prototype. +X front; Y up. Silver, blue, red; flight has static blue aft effects, off has none. No pilot, animation or collisions. Open cockpit, simplified side vents and rear fins. Approximate design, no UV texture, untested in Three.js r128 and Android.
