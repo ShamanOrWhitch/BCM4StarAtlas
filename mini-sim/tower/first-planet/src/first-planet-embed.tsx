@@ -60,7 +60,7 @@ function FirstPlanetApp({
     const makeAudio = (url: string | undefined) => {
       if (!url) return null;
       const audio = new Audio(url);
-      audio.preload = "none";
+      audio.preload = "auto";
       audio.loop = true;
       audio.volume = 0.58;
       return audio;

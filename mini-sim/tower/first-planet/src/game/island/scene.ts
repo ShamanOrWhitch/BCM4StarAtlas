@@ -115,7 +115,7 @@ export function createIsland(
   context: { planetSeed?: number } = {},
 ): IslandWorld {
   const sim = createSim(Number(context.planetSeed) >>> 0);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false });
   const host = canvas.parentElement ?? canvas;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1));
   renderer.shadowMap.enabled = false;
@@ -133,21 +133,27 @@ export function createIsland(
 
   const camera = new THREE.PerspectiveCamera(58, 1, 0.12, 600);
   camera.position.set(16, 8, 58);
+  // Point lights live on layer 1 and only touch the mesh they belong to.
+  // The ground and sea stay on layer 0, so a brazier does not relight the whole island.
+  const LOCAL = 1;
+  camera.layers.enable(LOCAL);
 
   const hemi = new THREE.HemisphereLight(0xffc4a0, 0x7a3a32, 0.95);
-  const sun = new THREE.DirectionalLight(0xffb15a, 1.45);
-  sun.position.set(40, 54, 24);
-  sun.castShadow = false;
-  scene.add(hemi, sun, sun.target);
-  const fill = new THREE.DirectionalLight(0xe25b3a, 0.28);
-  fill.position.set(-30, 20, -20);
-  scene.add(fill);
-
   const gold = sunSprite("#ffe08a", 58);
   gold.position.set(78, 42, -40);
   const rose = sunSprite("#ff6a4a", 30);
   rose.position.set(-62, 30, -90);
   scene.add(gold, rose);
+  // Specular on the water follows these lights. They sit on the sprites,
+  // otherwise the glint lands to the left of the sun you actually see.
+  const sun = new THREE.DirectionalLight(0xffb15a, 1.35);
+  sun.position.copy(gold.position);
+  sun.target.position.set(0, -0.55, 0);
+  sun.castShadow = false;
+  const fill = new THREE.DirectionalLight(0xffc4a0, 0.16);
+  fill.position.copy(rose.position);
+  fill.target.position.set(0, -0.55, 0);
+  scene.add(hemi, sun, sun.target, fill, fill.target);
 
   const skyGeo = new THREE.SphereGeometry(420, 20, 12);
   const skyPos = skyGeo.getAttribute("position");
@@ -279,8 +285,8 @@ export function createIsland(
     new THREE.CircleGeometry(420, 48),
     new THREE.MeshStandardMaterial({
       color: 0x6a3d78,
-      roughness: 0.35,
-      metalness: 0.08,
+      roughness: 0.42,
+      metalness: 0.12,
       transparent: true,
       opacity: 0.86,
     }),
@@ -555,21 +561,31 @@ export function createIsland(
     const scatter: Array<[string, number, Array<[number, number]>]> = [
       ["desert_pack01/cactus_tall.glb", 2.6, [[-18, 29], [22, 26], [-24, 12], [26, -6], [-10, -26], [16, -24], [-28, -4], [8, -30]]],
       ["desert_details/rocks_gray.glb", 1.5, [[-12, 34], [14, 35], [-26, 20], [28, 10], [4, -32], [-18, -14]]],
+      // Small branching cactus — the twigs that used to be strewn over the dunes.
+      ["desert_details/cactus_branching.glb", 1.15, [[-16, 22], [19, 14], [-9, 27], [27, 4], [-22, -6], [11, -16], [-4, -27], [31, -12], [-31, 18], [7, 11], [15, -8], [-14, 8]]],
+      ["desert_details/shrub_dry.glb", 0.85, [[-7, 24], [17, 22], [-19, 4], [23, -14], [-12, -22], [5, -26], [28, 16], [-25, 24]]],
     ];
+    const dummy = new THREE.Object3D();
     for (const [file, height, spots] of scatter) {
-      const url = propUrl(file);
+      const url = propUrl(file) || meshUrl(file.slice(file.lastIndexOf("/") + 1));
       if (!url || !alive) continue;
       try {
         const mesh = await loadMesh(url, height, "y");
         if (!alive) return;
-        spots.forEach(([x, z], i) => {
-          if (!fits(x, z, height > 2 ? 2.8 : 2.4)) return;
-          const clone = mesh.clone();
-          clone.position.set(x, groundY(x, z), z);
-          clone.rotation.y = i * 0.7;
-          scene.add(clone);
-          block(x, z, height > 2 ? 0.7 : 1.15, height);
+        const placed = spots.filter(([x, z]) => fits(x, z, height > 2 ? 2.8 : 1.6));
+        if (!placed.length) continue;
+        const batch = new THREE.InstancedMesh(mesh.geometry, mesh.material, placed.length);
+        batch.castShadow = false;
+        batch.receiveShadow = false;
+        placed.forEach(([x, z], i) => {
+          dummy.position.set(x, groundY(x, z), z);
+          dummy.rotation.set(0, i * 0.7, 0);
+          dummy.scale.set(1, 1, 1);
+          dummy.updateMatrix();
+          batch.setMatrixAt(i, dummy.matrix);
         });
+        batch.instanceMatrix.needsUpdate = true;
+        scene.add(batch);
       } catch (err) {
         console.warn("BCM prop skipped", file, err);
       }
@@ -700,9 +716,11 @@ export function createIsland(
       pivot.add(man);
       pivot.position.set(JAHMAN.x, groundY(JAHMAN.x, JAHMAN.z), JAHMAN.z);
       pivot.rotation.y = JAHMAN.yaw;
-      const fill = new THREE.PointLight(0xffaa77, 0.85, 5.5, 2);
-      fill.position.set(0, 1.55, -0.7);
-      pivot.add(fill);
+      const fillLight = new THREE.PointLight(0xffaa77, 0.85, 5.5, 2);
+      fillLight.layers.set(LOCAL);
+      fillLight.position.set(0, 1.55, -0.7);
+      pivot.add(fillLight);
+      man.traverse((obj) => obj.layers.enable(LOCAL));
       pivot.add(makeLabel(JAHMAN.name));
       scene.add(pivot);
       npcPivots.push(pivot);
@@ -740,7 +758,6 @@ export function createIsland(
     trees.forEach(([x, z], i) => {
       if (!fits(x, z, 2.8)) return;
       drop(tree, x, z, i * 0.8);
-      block(x, z, 0.55, 2.4);
     });
 
     for (let z = 24; z <= 32; z += 2.4) {
@@ -768,14 +785,16 @@ export function createIsland(
     block(-2.2, 5.2, 0.7, 0.9);
     BRAZIERS.forEach((spot, i) => {
       const y = i === 1 ? BRIDGE.deck : groundY(spot.x, spot.z);
-      drop(brazier, spot.x, spot.z, i, y);
+      const stand = drop(brazier, spot.x, spot.z, i, y);
       const flame = fireSprite();
       flame.position.set(spot.x, y + 1.15, spot.z);
       scene.add(flame);
       fireSprites.push(flame);
       fireMarkers.push(marker(spot.x, y + 1.8, spot.z));
       const light = new THREE.PointLight(0xff8a3c, 0, 7, 2);
+      light.layers.set(LOCAL);
       light.position.set(spot.x, y + 1.3, spot.z);
+      stand.traverse((obj) => obj.layers.enable(LOCAL));
       scene.add(light);
       fireLights.push(light);
     });
@@ -792,6 +811,14 @@ export function createIsland(
       [-6.4, -20.6, 0.4],
       [7.4, -21.4, 1.1],
       [-14.2, -18.2, 0.2],
+      [-20.5, 24.2, 0.6],
+      [24.2, 18.4, 1.4],
+      [-3.6, 28.4, 0.8],
+      [18.6, -12.2, 0.3],
+      [-28.4, -10.2, 1.2],
+      [6.2, 22.4, 0.5],
+      [30.4, 8.2, 0.9],
+      [-8.4, -12.6, 1.6],
     ] as const) {
       if (!fits(x, z, 1.2)) continue;
       drop(fern, x, z, yaw);
@@ -810,7 +837,9 @@ export function createIsland(
     drop(orb, SKY.x + 1.3, SKY.z + 0.5, 0, SKY.y);
     drop(bud, SKY.x - 1.5, SKY.z - 0.8, 0.7, SKY.y);
     const skyLight = new THREE.PointLight(0x8fd0ff, 1.4, 16, 2);
+    skyLight.layers.set(LOCAL);
     skyLight.position.set(SKY.x + 1.3, SKY.y + 1.2, SKY.z);
+    skyPivot.traverse((obj) => obj.layers.enable(LOCAL));
     scene.add(skyLight);
     onProps?.();
   })().catch((err) => {
@@ -950,8 +979,8 @@ export function createIsland(
     lookSmoothed.lerp(look, k);
     camera.lookAt(lookSmoothed);
 
-    sun.position.set(sim.x + 36, 50, sim.z + 18);
-    sun.target.position.set(sim.x, 0, sim.z);
+    sun.position.copy(gold.position);
+    sun.target.position.set(0, -0.55, 0);
     sky.position.copy(camera.position);
 
     renderer.render(scene, camera);

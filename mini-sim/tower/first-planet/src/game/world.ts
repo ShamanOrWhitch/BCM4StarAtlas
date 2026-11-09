@@ -108,9 +108,9 @@ function glow(color: string) {
 }
 
 export function createWorld(canvas: HTMLCanvasElement): World {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false });
   const host = canvas.parentElement ?? canvas;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1));
   renderer.setSize(host.clientWidth || 1, host.clientHeight || 1, false);
   renderer.shadowMap.enabled = false;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -125,29 +125,31 @@ export function createWorld(canvas: HTMLCanvasElement): World {
   const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 700);
   camera.position.set(0, 48, 120);
 
-  const hemi = new THREE.HemisphereLight(0xfff1d2, 0x1a6e82, 0.9);
-  const sun = new THREE.DirectionalLight(0xffe0a8, 1.45);
-  sun.position.set(90, 70, 30);
-  sun.castShadow = false;
-  const coral = new THREE.DirectionalLight(0xe25b3a, 0.45);
-  coral.position.set(-70, 40, -40);
-  scene.add(hemi, sun, coral);
-
+  const hemi = new THREE.HemisphereLight(0xd5e7f2, 0x1a6e82, 0.95);
   const goldSun = new THREE.Sprite(
     new THREE.SpriteMaterial({ map: glow("#ffd27a"), transparent: true, depthWrite: false, fog: false }),
   );
   goldSun.position.set(150, 78, -40);
   goldSun.scale.set(46, 46, 1);
   const roseSun = new THREE.Sprite(
-    new THREE.SpriteMaterial({ map: glow("#ff8d6a"), transparent: true, depthWrite: false, fog: false }),
+    new THREE.SpriteMaterial({ map: glow("#ffb089"), transparent: true, depthWrite: false, fog: false }),
   );
   roseSun.position.set(-120, 54, -150);
   roseSun.scale.set(28, 28, 1);
   scene.add(goldSun, roseSun);
+  // Same rule as the island: the water glint uses the sun you see, not a light off to the side.
+  const sun = new THREE.DirectionalLight(0xfff1d6, 1.15);
+  sun.position.copy(goldSun.position);
+  sun.target.position.set(0, 0.2, 0);
+  sun.castShadow = false;
+  const coral = new THREE.DirectionalLight(0xc5d8e6, 0.22);
+  coral.position.copy(roseSun.position);
+  coral.target.position.set(0, 0.2, 0);
+  scene.add(hemi, sun, sun.target, coral, coral.target);
 
   const water = new THREE.Mesh(
     new THREE.CircleGeometry(240, 48),
-    new THREE.MeshStandardMaterial({ color: 0x146e86, roughness: 0.22, metalness: 0.35 }),
+    new THREE.MeshStandardMaterial({ color: 0x14748c, roughness: 0.48, metalness: 0.08 }),
   );
   water.rotation.x = -Math.PI / 2;
   water.position.y = 0.2;

@@ -77,6 +77,11 @@ export function DesertIsland({
   onLoadErrorRef.current = onLoadError;
 
   useEffect(() => {
+    if (!live) return;
+    onStartAudioRef.current();
+  }, [live]);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     let world: IslandWorld;

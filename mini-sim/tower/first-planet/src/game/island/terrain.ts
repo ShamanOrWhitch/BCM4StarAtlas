@@ -155,9 +155,9 @@ export const RING = { x: 0.2, z: -42 };
 // ONICSS/Tower portal on the shared arrival pad.
 export const TOWER_GATE = { x: 0.4, z: 32.6, radius: 3.3 };
 export const SKY_NOTE = { x: SKY.x, z: SKY.z };
-// Inside the east house, clear of the letter on the floor. Faces the west door.
-export const JAHMAN = { x: 13.35, z: 12.55, yaw: -Math.PI / 2, name: "Джаман" };
-export const STORY_BOX = { x: 13.35, z: 17.25 };
+// JahMan stands west of the story box and faces its screen (+X). The floor note is gone.
+export const JAHMAN = { x: 10.35, z: 16.35, yaw: Math.PI / 2, name: "Джаман" };
+export const STORY_BOX = { x: 13.05, z: 16.35 };
 
 export const NPC = {
   sera: { x: -5.7, z: 17, yaw: Math.PI / 2, name: "Сера Венн" },

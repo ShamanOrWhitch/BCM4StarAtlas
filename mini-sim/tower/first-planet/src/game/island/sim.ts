@@ -6,9 +6,8 @@ import {
   CRYSTALS,
   HOUSES,
   JOURNAL,
-  KEY_SPOT,
-  LETTER,
   JAHMAN,
+  KEY_SPOT,
   NPC,
   RING,
   SKY_NOTE,
@@ -378,10 +377,6 @@ export function createSim(seed = 0) {
         ]);
         return;
       }
-      if (hit(LETTER.x, LETTER.z, 1.7)) {
-        this.say("Записка", ["«Ушёл к гряде. Оранжевый байк на плите — чужой, не трогать. В остальных домах двери открыты.»"]);
-        return;
-      }
       if (hit(SKY_NOTE.x, SKY_NOTE.z, 3) && this.y > 10) {
         this.say("Висячий остров", [
           "Плита без разметки. Здесь встанет трасса, когда пресеты станут сеткой. Пока это только край карты и ветер.",
@@ -459,7 +454,6 @@ export function createSim(seed = 0) {
       else if (BRAZIERS.some((b, i) => !this.fires[i] && hit(b.x, b.z, 1.8))) this.prompt = "E — зажечь жаровню";
       else if (hit(CHEST.x, CHEST.z, 1.8)) this.prompt = "E — сундук";
       else if (hit(JOURNAL.x, JOURNAL.z, 1.8)) this.prompt = "E — журнал";
-      else if (hit(LETTER.x, LETTER.z, 1.7)) this.prompt = "E — записка";
       else if (hit(SKY_NOTE.x, SKY_NOTE.z, 3) && this.y > 10) this.prompt = "E — плита трассы";
       else if (hit(TOWER_GATE.x, TOWER_GATE.z, TOWER_GATE.radius)) this.prompt = "E — маяк · подъём в Tower";
       else if (hit(RING.x, RING.z, 3.4)) this.prompt = "E — берег цитадели, гонка";
