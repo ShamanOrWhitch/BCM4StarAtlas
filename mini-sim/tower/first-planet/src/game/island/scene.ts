@@ -567,7 +567,9 @@ export function createIsland(
     ];
     const dummy = new THREE.Object3D();
     for (const [file, height, spots] of scatter) {
-      const url = propUrl(file) || meshUrl(file.slice(file.lastIndexOf("/") + 1));
+      const name = file.slice(file.lastIndexOf("/") + 1);
+      const previewHas = name === "cactus_branching.glb" || name === "shrub_dry.glb";
+      const url = propUrl(file) || (previewHas ? meshUrl(name) : "");
       if (!url || !alive) continue;
       try {
         const mesh = await loadMesh(url, height, "y");
