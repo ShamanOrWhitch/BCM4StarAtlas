@@ -188,10 +188,9 @@ export function DesertIsland({
           </p>
           <h1 className="font-display mt-2 text-4xl leading-none font-medium">Остров пустыни</h1>
           <p className="mt-3 text-sm text-muted">
-            Дюнный посад. У входа стоит байк — на нём можно подняться над крышами. Внизу дома,
-            оазис и трое жителей с поручениями. Северное кольцо ведёт на береговую гонку. На
-            рядом с посадочной площадкой светится портал в Tower: подойди к нему и нажми E,
-            чтобы пройти ту же сохранённую башню снизу вверх.
+            Дюнный посад на закате. У входа стоит байк — на нём можно подняться над крышами. В восточном
+            доме Джаман и ящик сказок. Сера, Орр и Ламп ждут снаружи. Рядом с посадочной светится маяк:
+            подойди и нажми E, чтобы пройти сохранённую башню снизу вверх. Северное кольцо — гонка.
           </p>
           <button
             type="button"
@@ -219,7 +218,7 @@ export function DesertIsland({
             </div>
             <div className="rounded-xl border border-line bg-bg/50 p-3">
               <dt className="text-muted">Жители</dt>
-              <dd className="font-medium">Сера, Орр, Ламп</dd>
+              <dd className="font-medium">Сера, Орр, Ламп, Джаман</dd>
             </div>
           </dl>
           <p className="mt-4 text-sm text-muted">
@@ -321,9 +320,10 @@ export function DesertIsland({
           <Hold code="KeyS" label="Назад" />
           <Hold code="KeyD" label="Право" />
           <Hold code="KeyE" label="E" />
-          <Hold code="Space" label="Вверх" />
-          <Hold code="KeyC" label="Вниз" />
-          <Hold code="ShiftLeft" label="Форсаж" />
+          <Hold code="Space" label="Прыжок" />
+          <Hold code="KeyC" label="Настроение" />
+          <Hold code="KeyQ" label="Вниз" />
+          <Hold code="ShiftLeft" label="Форсаж" className="col-span-4" />
         </div>
       ) : null}
 

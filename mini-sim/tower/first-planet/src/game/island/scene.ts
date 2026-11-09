@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { bake, faceForward } from "./bake";
+import { bake, faceForward, fitHeight } from "./bake";
 import { meshUrl, propUrl } from "../mesh-url";
 import { createSim, type Sim } from "./sim";
 import {
@@ -10,11 +10,13 @@ import {
   CHEST,
   CRYSTALS,
   HOUSES,
+  JAHMAN,
   KEY_SPOT,
   NPC,
   RING,
   SKY,
   SPAWN,
+  STORY_BOX,
   TOWER_GATE,
   footY,
   groundY,
@@ -119,21 +121,21 @@ export function createIsland(
   renderer.shadowMap.enabled = false;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.12;
   canvas.style.width = "100%";
   canvas.style.height = "100%";
   canvas.style.display = "block";
   canvas.style.touchAction = "none";
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xc5d4df);
-  scene.fog = new THREE.Fog(0xe7d3b0, 55, 210);
+  scene.background = new THREE.Color(0xff7a3c);
+  scene.fog = new THREE.Fog(0xe56a3a, 48, 200);
 
   const camera = new THREE.PerspectiveCamera(58, 1, 0.12, 600);
   camera.position.set(16, 8, 58);
 
-  const hemi = new THREE.HemisphereLight(0xffe6c4, 0x8a6246, 0.85);
-  const sun = new THREE.DirectionalLight(0xffd7a1, 1.55);
+  const hemi = new THREE.HemisphereLight(0xffc4a0, 0x7a3a32, 0.95);
+  const sun = new THREE.DirectionalLight(0xffb15a, 1.45);
   sun.position.set(40, 54, 24);
   sun.castShadow = false;
   scene.add(hemi, sun, sun.target);
@@ -141,21 +143,23 @@ export function createIsland(
   fill.position.set(-30, 20, -20);
   scene.add(fill);
 
-  const gold = sunSprite("#ffd27a", 42);
-  gold.position.set(90, 48, -30);
-  const rose = sunSprite("#ff8d6a", 24);
-  rose.position.set(-70, 36, -80);
+  const gold = sunSprite("#ffe08a", 58);
+  gold.position.set(78, 42, -40);
+  const rose = sunSprite("#ff6a4a", 30);
+  rose.position.set(-62, 30, -90);
   scene.add(gold, rose);
 
   const skyGeo = new THREE.SphereGeometry(420, 20, 12);
   const skyPos = skyGeo.getAttribute("position");
   const skyCol = new Float32Array(skyPos.count * 3);
-  const top = new THREE.Color(0x8eb4c9);
-  const mid = new THREE.Color(0xf0d2a8);
+  const top = new THREE.Color(0x3d245c);
+  const mid = new THREE.Color(0xff7a3a);
+  const low = new THREE.Color(0xffc48a);
   const c = new THREE.Color();
   for (let i = 0; i < skyPos.count; i++) {
     const y = skyPos.getY(i) / 420;
-    c.copy(mid).lerp(top, Math.min(1, Math.max(0, y * 0.85 + 0.15)));
+    if (y > 0.15) c.copy(mid).lerp(top, Math.min(1, (y - 0.15) / 0.85));
+    else c.copy(low).lerp(mid, Math.min(1, (y + 0.35) / 0.5));
     skyCol[i * 3] = c.r;
     skyCol[i * 3 + 1] = c.g;
     skyCol[i * 3 + 2] = c.b;
@@ -228,9 +232,9 @@ export function createIsland(
   const groundGeo = new THREE.BufferGeometry();
   const gPos = new Float32Array((n + 1) * (n + 1) * 3);
   const gCol = new Float32Array((n + 1) * (n + 1) * 3);
-  const sand = new THREE.Color(0xe0c092);
-  const wet = new THREE.Color(0xb88858);
-  const rock = new THREE.Color(0x8a6550);
+  const sand = new THREE.Color(0xe3924e);
+  const wet = new THREE.Color(0xc46a45);
+  const rock = new THREE.Color(0x8a4038);
   const grass = new THREE.Color(0x3f7d68);
   const index: number[] = [];
   for (let iz = 0; iz <= n; iz++) {
@@ -274,7 +278,7 @@ export function createIsland(
   const sea = new THREE.Mesh(
     new THREE.CircleGeometry(420, 48),
     new THREE.MeshStandardMaterial({
-      color: 0x1a6e82,
+      color: 0x6a3d78,
       roughness: 0.35,
       metalness: 0.08,
       transparent: true,
@@ -411,6 +415,32 @@ export function createIsland(
   track(ring);
   scene.add(ring);
 
+  const screenMat = new THREE.MeshStandardMaterial({
+    color: 0x1c2430,
+    emissive: 0xffb060,
+    emissiveIntensity: 0.85,
+    roughness: 0.22,
+    metalness: 0.05,
+  });
+  mats.add(screenMat);
+  const story = new THREE.Group();
+  const cabinet = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.62, 0.28), woodMat);
+  cabinet.position.y = 0.72;
+  const screen = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.42, 0.04), screenMat);
+  screen.position.set(0, 0.76, -0.15);
+  const stand = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.34), stoneMat);
+  stand.position.y = 0.21;
+  const antenna = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.28, 0.04), goldMat);
+  antenna.position.set(0.28, 1.12, 0);
+  story.add(stand, cabinet, screen, antenna);
+  story.position.set(STORY_BOX.x, groundY(STORY_BOX.x, STORY_BOX.z), STORY_BOX.z);
+  story.rotation.y = Math.PI / 2;
+  scene.add(story);
+  story.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (mesh.isMesh) track(mesh);
+  });
+
   const pilot = new THREE.Group();
   const cloth = new THREE.MeshStandardMaterial({ color: 0x24343c, roughness: 0.7 });
   const suit = new THREE.MeshStandardMaterial({ color: 0xd7b48a, roughness: 0.62 });
@@ -544,6 +574,29 @@ export function createIsland(
         console.warn("BCM prop skipped", file, err);
       }
     }
+    const landmarks: Array<[string, string, number, number, number, number]> = [
+      ["desert_next_stage/models/mesa_tall.glb", "desert/mesa_tall.glb", 16, 48, 6, 0.35],
+      ["desert_next_stage/models/mesa_wide.glb", "desert/mesa_wide.glb", 7.2, 46, -16, 1.1],
+      ["desert_next_stage/models/red_rock_spires.glb", "desert/spires.glb", 12, -58, 14, 0.4],
+      ["desert_next_stage/models/red_boulder_cluster.glb", "desert/boulders.glb", 3.1, -40, 28, 0.7],
+      ["desert_next_stage/models/desert_flat_canopy_tree.glb", "desert/canopy.glb", 6.4, -28, 36, 0.25],
+      ["desert_next_stage/models/desert_dome_house.glb", "desert/dome_house.glb", 5.4, 32, 28, 0.6],
+      ["desert_next_stage/models/ruined_wall.glb", "desert/ruined_wall.glb", 3.3, -32, -22, 0.45],
+      ["desert_next_stage/models/ruined_watchtower.glb", "desert/watchtower.glb", 8.2, 40, -30, 0.9],
+    ];
+    for (const [propPath, previewFile, height, x, z, yaw] of landmarks) {
+      if (!alive || !fits(x, z, 3.2)) continue;
+      try {
+        const mesh = await loadMesh(propUrl(propPath) || meshUrl(previewFile), height, "y");
+        if (!alive) return;
+        mesh.position.set(x, groundY(x, z), z);
+        mesh.rotation.y = yaw;
+        scene.add(mesh);
+        if (height > 5) block(x, z, Math.min(2.4, height * 0.18), Math.min(height, 8));
+      } catch (err) {
+        console.warn("BCM landmark skipped", propPath, err);
+      }
+    }
   })();
 
   const props = (async () => {
@@ -637,6 +690,25 @@ export function createIsland(
     const lampNpc = drop(bulb, NPC.bulb.x, NPC.bulb.z, NPC.bulb.yaw);
     lampNpc.add(makeLabel(NPC.bulb.name));
     npcPivots.push(sera, orr, lampNpc);
+
+    try {
+      const jahUrl = propUrl("jahman_optimized/jahman_mobile.glb") || meshUrl("desert/jahman_mobile.glb");
+      const gltf = await loader.loadAsync(jahUrl);
+      if (!alive) return;
+      const man = fitHeight(gltf.scene, 1.72);
+      const pivot = new THREE.Group();
+      pivot.add(man);
+      pivot.position.set(JAHMAN.x, groundY(JAHMAN.x, JAHMAN.z), JAHMAN.z);
+      pivot.rotation.y = JAHMAN.yaw;
+      const fill = new THREE.PointLight(0xffaa77, 0.85, 5.5, 2);
+      fill.position.set(0, 1.55, -0.7);
+      pivot.add(fill);
+      pivot.add(makeLabel(JAHMAN.name));
+      scene.add(pivot);
+      npcPivots.push(pivot);
+    } catch (err) {
+      console.warn("BCM JahMan skipped", err);
+    }
 
     const crystals = [amber, cyan, violet];
     CRYSTALS.forEach((spot, i) => {
@@ -854,6 +926,7 @@ export function createIsland(
     });
     if (coinPivot) coinPivot.visible = sim.chest;
     if (archiveDoor.mesh) archiveDoor.mesh.visible = sim.quests.orr !== "done";
+    screenMat.emissiveIntensity = 0.55 + Math.sin(elapsed * 2.4) * 0.28;
     npcPivots.forEach((pivot, i) => {
       const base = groundY(pivot.position.x, pivot.position.z);
       pivot.position.y = base + Math.sin(elapsed * 1.6 + i) * 0.03;

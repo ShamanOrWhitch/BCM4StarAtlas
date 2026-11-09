@@ -8,10 +8,12 @@ import {
   JOURNAL,
   KEY_SPOT,
   LETTER,
+  JAHMAN,
   NPC,
   RING,
   SKY_NOTE,
   SPAWN,
+  STORY_BOX,
   TOWER_GATE,
   footY,
   houseAabbs,
@@ -143,6 +145,42 @@ const BULB_GO = ["Две жаровни. Подойди и нажми E. Я не
 const BULB_READY = ["Тепло пошло по площади. Сундук больше не держит."];
 const BULB_DONE = ["Северное кольцо за оазисом — это уже гонка, не прогулка. Кольцо само просит E."];
 
+const JAHMAN_LINES = [
+  "Я Джаман. Дом этот мой, и ящик у восточной стены тоже.",
+  "Это не телевизор новостей. Экран показывает сказки острова. Подойди и нажми E — следующая начнётся сама.",
+];
+
+const TALES: { title: string; pages: string[] }[] = [
+  {
+    title: "Два солнца",
+    pages: [
+      "Большое солнце пекло дюны, малое только смотрело. Жители решили, что малое — лампа, и попытались его задуть.",
+      "Оно не погасло. Зато в ту ночь оазис запомнил их имена и больше не пускал к воде тех, кто приходит с пустыми руками.",
+    ],
+  },
+  {
+    title: "Колодец имён",
+    pages: [
+      "На гряде стоял колодец без верёвки. Кто бросал камень, слышал своё имя снизу, только на день старше.",
+      "Сера перестала бросать. Она говорит: остров и так считает кристаллы, второму счёту здесь не место.",
+    ],
+  },
+  {
+    title: "Дверь назад",
+    pages: [
+      "Маяк на берегу открывается не ключом, а тем, что ты уже спускался. Кто пришёл сверху, видит только стену.",
+      "Джаман оставляет эту сказку без конца. Подъём, говорит он, всегда начинается с площадки, которую ты ещё не видел.",
+    ],
+  },
+  {
+    title: "Монета, которую остров не берёт",
+    pages: [
+      "Рыночный сундук однажды вернул монету. Не сдачу — ту же самую, тёплую, с царапиной в виде байка.",
+      "Ламп клянётся, что остров не вор. Он просто не понимает, зачем платить за место, на котором ты уже стоишь.",
+    ],
+  },
+];
+
 function lines(id: QuestId, status: Quest, ready: boolean) {
   if (id === "sera") {
     if (status === "done") return { pages: SERA_DONE, commit: null as Quest | null };
@@ -201,6 +239,7 @@ export function createSim(seed = 0) {
     jumpPrev: false,
     moodPrev: false,
     dash: 0,
+    tale: 0,
     dirty: false,
     saveAt: 0,
     rebuild() {
@@ -277,6 +316,12 @@ export function createSim(seed = 0) {
       if (hit(NPC.sera.x, NPC.sera.z, 2.3)) return this.openTalk("sera", NPC.sera.name);
       if (hit(NPC.orr.x, NPC.orr.z, 2.3)) return this.openTalk("orr", NPC.orr.name);
       if (hit(NPC.bulb.x, NPC.bulb.z, 2.3)) return this.openTalk("bulb", NPC.bulb.name);
+      if (hit(JAHMAN.x, JAHMAN.z, 1.45)) return this.say("Джаман", JAHMAN_LINES);
+      if (hit(STORY_BOX.x, STORY_BOX.z, 1.4)) {
+        const tale = TALES[this.tale % TALES.length];
+        this.tale = (this.tale + 1) % TALES.length;
+        return this.say(tale.title, tale.pages);
+      }
       for (let i = 0; i < CRYSTALS.length; i++) {
         if (this.crystals[i]) continue;
         if (hit(CRYSTALS[i].x, CRYSTALS[i].z, 2)) {
@@ -407,6 +452,8 @@ export function createSim(seed = 0) {
       if (hit(NPC.sera.x, NPC.sera.z, 2.3)) this.prompt = "E — Сера Венн";
       else if (hit(NPC.orr.x, NPC.orr.z, 2.3)) this.prompt = "E — Орр-1";
       else if (hit(NPC.bulb.x, NPC.bulb.z, 2.3)) this.prompt = "E — Ламп";
+      else if (hit(JAHMAN.x, JAHMAN.z, 1.45)) this.prompt = "E — Джаман";
+      else if (hit(STORY_BOX.x, STORY_BOX.z, 1.4)) this.prompt = "E — сказка";
       else if (CRYSTALS.some((c, i) => !this.crystals[i] && hit(c.x, c.z, 2))) this.prompt = "E — поднять кристалл";
       else if (!this.key && hit(KEY_SPOT.x, KEY_SPOT.z, 1.8)) this.prompt = "E — поднять ключ";
       else if (BRAZIERS.some((b, i) => !this.fires[i] && hit(b.x, b.z, 1.8))) this.prompt = "E — зажечь жаровню";

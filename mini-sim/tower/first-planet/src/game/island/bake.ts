@@ -73,6 +73,36 @@ export function bake(root: THREE.Object3D, target: number, axis: "y" | "xz") {
   return mesh;
 }
 
+/** Keep a GLB's own materials. Used for textured characters, not vertex-color props. */
+export function fitHeight(root: THREE.Object3D, target: number) {
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(root);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const scale = target / Math.max(0.001, size.y);
+  root.scale.multiplyScalar(scale);
+  root.updateMatrixWorld(true);
+  const fitted = new THREE.Box3().setFromObject(root);
+  const center = fitted.getCenter(new THREE.Vector3());
+  root.position.x -= center.x;
+  root.position.z -= center.z;
+  root.position.y -= fitted.min.y;
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const mat of mats) {
+      const standard = mat as THREE.MeshStandardMaterial;
+      if (standard.metalness !== undefined) standard.metalness = 0;
+      if (standard.roughness !== undefined) standard.roughness = Math.min(1, Math.max(standard.roughness, 0.62));
+      if ("envMapIntensity" in standard) standard.envMapIntensity = 0;
+    }
+  });
+  return root;
+}
+
 /** Blockout vehicles are long on +X and the nose is +X. Turn that nose onto −Z, which is forward. */
 export function faceForward(mesh: THREE.Object3D) {
   mesh.rotation.y = Math.PI / 2;
