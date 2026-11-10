@@ -1,0 +1,46 @@
+{
+ "arms": 6,
+ "arm_sweep_deg": 10.0,
+ "arm_retract": 14.0,
+ "pylons": 4,
+ "crusher_axis_x": -174.0,
+ "modes": {
+  "docked": {
+   "arms": 0.0,
+   "crusher": 0.0,
+   "thrust": 0.0,
+   "pylons": 1.0,
+   "visor": 0.35,
+   "floods": 0.6
+  },
+  "mining": {
+   "arms": 0.0,
+   "crusher": 1.2,
+   "thrust": 0.0,
+   "pylons": 0.0,
+   "visor": 1.0,
+   "floods": 1.0
+  },
+  "transit": {
+   "arms": 1.0,
+   "crusher": 0.0,
+   "thrust": 0.55,
+   "pylons": 0.0,
+   "visor": 0.3,
+   "floods": 0.0
+  },
+  "warp": {
+   "arms": 1.0,
+   "crusher": 0.0,
+   "thrust": 1.0,
+   "pylons": 0.0,
+   "visor": 0.5,
+   "floods": 0.0
+  }
+ },
+ "dims": {
+  "L": 443.0,
+  "W": 262.0,
+  "H": 121.0
+ }
+}
