@@ -72,6 +72,15 @@ test("CALEV: габарит 53 × 30 × 13 м и лыжи на Y = 0", () => {
   // точные границы по вершинам с поворотами узлов считают create.py (по файлу)
   // и calico_load_check.js (через настоящий GLTFLoader r128)
 
+  // остекление сидит на обшивке: основание купола не висит над палубой
+  const spine = g.nodes.find((n) => n.name === "spine");
+  const sa = acc[g.meshes[spine.mesh].primitives[0].attributes.POSITION];
+  const hullMid = g.nodes.find((n) => n.name === "hull_mid");
+  const hm = acc[g.meshes[hullMid.mesh].primitives[0].attributes.POSITION];
+  assert.ok(sa.min[1] <= hm.max[1] + 1.9,
+    "купол не висит: низ " + sa.min[1].toFixed(2) + " vs палуба " + hm.max[1].toFixed(2));
+  assert.ok(sa.max[1] >= hm.max[1] + 1.0, "купол поднимается над палубой");
+
   // капсулы стоят внутри шахт, а не торчат по бортам
   const pod = g.nodes.find((n) => n.name === "pods_r");
   const pa = acc[g.meshes[pod.mesh].primitives[0].attributes.POSITION];

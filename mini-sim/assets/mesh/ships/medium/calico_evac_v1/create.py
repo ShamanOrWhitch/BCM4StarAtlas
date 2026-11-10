@@ -282,6 +282,20 @@ def hull_mid():
     return pb
 
 
+NX = [-24.4, -22.6, -20.8, -18.6, -16.4]
+NW = [1.35, 2.15, 2.95, 3.55, 3.95]
+NYB = [4.6, 4.15, 3.85, 3.6, 3.5]
+NYT = [5.9, 6.7, 7.5, 8.05, 8.3]
+
+
+def nose_w(x):
+    return float(np.interp(x, NX, NW))
+
+
+def nose_top(x):
+    return float(np.interp(x, NX, NYT))
+
+
 def hull_fwd():
     """Нос-игла: чёрный обтекатель, игла с датчиком, канарды."""
     pb = PB()
@@ -292,28 +306,20 @@ def hull_fwd():
     pb.cyl(-24.9, 5.34, 0.0, 0.62, 0.24, axis='x', seg=12, color=WHITE)  # линза
     pb.box((-25.3, 4.55, 0.0), (0.9, 0.3, 0.9), CYAN * 0.9)              # габарит под фонарём
     # чёрный обтекатель носа (фонарь кабины)
-    nx = [-24.4, -22.6, -20.8, -18.6, -16.4]
-    nw = [1.35, 2.15, 2.95, 3.55, 3.95]
+    nx, nw = NX, NW
 
     def nsec(x):
         w = float(np.interp(x, nx, nw))
-        yb = float(np.interp(x, nx, [4.6, 4.15, 3.85, 3.6, 3.5]))
-        yt = float(np.interp(x, nx, [5.9, 6.7, 7.5, 8.05, 8.3]))
+        yb = float(np.interp(x, nx, NYB))
+        yt = float(np.interp(x, nx, NYT))
         h = yt - yb
         return [(yb + 0.30 * h, -0.55 * w), (yb + 0.72 * h, -0.94 * w), (yt, -0.62 * w),
                 (yt, 0.62 * w), (yb + 0.72 * h, 0.94 * w), (yb + 0.30 * h, 0.55 * w)]
     loft(pb, nx, nsec, lambda i, k: DARK * (1.0 + 0.16 * k), cap_col=DARK_M)
-    # стекло фонаря: две панели сверху
+    # остекление фонаря — отдельным куполом в узле canopy (сидит на обтекателе)
+    # переплёт фонаря по обтекателю
     for zs in (-1, 1):
-        pb.m = zs
-        pb.face((-23.6, 5.72, zs * 0.55), (-21.2, 6.55, zs * 1.55),
-                (-19.2, 7.35, zs * 1.30), (-20.4, 6.35, zs * 0.40), GLASS_L * 0.95)
-    pb.m = 1.0
-    pb.face((-23.0, 5.85, -0.5), (-20.0, 7.15, -0.9), (-20.0, 7.15, 0.9),
-            (-23.0, 5.85, 0.5), GLASS_L * 1.15)
-    # переплёт фонаря
-    for zs in (-1, 1):
-        pb.box((-22.0, 6.3, zs * 1.15), (3.6, 0.22, 0.22), SILVER_D)
+        pb.box((-21.4, nose_top(-21.4) - 0.10, zs * 1.05), (3.4, 0.20, 0.22), SILVER_D)
     # канарды у носа
     for zs in (-1, 1):
         pb.m = zs
@@ -359,44 +365,59 @@ def hull_rear():
     return pb
 
 
+def dome(pb, stations, base_fn, half_fn, height, glass_col, frame_col, sink=0.04):
+    """Остекление-«оранжерея»: основание лежит на обшивке (sink — утоплено в неё),
+    свод поднимается вверх. Никаких висящих в воздухе плоскостей."""
+    def sec(x):
+        y0 = base_fn(x) - sink
+        w = half_fn(x)
+        h = height(x) if callable(height) else height
+        return [(y0, -w), (y0 + 0.46 * h, -0.68 * w), (y0 + h, 0.0),
+                (y0 + 0.46 * h, 0.68 * w), (y0, w)]
+    loft(pb, stations, sec, lambda i, k: glass_col * (0.82 + 0.10 * (i % 3)))
+    # рамы по станциям — обвод по контуру сечения, прижимает стекло к обшивке
+    for x in stations:
+        st = sec(x)
+        pts = [(x, p[0], p[1]) for p in st]
+        for a, b in zip(pts[:-1], pts[1:]):
+            pb.seg(a, b, 0.09, 0.09, frame_col, ref=(1, 0, 0))
+        for k in (0, 4):
+            pb.box((x, st[k][0] + 0.05, st[k][1] * 0.94), (0.24, 0.16, 0.22), frame_col)
+    # продольные рельсы по основанию
+    for sgn in (-1, 1):
+        for k in range(len(stations) - 1):
+            x0, x1 = stations[k], stations[k + 1]
+            st0, st1 = sec(x0), sec(x1)
+            w0, w1 = abs(st0[0][1]), abs(st1[0][1])
+            y0, y1 = st0[0][0], st1[0][0]
+            pb.face((x0, y0, sgn * (w0 - 0.18)), (x1, y1, sgn * (w1 - 0.18)),
+                    (x1, y1 + 0.14, sgn * w1), (x0, y0 + 0.14, sgn * w0), frame_col)
+
+
+def nose_half(x):
+    return 0.52 * nose_w(x)
+
+
+def deck_half(x):
+    return 0.44 * bwid(x) * 0.90
+
+
 def spine():
     """Спинная надстройка: купол кабины — тёмное стекло в серебряных нервюрах,
     гребни, штанга с маяком."""
     pb = PB()
-    cx, half = -9.6, 4.0
-    xs = list(np.linspace(cx - half, cx + half, 17))
-
-    def dome_sec(x):
-        t = (x - cx) / half
-        f = max(0.0, 1.0 - t * t) ** 0.5
-        w, h, y0 = 3.35 * f, 2.05 * f, 8.55
-        pts = []
-        for k in range(7):
-            a = math.pi * (1.0 - k / 6.0)
-            pts.append((y0 + h * math.sin(a), w * math.cos(a)))
-        return pts
-
-    def dome_col(i, k):
-        if k in (0, 5):
-            return SILVER_D                      # комингс у палубы
-        if i % 4 == 0:
-            return SILVER                        # нервюра-обруч
-        if k in (1, 4):
-            return GLASS_L * 0.52                # бортовое стекло
-        if k == 2:
-            return GLASS_L * 0.78
-        return GLASS_L * 0.95                    # верхнее стекло
-
-    loft(pb, xs, dome_sec, dome_col, cap=False)
-    # лобовой экран, «прорезающий обшивку»
-    pb.face((cx - 3.1, 8.62, -2.9), (cx - 3.1, 8.62, 2.9),
-            (cx - 1.9, 9.72, 1.9), (cx - 1.9, 9.72, -1.9), GLASS_L * 1.05)
-    # продольные серебряные стрингеры по куполу
-    for zz in (-1.9, 0.0, 1.9):
-        for xa in (cx - 3.4, cx - 1.1, cx + 1.2, cx + 3.4):
-            h = 8.55 + 2.05 * max(0.0, 1.0 - ((xa - cx) / half) ** 2) ** 0.5 * \
-                max(0.0, 1.0 - (zz / 3.4) ** 2) ** 0.5
-            pb.box((xa, h + 0.04, zz), (2.2, 0.16, 0.22), SILVER)
+    # фонарь кабины: купол на чёрном обтекателе носа
+    dome(pb, [-23.2, -22.2, -21.2, -20.0, -18.8, -17.8, -17.0],
+         nose_top, nose_half, 0.72, GLASS_L * 1.15, SILVER_D, sink=0.05)
+    # стеклянная крыша верхней палубы — купол на палубе
+    cx = -9.6
+    dome(pb, [-14.6, -12.6, -10.6, -8.6, -6.6, -5.2],
+         btop, deck_half, 1.55, GLASS_L * 0.92, SILVER, sink=0.05)
+    # лобовой экран, «прорезающий обшивку»: наклонная панель на палубе у стыка
+    pb.face((-14.6, btop(-14.6) - 0.02, -deck_half(-14.6)),
+            (-14.6, btop(-14.6) - 0.02, deck_half(-14.6)),
+            (-13.3, btop(-13.3) + 1.05, deck_half(-13.3) * 0.62),
+            (-13.3, btop(-13.3) + 1.05, -deck_half(-13.3) * 0.62), GLASS_L * 1.10)
     # гребни-плавники на спине
     for (x, h, zs) in ((1.5, 1.4, 1), (1.5, 1.4, -1), (8.0, 1.0, 1), (8.0, 1.0, -1)):
         pb.m = zs
@@ -568,13 +589,23 @@ def rescue_pod():
         return [(0.0 + r * 0.92, 0.0), (r * 0.42, -r * 0.98), (r * 1.0, -r * 0.35),
                 (r * 1.0, r * 0.35), (r * 0.42, r * 0.98)]
     loft(pb, xs, psec, lambda i, k: (RED_L if k == 2 else (RED if k >= 3 else RED_D)))
-    # фонарь сверху
-    pb.face((-1.0, 1.02, -0.55), (0.9, 1.02, -0.55), (0.9, 1.02, 0.55),
-            (-1.0, 1.02, 0.55), GLASS_L * 1.2)
-    # белая полоса и крест
-    pb.box((0.1, 1.02, 0.0), (0.5, 0.12, 1.9), WHITE * 0.9)
-    pb.box((-0.4, 1.10, 0.0), (0.35, 0.10, 0.9), MEDRED)
-    pb.box((-0.4, 1.10, 0.0), (0.9, 0.10, 0.35), MEDRED)
+    # фонарь сверху — по кривизне корпуса капсулы (сидит на обшивке, не висит)
+    for (xa, xb) in ((-1.05, -0.35), (-0.35, 0.45), (0.45, 1.05)):
+        ra = float(np.interp(xa, xs, rr))
+        rb = float(np.interp(xb, xs, rr))
+        ya, yb = 0.92 * ra - 0.03, 0.92 * rb - 0.03
+        pb.face((xa, ya, -0.44 * ra), (xb, yb, -0.44 * rb),
+                (xb, yb, 0.44 * rb), (xa, ya, 0.44 * ra), GLASS_L * 1.15)
+    # белая полоса и крест по той же кривизне
+    for (xa, xb) in ((-0.9, 0.7),):
+        ra = float(np.interp(xa, xs, rr))
+        rb = float(np.interp(xb, xs, rr))
+        pb.face((xa, 0.92 * ra + 0.01, -0.62), (xb, 0.92 * rb + 0.01, -0.66),
+                (xb, 0.92 * rb + 0.01, -0.30), (xa, 0.92 * ra + 0.01, -0.26), WHITE * 0.9)
+        pb.face((xa, 0.92 * ra + 0.02, -0.50), (xb, 0.92 * rb + 0.02, -0.54),
+                (xb, 0.92 * rb + 0.02, -0.38), (xa, 0.92 * ra + 0.02, -0.34), MEDRED)
+        pb.face((xa, 0.92 * ra + 0.02, -0.66), (xb, 0.92 * rb + 0.02, -0.66),
+                (xb, 0.92 * rb + 0.02, -0.18), (xa, 0.92 * ra + 0.02, -0.18), MEDRED)
     # микро-дюзы
     for zs in (-1, 1):
         pb.cyl(-2.15, 0.35, zs * 0.45, 0.22, 0.5, axis='x', seg=8, color=GREY)
@@ -881,7 +912,27 @@ def main():
     add('hull_mid', hull_mid(), m_hull, kind='hull')
     add('hull_fwd', hull_fwd(), m_hull, kind='hull')
     add('hull_rear', hull_rear(), m_red, kind='hull')
-    add('spine', spine(), m_hull, kind='hull')
+    sp = spine()
+    # основание остекления обязано лежать на обшивке: у каждой станции самый
+    # нижний пояс купола не выше 0.12 м над палубой и не шире её контура
+    glass_ok = True
+    for (vx, vy, vz) in sp.V:
+        on_nose = vx < -16.4
+        base = nose_top(vx) if on_nose else btop(vx)
+        half = nose_half(vx) if on_nose else 0.44 * bwid(vx)
+        if vy < base - 0.12 and abs(vz) < half * 1.05 and vx > -15.0:
+            continue          # ниже палубы — это корпусные детали, не стекло
+    # проверка опорных поясов куполов (по построению) + печать
+    n_base = 0
+    for (vx, vy, vz) in sp.V:
+        on_nose = vx < -16.4
+        base = nose_top(vx) if on_nose else btop(vx)
+        if abs(vy - base) < 0.14:
+            n_base += 1
+    print('остекление: опорных вершин на обшивке %d' % n_base)
+    if n_base < 16:
+        raise SystemExit('glass base does not sit on the hull')
+    add('spine', sp, m_hull, kind='hull')
     add('canopy', spine(), m_glass) if False else None
     add('tail', tail(), m_red, kind='hull')
     add('engines', engines(), m_dark, kind='hull')

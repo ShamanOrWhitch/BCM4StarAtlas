@@ -1,0 +1,97 @@
+{
+ "fins": 2,
+ "winglets": 2,
+ "legs": 4,
+ "vtol": 3,
+ "fin_hinge": [
+  13.5,
+  8.35,
+  4.05
+ ],
+ "fin_sweep_deg": 58.0,
+ "wing_hinge": [
+  2.0,
+  7.55,
+  6.3
+ ],
+ "wing_fold_deg": 34.0,
+ "leg_retract": 2.6,
+ "turret_pos": [
+  6.6,
+  8.6,
+  0.0
+ ],
+ "turret_yaw_deg": 120.0,
+ "gun_pitch_deg": 22.0,
+ "ramp_hinge": [
+  20.2,
+  3.16,
+  0.0
+ ],
+ "ramp_open_deg": 70.0,
+ "mbay_open_deg": 64.0,
+ "dport_slide": 2.4,
+ "modes": {
+  "pad": {
+   "legs": 1.0,
+   "fins": 0.0,
+   "ramp": 0.0,
+   "mbay": 0.0,
+   "dport": 0.0,
+   "thrust": 0.0,
+   "turret": 0.0,
+   "guns": 0.0,
+   "strobe": 0.3,
+   "spots": 0.45,
+   "vtol": 0.0,
+   "cms": 0.0
+  },
+  "flight": {
+   "legs": 0.0,
+   "fins": 1.0,
+   "ramp": 0.0,
+   "mbay": 0.0,
+   "dport": 0.0,
+   "thrust": 0.7,
+   "turret": 0.0,
+   "guns": 0.0,
+   "strobe": 0.55,
+   "spots": 1.0,
+   "vtol": 0.0,
+   "cms": 0.0
+  },
+  "combat": {
+   "legs": 0.0,
+   "fins": 1.0,
+   "ramp": 0.0,
+   "mbay": 1.0,
+   "dport": 0.0,
+   "thrust": 0.85,
+   "turret": 1.0,
+   "guns": 1.0,
+   "strobe": 1.0,
+   "spots": 1.0,
+   "vtol": 0.0,
+   "cms": 1.0
+  },
+  "cargo": {
+   "legs": 1.0,
+   "fins": 0.0,
+   "ramp": 1.0,
+   "mbay": 0.0,
+   "dport": 1.0,
+   "thrust": 0.0,
+   "turret": 0.0,
+   "guns": 0.0,
+   "strobe": 0.4,
+   "spots": 0.8,
+   "vtol": 0.9,
+   "cms": 0.0
+  }
+ },
+ "dims": {
+  "L": 46.6,
+  "W": 30.1,
+  "H": 11.5
+ }
+}
