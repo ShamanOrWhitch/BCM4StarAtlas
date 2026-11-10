@@ -1,0 +1,41 @@
+{
+ "legs": 6,
+ "hip_y": 7.2,
+ "hip_z": [
+  -15.0,
+  15.0,
+  -16.6,
+  16.6,
+  -16.2,
+  16.2
+ ],
+ "hip_fold_deg": 96.0,
+ "foot_drop": 7.2,
+ "modes": {
+  "landed": {
+   "legs": 0.0,
+   "drills": 0.0,
+   "thrust": 0.0
+  },
+  "mining": {
+   "legs": 0.0,
+   "drills": 2.6,
+   "thrust": 0.0
+  },
+  "flight": {
+   "legs": 1.0,
+   "drills": 0.55,
+   "thrust": 1.0
+  },
+  "transit": {
+   "legs": 1.0,
+   "drills": 0.0,
+   "thrust": 0.5
+  }
+ },
+ "dims": {
+  "L": 47.8,
+  "W": 48.5,
+  "H": 19.0
+ }
+}
