@@ -1,4 +1,4 @@
-import { activeKeys } from "@/game/input";
+import { activeKeys, readTilt } from "@/game/input";
 import {
   BIKE_PARK,
   BRAZIERS,
@@ -57,6 +57,7 @@ export type IslandHud = {
   depart: boolean;
   towerEnter: boolean;
   mood: "walk" | "sport" | "fight" | "stealth";
+  tape: "floor" | "held" | "playing" | "paused" | "spent";
 };
 
 function loadSave(storageKey = SAVE_KEY): Save {
@@ -80,10 +81,7 @@ function loadSave(storageKey = SAVE_KEY): Save {
   }
 }
 
-const VEHICLES: Aabb[] = [
-  { minX: 18.6, maxX: 24.4, minY: 0, maxY: 2.2, minZ: 28.4, maxZ: 33.6 },
-  { minX: -10.4, maxX: -6.2, minY: 0, maxY: 1.8, minZ: 30.4, maxZ: 34.6 },
-];
+const VEHICLES: Aabb[] = [];
 
 function collide(x: number, z: number, y: number, walls: Aabb[]) {
   const radius = 0.38;
@@ -146,8 +144,8 @@ const BULB_READY = ["Тепло пошло по площади. Сундук б�
 const BULB_DONE = ["Северное кольцо за оазисом — это уже гонка, не прогулка. Кольцо само просит E."];
 
 const JAHMAN_LINES = [
-  "Я Джаман. Ящик у стены — не новости. Это видеомагнитофон, сказки лежат на кассетах.",
-  "Подними кассету и нажми E у ящика. Каждая кассета включает свой файл. Сейчас на полу «Дед».",
+  "Я Джаман. Ящик — видеомагнитофон. Сказка живёт на кассете, не в эфире.",
+  "Подними кассету, вставь в ящик. Лента крутится один раз и сама выпадает. E ставит на паузу, G открывает на весь экран. Отойдёшь — музыка острова её заглушит.",
 ];
 
 const TALES: { title: string; pages: string[] }[] = [
@@ -242,6 +240,8 @@ export function createSim(seed = 0) {
     tale: 0,
     tapeUrl: "",
     tapeTitle: "",
+    tapePhase: "floor" as "floor" | "held" | "playing" | "paused" | "spent",
+    tapePlay: 0,
     dirty: false,
     saveAt: 0,
     rebuild() {
@@ -320,19 +320,30 @@ export function createSim(seed = 0) {
       if (hit(NPC.bulb.x, NPC.bulb.z, 2.3)) return this.openTalk("bulb", NPC.bulb.name);
       if (hit(JAHMAN.x, JAHMAN.z, 1.45)) return this.say("Джаман", JAHMAN_LINES);
       for (const tape of TAPES) {
-        if (hit(tape.x, tape.z, 1.15)) {
+        const onTape = hit(tape.x, tape.z, 1.25) || (this.tapePhase === "spent" && hit(STORY_BOX.x - 0.95, STORY_BOX.z, 1.35));
+        if ((this.tapePhase === "floor" || this.tapePhase === "spent") && onTape) {
+          this.tapePhase = "held";
           this.tapeUrl = tape.url;
           this.tapeTitle = tape.title;
-          return this.say("Кассета", [
-            `«${tape.title}». Вставь её в ящик — экран возьмёт файл с сайта.`,
-          ]);
+          return this.say("Кассета", [`«${tape.title}» в руках. E у ящика — вставить и включить.`]);
         }
       }
-      if (hit(STORY_BOX.x, STORY_BOX.z, 1.4)) {
-        if (!this.tapeUrl) {
-          return this.say("Ящик", ["Пустой лоток. Кассета лежит на полу у южной стены."]);
+      if (hit(STORY_BOX.x, STORY_BOX.z, 1.55)) {
+        if (this.tapePhase === "playing") {
+          this.tapePhase = "paused";
+          return;
         }
-        return this.say(this.tapeTitle || "Кассета", ["Лента пошла. Не стой вплотную к экрану."]);
+        if (this.tapePhase === "paused") {
+          this.tapePhase = "playing";
+          return;
+        }
+        if (this.tapePhase === "held" && this.tapeUrl) {
+          this.tapePlay += 1;
+          this.tapePhase = "playing";
+          return;
+        }
+        this.say("Ящик", ["Лоток пуст. Кассета выпадает после одного просмотра — подними и вставь ещё раз."]);
+        return;
       }
       for (let i = 0; i < CRYSTALS.length; i++) {
         if (this.crystals[i]) continue;
@@ -461,8 +472,11 @@ export function createSim(seed = 0) {
       else if (hit(NPC.orr.x, NPC.orr.z, 2.3)) this.prompt = "E — Орр-1";
       else if (hit(NPC.bulb.x, NPC.bulb.z, 2.3)) this.prompt = "E — Ламп";
       else if (hit(JAHMAN.x, JAHMAN.z, 1.45)) this.prompt = "E — Джаман";
-      else if (TAPES.some((tape) => hit(tape.x, tape.z, 1.15))) this.prompt = "E — кассета";
-      else if (hit(STORY_BOX.x, STORY_BOX.z, 1.4)) this.prompt = this.tapeUrl ? "E — включить ящик" : "E — ящик пуст";
+      else if (TAPES.some((tape) => hit(tape.x, tape.z, 1.25)) && (this.tapePhase === "floor" || this.tapePhase === "spent")) this.prompt = "E — взять кассету";
+      else if (this.tapePhase === "spent" && hit(STORY_BOX.x - 0.95, STORY_BOX.z, 1.35)) this.prompt = "E — поднять кассету";
+      else if (hit(STORY_BOX.x, STORY_BOX.z, 1.55)) {
+        this.prompt = this.tapePhase === "playing" ? "E — пауза · G — весь экран" : this.tapePhase === "paused" ? "E — дальше" : this.tapePhase === "held" ? "E — вставить кассету" : "E — ящик пуст";
+      }
       else if (CRYSTALS.some((c, i) => !this.crystals[i] && hit(c.x, c.z, 2))) this.prompt = "E — поднять кристалл";
       else if (!this.key && hit(KEY_SPOT.x, KEY_SPOT.z, 1.8)) this.prompt = "E — поднять ключ";
       else if (BRAZIERS.some((b, i) => !this.fires[i] && hit(b.x, b.z, 1.8))) this.prompt = "E — зажечь жаровню";
@@ -480,6 +494,7 @@ export function createSim(seed = 0) {
       let steer = 0;
       if (keys.has("KeyA") || keys.has("ArrowLeft")) steer += 1;
       if (keys.has("KeyD") || keys.has("ArrowRight")) steer -= 1;
+      steer = Math.max(-1, Math.min(1, steer - readTilt()));
       const throttle = keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0;
       const brake = keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0;
       const use = keys.has("KeyE") || keys.has("KeyF");
@@ -651,6 +666,7 @@ export function createSim(seed = 0) {
         mood: this.mood,
         depart: this.depart,
         towerEnter: this.towerEnter,
+        tape: this.tapePhase,
       };
     },
   };

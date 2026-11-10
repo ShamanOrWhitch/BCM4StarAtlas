@@ -5,16 +5,16 @@ import { readFile } from "node:fs/promises";
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 
-test("Mini-Sim 0.12.4 and Tower 0.2.73 versions stay synchronized", async () => {
+test("Mini-Sim 0.12.7 and Tower 0.2.77 versions stay synchronized", async () => {
   const miniPhp = await read("mini-sim/bcm-mini-sim.php");
   const miniJs = await read("mini-sim/assets/js/mini-sim.js");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   const towerJs = await read("mini-sim/tower/assets/js/tower.js");
-  assert.match(miniPhp, /Version: 0\.12\.4/);
-  assert.match(miniPhp, /BCM_MINI_SIM_VERSION\', \'0\.12\.4\'/);
-  assert.match(miniJs, /SPACE LABYRINTH — 0\.12\.4/);
-  assert.match(towerPhp, /BCM_TOWER_VERSION\', \'0\.2\.73\'/);
-  assert.match(towerJs, /const TOWER_VERSION = "0\.2\.73"/);
+  assert.match(miniPhp, /Version: 0\.12\.7/);
+  assert.match(miniPhp, /BCM_MINI_SIM_VERSION\', \'0\.12\.7\'/);
+  assert.match(miniJs, /SPACE LABYRINTH — 0\.12\.7/);
+  assert.match(towerPhp, /BCM_TOWER_VERSION\', \'0\.2\.77\'/);
+  assert.match(towerJs, /const TOWER_VERSION = "0\.2\.77"/);
   assert.match(towerJs, /function makeSpaceExit\(cell\)/);
   assert.match(towerJs, /const reachedExit = ascentMode \? onSpaceExit : p\.y < bottomY - 4\.2/);
   assert.doesNotMatch(towerJs, /p\.y > topY \+ 4\.2/);
@@ -35,8 +35,8 @@ test("First Planet 0.12.4 faces the crew outward, rides the bike forward, and ke
   assert.match(terrain, /bulb: \{ x: 4\.6, z: 9\.4, yaw: Math\.PI/);
   assert.match(sim, /маяк · подъём в Tower/);
   assert.match(world, /renderer\.shadowMap\.enabled = false/);
-  assert.match(world, /hovercar\.glb/);
-  assert.match(world, /spacebike\.glb/);
+  assert.match(world, /RACE_SHIPS/);
+  assert.match(world, /raceLength/);
   assert.match(world, /barrier_redwhite\.glb/);
   assert.match(towerPhp, /propBase/);
 });

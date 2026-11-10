@@ -60,7 +60,7 @@ function FirstPlanetApp({
     const makeAudio = (url: string | undefined) => {
       if (!url) return null;
       const audio = new Audio(url);
-      audio.preload = "auto";
+      audio.preload = "none";
       audio.loop = true;
       audio.volume = 0.58;
       return audio;
@@ -69,7 +69,15 @@ function FirstPlanetApp({
     const raceAudio = makeAudio(context.raceAudioUrl);
     planetMusicRef.current = planetAudio;
     raceMusicRef.current = raceAudio;
+    const duck = (event: Event) => {
+      const near = Number((event as CustomEvent<number>).detail) || 0;
+      const level = 0.58 * (1 - near * 0.85);
+      if (planetAudio) planetAudio.volume = level;
+      if (raceAudio) raceAudio.volume = level;
+    };
+    window.addEventListener("bcm:tape-near", duck);
     return () => {
+      window.removeEventListener("bcm:tape-near", duck);
       [planetAudio, raceAudio].forEach((audio) => {
         if (!audio) return;
         audio.pause();

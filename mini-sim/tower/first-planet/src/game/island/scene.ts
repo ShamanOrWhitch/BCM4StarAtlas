@@ -1,10 +1,10 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { CSS3DObject, CSS3DRenderer } from "three/examples/jsm/renderers/CSS3DRenderer.js";
-import { bake, faceForward, fitHeight } from "./bake";
+import { bake, faceForward, fitHeight, fitLength } from "./bake";
 import { bindCrewRig, type CrewRig } from "./rig";
-import { characterPath, ISLAND_SHIPS, shipUrl } from "@/game/ships";
+import { ASTEROID_SHOW, characterPath, PILOT_SHIPS, pilotShip, shipUrl } from "@/game/ships";
 import { meshUrl, propUrl } from "../mesh-url";
+import { activeKeys } from "../input";
 import { createSim, type Sim } from "./sim";
 import {
   BIKE_PARK,
@@ -21,10 +21,14 @@ import {
   SPAWN,
   STORY_BOX,
   TAPES,
+  TERRAIN_N,
+  TERRAIN_SPAN,
   TOWER_GATE,
   footY,
   groundY,
   houseAabbs,
+  onSky,
+  surfaceY,
   type House,
 } from "./terrain";
 
@@ -36,6 +40,8 @@ export type IslandWorld = {
   paintMap: (canvas: HTMLCanvasElement) => void;
   resize: () => void;
   dispose: () => void;
+  applyShip: (id: string) => void;
+  toggleTapeScreen: () => void;
 };
 
 function makeLabel(text: string) {
@@ -116,7 +122,7 @@ export function createIsland(
   canvas: HTMLCanvasElement,
   onProps?: () => void,
   onLoadError?: (error: unknown) => void,
-  context: { planetSeed?: number; players?: Array<{ species?: string; name?: string }> } = {},
+  context: { planetSeed?: number; players?: Array<{ species?: string; name?: string }>; shipId?: string } = {},
 ): IslandWorld {
   const sim = createSim(Number(context.planetSeed) >>> 0);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false });
@@ -237,8 +243,8 @@ export function createIsland(
     return mesh;
   }
 
-  const span = 168;
-  const n = 88;
+  const span = TERRAIN_SPAN;
+  const n = TERRAIN_N;
   const groundGeo = new THREE.BufferGeometry();
   const gPos = new Float32Array((n + 1) * (n + 1) * 3);
   const gCol = new Float32Array((n + 1) * (n + 1) * 3);
@@ -427,10 +433,13 @@ export function createIsland(
 
   const screenMat = new THREE.MeshStandardMaterial({
     color: 0x1c2430,
-    emissive: 0xffb060,
-    emissiveIntensity: 0.85,
-    roughness: 0.22,
-    metalness: 0.05,
+    emissive: 0xffffff,
+    emissiveIntensity: 0,
+    roughness: 0.4,
+    metalness: 0,
+    depthTest: true,
+    depthWrite: true,
+    side: THREE.FrontSide,
   });
   mats.add(screenMat);
   const story = new THREE.Group();
@@ -452,28 +461,18 @@ export function createIsland(
   });
 
   const tapeVideo = document.createElement("video");
+  tapeVideo.crossOrigin = "anonymous";
   tapeVideo.playsInline = true;
   tapeVideo.setAttribute("playsinline", "");
-  tapeVideo.loop = true;
-  tapeVideo.volume = 0.85;
-  tapeVideo.style.width = "700px";
-  tapeVideo.style.height = "420px";
-  tapeVideo.style.objectFit = "cover";
-  tapeVideo.style.background = "#000";
-  tapeVideo.style.pointerEvents = "none";
-  const tapeScreen = new CSS3DObject(tapeVideo);
-  tapeScreen.scale.set(0.001, 0.001, 0.001);
-  tapeScreen.position.set(0, 0.76, -0.2);
-  tapeScreen.rotation.y = Math.PI;
-  tapeScreen.visible = false;
-  story.add(tapeScreen);
-  const cssRenderer = new CSS3DRenderer();
-  cssRenderer.domElement.style.position = "absolute";
-  cssRenderer.domElement.style.inset = "0";
-  cssRenderer.domElement.style.pointerEvents = "none";
-  if (getComputedStyle(host).position === "static") host.style.position = "relative";
-  host.appendChild(cssRenderer.domElement);
-  let shownTape = "";
+  tapeVideo.preload = "none";
+  tapeVideo.loop = false;
+  tapeVideo.onended = () => {
+    sim.tapePhase = "spent";
+  };
+  const tapeTex = new THREE.VideoTexture(tapeVideo);
+  tapeTex.colorSpace = THREE.SRGBColorSpace;
+  let cassetteHome = new THREE.Vector3();
+  let cassette: THREE.Group | null = null;
 
   TAPES.forEach((tape) => {
     const shell = new THREE.Mesh(
@@ -485,10 +484,11 @@ export function createIsland(
       new THREE.MeshStandardMaterial({ color: 0xc4493a, roughness: 0.6 }),
     );
     label.position.z = -0.03;
-    const cassette = new THREE.Group();
+    cassette = new THREE.Group();
     cassette.add(shell, label);
     cassette.position.set(tape.x, groundY(tape.x, tape.z) + 0.1, tape.z);
     cassette.rotation.y = 0.4;
+    cassetteHome = cassette.position.clone();
     scene.add(cassette);
   });
 
@@ -561,6 +561,54 @@ export function createIsland(
 
   const loader = new GLTFLoader();
   let alive = true;
+  const occupied: Array<[number, number, number]> = [
+    [48, 6, 14],
+    [46, -16, 12],
+    [-58, 14, 10],
+    [-40, 28, 8],
+    [-28, 36, 8],
+    [32, 28, 8],
+    [-32, -22, 8],
+    [40, -30, 9],
+    [SPAWN.x, SPAWN.z, 6.5],
+    [TOWER_GATE.x, TOWER_GATE.z, 6],
+    [JAHMAN.x, JAHMAN.z, 2.4],
+    [STORY_BOX.x, STORY_BOX.z, 2.2],
+    [BIKE_PARK.x, BIKE_PARK.z, 3.2],
+  ];
+  function busy(x: number, z: number, r: number) {
+    return occupied.some(([ox, oz, orad]) => (ox - x) ** 2 + (oz - z) ** 2 < (orad + r) ** 2);
+  }
+  function claim(x: number, z: number, r: number) {
+    if (busy(x, z, r)) return false;
+    occupied.push([x, z, r]);
+    return true;
+  }
+  const seatBox = new THREE.Box3();
+  function sit(obj: THREE.Object3D, x: number, z: number, y = surfaceY(x, z)) {
+    obj.position.set(x, y, z);
+    obj.updateWorldMatrix(true, true);
+    seatBox.setFromObject(obj);
+    if (!seatBox.isEmpty() && Number.isFinite(seatBox.min.y)) obj.position.y += y - seatBox.min.y;
+    return obj.position.y;
+  }
+  function solidify(root: THREE.Object3D) {
+    root.traverse((obj) => {
+      const mesh = obj as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const mat of mats) {
+        const standard = mat as THREE.MeshStandardMaterial;
+        standard.depthTest = true;
+        standard.depthWrite = true;
+        standard.side = THREE.FrontSide;
+        if (standard.transparent) {
+          standard.alphaTest = Math.max(standard.alphaTest || 0, 0.42);
+          standard.transparent = false;
+        }
+      }
+    });
+  }
   const loadMesh = async (url: string, target: number, axis: "y" | "xz") => {
     const gltf = await loader.loadAsync(url);
     const mesh = bake(gltf.scene, target, axis);
@@ -653,10 +701,27 @@ export function createIsland(
       try {
         const mesh = await loadMesh(propUrl(propPath) || meshUrl(previewFile), height, "y");
         if (!alive) return;
-        mesh.position.set(x, groundY(x, z), z);
+        let y = surfaceY(x, z);
+        mesh.position.set(x, y, z);
         mesh.rotation.y = yaw;
         scene.add(mesh);
-        if (height > 5) block(x, z, Math.min(2.4, height * 0.18), Math.min(height, 8));
+        sit(mesh, x, z, y);
+        mesh.updateWorldMatrix(true, true);
+        const bounds = new THREE.Box3().setFromObject(mesh);
+        const sx = bounds.max.x - bounds.min.x;
+        const sz = bounds.max.z - bounds.min.z;
+        if (sx > 1.2 && sz > 1.2 && sx < 28 && sz < 28) {
+          sim.addProp({
+            minX: bounds.min.x + 0.3,
+            maxX: bounds.max.x - 0.3,
+            minY: bounds.min.y,
+            maxY: bounds.max.y,
+            minZ: bounds.min.z + 0.3,
+            maxZ: bounds.max.z - 0.3,
+          });
+        } else if (height > 4) {
+          block(x, z, Math.min(12, 2 + height * 0.45), height);
+        }
       } catch (err) {
         console.warn("BCM landmark skipped", propPath, err);
       }
@@ -729,30 +794,29 @@ export function createIsland(
     ] = entries;
     faceForward(airOff);
     faceForward(airFull);
-    faceForward(hover);
-    faceForward(space);
-    bikeOff = airOff;
-    bikeFull = airFull;
-    bike.add(airOff, airFull);
+    void hover;
+    void space;
+    void airOff;
+    void airFull;
 
     const drop = (mesh: THREE.Object3D, x: number, z: number, yaw = 0, y?: number) => {
       const pivot = new THREE.Group();
       pivot.add(mesh.clone());
-      pivot.position.set(x, y ?? groundY(x, z), z);
       pivot.rotation.y = yaw;
       scene.add(pivot);
+      sit(pivot, x, z, y ?? surfaceY(x, z));
       return pivot;
     };
 
-    drop(hover, 21.2, 30.8, 2.4);
-    drop(space, -8.4, 32.4, -0.4);
-
     const sera = drop(hooded, NPC.sera.x, NPC.sera.z, NPC.sera.yaw);
     sera.add(makeLabel(NPC.sera.name));
+    solidify(sera);
     const orr = drop(eye, NPC.orr.x, NPC.orr.z, NPC.orr.yaw);
     orr.add(makeLabel(NPC.orr.name));
+    solidify(orr);
     const lampNpc = drop(bulb, NPC.bulb.x, NPC.bulb.z, NPC.bulb.yaw);
     lampNpc.add(makeLabel(NPC.bulb.name));
+    solidify(lampNpc);
     npcPivots.push(sera, orr, lampNpc);
 
     try {
@@ -760,10 +824,12 @@ export function createIsland(
       const gltf = await loader.loadAsync(jahUrl);
       if (!alive) return;
       const man = fitHeight(gltf.scene, 1.72);
+      solidify(man);
       const pivot = new THREE.Group();
       pivot.add(man);
-      pivot.position.set(JAHMAN.x, groundY(JAHMAN.x, JAHMAN.z), JAHMAN.z);
+      pivot.position.set(JAHMAN.x, surfaceY(JAHMAN.x, JAHMAN.z), JAHMAN.z);
       pivot.rotation.y = JAHMAN.yaw;
+      sit(pivot, JAHMAN.x, JAHMAN.z);
       const fillLight = new THREE.PointLight(0xffaa77, 0.85, 5.5, 2);
       fillLight.layers.set(LOCAL);
       fillLight.position.set(0, 1.55, -0.7);
@@ -776,64 +842,84 @@ export function createIsland(
       console.warn("BCM JahMan skipped", err);
     }
 
-    try {
-      const picked = context.players?.map((player) => player.species).find((species) => species);
-      const crew = (window as Window & {
-        BCMMiniCrewSelection?: { players?: Array<{ species?: string; spec?: string }> };
-      }).BCMMiniCrewSelection?.players?.[0];
-      const species = String(picked || crew?.species || crew?.spec || "");
-      const gltf = await loader.loadAsync(shipUrl(characterPath(species)));
-      if (!alive) return;
-      const body = gltf.scene;
-      fitHeight(body, 1.72);
-      body.traverse((obj) => {
-        const mesh = obj as THREE.Mesh;
-        if (!mesh.isMesh) return;
-        mesh.castShadow = false;
-        mesh.receiveShadow = false;
-      });
-      pilot.children.forEach((child) => {
-        child.visible = false;
-      });
-      pilot.add(body);
-      crewRig = bindCrewRig(body);
-    } catch (err) {
-      console.warn("BCM crew body skipped", err);
-    }
-
+    const parked: { pivot: THREE.Group; hull: THREE.Object3D; x: number; z: number; y: number; crew: string }[] = [];
     const pads: Array<[number, number]> = [
-      [-32, 20],
-      [36, 18],
-      [-36, -8],
-      [38, -14],
-      [-20, -34],
-      [22, -36],
-      [42, 2],
-      [-42, 8],
-      [30, 28],
-      [-28, 34],
+      [-18, 41],
+      [16, 44],
+      [-28, 30],
+      [22, 42],
+      [30, -12],
+      [-44, -28],
+      [14, -40],
+      [-16, -40],
+      [54, 26],
+      [-52, 30],
+      [38, 42],
+      [-36, -34],
+      [24, 16],
+      [-24, -34],
     ];
-    for (let i = 0; i < ISLAND_SHIPS.length; i++) {
+    const slope = (x: number, z: number) => {
+      const h = surfaceY(x, z);
+      return Math.max(
+        Math.abs(surfaceY(x + 2.2, z) - h),
+        Math.abs(surfaceY(x - 2.2, z) - h),
+        Math.abs(surfaceY(x, z + 2.2) - h),
+        Math.abs(surfaceY(x, z - 2.2) - h),
+      );
+    };
+    for (let i = 0; i < PILOT_SHIPS.length; i++) {
       const spot = pads[i];
-      if (!spot || !fits(spot[0], spot[1], 2.6)) continue;
+      const spec = PILOT_SHIPS[i];
+      if (!spot || !spec) continue;
+      const [x, z] = spot;
+      if (!fits(x, z, 3.4) || slope(x, z) > 0.55 || !claim(x, z, 4.2)) continue;
       try {
-        const gltf = await loader.loadAsync(shipUrl(ISLAND_SHIPS[i]));
+        const gltf = await loader.loadAsync(shipUrl(spec.file));
         if (!alive) return;
         const hull = gltf.scene;
-        fitHeight(hull, 1.65);
+        if (!fitLength(hull, spec.island)) continue;
+        faceForward(hull);
         const pivot = new THREE.Group();
         pivot.add(hull);
-        pivot.position.set(spot[0], groundY(spot[0], spot[1]), spot[1]);
-        pivot.rotation.y = i * 0.6;
+        pivot.rotation.y = i * 0.55;
         scene.add(pivot);
+        const y = sit(pivot, x, z);
+        block(x, z, 1.5, 1.5);
+        parked.push({ pivot, hull, x, z, y, crew: spec.crew });
       } catch (err) {
-        console.warn("BCM island ship skipped", ISLAND_SHIPS[i], err);
+        console.warn("BCM island ship skipped", spec.file, err);
       }
     }
+    const show = [
+      { spec: pilotShip("jetjet"), x: SKY.x + 9.5, z: SKY.z + 1.5 },
+      { spec: pilotShip("scud"), x: SKY.x - 8.5, z: SKY.z + 6 },
+      { spec: pilotShip("maxhog"), x: SKY.x + 1.5, z: SKY.z - 10 },
+      { spec: ASTEROID_SHOW[0], x: SKY.x + 13, z: SKY.z + 8 },
+      { spec: ASTEROID_SHOW[1], x: SKY.x - 8, z: SKY.z - 13 },
+    ];
+    for (const entry of show) {
+      try {
+        const gltf = await loader.loadAsync(shipUrl(entry.spec.file));
+        if (!alive) return;
+        const hull = gltf.scene;
+        if (!fitLength(hull, entry.spec.show)) continue;
+        faceForward(hull);
+        const pivot = new THREE.Group();
+        pivot.add(hull);
+        pivot.rotation.y = 0.4;
+        scene.add(pivot);
+        const y = sit(pivot, entry.x, entry.z, SKY.y);
+        parked.push({ pivot, hull, x: entry.x, z: entry.z, y, crew: entry.spec.crew });
+      } catch (err) {
+        console.warn("BCM asteroid ship skipped", entry.spec.file, err);
+      }
+    }
+    (scene.userData as { parked?: typeof parked }).parked = parked;
 
     const crystals = [amber, cyan, violet];
     CRYSTALS.forEach((spot, i) => {
-      const pivot = drop(crystals[i % crystals.length], spot.x, spot.z, i);
+      const pivot = drop(crystals[i % crystals.length], spot.x, spot.z, 0.4 + i * 0.2);
       crystalPivots.push(pivot);
       crystalMarkers.push(marker(spot.x, groundY(spot.x, spot.z) + 2.4, spot.z));
     });
@@ -859,7 +945,7 @@ export function createIsland(
       [-16, 4],
     ];
     trees.forEach(([x, z], i) => {
-      if (!fits(x, z, 2.8)) return;
+      if (!fits(x, z, 2.8) || !claim(x, z, 3.4)) return;
       drop(tree, x, z, i * 0.8);
     });
 
@@ -954,6 +1040,17 @@ export function createIsland(
   const desired = new THREE.Vector3();
   const look = new THREE.Vector3();
   const lookSmoothed = new THREE.Vector3(1, 1.4, 34);
+  let boarded: { pivot: THREE.Group; hull: THREE.Object3D; x: number; z: number; y: number } | null = null;
+  let hPrev = false;
+  let gPrev = false;
+  let stickPrev = false;
+  let wantedShip = context.shipId || PILOT_SHIPS[0].id;
+  let shipChain: Promise<void> = Promise.resolve();
+  let crewBody: THREE.Object3D | null = null;
+  let seenPlay = 0;
+  let eject = 0;
+  const ejectFrom = new THREE.Vector3();
+  const ejectTo = new THREE.Vector3();
   let last = performance.now();
   let acc = 0;
   let prevPhase: Phase = "gate";
@@ -963,7 +1060,6 @@ export function createIsland(
     const w = host.clientWidth || 1;
     const h = host.clientHeight || 1;
     renderer.setSize(w, h, false);
-    cssRenderer.setSize(w, h);
     camera.aspect = w / Math.max(1, h);
     camera.updateProjectionMatrix();
   }
@@ -1021,15 +1117,97 @@ export function createIsland(
     pilot.scale.set(sim.mood === "fight" ? 1.08 : 1, stance, sim.mood === "fight" ? 1.08 : 1);
     pilot.position.y += sim.mode === "foot" && Math.abs(sim.speed) > 0.35 ? Math.abs(Math.sin(elapsed * (sim.mood === "sport" ? 14 : 11))) * 0.05 : 0;
     crewRig?.update(sim.mode === "foot" && Math.abs(sim.speed) > 0.35);
-    if (sim.tapeUrl !== shownTape) {
-      shownTape = sim.tapeUrl;
-      tapeScreen.visible = Boolean(shownTape);
-      if (shownTape) {
-        if (tapeVideo.getAttribute("src") !== shownTape) tapeVideo.src = shownTape;
-        tapeVideo.play()?.catch(() => {});
-      } else {
-        tapeVideo.pause();
+    const tapePhase = sim.tapePhase;
+    const tapeOn = tapePhase === "playing" || tapePhase === "paused";
+    screenMat.map = tapeOn ? tapeTex : null;
+    screenMat.emissiveMap = tapeOn ? tapeTex : null;
+    screenMat.emissiveIntensity = tapeOn ? 0.5 : 0;
+    screenMat.needsUpdate = true;
+    if (tapePhase === "playing") {
+      if (sim.tapeUrl && tapeVideo.getAttribute("src") !== sim.tapeUrl) tapeVideo.src = sim.tapeUrl;
+      if (sim.tapePlay !== seenPlay) {
+        seenPlay = sim.tapePlay;
+        try {
+          tapeVideo.currentTime = 0;
+        } catch {
+          /* metadata */
+        }
       }
+      if (tapeVideo.paused) tapeVideo.play()?.catch(() => {});
+    } else if (!tapeVideo.paused) {
+      tapeVideo.pause();
+    }
+    const hear = Math.max(0, 1 - Math.hypot(sim.x - STORY_BOX.x, sim.z - STORY_BOX.z) / 9);
+    tapeVideo.volume = tapePhase === "playing" ? 0.85 * hear : 0;
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("bcm:tape-near", { detail: tapePhase === "playing" ? hear : 0 }));
+    }
+    if (cassette) {
+      const loose = tapePhase === "floor" || tapePhase === "spent";
+      cassette.visible = loose;
+      if (tapePhase !== "spent") eject = 0;
+      if (tapePhase === "floor" || tapePhase === "held") {
+        cassette.position.copy(cassetteHome);
+        cassette.rotation.set(0.15, 0.4, 0);
+      } else if (tapePhase === "spent") {
+        if (eject === 0) {
+          screen.getWorldPosition(ejectFrom);
+          ejectTo.set(STORY_BOX.x - 0.95, surfaceY(STORY_BOX.x - 0.95, STORY_BOX.z) + 0.08, STORY_BOX.z + 0.2);
+        }
+        eject = Math.min(1, eject + dt * 0.8);
+        cassette.position.lerpVectors(ejectFrom, ejectTo, eject);
+        cassette.position.y += Math.sin(eject * Math.PI) * 0.28;
+        cassette.rotation.x = eject * 1.35;
+      }
+    }
+    const keys = activeKeys();
+    const pressedH = keys.has("KeyH");
+    const pressedG = keys.has("KeyG");
+    let stick = false;
+    const gamepads = navigator.getGamepads?.() ?? [];
+    for (const pad of gamepads) {
+      if (pad?.buttons?.[10]?.pressed) stick = true;
+    }
+    const wantBoard = (pressedH && !hPrev) || (stick && !stickPrev);
+    hPrev = pressedH;
+    stickPrev = stick;
+    type Parked = { pivot: THREE.Group; hull: THREE.Object3D; x: number; z: number; y: number; crew: string };
+    const parked = ((scene.userData as { parked?: Parked[] }).parked) ?? [];
+    const nearShip = (spot: Parked) => {
+      const reach = spot.y > 8 ? 14 : 6.2;
+      return (spot.x - sim.x) ** 2 + (spot.z - sim.z) ** 2 < reach * reach;
+    };
+    if (wantBoard && sim.mode === "foot" && !boarded) {
+      const near = parked.find(nearShip);
+      if (near) {
+        boarded = near;
+        near.pivot.remove(near.hull);
+        bike.add(near.hull);
+        near.hull.position.set(0, 0.05, 0);
+        near.hull.rotation.set(0, 0, 0);
+        sim.mode = "bike";
+        sim.x = near.x;
+        sim.z = near.z;
+        sim.y = near.y + 0.45;
+        sim.yaw = near.pivot.rotation.y;
+        void wearCrew(near.crew);
+      }
+    }
+    if (boarded && sim.mode === "foot") {
+      bike.remove(boarded.hull);
+      boarded.pivot.add(boarded.hull);
+      boarded.hull.position.set(0, 0, 0);
+      boarded.hull.rotation.set(0, 0, 0);
+      const py = onSky(sim.x, sim.z) && sim.y > SKY.y - 2 ? SKY.y : surfaceY(sim.bikeX, sim.bikeZ);
+      boarded.x = sim.bikeX;
+      boarded.z = sim.bikeZ;
+      boarded.y = sit(boarded.pivot, sim.bikeX, sim.bikeZ, py);
+      boarded = null;
+    }
+    if (pressedG && !gPrev && tapeOn) toggleTapeScreen();
+    gPrev = pressedG;
+    if (sim.mode === "foot" && !sim.prompt && parked.some(nearShip)) {
+      sim.prompt = "H или левый стик — пересесть";
     }
 
     if (sim.mode === "bike") {
@@ -1042,12 +1220,12 @@ export function createIsland(
       bike.rotation.z = 0;
     }
     const blazing = sim.mode === "bike" && Math.abs(sim.speed) > 2.4;
-    if (bikeOff) bikeOff.visible = !blazing;
-    if (bikeFull) bikeFull.visible = blazing;
+    if (bikeOff) bikeOff.visible = !boarded && !blazing;
+    if (bikeFull) bikeFull.visible = !boarded && blazing;
 
     crystalPivots.forEach((pivot, i) => {
       pivot.visible = !sim.crystals[i];
-      pivot.rotation.y += dt * 0.4;
+      pivot.rotation.y += dt * (0.85 + i * 0.18);
       const mark = crystalMarkers[i];
       if (mark) mark.visible = sim.quests.sera === "go" && !sim.crystals[i];
       if (mark?.visible) mark.position.y = groundY(CRYSTALS[i].x, CRYSTALS[i].z) + 2.35 + bob * 0.12;
@@ -1070,10 +1248,10 @@ export function createIsland(
     });
     if (coinPivot) coinPivot.visible = sim.chest;
     if (archiveDoor.mesh) archiveDoor.mesh.visible = sim.quests.orr !== "done";
-    screenMat.emissiveIntensity = 0.55 + Math.sin(elapsed * 2.4) * 0.28;
     npcPivots.forEach((pivot, i) => {
-      const base = groundY(pivot.position.x, pivot.position.z);
-      pivot.position.y = base + Math.sin(elapsed * 1.6 + i) * 0.03;
+      const data = pivot.userData as { baseY?: number };
+      if (data.baseY === undefined) data.baseY = pivot.position.y;
+      pivot.position.y = data.baseY + Math.sin(elapsed * 1.6 + i) * 0.03;
     });
     if (coinPivot?.visible) coinPivot.rotation.y += dt;
 
@@ -1083,10 +1261,19 @@ export function createIsland(
       desired.set(14, 7.6, 56);
       look.set(BIKE_PARK.x, 1.3, BIKE_PARK.z - 2);
     } else {
-      const dist = sim.mode === "bike" ? 8.4 : 5.2;
-      const height = sim.mode === "bike" ? 3.15 : 2.2;
+      let dist = 5.15;
+      let height = 2.05;
+      if (sim.mode === "bike") {
+        seatBox.setFromObject(bike);
+        if (!seatBox.isEmpty()) {
+          const size = seatBox.getSize(new THREE.Vector3());
+          const long = Math.max(size.x, size.z, 1.2);
+          dist = long * 0.55 + 1.15;
+          height = Math.max(1.75, size.y + 0.7);
+        }
+      }
       desired.set(sim.x - fx * dist, sim.y + height, sim.z - fz * dist);
-      look.set(sim.x + fx * 1.6, sim.y + 1.2, sim.z + fz * 1.6);
+      look.set(sim.x + fx * 2.4, sim.y + 1.15, sim.z + fz * 2.4);
       pullCam(desired);
     }
     const k = snapping ? 1 : 1 - Math.exp(-4.2 * dt);
@@ -1099,7 +1286,6 @@ export function createIsland(
     sky.position.copy(camera.position);
 
     renderer.render(scene, camera);
-    cssRenderer.render(scene, camera);
   }
 
   function paintMap(canvasMap: HTMLCanvasElement) {
@@ -1146,7 +1332,7 @@ export function createIsland(
     observer.disconnect();
     tapeVideo.pause();
     tapeVideo.removeAttribute("src");
-    cssRenderer.domElement.remove();
+    tapeTex.dispose();
     renderer.dispose();
     geos.forEach((geo) => geo.dispose());
     mats.forEach((mat) => mat.dispose());
@@ -1160,8 +1346,63 @@ export function createIsland(
     });
   }
 
-  // Keep spawn referenced so the pad and the pilot share one origin story.
-  pilot.position.set(SPAWN.x, footY(SPAWN.x, SPAWN.z, 0), SPAWN.z);
+  let crewToken = 0;
+  async function wearCrew(species: string) {
+    const token = ++crewToken;
+    try {
+      const gltf = await loader.loadAsync(shipUrl(characterPath(species)));
+      if (!alive || token !== crewToken) return;
+      const body = gltf.scene;
+      fitHeight(body, 1.72);
+      solidify(body);
+      if (crewBody) pilot.remove(crewBody);
+      pilot.children.forEach((child) => {
+        child.visible = false;
+      });
+      pilot.add(body);
+      crewBody = body;
+      crewRig = bindCrewRig(body);
+    } catch (err) {
+      console.warn("BCM crew body skipped", err);
+    }
+  }
 
-  return { sim, frame, paintMap, resize, dispose };
+  function applyShip(id?: string) {
+    if (id) wantedShip = id;
+    const spec = pilotShip(wantedShip);
+    shipChain = shipChain
+      .then(async () => {
+        if (!alive) return;
+        if (boarded) {
+          bike.remove(boarded.hull);
+          boarded.pivot.add(boarded.hull);
+          boarded.hull.position.set(0, 0, 0);
+          boarded = null;
+          sim.mode = "foot";
+        }
+        const gltf = await loader.loadAsync(shipUrl(spec.file));
+        if (!alive) return;
+        const hull = gltf.scene;
+        if (!fitLength(hull, spec.island)) return;
+        faceForward(hull);
+        bike.clear();
+        bike.add(hull);
+        bikeOff = hull;
+        bikeFull = null;
+        await wearCrew(spec.crew);
+      })
+      .catch((err) => console.warn("BCM pilot ship skipped", spec.id, err));
+  }
+
+  function toggleTapeScreen() {
+    const tapeOn = sim.tapePhase === "playing" || sim.tapePhase === "paused";
+    if (!tapeOn) return;
+    if (document.fullscreenElement) document.exitFullscreen?.();
+    else tapeVideo.requestFullscreen?.();
+  }
+
+  pilot.position.set(SPAWN.x, footY(SPAWN.x, SPAWN.z, 0), SPAWN.z);
+  applyShip();
+
+  return { sim, frame, paintMap, resize, dispose, applyShip, toggleTapeScreen };
 }

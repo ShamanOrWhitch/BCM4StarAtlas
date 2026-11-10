@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Flag, Gauge, Pause, RotateCcw, Volume2, VolumeX } from "lucide-react";
-import { activeKeys, bindKeyboard, held, readDrive, setForced } from "@/game/input";
+import { activeKeys, bindKeyboard, held, readDrive, setForced, tiltEnabled, toggleTilt } from "@/game/input";
 import { LAPS, createRace, type Hud, type ItemKind, type Race } from "@/game/sim";
 import { createWorld, paintMap, type Phase } from "@/game/world";
 
@@ -46,6 +46,7 @@ export function ShoalRace({ onLeave, onStartAudio, seed = 0 }: { onLeave?: () =>
   const [phase, setPhase] = useState<Phase>("gate");
   const [hud, setHud] = useState<Hud>(EMPTY);
   const [muted, setMuted] = useState(false);
+  const [tilt, setTilt] = useState(false);
   const mutedRef = useRef(false);
 
   useEffect(() => {
@@ -334,7 +335,14 @@ export function ShoalRace({ onLeave, onStartAudio, seed = 0 }: { onLeave?: () =>
           <Hold code="KeyW" label="Газ" className="col-span-2 bg-primary text-bg" />
           <Hold code="KeyS" label="Тормоз" />
           <Hold code="ShiftLeft" label="Дрифт" />
-          <Hold code="ControlLeft" label="Предмет" className="col-span-5" />
+          <Hold code="ControlLeft" label="Предмет" className="col-span-3" />
+          <button
+            type="button"
+            className="col-span-3 h-12 rounded-xl border border-line bg-surface/90 text-sm font-medium"
+            onClick={() => void toggleTilt().then((on) => setTilt(on || tiltEnabled()))}
+          >
+            {tilt ? "TILT вкл" : "TILT"}
+          </button>
         </div>
       ) : null}
 

@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { Race } from "./sim";
-import { RACE_SHIPS, shipUrl } from "./ships";
+import { RACE_SHIPS, raceLength, shipUrl } from "./ships";
+import { createSeededRandom, seededShuffle } from "./seed";
 import { ROAD_Y, type Track } from "./track";
 import { bake, faceForward } from "./island/bake";
 import { propUrl } from "./mesh-url";
@@ -120,33 +121,54 @@ export function createWorld(canvas: HTMLCanvasElement): World {
   canvas.style.display = "block";
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x8ec4dc);
-  scene.fog = new THREE.Fog(0xb7d6e4, 80, 360);
+  scene.background = new THREE.Color(0xff7a3c);
+  scene.fog = new THREE.Fog(0xe56a3a, 70, 280);
 
   const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 700);
   camera.position.set(0, 48, 120);
 
-  const hemi = new THREE.HemisphereLight(0xd5e7f2, 0x1a6e82, 0.95);
+  const hemi = new THREE.HemisphereLight(0xffc4a0, 0x7a3a32, 1.15);
   const goldSun = new THREE.Sprite(
-    new THREE.SpriteMaterial({ map: glow("#ffd27a"), transparent: true, depthWrite: false, fog: false }),
+    new THREE.SpriteMaterial({ map: glow("#ffe08a"), transparent: true, depthWrite: false, fog: false }),
   );
   goldSun.position.set(150, 78, -40);
-  goldSun.scale.set(46, 46, 1);
+  goldSun.scale.set(52, 52, 1);
   const roseSun = new THREE.Sprite(
-    new THREE.SpriteMaterial({ map: glow("#ffb089"), transparent: true, depthWrite: false, fog: false }),
+    new THREE.SpriteMaterial({ map: glow("#ff6a4a"), transparent: true, depthWrite: false, fog: false }),
   );
   roseSun.position.set(-120, 54, -150);
-  roseSun.scale.set(28, 28, 1);
+  roseSun.scale.set(32, 32, 1);
   scene.add(goldSun, roseSun);
-  // Same rule as the island: the water glint uses the sun you see, not a light off to the side.
-  const sun = new THREE.DirectionalLight(0xfff1d6, 1.15);
+  const sun = new THREE.DirectionalLight(0xffb15a, 1.45);
   sun.position.copy(goldSun.position);
   sun.target.position.set(0, 0.2, 0);
   sun.castShadow = false;
-  const coral = new THREE.DirectionalLight(0xc5d8e6, 0.22);
+  const coral = new THREE.DirectionalLight(0xffb089, 0.34);
   coral.position.copy(roseSun.position);
   coral.target.position.set(0, 0.2, 0);
   scene.add(hemi, sun, sun.target, coral, coral.target);
+
+  const skyGeo = new THREE.SphereGeometry(520, 20, 12);
+  const skyPos = skyGeo.getAttribute("position");
+  const skyCol = new Float32Array(skyPos.count * 3);
+  const skyTop = new THREE.Color(0x3d245c);
+  const skyMid = new THREE.Color(0xff7a3a);
+  const skyLow = new THREE.Color(0xffc48a);
+  const skyMix = new THREE.Color();
+  for (let i = 0; i < skyPos.count; i++) {
+    const y = skyPos.getY(i) / 520;
+    if (y > 0.12) skyMix.copy(skyMid).lerp(skyTop, Math.min(1, (y - 0.12) / 0.88));
+    else skyMix.copy(skyLow).lerp(skyMid, Math.min(1, (y + 0.4) / 0.52));
+    skyCol[i * 3] = skyMix.r;
+    skyCol[i * 3 + 1] = skyMix.g;
+    skyCol[i * 3 + 2] = skyMix.b;
+  }
+  skyGeo.setAttribute("color", new THREE.BufferAttribute(skyCol, 3));
+  const raceSky = new THREE.Mesh(
+    skyGeo,
+    new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }),
+  );
+  scene.add(raceSky);
 
   const water = new THREE.Mesh(
     new THREE.CircleGeometry(240, 48),
@@ -219,22 +241,25 @@ export function createWorld(canvas: HTMLCanvasElement): World {
 
   const karts: Kart[] = [];
   const vehicleTemplates: THREE.Object3D[] = [];
+  let fleetReady = false;
   const vehicleLoader = new GLTFLoader();
   void (async () => {
-    const sizes = RACE_SHIPS.map(() => 3.15);
-    for (let i = 0; i < RACE_SHIPS.length; i++) {
+    for (const file of RACE_SHIPS) {
       try {
-        const gltf = await vehicleLoader.loadAsync(shipUrl(RACE_SHIPS[i]));
-        const mesh = bake(gltf.scene, sizes[i] ?? 3.15, "xz");
+        const gltf = await vehicleLoader.loadAsync(shipUrl(file));
+        const length = raceLength(file);
+        const mesh = bake(gltf.scene, length, "xz");
         faceForward(mesh);
         mesh.castShadow = false;
         mesh.receiveShadow = false;
         vehicleTemplates.push(mesh);
       } catch (err) {
-        console.warn("BCM race ship skipped", RACE_SHIPS[i], err);
+        console.warn("BCM race ship skipped", file, err);
       }
     }
+    fleetReady = vehicleTemplates.length > 0;
   })();
+  let fleetAssigned = false;
   function makeModelKart(index: number, color: number): Kart | null {
     const template = vehicleTemplates[index % vehicleTemplates.length];
     if (!template) return null;
@@ -246,11 +271,20 @@ export function createWorld(canvas: HTMLCanvasElement): World {
     });
     const group = new THREE.Group();
     const model = template.clone();
+    model.traverse((obj) => {
+      const mesh = obj as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const src = mesh.material as THREE.MeshStandardMaterial;
+      const tint = src.clone();
+      tint.color = new THREE.Color(0xffffff).lerp(new THREE.Color(color), 0.62);
+      tint.vertexColors = true;
+      mesh.material = tint;
+    });
     model.position.y = 0.08;
-    const glow = new THREE.Mesh(new THREE.CircleGeometry(1.15, 14), shell);
-    glow.rotation.x = -Math.PI / 2;
-    glow.position.y = 0.04;
-    group.add(model, glow);
+    const glowDisc = new THREE.Mesh(new THREE.CircleGeometry(1.15, 14), shell);
+    glowDisc.rotation.x = -Math.PI / 2;
+    glowDisc.position.y = 0.04;
+    group.add(model, glowDisc);
     return { group, wheels: [], shell };
   }
   const boxMesh = new THREE.Mesh(
@@ -451,10 +485,15 @@ export function createWorld(canvas: HTMLCanvasElement): World {
         scene.add(kart.group);
         karts.push(kart);
       }
-      if (vehicleTemplates.length) {
+      if (fleetReady && !fleetAssigned && karts.length === race.cars.length) {
+        fleetAssigned = true;
+        const random = createSeededRandom(race.seed || 1, "race-ships");
+        const order = seededShuffle(
+          vehicleTemplates.map((_, index) => index),
+          random,
+        );
         for (let i = 0; i < karts.length; i++) {
-          if (karts[i].wheels.length === 0) continue;
-          const next = makeModelKart(i, race.cars[i].color);
+          const next = makeModelKart(order[i % order.length], race.cars[i].color);
           if (!next) continue;
           next.group.position.copy(karts[i].group.position);
           next.group.rotation.copy(karts[i].group.rotation);
@@ -499,6 +538,7 @@ export function createWorld(canvas: HTMLCanvasElement): World {
       });
 
       water.position.y = 0.2 + Math.sin(elapsed * 0.7) * 0.04;
+      raceSky.position.copy(camera.position);
 
       const you = race.cars[0];
       const fx = -Math.sin(you.yaw);
@@ -513,7 +553,7 @@ export function createWorld(canvas: HTMLCanvasElement): World {
         camera.position.lerp(desired, 1 - Math.exp(-2.2 * dt));
         camera.lookAt(you.x, 3, you.z);
       } else {
-        const dist = view === 1 ? 7.5 : view === 2 ? 18 : 12.5;
+        const dist = view === 1 ? 8.2 : view === 2 ? 18 : 11.5;
         const height = view === 1 ? 2.4 : 5.6;
         desired.set(you.x - fx * dist, ROAD_Y + height, you.z - fz * dist);
         camera.position.lerp(desired, 1 - Math.exp(-4.2 * dt));

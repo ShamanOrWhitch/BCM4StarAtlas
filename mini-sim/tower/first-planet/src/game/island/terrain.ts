@@ -7,6 +7,10 @@ function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
 
+/** Must match the ground mesh. Props and feet sample this, not the raw curve. */
+export const TERRAIN_SPAN = 168;
+export const TERRAIN_N = 96;
+
 /** Desert island height. Sea is below about -0.5; the pad and town are flattened. */
 export function groundY(x: number, z: number) {
   const r = Math.hypot(x, z);
@@ -37,6 +41,28 @@ export function groundY(x: number, z: number) {
   return lerp(-1.7, h, inland);
 }
 
+/** Height of the rendered ground triangle, so a stone cannot hover over a coarse face. */
+export function surfaceY(x: number, z: number) {
+  const n = TERRAIN_N;
+  const span = TERRAIN_SPAN;
+  const fx = (x / span + 0.5) * n;
+  const fz = (z / span + 0.5) * n;
+  const ix = Math.max(0, Math.min(n - 1, Math.floor(fx)));
+  const iz = Math.max(0, Math.min(n - 1, Math.floor(fz)));
+  const tx = Math.min(1, Math.max(0, fx - ix));
+  const tz = Math.min(1, Math.max(0, fz - iz));
+  const sample = (i: number, j: number) => {
+    const cx = Math.max(0, Math.min(n, i));
+    const cz = Math.max(0, Math.min(n, j));
+    return groundY((cx / n - 0.5) * span, (cz / n - 0.5) * span);
+  };
+  const y00 = sample(ix, iz);
+  const y10 = sample(ix + 1, iz);
+  const y01 = sample(ix, iz + 1);
+  const y11 = sample(ix + 1, iz + 1);
+  return (y00 * (1 - tx) + y10 * tx) * (1 - tz) + (y01 * (1 - tx) + y11 * tx) * tz;
+}
+
 export const SKY = { x: 24, z: -36, y: 14.2, r: 5.2 };
 export const BRIDGE = { x: 2.2, z0: -24.2, z1: -8.8, half: 0.85, deck: 0.42 };
 
@@ -45,21 +71,19 @@ export function onBridge(x: number, z: number) {
 }
 
 export function onSky(x: number, z: number) {
-  const dx = x - SKY.x;
-  const dz = z - SKY.z;
-  return dx * dx + dz * dz < SKY.r * SKY.r;
+  return (x - SKY.x) ** 2 + (z - SKY.z) ** 2 < SKY.r * SKY.r;
 }
 
 /** Feet height for walking. Sky deck only counts if you are already up there. */
 export function footY(x: number, z: number, currentY: number) {
-  let y = groundY(x, z);
+  let y = surfaceY(x, z);
   if (onBridge(x, z)) y = Math.max(y, BRIDGE.deck);
   if (onSky(x, z) && currentY > SKY.y - 2) y = Math.max(y, SKY.y);
   return y;
 }
 
 export function hoverFloor(x: number, z: number, currentY: number) {
-  let y = groundY(x, z) + 0.82;
+  let y = surfaceY(x, z) + 0.82;
   if (onBridge(x, z)) y = Math.max(y, BRIDGE.deck + 0.82);
   if (onSky(x, z) && currentY > SKY.y - 2.2) y = Math.max(y, SKY.y + 0.82);
   return y;

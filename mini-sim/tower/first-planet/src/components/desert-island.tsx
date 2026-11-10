@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Compass, Gauge, Pause, RotateCcw } from "lucide-react";
-import { bindKeyboard, held, setForced } from "@/game/input";
+import { bindKeyboard, held, setForced, tiltEnabled, toggleTilt } from "@/game/input";
 import { createIsland, type IslandWorld, type Phase } from "@/game/island/scene";
 import type { IslandHud } from "@/game/island/sim";
+import { PILOT_SHIPS } from "@/game/ships";
 
 const MOOD_NAME = {
   walk: "Пешком",
@@ -32,6 +33,7 @@ const EMPTY: IslandHud = {
   mood: "walk",
   depart: false,
   towerEnter: false,
+  tape: "floor",
 };
 
 export function DesertIsland({
@@ -60,6 +62,10 @@ export function DesertIsland({
   const [hud, setHud] = useState<IslandHud>(EMPTY);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
+  const [shipId, setShipId] = useState(PILOT_SHIPS[0].id);
+  const [tilt, setTilt] = useState(false);
+  const shipRef = useRef(shipId);
+  shipRef.current = shipId;
   const left = useRef(false);
   const towerEntered = useRef(false);
   const liveRef = useRef(live);
@@ -93,7 +99,7 @@ export function DesertIsland({
           onReadyRef.current?.();
         },
         (loadError) => onLoadErrorRef.current?.(loadError),
-        { planetSeed, players: context.players },
+        { planetSeed, players: context.players, shipId: shipRef.current },
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось открыть остров");
@@ -192,15 +198,32 @@ export function DesertIsland({
             Desert Island · посадочная
           </p>
           <h1 className="font-display mt-2 text-4xl leading-none font-medium">Остров пустыни</h1>
-          <p className="mt-3 text-sm text-muted">
-            Дюнный посад на закате. У входа стоит байк — на нём можно подняться над крышами. В восточном
-            доме Джаман и ящик сказок. Сера, Орр и Ламп ждут снаружи. Рядом с посадочной светится маяк:
-            подойди и нажми E, чтобы пройти сохранённую башню снизу вверх. Северное кольцо — гонка.
+            <p className="mt-3 text-sm text-muted">
+            Дюнный посад на закате. Корабль у входа — тот, что выберешь ниже, и пилот с его комплекта.
+            Камера за спиной. У ящика Джамана кассета крутится один раз: E пауза, G весь экран, можно отойти.
+            H или нажатие левого стика — пересесть в другой корпус, в том числе в большие на астероиде.
           </p>
+          <p className="mt-3 text-xs tracking-widest text-muted uppercase">Корабль</p>
+          <div className="mt-2 flex max-h-36 flex-col gap-1 overflow-y-auto">
+            {PILOT_SHIPS.map((ship) => (
+              <button
+                key={ship.id}
+                type="button"
+                onClick={() => {
+                  setShipId(ship.id);
+                  worldRef.current?.applyShip(ship.id);
+                }}
+                className={`h-10 rounded-lg border px-3 text-left text-sm ${ship.id === shipId ? "border-primary bg-primary/15 text-fg" : "border-line text-muted"}`}
+              >
+                {ship.name}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             onClick={() => {
               onStartAudioRef.current();
+              worldRef.current?.applyShip(shipId);
               setPhaseBoth("play");
             }}
             className="mt-4 h-12 w-full rounded-xl bg-primary font-medium text-bg"
@@ -283,6 +306,15 @@ export function DesertIsland({
           </div>
 
           <div className="flex flex-col items-center gap-2">
+            {hud.tape === "playing" || hud.tape === "paused" ? (
+              <button
+                type="button"
+                className="pointer-events-auto rounded-full bg-primary px-4 py-1 text-sm font-medium text-bg"
+                onClick={() => worldRef.current?.toggleTapeScreen()}
+              >
+                {hud.tape === "paused" ? "На паузе · весь экран" : "Весь экран"}
+              </button>
+            ) : null}
             {hud.prompt && phase === "play" && !talk ? (
               <p className="rounded-full bg-surface/90 px-4 py-1 text-sm font-medium text-primary">
                 {hud.prompt}
@@ -319,7 +351,7 @@ export function DesertIsland({
       ) : null}
 
       {phase === "play" && !talk ? (
-        <div className="absolute inset-x-0 bottom-3 z-20 grid grid-cols-4 gap-2 px-3 md:hidden">
+        <div className="absolute inset-x-0 bottom-3 z-20 hidden grid-cols-4 gap-2 px-3 max-md:grid [@media(pointer:coarse)]:grid">
           <Hold code="KeyA" label="Лево" />
           <Hold code="KeyW" label="Вперёд" className="bg-primary text-bg" />
           <Hold code="KeyS" label="Назад" />
@@ -328,6 +360,13 @@ export function DesertIsland({
           <Hold code="Space" label="Прыжок" />
           <Hold code="KeyC" label="Настроение" />
           <Hold code="KeyQ" label="Вниз" />
+          <button
+            type="button"
+            className="col-span-4 h-12 rounded-xl border border-line bg-surface/90 text-sm font-medium"
+            onClick={() => void toggleTilt().then((on) => setTilt(on || tiltEnabled()))}
+          >
+            {tilt ? "TILT вкл" : "TILT"}
+          </button>
           <Hold code="ShiftLeft" label="Форсаж" className="col-span-4" />
         </div>
       ) : null}

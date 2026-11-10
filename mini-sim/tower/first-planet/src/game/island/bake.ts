@@ -103,6 +103,70 @@ export function fitHeight(root: THREE.Object3D, target: number) {
   return root;
 }
 
+/** Sit a ship on its length, not its height. Flat hulls were becoming buildings. */
+export function fitLength(root: THREE.Object3D, length: number) {
+  root.updateMatrixWorld(true);
+  const points: THREE.Vector3[] = [];
+  const tmp = new THREE.Vector3();
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.geometry) return;
+    const pos = mesh.geometry.getAttribute("position");
+    if (!pos) return;
+    const step = Math.max(1, Math.floor(pos.count / 80));
+    for (let i = 0; i < pos.count; i += step) {
+      tmp.fromBufferAttribute(pos, i);
+      points.push(mesh.localToWorld(tmp.clone()));
+    }
+  });
+  if (points.length < 12) return false;
+  const xs = points.map((p) => p.x).sort((a, b) => a - b);
+  const zs = points.map((p) => p.z).sort((a, b) => a - b);
+  const at = (arr: number[], t: number) => arr[Math.min(arr.length - 1, Math.floor(t * (arr.length - 1)))];
+  const span = Math.max(at(xs, 0.97) - at(xs, 0.03), at(zs, 0.97) - at(zs, 0.03));
+  const full = Math.max(xs[xs.length - 1] - xs[0], zs[zs.length - 1] - zs[0]);
+  const basis = span > 0.05 ? span : full;
+  if (!(basis > 0.05)) return false;
+  root.scale.multiplyScalar(length / basis);
+  root.updateMatrixWorld(true);
+  const sized = new THREE.Box3().setFromObject(root);
+  const sizedSpan = new THREE.Vector3();
+  sized.getSize(sizedSpan);
+  const long = Math.max(sizedSpan.x, sizedSpan.z);
+  if (long > length * 1.06) {
+    root.scale.multiplyScalar((length * 1.06) / long);
+    root.updateMatrixWorld(true);
+  }
+  const box = new THREE.Box3().setFromObject(root);
+  const center = box.getCenter(new THREE.Vector3());
+  root.position.x -= center.x;
+  root.position.z -= center.z;
+  root.position.y -= box.min.y;
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const mat of mats) {
+      const standard = mat as THREE.MeshStandardMaterial;
+      const label = `${mesh.name} ${standard.name || ""}`.toLowerCase();
+      const glow = standard.emissive ? standard.emissive.r + standard.emissive.g + standard.emissive.b : 0;
+      const glassy = standard.transparent || /glass|window|canopy|visor|cockpit|lamp|light|head|emissive/.test(label);
+      standard.polygonOffset = true;
+      standard.polygonOffsetFactor = glassy || glow > 0.2 ? -4 : 2;
+      standard.polygonOffsetUnits = glassy || glow > 0.2 ? -4 : 2;
+      standard.depthTest = true;
+      if (!glassy) {
+        standard.depthWrite = true;
+        standard.side = THREE.FrontSide;
+      }
+      if (standard.metalness !== undefined) standard.metalness = Math.min(standard.metalness, 0.35);
+    }
+  });
+  return true;
+}
+
 /** Blockout vehicles are long on +X and the nose is +X. Turn that nose onto −Z, which is forward. */
 export function faceForward(mesh: THREE.Object3D) {
   mesh.rotation.y = Math.PI / 2;

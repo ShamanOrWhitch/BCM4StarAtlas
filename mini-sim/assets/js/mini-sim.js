@@ -5322,7 +5322,10 @@
 
     const zoneNow = getSpaceZone(ship.position.z);
     let room;
-    if (simPlace && simPlace.id === "asteroid" && simPlace.label) {
+    const berth = asteroidBerths.find((pivot) => pivot.position.distanceTo(ship.position) < 28);
+    if (berth) {
+      room = "ASTEROID · БОЛЬШОЙ КОРАБЛЬ";
+    } else if (simPlace && simPlace.id === "asteroid" && simPlace.label) {
       room = simPlace.label;
     } else if (zoneNow === "DEEP_SPACE") {
       const satelliteDistance = spaceSatellite.group
@@ -5858,26 +5861,31 @@
     }
   }
 
+  const asteroidBerths = [];
+
   function parkDeepSpaceFleet() {
     // One parked hull per family. Small and medium only — the first room's
     // right wall is open, so the yard sits just outside the flight line.
     const yard = [
-      ["mesh/ships/small/ambwe/ambwe_black_off.glb", 3.1],
-      ["mesh/ships/small/arma/arma_black_landed.glb", 3.1],
-      ["mesh/ships/small/busan_thrill/thrill_blue_off.glb", 2.8],
-      ["mesh/ships/small/calico_shipit/shipit_white_off.glb", 2.8],
-      ["mesh/ships/small/earp/earp_blue_off.glb", 3.0],
-      ["mesh/ships/small/feist_darker_gray/feist_gray_parked.glb", 3.4],
-      ["mesh/ships/small/imp_tip_wings/imp_orange_mech.glb", 2.8],
-      ["mesh/ships/small/meditech/medtech_white_off.glb", 3.0],
-      ["mesh/ships/small/mik/mik_pearl_off.glb", 3.2],
-      ["mesh/ships/small/pearce_x6/x6_blue_off.glb", 3.0],
-      ["mesh/ships/small/rainbow_chi_photoli/rainbow_chi.glb", 2.6],
-      ["mesh/ships/small/rayfam/rayfam_teal_off.glb", 2.8],
-      ["mesh/ships/medium/rainbow_om/rainbow_om.glb", 6.2],
-      ["mesh/ships/medium/calico_hero_v1/calico_hero.glb", 6.4],
-      ["mesh/ships/medium/calico_evac_v1/calico_evac.glb", 6.6],
-      ["mesh/ships/medium/imp_tap_v1/imp_tap_v1/imp_tap.glb", 6.8]
+      ["mesh/ships/small/ambwe/ambwe_black_off.glb", 3.6],
+      ["mesh/ships/small/arma/arma_black_landed.glb", 3.6],
+      ["mesh/ships/small/busan_thrill/thrill_blue_off.glb", 3.2],
+      ["mesh/ships/small/calico_shipit/shipit_white_off.glb", 3.2],
+      ["mesh/ships/small/earp/earp_blue_off.glb", 3.5],
+      ["mesh/ships/small/feist_darker_gray/feist_gray_parked.glb", 3.9],
+      ["mesh/ships/small/imp_tip_wings/imp_orange_mech.glb", 3.2],
+      ["mesh/ships/small/meditech/medtech_white_off.glb", 3.5],
+      ["mesh/ships/small/mik/mik_pearl_off.glb", 3.7],
+      ["mesh/ships/small/pearce_x6/x6_blue_off.glb", 3.5],
+      ["mesh/ships/small/rainbow_chi_photoli/rainbow_chi.glb", 3.0],
+      ["mesh/ships/small/rayfam/rayfam_teal_off.glb", 3.2],
+      ["mesh/ships/medium/rainbow_om/rainbow_om.glb", 7.4],
+      ["mesh/ships/medium/calico_hero_v1/calico_hero.glb", 7.6],
+      ["mesh/ships/medium/calico_evac_v1/calico_evac.glb", 7.8],
+      ["mesh/ships/medium/imp_tap_v1/imp_tap_v1/imp_tap.glb", 8.0],
+      // Big hulls beside the asteroid maze (center 230, 0, 150), outside the walls.
+      ["mesh/ships/Large/rainbow_arc_v1/rainbow_arc.glb", 16, 274, 2, 168, 0.6],
+      ["mesh/ships/Large/imp_bur_v1/imp_bur_v1/armstrong_imp.glb", 20, 186, 3, 132, -0.4]
     ];
     const ensureLoader = () => new Promise((resolve, reject) => {
       if (window.THREE && window.THREE.GLTFLoader) {
@@ -5928,8 +5936,15 @@
             pivot.add(root);
             const col = place % 4;
             const row = Math.floor(place / 4);
-            pivot.position.set(9.5 + col * 6.4, -3.5, 2 - row * 7.2);
-            pivot.rotation.y = -Math.PI / 2;
+            if (slot.length > 2) {
+              pivot.position.set(slot[2], slot[3], slot[4]);
+              pivot.rotation.y = slot[5] || 0;
+              pivot.userData.berth = true;
+              asteroidBerths.push(pivot);
+            } else {
+              pivot.position.set(9.5 + col * 7.4, -3.5, 2 - row * 8.4);
+              pivot.rotation.y = -Math.PI / 2;
+            }
             scene.add(pivot);
           }
           window.setTimeout(next, 180);
