@@ -1,9 +1,10 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { Race } from "./sim";
+import { RACE_SHIPS, shipUrl } from "./ships";
 import { ROAD_Y, type Track } from "./track";
 import { bake, faceForward } from "./island/bake";
-import { meshUrl, propUrl } from "./mesh-url";
+import { propUrl } from "./mesh-url";
 
 export type Phase = "gate" | "race" | "pause" | "finish";
 
@@ -220,42 +221,18 @@ export function createWorld(canvas: HTMLCanvasElement): World {
   const vehicleTemplates: THREE.Object3D[] = [];
   const vehicleLoader = new GLTFLoader();
   void (async () => {
-    try {
-      const loaded = await Promise.all([
-        vehicleLoader.loadAsync(meshUrl("hovercar.glb")),
-        vehicleLoader.loadAsync(meshUrl("spacebike.glb")),
-      ]);
-      const sizes = [3.6, 3.2];
-      loaded.forEach((gltf, i) => {
-        const mesh = bake(gltf.scene, sizes[i], "xz");
+    const sizes = RACE_SHIPS.map(() => 3.15);
+    for (let i = 0; i < RACE_SHIPS.length; i++) {
+      try {
+        const gltf = await vehicleLoader.loadAsync(shipUrl(RACE_SHIPS[i]));
+        const mesh = bake(gltf.scene, sizes[i] ?? 3.15, "xz");
         faceForward(mesh);
         mesh.castShadow = false;
         mesh.receiveShadow = false;
         vehicleTemplates.push(mesh);
-      });
-      const pearce = [
-        "pearce x 4/spacebike_red_off.glb",
-        "pearce x 4/spacebike_blue_off.glb",
-        "pearce x 4/spacebike_yellow_off.glb",
-        "pearce x 4/spacebike_white_off.glb",
-        "pearce x 4/spacebike_black_off.glb",
-      ];
-      for (const file of pearce) {
-        const url = propUrl(file);
-        if (!url) continue;
-        try {
-          const gltf = await vehicleLoader.loadAsync(url);
-          const mesh = bake(gltf.scene, 3.3, "xz");
-          faceForward(mesh);
-          mesh.castShadow = false;
-          mesh.receiveShadow = false;
-          vehicleTemplates.push(mesh);
-        } catch (err) {
-          console.warn("BCM pearce bike skipped", file, err);
-        }
+      } catch (err) {
+        console.warn("BCM race ship skipped", RACE_SHIPS[i], err);
       }
-    } catch (err) {
-      console.warn("BCM race cars kept the block karts", err);
     }
   })();
   function makeModelKart(index: number, color: number): Kart | null {

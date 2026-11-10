@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.6",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.7",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.12.6",
+      title: "SPACE LABYRINTH — 0.12.7",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -5858,6 +5858,87 @@
     }
   }
 
+  function parkDeepSpaceFleet() {
+    // One parked hull per family. Small and medium only — the first room's
+    // right wall is open, so the yard sits just outside the flight line.
+    const yard = [
+      ["mesh/ships/small/ambwe/ambwe_black_off.glb", 3.1],
+      ["mesh/ships/small/arma/arma_black_landed.glb", 3.1],
+      ["mesh/ships/small/busan_thrill/thrill_blue_off.glb", 2.8],
+      ["mesh/ships/small/calico_shipit/shipit_white_off.glb", 2.8],
+      ["mesh/ships/small/earp/earp_blue_off.glb", 3.0],
+      ["mesh/ships/small/feist_darker_gray/feist_gray_parked.glb", 3.4],
+      ["mesh/ships/small/imp_tip_wings/imp_orange_mech.glb", 2.8],
+      ["mesh/ships/small/meditech/medtech_white_off.glb", 3.0],
+      ["mesh/ships/small/mik/mik_pearl_off.glb", 3.2],
+      ["mesh/ships/small/pearce_x6/x6_blue_off.glb", 3.0],
+      ["mesh/ships/small/rainbow_chi_photoli/rainbow_chi.glb", 2.6],
+      ["mesh/ships/small/rayfam/rayfam_teal_off.glb", 2.8],
+      ["mesh/ships/medium/rainbow_om/rainbow_om.glb", 6.2],
+      ["mesh/ships/medium/calico_hero_v1/calico_hero.glb", 6.4],
+      ["mesh/ships/medium/calico_evac_v1/calico_evac.glb", 6.6],
+      ["mesh/ships/medium/imp_tap_v1/imp_tap_v1/imp_tap.glb", 6.8]
+    ];
+    const ensureLoader = () => new Promise((resolve, reject) => {
+      if (window.THREE && window.THREE.GLTFLoader) {
+        resolve(window.THREE.GLTFLoader);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = String(config.gltfLoaderUrl || "");
+      script.onload = () => {
+        if (window.THREE && window.THREE.GLTFLoader) resolve(window.THREE.GLTFLoader);
+        else reject(new Error("GLTFLoader"));
+      };
+      script.onerror = () => reject(new Error("GLTFLoader"));
+      document.head.appendChild(script);
+    });
+    const fit = (root, target) => {
+      root.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(root);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const span = Math.max(size.x, size.y, size.z, 0.001);
+      root.scale.multiplyScalar(target / span);
+      root.updateMatrixWorld(true);
+      const fitted = new THREE.Box3().setFromObject(root);
+      root.position.y -= fitted.min.y;
+    };
+    ensureLoader().then((Loader) => {
+      let index = 0;
+      const next = () => {
+        if (index >= yard.length || miniSimReleased) return;
+        const slot = yard[index];
+        const file = slot[0];
+        const target = slot[1];
+        const url = assetUrl(file);
+        index += 1;
+        const place = index - 1;
+        if (!url) {
+          next();
+          return;
+        }
+        const loader = new Loader();
+        loader.load(url, (gltf) => {
+          const root = gltf && (gltf.scene || (gltf.scenes && gltf.scenes[0]));
+          if (root && scene) {
+            fit(root, target);
+            const pivot = new THREE.Group();
+            pivot.name = "docked-" + file.split("/").pop();
+            pivot.add(root);
+            const col = place % 4;
+            const row = Math.floor(place / 4);
+            pivot.position.set(9.5 + col * 6.4, -3.5, 2 - row * 7.2);
+            pivot.rotation.y = -Math.PI / 2;
+            scene.add(pivot);
+          }
+          window.setTimeout(next, 180);
+        }, undefined, () => window.setTimeout(next, 40));
+      };
+      next();
+    }).catch(() => {});
+  }
+
   function startSim() {
     try {
       renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
@@ -5897,13 +5978,14 @@
       stars.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
       scene.add(new THREE.Points(stars, new THREE.PointsMaterial({ color: 0xffffff, size: 0.6 })));
       buildWorld();
+      parkDeepSpaceFleet();
       bind();
       resize();
       setSpeedMode(1);
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.12.6") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.12.7") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();

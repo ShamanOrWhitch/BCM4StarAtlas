@@ -1,1 +1,0 @@
-Ogrika Niruch-inspired prototype. +X front, Y up. Gold/silver/blue approximate colors. Flight has a static blue-tinted ground wake, no flame; off has no wake. Body proportions are approximate. No opening doors, interior, animations, collisions, textures or true glow. Not tested in Three.js r128 or Android.

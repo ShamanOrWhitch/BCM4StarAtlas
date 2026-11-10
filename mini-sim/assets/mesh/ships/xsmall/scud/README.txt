@@ -1,1 +1,0 @@
-Calico Scud-inspired prototype, +X front Y up. Silver, teal, gold and orange interpretations. Flight has two static blue rear flames; off has none. No animation, pilot, collision, textures, true glow or landing gear. Approximate geometry; not tested in Three.js r128 or Android.

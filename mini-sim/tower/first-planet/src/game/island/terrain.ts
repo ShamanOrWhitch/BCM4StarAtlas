@@ -159,6 +159,17 @@ export const SKY_NOTE = { x: SKY.x, z: SKY.z };
 export const JAHMAN = { x: 10.35, z: 16.35, yaw: Math.PI / 2, name: "Джаман" };
 export const STORY_BOX = { x: 13.05, z: 16.35 };
 
+/** VHS cassettes. Each one is a different file on the tale site. */
+export const TAPES = [
+  {
+    id: "ded",
+    title: "Дед",
+    x: 11.55,
+    z: 13.4,
+    url: "https://walkingyog.com/wp-content/uploads/2026/10/remaster-ded.mp4",
+  },
+] as const;
+
 export const NPC = {
   sera: { x: -5.7, z: 17, yaw: Math.PI / 2, name: "Сера Венн" },
   orr: { x: -6.4, z: -1.2, yaw: Math.PI / 2, name: "Орр-1" },

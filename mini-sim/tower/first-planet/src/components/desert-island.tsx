@@ -43,7 +43,7 @@ export function DesertIsland({
   onReady,
   onLoadError,
 }: {
-  context: { planetSeed?: number; sessionSeed?: number };
+  context: { planetSeed?: number; sessionSeed?: number; players?: Array<{ species?: string; name?: string }> };
   live?: boolean;
   onRace: () => void;
   onTowerEnter: () => void;
@@ -93,7 +93,7 @@ export function DesertIsland({
           onReadyRef.current?.();
         },
         (loadError) => onLoadErrorRef.current?.(loadError),
-        { planetSeed },
+        { planetSeed, players: context.players },
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось открыть остров");

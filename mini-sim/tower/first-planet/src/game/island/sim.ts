@@ -13,6 +13,7 @@ import {
   SKY_NOTE,
   SPAWN,
   STORY_BOX,
+  TAPES,
   TOWER_GATE,
   footY,
   houseAabbs,
@@ -145,8 +146,8 @@ const BULB_READY = ["Тепло пошло по площади. Сундук б�
 const BULB_DONE = ["Северное кольцо за оазисом — это уже гонка, не прогулка. Кольцо само просит E."];
 
 const JAHMAN_LINES = [
-  "Я Джаман. Дом этот мой, и ящик у восточной стены тоже.",
-  "Это не телевизор новостей. Экран показывает сказки острова. Подойди и нажми E — следующая начнётся сама.",
+  "Я Джаман. Ящик у стены — не новости. Это видеомагнитофон, сказки лежат на кассетах.",
+  "Подними кассету и нажми E у ящика. Каждая кассета включает свой файл. Сейчас на полу «Дед».",
 ];
 
 const TALES: { title: string; pages: string[] }[] = [
@@ -239,6 +240,8 @@ export function createSim(seed = 0) {
     moodPrev: false,
     dash: 0,
     tale: 0,
+    tapeUrl: "",
+    tapeTitle: "",
     dirty: false,
     saveAt: 0,
     rebuild() {
@@ -316,10 +319,20 @@ export function createSim(seed = 0) {
       if (hit(NPC.orr.x, NPC.orr.z, 2.3)) return this.openTalk("orr", NPC.orr.name);
       if (hit(NPC.bulb.x, NPC.bulb.z, 2.3)) return this.openTalk("bulb", NPC.bulb.name);
       if (hit(JAHMAN.x, JAHMAN.z, 1.45)) return this.say("Джаман", JAHMAN_LINES);
+      for (const tape of TAPES) {
+        if (hit(tape.x, tape.z, 1.15)) {
+          this.tapeUrl = tape.url;
+          this.tapeTitle = tape.title;
+          return this.say("Кассета", [
+            `«${tape.title}». Вставь её в ящик — экран возьмёт файл с сайта.`,
+          ]);
+        }
+      }
       if (hit(STORY_BOX.x, STORY_BOX.z, 1.4)) {
-        const tale = TALES[this.tale % TALES.length];
-        this.tale = (this.tale + 1) % TALES.length;
-        return this.say(tale.title, tale.pages);
+        if (!this.tapeUrl) {
+          return this.say("Ящик", ["Пустой лоток. Кассета лежит на полу у южной стены."]);
+        }
+        return this.say(this.tapeTitle || "Кассета", ["Лента пошла. Не стой вплотную к экрану."]);
       }
       for (let i = 0; i < CRYSTALS.length; i++) {
         if (this.crystals[i]) continue;
@@ -448,7 +461,8 @@ export function createSim(seed = 0) {
       else if (hit(NPC.orr.x, NPC.orr.z, 2.3)) this.prompt = "E — Орр-1";
       else if (hit(NPC.bulb.x, NPC.bulb.z, 2.3)) this.prompt = "E — Ламп";
       else if (hit(JAHMAN.x, JAHMAN.z, 1.45)) this.prompt = "E — Джаман";
-      else if (hit(STORY_BOX.x, STORY_BOX.z, 1.4)) this.prompt = "E — сказка";
+      else if (TAPES.some((tape) => hit(tape.x, tape.z, 1.15))) this.prompt = "E — кассета";
+      else if (hit(STORY_BOX.x, STORY_BOX.z, 1.4)) this.prompt = this.tapeUrl ? "E — включить ящик" : "E — ящик пуст";
       else if (CRYSTALS.some((c, i) => !this.crystals[i] && hit(c.x, c.z, 2))) this.prompt = "E — поднять кристалл";
       else if (!this.key && hit(KEY_SPOT.x, KEY_SPOT.z, 1.8)) this.prompt = "E — поднять ключ";
       else if (BRAZIERS.some((b, i) => !this.fires[i] && hit(b.x, b.z, 1.8))) this.prompt = "E — зажечь жаровню";

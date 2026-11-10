@@ -1,6 +1,9 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { CSS3DObject, CSS3DRenderer } from "three/examples/jsm/renderers/CSS3DRenderer.js";
 import { bake, faceForward, fitHeight } from "./bake";
+import { bindCrewRig, type CrewRig } from "./rig";
+import { characterPath, ISLAND_SHIPS, shipUrl } from "@/game/ships";
 import { meshUrl, propUrl } from "../mesh-url";
 import { createSim, type Sim } from "./sim";
 import {
@@ -17,6 +20,7 @@ import {
   SKY,
   SPAWN,
   STORY_BOX,
+  TAPES,
   TOWER_GATE,
   footY,
   groundY,
@@ -112,7 +116,7 @@ export function createIsland(
   canvas: HTMLCanvasElement,
   onProps?: () => void,
   onLoadError?: (error: unknown) => void,
-  context: { planetSeed?: number } = {},
+  context: { planetSeed?: number; players?: Array<{ species?: string; name?: string }> } = {},
 ): IslandWorld {
   const sim = createSim(Number(context.planetSeed) >>> 0);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false });
@@ -447,6 +451,47 @@ export function createIsland(
     if (mesh.isMesh) track(mesh);
   });
 
+  const tapeVideo = document.createElement("video");
+  tapeVideo.playsInline = true;
+  tapeVideo.setAttribute("playsinline", "");
+  tapeVideo.loop = true;
+  tapeVideo.volume = 0.85;
+  tapeVideo.style.width = "700px";
+  tapeVideo.style.height = "420px";
+  tapeVideo.style.objectFit = "cover";
+  tapeVideo.style.background = "#000";
+  tapeVideo.style.pointerEvents = "none";
+  const tapeScreen = new CSS3DObject(tapeVideo);
+  tapeScreen.scale.set(0.001, 0.001, 0.001);
+  tapeScreen.position.set(0, 0.76, -0.2);
+  tapeScreen.rotation.y = Math.PI;
+  tapeScreen.visible = false;
+  story.add(tapeScreen);
+  const cssRenderer = new CSS3DRenderer();
+  cssRenderer.domElement.style.position = "absolute";
+  cssRenderer.domElement.style.inset = "0";
+  cssRenderer.domElement.style.pointerEvents = "none";
+  if (getComputedStyle(host).position === "static") host.style.position = "relative";
+  host.appendChild(cssRenderer.domElement);
+  let shownTape = "";
+
+  TAPES.forEach((tape) => {
+    const shell = new THREE.Mesh(
+      new THREE.BoxGeometry(0.28, 0.16, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0x1a1c22, roughness: 0.55, metalness: 0.2 }),
+    );
+    const label = new THREE.Mesh(
+      new THREE.BoxGeometry(0.16, 0.08, 0.01),
+      new THREE.MeshStandardMaterial({ color: 0xc4493a, roughness: 0.6 }),
+    );
+    label.position.z = -0.03;
+    const cassette = new THREE.Group();
+    cassette.add(shell, label);
+    cassette.position.set(tape.x, groundY(tape.x, tape.z) + 0.1, tape.z);
+    cassette.rotation.y = 0.4;
+    scene.add(cassette);
+  });
+
   const pilot = new THREE.Group();
   const cloth = new THREE.MeshStandardMaterial({ color: 0x24343c, roughness: 0.7 });
   const suit = new THREE.MeshStandardMaterial({ color: 0xd7b48a, roughness: 0.62 });
@@ -482,6 +527,7 @@ export function createIsland(
     }
   });
   scene.add(pilot);
+  let crewRig: CrewRig | null = null;
 
   const bike = new THREE.Group();
   bike.rotation.order = "YXZ";
@@ -730,6 +776,61 @@ export function createIsland(
       console.warn("BCM JahMan skipped", err);
     }
 
+    try {
+      const picked = context.players?.map((player) => player.species).find((species) => species);
+      const crew = (window as Window & {
+        BCMMiniCrewSelection?: { players?: Array<{ species?: string; spec?: string }> };
+      }).BCMMiniCrewSelection?.players?.[0];
+      const species = String(picked || crew?.species || crew?.spec || "");
+      const gltf = await loader.loadAsync(shipUrl(characterPath(species)));
+      if (!alive) return;
+      const body = gltf.scene;
+      fitHeight(body, 1.72);
+      body.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.castShadow = false;
+        mesh.receiveShadow = false;
+      });
+      pilot.children.forEach((child) => {
+        child.visible = false;
+      });
+      pilot.add(body);
+      crewRig = bindCrewRig(body);
+    } catch (err) {
+      console.warn("BCM crew body skipped", err);
+    }
+
+    const pads: Array<[number, number]> = [
+      [-32, 20],
+      [36, 18],
+      [-36, -8],
+      [38, -14],
+      [-20, -34],
+      [22, -36],
+      [42, 2],
+      [-42, 8],
+      [30, 28],
+      [-28, 34],
+    ];
+    for (let i = 0; i < ISLAND_SHIPS.length; i++) {
+      const spot = pads[i];
+      if (!spot || !fits(spot[0], spot[1], 2.6)) continue;
+      try {
+        const gltf = await loader.loadAsync(shipUrl(ISLAND_SHIPS[i]));
+        if (!alive) return;
+        const hull = gltf.scene;
+        fitHeight(hull, 1.65);
+        const pivot = new THREE.Group();
+        pivot.add(hull);
+        pivot.position.set(spot[0], groundY(spot[0], spot[1]), spot[1]);
+        pivot.rotation.y = i * 0.6;
+        scene.add(pivot);
+      } catch (err) {
+        console.warn("BCM island ship skipped", ISLAND_SHIPS[i], err);
+      }
+    }
+
     const crystals = [amber, cyan, violet];
     CRYSTALS.forEach((spot, i) => {
       const pivot = drop(crystals[i % crystals.length], spot.x, spot.z, i);
@@ -862,6 +963,7 @@ export function createIsland(
     const w = host.clientWidth || 1;
     const h = host.clientHeight || 1;
     renderer.setSize(w, h, false);
+    cssRenderer.setSize(w, h);
     camera.aspect = w / Math.max(1, h);
     camera.updateProjectionMatrix();
   }
@@ -918,6 +1020,17 @@ export function createIsland(
     const stance = sim.mood === "stealth" ? 0.62 : 1;
     pilot.scale.set(sim.mood === "fight" ? 1.08 : 1, stance, sim.mood === "fight" ? 1.08 : 1);
     pilot.position.y += sim.mode === "foot" && Math.abs(sim.speed) > 0.35 ? Math.abs(Math.sin(elapsed * (sim.mood === "sport" ? 14 : 11))) * 0.05 : 0;
+    crewRig?.update(sim.mode === "foot" && Math.abs(sim.speed) > 0.35);
+    if (sim.tapeUrl !== shownTape) {
+      shownTape = sim.tapeUrl;
+      tapeScreen.visible = Boolean(shownTape);
+      if (shownTape) {
+        if (tapeVideo.getAttribute("src") !== shownTape) tapeVideo.src = shownTape;
+        tapeVideo.play()?.catch(() => {});
+      } else {
+        tapeVideo.pause();
+      }
+    }
 
     if (sim.mode === "bike") {
       bike.position.set(sim.x, sim.y, sim.z);
@@ -986,6 +1099,7 @@ export function createIsland(
     sky.position.copy(camera.position);
 
     renderer.render(scene, camera);
+    cssRenderer.render(scene, camera);
   }
 
   function paintMap(canvasMap: HTMLCanvasElement) {
@@ -1030,6 +1144,9 @@ export function createIsland(
   function dispose() {
     alive = false;
     observer.disconnect();
+    tapeVideo.pause();
+    tapeVideo.removeAttribute("src");
+    cssRenderer.domElement.remove();
     renderer.dispose();
     geos.forEach((geo) => geo.dispose());
     mats.forEach((mat) => mat.dispose());

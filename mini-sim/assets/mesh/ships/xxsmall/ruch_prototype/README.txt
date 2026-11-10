@@ -1,1 +1,0 @@
-Ogrika Ruch-inspired rough prototype. Front -X, up +Y. White and navy interpretations, flight has a small static blue exhaust, off has no exhaust. Open cockpit without pilot, no animation, landing gear or colliders. Vertex colors, approximate structure, not tested in Three.js r128 or Android.
