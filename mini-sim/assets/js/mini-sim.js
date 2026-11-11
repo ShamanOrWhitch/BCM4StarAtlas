@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.9",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.10",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.12.9",
+      title: "SPACE LABYRINTH — 0.12.10",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -5888,18 +5888,34 @@
   let occupiedDock = null;
   const camo = { on: false, hue: 0.08, glow: 0.35, test: false, dirty: false };
   let shipRig = null;
-  const FLIGHT_SHIPS = [
-    { id: "opal", name: "Opal Jet", file: "mesh/ships/xxsmall/opal_jet/opal_jet_teal_flight.glb", length: 12 },
-    { id: "mik", name: "Mik Ogrika", file: "mesh/ships/small/mik/mik_pearl_flight.glb", length: 16 },
-    { id: "solos", name: "Solos", file: "mesh/ships/xxsmall/solos/solos_blue_flight.glb", length: 11 },
-    { id: "feist", name: "Feist Tufa", file: "mesh/ships/small/feist_darker_gray/feist_gray_flight.glb", length: 16 },
-    { id: "busan", name: "Busan Pulse", file: "mesh/ships/xxsmall/busan_pulse/busan_pulse_blue_flight.glb", length: 12 },
-    { id: "scud", name: "Scud", file: "mesh/ships/xsmall/scud/scud_orange_flight.glb", length: 14 },
-    { id: "x5", name: "Pearce X5", file: "mesh/ships/xsmall/pearce_x5/x5_blue_compact_flight.glb", length: 13 },
-    { id: "arma", name: "Vzus Arma", file: "mesh/ships/small/arma/arma_teal_flight.glb", length: 16 },
-    { id: "ambwe", name: "VZUS Ambwe", file: "mesh/ships/small/ambwe/ambwe_black_flight.glb", length: 16 }
+  const legacyFlightShips = [
+    { id: "opal", name: "Opal Jet", category: "Racer", file: "mesh/ships/xxsmall/opal_jet/opal_jet_teal_flight.glb", parkedFile: "mesh/ships/xxsmall/opal_jet/opal_jet_teal_off.glb", length: 12, yardLength: 8 },
+    { id: "mik", name: "Mik Ogrika", category: "Fighter", file: "mesh/ships/small/mik/mik_pearl_flight.glb", parkedFile: "mesh/ships/small/mik/mik_pearl_off.glb", length: 16, yardLength: 12 },
+    { id: "solos", name: "Solos", category: "Racer", file: "mesh/ships/xxsmall/solos/solos_blue_flight.glb", parkedFile: "mesh/ships/xxsmall/solos/solos_blue_off.glb", length: 11, yardLength: 8 },
+    { id: "feist", name: "Feist Tufa", category: "Fighter", file: "mesh/ships/small/feist_darker_gray/feist_gray_flight.glb", parkedFile: "mesh/ships/small/feist_darker_gray/feist_gray_parked.glb", length: 16, yardLength: 12 },
+    { id: "busan-pulse", name: "Busan Pulse", category: "Racer", file: "mesh/ships/xxsmall/busan_pulse/busan_pulse_blue_flight.glb", parkedFile: "mesh/ships/xxsmall/busan_pulse/busan_pulse_blue_folded.glb", length: 12, yardLength: 9 },
+    { id: "scud", name: "Scud", category: "Racer", file: "mesh/ships/xsmall/scud/scud_orange_flight.glb", parkedFile: "mesh/ships/xsmall/scud/scud_orange_off.glb", length: 14, yardLength: 10 },
+    { id: "pearce-x5", name: "Pearce X5", category: "Fighter / racer", file: "mesh/ships/xsmall/pearce_x5/x5_blue_compact_flight.glb", parkedFile: "mesh/ships/xsmall/pearce_x5/x5_blue_compact_off.glb", length: 13, yardLength: 10 },
+    { id: "arma", name: "VZUS Arma", category: "Fighter", file: "mesh/ships/small/arma/arma_teal_flight.glb", parkedFile: "mesh/ships/small/arma/arma_teal_landed.glb", length: 16, yardLength: 12 },
+    { id: "ambwe", name: "VZUS Ambwe", category: "Fighter", file: "mesh/ships/small/ambwe/ambwe_black_flight.glb", parkedFile: "mesh/ships/small/ambwe/ambwe_black_off.glb", length: 16, yardLength: 12 }
   ];
-  let chosenFlight = FLIGHT_SHIPS[0];
+  const catalogShips = Array.isArray(config.shipCatalog) ? config.shipCatalog : [];
+  const FLIGHT_SHIPS = catalogShips.length
+    ? catalogShips.filter((ship) => ship && ship.id && ship.flight).map((ship) => ({
+        id: String(ship.id),
+        name: String(ship.name || ship.id),
+        category: String(ship.category || "Прочие"),
+        size: String(ship.size || ""),
+        file: "mesh/ships/" + String(ship.flight),
+        parkedFile: "mesh/ships/" + String(ship.parked || ship.flight),
+        length: Number(ship.seatLength) || 12,
+        yardLength: Number(ship.yardLength) || 12
+      }))
+    : legacyFlightShips;
+  let chosenFlight = FLIGHT_SHIPS.find((ship) => ship.id ===
+      (window.BCMMiniCrewSelection && window.BCMMiniCrewSelection.shipId))
+    || FLIGHT_SHIPS.find((ship) => ship.id === "opal")
+    || FLIGHT_SHIPS[0];
 
   function aimFlightNose(root) {
     root.rotation.set(0, 0, 0);
@@ -6194,10 +6210,12 @@
       camera.position.copy(ship.position);
       camera.quaternion.copy(ship.quaternion);
     }
-    mountFlightHull({ id: dock.name, name: dock.name, file: dock.file, length: dock.length });
+    mountFlightHull({ id: dock.id, name: dock.name, file: dock.file, length: dock.length });
+    chosenFlight = FLIGHT_SHIPS.find((spec) => spec.id === dock.id) || chosenFlight;
     if (window.BCMMiniCrewSelection) {
-      window.BCMMiniCrewSelection.shipId = dock.name;
+      window.BCMMiniCrewSelection.shipId = dock.id;
       window.BCMMiniCrewSelection.shipFile = dock.file;
+      window.BCMMiniCrewSelection.shipName = dock.name;
       window.BCMMiniCrewSelection.shipLength = dock.length;
     }
     setStatus("ПЕРЕСЕЛ · " + dock.name);
@@ -6211,9 +6229,9 @@
       box = document.createElement("div");
       box.setAttribute("data-flight-ships", "");
       const label = document.createElement("p");
-      label.textContent = "Корабль вылета. В кабине виден космос.";
+      label.textContent = "Корабль вылета · " + FLIGHT_SHIPS.length + " моделей. Выбери класс и форму корпуса.";
       label.style.margin = "12px 0 6px";
-      box.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px";
+      box.style.cssText = "margin:0 0 12px";
       const note = crewPreflight.querySelector(".bcm-mini-sim-crew-preflight-note");
       const card = note ? note.parentNode : crewPreflight.querySelector(".bcm-mini-sim-crew-preflight-card");
       if (note && card) {
@@ -6221,48 +6239,54 @@
         card.insertBefore(box, label.nextSibling);
       }
     }
-    box.innerHTML = FLIGHT_SHIPS.map((ship) => {
-      const on = ship.id === chosenFlight.id;
-      return '<button type="button" data-flight-ship="' + ship.id + '" style="border-radius:999px;padding:6px 10px;border:1px solid ' +
-        (on ? "#e4a322" : "rgba(255,255,255,.25)") + ";background:" + (on ? "rgba(228,163,34,.2)" : "transparent") +
-        ';color:inherit;cursor:pointer">' + ship.name + "</button>";
-    }).join("");
-    box.querySelectorAll("[data-flight-ship]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        chosenFlight = FLIGHT_SHIPS.find((ship) => ship.id === btn.getAttribute("data-flight-ship")) || chosenFlight;
-        renderFlightPicker();
-        crewSetStatus("Корабль: " + chosenFlight.name);
-      });
+    box.innerHTML = "";
+    const select = document.createElement("select");
+    select.setAttribute("aria-label", "Корабль вылета");
+    select.style.cssText = "width:100%;min-height:42px;padding:9px 12px;border-radius:9px;border:1px solid rgba(228,163,34,.55);background:#101923;color:#f4efe4;font:inherit";
+    const groups = new Map();
+    FLIGHT_SHIPS.forEach((ship) => {
+      const category = ship.category || "Прочие";
+      if (!groups.has(category)) {
+        const group = document.createElement("optgroup");
+        group.label = category;
+        groups.set(category, group);
+        select.appendChild(group);
+      }
+      const option = document.createElement("option");
+      option.value = ship.id;
+      option.textContent = ship.name + (ship.size ? " · " + ship.size : "");
+      groups.get(category).appendChild(option);
     });
+    select.value = chosenFlight.id;
+    select.addEventListener("change", () => {
+      chosenFlight = FLIGHT_SHIPS.find((ship) => ship.id === select.value) || chosenFlight;
+      if (window.BCMMiniCrewSelection) {
+        window.BCMMiniCrewSelection.shipId = chosenFlight.id;
+        window.BCMMiniCrewSelection.shipFile = chosenFlight.file;
+        window.BCMMiniCrewSelection.shipName = chosenFlight.name;
+        window.BCMMiniCrewSelection.shipLength = chosenFlight.length;
+      }
+      crewSetStatus("Корабль: " + chosenFlight.name);
+    });
+    const hint = document.createElement("p");
+    hint.textContent = "На стоянке используется отдельная idle/off-модель, при пересадке — полётная. Для одиночных GLB форма остаётся общей.";
+    hint.style.cssText = "font-size:12px;opacity:.72;margin:6px 0 0";
+    box.appendChild(select);
+    box.appendChild(hint);
   }
 
   function parkDeepSpaceFleet() {
-    // One parked hull per family. Small and medium only — the first room's
-    // right wall is open, so the yard sits just outside the flight line.
-    const yard = [
-      ["mesh/ships/small/ambwe/ambwe_black_off.glb", 11],
-      ["mesh/ships/small/arma/arma_black_landed.glb", 11],
-      ["mesh/ships/small/busan_thrill/thrill_blue_off.glb", 10],
-      ["mesh/ships/small/calico_shipit/shipit_white_off.glb", 11],
-      ["mesh/ships/small/earp/earp_blue_off.glb", 11],
-      ["mesh/ships/small/feist_darker_gray/feist_gray_parked.glb", 12],
-      ["mesh/ships/small/imp_tip_wings/imp_orange_mech.glb", 10],
-      ["mesh/ships/small/meditech/medtech_white_off.glb", 11],
-      ["mesh/ships/small/mik/mik_pearl_off.glb", 12],
-      ["mesh/ships/small/pearce_x6/x6_blue_off.glb", 11],
-      ["mesh/ships/small/rainbow_chi_photoli/rainbow_chi.glb", 14],
-      ["mesh/ships/small/rayfam/rayfam_teal_off.glb", 11],
-      ["mesh/ships/medium/rainbow_om/rainbow_om.glb", 26],
-      ["mesh/ships/medium/calico_hero_v1/calico_hero.glb", 24],
-      ["mesh/ships/medium/calico_evac_v1/calico_evac.glb", 24],
-      ["mesh/ships/medium/imp_tap_v1/imp_tap_v1/imp_tap.glb", 26],
-      ["mesh/ships/Large/rainbow_arc_v1/rainbow_arc.glb", 36, 286, 0, 176, 0.4],
-      ["mesh/ships/Large/imp_bur_v1/imp_bur_v1/armstrong_imp.glb", 42, 174, 0, 124, -0.5],
-      ["mesh/ships/medium/mamba/fimbul_mamba.glb", 38, 240, 0, 20, 0.3],
-      ["mesh/ships/medium/mamba_ex/fimbul_mamba_ex.glb", 38, 240, 0, -28, -0.4],
-      ["mesh/ships/medium/fimbull packlite/packlite.glb", 28, 80, 0, 78, 0.5],
-      ["mesh/ships/medium/pearce_f4/pearce_f4.glb", 32, 130, 0, 78, -0.4]
-    ];
+    // Every catalog family gets a real parked mesh. Boarding loads the same
+    // hull's flight file; the cockpit and flight physics remain shared.
+    const yard = FLIGHT_SHIPS.map((spec, index) => ({
+      id: spec.id,
+      name: spec.name,
+      file: spec.file,
+      parkedFile: spec.parkedFile || spec.file,
+      length: spec.length || 12,
+      displayLength: spec.yardLength || spec.length || 12,
+      index
+    }));
     const ensureLoader = () => new Promise((resolve, reject) => {
       if (window.THREE && window.THREE.GLTFLoader) {
         resolve(window.THREE.GLTFLoader);
@@ -6294,52 +6318,49 @@
       let index = 0;
       const next = () => {
         if (index >= yard.length || miniSimReleased) return;
-        const slot = yard[index];
-        const file = slot[0];
-        const target = slot[1];
-        const url = assetUrl(file);
+        const spec = yard[index];
         index += 1;
-        const place = index - 1;
+        const place = spec.index;
+        const url = assetUrl(spec.parkedFile);
         if (!url) {
+          console.warn("BCM parked ship asset missing:", spec.parkedFile);
           next();
           return;
         }
         const loader = new Loader();
         loader.load(url, (gltf) => {
-          const root = gltf && (gltf.scene || (gltf.scenes && gltf.scenes[0]));
-          if (root && scene) {
-            fit(root, target, file);
+          const hull = gltf && (gltf.scene || (gltf.scenes && gltf.scenes[0]));
+          if (hull && scene) {
+            fit(hull, spec.displayLength, spec.parkedFile);
             const pivot = new THREE.Group();
-            pivot.name = "docked-" + file.split("/").pop();
-            pivot.add(root);
-            const col = place % 4;
-            const row = Math.floor(place / 4);
-            if (slot.length > 2) {
-              pivot.position.set(slot[2], slot[3], slot[4]);
-              pivot.rotation.y = slot[5] || 0;
-              pivot.userData.berth = true;
-              asteroidBerths.push(pivot);
-            } else if (place < 12) {
-              pivot.position.set(16 + col * 22, -3.5, 8 - row * 24);
-              pivot.rotation.y = -0.6;
-            } else {
-              const i = place - 12;
-              pivot.position.set(18 + (i % 2) * 46, -3.2, -70 - Math.floor(i / 2) * 52);
-              pivot.rotation.y = 0.4;
-            }
+            pivot.name = "docked-" + spec.id;
+            pivot.add(hull);
+            const columns = 6;
+            const col = place % columns;
+            const row = Math.floor(place / columns);
+            // The open Deep Space volume is a display yard; larger hulls get
+            // enough room to read without overlapping neighboring models.
+            pivot.position.set(22 + col * 64, -3.5, 26 - row * 76);
+            pivot.rotation.y = 0.35 + (place % 3) * 0.15;
+            pivot.userData.berth = true;
+            asteroidBerths.push(pivot);
             scene.add(pivot);
             dockedShips.push({
               pivot,
-              file,
-              length: target,
-              name: file.split("/").pop().replace(/\.glb$/i, "").replace(/_/g, " ")
+              id: spec.id,
+              file: spec.file,
+              length: spec.length,
+              name: spec.name
             });
           }
-          window.setTimeout(next, 180);
-        }, undefined, () => window.setTimeout(next, 40));
+          window.setTimeout(next, 120);
+        }, undefined, () => {
+          console.warn("BCM parked ship load failed:", spec.parkedFile);
+          window.setTimeout(next, 40);
+        });
       };
       next();
-    }).catch(() => {});
+    }).catch((error) => console.warn("BCM ship yard skipped:", error));
   }
 
   function startSim() {
@@ -6388,7 +6409,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.12.9") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.12.10") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();
