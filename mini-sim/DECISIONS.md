@@ -1,3 +1,14 @@
+## D-048 — One shared ship catalog, separate parked and flight forms (11 November 2026)
+
+**Status:** Candidate implementation in WORK LOCK [#107](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/107), branch `feat/minisim-ship-hull-states`; CI pending.
+
+- Keep one source of truth at `mini-sim/assets/mesh/ships/catalog.json` for all 37 families and 240 verified GLB variants. Store explicit `flight` and `parked` file paths; when a family only has one GLB, use that same file for both states rather than inventing an animation.
+- Use existing model suffixes (`flight`, `off`, `landed`, `parked`, `folded`, `mech`, etc.) as separate ready-made forms. Do not create skeletal animation or rewrite model geometry as part of this pass.
+- Space first-person selects the flight form; the deep-space shipyard displays the parked form and boarding swaps to the flight form. First Planet third-person uses the same pair and swaps when the craft is moving. Only road-safe `planetRace` families enter Shoal Race; heavier craft remain in the orbital showcase.
+- Preserve Packlite, Mamba, Mamba EX and Pearce F4 controllers/panels. Keep Rainbow camouflage independent and unchanged until separately specified by the user. Defer 2D ship views.
+
+---
+
 ## D-047 — Mini-Sim delivery artifact has exactly one ZIP layer (6 November 2026)
 
 **Status:** Merged via [PR #102](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/102) as main commit [`f6903fcb7b67663b8bece272baafd78a230ebb74`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/f6903fcb7b67663b8bece272baafd78a230ebb74). WORK LOCK [#101](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/101) completed. Mini-Sim 0.12.2 / Tower 0.2.71.

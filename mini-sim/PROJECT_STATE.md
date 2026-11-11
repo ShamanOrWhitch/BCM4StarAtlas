@@ -1,3 +1,16 @@
+## Active implementation — WORK LOCK #107: ship parked/flight forms (11 November 2026)
+
+- **Issue:** [#107](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/107). **Branch:** `feat/minisim-ship-hull-states`. **Base:** main `a7d6d6918c06818a1e8a968fb940d19ed0333042` (Mini-Sim 0.12.9). Candidate Mini-Sim version: `0.12.10`.
+- Added `mini-sim/assets/mesh/ships/catalog.json`: one entry per 37 ship families and references to all 240 existing GLB files. Every family has an explicit flight and parked choice; a single-file family intentionally uses the same GLB for both.
+- Mini-Sim first-person space now receives the catalog through `BCMMiniSimConfig.shipCatalog`, exposes the complete family picker grouped by ship class, displays each family's parked form in the deep-space yard, and loads its flight form on transfer/boarding.
+- First Planet now derives island/showcase/race lists from the same JSON catalog. Small / extra-small craft park on the island; medium / large / Titan craft use the orbital showcase. A boarded ship switches from its parked mesh to the paired flight mesh once moving; single-file families remain unchanged.
+- Existing four medium demo rigs (Packlite, Mamba, Mamba EX, Pearce F4) keep their original controls, panels and mechanical modes. Rainbow camouflage code has not been modified; 2D rendering is out of scope.
+- Added `scripts/ship-hull-states.test.mjs` to verify all catalog paths, paired-state references, the four demo controllers, first-person wiring and planet wiring. It is now included in the Mini-Sim regression workflow.
+- **Status:** source implementation is on the feature branch; GitHub PR checks and First Planet WordPress bundle build are pending. No live WordPress upload, production deployment, manual browser playtest or device confirmation is claimed.
+- **Coordination:** PR [#105](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/105) / issue [#104](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/104) scenery work remains separate. This lock does not alter its island decoration, route or Shoal Race physics. Galia Desk, scanner/pricing, firewall, wallet writes and SAGE transactions remain excluded.
+
+---
+
 ## Completed — Mini-Sim 0.12.2 package delivery correction (6 November 2026)
 
 - Gameplay source was already merged through [PR #100](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/100), merge commit [`8753eaceb69b3608408f728d4fd76ca7dad6a073`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/8753eaceb69b3608408f728d4fd76ca7dad6a073). Mini-Sim: `0.12.2`; Tower: `0.2.71`.

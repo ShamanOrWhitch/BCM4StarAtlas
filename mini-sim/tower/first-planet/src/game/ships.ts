@@ -1,3 +1,4 @@
+import SHIP_CATALOG from "../../../../assets/mesh/ships/catalog.json";
 import { meshUrl, propUrl } from "@/game/mesh-url";
 
 /** Every ship the game asks for lives under mini-sim/assets/mesh/ships/. */
@@ -7,74 +8,80 @@ export function shipUrl(path: string) {
   return meshUrl(path.split("/").map((part) => encodeURIComponent(part)).join("/"));
 }
 
+type CatalogShip = {
+  id: string;
+  name: string;
+  category: string;
+  crew: string;
+  size: string;
+  flight: string;
+  parked: string;
+  planetDrive: boolean;
+  planetRace: boolean;
+  islandLength: number;
+  raceLength: number;
+  yardLength: number;
+  showLength: number;
+};
+
 export type PilotShip = {
   id: string;
   name: string;
+  /** Rest/parked form, when the family has a separate idle GLB. */
   file: string;
-  /** Species key for characterPath — the pilot that ships with this hull. */
+  /** Motion/flight form; single-model families intentionally reuse file. */
+  flightFile: string;
   crew: string;
-  /** Parked on the desert, beside a person. Big enough to read, not a house. */
   island: number;
-  /** Open track. The road is ~15 m wide, so a racer has to read at speed. */
   race: number;
-  /** Showcase hulls beside the hanging asteroid. A step up from the desert prop. */
   show: number;
+  planetRace: boolean;
 };
 
-/** Real files on disk. Missing colorways were why every kart became a red Pearce. */
-export const PILOT_SHIPS: PilotShip[] = [
-  { id: "pearce4", name: "Pearce X4", file: "ships/xxsmall/pearce x 4/spacebike_red_on.glb", crew: "human", island: 3.6, race: 6.6, show: 11 },
-  { id: "pearce4-blue", name: "Pearce X4 синий", file: "ships/xxsmall/pearce x 4/spacebike_blue_off.glb", crew: "high", island: 3.6, race: 6.6, show: 11 },
-  { id: "airbike", name: "Fimbul Airbike", file: "ships/xxsmall/fimbul Airbike/airbike_red_full.glb", crew: "ustur", island: 3.4, race: 6.2, show: 10 },
-  { id: "opal", name: "Opal Jet", file: "ships/xxsmall/opal_jet/opal_jet_teal_flight.glb", crew: "mierese", island: 5.4, race: 7.8, show: 13 },
-  { id: "jetjet", name: "Jetjet", file: "ships/xsmall/jetjet/jetjet_red_flight.glb", crew: "victorn", island: 5.6, race: 8.8, show: 15 },
-  { id: "solos", name: "Solos", file: "ships/xxsmall/solos/solos_blue_flight.glb", crew: "sogmian", island: 4.2, race: 7.4, show: 12 },
-  { id: "ruch", name: "Ruch", file: "ships/xxsmall/ruch/ruch_blue_flight.glb", crew: "profound", island: 4.2, race: 7.4, show: 12 },
-  { id: "busan", name: "Busan Pulse", file: "ships/xxsmall/busan_pulse/busan_pulse_blue_flight.glb", crew: "high", island: 4.0, race: 7.2, show: 12 },
-  { id: "scud", name: "Scud", file: "ships/xsmall/scud/scud_orange_flight.glb", crew: "mierese", island: 5.8, race: 9.0, show: 16 },
-  { id: "lowbie", name: "Fimbul Lowbie", file: "ships/xsmall/Fimbul Lowbie/hovercar_red_off.glb", crew: "human", island: 6.0, race: 9.2, show: 16 },
-  { id: "niruch", name: "Niruch", file: "ships/xsmall/niruch/niruch_blue_off.glb", crew: "ustur", island: 5.2, race: 8.4, show: 14 },
-  { id: "x5", name: "Pearce X5", file: "ships/xsmall/pearce_x5/x5_blue_compact_off.glb", crew: "victorn", island: 5.0, race: 8.2, show: 14 },
-  { id: "maxhog", name: "Max Hog", file: "ships/xsmall/maxhog/maxhog_red_rig.glb", crew: "sogmian", island: 6.2, race: 9.6, show: 16 },
-  { id: "opal-white", name: "Opal Jet белый", file: "ships/xxsmall/opal_jet/opal_jet_white_off.glb", crew: "profound", island: 5.4, race: 7.8, show: 13 },
-  { id: "mik", name: "Mik Ogrika", file: "ships/small/mik/mik_pearl_flight.glb", crew: "human", island: 6.4, race: 9, show: 16 },
-  { id: "feist", name: "Feist Tufa", file: "ships/small/feist_darker_gray/feist_gray_flight.glb", crew: "high", island: 6.6, race: 9.2, show: 16 },
-  { id: "arma", name: "Vzus Arma", file: "ships/small/arma/arma_teal_flight.glb", crew: "ustur", island: 6.4, race: 9, show: 16 },
-  { id: "ambwe", name: "VZUS Ambwe", file: "ships/small/ambwe/ambwe_black_flight.glb", crew: "mierese", island: 6.4, race: 9, show: 16 },
-];
-
-export function pilotShip(id: string) {
-  return PILOT_SHIPS.find((ship) => ship.id === id) ?? PILOT_SHIPS[0];
+const CATALOG = (SHIP_CATALOG as { families: CatalogShip[] }).families;
+function toPilotShip(ship: CatalogShip): PilotShip {
+  return {
+    id: ship.id,
+    name: ship.name,
+    file: "ships/" + (ship.parked || ship.flight),
+    flightFile: "ships/" + ship.flight,
+    crew: ship.crew || "human",
+    island: Number(ship.islandLength) || 6,
+    race: Number(ship.raceLength) || 9,
+    show: Number(ship.showLength) || 12,
+    planetRace: Boolean(ship.planetRace),
+  };
 }
 
-/** Class hulls parked on the hanging asteroid. Too big for a desert pad. */
-export const ASTEROID_SHOW: PilotShip[] = [
-  { id: "arc", name: "Rainbow Arc", file: "ships/Large/rainbow_arc_v1/rainbow_arc.glb", crew: "human", island: 8, race: 12, show: 16 },
-  { id: "armstrong", name: "Armstrong Imp", file: "ships/Large/imp_bur_v1/imp_bur_v1/armstrong_imp.glb", crew: "high", island: 8, race: 12, show: 18 },
-];
+/** Small hulls can be boarded on the island; all other families live on the asteroid showcase. */
+export const PILOT_SHIPS: PilotShip[] = CATALOG.filter((ship) => ship.planetDrive).map(toPilotShip);
+export const ASTEROID_SHOW: PilotShip[] = CATALOG.filter((ship) => !ship.planetDrive).map(toPilotShip);
+
+const SHIP_ID_ALIASES: Record<string, string> = {
+  pearce4: "pearce-x4",
+  "pearce4-blue": "pearce-x4",
+  x4: "pearce-x4",
+  busan: "busan-pulse",
+  x5: "pearce-x5",
+  "opal-white": "opal",
+  chi: "rainbow-chi",
+  om: "rainbow-om",
+  arc: "rainbow-arc",
+  compakt: "calico-hero",
+};
+
+export function pilotShip(id: string) {
+  const normalized = SHIP_ID_ALIASES[id] ?? id;
+  return [...PILOT_SHIPS, ...ASTEROID_SHOW].find((ship) => ship.id === normalized) ?? PILOT_SHIPS[0];
+}
 
 export const ISLAND_SHIPS = PILOT_SHIPS.map((ship) => ship.file);
 
-/** One flight mesh per hull. The race shuffles these so a grid is not four copies. */
-export const RACE_SHIPS = [
-  "ships/xxsmall/pearce x 4/spacebike_red_on.glb",
-  "ships/xxsmall/fimbul Airbike/airbike_red_full.glb",
-  "ships/xxsmall/opal_jet/opal_jet_teal_flight.glb",
-  "ships/xsmall/jetjet/jetjet_red_flight.glb",
-  "ships/xxsmall/solos/solos_blue_flight.glb",
-  "ships/xxsmall/ruch/ruch_blue_flight.glb",
-  "ships/xxsmall/busan_pulse/busan_pulse_blue_flight.glb",
-  "ships/xsmall/scud/scud_orange_flight.glb",
-  "ships/xsmall/maxhog/maxhog_red_rig.glb",
-  "ships/xsmall/Fimbul Lowbie/hovercar_red_off.glb",
-  "ships/xxsmall/pearce x 4/spacebike_blue_off.glb",
-  "ships/xsmall/niruch/niruch_blue_off.glb",
-  "ships/xsmall/pearce_x5/x5_blue_compact_off.glb",
-  "ships/xxsmall/opal_jet/opal_jet_white_off.glb",
-];
+/** Only road-safe racers are used in Shoal Race. Combat and cargo hulls stay on the island/showcase. */
+export const RACE_SHIPS = PILOT_SHIPS.filter((ship) => ship.planetRace).map((ship) => ship.flightFile);
 
 export function raceLength(file: string) {
-  return pilotShip(PILOT_SHIPS.find((ship) => ship.file === file)?.id ?? "").race;
+  return [...PILOT_SHIPS, ...ASTEROID_SHOW].find((ship) => ship.flightFile === file || ship.file === file)?.race ?? 9;
 }
 
 /** Stand-in height for the species. High stays short, Sogmian stays tall. */
