@@ -11,8 +11,10 @@ const hull = read("mini-sim/assets/js/hull-dive.js");
 const warp = read("mini-sim/assets/js/deep-space-warp.js");
 const audit = read("mini-sim/assets/js/ui-layer-audit.js");
 
-assert.match(php, /Version: 0\.12\.0/);
-assert.match(php, /define\('BCM_MINI_SIM_VERSION', '0\.12\.0'\)/);
+const miniVersion = php.match(/Version:\s+([0-9.]+)/)?.[1];
+assert.ok(miniVersion, "Mini-Sim PHP header exposes a version");
+assert.ok(php.includes(`define('BCM_MINI_SIM_VERSION', '${miniVersion}')`));
+assert.ok(php.includes(`SPACE LABYRINTH — ${miniVersion}`));
 assert.match(php, /bcm-ui-layer-audit/);
 assert.match(flight, /showUnderlyingScene = !externalPause[\s\S]{0,180}bcm-hull-interior-active/);
 assert.match(hull, /let pilotMode = true/);
