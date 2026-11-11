@@ -1484,10 +1484,16 @@ export function createIsland(
       fitLength: number; flightHull?: THREE.Object3D | null; flightLoading?: boolean;
       x: number; z: number; y: number;
     }> }).parked) ?? [];
-    const near = parked.find((spot) => {
+    let near: (typeof parked)[number] | undefined;
+    let bestDistance = Infinity;
+    for (const spot of parked) {
+      const distance = (spot.x - sim.x) ** 2 + (spot.z - sim.z) ** 2;
       const reach = spot.y > 8 ? Math.max(48, spot.fitLength * 0.65) : 8;
-      return (spot.x - sim.x) ** 2 + (spot.z - sim.z) ** 2 < reach * reach;
-    });
+      if (distance < reach * reach && distance < bestDistance) {
+        near = spot;
+        bestDistance = distance;
+      }
+    }
     if (!near) return false;
     boarded = near;
     near.pivot.remove(near.hull);
