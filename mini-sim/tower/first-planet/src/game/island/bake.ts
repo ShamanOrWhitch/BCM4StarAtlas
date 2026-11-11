@@ -219,6 +219,16 @@ export function aimNose(root: THREE.Object3D) {
     x = 1;
     z = 0;
   }
+  // Opal's generated "front" spar is the tail of the hull the pilot flies.
+  // Leaving it there makes that one ship drive backwards.
+  let opal = false;
+  root.traverse((obj) => {
+    if (/forward_pods|folded_pods/i.test(obj.name || "")) opal = true;
+  });
+  if (opal) {
+    x = -x;
+    z = -z;
+  }
   root.rotation.y = Math.atan2(x, -z);
   return root;
 }

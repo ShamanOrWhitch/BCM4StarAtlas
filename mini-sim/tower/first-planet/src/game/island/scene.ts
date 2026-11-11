@@ -1240,9 +1240,9 @@ export function createIsland(
         if (!seatBox.isEmpty()) {
           const size = seatBox.getSize(new THREE.Vector3());
           const long = Math.max(size.x, size.z, 2.4);
-          dist = long * 0.95 + 2.8;
-          height = Math.max(2.2, size.y + long * 0.16);
-          lookAhead = long * 0.12;
+          dist = long * 1.15 + 3.2;
+          height = Math.max(2.8, size.y + long * 0.34);
+          lookAhead = long * 0.2;
         }
       }
       desired.set(sim.x - fx * dist, sim.y + height, sim.z - fz * dist);
@@ -1378,6 +1378,7 @@ export function createIsland(
 
   let tapeOverlay: HTMLDivElement | null = null;
   function closeTapeOverlay() {
+    if (document.fullscreenElement) document.exitFullscreen?.();
     if (!tapeOverlay) return;
     tapeOverlay.remove();
     tapeOverlay = null;
@@ -1406,6 +1407,8 @@ export function createIsland(
     overlay.appendChild(close);
     document.body.appendChild(overlay);
     tapeOverlay = overlay;
+    const request = overlay.requestFullscreen || (overlay as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> }).webkitRequestFullscreen;
+    if (request) request.call(overlay, { navigationUI: "hide" })?.catch(() => {});
     void tapeVideo.play()?.catch(() => {});
   }
 

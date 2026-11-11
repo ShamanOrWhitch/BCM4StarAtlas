@@ -26,7 +26,7 @@ export const PILOT_SHIPS: PilotShip[] = [
   { id: "pearce4", name: "Pearce X4", file: "ships/xxsmall/pearce x 4/spacebike_red_on.glb", crew: "human", island: 3.6, race: 6.6, show: 11 },
   { id: "pearce4-blue", name: "Pearce X4 синий", file: "ships/xxsmall/pearce x 4/spacebike_blue_off.glb", crew: "high", island: 3.6, race: 6.6, show: 11 },
   { id: "airbike", name: "Fimbul Airbike", file: "ships/xxsmall/fimbul Airbike/airbike_red_full.glb", crew: "ustur", island: 3.4, race: 6.2, show: 10 },
-  { id: "opal", name: "Opal Jet", file: "ships/xxsmall/opal_jet/opal_jet_teal_flight.glb", crew: "mierese", island: 4.6, race: 7.8, show: 13 },
+  { id: "opal", name: "Opal Jet", file: "ships/xxsmall/opal_jet/opal_jet_teal_flight.glb", crew: "mierese", island: 5.4, race: 7.8, show: 13 },
   { id: "jetjet", name: "Jetjet", file: "ships/xsmall/jetjet/jetjet_red_flight.glb", crew: "victorn", island: 5.6, race: 8.8, show: 15 },
   { id: "solos", name: "Solos", file: "ships/xxsmall/solos/solos_blue_flight.glb", crew: "sogmian", island: 4.2, race: 7.4, show: 12 },
   { id: "ruch", name: "Ruch", file: "ships/xxsmall/ruch/ruch_blue_flight.glb", crew: "profound", island: 4.2, race: 7.4, show: 12 },
@@ -36,7 +36,11 @@ export const PILOT_SHIPS: PilotShip[] = [
   { id: "niruch", name: "Niruch", file: "ships/xsmall/niruch/niruch_blue_off.glb", crew: "ustur", island: 5.2, race: 8.4, show: 14 },
   { id: "x5", name: "Pearce X5", file: "ships/xsmall/pearce_x5/x5_blue_compact_off.glb", crew: "victorn", island: 5.0, race: 8.2, show: 14 },
   { id: "maxhog", name: "Max Hog", file: "ships/xsmall/maxhog/maxhog_red_rig.glb", crew: "sogmian", island: 6.2, race: 9.6, show: 16 },
-  { id: "opal-white", name: "Opal Jet белый", file: "ships/xxsmall/opal_jet/opal_jet_white_off.glb", crew: "profound", island: 4.6, race: 7.8, show: 13 },
+  { id: "opal-white", name: "Opal Jet белый", file: "ships/xxsmall/opal_jet/opal_jet_white_off.glb", crew: "profound", island: 5.4, race: 7.8, show: 13 },
+  { id: "mik", name: "Mik Ogrika", file: "ships/small/mik/mik_pearl_flight.glb", crew: "human", island: 6.4, race: 9, show: 16 },
+  { id: "feist", name: "Feist Tufa", file: "ships/small/feist_darker_gray/feist_gray_flight.glb", crew: "high", island: 6.6, race: 9.2, show: 16 },
+  { id: "arma", name: "Vzus Arma", file: "ships/small/arma/arma_teal_flight.glb", crew: "ustur", island: 6.4, race: 9, show: 16 },
+  { id: "ambwe", name: "VZUS Ambwe", file: "ships/small/ambwe/ambwe_black_flight.glb", crew: "mierese", island: 6.4, race: 9, show: 16 },
 ];
 
 export function pilotShip(id: string) {

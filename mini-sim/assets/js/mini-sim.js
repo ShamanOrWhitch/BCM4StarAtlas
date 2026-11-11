@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.8",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.9",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.12.8",
+      title: "SPACE LABYRINTH — 0.12.9",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -5413,8 +5413,15 @@
     // the same renderer; all other states keep the ordinary single-camera render.
     const showUnderlyingScene = !externalPause || root.classList.contains("bcm-warp-maze-active") || root.classList.contains("bcm-hull-interior-active");
     if (!deepSpaceCustomRendered && renderer && scene && camera && showUnderlyingScene) {
-      const hue = ((typeof now === "number" ? now : performance.now()) / 3200) % 1;
-      rainbowHulls.forEach((hull) => paintRainbow(hull, hue));
+      if (camo.test || camo.on) {
+        const hue = camo.test ? ((typeof now === "number" ? now : performance.now()) / 3200) % 1 : camo.hue;
+        rainbowHulls.forEach((hull) => paintRainbow(hull, hue, camo.glow));
+        camo.dirty = true;
+      } else if (camo.dirty) {
+        rainbowHulls.forEach((hull) => restoreRainbow(hull));
+        camo.dirty = false;
+      }
+      if (shipRig && shipRig.api && shipRig.api.update) shipRig.api.update((typeof now === "number" ? now : performance.now()) / 1000, camera);
       renderer.render(scene, camera);
     }
     requestAnimationFrame(render);
@@ -5879,22 +5886,18 @@
   const dockedShips = [];
   const rainbowHulls = [];
   let occupiedDock = null;
+  const camo = { on: false, hue: 0.08, glow: 0.35, test: false, dirty: false };
+  let shipRig = null;
   const FLIGHT_SHIPS = [
-    { id: "pearce4", name: "Pearce X4", file: "mesh/ships/xxsmall/pearce x 4/spacebike_red_on.glb", length: 11 },
-    { id: "airbike", name: "Fimbul Airbike", file: "mesh/ships/xxsmall/fimbul Airbike/airbike_red_full.glb", length: 10 },
-    { id: "opal", name: "Opal Jet", file: "mesh/ships/xxsmall/opal_jet/opal_jet_teal_flight.glb", length: 13 },
-    { id: "jetjet", name: "Jetjet", file: "mesh/ships/xsmall/jetjet/jetjet_red_flight.glb", length: 15 },
-    { id: "solos", name: "Solos", file: "mesh/ships/xxsmall/solos/solos_blue_flight.glb", length: 12 },
-    { id: "ruch", name: "Ruch", file: "mesh/ships/xxsmall/ruch/ruch_blue_flight.glb", length: 12 },
+    { id: "opal", name: "Opal Jet", file: "mesh/ships/xxsmall/opal_jet/opal_jet_teal_flight.glb", length: 12 },
+    { id: "mik", name: "Mik Ogrika", file: "mesh/ships/small/mik/mik_pearl_flight.glb", length: 16 },
+    { id: "solos", name: "Solos", file: "mesh/ships/xxsmall/solos/solos_blue_flight.glb", length: 11 },
+    { id: "feist", name: "Feist Tufa", file: "mesh/ships/small/feist_darker_gray/feist_gray_flight.glb", length: 16 },
     { id: "busan", name: "Busan Pulse", file: "mesh/ships/xxsmall/busan_pulse/busan_pulse_blue_flight.glb", length: 12 },
-    { id: "scud", name: "Scud", file: "mesh/ships/xsmall/scud/scud_orange_flight.glb", length: 16 },
-    { id: "lowbie", name: "Fimbul Lowbie", file: "mesh/ships/xsmall/Fimbul Lowbie/hovercar_red_off.glb", length: 16 },
-    { id: "niruch", name: "Niruch", file: "mesh/ships/xsmall/niruch/niruch_blue_off.glb", length: 14 },
-    { id: "x5", name: "Pearce X5", file: "mesh/ships/xsmall/pearce_x5/x5_blue_compact_off.glb", length: 14 },
-    { id: "maxhog", name: "Max Hog", file: "mesh/ships/xsmall/maxhog/maxhog_red_rig.glb", length: 16 },
-    { id: "chi", name: "Rainbow Chi", file: "mesh/ships/small/rainbow_chi_photoli/rainbow_chi.glb", length: 18 },
-    { id: "om", name: "Rainbow Om", file: "mesh/ships/medium/rainbow_om/rainbow_om.glb", length: 28 },
-    { id: "arc", name: "Rainbow Arc", file: "mesh/ships/Large/rainbow_arc_v1/rainbow_arc.glb", length: 36 }
+    { id: "scud", name: "Scud", file: "mesh/ships/xsmall/scud/scud_orange_flight.glb", length: 14 },
+    { id: "x5", name: "Pearce X5", file: "mesh/ships/xsmall/pearce_x5/x5_blue_compact_flight.glb", length: 13 },
+    { id: "arma", name: "Vzus Arma", file: "mesh/ships/small/arma/arma_teal_flight.glb", length: 16 },
+    { id: "ambwe", name: "VZUS Ambwe", file: "mesh/ships/small/ambwe/ambwe_black_flight.glb", length: 16 }
   ];
   let chosenFlight = FLIGHT_SHIPS[0];
 
@@ -5944,6 +5947,14 @@
       x = 1;
       z = 0;
     }
+    let opal = false;
+    root.traverse((obj) => {
+      if (/forward_pods|folded_pods/i.test(obj.name || "")) opal = true;
+    });
+    if (opal) {
+      x = -x;
+      z = -z;
+    }
     root.rotation.y = Math.atan2(x, -z);
   }
 
@@ -5961,7 +5972,7 @@
     if (!rainbowHulls.includes(root)) rainbowHulls.push(root);
   }
 
-  function paintRainbow(root, t) {
+  function paintRainbow(root, t, glow) {
     if (!root || !root.userData || !root.userData.rainbow) return;
     const shift = t % 1;
     const tint = new THREE.Color();
@@ -5969,20 +5980,53 @@
       if (!obj.isMesh) return;
       const base = obj.geometry && obj.geometry.userData && obj.geometry.userData.baseColor;
       const attr = obj.geometry && obj.geometry.getAttribute("color");
-      if (base && attr) {
-        const arr = attr.array;
-        for (let i = 0; i < base.length; i += 3) {
-          tint.setRGB(base[i], base[i + 1], base[i + 2]);
-          const hsl = { h: 0, s: 0, l: 0 };
-          tint.getHSL(hsl);
-          tint.setHSL((hsl.h + shift) % 1, Math.max(hsl.s, 0.35), hsl.l);
-          arr[i] = tint.r;
-          arr[i + 1] = tint.g;
-          arr[i + 2] = tint.b;
-        }
-        attr.needsUpdate = true;
+      if (!base || !attr) return;
+      const arr = attr.array;
+      for (let i = 0; i < base.length; i += 3) {
+        tint.setRGB(base[i], base[i + 1], base[i + 2]);
+        const hsl = { h: 0, s: 0, l: 0 };
+        tint.getHSL(hsl);
+        tint.setHSL((hsl.h + shift) % 1, Math.max(hsl.s, 0.35), hsl.l);
+        arr[i] = tint.r;
+        arr[i + 1] = tint.g;
+        arr[i + 2] = tint.b;
       }
+      attr.needsUpdate = true;
+      const mats = obj.material ? (Array.isArray(obj.material) ? obj.material : [obj.material]) : [];
+      mats.forEach((mat) => {
+        if (!mat || !mat.emissive) return;
+        mat.emissive.setHSL(shift, 0.65, 0.5);
+        mat.emissiveIntensity = glow;
+      });
     });
+  }
+
+  function restoreRainbow(root) {
+    if (!root) return;
+    root.traverse((obj) => {
+      if (!obj.isMesh) return;
+      const base = obj.geometry && obj.geometry.userData && obj.geometry.userData.baseColor;
+      const attr = obj.geometry && obj.geometry.getAttribute("color");
+      if (!base || !attr) return;
+      attr.array.set(base);
+      attr.needsUpdate = true;
+      const mats = obj.material ? (Array.isArray(obj.material) ? obj.material : [obj.material]) : [];
+      mats.forEach((mat) => {
+        if (mat && mat.emissive) mat.emissiveIntensity = 0;
+      });
+    });
+  }
+
+  function eyeIsClear(root, eye) {
+    const ray = new THREE.Raycaster();
+    ray.near = 0.05;
+    ray.far = 4;
+    ray.set(eye, new THREE.Vector3(0, 0, -1));
+    if (ray.intersectObject(root, true).length) return false;
+    ray.far = 0.55;
+    ray.set(eye, new THREE.Vector3(0, 1, 0));
+    if (ray.intersectObject(root, true).length) return false;
+    return true;
   }
 
   function seatCockpit(root, length) {
@@ -5998,21 +6042,106 @@
     const fittedSize = new THREE.Vector3();
     fitted.getSize(fittedSize);
     const center = fitted.getCenter(new THREE.Vector3());
-    const cockpit = new THREE.Vector3(center.x, fitted.min.y + fittedSize.y * 0.58, fitted.min.z + Math.max(0.4, fittedSize.z * 0.08));
+    // Open bikes stay in the seat. A closed shell puts the eye inside the
+    // ceiling, so step up onto the hull, then just ahead of the nose.
+    const candidates = [
+      new THREE.Vector3(center.x, fitted.min.y + fittedSize.y * 0.64, fitted.min.z + Math.max(0.35, fittedSize.z * 0.12)),
+      new THREE.Vector3(center.x, fitted.max.y + 0.32, fitted.min.z + fittedSize.z * 0.22),
+      new THREE.Vector3(center.x, fitted.min.y + fittedSize.y * 0.55, fitted.min.z - 0.55)
+    ];
+    const cockpit = candidates.find((eye) => eyeIsClear(root, eye)) || candidates[2];
     root.position.sub(cockpit);
-    root.traverse((obj) => {
-      if (!obj.isMesh || !obj.material) return;
-      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      mats.forEach((mat) => {
-        if (mat) mat.side = THREE.DoubleSide;
-      });
+  }
+
+  function clearShipRig() {
+    if (shipRig && shipRig.panel && shipRig.panel.destroy) shipRig.panel.destroy();
+    if (shipRig && shipRig.api && shipRig.api.dispose) shipRig.api.dispose();
+    shipRig = null;
+  }
+
+  function loadScript(url) {
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-ship-script="' + url + '"]');
+      if (existing) {
+        resolve();
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = url;
+      script.async = true;
+      script.setAttribute("data-ship-script", url);
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error(url));
+      document.head.appendChild(script);
     });
+  }
+
+  function besideGlb(file, suffix) {
+    const glb = assetUrl(file);
+    if (!glb) return "";
+    return glb.replace(/[^/?#]+(?=($|\?))/, (leaf) => {
+      const base = leaf.replace(/\.glb$/i, "");
+      return encodeURIComponent(base + suffix);
+    });
+  }
+
+  function attachShipScripts(hull, file) {
+    clearShipRig();
+    const controlsUrl = besideGlb(file, "_controls.js");
+    const panelUrl = besideGlb(file, "_panel.js");
+    if (!controlsUrl) return;
+    const before = new Set(Object.keys(window));
+    loadScript(controlsUrl).then(() => loadScript(panelUrl).catch(() => {})).then(() => {
+      const fresh = Object.keys(window).filter((key) => !before.has(key) && typeof window[key] === "function");
+      const controlsKey = fresh.find((key) => /Controls$/.test(key));
+      const panelKey = fresh.find((key) => /Panel$/.test(key));
+      if (!controlsKey || !hull.parent) return;
+      try {
+        const api = window[controlsKey](hull, { mode: "flight" });
+        const panel = panelKey ? window[panelKey](api, { parent: root, position: "fixed", top: 68, left: 12 }) : null;
+        shipRig = { api, panel };
+        if (api.setMode) api.setMode("flight");
+      } catch (err) {
+        setStatus("Скрипт корабля не встал");
+        console.warn(err);
+      }
+    }).catch(() => {});
+  }
+
+  let camoPanel = null;
+  function ensureCamoPanel() {
+    if (camoPanel) return camoPanel;
+    const box = document.createElement("div");
+    box.setAttribute("data-camo-panel", "");
+    box.style.cssText = "position:fixed;top:68px;right:12px;z-index:40;width:240px;padding:10px 12px;border-radius:12px;background:rgba(8,14,20,.88);color:#f4efe4;border:1px solid rgba(228,163,34,.45);font:13px/1.4 sans-serif";
+    box.innerHTML = '<div style="font-weight:600;margin-bottom:6px">Маскировка</div>' +
+      '<label style="display:flex;gap:8px;align-items:center;margin:4px 0"><input data-camo-on type="checkbox"> Включить</label>' +
+      '<label style="display:block;margin:6px 0">Оттенок <input data-camo-hue type="range" min="0" max="360" value="29" style="width:100%"></label>' +
+      '<label style="display:block;margin:6px 0">Свечение <input data-camo-glow type="range" min="0" max="100" value="35" style="width:100%"></label>' +
+      '<label style="display:flex;gap:8px;align-items:center;margin:4px 0"><input data-camo-test type="checkbox"> Тест перелива</label>';
+    root.appendChild(box);
+    const on = box.querySelector("[data-camo-on]");
+    const hue = box.querySelector("[data-camo-hue]");
+    const glow = box.querySelector("[data-camo-glow]");
+    const test = box.querySelector("[data-camo-test]");
+    const read = () => {
+      camo.on = on.checked;
+      camo.test = test.checked;
+      camo.hue = Number(hue.value) / 360;
+      camo.glow = Number(glow.value) / 100;
+      camo.dirty = true;
+    };
+    box.addEventListener("input", read);
+    box.addEventListener("change", read);
+    camoPanel = box;
+    return box;
   }
 
   function mountFlightHull(spec) {
     const Loader = window.THREE && window.THREE.GLTFLoader;
     const url = spec && assetUrl(spec.file);
     if (!Loader || !url || !scene) return;
+    clearShipRig();
     new Loader().load(url, (gltf) => {
       const hull = gltf && (gltf.scene || (gltf.scenes && gltf.scenes[0]));
       if (!hull || !scene) return;
@@ -6025,6 +6154,11 @@
       if (ship.visual && ship.visual !== rig) scene.remove(ship.visual);
       scene.add(rig);
       ship.visual = rig;
+      const rainbow = /rainbow/i.test(spec.file || "");
+      const panel = ensureCamoPanel();
+      panel.hidden = !rainbow;
+      if (!rainbow) rainbowHulls.forEach((item) => restoreRainbow(item));
+      attachShipScripts(hull, spec.file);
       setStatus((spec.name || "Корабль") + " · КАБИНА");
     });
   }
@@ -6077,7 +6211,7 @@
       box = document.createElement("div");
       box.setAttribute("data-flight-ships", "");
       const label = document.createElement("p");
-      label.textContent = "Корабль вылета. В космосе летишь на нём из кабины.";
+      label.textContent = "Корабль вылета. В кабине виден космос.";
       label.style.margin = "12px 0 6px";
       box.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px";
       const note = crewPreflight.querySelector(".bcm-mini-sim-crew-preflight-note");
@@ -6123,7 +6257,11 @@
       ["mesh/ships/medium/calico_evac_v1/calico_evac.glb", 24],
       ["mesh/ships/medium/imp_tap_v1/imp_tap_v1/imp_tap.glb", 26],
       ["mesh/ships/Large/rainbow_arc_v1/rainbow_arc.glb", 36, 286, 0, 176, 0.4],
-      ["mesh/ships/Large/imp_bur_v1/imp_bur_v1/armstrong_imp.glb", 42, 174, 0, 124, -0.5]
+      ["mesh/ships/Large/imp_bur_v1/imp_bur_v1/armstrong_imp.glb", 42, 174, 0, 124, -0.5],
+      ["mesh/ships/medium/mamba/fimbul_mamba.glb", 38, 240, 0, 20, 0.3],
+      ["mesh/ships/medium/mamba_ex/fimbul_mamba_ex.glb", 38, 240, 0, -28, -0.4],
+      ["mesh/ships/medium/fimbull packlite/packlite.glb", 28, 80, 0, 78, 0.5],
+      ["mesh/ships/medium/pearce_f4/pearce_f4.glb", 32, 130, 0, 78, -0.4]
     ];
     const ensureLoader = () => new Promise((resolve, reject) => {
       if (window.THREE && window.THREE.GLTFLoader) {
@@ -6250,7 +6388,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.12.8") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.12.9") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();
