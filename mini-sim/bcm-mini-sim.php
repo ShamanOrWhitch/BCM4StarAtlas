@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.12.9
+ * Version: 0.12.10
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.12.9');
+define('BCM_MINI_SIM_VERSION', '0.12.10');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -763,6 +763,15 @@ add_action('wp_ajax_nopriv_bcm_mini_sim_crew_wallet', 'bcm_mini_sim_ajax_crew_wa
 function bcm_mini_sim_enqueue_assets()
 {
     $assets = bcm_mini_sim_get_assets();
+    $ship_catalog = array();
+    $ship_catalog_path = BCM_MINI_SIM_PATH . 'assets/mesh/ships/catalog.json';
+    if (is_readable($ship_catalog_path)) {
+        $ship_catalog_json = file_get_contents($ship_catalog_path);
+        $ship_catalog_data = $ship_catalog_json !== false ? json_decode($ship_catalog_json, true) : null;
+        if (is_array($ship_catalog_data) && isset($ship_catalog_data['families']) && is_array($ship_catalog_data['families'])) {
+            $ship_catalog = $ship_catalog_data['families'];
+        }
+    }
     $door = bcm_mini_sim_pick_asset($assets, array('door1.png', 'door.png'), 'image');
     if (!$door && file_exists(BCM_MINI_SIM_PATH . 'door.png')) {
         $door = BCM_MINI_SIM_URL . 'door.png';
@@ -853,6 +862,7 @@ function bcm_mini_sim_enqueue_assets()
             ? galia_desk_asset_base()
             : '',
         'assets' => $assets,
+        'shipCatalog' => $ship_catalog,
         'version' => BCM_MINI_SIM_VERSION,
     ));
 }
