@@ -88,6 +88,11 @@ test("First Planet uses parked forms at berths and flight forms when the craft m
   assert.match(ships, /ship\.flight/);
   assert.match(ships, /ship\.parked/);
   assert.match(ships, /PILOT_SHIPS\.filter\(\(ship\) => ship\.planetRace\)/);
+  assert.match(ships, /pearce4: "pearce-x4"/);
+  assert.match(ships, /busan: "busan-pulse"/);
+  assert.match(ships, /x5: "pearce-x5"/);
+  assert.match(ships, /arc: "rainbow-arc"/);
+  assert.match(ships, /om: "rainbow-om"/);
 
   assert.match(scene, /parkedFile: spec\.file, flightFile: spec\.flightFile/);
   assert.match(scene, /\.\.\.ASTEROID_SHOW\.map/);
