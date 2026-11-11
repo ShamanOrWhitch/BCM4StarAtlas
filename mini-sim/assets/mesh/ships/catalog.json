@@ -43,7 +43,9 @@
           "xxsmall/busan_pulse/busan_pulse_graphite_folded.glb",
           "xxsmall/busan_pulse/busan_pulse_silver_folded.glb"
         ]
-      }
+      },
+      "islandLength": 3.6,
+      "raceLength": 6.5
     },
     {
       "id": "airbike",
@@ -110,7 +112,9 @@
           "xxsmall/fimbul Airbike/airbike_white_start.glb",
           "xxsmall/fimbul Airbike/airbike_yellow_start.glb"
         ]
-      }
+      },
+      "islandLength": 3.6,
+      "raceLength": 6.5
     },
     {
       "id": "unibomba",
@@ -149,7 +153,9 @@
           "xxsmall/unibomba/unibomba_red_off.glb",
           "xxsmall/unibomba/unibomba_white_off.glb"
         ]
-      }
+      },
+      "islandLength": 3.6,
+      "raceLength": 6.5
     },
     {
       "id": "ruch",
@@ -180,7 +186,9 @@
           "xxsmall/ruch/ruch_blue_off.glb",
           "xxsmall/ruch/ruch_white_off.glb"
         ]
-      }
+      },
+      "islandLength": 3.6,
+      "raceLength": 6.5
     },
     {
       "id": "opal",
@@ -215,7 +223,9 @@
           "xxsmall/opal_jet/opal_jet_white_off.glb",
           "xxsmall/opal_jet/opal_jet_yellow_off.glb"
         ]
-      }
+      },
+      "islandLength": 3.6,
+      "raceLength": 6.5
     },
     {
       "id": "pearce-x4",
@@ -224,7 +234,7 @@
       "seatLength": 8,
       "yardLength": 8,
       "planetDrive": true,
-      "planetRace": true,
+      "planetRace": false,
       "crew": "human",
       "size": "xxsmall",
       "flight": "xxsmall/pearce x 4/spacebike_black_on.glb",
@@ -258,7 +268,9 @@
           "xxsmall/pearce x 4/spacebike_white_on.glb",
           "xxsmall/pearce x 4/spacebike_yellow_on.glb"
         ]
-      }
+      },
+      "islandLength": 3.6,
+      "raceLength": 6.5
     },
     {
       "id": "ruch-prototype",
@@ -289,7 +301,9 @@
           "xxsmall/ruch_prototype/ruch_blue_off.glb",
           "xxsmall/ruch_prototype/ruch_white_off.glb"
         ]
-      }
+      },
+      "islandLength": 3.6,
+      "raceLength": 6.5
     },
     {
       "id": "solos",
@@ -324,7 +338,9 @@
           "xxsmall/solos/solos_red_off.glb",
           "xxsmall/solos/solos_silver_off.glb"
         ]
-      }
+      },
+      "islandLength": 3.6,
+      "raceLength": 6.5
     },
     {
       "id": "lowbie",
@@ -355,7 +371,9 @@
         "off": [
           "xsmall/Fimbul Lowbie/hovercar_red_off.glb"
         ]
-      }
+      },
+      "islandLength": 5.4,
+      "raceLength": 8.7
     },
     {
       "id": "maxhog",
@@ -384,7 +402,9 @@
           "xsmall/maxhog/maxhog_red_rig.glb",
           "xsmall/maxhog/maxhog_white_rig.glb"
         ]
-      }
+      },
+      "islandLength": 5.4,
+      "raceLength": 8.7
     },
     {
       "id": "niruch",
@@ -419,7 +439,9 @@
           "xsmall/niruch/niruch_gold_off.glb",
           "xsmall/niruch/niruch_silver_off.glb"
         ]
-      }
+      },
+      "islandLength": 5.4,
+      "raceLength": 8.7
     },
     {
       "id": "jetjet",
@@ -470,7 +492,9 @@
           "xsmall/jetjet/jetjet_silver_parked.glb",
           "xsmall/jetjet/jetjet_teal_parked.glb"
         ]
-      }
+      },
+      "islandLength": 5.4,
+      "raceLength": 8.7
     },
     {
       "id": "pearce-x5",
@@ -482,8 +506,8 @@
       "planetRace": true,
       "crew": "victorn",
       "size": "xsmall",
-      "flight": "xsmall/pearce_x5/x5_blue_attack_flight.glb",
-      "parked": "xsmall/pearce_x5/x5_blue_attack_off.glb",
+      "flight": "xsmall/pearce_x5/x5_blue_compact_flight.glb",
+      "parked": "xsmall/pearce_x5/x5_blue_compact_off.glb",
       "cargoOpen": null,
       "asteroid": null,
       "variants": [
@@ -551,7 +575,9 @@
           "xsmall/pearce_x5/x5_red_rig.glb",
           "xsmall/pearce_x5/x5_white_rig.glb"
         ]
-      }
+      },
+      "islandLength": 5.4,
+      "raceLength": 8.7
     },
     {
       "id": "scud",
@@ -590,7 +616,9 @@
           "xsmall/scud/scud_silver_off.glb",
           "xsmall/scud/scud_teal_off.glb"
         ]
-      }
+      },
+      "islandLength": 5.4,
+      "raceLength": 8.7
     },
     {
       "id": "busan-thrill",
@@ -629,7 +657,9 @@
           "small/busan_thrill/thrill_red_off.glb",
           "small/busan_thrill/thrill_silver_off.glb"
         ]
-      }
+      },
+      "islandLength": 6.5,
+      "raceLength": 9.2
     },
     {
       "id": "shipit",
@@ -678,7 +708,9 @@
           "small/calico_shipit/shipit_red_off.glb",
           "small/calico_shipit/shipit_white_off.glb"
         ]
-      }
+      },
+      "islandLength": 6.5,
+      "raceLength": 9.2
     },
     {
       "id": "earp",
@@ -687,7 +719,7 @@
       "seatLength": 14,
       "yardLength": 11,
       "planetDrive": true,
-      "planetRace": true,
+      "planetRace": false,
       "crew": "human",
       "size": "small",
       "flight": "small/earp/earp_blue_flight.glb",
@@ -717,7 +749,9 @@
           "small/earp/earp_silver_off.glb",
           "small/earp/earp_white_off.glb"
         ]
-      }
+      },
+      "islandLength": 6.5,
+      "raceLength": 9.2
     },
     {
       "id": "feist",
@@ -726,7 +760,7 @@
       "seatLength": 16,
       "yardLength": 12,
       "planetDrive": true,
-      "planetRace": true,
+      "planetRace": false,
       "crew": "high",
       "size": "small",
       "flight": "small/feist_darker_gray/feist_gray_flight.glb",
@@ -752,7 +786,9 @@
         "parked": [
           "small/feist_darker_gray/feist_gray_parked.glb"
         ]
-      }
+      },
+      "islandLength": 6.5,
+      "raceLength": 9.2
     },
     {
       "id": "imp-tip",
@@ -761,7 +797,7 @@
       "seatLength": 14,
       "yardLength": 11,
       "planetDrive": true,
-      "planetRace": true,
+      "planetRace": false,
       "crew": "high",
       "size": "small",
       "flight": "small/imp_tip_wings/imp_orange_flight.glb",
@@ -795,7 +831,9 @@
           "small/imp_tip_wings/imp_white_rig.glb",
           "small/imp_tip_wings/imp_yellow_rig.glb"
         ]
-      }
+      },
+      "islandLength": 6.5,
+      "raceLength": 9.2
     },
     {
       "id": "meditech",
@@ -834,7 +872,9 @@
           "small/meditech/medtech_turquoise_off.glb",
           "small/meditech/medtech_white_off.glb"
         ]
-      }
+      },
+      "islandLength": 6.5,
+      "raceLength": 9.2
     },
     {
       "id": "mik",
@@ -843,7 +883,7 @@
       "seatLength": 16,
       "yardLength": 12,
       "planetDrive": true,
-      "planetRace": true,
+      "planetRace": false,
       "crew": "human",
       "size": "small",
       "flight": "small/mik/mik_emerald_flight.glb",
@@ -873,7 +913,9 @@
           "small/mik/mik_indigo_off.glb",
           "small/mik/mik_pearl_off.glb"
         ]
-      }
+      },
+      "islandLength": 6.5,
+      "raceLength": 9.2
     },
     {
       "id": "pearce-x6",
@@ -882,7 +924,7 @@
       "seatLength": 14,
       "yardLength": 11,
       "planetDrive": true,
-      "planetRace": true,
+      "planetRace": false,
       "crew": "human",
       "size": "small",
       "flight": "small/pearce_x6/x6_blue_flight.glb",
@@ -912,7 +954,9 @@
           "small/pearce_x6/x6_red_off.glb",
           "small/pearce_x6/x6_white_off.glb"
         ]
-      }
+      },
+      "islandLength": 6.5,
+      "raceLength": 9.2
     },
     {
       "id": "rainbow-chi",
@@ -921,7 +965,7 @@
       "seatLength": 14,
       "yardLength": 12,
       "planetDrive": true,
-      "planetRace": true,
+      "planetRace": false,
       "crew": "human",
       "size": "small",
       "flight": "small/rainbow_chi_photoli/rainbow_chi.glb",
@@ -935,7 +979,9 @@
         "single": [
           "small/rainbow_chi_photoli/rainbow_chi.glb"
         ]
-      }
+      },
+      "islandLength": 6.5,
+      "raceLength": 9.2
     },
     {
       "id": "rayfam",
@@ -944,7 +990,7 @@
       "seatLength": 14,
       "yardLength": 11,
       "planetDrive": true,
-      "planetRace": true,
+      "planetRace": false,
       "crew": "human",
       "size": "small",
       "flight": "small/rayfam/rayfam_black_gold_flight.glb",
@@ -974,7 +1020,9 @@
           "small/rayfam/rayfam_teal_off.glb",
           "small/rayfam/rayfam_yellow_off.glb"
         ]
-      }
+      },
+      "islandLength": 6.5,
+      "raceLength": 9.2
     },
     {
       "id": "ambwe",
@@ -983,7 +1031,7 @@
       "seatLength": 16,
       "yardLength": 12,
       "planetDrive": true,
-      "planetRace": true,
+      "planetRace": false,
       "crew": "mierese",
       "size": "small",
       "flight": "small/ambwe/ambwe_black_flight.glb",
@@ -1013,7 +1061,9 @@
           "small/ambwe/ambwe_silver_off.glb",
           "small/ambwe/ambwe_slate_off.glb"
         ]
-      }
+      },
+      "islandLength": 6.5,
+      "raceLength": 9.2
     },
     {
       "id": "arma",
@@ -1022,7 +1072,7 @@
       "seatLength": 16,
       "yardLength": 12,
       "planetDrive": true,
-      "planetRace": true,
+      "planetRace": false,
       "crew": "ustur",
       "size": "small",
       "flight": "small/arma/arma_black_flight.glb",
@@ -1068,7 +1118,9 @@
           "small/arma/arma_silver_off.glb",
           "small/arma/arma_teal_off.glb"
         ]
-      }
+      },
+      "islandLength": 6.5,
+      "raceLength": 9.2
     },
     {
       "id": "calico-evac",
@@ -1091,7 +1143,9 @@
         "single": [
           "medium/calico_evac_v1/calico_evac.glb"
         ]
-      }
+      },
+      "islandLength": 8,
+      "raceLength": 10
     },
     {
       "id": "calico-hero",
@@ -1114,7 +1168,9 @@
         "single": [
           "medium/calico_hero_v1/calico_hero.glb"
         ]
-      }
+      },
+      "islandLength": 8,
+      "raceLength": 10
     },
     {
       "id": "mamba",
@@ -1137,7 +1193,9 @@
         "single": [
           "medium/mamba/fimbul_mamba.glb"
         ]
-      }
+      },
+      "islandLength": 8,
+      "raceLength": 10
     },
     {
       "id": "mamba-ex",
@@ -1160,7 +1218,9 @@
         "single": [
           "medium/mamba_ex/fimbul_mamba_ex.glb"
         ]
-      }
+      },
+      "islandLength": 8,
+      "raceLength": 10
     },
     {
       "id": "packlite",
@@ -1183,7 +1243,9 @@
         "single": [
           "medium/fimbull packlite/packlite.glb"
         ]
-      }
+      },
+      "islandLength": 8,
+      "raceLength": 10
     },
     {
       "id": "imp-tap",
@@ -1206,7 +1268,9 @@
         "single": [
           "medium/imp_tap_v1/imp_tap_v1/imp_tap.glb"
         ]
-      }
+      },
+      "islandLength": 8,
+      "raceLength": 10
     },
     {
       "id": "pearce-f4",
@@ -1229,7 +1293,9 @@
         "single": [
           "medium/pearce_f4/pearce_f4.glb"
         ]
-      }
+      },
+      "islandLength": 8,
+      "raceLength": 10
     },
     {
       "id": "rainbow-om",
@@ -1252,7 +1318,9 @@
         "single": [
           "medium/rainbow_om/rainbow_om.glb"
         ]
-      }
+      },
+      "islandLength": 8,
+      "raceLength": 10
     },
     {
       "id": "armstrong",
@@ -1275,7 +1343,9 @@
         "single": [
           "Large/imp_bur_v1/imp_bur_v1/armstrong_imp.glb"
         ]
-      }
+      },
+      "islandLength": 9,
+      "raceLength": 12
     },
     {
       "id": "rainbow-arc",
@@ -1298,7 +1368,9 @@
         "single": [
           "Large/rainbow_arc_v1/rainbow_arc.glb"
         ]
-      }
+      },
+      "islandLength": 9,
+      "raceLength": 12
     },
     {
       "id": "rainbow-phi",
@@ -1321,7 +1393,9 @@
         "single": [
           "Titan/rainbow_phi_v1_2/rainbow_phi.glb"
         ]
-      }
+      },
+      "islandLength": 10,
+      "raceLength": 14
     }
   ]
 }
