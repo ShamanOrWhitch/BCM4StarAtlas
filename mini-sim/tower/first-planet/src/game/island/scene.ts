@@ -841,22 +841,25 @@ export function createIsland(
       console.warn("BCM JahMan skipped", err);
     }
 
-    const parked: { pivot: THREE.Group; hull: THREE.Object3D; x: number; z: number; y: number; crew: string }[] = [];
+    const parked: {
+      pivot: THREE.Group;
+      hull: THREE.Object3D;
+      parkedFile: string;
+      flightFile: string;
+      fitLength: number;
+      flightHull?: THREE.Object3D | null;
+      flightLoading?: boolean;
+      x: number;
+      z: number;
+      y: number;
+      crew: string;
+    }[] = [];
     const pads: Array<[number, number]> = [
-      [-18, 41],
-      [16, 44],
-      [-28, 30],
-      [22, 42],
-      [30, -12],
-      [-44, -28],
-      [14, -40],
-      [-16, -40],
-      [54, 26],
-      [-52, 30],
-      [38, 42],
-      [-36, -34],
-      [24, 16],
-      [-24, -34],
+      [-18, 41], [16, 44], [-28, 30], [22, 42], [30, -12], [-44, -28],
+      [14, -40], [-16, -40], [54, 26], [-52, 30], [38, 42], [-36, -34],
+      [24, 16], [-24, -34], [-58, 2], [58, -42], [56, 42], [-56, -44],
+      [2, 56], [44, 52], [-42, 50], [58, 8], [-58, -14], [8, -52],
+      [-10, 50], [30, -50],
     ];
     const slope = (x: number, z: number) => {
       const h = surfaceY(x, z);
@@ -885,7 +888,10 @@ export function createIsland(
         scene.add(pivot);
         const y = sit(pivot, x, z);
         block(x, z, 1.5, 1.5);
-        parked.push({ pivot, hull, x, z, y, crew: spec.crew });
+        parked.push({
+          pivot, hull, parkedFile: spec.file, flightFile: spec.flightFile,
+          fitLength: spec.island, x, z, y, crew: spec.crew,
+        });
       } catch (err) {
         console.warn("BCM island ship skipped", spec.file, err);
       }
@@ -894,8 +900,15 @@ export function createIsland(
       { spec: pilotShip("jetjet"), x: SKY.x + 11, z: SKY.z + 2 },
       { spec: pilotShip("scud"), x: SKY.x - 12, z: SKY.z + 8 },
       { spec: pilotShip("maxhog"), x: SKY.x + 2, z: SKY.z - 14 },
-      { spec: ASTEROID_SHOW[0], x: SKY.x + 22, z: SKY.z + 18 },
-      { spec: ASTEROID_SHOW[1], x: SKY.x - 24, z: SKY.z - 18 },
+      ...ASTEROID_SHOW.map((spec, index) => {
+        const column = index % 3;
+        const row = Math.floor(index / 3);
+        return {
+          spec,
+          x: SKY.x + (column - 1) * 70,
+          z: SKY.z - 46 - row * 64,
+        };
+      }),
     ];
     for (const entry of show) {
       try {
@@ -909,7 +922,10 @@ export function createIsland(
         pivot.rotation.y = 0.4;
         scene.add(pivot);
         const y = sit(pivot, entry.x, entry.z, SKY.y);
-        parked.push({ pivot, hull, x: entry.x, z: entry.z, y, crew: entry.spec.crew });
+        parked.push({
+          pivot, hull, parkedFile: entry.spec.file, flightFile: entry.spec.flightFile,
+          fitLength: entry.spec.show, x: entry.x, z: entry.z, y, crew: entry.spec.crew,
+        });
       } catch (err) {
         console.warn("BCM asteroid ship skipped", entry.spec.file, err);
       }
@@ -1039,7 +1055,18 @@ export function createIsland(
   const desired = new THREE.Vector3();
   const look = new THREE.Vector3();
   const lookSmoothed = new THREE.Vector3(1, 1.4, 34);
-  let boarded: { pivot: THREE.Group; hull: THREE.Object3D; x: number; z: number; y: number } | null = null;
+  let boarded: {
+    pivot: THREE.Group;
+    hull: THREE.Object3D;
+    parkedFile: string;
+    flightFile: string;
+    fitLength: number;
+    flightHull?: THREE.Object3D | null;
+    flightLoading?: boolean;
+    x: number;
+    z: number;
+    y: number;
+  } | null = null;
   let gPrev = false;
   let wantedShip = context.shipId || PILOT_SHIPS[0].id;
   let shipChain: Promise<void> = Promise.resolve();
@@ -1160,15 +1187,33 @@ export function createIsland(
     }
     const keys = activeKeys();
     const pressedG = keys.has("KeyG");
-    type Parked = { pivot: THREE.Group; hull: THREE.Object3D; x: number; z: number; y: number; crew: string };
+    type Parked = {
+      pivot: THREE.Group;
+      hull: THREE.Object3D;
+      parkedFile: string;
+      flightFile: string;
+      fitLength: number;
+      flightHull?: THREE.Object3D | null;
+      flightLoading?: boolean;
+      x: number;
+      z: number;
+      y: number;
+      crew: string;
+    };
     const parked = ((scene.userData as { parked?: Parked[] }).parked) ?? [];
     const nearShip = (spot: Parked) => {
-      const reach = spot.y > 8 ? 22 : 8;
+      const reach = spot.y > 8 ? Math.max(22, spot.fitLength * 0.65) : 8;
       return (spot.x - sim.x) ** 2 + (spot.z - sim.z) ** 2 < reach * reach;
     };
     if (boarded && sim.mode === "foot") {
       bike.remove(boarded.hull);
+      boarded.hull.visible = true;
       boarded.pivot.add(boarded.hull);
+      if (boarded.flightHull) {
+        bike.remove(boarded.flightHull);
+        boarded.flightHull.visible = false;
+        boarded.pivot.add(boarded.flightHull);
+      }
       const py = onSky(sim.x, sim.z) && sim.y > SKY.y - 2 ? SKY.y : surfaceY(sim.bikeX, sim.bikeZ);
       boarded.x = sim.bikeX;
       boarded.z = sim.bikeZ;
@@ -1193,6 +1238,10 @@ export function createIsland(
     const blazing = sim.mode === "bike" && Math.abs(sim.speed) > 2.4;
     if (bikeOff) bikeOff.visible = !boarded && !blazing;
     if (bikeFull) bikeFull.visible = !boarded && blazing;
+    if (boarded) {
+      boarded.hull.visible = !blazing || !boarded.flightHull;
+      if (boarded.flightHull) boarded.flightHull.visible = blazing;
+    }
 
     crystalPivots.forEach((pivot, i) => {
       pivot.visible = !sim.crystals[i];
