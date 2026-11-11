@@ -1,3 +1,13 @@
+## Active — WORK LOCK #107: connect ship parked/flight states (11 November 2026)
+
+- **Issue:** [#107](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/107). **Branch:** `feat/minisim-ship-hull-states`. **Base:** main `a7d6d6918c06818a1e8a968fb940d19ed0333042`.
+- **Implementation:** shared catalog `mini-sim/assets/mesh/ships/catalog.json` covers all 37 families / 240 GLBs. Mini-Sim first-person selection and deep-space display use flight/parked variants. First Planet uses the same catalog for 26 island craft plus 11 orbital-showcase families; boarded hulls switch to a flight GLB while moving when a pair exists.
+- Keep the four medium demo controllers/panels intact. Do not modify Rainbow camouflage until the user provides separate direction. No 2D work.
+- **CI:** focused catalog/path test has been added to `.github/workflows/minisim-regression.yml`; PR regression + First Planet WordPress bundle/package verification are pending. Browser/live WordPress/device checks remain separate.
+- **Overlap boundary:** PR [#105](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/105) / issue [#104](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/104) handles desert/coastal scenery. Keep ship patches out of scenery RNG, placement-decoration, route and physics hunks. No Galia Desk, scanner/pricing, firewall, wallet write or SAGE transaction changes.
+
+---
+
 ## Completed — WORK LOCK #101: Mini-Sim single-level artifact packaging (6 November 2026)
 
 - **Merged:** [PR #102](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/102), main commit [`f6903fcb7b67663b8bece272baafd78a230ebb74`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/f6903fcb7b67663b8bece272baafd78a230ebb74). Mini-Sim remains `0.12.2`; Tower remains `0.2.71`.
