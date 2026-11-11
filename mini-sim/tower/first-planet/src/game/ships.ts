@@ -21,6 +21,7 @@ type CatalogShip = {
   islandLength: number;
   raceLength: number;
   yardLength: number;
+  showLength: number;
 };
 
 export type PilotShip = {
@@ -47,7 +48,7 @@ function toPilotShip(ship: CatalogShip): PilotShip {
     crew: ship.crew || "human",
     island: Number(ship.islandLength) || 6,
     race: Number(ship.raceLength) || 9,
-    show: Number(ship.yardLength) || 12,
+    show: Number(ship.showLength) || 12,
     planetRace: Boolean(ship.planetRace),
   };
 }
