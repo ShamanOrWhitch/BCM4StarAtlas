@@ -5,10 +5,9 @@ pearce_f4_controls.js, pearce_f4_panel.js и pearce_f4.glb (base64) —
 import base64, re, pathlib
 
 P = pathlib.Path(__file__).resolve().parent
-chi = pathlib.Path('/home/user/chi_v4/chi_demo.html').read_text(encoding='utf-8')
-blocks = re.findall(r'<script>([\s\S]*?)</script>', chi)
-three = next(b for b in blocks if 'REVISION' in b and 'WebGLRenderer' in b and '!function(t,e)' in b)
-loader = next(b for b in blocks if 'class GLTFLoader' in b)
+# three r128 + GLTFLoader из локального vendor/ — без зависимости от chi_v4
+three = (P / 'vendor' / 'three.min.js').read_text(encoding='utf-8')
+loader = (P / 'vendor' / 'GLTFLoader.js').read_text(encoding='utf-8')
 controls = (P / 'pearce_f4_controls.js').read_text(encoding='utf-8')
 panel = (P / 'pearce_f4_panel.js').read_text(encoding='utf-8')
 glb = base64.b64encode((P / 'pearce_f4.glb').read_bytes()).decode()

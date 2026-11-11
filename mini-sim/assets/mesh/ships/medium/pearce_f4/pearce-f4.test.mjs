@@ -475,3 +475,77 @@ test("PF4: декор и крылья посажены на обшивку, а �
       "корень лопасти у борта: |z| " + Math.min(...w.map((p) => Math.abs(p[2]))).toFixed(2));
   }
 });
+
+test("PF4: все куски геометрии вывернуты НАРУЖУ (не просвечивают)", () => {
+  // Регресс: PB.box() строил 8 граней из 12 наизнанку — в браузере
+  // (материал односторонний) стены отбрасывались и контейнеры «просвечивали».
+  // Теперь генератор сам чинит ориентацию, а тест это стережёт: знаковый
+  // объём каждого замкнутого куска обязан быть положительным.
+  const bin = G.bin;
+  const readV = (prim) => {
+    const acc = G.json.accessors[prim.attributes.POSITION];
+    const view = G.json.bufferViews[acc.bufferView];
+    const start = (view.byteOffset || 0) + (acc.byteOffset || 0);
+    const out = new Float64Array(acc.count * 3);
+    for (let i = 0; i < acc.count * 3; i++) {
+      out[i] = bin.readFloatLE(start + i * 4);
+    }
+    return out;
+  };
+  const readT = (prim) => {
+    const acc = G.json.accessors[prim.indices];
+    const view = G.json.bufferViews[acc.bufferView];
+    const start = (view.byteOffset || 0) + (acc.byteOffset || 0);
+    const out = new Int32Array(acc.count);
+    // индексы бывают и uint16, и uint32 — читаем по фактическому типу
+    const u32 = acc.componentType === 5125;
+    for (let i = 0; i < acc.count; i++) {
+      out[i] = u32 ? bin.readUInt32LE(start + i * 4) : bin.readUInt16LE(start + i * 2);
+    }
+    return out;
+  };
+  let checked = 0, bad = [];
+  for (const node of G.json.nodes) {
+    if (node.mesh == null) continue;
+    const prim = G.json.meshes[node.mesh].primitives[0];
+    const V = readV(prim);
+    const T = readT(prim);
+    const nv = V.length / 3;
+    // сварка вершин по позиции, чтобы куски считались связными
+    const keyOf = (i) => [V[i * 3], V[i * 3 + 1], V[i * 3 + 2]]
+      .map((v) => Math.round(v * 1000)).join(",");
+    const id = new Map();
+    const rep = new Int32Array(nv);
+    for (let i = 0; i < nv; i++) {
+      const k = keyOf(i);
+      if (!id.has(k)) id.set(k, id.size);
+      rep[i] = id.get(k);
+    }
+    const par = new Int32Array(id.size);
+    for (let i = 0; i < par.length; i++) par[i] = i;
+    const find = (a) => { while (par[a] !== a) { par[a] = par[par[a]]; a = par[a]; } return a; };
+    const ntri = T.length / 3;
+    for (let t = 0; t < ntri; t++) {
+      const a = find(rep[T[t * 3]]), b = find(rep[T[t * 3 + 1]]), c = find(rep[T[t * 3 + 2]]);
+      par[b] = a;
+      if (find(c) !== a) par[find(c)] = a;
+    }
+    const vol = new Map();
+    for (let t = 0; t < ntri; t++) {
+      const i0 = T[t * 3] * 3, i1 = T[t * 3 + 1] * 3, i2 = T[t * 3 + 2] * 3;
+      const ax = V[i0], ay = V[i0 + 1], az = V[i0 + 2];
+      const bx = V[i1], by = V[i1 + 1], bz = V[i1 + 2];
+      const cx = V[i2], cy = V[i2 + 1], cz = V[i2 + 2];
+      // a · (b × c)
+      const v = ax * (by * cz - bz * cy) + ay * (bz * cx - bx * cz) + az * (bx * cy - by * cx);
+      const root = find(rep[T[t * 3]]);
+      vol.set(root, (vol.get(root) || 0) + v / 6);
+    }
+    for (const [root, v] of vol) {
+      checked++;
+      if (v < -1e-6) bad.push(node.name + " объём " + v.toFixed(3) + " м3");
+    }
+  }
+  assert.deepEqual(bad, [], "вывернутые куски: " + bad.slice(0, 6).join("; "));
+  assert.ok(checked > 400, "проверено кусков: " + checked);
+});

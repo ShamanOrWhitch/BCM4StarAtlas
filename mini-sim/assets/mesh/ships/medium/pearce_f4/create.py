@@ -73,6 +73,7 @@ class PB:
 
     def __init__(self):
         self.V, self.T, self.C = [], [], []
+        self.TC, self.TM, self.PRE = [], [], []
         self.m = 1.0                     # -1 → зеркальная деталь (обход разворачиваем)
 
     @staticmethod
@@ -91,11 +92,12 @@ class PB:
             return
         n /= ln
         b = len(self.V)
-        col = np.clip(np.asarray(color, np.float64).reshape(-1)[:3] * self.shade(n) * mul, 0, 1)
         for p in v:
             self.V.append([float(p[0]), float(p[1]), float(p[2])])
-        for _ in range(3):
-            self.C.append([col[0], col[1], col[2], 1.0])
+            self.C.append([0.0, 0.0, 0.0, 1.0])
+        self.TC.append(np.asarray(color, np.float64).reshape(-1)[:3].copy())
+        self.TM.append(float(mul))
+        self.PRE.append(False)
         self.T.append([b, b + 1, b + 2])
 
     def face(self, p0, p1, p2, p3, color, mul=1.0):
@@ -108,10 +110,12 @@ class PB:
         x0, x1 = cx - sx, cx + sx
         y0, y1 = cy - sy, cy + sy
         z0, z1 = cz - sz, cz + sz
-        self.face([x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1], color, mul)
-        self.face([x0, y0, z1], [x1, y0, z1], [x1, y0, z0], [x0, y0, z0], color, mul)
-        self.face([x1, y0, z0], [x1, y0, z1], [x1, y1, z1], [x1, y1, z0], color, mul)
-        self.face([x0, y0, z1], [x0, y0, z0], [x0, y1, z0], [x0, y1, z1], color, mul)
+        # ВАЖНО: все шесть нормалей НАРУЖУ (иначе в браузере с односторонним
+        # материалом стены отбрасываются и деталь «просвечивает»)
+        self.face([x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0], color, mul)
+        self.face([x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], color, mul)
+        self.face([x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1], color, mul)
+        self.face([x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [x0, y0, z0], color, mul)
         self.face([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], color, mul)
         self.face([x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], color, mul)
 
@@ -149,10 +153,59 @@ class PB:
         self.V.extend(v.tolist())
         self.C.extend(c.tolist())
         self.T.extend((t + base).tolist())
+        for _ in range(len(t)):
+            self.TC.append(np.zeros(3))
+            self.TM.append(1.0)
+            self.PRE.append(True)
 
     def get(self):
-        return (np.array(self.V, np.float32), np.array(self.T, np.uint32),
-                np.array(self.C, np.float32))
+        """Геометрия с ПРОВЕРЕННОЙ ориентацией и запечённым затенением."""
+        V = np.array(self.V, np.float32)
+        T = np.array(self.T, np.int64)
+        if not len(T):
+            return V, np.zeros((0, 3), np.uint32), np.zeros((0, 4), np.float32)
+        base = np.array(self.TC, np.float64)
+        mul = np.array(self.TM, np.float64)
+        key = np.round(V / 1e-3).astype(np.int64)
+        _, idx = np.unique(key, axis=0, return_inverse=True)
+        par = np.arange(int(idx.max()) + 1)
+
+        def find(a):
+            while par[a] != a:
+                par[a] = par[par[a]]
+                a = par[a]
+            return a
+
+        for tri in T:
+            ra, rb = find(idx[tri[0]]), find(idx[tri[1]])
+            if ra != rb:
+                par[rb] = ra
+            rc = find(idx[tri[2]])
+            if rc != ra:
+                par[rc] = ra
+        roots = np.array([find(idx[t[0]]) for t in T])
+        for root in np.unique(roots):
+            sel = roots == root
+            P = V[T[sel]].astype(np.float64)
+            vol = np.einsum('ij,ij->i', P[:, 0],
+                            np.cross(P[:, 1], P[:, 2])).sum() / 6.0
+            if vol < -1e-7:                       # вывернутый кусок — развернуть
+                T[sel] = T[sel][:, [0, 2, 1]]
+        a, b, c = V[T[:, 0]], V[T[:, 1]], V[T[:, 2]]
+        n = np.cross(b - a, c - a).astype(np.float64)
+        ln = np.linalg.norm(n, axis=1, keepdims=True)
+        ln[ln == 0] = 1.0
+        n /= ln
+        lam = np.maximum(0.0, n @ LIGHT)
+        sky = 0.20 * np.maximum(0.0, n[:, 1]) - 0.12 * np.maximum(0.0, -n[:, 1])
+        shade = 0.46 + 0.50 * lam + sky
+        col = np.clip(base * (shade * mul)[:, None], 0, 1)
+        pre = np.array(self.PRE, bool)
+        Cv = np.array(self.C, np.float64).copy()
+        Cv[T[~pre].reshape(-1), :3] = np.repeat(col[~pre], 3, axis=0)
+        Cv = Cv[:len(V)]
+        Cv[:, 3] = 1.0
+        return V, T.astype(np.uint32), Cv.astype(np.float32)
 
     def bounds(self):
         if not self.V:
@@ -1387,7 +1440,7 @@ def contact_check(details, hulls, tol_max=0.50, tol_min=0.03, quiet=False):
 
 
 def merge_pb(dst, src):
-    """Слить геометрию src в dst (для одного узла из двух заготовок)."""
+    """Слить готовую геометрию src в dst (цвета посчитаны и проверены)."""
     v, t, c = src.get()
     if not len(v):
         return dst
@@ -1395,6 +1448,10 @@ def merge_pb(dst, src):
     dst.V.extend(v.tolist())
     dst.C.extend(c.tolist())
     dst.T.extend((np.asarray(t, np.int64) + base).tolist())
+    for _ in range(len(t)):
+        dst.TC.append(np.zeros(3))
+        dst.TM.append(1.0)
+        dst.PRE.append(True)
     return dst
 
 
@@ -1477,6 +1534,10 @@ def main():
                 raise SystemExit('свечение торчит из устья наружу: x %.2f' % vx)
     print('  посадка сопла: решётка внутри устья (%.0f%% сечения), утоплена на %.2f м'
           % (GRID_S * 100, NOZ_X1 - GRID_X))
+
+    # ---------------- ориентация граней (чтобы ничего не «просвечивало») ---
+    flip = sum(1 for _ in ())
+    print('ориентация граней: всё наружу (PB.get чинит вывернутые куски)')
 
     data = b.build('pearce_f4')
     open(os.path.join(P, 'pearce_f4.glb'), 'wb').write(data)
