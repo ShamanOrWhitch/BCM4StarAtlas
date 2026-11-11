@@ -57,8 +57,22 @@ function toPilotShip(ship: CatalogShip): PilotShip {
 export const PILOT_SHIPS: PilotShip[] = CATALOG.filter((ship) => ship.planetDrive).map(toPilotShip);
 export const ASTEROID_SHOW: PilotShip[] = CATALOG.filter((ship) => !ship.planetDrive).map(toPilotShip);
 
+const SHIP_ID_ALIASES: Record<string, string> = {
+  pearce4: "pearce-x4",
+  "pearce4-blue": "pearce-x4",
+  x4: "pearce-x4",
+  busan: "busan-pulse",
+  x5: "pearce-x5",
+  "opal-white": "opal",
+  chi: "rainbow-chi",
+  om: "rainbow-om",
+  arc: "rainbow-arc",
+  compakt: "calico-hero",
+};
+
 export function pilotShip(id: string) {
-  return [...PILOT_SHIPS, ...ASTEROID_SHOW].find((ship) => ship.id === id) ?? PILOT_SHIPS[0];
+  const normalized = SHIP_ID_ALIASES[id] ?? id;
+  return [...PILOT_SHIPS, ...ASTEROID_SHOW].find((ship) => ship.id === normalized) ?? PILOT_SHIPS[0];
 }
 
 export const ISLAND_SHIPS = PILOT_SHIPS.map((ship) => ship.file);
