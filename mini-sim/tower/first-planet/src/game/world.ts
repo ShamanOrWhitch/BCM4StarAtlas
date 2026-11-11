@@ -4,7 +4,7 @@ import type { Race } from "./sim";
 import { RACE_SHIPS, raceLength, shipUrl } from "./ships";
 import { createSeededRandom, seededShuffle } from "./seed";
 import { ROAD_Y, type Track } from "./track";
-import { bake, faceForward } from "./island/bake";
+import { aimNose, bake } from "./island/bake";
 import { propUrl } from "./mesh-url";
 
 export type Phase = "gate" | "race" | "pause" | "finish";
@@ -248,8 +248,8 @@ export function createWorld(canvas: HTMLCanvasElement): World {
       try {
         const gltf = await vehicleLoader.loadAsync(shipUrl(file));
         const length = raceLength(file);
+        aimNose(gltf.scene);
         const mesh = bake(gltf.scene, length, "xz");
-        faceForward(mesh);
         mesh.castShadow = false;
         mesh.receiveShadow = false;
         vehicleTemplates.push(mesh);

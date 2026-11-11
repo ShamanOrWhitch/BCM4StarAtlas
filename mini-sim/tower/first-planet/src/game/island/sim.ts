@@ -233,6 +233,7 @@ export function createSim(seed = 0) {
     walls: [] as Aabb[],
     props: [] as Aabb[],
     usePrev: false,
+    board: null as null | (() => boolean),
     respawnPrev: false,
     jumpPrev: false,
     moodPrev: false,
@@ -505,7 +506,9 @@ export function createSim(seed = 0) {
         this.mood = order[(index + 1) % order.length];
       }
       this.moodPrev = this.mode === "foot" && keys.has("KeyC");
-      if (use && !this.usePrev) this.interact();
+      if (use && !this.usePrev) {
+        if (!this.board?.()) this.interact();
+      }
       this.usePrev = use;
       if (respawn && !this.respawnPrev) this.respawn();
       this.respawnPrev = respawn;

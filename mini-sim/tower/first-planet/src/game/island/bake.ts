@@ -167,8 +167,91 @@ export function fitLength(root: THREE.Object3D, length: number) {
   return true;
 }
 
-/** Blockout vehicles are long on +X and the nose is +X. Turn that nose onto −Z, which is forward. */
+function namedPoint(root: THREE.Object3D, pattern: RegExp) {
+  root.updateMatrixWorld(true);
+  const acc = new THREE.Vector3();
+  const tmp = new THREE.Vector3();
+  let n = 0;
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.geometry || !pattern.test(mesh.name || "")) return;
+    const pos = mesh.geometry.getAttribute("position");
+    if (!pos) return;
+    const step = Math.max(1, Math.floor(pos.count / 40));
+    for (let i = 0; i < pos.count; i += step) {
+      tmp.fromBufferAttribute(pos, i);
+      mesh.localToWorld(tmp);
+      acc.add(tmp);
+      n += 1;
+    }
+  });
+  return n ? acc.multiplyScalar(1 / n) : null;
+}
+
+/** Point the nose at world −Z. That is forward for the chase camera and the race. A blind quarter-turn made Ruch drive backwards and the others drive sideways. */
+export function aimNose(root: THREE.Object3D) {
+  root.rotation.set(0, 0, 0);
+  root.updateMatrixWorld(true);
+  const front = namedPoint(root, /front|nose|grille|hood|fork|headlamp|needle/i);
+  const rear = namedPoint(root, /rear|tail|aft|exhaust|flame/i);
+  const box = new THREE.Box3().setFromObject(root);
+  const center = box.getCenter(new THREE.Vector3());
+  let x = 1;
+  let z = 0;
+  if (front && rear) {
+    x = front.x - rear.x;
+    z = front.z - rear.z;
+  } else if (front) {
+    x = front.x - center.x;
+    z = front.z - center.z;
+  } else if (rear) {
+    x = center.x - rear.x;
+    z = center.z - rear.z;
+  } else {
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    if (size.z > size.x * 1.2) {
+      x = 0;
+      z = 1;
+    }
+  }
+  if (x * x + z * z < 1e-6) {
+    x = 1;
+    z = 0;
+  }
+  root.rotation.y = Math.atan2(x, -z);
+  return root;
+}
+
+function bakeTransform(root: THREE.Object3D) {
+  root.updateMatrix();
+  const q = root.quaternion.clone();
+  root.rotation.set(0, 0, 0);
+  root.quaternion.identity();
+  root.updateMatrix();
+  for (const child of root.children) {
+    child.position.applyQuaternion(q);
+    child.quaternion.premultiply(q);
+  }
+  root.updateMatrixWorld(true);
+}
+
+/** Nose on local −Z and root rotation identity, so a parent yaw is the only facing. */
+export function settleNose(root: THREE.Object3D) {
+  root.rotation.set(0, 0, 0);
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(root);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  if (size.y > size.x * 1.2 && size.y > size.z * 1.2) {
+    root.rotation.x = -Math.PI / 2;
+    bakeTransform(root);
+  }
+  aimNose(root);
+  bakeTransform(root);
+  return root;
+}
+
 export function faceForward(mesh: THREE.Object3D) {
-  mesh.rotation.y = Math.PI / 2;
-  return mesh;
+  return aimNose(mesh);
 }

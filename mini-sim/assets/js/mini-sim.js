@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.7",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.8",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.12.7",
+      title: "SPACE LABYRINTH — 0.12.8",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -649,6 +649,7 @@
   }
 
   function renderCrewPreflight() {
+    renderFlightPicker();
     renderCrewSlots();
     crewSlotSelects.forEach((select, index) => {
       const wanted = crewSelection[index];
@@ -868,7 +869,11 @@
       wallet: window.BCMiniCrewWallet?.publicKey || "",
       players: picked,
       maxPlayers: playerCapacity,
-      fleet: fleetCapacityData
+      fleet: fleetCapacityData,
+      shipId: chosenFlight.id,
+      shipFile: chosenFlight.file,
+      shipName: chosenFlight.name,
+      shipLength: chosenFlight.length
     };
     window.dispatchEvent(new CustomEvent("bcm:minicrew-selection-changed", {
       detail: window.BCMMiniCrewSelection
@@ -899,6 +904,7 @@
 
     if (crewPreflight) crewPreflight.hidden = true;
     running = true;
+    mountFlightHull(chosenFlight);
     musicAllowed = true;
     startMusic();
 
@@ -5322,9 +5328,9 @@
 
     const zoneNow = getSpaceZone(ship.position.z);
     let room;
-    const berth = asteroidBerths.find((pivot) => pivot.position.distanceTo(ship.position) < 28);
-    if (berth) {
-      room = "ASTEROID · БОЛЬШОЙ КОРАБЛЬ";
+    const dock = nearestDock();
+    if (dock && !race.active) {
+      room = "E — ПЕРЕСЕСТЬ · " + dock.name;
     } else if (simPlace && simPlace.id === "asteroid" && simPlace.label) {
       room = simPlace.label;
     } else if (zoneNow === "DEEP_SPACE") {
@@ -5407,6 +5413,8 @@
     // the same renderer; all other states keep the ordinary single-camera render.
     const showUnderlyingScene = !externalPause || root.classList.contains("bcm-warp-maze-active") || root.classList.contains("bcm-hull-interior-active");
     if (!deepSpaceCustomRendered && renderer && scene && camera && showUnderlyingScene) {
+      const hue = ((typeof now === "number" ? now : performance.now()) / 3200) % 1;
+      rainbowHulls.forEach((hull) => paintRainbow(hull, hue));
       renderer.render(scene, camera);
     }
     requestAnimationFrame(render);
@@ -5594,7 +5602,13 @@
       if (flightCodes[e.code] && running && !root.classList.contains("bcm-warp-open") && !pointerLocked && !("ontouchstart" in window) && !(navigator.maxTouchPoints > 0)) {
         if (canvas.requestPointerLock) canvas.requestPointerLock();
       }
+      const alreadyDown = keys[e.code] === true;
       keys[e.code] = true;
+      if (e.code === "KeyE" && !alreadyDown && !e.repeat && tryTransferDock()) {
+        keys[e.code] = false;
+        e.preventDefault();
+        return;
+      }
       if (e.code === "KeyG") { e.preventDefault(); tryPortal(); }
       if (e.code === "KeyF") { e.preventDefault(); toggleCinemaFocus(); }
       if (e.code === "KeyX" && cinema.focus && !document.getElementById("bcm-hull-dive") &&
@@ -5862,30 +5876,254 @@
   }
 
   const asteroidBerths = [];
+  const dockedShips = [];
+  const rainbowHulls = [];
+  let occupiedDock = null;
+  const FLIGHT_SHIPS = [
+    { id: "pearce4", name: "Pearce X4", file: "mesh/ships/xxsmall/pearce x 4/spacebike_red_on.glb", length: 11 },
+    { id: "airbike", name: "Fimbul Airbike", file: "mesh/ships/xxsmall/fimbul Airbike/airbike_red_full.glb", length: 10 },
+    { id: "opal", name: "Opal Jet", file: "mesh/ships/xxsmall/opal_jet/opal_jet_teal_flight.glb", length: 13 },
+    { id: "jetjet", name: "Jetjet", file: "mesh/ships/xsmall/jetjet/jetjet_red_flight.glb", length: 15 },
+    { id: "solos", name: "Solos", file: "mesh/ships/xxsmall/solos/solos_blue_flight.glb", length: 12 },
+    { id: "ruch", name: "Ruch", file: "mesh/ships/xxsmall/ruch/ruch_blue_flight.glb", length: 12 },
+    { id: "busan", name: "Busan Pulse", file: "mesh/ships/xxsmall/busan_pulse/busan_pulse_blue_flight.glb", length: 12 },
+    { id: "scud", name: "Scud", file: "mesh/ships/xsmall/scud/scud_orange_flight.glb", length: 16 },
+    { id: "lowbie", name: "Fimbul Lowbie", file: "mesh/ships/xsmall/Fimbul Lowbie/hovercar_red_off.glb", length: 16 },
+    { id: "niruch", name: "Niruch", file: "mesh/ships/xsmall/niruch/niruch_blue_off.glb", length: 14 },
+    { id: "x5", name: "Pearce X5", file: "mesh/ships/xsmall/pearce_x5/x5_blue_compact_off.glb", length: 14 },
+    { id: "maxhog", name: "Max Hog", file: "mesh/ships/xsmall/maxhog/maxhog_red_rig.glb", length: 16 },
+    { id: "chi", name: "Rainbow Chi", file: "mesh/ships/small/rainbow_chi_photoli/rainbow_chi.glb", length: 18 },
+    { id: "om", name: "Rainbow Om", file: "mesh/ships/medium/rainbow_om/rainbow_om.glb", length: 28 },
+    { id: "arc", name: "Rainbow Arc", file: "mesh/ships/Large/rainbow_arc_v1/rainbow_arc.glb", length: 36 }
+  ];
+  let chosenFlight = FLIGHT_SHIPS[0];
+
+  function aimFlightNose(root) {
+    root.rotation.set(0, 0, 0);
+    root.updateMatrixWorld(true);
+    const sample = (pattern) => {
+      const v = new THREE.Vector3();
+      const sum = new THREE.Vector3();
+      let n = 0;
+      root.traverse((obj) => {
+        if (!obj.isMesh || !obj.geometry || !pattern.test(obj.name || "")) return;
+        const pos = obj.geometry.getAttribute("position");
+        if (!pos) return;
+        const step = Math.max(1, Math.floor(pos.count / 30));
+        for (let i = 0; i < pos.count; i += step) {
+          v.fromBufferAttribute(pos, i);
+          obj.localToWorld(v);
+          sum.add(v);
+          n += 1;
+        }
+      });
+      return n ? sum.multiplyScalar(1 / n) : null;
+    };
+    const front = sample(/front|nose|grille|hood|fork|headlamp|needle/i);
+    const rear = sample(/rear|tail|aft|exhaust|flame/i);
+    const box = new THREE.Box3().setFromObject(root);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    let x = 1;
+    let z = 0;
+    if (front && rear) {
+      x = front.x - rear.x;
+      z = front.z - rear.z;
+    } else if (front) {
+      x = front.x - center.x;
+      z = front.z - center.z;
+    } else if (rear) {
+      x = center.x - rear.x;
+      z = center.z - rear.z;
+    } else if (size.z > size.x * 1.2) {
+      x = 0;
+      z = 1;
+    }
+    if (x * x + z * z < 1e-6) {
+      x = 1;
+      z = 0;
+    }
+    root.rotation.y = Math.atan2(x, -z);
+  }
+
+  function tagRainbow(root, file) {
+    if (!/rainbow/i.test(file || root.name || "")) return;
+    root.userData.rainbow = true;
+    root.traverse((obj) => {
+      if (!obj.isMesh || !obj.geometry || !obj.geometry.getAttribute("color")) return;
+      if (obj.geometry.userData && obj.geometry.userData.baseColor) return;
+      const geometry = obj.geometry.clone();
+      const color = geometry.getAttribute("color");
+      geometry.userData.baseColor = new Float32Array(color.array);
+      obj.geometry = geometry;
+    });
+    if (!rainbowHulls.includes(root)) rainbowHulls.push(root);
+  }
+
+  function paintRainbow(root, t) {
+    if (!root || !root.userData || !root.userData.rainbow) return;
+    const shift = t % 1;
+    const tint = new THREE.Color();
+    root.traverse((obj) => {
+      if (!obj.isMesh) return;
+      const base = obj.geometry && obj.geometry.userData && obj.geometry.userData.baseColor;
+      const attr = obj.geometry && obj.geometry.getAttribute("color");
+      if (base && attr) {
+        const arr = attr.array;
+        for (let i = 0; i < base.length; i += 3) {
+          tint.setRGB(base[i], base[i + 1], base[i + 2]);
+          const hsl = { h: 0, s: 0, l: 0 };
+          tint.getHSL(hsl);
+          tint.setHSL((hsl.h + shift) % 1, Math.max(hsl.s, 0.35), hsl.l);
+          arr[i] = tint.r;
+          arr[i + 1] = tint.g;
+          arr[i + 2] = tint.b;
+        }
+        attr.needsUpdate = true;
+      }
+    });
+  }
+
+  function seatCockpit(root, length) {
+    aimFlightNose(root);
+    root.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(root);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const span = Math.max(size.x, size.z, 0.001);
+    root.scale.multiplyScalar(length / span);
+    root.updateMatrixWorld(true);
+    const fitted = new THREE.Box3().setFromObject(root);
+    const fittedSize = new THREE.Vector3();
+    fitted.getSize(fittedSize);
+    const center = fitted.getCenter(new THREE.Vector3());
+    const cockpit = new THREE.Vector3(center.x, fitted.min.y + fittedSize.y * 0.58, fitted.min.z + Math.max(0.4, fittedSize.z * 0.08));
+    root.position.sub(cockpit);
+    root.traverse((obj) => {
+      if (!obj.isMesh || !obj.material) return;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach((mat) => {
+        if (mat) mat.side = THREE.DoubleSide;
+      });
+    });
+  }
+
+  function mountFlightHull(spec) {
+    const Loader = window.THREE && window.THREE.GLTFLoader;
+    const url = spec && assetUrl(spec.file);
+    if (!Loader || !url || !scene) return;
+    new Loader().load(url, (gltf) => {
+      const hull = gltf && (gltf.scene || (gltf.scenes && gltf.scenes[0]));
+      if (!hull || !scene) return;
+      hull.name = spec.name || spec.id || "hull";
+      tagRainbow(hull, spec.file);
+      seatCockpit(hull, spec.length || 12);
+      const rig = new THREE.Group();
+      rig.name = "flight-hull";
+      rig.add(hull);
+      if (ship.visual && ship.visual !== rig) scene.remove(ship.visual);
+      scene.add(rig);
+      ship.visual = rig;
+      setStatus((spec.name || "Корабль") + " · КАБИНА");
+    });
+  }
+
+  function nearestDock() {
+    if (!ship || !ship.position) return null;
+    let best = null;
+    let bestD = Infinity;
+    dockedShips.forEach((dock) => {
+      if (!dock.pivot || dock.pivot === occupiedDock || dock.pivot.visible === false) return;
+      const distance = dock.pivot.position.distanceTo(ship.position);
+      const reach = Math.max(22, (dock.length || 12) * 0.7 + 14);
+      if (distance < reach && distance < bestD) {
+        best = dock;
+        bestD = distance;
+      }
+    });
+    return best;
+  }
+
+  function tryTransferDock() {
+    const dock = nearestDock();
+    if (!dock || !running) return false;
+    if (occupiedDock) occupiedDock.visible = true;
+    occupiedDock = dock.pivot;
+    dock.pivot.visible = false;
+    ship.position.copy(dock.pivot.position);
+    ship.position.y += 2.2;
+    ship.velocity.set(0, 0, 0);
+    ship.angularVelocity.set(0, 0, 0);
+    ship.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), dock.pivot.rotation.y);
+    if (camera) {
+      camera.position.copy(ship.position);
+      camera.quaternion.copy(ship.quaternion);
+    }
+    mountFlightHull({ id: dock.name, name: dock.name, file: dock.file, length: dock.length });
+    if (window.BCMMiniCrewSelection) {
+      window.BCMMiniCrewSelection.shipId = dock.name;
+      window.BCMMiniCrewSelection.shipFile = dock.file;
+      window.BCMMiniCrewSelection.shipLength = dock.length;
+    }
+    setStatus("ПЕРЕСЕЛ · " + dock.name);
+    return true;
+  }
+
+  function renderFlightPicker() {
+    if (!crewPreflight) return;
+    let box = crewPreflight.querySelector("[data-flight-ships]");
+    if (!box) {
+      box = document.createElement("div");
+      box.setAttribute("data-flight-ships", "");
+      const label = document.createElement("p");
+      label.textContent = "Корабль вылета. В космосе летишь на нём из кабины.";
+      label.style.margin = "12px 0 6px";
+      box.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px";
+      const note = crewPreflight.querySelector(".bcm-mini-sim-crew-preflight-note");
+      const card = note ? note.parentNode : crewPreflight.querySelector(".bcm-mini-sim-crew-preflight-card");
+      if (note && card) {
+        card.insertBefore(label, note.nextSibling);
+        card.insertBefore(box, label.nextSibling);
+      }
+    }
+    box.innerHTML = FLIGHT_SHIPS.map((ship) => {
+      const on = ship.id === chosenFlight.id;
+      return '<button type="button" data-flight-ship="' + ship.id + '" style="border-radius:999px;padding:6px 10px;border:1px solid ' +
+        (on ? "#e4a322" : "rgba(255,255,255,.25)") + ";background:" + (on ? "rgba(228,163,34,.2)" : "transparent") +
+        ';color:inherit;cursor:pointer">' + ship.name + "</button>";
+    }).join("");
+    box.querySelectorAll("[data-flight-ship]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        chosenFlight = FLIGHT_SHIPS.find((ship) => ship.id === btn.getAttribute("data-flight-ship")) || chosenFlight;
+        renderFlightPicker();
+        crewSetStatus("Корабль: " + chosenFlight.name);
+      });
+    });
+  }
 
   function parkDeepSpaceFleet() {
     // One parked hull per family. Small and medium only — the first room's
     // right wall is open, so the yard sits just outside the flight line.
     const yard = [
-      ["mesh/ships/small/ambwe/ambwe_black_off.glb", 3.6],
-      ["mesh/ships/small/arma/arma_black_landed.glb", 3.6],
-      ["mesh/ships/small/busan_thrill/thrill_blue_off.glb", 3.2],
-      ["mesh/ships/small/calico_shipit/shipit_white_off.glb", 3.2],
-      ["mesh/ships/small/earp/earp_blue_off.glb", 3.5],
-      ["mesh/ships/small/feist_darker_gray/feist_gray_parked.glb", 3.9],
-      ["mesh/ships/small/imp_tip_wings/imp_orange_mech.glb", 3.2],
-      ["mesh/ships/small/meditech/medtech_white_off.glb", 3.5],
-      ["mesh/ships/small/mik/mik_pearl_off.glb", 3.7],
-      ["mesh/ships/small/pearce_x6/x6_blue_off.glb", 3.5],
-      ["mesh/ships/small/rainbow_chi_photoli/rainbow_chi.glb", 3.0],
-      ["mesh/ships/small/rayfam/rayfam_teal_off.glb", 3.2],
-      ["mesh/ships/medium/rainbow_om/rainbow_om.glb", 7.4],
-      ["mesh/ships/medium/calico_hero_v1/calico_hero.glb", 7.6],
-      ["mesh/ships/medium/calico_evac_v1/calico_evac.glb", 7.8],
-      ["mesh/ships/medium/imp_tap_v1/imp_tap_v1/imp_tap.glb", 8.0],
-      // Big hulls beside the asteroid maze (center 230, 0, 150), outside the walls.
-      ["mesh/ships/Large/rainbow_arc_v1/rainbow_arc.glb", 16, 274, 2, 168, 0.6],
-      ["mesh/ships/Large/imp_bur_v1/imp_bur_v1/armstrong_imp.glb", 20, 186, 3, 132, -0.4]
+      ["mesh/ships/small/ambwe/ambwe_black_off.glb", 11],
+      ["mesh/ships/small/arma/arma_black_landed.glb", 11],
+      ["mesh/ships/small/busan_thrill/thrill_blue_off.glb", 10],
+      ["mesh/ships/small/calico_shipit/shipit_white_off.glb", 11],
+      ["mesh/ships/small/earp/earp_blue_off.glb", 11],
+      ["mesh/ships/small/feist_darker_gray/feist_gray_parked.glb", 12],
+      ["mesh/ships/small/imp_tip_wings/imp_orange_mech.glb", 10],
+      ["mesh/ships/small/meditech/medtech_white_off.glb", 11],
+      ["mesh/ships/small/mik/mik_pearl_off.glb", 12],
+      ["mesh/ships/small/pearce_x6/x6_blue_off.glb", 11],
+      ["mesh/ships/small/rainbow_chi_photoli/rainbow_chi.glb", 14],
+      ["mesh/ships/small/rayfam/rayfam_teal_off.glb", 11],
+      ["mesh/ships/medium/rainbow_om/rainbow_om.glb", 26],
+      ["mesh/ships/medium/calico_hero_v1/calico_hero.glb", 24],
+      ["mesh/ships/medium/calico_evac_v1/calico_evac.glb", 24],
+      ["mesh/ships/medium/imp_tap_v1/imp_tap_v1/imp_tap.glb", 26],
+      ["mesh/ships/Large/rainbow_arc_v1/rainbow_arc.glb", 36, 286, 0, 176, 0.4],
+      ["mesh/ships/Large/imp_bur_v1/imp_bur_v1/armstrong_imp.glb", 42, 174, 0, 124, -0.5]
     ];
     const ensureLoader = () => new Promise((resolve, reject) => {
       if (window.THREE && window.THREE.GLTFLoader) {
@@ -5901,16 +6139,18 @@
       script.onerror = () => reject(new Error("GLTFLoader"));
       document.head.appendChild(script);
     });
-    const fit = (root, target) => {
+    const fit = (root, target, file) => {
+      aimFlightNose(root);
       root.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(root);
       const size = new THREE.Vector3();
       box.getSize(size);
-      const span = Math.max(size.x, size.y, size.z, 0.001);
+      const span = Math.max(size.x, size.z, 0.001);
       root.scale.multiplyScalar(target / span);
       root.updateMatrixWorld(true);
       const fitted = new THREE.Box3().setFromObject(root);
       root.position.y -= fitted.min.y;
+      tagRainbow(root, file);
     };
     ensureLoader().then((Loader) => {
       let index = 0;
@@ -5930,7 +6170,7 @@
         loader.load(url, (gltf) => {
           const root = gltf && (gltf.scene || (gltf.scenes && gltf.scenes[0]));
           if (root && scene) {
-            fit(root, target);
+            fit(root, target, file);
             const pivot = new THREE.Group();
             pivot.name = "docked-" + file.split("/").pop();
             pivot.add(root);
@@ -5941,11 +6181,21 @@
               pivot.rotation.y = slot[5] || 0;
               pivot.userData.berth = true;
               asteroidBerths.push(pivot);
+            } else if (place < 12) {
+              pivot.position.set(16 + col * 22, -3.5, 8 - row * 24);
+              pivot.rotation.y = -0.6;
             } else {
-              pivot.position.set(9.5 + col * 7.4, -3.5, 2 - row * 8.4);
-              pivot.rotation.y = -Math.PI / 2;
+              const i = place - 12;
+              pivot.position.set(18 + (i % 2) * 46, -3.2, -70 - Math.floor(i / 2) * 52);
+              pivot.rotation.y = 0.4;
             }
             scene.add(pivot);
+            dockedShips.push({
+              pivot,
+              file,
+              length: target,
+              name: file.split("/").pop().replace(/\.glb$/i, "").replace(/_/g, " ")
+            });
           }
           window.setTimeout(next, 180);
         }, undefined, () => window.setTimeout(next, 40));
@@ -6000,7 +6250,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.12.7") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.12.8") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();
