@@ -1,0 +1,58 @@
+{
+ "pods": 2,
+ "guns": 2,
+ "legs": 4,
+ "barrels_per_pod": 2,
+ "gun_elev_deg": 16.0,
+ "bay_open_deg": 82.0,
+ "ramp_open_deg": 0.0,
+ "ramp_ext_len": 0.0,
+ "leg_retract": 2.0,
+ "modes": {
+  "pad": {
+   "legs": 1.0,
+   "guns": 0.0,
+   "bay": 0.0,
+   "lid": 0.0,
+   "thrust": 0.0,
+   "strobe": 0.3,
+   "spots": 0.45,
+   "interior": 0.45
+  },
+  "flight": {
+   "legs": 0.0,
+   "guns": 0.0,
+   "bay": 0.0,
+   "lid": 0.0,
+   "thrust": 0.7,
+   "strobe": 0.55,
+   "spots": 1.0,
+   "interior": 0.55
+  },
+  "hunt": {
+   "legs": 0.0,
+   "guns": 1.0,
+   "bay": 0.0,
+   "lid": 0.0,
+   "thrust": 0.88,
+   "strobe": 1.0,
+   "spots": 1.0,
+   "interior": 0.7
+  },
+  "load": {
+   "legs": 1.0,
+   "guns": 0.0,
+   "bay": 1.0,
+   "lid": 1.0,
+   "thrust": 0.0,
+   "strobe": 0.4,
+   "spots": 0.85,
+   "interior": 1.0
+  }
+ },
+ "dims": {
+  "L": 67.1,
+  "W": 26.5,
+  "H": 21.6
+ }
+}
