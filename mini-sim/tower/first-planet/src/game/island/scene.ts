@@ -901,12 +901,12 @@ export function createIsland(
       { spec: pilotShip("scud"), x: SKY.x - 12, z: SKY.z + 8 },
       { spec: pilotShip("maxhog"), x: SKY.x + 2, z: SKY.z - 14 },
       ...ASTEROID_SHOW.map((spec, index) => {
-        const column = index % 3;
-        const row = Math.floor(index / 3);
+        const angle = -Math.PI / 2 + (index / Math.max(1, ASTEROID_SHOW.length)) * Math.PI * 2;
+        const radius = 42;
         return {
           spec,
-          x: SKY.x + (column - 1) * 70,
-          z: SKY.z - 46 - row * 64,
+          x: SKY.x + Math.cos(angle) * radius,
+          z: SKY.z + Math.sin(angle) * radius,
         };
       }),
     ];
@@ -1202,7 +1202,7 @@ export function createIsland(
     };
     const parked = ((scene.userData as { parked?: Parked[] }).parked) ?? [];
     const nearShip = (spot: Parked) => {
-      const reach = spot.y > 8 ? Math.max(22, spot.fitLength * 0.65) : 8;
+      const reach = spot.y > 8 ? Math.max(48, spot.fitLength * 0.65) : 8;
       return (spot.x - sim.x) ** 2 + (spot.z - sim.z) ** 2 < reach * reach;
     };
     if (boarded && sim.mode === "foot") {
@@ -1485,7 +1485,7 @@ export function createIsland(
       x: number; z: number; y: number;
     }> }).parked) ?? [];
     const near = parked.find((spot) => {
-      const reach = spot.y > 8 ? Math.max(22, spot.fitLength * 0.65) : 8;
+      const reach = spot.y > 8 ? Math.max(48, spot.fitLength * 0.65) : 8;
       return (spot.x - sim.x) ** 2 + (spot.z - sim.z) ** 2 < reach * reach;
     });
     if (!near) return false;
