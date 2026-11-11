@@ -1398,19 +1398,35 @@ export function createIsland(
         if (!alive) return;
         if (boarded) {
           bike.remove(boarded.hull);
+          boarded.hull.visible = true;
           boarded.pivot.add(boarded.hull);
+          if (boarded.flightHull) {
+            bike.remove(boarded.flightHull);
+            boarded.flightHull.visible = false;
+            boarded.pivot.add(boarded.flightHull);
+          }
           boarded = null;
           sim.mode = "foot";
         }
-        const gltf = await loader.loadAsync(shipUrl(spec.file));
+        const parkedGltf = await loader.loadAsync(shipUrl(spec.file));
         if (!alive) return;
-        const hull = gltf.scene;
-        settleNose(hull);
-        if (!fitLength(hull, spec.island)) return;
+        const parkedHull = parkedGltf.scene;
+        settleNose(parkedHull);
+        if (!fitLength(parkedHull, spec.island)) return;
+        let flightHull: THREE.Object3D | null = null;
+        if (spec.flightFile && spec.flightFile !== spec.file) {
+          const flightGltf = await loader.loadAsync(shipUrl(spec.flightFile));
+          if (!alive) return;
+          flightHull = flightGltf.scene;
+          settleNose(flightHull);
+          if (!fitLength(flightHull, spec.island)) flightHull = null;
+          if (flightHull) flightHull.visible = false;
+        }
         bike.clear();
-        bike.add(hull);
-        bikeOff = hull;
-        bikeFull = null;
+        bike.add(parkedHull);
+        if (flightHull) bike.add(flightHull);
+        bikeOff = parkedHull;
+        bikeFull = flightHull;
         await wearCrew(pilotSpecies(spec.crew));
       })
       .catch((err) => console.warn("BCM pilot ship skipped", spec.id, err));
@@ -1463,15 +1479,41 @@ export function createIsland(
 
   sim.board = () => {
     if (sim.mode !== "foot" || boarded) return false;
-    const parked = ((scene.userData as { parked?: Array<{ pivot: THREE.Group; hull: THREE.Object3D; x: number; z: number; y: number }> }).parked) ?? [];
+    const parked = ((scene.userData as { parked?: Array<{
+      pivot: THREE.Group; hull: THREE.Object3D; parkedFile: string; flightFile: string;
+      fitLength: number; flightHull?: THREE.Object3D | null; flightLoading?: boolean;
+      x: number; z: number; y: number;
+    }> }).parked) ?? [];
     const near = parked.find((spot) => {
-      const reach = spot.y > 8 ? 22 : 8;
+      const reach = spot.y > 8 ? Math.max(22, spot.fitLength * 0.65) : 8;
       return (spot.x - sim.x) ** 2 + (spot.z - sim.z) ** 2 < reach * reach;
     });
     if (!near) return false;
     boarded = near;
     near.pivot.remove(near.hull);
+    near.hull.visible = true;
     bike.add(near.hull);
+    if (near.flightHull) {
+      near.pivot.remove(near.flightHull);
+      near.flightHull.visible = false;
+      bike.add(near.flightHull);
+    } else if (near.flightFile && near.flightFile !== near.parkedFile && !near.flightLoading) {
+      near.flightLoading = true;
+      void loader.loadAsync(shipUrl(near.flightFile)).then((gltf) => {
+        if (!alive) return;
+        const flightHull = gltf.scene;
+        settleNose(flightHull);
+        if (!fitLength(flightHull, near.fitLength)) return;
+        flightHull.visible = false;
+        near.flightHull = flightHull;
+        if (boarded === near && sim.mode === "bike") bike.add(flightHull);
+        else near.pivot.add(flightHull);
+      }).catch((err) => {
+        console.warn("BCM ship flight form skipped", near.flightFile, err);
+      }).finally(() => {
+        near.flightLoading = false;
+      });
+    }
     sim.mode = "bike";
     sim.x = near.x;
     sim.z = near.z;
