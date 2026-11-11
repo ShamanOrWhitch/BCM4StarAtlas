@@ -45,7 +45,8 @@
         ]
       },
       "islandLength": 3.6,
-      "raceLength": 6.5
+      "raceLength": 6.5,
+      "showLength": 12
     },
     {
       "id": "airbike",
@@ -114,7 +115,8 @@
         ]
       },
       "islandLength": 3.6,
-      "raceLength": 6.5
+      "raceLength": 6.5,
+      "showLength": 12
     },
     {
       "id": "unibomba",
@@ -155,7 +157,8 @@
         ]
       },
       "islandLength": 3.6,
-      "raceLength": 6.5
+      "raceLength": 6.5,
+      "showLength": 12
     },
     {
       "id": "ruch",
@@ -188,7 +191,8 @@
         ]
       },
       "islandLength": 3.6,
-      "raceLength": 6.5
+      "raceLength": 6.5,
+      "showLength": 12
     },
     {
       "id": "opal",
@@ -225,7 +229,8 @@
         ]
       },
       "islandLength": 3.6,
-      "raceLength": 6.5
+      "raceLength": 6.5,
+      "showLength": 12
     },
     {
       "id": "pearce-x4",
@@ -270,7 +275,8 @@
         ]
       },
       "islandLength": 3.6,
-      "raceLength": 6.5
+      "raceLength": 6.5,
+      "showLength": 12
     },
     {
       "id": "ruch-prototype",
@@ -303,7 +309,8 @@
         ]
       },
       "islandLength": 3.6,
-      "raceLength": 6.5
+      "raceLength": 6.5,
+      "showLength": 12
     },
     {
       "id": "solos",
@@ -340,7 +347,8 @@
         ]
       },
       "islandLength": 3.6,
-      "raceLength": 6.5
+      "raceLength": 6.5,
+      "showLength": 12
     },
     {
       "id": "lowbie",
@@ -373,7 +381,8 @@
         ]
       },
       "islandLength": 5.4,
-      "raceLength": 8.7
+      "raceLength": 8.7,
+      "showLength": 12
     },
     {
       "id": "maxhog",
@@ -404,7 +413,8 @@
         ]
       },
       "islandLength": 5.4,
-      "raceLength": 8.7
+      "raceLength": 8.7,
+      "showLength": 12
     },
     {
       "id": "niruch",
@@ -441,7 +451,8 @@
         ]
       },
       "islandLength": 5.4,
-      "raceLength": 8.7
+      "raceLength": 8.7,
+      "showLength": 12
     },
     {
       "id": "jetjet",
@@ -494,7 +505,8 @@
         ]
       },
       "islandLength": 5.4,
-      "raceLength": 8.7
+      "raceLength": 8.7,
+      "showLength": 12
     },
     {
       "id": "pearce-x5",
@@ -577,7 +589,8 @@
         ]
       },
       "islandLength": 5.4,
-      "raceLength": 8.7
+      "raceLength": 8.7,
+      "showLength": 12
     },
     {
       "id": "scud",
@@ -618,7 +631,8 @@
         ]
       },
       "islandLength": 5.4,
-      "raceLength": 8.7
+      "raceLength": 8.7,
+      "showLength": 12
     },
     {
       "id": "busan-thrill",
@@ -659,7 +673,8 @@
         ]
       },
       "islandLength": 6.5,
-      "raceLength": 9.2
+      "raceLength": 9.2,
+      "showLength": 12
     },
     {
       "id": "shipit",
@@ -710,7 +725,8 @@
         ]
       },
       "islandLength": 6.5,
-      "raceLength": 9.2
+      "raceLength": 9.2,
+      "showLength": 12
     },
     {
       "id": "earp",
@@ -751,7 +767,8 @@
         ]
       },
       "islandLength": 6.5,
-      "raceLength": 9.2
+      "raceLength": 9.2,
+      "showLength": 12
     },
     {
       "id": "feist",
@@ -788,7 +805,8 @@
         ]
       },
       "islandLength": 6.5,
-      "raceLength": 9.2
+      "raceLength": 9.2,
+      "showLength": 12
     },
     {
       "id": "imp-tip",
@@ -833,7 +851,8 @@
         ]
       },
       "islandLength": 6.5,
-      "raceLength": 9.2
+      "raceLength": 9.2,
+      "showLength": 12
     },
     {
       "id": "meditech",
@@ -874,7 +893,8 @@
         ]
       },
       "islandLength": 6.5,
-      "raceLength": 9.2
+      "raceLength": 9.2,
+      "showLength": 12
     },
     {
       "id": "mik",
@@ -915,7 +935,8 @@
         ]
       },
       "islandLength": 6.5,
-      "raceLength": 9.2
+      "raceLength": 9.2,
+      "showLength": 12
     },
     {
       "id": "pearce-x6",
@@ -956,7 +977,8 @@
         ]
       },
       "islandLength": 6.5,
-      "raceLength": 9.2
+      "raceLength": 9.2,
+      "showLength": 12
     },
     {
       "id": "rainbow-chi",
@@ -981,7 +1003,8 @@
         ]
       },
       "islandLength": 6.5,
-      "raceLength": 9.2
+      "raceLength": 9.2,
+      "showLength": 12
     },
     {
       "id": "rayfam",
@@ -1022,7 +1045,8 @@
         ]
       },
       "islandLength": 6.5,
-      "raceLength": 9.2
+      "raceLength": 9.2,
+      "showLength": 12
     },
     {
       "id": "ambwe",
@@ -1063,7 +1087,8 @@
         ]
       },
       "islandLength": 6.5,
-      "raceLength": 9.2
+      "raceLength": 9.2,
+      "showLength": 12
     },
     {
       "id": "arma",
@@ -1120,7 +1145,8 @@
         ]
       },
       "islandLength": 6.5,
-      "raceLength": 9.2
+      "raceLength": 9.2,
+      "showLength": 12
     },
     {
       "id": "calico-evac",
@@ -1145,7 +1171,8 @@
         ]
       },
       "islandLength": 8,
-      "raceLength": 10
+      "raceLength": 10,
+      "showLength": 18
     },
     {
       "id": "calico-hero",
@@ -1170,7 +1197,8 @@
         ]
       },
       "islandLength": 8,
-      "raceLength": 10
+      "raceLength": 10,
+      "showLength": 18
     },
     {
       "id": "mamba",
@@ -1195,7 +1223,8 @@
         ]
       },
       "islandLength": 8,
-      "raceLength": 10
+      "raceLength": 10,
+      "showLength": 18
     },
     {
       "id": "mamba-ex",
@@ -1220,7 +1249,8 @@
         ]
       },
       "islandLength": 8,
-      "raceLength": 10
+      "raceLength": 10,
+      "showLength": 18
     },
     {
       "id": "packlite",
@@ -1245,7 +1275,8 @@
         ]
       },
       "islandLength": 8,
-      "raceLength": 10
+      "raceLength": 10,
+      "showLength": 18
     },
     {
       "id": "imp-tap",
@@ -1270,7 +1301,8 @@
         ]
       },
       "islandLength": 8,
-      "raceLength": 10
+      "raceLength": 10,
+      "showLength": 18
     },
     {
       "id": "pearce-f4",
@@ -1295,7 +1327,8 @@
         ]
       },
       "islandLength": 8,
-      "raceLength": 10
+      "raceLength": 10,
+      "showLength": 18
     },
     {
       "id": "rainbow-om",
@@ -1320,7 +1353,8 @@
         ]
       },
       "islandLength": 8,
-      "raceLength": 10
+      "raceLength": 10,
+      "showLength": 18
     },
     {
       "id": "armstrong",
@@ -1345,7 +1379,8 @@
         ]
       },
       "islandLength": 9,
-      "raceLength": 12
+      "raceLength": 12,
+      "showLength": 23
     },
     {
       "id": "rainbow-arc",
@@ -1370,7 +1405,8 @@
         ]
       },
       "islandLength": 9,
-      "raceLength": 12
+      "raceLength": 12,
+      "showLength": 23
     },
     {
       "id": "rainbow-phi",
@@ -1395,7 +1431,8 @@
         ]
       },
       "islandLength": 10,
-      "raceLength": 14
+      "raceLength": 14,
+      "showLength": 26
     }
   ]
 }
