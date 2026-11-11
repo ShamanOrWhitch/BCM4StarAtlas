@@ -1,0 +1,1327 @@
+{
+  "version": 1,
+  "description": "Ship family states are real GLB files from this repository. flight/parked are safe defaults; variants list all uploaded colorways and forms.",
+  "families": [
+    {
+      "id": "busan-pulse",
+      "name": "Busan Pulse",
+      "category": "Racer",
+      "seatLength": 10,
+      "yardLength": 9,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "high",
+      "size": "xxsmall",
+      "flight": "xxsmall/busan_pulse/busan_pulse_blue_flight.glb",
+      "parked": "xxsmall/busan_pulse/busan_pulse_blue_folded.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "xxsmall/busan_pulse/busan_pulse_blue_active.glb",
+        "xxsmall/busan_pulse/busan_pulse_blue_flight.glb",
+        "xxsmall/busan_pulse/busan_pulse_blue_folded.glb",
+        "xxsmall/busan_pulse/busan_pulse_graphite_active.glb",
+        "xxsmall/busan_pulse/busan_pulse_graphite_flight.glb",
+        "xxsmall/busan_pulse/busan_pulse_graphite_folded.glb",
+        "xxsmall/busan_pulse/busan_pulse_silver_active.glb",
+        "xxsmall/busan_pulse/busan_pulse_silver_flight.glb",
+        "xxsmall/busan_pulse/busan_pulse_silver_folded.glb"
+      ],
+      "states": {
+        "active": [
+          "xxsmall/busan_pulse/busan_pulse_blue_active.glb",
+          "xxsmall/busan_pulse/busan_pulse_graphite_active.glb",
+          "xxsmall/busan_pulse/busan_pulse_silver_active.glb"
+        ],
+        "flight": [
+          "xxsmall/busan_pulse/busan_pulse_blue_flight.glb",
+          "xxsmall/busan_pulse/busan_pulse_graphite_flight.glb",
+          "xxsmall/busan_pulse/busan_pulse_silver_flight.glb"
+        ],
+        "folded": [
+          "xxsmall/busan_pulse/busan_pulse_blue_folded.glb",
+          "xxsmall/busan_pulse/busan_pulse_graphite_folded.glb",
+          "xxsmall/busan_pulse/busan_pulse_silver_folded.glb"
+        ]
+      }
+    },
+    {
+      "id": "airbike",
+      "name": "Fimbul Airbike",
+      "category": "Racer",
+      "seatLength": 8,
+      "yardLength": 8,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "ustur",
+      "size": "xxsmall",
+      "flight": "xxsmall/fimbul Airbike/airbike_black_full.glb",
+      "parked": "xxsmall/fimbul Airbike/airbike_black_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "xxsmall/fimbul Airbike/airbike_black_full.glb",
+        "xxsmall/fimbul Airbike/airbike_black_off.glb",
+        "xxsmall/fimbul Airbike/airbike_black_start.glb",
+        "xxsmall/fimbul Airbike/airbike_blue_full.glb",
+        "xxsmall/fimbul Airbike/airbike_blue_off.glb",
+        "xxsmall/fimbul Airbike/airbike_blue_start.glb",
+        "xxsmall/fimbul Airbike/airbike_gray_full.glb",
+        "xxsmall/fimbul Airbike/airbike_gray_off.glb",
+        "xxsmall/fimbul Airbike/airbike_gray_start.glb",
+        "xxsmall/fimbul Airbike/airbike_orange_full.glb",
+        "xxsmall/fimbul Airbike/airbike_orange_off.glb",
+        "xxsmall/fimbul Airbike/airbike_orange_start.glb",
+        "xxsmall/fimbul Airbike/airbike_red_full.glb",
+        "xxsmall/fimbul Airbike/airbike_red_off.glb",
+        "xxsmall/fimbul Airbike/airbike_red_start.glb",
+        "xxsmall/fimbul Airbike/airbike_white_full.glb",
+        "xxsmall/fimbul Airbike/airbike_white_off.glb",
+        "xxsmall/fimbul Airbike/airbike_white_start.glb",
+        "xxsmall/fimbul Airbike/airbike_yellow_full.glb",
+        "xxsmall/fimbul Airbike/airbike_yellow_off.glb",
+        "xxsmall/fimbul Airbike/airbike_yellow_start.glb"
+      ],
+      "states": {
+        "full": [
+          "xxsmall/fimbul Airbike/airbike_black_full.glb",
+          "xxsmall/fimbul Airbike/airbike_blue_full.glb",
+          "xxsmall/fimbul Airbike/airbike_gray_full.glb",
+          "xxsmall/fimbul Airbike/airbike_orange_full.glb",
+          "xxsmall/fimbul Airbike/airbike_red_full.glb",
+          "xxsmall/fimbul Airbike/airbike_white_full.glb",
+          "xxsmall/fimbul Airbike/airbike_yellow_full.glb"
+        ],
+        "off": [
+          "xxsmall/fimbul Airbike/airbike_black_off.glb",
+          "xxsmall/fimbul Airbike/airbike_blue_off.glb",
+          "xxsmall/fimbul Airbike/airbike_gray_off.glb",
+          "xxsmall/fimbul Airbike/airbike_orange_off.glb",
+          "xxsmall/fimbul Airbike/airbike_red_off.glb",
+          "xxsmall/fimbul Airbike/airbike_white_off.glb",
+          "xxsmall/fimbul Airbike/airbike_yellow_off.glb"
+        ],
+        "start": [
+          "xxsmall/fimbul Airbike/airbike_black_start.glb",
+          "xxsmall/fimbul Airbike/airbike_blue_start.glb",
+          "xxsmall/fimbul Airbike/airbike_gray_start.glb",
+          "xxsmall/fimbul Airbike/airbike_orange_start.glb",
+          "xxsmall/fimbul Airbike/airbike_red_start.glb",
+          "xxsmall/fimbul Airbike/airbike_white_start.glb",
+          "xxsmall/fimbul Airbike/airbike_yellow_start.glb"
+        ]
+      }
+    },
+    {
+      "id": "unibomba",
+      "name": "Fimbul ECOS Unibomba",
+      "category": "Bomber",
+      "seatLength": 8,
+      "yardLength": 8,
+      "planetDrive": true,
+      "planetRace": false,
+      "crew": "human",
+      "size": "xxsmall",
+      "flight": "xxsmall/unibomba/unibomba_blue_flight.glb",
+      "parked": "xxsmall/unibomba/unibomba_blue_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "xxsmall/unibomba/unibomba_blue_flight.glb",
+        "xxsmall/unibomba/unibomba_blue_off.glb",
+        "xxsmall/unibomba/unibomba_olive_flight.glb",
+        "xxsmall/unibomba/unibomba_olive_off.glb",
+        "xxsmall/unibomba/unibomba_red_flight.glb",
+        "xxsmall/unibomba/unibomba_red_off.glb",
+        "xxsmall/unibomba/unibomba_white_flight.glb",
+        "xxsmall/unibomba/unibomba_white_off.glb"
+      ],
+      "states": {
+        "flight": [
+          "xxsmall/unibomba/unibomba_blue_flight.glb",
+          "xxsmall/unibomba/unibomba_olive_flight.glb",
+          "xxsmall/unibomba/unibomba_red_flight.glb",
+          "xxsmall/unibomba/unibomba_white_flight.glb"
+        ],
+        "off": [
+          "xxsmall/unibomba/unibomba_blue_off.glb",
+          "xxsmall/unibomba/unibomba_olive_off.glb",
+          "xxsmall/unibomba/unibomba_red_off.glb",
+          "xxsmall/unibomba/unibomba_white_off.glb"
+        ]
+      }
+    },
+    {
+      "id": "ruch",
+      "name": "Ogrika Ruch",
+      "category": "Racer",
+      "seatLength": 9,
+      "yardLength": 8,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "profound",
+      "size": "xxsmall",
+      "flight": "xxsmall/ruch/ruch_blue_flight.glb",
+      "parked": "xxsmall/ruch/ruch_blue_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "xxsmall/ruch/ruch_blue_flight.glb",
+        "xxsmall/ruch/ruch_blue_off.glb",
+        "xxsmall/ruch/ruch_white_flight.glb",
+        "xxsmall/ruch/ruch_white_off.glb"
+      ],
+      "states": {
+        "flight": [
+          "xxsmall/ruch/ruch_blue_flight.glb",
+          "xxsmall/ruch/ruch_white_flight.glb"
+        ],
+        "off": [
+          "xxsmall/ruch/ruch_blue_off.glb",
+          "xxsmall/ruch/ruch_white_off.glb"
+        ]
+      }
+    },
+    {
+      "id": "opal",
+      "name": "Opal Jet",
+      "category": "Racer",
+      "seatLength": 9,
+      "yardLength": 8,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "mierese",
+      "size": "xxsmall",
+      "flight": "xxsmall/opal_jet/opal_jet_teal_flight.glb",
+      "parked": "xxsmall/opal_jet/opal_jet_teal_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "xxsmall/opal_jet/opal_jet_teal_flight.glb",
+        "xxsmall/opal_jet/opal_jet_teal_off.glb",
+        "xxsmall/opal_jet/opal_jet_white_flight.glb",
+        "xxsmall/opal_jet/opal_jet_white_off.glb",
+        "xxsmall/opal_jet/opal_jet_yellow_flight.glb",
+        "xxsmall/opal_jet/opal_jet_yellow_off.glb"
+      ],
+      "states": {
+        "flight": [
+          "xxsmall/opal_jet/opal_jet_teal_flight.glb",
+          "xxsmall/opal_jet/opal_jet_white_flight.glb",
+          "xxsmall/opal_jet/opal_jet_yellow_flight.glb"
+        ],
+        "off": [
+          "xxsmall/opal_jet/opal_jet_teal_off.glb",
+          "xxsmall/opal_jet/opal_jet_white_off.glb",
+          "xxsmall/opal_jet/opal_jet_yellow_off.glb"
+        ]
+      }
+    },
+    {
+      "id": "pearce-x4",
+      "name": "Pearce X4",
+      "category": "Fighter",
+      "seatLength": 8,
+      "yardLength": 8,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "human",
+      "size": "xxsmall",
+      "flight": "xxsmall/pearce x 4/spacebike_black_on.glb",
+      "parked": "xxsmall/pearce x 4/spacebike_black_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "xxsmall/pearce x 4/spacebike_black_off.glb",
+        "xxsmall/pearce x 4/spacebike_black_on.glb",
+        "xxsmall/pearce x 4/spacebike_blue_off.glb",
+        "xxsmall/pearce x 4/spacebike_blue_on.glb",
+        "xxsmall/pearce x 4/spacebike_red_off.glb",
+        "xxsmall/pearce x 4/spacebike_red_on.glb",
+        "xxsmall/pearce x 4/spacebike_white_off.glb",
+        "xxsmall/pearce x 4/spacebike_white_on.glb",
+        "xxsmall/pearce x 4/spacebike_yellow_off.glb",
+        "xxsmall/pearce x 4/spacebike_yellow_on.glb"
+      ],
+      "states": {
+        "off": [
+          "xxsmall/pearce x 4/spacebike_black_off.glb",
+          "xxsmall/pearce x 4/spacebike_blue_off.glb",
+          "xxsmall/pearce x 4/spacebike_red_off.glb",
+          "xxsmall/pearce x 4/spacebike_white_off.glb",
+          "xxsmall/pearce x 4/spacebike_yellow_off.glb"
+        ],
+        "on": [
+          "xxsmall/pearce x 4/spacebike_black_on.glb",
+          "xxsmall/pearce x 4/spacebike_blue_on.glb",
+          "xxsmall/pearce x 4/spacebike_red_on.glb",
+          "xxsmall/pearce x 4/spacebike_white_on.glb",
+          "xxsmall/pearce x 4/spacebike_yellow_on.glb"
+        ]
+      }
+    },
+    {
+      "id": "ruch-prototype",
+      "name": "Ruch Prototype",
+      "category": "Racer",
+      "seatLength": 9,
+      "yardLength": 8,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "profound",
+      "size": "xxsmall",
+      "flight": "xxsmall/ruch_prototype/ruch_blue_flight.glb",
+      "parked": "xxsmall/ruch_prototype/ruch_blue_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "xxsmall/ruch_prototype/ruch_blue_flight.glb",
+        "xxsmall/ruch_prototype/ruch_blue_off.glb",
+        "xxsmall/ruch_prototype/ruch_white_flight.glb",
+        "xxsmall/ruch_prototype/ruch_white_off.glb"
+      ],
+      "states": {
+        "flight": [
+          "xxsmall/ruch_prototype/ruch_blue_flight.glb",
+          "xxsmall/ruch_prototype/ruch_white_flight.glb"
+        ],
+        "off": [
+          "xxsmall/ruch_prototype/ruch_blue_off.glb",
+          "xxsmall/ruch_prototype/ruch_white_off.glb"
+        ]
+      }
+    },
+    {
+      "id": "solos",
+      "name": "Solos",
+      "category": "Racer",
+      "seatLength": 9,
+      "yardLength": 8,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "sogmian",
+      "size": "xxsmall",
+      "flight": "xxsmall/solos/solos_blue_flight.glb",
+      "parked": "xxsmall/solos/solos_blue_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "xxsmall/solos/solos_blue_flight.glb",
+        "xxsmall/solos/solos_blue_off.glb",
+        "xxsmall/solos/solos_red_flight.glb",
+        "xxsmall/solos/solos_red_off.glb",
+        "xxsmall/solos/solos_silver_flight.glb",
+        "xxsmall/solos/solos_silver_off.glb"
+      ],
+      "states": {
+        "flight": [
+          "xxsmall/solos/solos_blue_flight.glb",
+          "xxsmall/solos/solos_red_flight.glb",
+          "xxsmall/solos/solos_silver_flight.glb"
+        ],
+        "off": [
+          "xxsmall/solos/solos_blue_off.glb",
+          "xxsmall/solos/solos_red_off.glb",
+          "xxsmall/solos/solos_silver_off.glb"
+        ]
+      }
+    },
+    {
+      "id": "lowbie",
+      "name": "Fimbul Lowbie",
+      "category": "Racer",
+      "seatLength": 10,
+      "yardLength": 9,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "human",
+      "size": "xsmall",
+      "flight": "xsmall/Fimbul Lowbie/hovercar_red_blue.glb",
+      "parked": "xsmall/Fimbul Lowbie/hovercar_red_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "xsmall/Fimbul Lowbie/hovercar_red_blue.glb",
+        "xsmall/Fimbul Lowbie/hovercar_red_off.glb",
+        "xsmall/Fimbul Lowbie/hovercar_red_orange.glb",
+        "xsmall/Fimbul Lowbie/hovercar_red_violet.glb"
+      ],
+      "states": {
+        "single": [
+          "xsmall/Fimbul Lowbie/hovercar_red_blue.glb",
+          "xsmall/Fimbul Lowbie/hovercar_red_orange.glb",
+          "xsmall/Fimbul Lowbie/hovercar_red_violet.glb"
+        ],
+        "off": [
+          "xsmall/Fimbul Lowbie/hovercar_red_off.glb"
+        ]
+      }
+    },
+    {
+      "id": "maxhog",
+      "name": "Max Hog",
+      "category": "Racer",
+      "seatLength": 12,
+      "yardLength": 10,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "sogmian",
+      "size": "xsmall",
+      "flight": "xsmall/maxhog/maxhog_black_rig.glb",
+      "parked": "xsmall/maxhog/maxhog_black_rig.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "xsmall/maxhog/maxhog_black_rig.glb",
+        "xsmall/maxhog/maxhog_blue_rig.glb",
+        "xsmall/maxhog/maxhog_red_rig.glb",
+        "xsmall/maxhog/maxhog_white_rig.glb"
+      ],
+      "states": {
+        "rig": [
+          "xsmall/maxhog/maxhog_black_rig.glb",
+          "xsmall/maxhog/maxhog_blue_rig.glb",
+          "xsmall/maxhog/maxhog_red_rig.glb",
+          "xsmall/maxhog/maxhog_white_rig.glb"
+        ]
+      }
+    },
+    {
+      "id": "niruch",
+      "name": "Niruch",
+      "category": "Racer",
+      "seatLength": 11,
+      "yardLength": 10,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "ustur",
+      "size": "xsmall",
+      "flight": "xsmall/niruch/niruch_blue_flight.glb",
+      "parked": "xsmall/niruch/niruch_blue_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "xsmall/niruch/niruch_blue_flight.glb",
+        "xsmall/niruch/niruch_blue_off.glb",
+        "xsmall/niruch/niruch_gold_flight.glb",
+        "xsmall/niruch/niruch_gold_off.glb",
+        "xsmall/niruch/niruch_silver_flight.glb",
+        "xsmall/niruch/niruch_silver_off.glb"
+      ],
+      "states": {
+        "flight": [
+          "xsmall/niruch/niruch_blue_flight.glb",
+          "xsmall/niruch/niruch_gold_flight.glb",
+          "xsmall/niruch/niruch_silver_flight.glb"
+        ],
+        "off": [
+          "xsmall/niruch/niruch_blue_off.glb",
+          "xsmall/niruch/niruch_gold_off.glb",
+          "xsmall/niruch/niruch_silver_off.glb"
+        ]
+      }
+    },
+    {
+      "id": "jetjet",
+      "name": "Opal Jetjet",
+      "category": "Racer",
+      "seatLength": 11,
+      "yardLength": 10,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "victorn",
+      "size": "xsmall",
+      "flight": "xsmall/jetjet/jetjet_black_flight.glb",
+      "parked": "xsmall/jetjet/jetjet_black_parked.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "xsmall/jetjet/jetjet_black_flight.glb",
+        "xsmall/jetjet/jetjet_black_parked.glb",
+        "xsmall/jetjet/jetjet_blue_flight.glb",
+        "xsmall/jetjet/jetjet_blue_parked.glb",
+        "xsmall/jetjet/jetjet_gold_flight.glb",
+        "xsmall/jetjet/jetjet_gold_parked.glb",
+        "xsmall/jetjet/jetjet_ivory_flight.glb",
+        "xsmall/jetjet/jetjet_ivory_parked.glb",
+        "xsmall/jetjet/jetjet_red_flight.glb",
+        "xsmall/jetjet/jetjet_red_parked.glb",
+        "xsmall/jetjet/jetjet_silver_flight.glb",
+        "xsmall/jetjet/jetjet_silver_parked.glb",
+        "xsmall/jetjet/jetjet_teal_flight.glb",
+        "xsmall/jetjet/jetjet_teal_parked.glb"
+      ],
+      "states": {
+        "flight": [
+          "xsmall/jetjet/jetjet_black_flight.glb",
+          "xsmall/jetjet/jetjet_blue_flight.glb",
+          "xsmall/jetjet/jetjet_gold_flight.glb",
+          "xsmall/jetjet/jetjet_ivory_flight.glb",
+          "xsmall/jetjet/jetjet_red_flight.glb",
+          "xsmall/jetjet/jetjet_silver_flight.glb",
+          "xsmall/jetjet/jetjet_teal_flight.glb"
+        ],
+        "parked": [
+          "xsmall/jetjet/jetjet_black_parked.glb",
+          "xsmall/jetjet/jetjet_blue_parked.glb",
+          "xsmall/jetjet/jetjet_gold_parked.glb",
+          "xsmall/jetjet/jetjet_ivory_parked.glb",
+          "xsmall/jetjet/jetjet_red_parked.glb",
+          "xsmall/jetjet/jetjet_silver_parked.glb",
+          "xsmall/jetjet/jetjet_teal_parked.glb"
+        ]
+      }
+    },
+    {
+      "id": "pearce-x5",
+      "name": "Pearce X5",
+      "category": "Fighter / racer",
+      "seatLength": 12,
+      "yardLength": 10,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "victorn",
+      "size": "xsmall",
+      "flight": "xsmall/pearce_x5/x5_blue_attack_flight.glb",
+      "parked": "xsmall/pearce_x5/x5_blue_attack_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "xsmall/pearce_x5/x5_blue_attack_flight.glb",
+        "xsmall/pearce_x5/x5_blue_attack_off.glb",
+        "xsmall/pearce_x5/x5_blue_compact_flight.glb",
+        "xsmall/pearce_x5/x5_blue_compact_off.glb",
+        "xsmall/pearce_x5/x5_blue_ground_flight.glb",
+        "xsmall/pearce_x5/x5_blue_ground_off.glb",
+        "xsmall/pearce_x5/x5_blue_rig.glb",
+        "xsmall/pearce_x5/x5_neon_attack_flight.glb",
+        "xsmall/pearce_x5/x5_neon_attack_off.glb",
+        "xsmall/pearce_x5/x5_neon_compact_flight.glb",
+        "xsmall/pearce_x5/x5_neon_compact_off.glb",
+        "xsmall/pearce_x5/x5_neon_ground_flight.glb",
+        "xsmall/pearce_x5/x5_neon_ground_off.glb",
+        "xsmall/pearce_x5/x5_neon_rig.glb",
+        "xsmall/pearce_x5/x5_red_attack_flight.glb",
+        "xsmall/pearce_x5/x5_red_attack_off.glb",
+        "xsmall/pearce_x5/x5_red_compact_flight.glb",
+        "xsmall/pearce_x5/x5_red_compact_off.glb",
+        "xsmall/pearce_x5/x5_red_ground_flight.glb",
+        "xsmall/pearce_x5/x5_red_ground_off.glb",
+        "xsmall/pearce_x5/x5_red_rig.glb",
+        "xsmall/pearce_x5/x5_white_attack_flight.glb",
+        "xsmall/pearce_x5/x5_white_attack_off.glb",
+        "xsmall/pearce_x5/x5_white_compact_flight.glb",
+        "xsmall/pearce_x5/x5_white_compact_off.glb",
+        "xsmall/pearce_x5/x5_white_ground_flight.glb",
+        "xsmall/pearce_x5/x5_white_ground_off.glb",
+        "xsmall/pearce_x5/x5_white_rig.glb"
+      ],
+      "states": {
+        "flight": [
+          "xsmall/pearce_x5/x5_blue_attack_flight.glb",
+          "xsmall/pearce_x5/x5_blue_compact_flight.glb",
+          "xsmall/pearce_x5/x5_blue_ground_flight.glb",
+          "xsmall/pearce_x5/x5_neon_attack_flight.glb",
+          "xsmall/pearce_x5/x5_neon_compact_flight.glb",
+          "xsmall/pearce_x5/x5_neon_ground_flight.glb",
+          "xsmall/pearce_x5/x5_red_attack_flight.glb",
+          "xsmall/pearce_x5/x5_red_compact_flight.glb",
+          "xsmall/pearce_x5/x5_red_ground_flight.glb",
+          "xsmall/pearce_x5/x5_white_attack_flight.glb",
+          "xsmall/pearce_x5/x5_white_compact_flight.glb",
+          "xsmall/pearce_x5/x5_white_ground_flight.glb"
+        ],
+        "off": [
+          "xsmall/pearce_x5/x5_blue_attack_off.glb",
+          "xsmall/pearce_x5/x5_blue_compact_off.glb",
+          "xsmall/pearce_x5/x5_blue_ground_off.glb",
+          "xsmall/pearce_x5/x5_neon_attack_off.glb",
+          "xsmall/pearce_x5/x5_neon_compact_off.glb",
+          "xsmall/pearce_x5/x5_neon_ground_off.glb",
+          "xsmall/pearce_x5/x5_red_attack_off.glb",
+          "xsmall/pearce_x5/x5_red_compact_off.glb",
+          "xsmall/pearce_x5/x5_red_ground_off.glb",
+          "xsmall/pearce_x5/x5_white_attack_off.glb",
+          "xsmall/pearce_x5/x5_white_compact_off.glb",
+          "xsmall/pearce_x5/x5_white_ground_off.glb"
+        ],
+        "rig": [
+          "xsmall/pearce_x5/x5_blue_rig.glb",
+          "xsmall/pearce_x5/x5_neon_rig.glb",
+          "xsmall/pearce_x5/x5_red_rig.glb",
+          "xsmall/pearce_x5/x5_white_rig.glb"
+        ]
+      }
+    },
+    {
+      "id": "scud",
+      "name": "Scud",
+      "category": "Racer",
+      "seatLength": 12,
+      "yardLength": 10,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "mierese",
+      "size": "xsmall",
+      "flight": "xsmall/scud/scud_gold_flight.glb",
+      "parked": "xsmall/scud/scud_gold_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "xsmall/scud/scud_gold_flight.glb",
+        "xsmall/scud/scud_gold_off.glb",
+        "xsmall/scud/scud_orange_flight.glb",
+        "xsmall/scud/scud_orange_off.glb",
+        "xsmall/scud/scud_silver_flight.glb",
+        "xsmall/scud/scud_silver_off.glb",
+        "xsmall/scud/scud_teal_flight.glb",
+        "xsmall/scud/scud_teal_off.glb"
+      ],
+      "states": {
+        "flight": [
+          "xsmall/scud/scud_gold_flight.glb",
+          "xsmall/scud/scud_orange_flight.glb",
+          "xsmall/scud/scud_silver_flight.glb",
+          "xsmall/scud/scud_teal_flight.glb"
+        ],
+        "off": [
+          "xsmall/scud/scud_gold_off.glb",
+          "xsmall/scud/scud_orange_off.glb",
+          "xsmall/scud/scud_silver_off.glb",
+          "xsmall/scud/scud_teal_off.glb"
+        ]
+      }
+    },
+    {
+      "id": "busan-thrill",
+      "name": "Busan Thrill",
+      "category": "Racer",
+      "seatLength": 15,
+      "yardLength": 12,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "high",
+      "size": "small",
+      "flight": "small/busan_thrill/thrill_blue_flight.glb",
+      "parked": "small/busan_thrill/thrill_blue_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "small/busan_thrill/thrill_blue_flight.glb",
+        "small/busan_thrill/thrill_blue_off.glb",
+        "small/busan_thrill/thrill_obsidian_flight.glb",
+        "small/busan_thrill/thrill_obsidian_off.glb",
+        "small/busan_thrill/thrill_red_flight.glb",
+        "small/busan_thrill/thrill_red_off.glb",
+        "small/busan_thrill/thrill_silver_flight.glb",
+        "small/busan_thrill/thrill_silver_off.glb"
+      ],
+      "states": {
+        "flight": [
+          "small/busan_thrill/thrill_blue_flight.glb",
+          "small/busan_thrill/thrill_obsidian_flight.glb",
+          "small/busan_thrill/thrill_red_flight.glb",
+          "small/busan_thrill/thrill_silver_flight.glb"
+        ],
+        "off": [
+          "small/busan_thrill/thrill_blue_off.glb",
+          "small/busan_thrill/thrill_obsidian_off.glb",
+          "small/busan_thrill/thrill_red_off.glb",
+          "small/busan_thrill/thrill_silver_off.glb"
+        ]
+      }
+    },
+    {
+      "id": "shipit",
+      "name": "Calico Shipit",
+      "category": "Cargo",
+      "seatLength": 16,
+      "yardLength": 13,
+      "planetDrive": true,
+      "planetRace": false,
+      "crew": "human",
+      "size": "small",
+      "flight": "small/calico_shipit/shipit_black_flight.glb",
+      "parked": "small/calico_shipit/shipit_black_off.glb",
+      "cargoOpen": "small/calico_shipit/shipit_black_cargo_open.glb",
+      "asteroid": null,
+      "variants": [
+        "small/calico_shipit/shipit_black_cargo_open.glb",
+        "small/calico_shipit/shipit_black_flight.glb",
+        "small/calico_shipit/shipit_black_off.glb",
+        "small/calico_shipit/shipit_blue_cargo_open.glb",
+        "small/calico_shipit/shipit_blue_flight.glb",
+        "small/calico_shipit/shipit_blue_off.glb",
+        "small/calico_shipit/shipit_red_cargo_open.glb",
+        "small/calico_shipit/shipit_red_flight.glb",
+        "small/calico_shipit/shipit_red_off.glb",
+        "small/calico_shipit/shipit_white_cargo_open.glb",
+        "small/calico_shipit/shipit_white_flight.glb",
+        "small/calico_shipit/shipit_white_off.glb"
+      ],
+      "states": {
+        "cargo_open": [
+          "small/calico_shipit/shipit_black_cargo_open.glb",
+          "small/calico_shipit/shipit_blue_cargo_open.glb",
+          "small/calico_shipit/shipit_red_cargo_open.glb",
+          "small/calico_shipit/shipit_white_cargo_open.glb"
+        ],
+        "flight": [
+          "small/calico_shipit/shipit_black_flight.glb",
+          "small/calico_shipit/shipit_blue_flight.glb",
+          "small/calico_shipit/shipit_red_flight.glb",
+          "small/calico_shipit/shipit_white_flight.glb"
+        ],
+        "off": [
+          "small/calico_shipit/shipit_black_off.glb",
+          "small/calico_shipit/shipit_blue_off.glb",
+          "small/calico_shipit/shipit_red_off.glb",
+          "small/calico_shipit/shipit_white_off.glb"
+        ]
+      }
+    },
+    {
+      "id": "earp",
+      "name": "Earp",
+      "category": "Fighter",
+      "seatLength": 14,
+      "yardLength": 11,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "human",
+      "size": "small",
+      "flight": "small/earp/earp_blue_flight.glb",
+      "parked": "small/earp/earp_blue_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "small/earp/earp_blue_flight.glb",
+        "small/earp/earp_blue_off.glb",
+        "small/earp/earp_red_flight.glb",
+        "small/earp/earp_red_off.glb",
+        "small/earp/earp_silver_flight.glb",
+        "small/earp/earp_silver_off.glb",
+        "small/earp/earp_white_flight.glb",
+        "small/earp/earp_white_off.glb"
+      ],
+      "states": {
+        "flight": [
+          "small/earp/earp_blue_flight.glb",
+          "small/earp/earp_red_flight.glb",
+          "small/earp/earp_silver_flight.glb",
+          "small/earp/earp_white_flight.glb"
+        ],
+        "off": [
+          "small/earp/earp_blue_off.glb",
+          "small/earp/earp_red_off.glb",
+          "small/earp/earp_silver_off.glb",
+          "small/earp/earp_white_off.glb"
+        ]
+      }
+    },
+    {
+      "id": "feist",
+      "name": "Feist Tufa",
+      "category": "Fighter",
+      "seatLength": 16,
+      "yardLength": 12,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "high",
+      "size": "small",
+      "flight": "small/feist_darker_gray/feist_gray_flight.glb",
+      "parked": "small/feist_darker_gray/feist_gray_off.glb",
+      "cargoOpen": null,
+      "asteroid": "small/feist_darker_gray/feist_gray_asteroid.glb",
+      "variants": [
+        "small/feist_darker_gray/feist_gray_asteroid.glb",
+        "small/feist_darker_gray/feist_gray_flight.glb",
+        "small/feist_darker_gray/feist_gray_off.glb",
+        "small/feist_darker_gray/feist_gray_parked.glb"
+      ],
+      "states": {
+        "asteroid": [
+          "small/feist_darker_gray/feist_gray_asteroid.glb"
+        ],
+        "flight": [
+          "small/feist_darker_gray/feist_gray_flight.glb"
+        ],
+        "off": [
+          "small/feist_darker_gray/feist_gray_off.glb"
+        ],
+        "parked": [
+          "small/feist_darker_gray/feist_gray_parked.glb"
+        ]
+      }
+    },
+    {
+      "id": "imp-tip",
+      "name": "Imp Tip Wings",
+      "category": "Fighter",
+      "seatLength": 14,
+      "yardLength": 11,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "high",
+      "size": "small",
+      "flight": "small/imp_tip_wings/imp_orange_flight.glb",
+      "parked": "small/imp_tip_wings/imp_orange_mech.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "small/imp_tip_wings/imp_orange_flight.glb",
+        "small/imp_tip_wings/imp_orange_mech.glb",
+        "small/imp_tip_wings/imp_orange_rig.glb",
+        "small/imp_tip_wings/imp_white_flight.glb",
+        "small/imp_tip_wings/imp_white_mech.glb",
+        "small/imp_tip_wings/imp_white_rig.glb",
+        "small/imp_tip_wings/imp_yellow_flight.glb",
+        "small/imp_tip_wings/imp_yellow_mech.glb",
+        "small/imp_tip_wings/imp_yellow_rig.glb"
+      ],
+      "states": {
+        "flight": [
+          "small/imp_tip_wings/imp_orange_flight.glb",
+          "small/imp_tip_wings/imp_white_flight.glb",
+          "small/imp_tip_wings/imp_yellow_flight.glb"
+        ],
+        "mech": [
+          "small/imp_tip_wings/imp_orange_mech.glb",
+          "small/imp_tip_wings/imp_white_mech.glb",
+          "small/imp_tip_wings/imp_yellow_mech.glb"
+        ],
+        "rig": [
+          "small/imp_tip_wings/imp_orange_rig.glb",
+          "small/imp_tip_wings/imp_white_rig.glb",
+          "small/imp_tip_wings/imp_yellow_rig.glb"
+        ]
+      }
+    },
+    {
+      "id": "meditech",
+      "name": "Meditech",
+      "category": "Support",
+      "seatLength": 14,
+      "yardLength": 11,
+      "planetDrive": true,
+      "planetRace": false,
+      "crew": "human",
+      "size": "small",
+      "flight": "small/meditech/medtech_orange_flight.glb",
+      "parked": "small/meditech/medtech_orange_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "small/meditech/medtech_orange_flight.glb",
+        "small/meditech/medtech_orange_off.glb",
+        "small/meditech/medtech_red_flight.glb",
+        "small/meditech/medtech_red_off.glb",
+        "small/meditech/medtech_turquoise_flight.glb",
+        "small/meditech/medtech_turquoise_off.glb",
+        "small/meditech/medtech_white_flight.glb",
+        "small/meditech/medtech_white_off.glb"
+      ],
+      "states": {
+        "flight": [
+          "small/meditech/medtech_orange_flight.glb",
+          "small/meditech/medtech_red_flight.glb",
+          "small/meditech/medtech_turquoise_flight.glb",
+          "small/meditech/medtech_white_flight.glb"
+        ],
+        "off": [
+          "small/meditech/medtech_orange_off.glb",
+          "small/meditech/medtech_red_off.glb",
+          "small/meditech/medtech_turquoise_off.glb",
+          "small/meditech/medtech_white_off.glb"
+        ]
+      }
+    },
+    {
+      "id": "mik",
+      "name": "Mik Ogrika",
+      "category": "Fighter",
+      "seatLength": 16,
+      "yardLength": 12,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "human",
+      "size": "small",
+      "flight": "small/mik/mik_emerald_flight.glb",
+      "parked": "small/mik/mik_emerald_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "small/mik/mik_emerald_flight.glb",
+        "small/mik/mik_emerald_off.glb",
+        "small/mik/mik_garnet_flight.glb",
+        "small/mik/mik_garnet_off.glb",
+        "small/mik/mik_indigo_flight.glb",
+        "small/mik/mik_indigo_off.glb",
+        "small/mik/mik_pearl_flight.glb",
+        "small/mik/mik_pearl_off.glb"
+      ],
+      "states": {
+        "flight": [
+          "small/mik/mik_emerald_flight.glb",
+          "small/mik/mik_garnet_flight.glb",
+          "small/mik/mik_indigo_flight.glb",
+          "small/mik/mik_pearl_flight.glb"
+        ],
+        "off": [
+          "small/mik/mik_emerald_off.glb",
+          "small/mik/mik_garnet_off.glb",
+          "small/mik/mik_indigo_off.glb",
+          "small/mik/mik_pearl_off.glb"
+        ]
+      }
+    },
+    {
+      "id": "pearce-x6",
+      "name": "Pearce X6",
+      "category": "Fighter",
+      "seatLength": 14,
+      "yardLength": 11,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "human",
+      "size": "small",
+      "flight": "small/pearce_x6/x6_blue_flight.glb",
+      "parked": "small/pearce_x6/x6_blue_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "small/pearce_x6/x6_blue_flight.glb",
+        "small/pearce_x6/x6_blue_off.glb",
+        "small/pearce_x6/x6_graphite_flight.glb",
+        "small/pearce_x6/x6_graphite_off.glb",
+        "small/pearce_x6/x6_red_flight.glb",
+        "small/pearce_x6/x6_red_off.glb",
+        "small/pearce_x6/x6_white_flight.glb",
+        "small/pearce_x6/x6_white_off.glb"
+      ],
+      "states": {
+        "flight": [
+          "small/pearce_x6/x6_blue_flight.glb",
+          "small/pearce_x6/x6_graphite_flight.glb",
+          "small/pearce_x6/x6_red_flight.glb",
+          "small/pearce_x6/x6_white_flight.glb"
+        ],
+        "off": [
+          "small/pearce_x6/x6_blue_off.glb",
+          "small/pearce_x6/x6_graphite_off.glb",
+          "small/pearce_x6/x6_red_off.glb",
+          "small/pearce_x6/x6_white_off.glb"
+        ]
+      }
+    },
+    {
+      "id": "rainbow-chi",
+      "name": "Rainbow Chi",
+      "category": "Fighter",
+      "seatLength": 14,
+      "yardLength": 12,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "human",
+      "size": "small",
+      "flight": "small/rainbow_chi_photoli/rainbow_chi.glb",
+      "parked": "small/rainbow_chi_photoli/rainbow_chi.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "small/rainbow_chi_photoli/rainbow_chi.glb"
+      ],
+      "states": {
+        "single": [
+          "small/rainbow_chi_photoli/rainbow_chi.glb"
+        ]
+      }
+    },
+    {
+      "id": "rayfam",
+      "name": "Rayfam",
+      "category": "Fighter",
+      "seatLength": 14,
+      "yardLength": 11,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "human",
+      "size": "small",
+      "flight": "small/rayfam/rayfam_black_gold_flight.glb",
+      "parked": "small/rayfam/rayfam_black_gold_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "small/rayfam/rayfam_black_gold_flight.glb",
+        "small/rayfam/rayfam_black_gold_off.glb",
+        "small/rayfam/rayfam_purple_flight.glb",
+        "small/rayfam/rayfam_purple_off.glb",
+        "small/rayfam/rayfam_teal_flight.glb",
+        "small/rayfam/rayfam_teal_off.glb",
+        "small/rayfam/rayfam_yellow_flight.glb",
+        "small/rayfam/rayfam_yellow_off.glb"
+      ],
+      "states": {
+        "flight": [
+          "small/rayfam/rayfam_black_gold_flight.glb",
+          "small/rayfam/rayfam_purple_flight.glb",
+          "small/rayfam/rayfam_teal_flight.glb",
+          "small/rayfam/rayfam_yellow_flight.glb"
+        ],
+        "off": [
+          "small/rayfam/rayfam_black_gold_off.glb",
+          "small/rayfam/rayfam_purple_off.glb",
+          "small/rayfam/rayfam_teal_off.glb",
+          "small/rayfam/rayfam_yellow_off.glb"
+        ]
+      }
+    },
+    {
+      "id": "ambwe",
+      "name": "VZUS Ambwe",
+      "category": "Fighter",
+      "seatLength": 16,
+      "yardLength": 12,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "mierese",
+      "size": "small",
+      "flight": "small/ambwe/ambwe_black_flight.glb",
+      "parked": "small/ambwe/ambwe_black_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "small/ambwe/ambwe_black_flight.glb",
+        "small/ambwe/ambwe_black_off.glb",
+        "small/ambwe/ambwe_blue_flight.glb",
+        "small/ambwe/ambwe_blue_off.glb",
+        "small/ambwe/ambwe_silver_flight.glb",
+        "small/ambwe/ambwe_silver_off.glb",
+        "small/ambwe/ambwe_slate_flight.glb",
+        "small/ambwe/ambwe_slate_off.glb"
+      ],
+      "states": {
+        "flight": [
+          "small/ambwe/ambwe_black_flight.glb",
+          "small/ambwe/ambwe_blue_flight.glb",
+          "small/ambwe/ambwe_silver_flight.glb",
+          "small/ambwe/ambwe_slate_flight.glb"
+        ],
+        "off": [
+          "small/ambwe/ambwe_black_off.glb",
+          "small/ambwe/ambwe_blue_off.glb",
+          "small/ambwe/ambwe_silver_off.glb",
+          "small/ambwe/ambwe_slate_off.glb"
+        ]
+      }
+    },
+    {
+      "id": "arma",
+      "name": "VZUS Arma",
+      "category": "Fighter",
+      "seatLength": 16,
+      "yardLength": 12,
+      "planetDrive": true,
+      "planetRace": true,
+      "crew": "ustur",
+      "size": "small",
+      "flight": "small/arma/arma_black_flight.glb",
+      "parked": "small/arma/arma_black_off.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "small/arma/arma_black_flight.glb",
+        "small/arma/arma_black_landed.glb",
+        "small/arma/arma_black_off.glb",
+        "small/arma/arma_gold_flight.glb",
+        "small/arma/arma_gold_landed.glb",
+        "small/arma/arma_gold_off.glb",
+        "small/arma/arma_navy_flight.glb",
+        "small/arma/arma_navy_landed.glb",
+        "small/arma/arma_navy_off.glb",
+        "small/arma/arma_silver_flight.glb",
+        "small/arma/arma_silver_landed.glb",
+        "small/arma/arma_silver_off.glb",
+        "small/arma/arma_teal_flight.glb",
+        "small/arma/arma_teal_landed.glb",
+        "small/arma/arma_teal_off.glb"
+      ],
+      "states": {
+        "flight": [
+          "small/arma/arma_black_flight.glb",
+          "small/arma/arma_gold_flight.glb",
+          "small/arma/arma_navy_flight.glb",
+          "small/arma/arma_silver_flight.glb",
+          "small/arma/arma_teal_flight.glb"
+        ],
+        "landed": [
+          "small/arma/arma_black_landed.glb",
+          "small/arma/arma_gold_landed.glb",
+          "small/arma/arma_navy_landed.glb",
+          "small/arma/arma_silver_landed.glb",
+          "small/arma/arma_teal_landed.glb"
+        ],
+        "off": [
+          "small/arma/arma_black_off.glb",
+          "small/arma/arma_gold_off.glb",
+          "small/arma/arma_navy_off.glb",
+          "small/arma/arma_silver_off.glb",
+          "small/arma/arma_teal_off.glb"
+        ]
+      }
+    },
+    {
+      "id": "calico-evac",
+      "name": "Calico Evac",
+      "category": "Transport / rescue",
+      "seatLength": 28,
+      "yardLength": 24,
+      "planetDrive": false,
+      "planetRace": false,
+      "crew": "human",
+      "size": "medium",
+      "flight": "medium/calico_evac_v1/calico_evac.glb",
+      "parked": "medium/calico_evac_v1/calico_evac.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "medium/calico_evac_v1/calico_evac.glb"
+      ],
+      "states": {
+        "single": [
+          "medium/calico_evac_v1/calico_evac.glb"
+        ]
+      }
+    },
+    {
+      "id": "calico-hero",
+      "name": "Calico Hero",
+      "category": "Multi-role",
+      "seatLength": 24,
+      "yardLength": 22,
+      "planetDrive": false,
+      "planetRace": false,
+      "crew": "human",
+      "size": "medium",
+      "flight": "medium/calico_hero_v1/calico_hero.glb",
+      "parked": "medium/calico_hero_v1/calico_hero.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "medium/calico_hero_v1/calico_hero.glb"
+      ],
+      "states": {
+        "single": [
+          "medium/calico_hero_v1/calico_hero.glb"
+        ]
+      }
+    },
+    {
+      "id": "mamba",
+      "name": "Fimbul Mamba",
+      "category": "Combat / bounty hunter",
+      "seatLength": 32,
+      "yardLength": 30,
+      "planetDrive": false,
+      "planetRace": false,
+      "crew": "human",
+      "size": "medium",
+      "flight": "medium/mamba/fimbul_mamba.glb",
+      "parked": "medium/mamba/fimbul_mamba.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "medium/mamba/fimbul_mamba.glb"
+      ],
+      "states": {
+        "single": [
+          "medium/mamba/fimbul_mamba.glb"
+        ]
+      }
+    },
+    {
+      "id": "mamba-ex",
+      "name": "Fimbul Mamba EX",
+      "category": "Bounty hunter",
+      "seatLength": 32,
+      "yardLength": 30,
+      "planetDrive": false,
+      "planetRace": false,
+      "crew": "human",
+      "size": "medium",
+      "flight": "medium/mamba_ex/fimbul_mamba_ex.glb",
+      "parked": "medium/mamba_ex/fimbul_mamba_ex.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "medium/mamba_ex/fimbul_mamba_ex.glb"
+      ],
+      "states": {
+        "single": [
+          "medium/mamba_ex/fimbul_mamba_ex.glb"
+        ]
+      }
+    },
+    {
+      "id": "packlite",
+      "name": "Fimbul Packlite",
+      "category": "Cargo / combat",
+      "seatLength": 28,
+      "yardLength": 28,
+      "planetDrive": false,
+      "planetRace": false,
+      "crew": "human",
+      "size": "medium",
+      "flight": "medium/fimbull packlite/packlite.glb",
+      "parked": "medium/fimbull packlite/packlite.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "medium/fimbull packlite/packlite.glb"
+      ],
+      "states": {
+        "single": [
+          "medium/fimbull packlite/packlite.glb"
+        ]
+      }
+    },
+    {
+      "id": "imp-tap",
+      "name": "Imp Tap",
+      "category": "Combat / utility",
+      "seatLength": 28,
+      "yardLength": 26,
+      "planetDrive": false,
+      "planetRace": false,
+      "crew": "high",
+      "size": "medium",
+      "flight": "medium/imp_tap_v1/imp_tap_v1/imp_tap.glb",
+      "parked": "medium/imp_tap_v1/imp_tap_v1/imp_tap.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "medium/imp_tap_v1/imp_tap_v1/imp_tap.glb"
+      ],
+      "states": {
+        "single": [
+          "medium/imp_tap_v1/imp_tap_v1/imp_tap.glb"
+        ]
+      }
+    },
+    {
+      "id": "pearce-f4",
+      "name": "Pearce F4",
+      "category": "Combat / transport",
+      "seatLength": 32,
+      "yardLength": 32,
+      "planetDrive": false,
+      "planetRace": false,
+      "crew": "human",
+      "size": "medium",
+      "flight": "medium/pearce_f4/pearce_f4.glb",
+      "parked": "medium/pearce_f4/pearce_f4.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "medium/pearce_f4/pearce_f4.glb"
+      ],
+      "states": {
+        "single": [
+          "medium/pearce_f4/pearce_f4.glb"
+        ]
+      }
+    },
+    {
+      "id": "rainbow-om",
+      "name": "Rainbow Om",
+      "category": "Freighter",
+      "seatLength": 28,
+      "yardLength": 28,
+      "planetDrive": false,
+      "planetRace": false,
+      "crew": "human",
+      "size": "medium",
+      "flight": "medium/rainbow_om/rainbow_om.glb",
+      "parked": "medium/rainbow_om/rainbow_om.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "medium/rainbow_om/rainbow_om.glb"
+      ],
+      "states": {
+        "single": [
+          "medium/rainbow_om/rainbow_om.glb"
+        ]
+      }
+    },
+    {
+      "id": "armstrong",
+      "name": "Armstrong Imp",
+      "category": "Heavy combat",
+      "seatLength": 42,
+      "yardLength": 40,
+      "planetDrive": false,
+      "planetRace": false,
+      "crew": "high",
+      "size": "Large",
+      "flight": "Large/imp_bur_v1/imp_bur_v1/armstrong_imp.glb",
+      "parked": "Large/imp_bur_v1/imp_bur_v1/armstrong_imp.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "Large/imp_bur_v1/imp_bur_v1/armstrong_imp.glb"
+      ],
+      "states": {
+        "single": [
+          "Large/imp_bur_v1/imp_bur_v1/armstrong_imp.glb"
+        ]
+      }
+    },
+    {
+      "id": "rainbow-arc",
+      "name": "Rainbow Arc",
+      "category": "Freighter",
+      "seatLength": 40,
+      "yardLength": 40,
+      "planetDrive": false,
+      "planetRace": false,
+      "crew": "human",
+      "size": "Large",
+      "flight": "Large/rainbow_arc_v1/rainbow_arc.glb",
+      "parked": "Large/rainbow_arc_v1/rainbow_arc.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "Large/rainbow_arc_v1/rainbow_arc.glb"
+      ],
+      "states": {
+        "single": [
+          "Large/rainbow_arc_v1/rainbow_arc.glb"
+        ]
+      }
+    },
+    {
+      "id": "rainbow-phi",
+      "name": "Rainbow Phi",
+      "category": "Heavy freighter",
+      "seatLength": 54,
+      "yardLength": 52,
+      "planetDrive": false,
+      "planetRace": false,
+      "crew": "human",
+      "size": "Titan",
+      "flight": "Titan/rainbow_phi_v1_2/rainbow_phi.glb",
+      "parked": "Titan/rainbow_phi_v1_2/rainbow_phi.glb",
+      "cargoOpen": null,
+      "asteroid": null,
+      "variants": [
+        "Titan/rainbow_phi_v1_2/rainbow_phi.glb"
+      ],
+      "states": {
+        "single": [
+          "Titan/rainbow_phi_v1_2/rainbow_phi.glb"
+        ]
+      }
+    }
+  ]
+}
