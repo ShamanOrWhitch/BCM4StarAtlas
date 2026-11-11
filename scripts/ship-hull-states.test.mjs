@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
-const shipRoot = resolve(new URL("../mini-sim/assets/mesh/ships/", import.meta.url).pathname);
+const shipRoot = fileURLToPath(new URL("../mini-sim/assets/mesh/ships/", import.meta.url));
 
 test("ship catalog contains every uploaded family and each real GLB path resolves", async () => {
   const catalog = JSON.parse(await read("mini-sim/assets/mesh/ships/catalog.json"));
