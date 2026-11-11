@@ -1,5 +1,18 @@
 ## D-048 — One shared ship catalog, separate parked and flight forms (11 November 2026)
 
+**Status:** Implemented and merged via [PR #108](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/108), main commit [`c4754e019dc4a45a00aa26a4b0c3675c11d77931`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/c4754e019dc4a45a00aa26a4b0c3675c11d77931).
+
+- Keep one source of truth at `mini-sim/assets/mesh/ships/catalog.json` for all 37 families / 240 verified GLB variants. Store explicit `flight` and `parked` file paths; when a family only has one GLB, use that same file for both states rather than inventing an animation.
+- Use existing model suffixes (`flight`, `off`, `landed`, `parked`, `folded`, `mech`, etc.) as separate ready-made forms. Do not create skeletal animation or rewrite model geometry as part of this pass.
+- Space first-person selects the flight form; the deep-space shipyard displays the parked form and boarding swaps to the flight form. First Planet third-person uses the same pair and swaps when the craft is moving. Only road-safe `planetRace` families enter Shoal Race; heavier craft remain in the orbital showcase.
+- Legacy ship IDs are normalized at the First Planet lookup boundary, preserving older local selections.
+- Preserve Packlite, Mamba, Mamba EX and Pearce F4 controllers/panels. Keep Rainbow camouflage independent and unchanged until separately specified by the user. Defer 2D ship views.
+- Source/path regression and First Planet WP bundle/package checks passed; PR browser smoke was still running at merge time. No live WordPress deployment or manual device playtest is implied.
+
+---
+
+## D-048 — One shared ship catalog, separate parked and flight forms (11 November 2026)
+
 **Status:** Candidate implementation in WORK LOCK [#107](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/107), branch `feat/minisim-ship-hull-states`; CI pending.
 
 - Keep one source of truth at `mini-sim/assets/mesh/ships/catalog.json` for all 37 families and 240 verified GLB variants. Store explicit `flight` and `parked` file paths; when a family only has one GLB, use that same file for both states rather than inventing an animation.
