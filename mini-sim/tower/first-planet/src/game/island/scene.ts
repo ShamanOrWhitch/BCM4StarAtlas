@@ -902,7 +902,7 @@ export function createIsland(
       { spec: pilotShip("maxhog"), x: SKY.x + 2, z: SKY.z - 14 },
       ...ASTEROID_SHOW.map((spec, index) => {
         const angle = -Math.PI / 2 + (index / Math.max(1, ASTEROID_SHOW.length)) * Math.PI * 2;
-        const radius = 42;
+        const radius = 48;
         return {
           spec,
           x: SKY.x + Math.cos(angle) * radius,
@@ -1202,7 +1202,7 @@ export function createIsland(
     };
     const parked = ((scene.userData as { parked?: Parked[] }).parked) ?? [];
     const nearShip = (spot: Parked) => {
-      const reach = spot.y > 8 ? Math.max(48, spot.fitLength * 0.65) : 8;
+      const reach = spot.y > 8 ? Math.max(54, spot.fitLength * 0.65) : 8;
       return (spot.x - sim.x) ** 2 + (spot.z - sim.z) ** 2 < reach * reach;
     };
     if (boarded && sim.mode === "foot") {
