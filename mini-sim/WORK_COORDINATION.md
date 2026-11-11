@@ -1,3 +1,14 @@
+## Merged — WORK LOCK #107: ship parked/flight forms (11 November 2026)
+
+- **Merged:** [PR #108](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/108), main commit [`c4754e019dc4a45a00aa26a4b0c3675c11d77931`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/c4754e019dc4a45a00aa26a4b0c3675c11d77931). Mini-Sim `0.12.10`.
+- Shared `mini-sim/assets/mesh/ships/catalog.json` covers 37 families / 240 existing GLB files. Mini-Sim first-person selection and deep-space display use flight/parked variants. First Planet uses the same catalog for 26 island craft plus 11 orbital-showcase families; boarded hulls switch to a flight GLB while moving. Old ship IDs map to the new catalog IDs.
+- **Checks PASS:** Mini-Sim regression including the new ship path/state test [#43036179836](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43036179836); UI Layer, Tower top cap, Warp and Hull Dive RU/EN checks on PR head `13f0d764`; First Planet WordPress bundle build/package verification [#43036179805](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43036179805). Test artifact: `bcm-mini-sim-0.12.10-test` (ID `13862878299`).
+- Browser smoke checks were still running after merge: [standalone Chromium](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43036180023) and [GitHub browser QA](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43036180029). Live WordPress/device playtest is separate and not claimed.
+- Keep Packlite, Mamba, Mamba EX and Pearce F4 controllers/panels intact. Rainbow camouflage remains unchanged until separately specified. No 2D work.
+- **Overlap boundary:** PR [#105](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/105) / issue [#104](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/104) handles desert/coastal scenery. Keep ship code separate from scenery RNG, decoration, route and race physics. No Galia Desk, scanner/pricing, firewall, wallet write or SAGE transaction changes.
+
+---
+
 ## Active — WORK LOCK #107: connect ship parked/flight states (11 November 2026)
 
 - **Issue:** [#107](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/107). **Branch:** `feat/minisim-ship-hull-states`. **Base:** main `a7d6d6918c06818a1e8a968fb940d19ed0333042`.
