@@ -1,3 +1,17 @@
+## Merged implementation — WORK LOCK #107: ship parked/flight forms (11 November 2026)
+
+- **Issue:** [#107](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/107). **Merged:** [PR #108](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/108), main commit [`c4754e019dc4a45a00aa26a4b0c3675c11d77931`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/c4754e019dc4a45a00aa26a4b0c3675c11d77931). Mini-Sim: `0.12.10`.
+- Added `mini-sim/assets/mesh/ships/catalog.json`: one entry per 37 ship families, referencing all 240 existing GLB files. Every family has explicit flight and parked choices; a single-file family reuses that same GLB for both states.
+- Mini-Sim first-person space receives `BCMMiniSimConfig.shipCatalog`, exposes the complete family picker grouped by class, displays each family's parked form in the deep-space yard, and loads its flight form on transfer/boarding.
+- First Planet derives island/showcase/race lists from the same catalog. 26 small / extra-small hull families use island berths; 11 medium / large / Titan families use the orbital showcase. A boarded ship switches to its paired flight mesh while moving and returns to its parked mesh when stopped/dismounted.
+- Legacy saved ship IDs (Pearce X4, Busan Pulse, Pearce X5, Rainbow Chi/Om/Arc, Calico Hero) map to the new family IDs so the selection does not reset after catalog migration.
+- Existing four medium demo rigs (Packlite, Mamba, Mamba EX, Pearce F4) keep their original controls, panels and mechanical modes. Rainbow camouflage code is unchanged; 2D rendering remains out of scope.
+- **Verification:** ship-hull catalog/path + space/planet source tests passed in Mini-Sim regression [run #43036179836](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43036179836). UI Layer, Tower top cap, Warp visual tiers/return and Hull Dive RU/EN checks passed on PR head `13f0d764`. First Planet WordPress bundle build and package verification passed in [run #43036179805](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43036179805); test artifact `bcm-mini-sim-0.12.10-test`, artifact ID `13862878299`. Two browser smoke runs and main post-merge CI were still running at the time of this entry: [standalone browser](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43036180023), [GitHub browser QA](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43036180029).
+- **Verification boundary:** no live WordPress upload/deployment, manual playthrough on `walkingyog.com/bcm4sa/`, or user device confirmation is claimed.
+- **Coordination:** PR [#105](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/105) / issue [#104](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/104) scenery work remains separate. This lock does not alter its island decoration, route or Shoal Race physics. Galia Desk, scanner/pricing, firewall, wallet writes and SAGE transactions remain excluded.
+
+---
+
 ## Active implementation — WORK LOCK #107: ship parked/flight forms (11 November 2026)
 
 - **Issue:** [#107](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/107). **Branch:** `feat/minisim-ship-hull-states`. **Base:** main `a7d6d6918c06818a1e8a968fb940d19ed0333042` (Mini-Sim 0.12.9). Candidate Mini-Sim version: `0.12.10`.
