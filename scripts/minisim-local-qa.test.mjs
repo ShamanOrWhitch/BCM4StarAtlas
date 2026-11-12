@@ -103,8 +103,8 @@ test("startup prioritizes Starbase OST, initial room textures, right-wall video 
   assert.match(arm,/room1RightWall\.el\.fetchPriority = "high"/);
   assert.match(mini,/queueLowPriorityImage\(url, finish, \(\) => \{[\s\S]*?\}, 9\)/);
   assert.match(mini,/function addRoofCorners\([\s\S]*?const corner = deferredTextured\(/);
-  assert.ok(mini.includes('if (/^roofa[0-9]*\\.png$/.test(base)) return 4;'));
-  assert.ok(mini.includes('if (/^wall[1-5]\\.png$/.test(base)) return 1;'));
+  assert.ok(mini.includes('if (/^roofa[0-9]*\.png$/.test(base)) return 4;'));
+  assert.ok(mini.includes('if (/^wall[1-5]\.png$/.test(base)) return 1;'));
   const zones=mini.slice(mini.indexOf("const videoZones = Array.isArray(config.spaceVideoZones)"),mini.indexOf("// Room 1 rear wall"));
   assert.match(zones,/if \(item\.towerGate && item\.url\)/);
   assert.match(zones,/video\.preload = "auto";\s*video\.src = item\.url;\s*video\.load\(\)/);
@@ -271,10 +271,10 @@ test("Warp travel motion increases while shimmer rate stays on its own previous 
 
 test("live WordPress QA fails fast on denied or non-Mini-Sim responses", async () => {
   const runner = await read("scripts/minisim-local-qa.mjs");
-  assert.match(runner, /AbortSignal\\.timeout\\(10000\\)/);
+  assert.match(runner, /AbortSignal\.timeout\(10000\)/);
   assert.match(runner, /const stopPreflight = async/);
   assert.match(runner, /BLOCKED_ENVIRONMENT/);
-  assert.match(runner, /process\\.exit\\(2\\)/);
-  assert.match(runner, /timeout:standalone\\?30000:8000/);
-  assert.match(runner, /report\\.status=e\\?\\.qaStatus\\|\\|"FAIL"/);
+  assert.match(runner, /process\.exit\(2\)/);
+  assert.match(runner, /timeout:standalone\?30000:8000/);
+  assert.match(runner, /report\.status=e\?\.qaStatus\|\|"FAIL"/);
 });
