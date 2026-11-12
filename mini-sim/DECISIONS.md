@@ -1,3 +1,15 @@
+## D-049 — Retire live WordPress browser automation; fail fast on manual preflight (12 November 2026)
+
+**Status:** Live GitHub Actions workflow retired and merged via [PR #109](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/109), commit `cb4ead0418bfcf99f4b3a808bfdb09ce507e3ec3`. Manual-runner hardening is on branch `fix/minisim-live-qa-fail-fast-20261112`.
+
+- Routine verification is source/regression CI plus the standalone Chromium fixture running against localhost and repository assets. Do not restore the public WordPress URL as an automatic or scheduled gate.
+- Manual live WordPress browser QA is allowed only at the user's explicit request. Stop immediately on a non-successful preflight response, network timeout or missing `.bcm-mini-sim` root. Record `BLOCKED_ENVIRONMENT`, not gameplay FAIL.
+- The website returned HTTP 403 to GitHub-hosted automation from 22 October onward. Logs do not prove that a specific security plugin or its update caused the rejection.
+- Do not update security plugins daily, alter firewall / anti-bot configuration, whitelist, bypass or retry the blocked site to satisfy CI. Security updates remain normal owner-managed maintenance.
+- Keep gameplay/source failures separate from host access failures and from user-confirmed live-device testing.
+
+---
+
 ## D-048 — One shared ship catalog, separate parked and flight forms (11 November 2026)
 
 **Status:** Implemented and merged via [PR #108](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/108), main commit [`c4754e019dc4a45a00aa26a4b0c3675c11d77931`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/c4754e019dc4a45a00aa26a4b0c3675c11d77931).
