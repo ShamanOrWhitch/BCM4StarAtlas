@@ -1,3 +1,9 @@
+## Current verification boundary — 12 November 2026
+
+- Live WordPress automation against `https://walkingyog.com/bcm4sa/` is retired and already merged by [PR #109](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/109), commit `cb4ead0418bfcf99f4b3a808bfdb09ce507e3ec3`. The workflow has no triggers and an inert job guard.
+- Use `npm run test:minisim` and `npm run qa:minisim:standalone` for routine source and browser checks. The standalone Chromium fixture uses local repository assets.
+- Do not infer that daily WordPress security-plugin updates caused the HTTP 403. Do not update plugins, change the firewall, bypass anti-bot protection or retry the live route for CI.
+- The live runner's additional fail-fast hardening is being made separately on branch `fix/minisim-live-qa-fail-fast-20261112`; see [TESTING.md](TESTING.md).
 ## Merged implementation — WORK LOCK #107: ship parked/flight forms (11 November 2026)
 
 - **Issue:** [#107](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/107). **Merged:** [PR #108](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/108), main commit [`c4754e019dc4a45a00aa26a4b0c3675c11d77931`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/c4754e019dc4a45a00aa26a4b0c3675c11d77931). Mini-Sim: `0.12.10`.
