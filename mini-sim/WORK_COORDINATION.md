@@ -1,3 +1,10 @@
+## QA boundary — 12 November 2026
+
+- Canonical rules: [TESTING.md](TESTING.md). The live WordPress browser workflow is retired and merged in [PR #109](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/109), commit `cb4ead0418bfcf99f4b3a808bfdb09ce507e3ec3`.
+- Keep only source/regression CI and the localhost standalone Chromium browser workflow as automatic checks. Never add the public `/bcm4sa/` route to push, PR, scheduled or unattended CI.
+- Live WordPress checks are manual-only on explicit user request. The manual runner must stop before Chromium on HTTP denial, network timeout or missing `.bcm-mini-sim` root, and report `BLOCKED_ENVIRONMENT`.
+- Do not retry the blocked route, bypass / reconfigure firewall or anti-bot protection, or update security plugins as a CI workaround. Daily security-plugin updates are not a QA requirement; Actions logs do not prove which protection component returned 403 or why.
+- Preserve the standalone Playwright fixture and the local source tests. They use repository assets and do not visit WordPress.
 ## Merged — WORK LOCK #107: ship parked/flight forms (11 November 2026)
 
 - **Merged:** [PR #108](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/108), main commit [`c4754e019dc4a45a00aa26a4b0c3675c11d77931`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/c4754e019dc4a45a00aa26a4b0c3675c11d77931). Mini-Sim `0.12.10`.
