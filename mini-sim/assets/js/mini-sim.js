@@ -1336,9 +1336,17 @@
   let tapePlaybackFocused = false;
   let cinemaMusicGain = 1;
   function syncMiniSimMusic() {
-    if (!musicAudio) return;
-    musicAudio.volume = settings.volume * cinemaMusicGain * (1 - 0.985 * tapePlaybackNear);
-    musicAudio.muted = cinema.mute || tapePlaybackFocused;
+    const silent = cinema.mute || tapePlaybackFocused;
+    if (musicAudio) {
+      musicAudio.volume = settings.volume * cinemaMusicGain * (1 - 0.985 * tapePlaybackNear);
+      musicAudio.muted = silent;
+    }
+    gameOstTracks.forEach((audio) => {
+      if (audio && audio !== musicAudio) audio.muted = silent;
+    });
+    cinema.zones.forEach((zone) => {
+      if (zone.el) zone.el.muted = silent || !!zone.towerGate;
+    });
   }
   window.addEventListener("bcm:tape-near", (event) => {
     tapePlaybackNear = Math.max(0, Math.min(1, Number(event.detail) || 0));
@@ -4607,7 +4615,7 @@
         if (!zone.active) {
           zone.active = true;
           zone.el.loop = zone.towerGate ? false : true;
-          zone.el.muted = zone.towerGate ? true : cinema.mute;
+          zone.el.muted = zone.towerGate ? true : cinema.mute || tapePlaybackFocused;
           const p = zone.el.play();
           if (p && p.catch) {
             p.catch(() => {

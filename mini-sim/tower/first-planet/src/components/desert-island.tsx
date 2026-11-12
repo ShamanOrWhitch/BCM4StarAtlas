@@ -384,7 +384,7 @@ export function DesertIsland({
                 {hud.tape === "paused" ? "На паузе · весь экран" : "Весь экран"}
               </button>
             ) : null}
-            {hud.tape === "playing" || hud.tape === "paused" ? (
+            {hud.nearTapeDeck && (hud.tape === "playing" || hud.tape === "paused") ? (
               <button
                 type="button"
                 className="pointer-events-auto rounded-full border border-line bg-surface/95 px-4 py-1 text-sm font-medium"

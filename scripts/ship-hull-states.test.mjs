@@ -164,6 +164,8 @@ test("ship sidecars load, generic controls exist, and Rainbow settings are isola
   assert.match(mini, /syncCamoPanel\(hull\)/);
   assert.match(mini, /root\.userData\.bcmCamo/);
   assert.match(mini, /state\.dirty = true/);
+  assert.match(mini, /gameOstTracks\.forEach\(\(audio\) => \{[\s\S]*audio\.muted = silent/);
+  assert.match(mini, /zone\.el\.muted = silent/);
   assert.doesNotMatch(mini, /const camo = \{/);
   assert.match(mini, /e\.code === "KeyF".*tryTransferDock/s);
   assert.match(mini, /if \(shipId === "opal"\) root\.position\.z \+= 0\.55/);
