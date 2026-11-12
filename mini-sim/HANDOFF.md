@@ -304,3 +304,11 @@ This entry supersedes the older 0.11.3–0.11.5 candidate notes below; those sec
 - **Browser QA:** [run 40488604679](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40488604679) получил HTTP 403 до .bcm-mini-sim. Это BLOCKED-ENVIRONMENT, не PASS и не gameplay FAIL. Не запускать тот же путь повторно, пока доступ не изменился; firewall не обходить.
 - **Не подтверждено:** WordPress deployment и ручная визуальная проверка на браузере/телефоне/геймпаде.
 - **Следующий шаг:** пользовательский playtest после обновления assets на сайте; при новой ошибке фиксировать точный симптом и менять только нужный путь. Не повторять старый 403-маршрут.
+
+
+## Current test boundary — live WordPress browser QA retired (12 November 2026)
+
+- The user explicitly requested that GitHub Actions stop opening `https://walkingyog.com/bcm4sa/`. Its anti-bot protection blocks automated traffic; the former live smoke workflow could stall for up to 45 minutes without testing the game.
+- `.github/workflows/minisim-browser-qa.yml` is disabled (no triggers + job guard). Do not restore the automatic live-page test or attempt firewall workarounds.
+- Keep `npm run test:minisim` and `npm run qa:minisim:standalone` / `.github/workflows/minisim-standalone-browser-qa.yml`: these test repository assets using a localhost fixture and are not live WordPress checks.
+- User-facing status must distinguish source regression and local standalone Chromium from any production/live/device test. No live-site pass is implied.

@@ -419,3 +419,12 @@ Issue #28 остаётся открытым только для полной г�
 - TV proximity is calculated from the character/vehicle position with a wider smooth falloff. A dedicated fullscreen audio-focus event mutes island/race ambience while the tape is in fullscreen and restores it on close or Escape.
 - Cassette inventory is saved in localStorage schema v2. The chest grants `Invaders 10`; old saves with an already-open chest receive the new tape during migration. The player can select any owned tape near the TV. The original ground cassette remains a pickup.
 - CI and source checks are added for shared Max Hog controls, ship transfer, cassette migration, and exclusive TV audio. Site deployment and hands-on browser testing remain separate; the site's 403 response to external GitHub runners is not treated as a gameplay verdict.
+
+
+## Retired — live WordPress browser QA (12 November 2026)
+
+- **User direction:** remove the automated browser test that opens `https://walkingyog.com/bcm4sa/`; the site's anti-bot protection blocks automated requests and causes long, irrelevant waits.
+- **IMPLEMENTED on branch** `chore/disable-live-wordpress-minisim-qa-20261112`: `.github/workflows/minisim-browser-qa.yml` has no event triggers (`on: []`) and its job is additionally guarded by `if: false`. It no longer installs Chromium, fetches the live page, or gates Mini-Sim pushes / pull requests.
+- Keep source/regression checks and `minisim-standalone-browser-qa.yml`: that standalone browser run uses a local HTTP fixture and repository assets, not the public WordPress site. Do not change the shared Playwright runner used by that local workflow.
+- WORK LOCK #17 (remote website QA) is retired at the user's request. No firewall bypass or further live-site probe is authorized. This change itself did not request `/bcm4sa`.
+- Status: **IMPLEMENTED on branch**; CI/merge status is recorded in the pull request. No live gameplay result is claimed.
