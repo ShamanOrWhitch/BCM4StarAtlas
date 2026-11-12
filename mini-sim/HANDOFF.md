@@ -1,3 +1,11 @@
+## Current QA contract — 12 November 2026
+
+- Read [TESTING.md](TESTING.md) before changing or starting any browser test.
+- Automatic checks are source regression and the local-fixture standalone Chromium workflow only. The live WordPress workflow was retired at the user's direction and merged through [PR #109](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/109), commit `cb4ead0418bfcf99f4b3a808bfdb09ce507e3ec3`.
+- Do not probe `https://walkingyog.com/bcm4sa/` from Actions, schedule it, retry it, or bypass the site's protection. A live check is manual-only and requires the user's explicit request.
+- The manual runner must fail fast on a denied response, unavailable host, or missing `.bcm-mini-sim` root. Report `BLOCKED_ENVIRONMENT`; do not wait for a selector that cannot appear.
+- Do not update security plugins daily or change firewall / anti-bot settings for CI. The observed 403 does not identify a particular plugin or prove an update caused it.
+- This branch adds fail-fast behavior for the manual runner. Keep `npm run test:minisim` and `npm run qa:minisim:standalone` as the normal code/browser verification path.
 ## New standalone browser QA harness — 28 October 2026
 
 - WORK LOCK [#90](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/90); branch `feat/minisim-standalone-browser-qa`, baseline main `e940be64f2e280dcab321c2f0f739974e1b7bce9`.
