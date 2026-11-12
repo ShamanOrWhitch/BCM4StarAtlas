@@ -749,3 +749,13 @@ HEAD at the start of the session was `748998250d39ac9ed163b84caa1f7178da920d9a` 
 - Rainbow camouflage remains untouched.
 
 ---
+
+
+## D-049 — Retire automated live WordPress browser QA (12 November 2026)
+
+**Status:** Implemented on branch `chore/disable-live-wordpress-minisim-qa-20261112` at commit `c3786109c2988269d30b7edb363bf6ebe7a40a95`; awaiting merge.
+
+- Do not automatically open `https://walkingyog.com/bcm4sa/` from GitHub Actions. The user's site blocks automated bot/browser traffic; repeating that route has produced access blocks rather than meaningful Mini-Sim verification and has wasted workflow time.
+- Disable `.github/workflows/minisim-browser-qa.yml` completely: no event triggers and an inert job guard. No live-site fetch, browser navigation, or Chromium installation remains in that workflow.
+- Keep local source/regression checks and the independent standalone Chromium fixture. The standalone fixture is served from localhost and must not be described as live WordPress validation.
+- Do not bypass or weaken the site's firewall / anti-bot protection to restore this workflow. Reopen live testing only on the user's explicit direction and a materially different, user-approved test route.
