@@ -85,6 +85,8 @@ async function createMaxhogController(root: THREE.Object3D, mode: "pad" | "fligh
     createMaxhogControls?: (root: THREE.Object3D, options?: { mode?: string }) => MaxhogController;
   }).createMaxhogControls;
   if (!getFactory()) {
+    const oldScript = document.querySelector<HTMLScriptElement>('script[data-bcm-maxhog-controls]');
+    if (oldScript && !getFactory() && (oldScript.dataset.loaded === "true" || oldScript.readyState === "complete")) oldScript.remove();
     if (!maxhogControlsScript) {
       maxhogControlsScript = new Promise<void>((resolve, reject) => {
         const url = shipUrl("ships/xsmall/maxhog/maxhog_controls.js");
@@ -99,13 +101,19 @@ async function createMaxhogController(root: THREE.Object3D, mode: "pad" | "fligh
           if (getFactory()) resolve();
           else reject(new Error("Max Hog controller factory missing"));
         }, { once: true });
-        script.addEventListener("error", () => reject(new Error("Max Hog controller failed to load")), { once: true });
+        script.addEventListener("error", () => {
+          script.remove();
+          reject(new Error("Max Hog controller failed to load"));
+        }, { once: true });
         if (!existing) {
           script.src = url;
           script.async = true;
           script.dataset.bcmMaxhogControls = "true";
           document.head.appendChild(script);
         }
+      }).catch((error) => {
+        maxhogControlsScript = null;
+        throw error;
       });
     }
     await maxhogControlsScript;
@@ -1128,6 +1136,7 @@ export function createIsland(
   let shipChain: Promise<void> = Promise.resolve();
   let crewBody: THREE.Object3D | null = null;
   let seenPlay = 0;
+  let lastTapePhase = sim.tapePhase;
   let eject = 0;
   const ejectFrom = new THREE.Vector3();
   const ejectTo = new THREE.Vector3();
@@ -1203,6 +1212,12 @@ export function createIsland(
     screenMat.emissiveMap = tapeOn ? tapeTex : null;
     screenMat.emissiveIntensity = tapeOn ? 0.5 : 0;
     screenMat.needsUpdate = true;
+    if (tapePhase === "spent" && lastTapePhase !== "spent") {
+      tapeVideo.pause();
+      try { tapeVideo.currentTime = 0; } catch { /* metadata */ }
+      closeTapeOverlay();
+    }
+    lastTapePhase = tapePhase;
     if (tapePhase === "playing") {
       if (sim.tapeUrl && tapeVideo.getAttribute("src") !== sim.tapeUrl) tapeVideo.src = sim.tapeUrl;
       if (sim.tapePlay !== seenPlay) {
@@ -1218,10 +1233,10 @@ export function createIsland(
       tapeVideo.pause();
     }
     const distanceToTape = Math.hypot(sim.x - STORY_BOX.x, sim.z - STORY_BOX.z);
-    const falloff = Math.max(0, Math.min(1, (distanceToTape - 2) / 14));
+    const falloff = Math.max(0, Math.min(1, (distanceToTape - 2) / 17.5));
     const smoothFalloff = falloff * falloff * (3 - 2 * falloff);
     const hear = 1 - smoothFalloff;
-    tapeVideo.volume = tapePhase === "playing" ? (tapeOverlay ? 0.85 : 0.82 * hear) : 0;
+    tapeVideo.volume = tapePhase === "playing" ? (tapeOverlay ? 0.96 : 0.9 * hear) : 0;
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("bcm:tape-near", { detail: tapePhase === "playing" ? hear : 0 }));
     }
@@ -1229,8 +1244,7 @@ export function createIsland(
       const ownsFloorTape = sim.tapes.includes("ded");
       const loose = (tapePhase === "floor" && !ownsFloorTape) || tapePhase === "spent";
       cassette.visible = loose;
-      if (tapePhase === "spent") closeTapeOverlay();
-      else eject = 0;
+      if (tapePhase !== "spent") eject = 0;
       if (tapePhase === "floor" || tapePhase === "held") {
         cassette.position.copy(cassetteHome);
         cassette.rotation.set(0.15, 0.4, 0);
@@ -1287,7 +1301,7 @@ export function createIsland(
     if (pressedG && !gPrev && tapeOn) toggleTapeScreen();
     gPrev = pressedG;
     if (sim.mode === "foot" && !sim.prompt && parked.some(nearShip)) {
-      sim.prompt = "E — пересесть";
+      sim.prompt = "F — пересесть";
     }
 
     if (sim.mode === "bike") {
@@ -1299,13 +1313,15 @@ export function createIsland(
       bike.rotation.y = sim.bikeYaw;
       bike.rotation.z = 0;
     }
-    const driveController = boarded?.driveController || bikeDriveController;
+    const driveController = boarded ? boarded.driveController : bikeDriveController;
     const blazing = sim.mode === "bike" && sim.flightMode;
     if (driveController) {
       driveController.setMode(blazing ? "flight" : "pad");
       driveController.setGroundSpeed(sim.mode === "bike" && !blazing ? sim.speed : 0);
       driveController.setFlightMotion(sim.engineForward, sim.engineVertical);
-      driveController.setThrust(blazing ? 0.72 : 0);
+      driveController.setThrust(blazing
+        ? Math.max(Math.abs(sim.engineForward), Math.abs(sim.engineVertical)) * 0.72
+        : 0);
       driveController.update(elapsed);
       bike.rotation.z = blazing ? -sim.steer * 0.14 : 0;
     }
@@ -1575,6 +1591,22 @@ export function createIsland(
 
   sim.board = () => {
     if (sim.mode !== "foot" || boarded) return false;
+    const baseBikeDistance = Math.hypot(sim.x - sim.bikeX, sim.z - sim.bikeZ);
+    if (baseBikeDistance < 3.8) {
+      sim.mode = "bike";
+      sim.flightMode = false;
+      sim.engineForward = 0;
+      sim.engineVertical = 0;
+      sim.vx = 0;
+      sim.vz = 0;
+      sim.vy = 0;
+      sim.speed = 0;
+      sim.x = sim.bikeX;
+      sim.z = sim.bikeZ;
+      sim.yaw = sim.bikeYaw;
+      sim.y = hoverFloor(sim.x, sim.z, sim.y);
+      return true;
+    }
     const parked = ((scene.userData as { parked?: Array<{
       pivot: THREE.Group; hull: THREE.Object3D; parkedFile: string; flightFile: string;
       fitLength: number; flightHull?: THREE.Object3D | null; flightLoading?: boolean;

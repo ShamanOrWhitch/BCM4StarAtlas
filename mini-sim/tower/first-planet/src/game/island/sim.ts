@@ -62,6 +62,7 @@ export type IslandHud = {
   mood: "walk" | "sport" | "fight" | "stealth";
   tape: "floor" | "held" | "playing" | "paused" | "spent";
   tapes: { id: string; title: string }[];
+  inventory: { id: string; title: string; kind: "tape" | "crystal" | "key"; count: number }[];
   selectedTape: string;
   nearTapeDeck: boolean;
 };
@@ -263,6 +264,8 @@ export function createSim(seed = 0) {
     walls: [] as Aabb[],
     props: [] as Aabb[],
     usePrev: false,
+    boardPrev: false,
+    ejectPrev: false,
     board: null as null | (() => boolean),
     respawnPrev: false,
     jumpPrev: false,
@@ -297,6 +300,14 @@ export function createSim(seed = 0) {
       this.tapeTitle = tape.title;
       this.tapePhase = "held";
       this.persist();
+      this.refreshPrompt();
+      return true;
+    },
+    ejectTape() {
+      if (this.tapePhase !== "playing" && this.tapePhase !== "paused") return false;
+      if (Math.hypot(this.x - STORY_BOX.x, this.z - STORY_BOX.z) > 6.5) return false;
+      this.tapePhase = "spent";
+      this.dirty = true;
       this.refreshPrompt();
       return true;
     },
@@ -345,6 +356,7 @@ export function createSim(seed = 0) {
       this.dialogue = null;
       this.dirty = true;
       this.rebuild();
+      this.persist();
     },
     say(who: string, pages: string[]) {
       this.dialogue = { who, pages, i: 0, commit: null, quest: null };
@@ -354,6 +366,7 @@ export function createSim(seed = 0) {
         this.advance();
         return;
       }
+      if (this.mode !== "foot") return;
       const x = this.x;
       const z = this.z;
       const hit = (px: number, pz: number, r: number) => {
@@ -426,8 +439,8 @@ export function createSim(seed = 0) {
           return;
         }
       }
-      if (hit(CHEST.x, CHEST.z, 1.8)) {
-        if (this.quests.bulb !== "done") {
+      if (hit(CHEST.x, CHEST.z, 2.55)) {
+        if (this.quests.bulb !== "done" && this.fireCount() < 2) {
           this.say("Сундук", ["Крышка не шевелится. Ламп говорит: сперва две жаровни."]);
           return;
         }
@@ -468,41 +481,28 @@ export function createSim(seed = 0) {
         this.depart = true;
         return;
       }
-      if (this.mode === "foot" && hit(this.bikeX, this.bikeZ, 3.8)) {
-        this.mode = "bike";
-        this.flightMode = false;
-        this.vy = 0;
-        this.engineForward = 0;
-        this.engineVertical = 0;
-        this.x = this.bikeX;
-        this.z = this.bikeZ;
-        this.yaw = this.bikeYaw;
-        this.y = hoverFloor(this.x, this.z, this.y);
-        this.vx = 0;
-        this.vz = 0;
-        this.speed = 0;
-        return;
+    },
+    dismount() {
+      if (this.mode !== "bike") return false;
+      const land = footY(this.x, this.z, this.y);
+      const water = land < -0.45 && !(this.y > 10 && Math.hypot(this.x - SKY_NOTE.x, this.z - SKY_NOTE.z) < 5);
+      if (water) {
+        this.say("Байк", ["Подо мной вода. На дюну или на висячий остров — там есть куда встать."]);
+        return false;
       }
-      if (this.mode === "bike") {
-        const land = footY(this.x, this.z, this.y);
-        const water = land < -0.45 && !(this.y > 10 && hit(SKY_NOTE.x, SKY_NOTE.z, 5));
-        if (water) {
-          this.say("Байк", ["Подо мной вода. На дюну или на висячий остров — там есть куда встать."]);
-          return;
-        }
-        this.mode = "foot";
-        this.flightMode = false;
-        this.engineForward = 0;
-        this.engineVertical = 0;
-        this.bikeX = this.x;
-        this.bikeZ = this.z;
-        this.bikeYaw = this.yaw;
-        this.y = land;
-        this.vy = 0;
-        this.speed = 0;
-        this.vx = 0;
-        this.vz = 0;
-      }
+      this.mode = "foot";
+      this.flightMode = false;
+      this.engineForward = 0;
+      this.engineVertical = 0;
+      this.bikeX = this.x;
+      this.bikeZ = this.z;
+      this.bikeYaw = this.yaw;
+      this.y = land;
+      this.vy = 0;
+      this.speed = 0;
+      this.vx = 0;
+      this.vz = 0;
+      return true;
     },
     toggleFlightMode() {
       if (this.mode !== "bike") return false;
@@ -547,8 +547,8 @@ export function createSim(seed = 0) {
       else if (hit(JAHMAN.x, JAHMAN.z, 1.45)) this.prompt = "E — Джаман";
       else if (TAPES.some((tape) => tape.x !== null && tape.z !== null && !this.tapes.includes(tape.id) && hit(tape.x, tape.z, 1.25))) this.prompt = "E — взять кассету";
       else if (hit(STORY_BOX.x, STORY_BOX.z, 1.55)) {
-        this.prompt = this.tapePhase === "playing" ? "E — пауза · G — весь экран"
-          : this.tapePhase === "paused" ? "E — дальше"
+        this.prompt = this.tapePhase === "playing" ? "E — пауза · G — весь экран · V — извлечь"
+          : this.tapePhase === "paused" ? "E — дальше · V — извлечь"
           : this.selectedTape ? `E — вставить «${this.tapeTitle}»`
           : this.tapes.length ? "Выбери кассету в инвентаре"
           : "E — ящик пуст";
@@ -561,10 +561,10 @@ export function createSim(seed = 0) {
       else if (hit(SKY_NOTE.x, SKY_NOTE.z, 3) && this.y > 10) this.prompt = "E — плита трассы";
       else if (hit(TOWER_GATE.x, TOWER_GATE.z, TOWER_GATE.radius)) this.prompt = "E — маяк · подъём в Tower";
       else if (hit(RING.x, RING.z, 3.4)) this.prompt = "E — берег цитадели, гонка";
-      else if (this.mode === "foot" && hit(this.bikeX, this.bikeZ, 3.8)) this.prompt = "E — сесть на байк";
+      else if (this.mode === "foot" && hit(this.bikeX, this.bikeZ, 3.8)) this.prompt = "F — сесть на байк";
       else if (this.mode === "bike") this.prompt = this.flightMode
-        ? "T — режим земли · E — спешиться"
-        : "T — режим полёта · E — спешиться";
+        ? "T — режим земли · F — спешиться"
+        : "T — режим полёта · F — спешиться";
       else this.prompt = "";
     },
     step(dt: number) {
@@ -575,7 +575,9 @@ export function createSim(seed = 0) {
       steer = Math.max(-1, Math.min(1, steer - readTilt()));
       const throttle = keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0;
       const brake = keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0;
-      const use = keys.has("KeyE") || keys.has("KeyF");
+      const use = keys.has("KeyE");
+      const boardKey = keys.has("KeyF");
+      const ejectKey = keys.has("KeyV");
       const respawn = keys.has("KeyR");
       if (this.mode === "foot" && keys.has("KeyC") && !this.moodPrev && !this.dialogue) {
         const order = ["walk", "sport", "fight", "stealth"] as const;
@@ -583,10 +585,15 @@ export function createSim(seed = 0) {
         this.mood = order[(index + 1) % order.length];
       }
       this.moodPrev = this.mode === "foot" && keys.has("KeyC");
-      if (use && !this.usePrev) {
-        if (!this.board?.()) this.interact();
-      }
+      if (use && !this.usePrev && this.mode === "foot") this.interact();
       this.usePrev = use;
+      if (boardKey && !this.boardPrev && !this.dialogue) {
+        if (this.mode === "foot") this.board?.();
+        else this.dismount();
+      }
+      this.boardPrev = boardKey;
+      if (ejectKey && !this.ejectPrev) this.ejectTape();
+      this.ejectPrev = ejectKey;
       if (respawn && !this.respawnPrev) this.respawn();
       this.respawnPrev = respawn;
       const flightToggle = this.mode === "bike" && keys.has("KeyT");
@@ -763,7 +770,7 @@ export function createSim(seed = 0) {
           : null,
         quests,
         coins: this.coins,
-        crystals: this.crystalCount(),
+        crystals: this.quests.sera === "done" ? 0 : this.crystalCount(),
         fires: this.fireCount(),
         x: this.x,
         z: this.z,
@@ -773,6 +780,15 @@ export function createSim(seed = 0) {
         towerEnter: this.towerEnter,
         tape: this.tapePhase,
         tapes: TAPES.filter((tape) => this.tapes.includes(tape.id)).map((tape) => ({ id: tape.id, title: tape.title })),
+        inventory: [
+          ...TAPES.filter((tape) => this.tapes.includes(tape.id)).map((tape) => ({ id: tape.id, title: tape.title, kind: "tape" as const, count: 1 })),
+          ...(this.quests.sera !== "done" && this.crystalCount() > 0
+            ? [{ id: "crystals", title: "Кристаллы", kind: "crystal" as const, count: this.crystalCount() }]
+            : []),
+          ...(this.key && this.quests.orr !== "done"
+            ? [{ id: "key", title: "Ключ архива", kind: "key" as const, count: 1 }]
+            : []),
+        ],
         selectedTape: this.selectedTape,
         nearTapeDeck: Math.hypot(this.x - STORY_BOX.x, this.z - STORY_BOX.z) < 6.5,
       };

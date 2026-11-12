@@ -22,8 +22,8 @@
     var groundSpeed = 0;
     var forward = 0;
     var vertical = 0;
-    var targetThrust = mode === "flight" ? 0.7 : 0;
-    var currentThrust = targetThrust;
+    var targetThrust = 0;
+    var currentThrust = 0;
     var wheelAngle = 0;
     var lastTime = 0;
     var disposed = false;
@@ -139,9 +139,10 @@
 
     var api = {
       setMode: function (name) {
-        mode = name === "flight" || name === "load" ? name : "pad";
+        var nextMode = name === "flight" || name === "load" ? name : "pad";
+        if (mode === nextMode) return api;
+        mode = nextMode;
         if (mode !== "flight") targetThrust = 0;
-        else if (targetThrust <= 0.015) targetThrust = 0.7;
         applyPose(0.22);
         return api;
       },

@@ -90,8 +90,8 @@ test("first-person space picker and orbital yard use paired catalog forms", asyn
   assert.match(mini, /assetUrl\(spec\.parkedFile\)/);
   assert.match(mini, /dockedShips\.push\(\{[\s\S]*?id: spec\.id,[\s\S]*?file: spec\.file/);
   assert.match(mini, /mountFlightHull\(transfer\)/);
-  assert.match(mini, /title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.12\.12"/);
-  assert.match(php, /Version: 0\.12\.12/);
+  assert.match(mini, /title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.12\.13"/);
+  assert.match(php, /Version: 0\.12\.13/);
 });
 
 test("First Planet TV tapes persist in inventory and own exclusive spatial audio", async () => {
@@ -101,7 +101,7 @@ test("First Planet TV tapes persist in inventory and own exclusive spatial audio
   const island = await read("mini-sim/tower/first-planet/src/components/desert-island.tsx");
   const embed = await read("mini-sim/tower/first-planet/src/first-planet-embed.tsx");
   assert.match(terrain, /id: "invaders10"/);
-  assert.match(terrain, /Invaders10\.mp4/);
+  assert.match(terrain, /lq-Invaders\.mp4/);
   assert.match(sim, /tapes: string\[\]/);
   assert.match(sim, /selectedTape: string/);
   assert.match(sim, /selectTape\(id: string\)/);
@@ -154,4 +154,46 @@ test("First Planet uses parked forms at berths and flight forms when the craft m
   assert.match(sim, /this.engineForward/);
   assert.match(island, /hud.flightMode \? "ЗЕМЛЯ" : "ПОЛЁТ"/);
   assert.match(scene, /loader\.loadAsync\(shipUrl\(near\.flightFile\)\)/);
+});
+
+
+test("ship sidecars load, generic controls exist, and Rainbow settings are isolated per hull", async () => {
+  const mini = await read("mini-sim/assets/js/mini-sim.js");
+  assert.match(mini, /createGenericShipControls\(hull\)/);
+  assert.match(mini, /createGenericShipPanel\(api\)/);
+  assert.match(mini, /syncCamoPanel\(hull\)/);
+  assert.match(mini, /root\.userData\.bcmCamo/);
+  assert.match(mini, /state\.dirty = true/);
+  assert.doesNotMatch(mini, /const camo = \{/);
+  assert.match(mini, /e\.code === "KeyF".*tryTransferDock/s);
+  assert.match(mini, /if \(shipId === "opal"\) root\.position\.z \+= 0\.55/);
+  assert.match(mini, /i <= 30[\s\S]*api\.dispose/);
+});
+
+test("Max Hog starts idle and repeated flight-mode updates do not restart exhaust", async () => {
+  const controls = await read("mini-sim/assets/mesh/ships/xsmall/maxhog/maxhog_controls.js");
+  assert.match(controls, /var targetThrust = 0;/);
+  assert.match(controls, /if \(mode === nextMode\) return api/);
+  assert.doesNotMatch(controls, /targetThrust = 0\.7/);
+});
+
+test("First Planet separates E/F/V, opens the chest after both fires, and tracks item hand-ins", async () => {
+  const sim = await read("mini-sim/tower/first-planet/src/game/island/sim.ts");
+  const scene = await read("mini-sim/tower/first-planet/src/game/island/scene.ts");
+  const ui = await read("mini-sim/tower/first-planet/src/components/desert-island.tsx");
+  assert.match(sim, /const use = keys\.has\("KeyE"\);/);
+  assert.match(sim, /const boardKey = keys\.has\("KeyF"\);/);
+  assert.match(sim, /const ejectKey = keys\.has\("KeyV"\);/);
+  assert.match(sim, /this\.quests\.bulb !== "done" && this\.fireCount\(\) < 2/);
+  assert.match(sim, /ejectTape\(\)/);
+  assert.match(sim, /kind: "crystal" as const/);
+  assert.match(sim, /this\.quests\.sera !== "done"/);
+  assert.match(sim, /this\.key && this\.quests\.orr !== "done"/);
+  assert.match(ui, /СУМКА/);
+  assert.match(ui, /hud\.inventory\.map/);
+  assert.match(ui, /V · Извлечь кассету/);
+  assert.match(scene, /driveController = boarded \? boarded\.driveController : bikeDriveController/);
+  assert.match(scene, /Math\.abs\(sim\.engineForward\)/);
+  assert.match(scene, /distanceToTape - 2\) \/ 17\.5/);
+  assert.match(scene, /lastTapePhase !== "spent"/);
 });

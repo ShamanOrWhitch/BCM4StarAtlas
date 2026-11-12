@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.12",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.13",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.12.12",
+      title: "SPACE LABYRINTH — 0.12.13",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -1332,6 +1332,22 @@
     invertYaw: false,
     safeMode: safeModeEnabled
   };
+  let tapePlaybackNear = 0;
+  let tapePlaybackFocused = false;
+  let cinemaMusicGain = 1;
+  function syncMiniSimMusic() {
+    if (!musicAudio) return;
+    musicAudio.volume = settings.volume * cinemaMusicGain * (1 - 0.985 * tapePlaybackNear);
+    musicAudio.muted = cinema.mute || tapePlaybackFocused;
+  }
+  window.addEventListener("bcm:tape-near", (event) => {
+    tapePlaybackNear = Math.max(0, Math.min(1, Number(event.detail) || 0));
+    syncMiniSimMusic();
+  });
+  window.addEventListener("bcm:tape-focus", (event) => {
+    tapePlaybackFocused = Boolean(event.detail);
+    syncMiniSimMusic();
+  });
 
   const keys = Object.create(null);
   const touch = Object.create(null);
@@ -4476,11 +4492,12 @@
   function setAudioMute(value) {
     cinema.mute = !!value;
     gameOstTracks.forEach((audio) => {
-      if (audio) audio.muted = cinema.mute;
+      if (audio) audio.muted = cinema.mute || tapePlaybackFocused;
     });
     cinema.zones.forEach((zone) => {
       if (zone.el) zone.el.muted = cinema.mute;
     });
+    syncMiniSimMusic();
     syncMusicButton();
     window.dispatchEvent(new CustomEvent("bcm:game-music-mute", {
       detail: { muted: cinema.mute }
@@ -4521,7 +4538,8 @@
 
   function updateCinemaZones() {
     if (!cinema.zones.length) {
-      if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume;
+      cinemaMusicGain = 1;
+      syncMiniSimMusic();
       cinema.nearest = null;
       // Interior panels and the live wall can remain focused without any
       // external space-video zone. updateCinemaFocus validates them later
@@ -4618,7 +4636,8 @@
     });
 
     if (!nearest) {
-      if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume;
+      cinemaMusicGain = 1;
+      syncMiniSimMusic();
       // A focused interior panel/live wall is managed by its own video loop.
       // Do not drop that focus simply because no exterior zone is nearest.
       return;
@@ -4636,11 +4655,12 @@
     if (nearest.towerGate) {
       nearest.el.muted = true;
       nearest.el.volume = 0;
-      if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume;
+      cinemaMusicGain = 1;
     } else {
       if (!cinema.mute) nearest.el.volume = Math.max(0, Math.min(1, settings.volume * filmGain));
-      if (musicAudio && !cinema.mute) musicAudio.volume = settings.volume * ostGain;
+      cinemaMusicGain = ostGain;
     }
+    syncMiniSimMusic();
 
     // Keep an explicitly selected focus target until it leaves its own active radius.
     if (interaction) {
@@ -5413,14 +5433,20 @@
     // the same renderer; all other states keep the ordinary single-camera render.
     const showUnderlyingScene = !externalPause || root.classList.contains("bcm-warp-maze-active") || root.classList.contains("bcm-hull-interior-active");
     if (!deepSpaceCustomRendered && renderer && scene && camera && showUnderlyingScene) {
-      if (camo.test || camo.on) {
-        const hue = camo.test ? ((typeof now === "number" ? now : performance.now()) / 3200) % 1 : camo.hue;
-        rainbowHulls.forEach((hull) => paintRainbow(hull, hue, camo.glow));
-        camo.dirty = true;
-      } else if (camo.dirty) {
-        rainbowHulls.forEach((hull) => restoreRainbow(hull));
-        camo.dirty = false;
-      }
+      rainbowHulls.forEach((hull) => {
+        const state = hull.userData && hull.userData.bcmCamo;
+        if (!state) return;
+        if (state.test || state.on) {
+          const hue = state.test
+            ? ((typeof now === "number" ? now : performance.now()) / 3200) % 1
+            : state.hue;
+          paintRainbow(hull, hue, state.glow);
+          state.dirty = true;
+        } else if (state.dirty) {
+          restoreRainbow(hull);
+          state.dirty = false;
+        }
+      });
       if (shipRig && shipRig.api) {
         if (typeof shipRig.api.setThrust === "function") {
           const mode = typeof shipRig.api.getMode === "function" ? shipRig.api.getMode() : "flight";
@@ -5483,8 +5509,7 @@
       musicAudio.src = config.musicUrl;
     }
     musicAudio.loop = true;
-    musicAudio.volume = settings.volume;
-    musicAudio.muted = cinema.mute;
+    syncMiniSimMusic();
     if (window.BCMGameAudio?.playExclusive) {
       const playing = window.BCMGameAudio.playExclusive(musicAudio, "starbase");
       if (playing && typeof playing.catch === "function") playing.catch(() => {});
@@ -5646,13 +5671,14 @@
       }
       const alreadyDown = keys[e.code] === true;
       keys[e.code] = true;
-      if (e.code === "KeyE" && !alreadyDown && !e.repeat && tryTransferDock()) {
+      const inTower = window.BCMMiniSimSession?.currentLocation === "tower";
+      if (e.code === "KeyF" && !inTower && !alreadyDown && !e.repeat && tryTransferDock()) {
         keys[e.code] = false;
         e.preventDefault();
         return;
       }
       if (e.code === "KeyG") { e.preventDefault(); tryPortal(); }
-      if (e.code === "KeyF") { e.preventDefault(); toggleCinemaFocus(); }
+      if (e.code === "KeyF" && !inTower) { e.preventDefault(); toggleCinemaFocus(); }
       if (e.code === "KeyX" && cinema.focus && !document.getElementById("bcm-hull-dive") &&
           !document.getElementById("bcm-ring-platformer") && !document.getElementById("bcm-ring-transition")) {
         e.preventDefault();
@@ -5811,7 +5837,7 @@
       const cl = settingsRoot.querySelector('[data-setting="close"]');
       if (vol) vol.addEventListener("input", () => {
         settings.volume = Number(vol.value) / 100;
-        if (musicAudio) musicAudio.volume = settings.volume;
+        syncMiniSimMusic();
       });
       if (ip) ip.addEventListener("change", () => { settings.invertPitch = ip.checked; });
       if (iy) iy.addEventListener("change", () => { settings.invertYaw = iy.checked; });
@@ -5920,7 +5946,7 @@
   const asteroidBerths = [];
   const dockedShips = [];
   const rainbowHulls = [];
-  const camo = { on: false, hue: 0.08, glow: 0.35, test: false, dirty: false };
+  let activeCamoHull = null;
   let shipRig = null;
   let testRearCamera = false;
   let testRearDistance = 12;
@@ -6015,6 +6041,9 @@
   function tagRainbow(root, file) {
     if (!/rainbow/i.test(file || root.name || "")) return;
     root.userData.rainbow = true;
+    root.userData.bcmCamo = root.userData.bcmCamo || {
+      on: false, hue: 0.08, glow: 0.35, test: false, dirty: false
+    };
     root.traverse((obj) => {
       if (!obj.isMesh || !obj.geometry || !obj.geometry.getAttribute("color")) return;
       if (obj.geometry.userData && obj.geometry.userData.baseColor) return;
@@ -6083,7 +6112,7 @@
     return true;
   }
 
-  function seatCockpit(root, length) {
+  function seatCockpit(root, length, shipId) {
     aimFlightNose(root);
     root.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(root);
@@ -6105,6 +6134,8 @@
     ];
     const cockpit = candidates.find((eye) => eyeIsClear(root, eye)) || candidates[2];
     root.position.sub(cockpit);
+    // Move the Opal hull slightly behind the first-person eye to clear its two nose pods.
+    if (shipId === "opal") root.position.z += 0.55;
   }
 
   let shipRigGeneration = 0;
@@ -6123,6 +6154,12 @@
     if (shipRig && shipRig.api) {
       try { if (shipRig.api.setThrust) shipRig.api.setThrust(0); } catch (e) {}
       try { if (shipRig.api.setMode) shipRig.api.setMode("pad"); } catch (e) {}
+      if (shipRig.api.update) {
+        const start = performance.now() / 1000;
+        for (let i = 1; i <= 30; i++) {
+          try { shipRig.api.update(start + i * 0.12, camera); } catch (e) { break; }
+        }
+      }
       try { if (shipRig.api.dispose) shipRig.api.dispose(); } catch (e) {}
     }
     if (shipRig && shipRig.panel && shipRig.panel.destroy) shipRig.panel.destroy();
@@ -6164,38 +6201,108 @@
   function besideGlb(file, suffix) {
     const glb = assetUrl(file);
     if (!glb) return "";
-    return glb.replace(/[^/?#]+(?=($|\\?))/, (leaf) => {
-      const base = leaf.replace(/\\.glb$/i, "");
+    return glb.replace(/[^/?#]+(?=($|\?))/, (leaf) => {
+      const base = leaf.replace(/\.glb$/i, "");
       return encodeURIComponent(base + suffix);
     });
+  }
+
+  function createGenericShipControls(hull) {
+    const effects = [];
+    const effectName = /flame|thruster|exhaust|plume|jet[_ -]?fx|engine[_ -]?(glow|flame|light)/i;
+    hull.traverse((node) => {
+      if (effectName.test(node.name || "")) effects.push({ node, visible: node.visible });
+    });
+    let mode = "flight", thrust = 0, forward = 0, vertical = 0, disposed = false;
+    const sync = () => effects.forEach(({ node }) => {
+      node.visible = !disposed && mode === "flight" && thrust > 0.02;
+    });
+    const api = {
+      setMode(name) {
+        mode = name === "flight" ? "flight" : "pad";
+        if (mode !== "flight") thrust = 0;
+        sync();
+        return api;
+      },
+      getMode: () => mode,
+      setThrust(value) {
+        thrust = mode === "flight" ? Math.max(0, Math.min(1, Number(value) || 0)) : 0;
+        sync();
+        return api;
+      },
+      getThrust: () => thrust,
+      setFlightMotion(a, b) { forward = Number(a) || 0; vertical = Number(b) || 0; return api; },
+      update: sync,
+      getState: () => ({ mode, thrust, forward, vertical, generic: true }),
+      dispose() {
+        disposed = true;
+        effects.forEach(({ node, visible }) => { node.visible = visible; });
+      }
+    };
+    sync();
+    return api;
+  }
+
+  function createGenericShipPanel(api) {
+    const box = document.createElement("div");
+    box.style.cssText = "position:fixed;top:68px;left:12px;z-index:9999;min-width:190px;padding:10px 12px;border-radius:10px;background:rgba(13,17,24,.93);color:#eef1f6;border:1px solid rgba(150,165,190,.35);font:13px/1.45 system-ui,sans-serif";
+    const title = document.createElement("div");
+    title.textContent = "КОРАБЛЬ · СИСТЕМЫ";
+    title.style.cssText = "font-weight:600;margin-bottom:8px";
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;gap:6px";
+    const status = document.createElement("div");
+    status.style.cssText = "margin-top:7px;color:#9eacbf;font-size:11px";
+    const buttons = [];
+    [["pad", "Площадка"], ["flight", "Полёт"]].forEach(([mode, label]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.style.cssText = "flex:1;padding:6px 8px;border:1px solid #46566a;border-radius:6px;background:#1a2634;color:#eef1f6;cursor:pointer";
+      button.addEventListener("click", () => { api.setMode(mode); refresh(); });
+      buttons.push({ button, mode });
+      row.appendChild(button);
+    });
+    function refresh() {
+      const current = api.getMode();
+      buttons.forEach(({ button, mode }) => {
+        button.style.borderColor = current === mode ? "#e4a322" : "#46566a";
+        button.style.background = current === mode ? "#35404b" : "#1a2634";
+      });
+      status.textContent = current === "flight" ? "Сопла следуют за тягой" : "Тяга отключена";
+    }
+    box.append(title, row, status);
+    (root || document.body).appendChild(box);
+    refresh();
+    return { element: box, refresh, destroy: () => box.remove() };
   }
 
   function attachShipScripts(hull, file, controlsFile) {
     const generation = shipRigGeneration;
     const controlsUrl = controlsFile ? assetUrl(controlsFile) : besideGlb(file, "_controls.js");
     const leaf = (controlsFile || controlsUrl || "").split(/[/?#]/).filter(Boolean).pop() || "";
-    const factories = shipControllerFactories[leaf];
-    if (!controlsUrl || !factories) return;
-    const panelUrl = factories.panel
-      ? controlsUrl.replace(/_controls\\.js(?=($|[?#]))/, "_panel.js")
+    const factories = shipControllerFactories[leaf] || null;
+    const panelUrl = factories && factories.panel
+      ? controlsUrl.replace(/_controls\.js(?=($|[?#]))/, "_panel.js")
       : "";
-    const controlsReady = typeof window[factories.controls] === "function"
-      ? Promise.resolve()
-      : loadScript(controlsUrl);
+    const controlsReady = factories
+      ? (typeof window[factories.controls] === "function" ? Promise.resolve() : loadScript(controlsUrl).catch(() => {}))
+      : Promise.resolve();
     controlsReady
-      .then(() => factories.panel && typeof window[factories.panel] !== "function"
+      .then(() => factories && factories.panel && typeof window[factories.panel] !== "function"
         ? loadScript(panelUrl).catch(() => {})
         : undefined)
       .then(() => {
         if (generation !== shipRigGeneration || !hull.parent || !ship.visual ||
             ship.visual.getObjectById(hull.id) !== hull) return;
-        const createControls = window[factories.controls];
-        if (typeof createControls !== "function") throw new Error("Missing ship controller: " + factories.controls);
-        const api = createControls(hull, { mode: "flight" });
-        const createPanel = factories.panel ? window[factories.panel] : null;
+        const createControls = factories && window[factories.controls];
+        const api = typeof createControls === "function"
+          ? createControls(hull, { mode: "flight" })
+          : createGenericShipControls(hull);
+        const createPanel = factories && factories.panel ? window[factories.panel] : null;
         const panel = typeof createPanel === "function"
           ? createPanel(api, { parent: root, position: "fixed", top: 68, left: 12 })
-          : null;
+          : createGenericShipPanel(api);
         if (generation !== shipRigGeneration || !hull.parent) {
           try { api.dispose && api.dispose(); } catch (e) {}
           if (panel && panel.destroy) panel.destroy();
@@ -6216,7 +6323,7 @@
     const box = document.createElement("div");
     box.setAttribute("data-camo-panel", "");
     box.style.cssText = "position:fixed;top:68px;right:12px;z-index:40;width:240px;padding:10px 12px;border-radius:12px;background:rgba(8,14,20,.88);color:#f4efe4;border:1px solid rgba(228,163,34,.45);font:13px/1.4 sans-serif";
-    box.innerHTML = '<div style="font-weight:600;margin-bottom:6px">Маскировка</div>' +
+    box.innerHTML = '<div style="font-weight:600;margin-bottom:6px">Маскировка · этот корабль</div>' +
       '<label style="display:flex;gap:8px;align-items:center;margin:4px 0"><input data-camo-on type="checkbox"> Включить</label>' +
       '<label style="display:block;margin:6px 0">Оттенок <input data-camo-hue type="range" min="0" max="360" value="29" style="width:100%"></label>' +
       '<label style="display:block;margin:6px 0">Свечение <input data-camo-glow type="range" min="0" max="100" value="35" style="width:100%"></label>' +
@@ -6227,16 +6334,30 @@
     const glow = box.querySelector("[data-camo-glow]");
     const test = box.querySelector("[data-camo-test]");
     const read = () => {
-      camo.on = on.checked;
-      camo.test = test.checked;
-      camo.hue = Number(hue.value) / 360;
-      camo.glow = Number(glow.value) / 100;
-      camo.dirty = true;
+      const state = activeCamoHull && activeCamoHull.userData && activeCamoHull.userData.bcmCamo;
+      if (!state) return;
+      state.on = on.checked;
+      state.test = test.checked;
+      state.hue = Number(hue.value) / 360;
+      state.glow = Number(glow.value) / 100;
+      state.dirty = true;
     };
     box.addEventListener("input", read);
     box.addEventListener("change", read);
     camoPanel = box;
     return box;
+  }
+
+  function syncCamoPanel(hull) {
+    activeCamoHull = hull && hull.userData && hull.userData.rainbow ? hull : null;
+    const box = ensureCamoPanel();
+    box.hidden = !activeCamoHull;
+    if (!activeCamoHull) return;
+    const state = activeCamoHull.userData.bcmCamo;
+    box.querySelector("[data-camo-on]").checked = !!state.on;
+    box.querySelector("[data-camo-hue]").value = String(Math.round(state.hue * 360));
+    box.querySelector("[data-camo-glow]").value = String(Math.round(state.glow * 100));
+    box.querySelector("[data-camo-test]").checked = !!state.test;
   }
 
   function mountFlightHull(spec) {
@@ -6249,17 +6370,14 @@
       if (!hull || !scene) return;
       hull.name = spec.name || spec.id || "hull";
       tagRainbow(hull, spec.file);
-      seatCockpit(hull, spec.length || 12);
+      seatCockpit(hull, spec.length || 12, spec.id);
       const rig = new THREE.Group();
       rig.name = "flight-hull";
       rig.add(hull);
       if (ship.visual && ship.visual !== rig) scene.remove(ship.visual);
       scene.add(rig);
       ship.visual = rig;
-      const rainbow = /rainbow/i.test(spec.file || "");
-      const panel = ensureCamoPanel();
-      panel.hidden = !rainbow;
-      if (!rainbow) rainbowHulls.forEach((item) => restoreRainbow(item));
+      syncCamoPanel(hull);
       attachShipScripts(hull, spec.file, spec.controlsFile);
       setStatus((spec.name || "Корабль") + " · КАБИНА");
     });

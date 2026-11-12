@@ -35,6 +35,7 @@ const EMPTY: IslandHud = {
   towerEnter: false,
   tape: "floor",
   tapes: [],
+  inventory: [],
   selectedTape: "",
   nearTapeDeck: false,
 };
@@ -66,6 +67,7 @@ export function DesertIsland({
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [tilt, setTilt] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
   const left = useRef(false);
   const towerEntered = useRef(false);
   const liveRef = useRef(live);
@@ -234,7 +236,7 @@ export function DesertIsland({
           </dl>
           <p className="mt-4 text-sm text-muted">
             Пешком: W A S D, пробел — прыжок, C — настроение (обычный, спорт, агрессия, стелс).
-            На байке: T или кнопка «Полёт» включает режим полёта; пробел — вверх, Q — вниз. «Земля» возвращает колёса на поверхность. E — говорить и садиться, R — на плиту.
+            На байке: T или кнопка «Полёт» включает режим полёта; пробел — вверх, Q — вниз. «Земля» возвращает колёса на поверхность. E — говорить и взаимодействовать, F — сесть/спешиться, V — извлечь кассету, R — на плиту.
           </p>
           <p className="mt-2 text-xs text-muted">{ready ? "Меши на острове." : "Байк и жители ещё садятся…"}</p>
         </section>
@@ -266,6 +268,14 @@ export function DesertIsland({
                 className="size-24 rounded-2xl border border-line bg-bg/40 md:size-36"
               />
               <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  aria-expanded={inventoryOpen}
+                  onClick={() => setInventoryOpen((open) => !open)}
+                  className="min-h-11 min-w-20 rounded-xl border border-line bg-surface/92 px-3 text-xs font-semibold tracking-wide text-fg"
+                >
+                  СУМКА · {hud.inventory.length}
+                </button>
                 {phase === "play" && hud.mode === "bike" ? (
                   <button
                     type="button"
@@ -304,6 +314,45 @@ export function DesertIsland({
             </div>
           </div>
 
+          {inventoryOpen ? (
+            <section className="pointer-events-auto absolute right-3 top-24 z-20 w-[min(88vw,19rem)] rounded-2xl border border-line bg-surface/95 p-3 shadow-xl backdrop-blur-md">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="font-display text-xl">Инвентарь</h2>
+                <button type="button" onClick={() => setInventoryOpen(false)} className="rounded-lg border border-line px-2 py-1 text-sm">Закрыть</button>
+              </div>
+              {hud.inventory.length ? (
+                <ul className="max-h-64 space-y-2 overflow-auto">
+                  {hud.inventory.map((item) => (
+                    <li key={item.id} className="flex items-center justify-between gap-2 rounded-xl border border-line px-3 py-2">
+                      <span className="min-w-0 text-sm">
+                        {item.kind === "tape" ? "📼 " : item.kind === "crystal" ? "◆ " : "🗝 "}
+                        {item.title}{item.count > 1 ? " × " + item.count : ""}
+                      </span>
+                      {item.kind === "tape" ? (
+                        <button
+                          type="button"
+                          aria-pressed={hud.selectedTape === item.id}
+                          onClick={() => {
+                            const sim = worldRef.current?.sim;
+                            if (sim?.selectTape(item.id)) setHud(sim.hud());
+                          }}
+                          className={hud.selectedTape === item.id
+                            ? "shrink-0 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-bg"
+                            : "shrink-0 rounded-full border border-line px-3 py-1 text-xs"}
+                        >
+                          {hud.selectedTape === item.id ? "Выбрана" : "Выбрать"}
+                        </button>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted">Пока пусто. Найденные предметы появятся здесь.</p>
+              )}
+              <p className="mt-2 text-xs text-muted">Кристаллы и ключ исчезают из сумки после сдачи жителям.</p>
+            </section>
+          ) : null}
+
           <div className="flex flex-col items-center gap-2">
             {phase === "play" && hud.nearTapeDeck && hud.tapes.length > 0 ? (
               <div className="pointer-events-auto flex max-w-[min(92vw,28rem)] flex-wrap items-center justify-center gap-2 rounded-2xl border border-line bg-surface/92 px-3 py-2 shadow-lg backdrop-blur-md">
@@ -333,6 +382,18 @@ export function DesertIsland({
                 onClick={() => worldRef.current?.toggleTapeScreen()}
               >
                 {hud.tape === "paused" ? "На паузе · весь экран" : "Весь экран"}
+              </button>
+            ) : null}
+            {hud.tape === "playing" || hud.tape === "paused" ? (
+              <button
+                type="button"
+                className="pointer-events-auto rounded-full border border-line bg-surface/95 px-4 py-1 text-sm font-medium"
+                onClick={() => {
+                  const sim = worldRef.current?.sim;
+                  if (sim?.ejectTape()) setHud(sim.hud());
+                }}
+              >
+                V · Извлечь кассету
               </button>
             ) : null}
             {hud.prompt && phase === "play" && !talk ? (
@@ -376,7 +437,9 @@ export function DesertIsland({
           <Hold code="KeyW" label="Вперёд" className="bg-primary text-bg" />
           <Hold code="KeyS" label="Назад" />
           <Hold code="KeyD" label="Право" />
-          <Hold code="KeyE" label="E" />
+          <Hold code="KeyE" label="E · взять" />
+          <Hold code="KeyF" label="F · сесть" />
+          <Hold code="KeyV" label="V · кассета" />
           <Hold code="Space" label="Прыжок" />
           <Hold code="KeyC" label="Настроение" />
           <Hold code="KeyQ" label="Вниз" />
