@@ -40,6 +40,7 @@ const isVideo=p=>/\.(mp4|webm|mov|m4v)(?:$|\?)/i.test(p);
 if(!url){console.error('Usage: npm run qa:minisim -- --url "http://localhost/mini-sim-page/" [--headed] [--full-media]');process.exit(2);}
 await mkdir(out,{recursive:true});
 let handleMap=new Map();
+// Live WordPress preflight is fail-fast: no retries, firewall changes, or security-plugin update workarounds.
 const stopPreflight = async (message) => {
  report.status="BLOCKED_ENVIRONMENT";
  report.error=message;
@@ -56,7 +57,7 @@ try{
  report.preflightStatus=pre.status;
  const html=await pre.text();
  if(!pre.ok)await stopPreflight("Preflight HTTP "+pre.status+"; stopping before Chromium. Treat this as BLOCKED_ENVIRONMENT, not a Mini-Sim failure.");
- if(!/<[^>]+\\bclass=["'][^"']*\\bbcm-mini-sim\\b[^"']*["']/i.test(html)){
+ if(!/<[^>]+\bclass=["'][^"']*\bbcm-mini-sim\b[^"']*["']/i.test(html)){
    await stopPreflight("Preflight returned no .bcm-mini-sim root; likely an access/protection page or the wrong WordPress page. Stopping before Chromium.");
  }
  handleMap=wordpressHandleMap(html,pre.url||url);
