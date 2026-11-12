@@ -17,6 +17,7 @@ function moodName(mood: IslandHud["mood"]) {
 
 const EMPTY: IslandHud = {
   mode: "foot",
+  flightMode: false,
   speed: 0,
   alt: 0,
   region: "Посадочная",
@@ -230,7 +231,7 @@ export function DesertIsland({
           </dl>
           <p className="mt-4 text-sm text-muted">
             Пешком: W A S D, пробел — прыжок, C — настроение (обычный, спорт, агрессия, стелс).
-            На байке: пробел вверх, Q вниз, Shift форсаж. E говорить и садиться. R на плиту.
+            На байке: T или кнопка «Полёт» включает режим полёта; пробел — вверх, Q — вниз. «Земля» возвращает колёса на поверхность. E — говорить и садиться, R — на плиту.
           </p>
           <p className="mt-2 text-xs text-muted">{ready ? "Меши на острове." : "Байк и жители ещё садятся…"}</p>
         </section>
@@ -262,6 +263,22 @@ export function DesertIsland({
                 className="size-24 rounded-2xl border border-line bg-bg/40 md:size-36"
               />
               <div className="flex flex-col gap-2">
+                {phase === "play" && hud.mode === "bike" ? (
+                  <button
+                    type="button"
+                    aria-label={hud.flightMode ? "Перейти в режим земли" : "Включить режим полёта"}
+                    onClick={() => {
+                      const sim = worldRef.current?.sim;
+                      if (sim) {
+                        sim.toggleFlightMode();
+                        setHud(sim.hud());
+                      }
+                    }}
+                    className="h-11 min-w-20 rounded-xl border border-primary bg-surface/92 px-3 text-xs font-semibold tracking-wide text-primary"
+                  >
+                    {hud.flightMode ? "ЗЕМЛЯ" : "ПОЛЁТ"}
+                  </button>
+                ) : null}
                 {phase === "play" ? (
                   <button
                     type="button"

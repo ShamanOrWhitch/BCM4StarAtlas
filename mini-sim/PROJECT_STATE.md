@@ -400,3 +400,12 @@ Issue #28 остаётся открытым только для полной г�
 - Asteroid: декоративные wall deposits увеличены до scale 0.60–0.67, количество — до 12; сначала используются eligible панели основного маршрута, при нехватке — другие eligible вертикальные панели на любых высотах. Отдельный RNG; collision wall list / topology / Hydrogen / flight physics не меняются.
 - Версия в `main`: Mini-Sim 0.11.23; Tower остаётся 0.2.67 без изменений.
 - **Статус:** PR #95 merged, squash commit `2bdc86b60bb1e464a4c136347e64b5373a7e901d`; issue #95 закрыт. Source CI — 9/9 PASS; standalone Chromium — 20/20 PASS (run `41444615060`, tested code SHA `c04a634eeb51698b7a92fc5dde2ddb110e308e78`). В сцене — 12 GLB deposits, 108 mesh objects, 9,432 triangles, 4 authored colours; scale 0.60–0.67, размещение по первым 13 route cells на разных высотах. В обычном ship POV видны минералы; console/page errors и локальных HTTP ошибок нет. Live WordPress browser QA `41444792311` — **BLOCKED-ENVIRONMENT**: `https://walkingyog.com/bcm4sa/` вернул HTTP 403 до появления `.bcm-mini-sim`; firewall не менялся, production не развёрнут. Это не VERIFIED-LIVE и не USER-CONFIRMED.
+
+
+## Direct-main update — vehicle ground / flight behavior (12 November 2026)
+
+- Mini-Sim version `0.12.11`. First Planet has an explicit vehicle mode toggle: **T / on-screen button = Ground or Flight**. Ground mode follows sampled terrain height, blocks entry into water, and disables vertical controls. Flight mode enables Space/Q lift and descent; switching back to Ground starts a gravity-driven landing rather than teleporting to the surface.
+- Max Hog uses the four existing GLB wheel-pod pivots and four flame nodes. Ground mode hides blue flames and spins tire / hub / tread meshes; flight mode directs each pod's exhaust downward for lift / hover or backward for forward thrust. No new mesh assets or glTF animations were added.
+- Space first-person remains the default. F8 temporarily switches the ordinary ship renderer to a rear test camera; Ring's custom camera renderer is not overridden. The setting is runtime-only and starts off each load.
+- Removed generic numeric sliders and independent engine / shader switches from the five medium demo panels. Discrete ship modes and cargo / ramp actions remain. Space demo thruster intensity follows actual ship velocity, except pad / load modes. Rainbow camouflage and its sliders are unchanged.
+- Source-only change. CI and live WordPress / device playtesting must be recorded separately; no website deployment is implied.

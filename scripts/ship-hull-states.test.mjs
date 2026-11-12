@@ -47,6 +47,8 @@ test("ship catalog contains every uploaded family and each real GLB path resolve
 
 test("all four medium demo rigs keep their existing controls and panels", async () => {
   const required = [
+    "medium/calico_enforcer/ca_enforcer_controls.js",
+    "medium/calico_enforcer/ca_enforcer_panel.js",
     "medium/fimbull packlite/packlite_controls.js",
     "medium/fimbull packlite/packlite_panel.js",
     "medium/mamba/fimbul_mamba_controls.js",
@@ -57,9 +59,18 @@ test("all four medium demo rigs keep their existing controls and panels", async 
     "medium/pearce_f4/pearce_f4_panel.js",
   ];
   for (const relative of required) await access(resolve(shipRoot, relative));
+  const panels = required.filter((relative) => relative.endsWith("_panel.js"));
+  for (const relative of panels) {
+    const panel = await read("mini-sim/assets/mesh/ships/" + relative);
+    assert.equal(panel.includes("sliders.forEach"), false, relative + " has no slider renderer");
+    assert.equal(panel.includes("controller.setMode(mo.id)"), true, relative + " keeps discrete modes");
+  }
   const mini = await read("mini-sim/assets/js/mini-sim.js");
   assert.match(mini, /attachShipScripts\(hull, spec\.file\)/);
   assert.match(mini, /setMode\("flight"\)/);
+  assert.match(mini, /testRearCamera/);
+  assert.match(mini, /e.code === "F8"/);
+  assert.match(mini, /shipRig.api.setThrust/);
 });
 
 test("first-person space picker and orbital yard use paired catalog forms", async () => {
@@ -73,13 +84,15 @@ test("first-person space picker and orbital yard use paired catalog forms", asyn
   assert.match(mini, /assetUrl\(spec\.parkedFile\)/);
   assert.match(mini, /dockedShips\.push\(\{[\s\S]*?id: spec\.id,[\s\S]*?file: spec\.file/);
   assert.match(mini, /mountFlightHull\(\{ id: dock\.id, name: dock\.name, file: dock\.file/);
-  assert.match(mini, /title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.12\.10"/);
-  assert.match(php, /Version: 0\.12\.10/);
+  assert.match(mini, /title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.12\.11"/);
+  assert.match(php, /Version: 0\.12\.11/);
 });
 
 test("First Planet uses parked forms at berths and flight forms when the craft moves", async () => {
   const ships = await read("mini-sim/tower/first-planet/src/game/ships.ts");
   const scene = await read("mini-sim/tower/first-planet/src/game/island/scene.ts");
+  const sim = await read("mini-sim/tower/first-planet/src/game/island/sim.ts");
+  const island = await read("mini-sim/tower/first-planet/src/components/desert-island.tsx");
   const config = await read("mini-sim/tower/first-planet/tsconfig.json");
   assert.match(config, /"resolveJsonModule": true/);
   assert.match(ships, /import SHIP_CATALOG from "\.\.\/\.\.\/\.\.\/\.\.\/assets\/mesh\/ships\/catalog\.json"/);
@@ -99,5 +112,15 @@ test("First Planet uses parked forms at berths and flight forms when the craft m
   assert.match(scene, /if \(spec\.flightFile && spec\.flightFile !== spec\.file\)/);
   assert.match(scene, /boarded\.hull\.visible = !blazing \|\| !boarded\.flightHull/);
   assert.match(scene, /boarded\.flightHull\.visible = blazing/);
+  assert.match(scene, /const blazing = sim.mode === "bike" && sim.flightMode/);
+  assert.match(scene, /createMaxhogDriveRig/);
+  assert.match(scene, /getObjectByName\("wheel_" \+ side\)/);
+  assert.match(scene, /getObjectByName\("flame_" \+ side\)/);
+  assert.match(scene, /pod.flame.visible = flight/);
+  assert.match(sim, /flightMode: false/);
+  assert.match(sim, /toggleFlightMode\(\)/);
+  assert.match(sim, /keys.has\("KeyT"\)/);
+  assert.match(sim, /this.engineForward/);
+  assert.match(island, /hud.flightMode \? "ЗЕМЛЯ" : "ПОЛЁТ"/);
   assert.match(scene, /loader\.loadAsync\(shipUrl\(near\.flightFile\)\)/);
 });

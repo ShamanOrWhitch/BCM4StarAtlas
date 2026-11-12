@@ -1,7 +1,6 @@
-/* Fimbul BYOS Packlite — панель управления грузовиком-баржей. Чистый DOM,
- * без зависимостей. Режимы палуба / полёт / охота / погрузка, ползунки лыж,
- * турелей, створок грузового люка, тяги, стробоскопов и прожекторов,
- * двигатели и шейдерный режим. На слабом Android обновляются только числа. */
+/* Ship demo panel: discrete mechanical modes and quick actions only.
+ * Engine intensity follows actual ship movement; manual numeric sliders are omitted.
+ */
 (function (scope) {
   scope.createPacklitePanel = function (controller, opts) {
     if (!controller) throw new Error('controller required');
@@ -13,17 +12,6 @@
       { id: 'hunt',   label: 'Охота' },
       { id: 'load',   label: 'Погрузка' }
     ];
-    var sliders = [
-      { label: 'Лыжи',      key: 'setLegs',   min: 0, max: 1, step: 0.01, fmt: pct },
-      { label: 'Турели',    key: 'setGuns',   min: 0, max: 1, step: 0.01, fmt: deg(16) },
-      { label: 'Люк трюма', key: 'setLid',    min: 0, max: 1, step: 0.01, fmt: deg(82) },
-      { label: 'Тяга',      key: 'setThrust', min: 0, max: 1, step: 0.01, fmt: pct },
-      { label: 'Стробоскоп', key: 'setStrobe', min: 0, max: 1, step: 0.01, fmt: pct },
-      { label: 'Прожекторы', key: 'setSpots', min: 0, max: 1, step: 0.01, fmt: pct }
-    ];
-    function pct(v) { return Math.round(v * 100) + '%'; }
-    function deg(full) { return function (v) { return Math.round(v * full) + '\u00B0'; }; }
-    function m(full) { return function (v) { return (v * full).toFixed(1) + ' м'; }; }
 
     var box = document.createElement('div');
     box.style.cssText = [
@@ -66,19 +54,6 @@
     });
     body.appendChild(row);
 
-    function checkbox(labelText, checked, onChange) {
-      var lab = document.createElement('label');
-      lab.style.cssText = 'display:flex;align-items:center;gap:8px;margin:4px 0;cursor:pointer;';
-      var cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.checked = !!checked;
-      cb.addEventListener('change', function () { onChange(cb.checked); });
-      var sp = document.createElement('span');
-      sp.textContent = labelText;
-      lab.appendChild(cb);
-      lab.appendChild(sp);
-      return lab;
-    }
     var quick = document.createElement('div');
     quick.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px;';
     [['Шасси', function () {
@@ -101,48 +76,6 @@
       quick.appendChild(b);
     });
     body.appendChild(quick);
-    body.appendChild(checkbox('Двигатели', true, function (v) { controller.setEngines(v); }));
-    body.appendChild(checkbox('Шейдерный режим (GPU)', false, function (v) {
-      controller.setShaderMode(v);
-    }));
-
-    sliders.forEach(function (s) {
-      if (typeof controller[s.key] !== 'function') return;
-      var line = document.createElement('label');
-      line.style.cssText = 'display:flex;align-items:center;gap:8px;margin:5px 0;';
-      var name = document.createElement('span');
-      name.textContent = s.label;
-      name.style.cssText = 'flex:0 0 86px;color:#b7c3d4;';
-      var input = document.createElement('input');
-      input.type = 'range';
-      input.min = s.min;
-      input.max = s.max;
-      input.step = s.step;
-      var getter = 'get' + s.key.slice(3);
-      input.value = typeof controller[getter] === 'function' ? controller[getter]() : s.min;
-      input.style.cssText = 'flex:1;min-width:66px;accent-color:#7fb2e8;';
-      var out = document.createElement('span');
-      out.style.cssText = 'flex:0 0 44px;text-align:right;color:#cfe2f8;font-variant-numeric:tabular-nums;';
-      function apply() {
-        var v = parseFloat(input.value);
-        controller[s.key](v);
-        out.textContent = s.fmt(v);
-      }
-      input.addEventListener('input', apply);
-      out.textContent = s.fmt(parseFloat(input.value));
-      line.appendChild(name);
-      line.appendChild(input);
-      line.appendChild(out);
-      body.appendChild(line);
-      s.sync = function () {
-        if (typeof controller[getter] === 'function') {
-          var v = controller[getter]();
-          input.value = v;
-          out.textContent = s.fmt(v);
-        }
-      };
-    });
-
     var state = document.createElement('div');
     state.style.cssText = 'margin-top:8px;color:#8a99ae;font-size:11.5px;line-height:1.4;';
     body.appendChild(state);
@@ -155,13 +88,8 @@
         buttons[mo.id].style.borderColor = on ? '#7fb2e8' : '#39424f';
         buttons[mo.id].style.color = on ? '#e8f2ff' : '#d7dee8';
       });
-      sliders.forEach(function (s) { if (s.sync) s.sync(); });
       var st = controller.getState ? controller.getState() : {};
-      state.textContent = 'режим ' + st.mode + ' \u00B7 лыжи ' + pct(st.legs || 0) +
-        ' \u00B7 турели ' + pct(st.guns || 0) +
-        ' \u00B7 люк трюма ' + pct(st.lid || 0) +
-        ' \u00B7 тяга ' + pct(st.thrust || 0) + (st.shader ? ' \u00B7 GPU' : ' \u00B7 CPU');
-    }
+      state.textContent = 'режим ' + st.mode;    }
     refresh();
 
     var collapsed = false;

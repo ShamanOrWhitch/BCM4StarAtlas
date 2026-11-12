@@ -5421,7 +5421,23 @@
         rainbowHulls.forEach((hull) => restoreRainbow(hull));
         camo.dirty = false;
       }
-      if (shipRig && shipRig.api && shipRig.api.update) shipRig.api.update((typeof now === "number" ? now : performance.now()) / 1000, camera);
+      if (shipRig && shipRig.api) {
+        if (typeof shipRig.api.setThrust === "function") {
+          const mode = typeof shipRig.api.getMode === "function" ? shipRig.api.getMode() : "flight";
+          const parkedMode = mode === "pad" || mode === "load";
+          const speed = ship.velocity && typeof ship.velocity.length === "function" ? ship.velocity.length() : 0;
+          shipRig.api.setThrust(parkedMode ? 0 : Math.max(0, Math.min(1, speed / 22)));
+        }
+        if (shipRig.api.update) shipRig.api.update((typeof now === "number" ? now : performance.now()) / 1000, camera);
+      }
+      if (testRearCamera && ship && ship.position && ship.quaternion) {
+        const rearOffset = new THREE.Vector3(0, testRearHeight, testRearDistance).applyQuaternion(ship.quaternion);
+        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(ship.quaternion);
+        const target = ship.position.clone().addScaledVector(forward, Math.max(2, testRearDistance * 0.12));
+        camera.position.copy(ship.position).add(rearOffset);
+        camera.up.set(0, 1, 0);
+        camera.lookAt(target);
+      }
       renderer.render(scene, camera);
     }
     requestAnimationFrame(render);
@@ -5582,6 +5598,20 @@
       // this earlier global handler retain ship input.
       if (document.getElementById("bcm-hull-dive")) {
         if (e.code !== "Escape") e.preventDefault();
+        return;
+      }
+      if (e.code === "F8" && running && !settings.open &&
+          !document.getElementById("bcm-ring-platformer") && !document.getElementById("bcm-ring-transition")) {
+        e.preventDefault();
+        testRearCamera = !testRearCamera;
+        if (testRearCamera && ship.visual) {
+          const bounds = new THREE.Box3().setFromObject(ship.visual);
+          const size = bounds.getSize(new THREE.Vector3());
+          const length = Math.max(size.x, size.y, size.z, 1);
+          testRearDistance = Math.max(8, length * 1.35 + 3);
+          testRearHeight = Math.max(2.5, size.y * 0.55);
+        }
+        setStatus(testRearCamera ? "TEST REAR CAMERA · F8 OFF" : "COCKPIT CAMERA · F8 REAR TEST");
         return;
       }
       if (e.code === "Escape") {
@@ -5888,6 +5918,9 @@
   let occupiedDock = null;
   const camo = { on: false, hue: 0.08, glow: 0.35, test: false, dirty: false };
   let shipRig = null;
+  let testRearCamera = false;
+  let testRearDistance = 12;
+  let testRearHeight = 3.2;
   const legacyFlightShips = [
     { id: "opal", name: "Opal Jet", category: "Racer", file: "mesh/ships/xxsmall/opal_jet/opal_jet_teal_flight.glb", parkedFile: "mesh/ships/xxsmall/opal_jet/opal_jet_teal_off.glb", length: 12, yardLength: 8 },
     { id: "mik", name: "Mik Ogrika", category: "Fighter", file: "mesh/ships/small/mik/mik_pearl_flight.glb", parkedFile: "mesh/ships/small/mik/mik_pearl_off.glb", length: 16, yardLength: 12 },

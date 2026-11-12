@@ -27,6 +27,7 @@ import {
   footY,
   groundY,
   houseAabbs,
+  hoverFloor,
   onSky,
   surfaceY,
   type House,
@@ -67,6 +68,66 @@ function makeLabel(text: string) {
   sprite.scale.set(2.7, 0.68, 1);
   sprite.position.y = 2.3;
   return sprite;
+}
+
+type MaxhogWheelMesh = { mesh: THREE.Mesh; rest: THREE.Quaternion };
+type MaxhogPod = { pivot: THREE.Object3D; flame: THREE.Object3D; rest: THREE.Quaternion; exhaustLocal: THREE.Vector3; wheels: MaxhogWheelMesh[] };
+type MaxhogDriveRig = { pods: MaxhogPod[]; wheelAngle: number; wheelRadius: number };
+
+function createMaxhogDriveRig(root: THREE.Object3D): MaxhogDriveRig | undefined {
+  root.updateMatrixWorld(true);
+  const pods: MaxhogPod[] = [];
+  let wheelRadius = 0;
+  for (const side of ["front_left", "front_right", "rear_left", "rear_right"]) {
+    const pivot = root.getObjectByName("wheel_" + side);
+    const flame = root.getObjectByName("flame_" + side);
+    if (!pivot || !flame) return undefined;
+    const worldRotation = pivot.getWorldQuaternion(new THREE.Quaternion());
+    const origin = pivot.getWorldPosition(new THREE.Vector3());
+    const outlet = new THREE.Box3().setFromObject(flame).getCenter(new THREE.Vector3());
+    const exhaustLocal = outlet.sub(origin).applyQuaternion(worldRotation.invert()).normalize();
+    const wheels: MaxhogWheelMesh[] = [];
+    pivot.traverse((node) => {
+      if (!(node instanceof THREE.Mesh) || !/__(tires|wheel_hubs|wheel_centers|wheel_tread)_/i.test(node.name)) return;
+      wheels.push({ mesh: node, rest: node.quaternion.clone() });
+      if (/__tires_/i.test(node.name)) {
+        const size = new THREE.Box3().setFromObject(node).getSize(new THREE.Vector3());
+        wheelRadius = Math.max(wheelRadius, size.x, size.y) * 0.5;
+      }
+    });
+    flame.visible = false;
+    pods.push({ pivot, flame, rest: pivot.quaternion.clone(), exhaustLocal, wheels });
+  }
+  return pods.length === 4 ? { pods, wheelAngle: 0, wheelRadius: Math.max(0.25, wheelRadius) } : undefined;
+}
+
+function updateMaxhogDriveRig(rig: MaxhogDriveRig, sim: Sim, active: boolean, dt: number) {
+  const flight = active && sim.flightMode;
+  const floor = hoverFloor(sim.x, sim.z, sim.y);
+  const grounded = active && !flight && sim.y <= floor + 0.16;
+  rig.wheelAngle += grounded ? (sim.speed * dt) / rig.wheelRadius : 0;
+  const forward = Math.max(-1, Math.min(1, sim.engineForward));
+  const vertical = Math.max(-1, Math.min(1, sim.engineVertical));
+  const exhaust = vertical > 0.05 ? new THREE.Vector3(0, -1, forward * 0.45)
+    : vertical < -0.05 ? new THREE.Vector3(0, 1, forward * 0.45)
+    : Math.abs(forward) > 0.05 ? new THREE.Vector3(0, 0, Math.sign(forward))
+    : new THREE.Vector3(0, -1, 0);
+  exhaust.normalize();
+  const blend = 1 - Math.exp(-9 * Math.max(0, dt));
+  for (const pod of rig.pods) {
+    pod.flame.visible = flight;
+    if (flight) {
+      const base = pod.exhaustLocal.clone().applyQuaternion(pod.rest);
+      const delta = new THREE.Quaternion().setFromUnitVectors(base, exhaust);
+      pod.pivot.quaternion.slerp(delta.multiply(pod.rest), blend);
+    } else pod.pivot.quaternion.copy(pod.rest);
+    for (const wheel of pod.wheels) {
+      if (grounded) wheel.mesh.quaternion.copy(wheel.rest).multiply(
+        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), rig.wheelAngle),
+      );
+      else wheel.mesh.quaternion.copy(wheel.rest);
+    }
+  }
 }
 
 function fireSprite() {
@@ -534,6 +595,7 @@ export function createIsland(
   scene.add(bike);
   let bikeOff: THREE.Object3D | null = null;
   let bikeFull: THREE.Object3D | null = null;
+  let bikeDriveRig: MaxhogDriveRig | null = null;
 
   const crystalPivots: THREE.Object3D[] = [];
   const crystalMarkers: THREE.Object3D[] = [];
@@ -849,6 +911,7 @@ export function createIsland(
       fitLength: number;
       flightHull?: THREE.Object3D | null;
       flightLoading?: boolean;
+      driveRig?: MaxhogDriveRig;
       x: number;
       z: number;
       y: number;
@@ -882,6 +945,7 @@ export function createIsland(
         const hull = gltf.scene;
         settleNose(hull);
         if (!fitLength(hull, spec.island)) continue;
+        const driveRig = spec.id === "maxhog" ? createMaxhogDriveRig(hull) : undefined;
         const pivot = new THREE.Group();
         pivot.add(hull);
         pivot.rotation.y = i * 0.55;
@@ -890,7 +954,7 @@ export function createIsland(
         block(x, z, 1.5, 1.5);
         parked.push({
           pivot, hull, parkedFile: spec.file, flightFile: spec.flightFile,
-          fitLength: spec.island, x, z, y, crew: spec.crew,
+          fitLength: spec.island, x, z, y, crew: spec.crew, driveRig,
         });
       } catch (err) {
         console.warn("BCM island ship skipped", spec.file, err);
@@ -917,6 +981,7 @@ export function createIsland(
         const hull = gltf.scene;
         settleNose(hull);
         if (!fitLength(hull, entry.spec.show)) continue;
+        const driveRig = entry.spec.id === "maxhog" ? createMaxhogDriveRig(hull) : undefined;
         const pivot = new THREE.Group();
         pivot.add(hull);
         pivot.rotation.y = 0.4;
@@ -924,7 +989,7 @@ export function createIsland(
         const y = sit(pivot, entry.x, entry.z, SKY.y);
         parked.push({
           pivot, hull, parkedFile: entry.spec.file, flightFile: entry.spec.flightFile,
-          fitLength: entry.spec.show, x: entry.x, z: entry.z, y, crew: entry.spec.crew,
+          fitLength: entry.spec.show, x: entry.x, z: entry.z, y, crew: entry.spec.crew, driveRig,
         });
       } catch (err) {
         console.warn("BCM asteroid ship skipped", entry.spec.file, err);
@@ -1063,6 +1128,7 @@ export function createIsland(
     fitLength: number;
     flightHull?: THREE.Object3D | null;
     flightLoading?: boolean;
+    driveRig?: MaxhogDriveRig;
     x: number;
     z: number;
     y: number;
@@ -1195,6 +1261,7 @@ export function createIsland(
       fitLength: number;
       flightHull?: THREE.Object3D | null;
       flightLoading?: boolean;
+      driveRig?: MaxhogDriveRig;
       x: number;
       z: number;
       y: number;
@@ -1235,7 +1302,10 @@ export function createIsland(
       bike.rotation.y = sim.bikeYaw;
       bike.rotation.z = 0;
     }
-    const blazing = sim.mode === "bike" && Math.abs(sim.speed) > 2.4;
+    const driveRig = boarded?.driveRig || bikeDriveRig;
+    if (driveRig) updateMaxhogDriveRig(driveRig, sim, sim.mode === "bike", dt);
+    const blazing = sim.mode === "bike" && sim.flightMode;
+    if (driveRig) bike.rotation.z = 0;
     if (bikeOff) bikeOff.visible = !boarded && !blazing;
     if (bikeFull) bikeFull.visible = !boarded && blazing;
     if (boarded) {
@@ -1427,6 +1497,7 @@ export function createIsland(
         if (flightHull) bike.add(flightHull);
         bikeOff = parkedHull;
         bikeFull = flightHull;
+        bikeDriveRig = spec.id === "maxhog" ? createMaxhogDriveRig(parkedHull) || null : null;
         await wearCrew(pilotSpecies(spec.crew));
       })
       .catch((err) => console.warn("BCM pilot ship skipped", spec.id, err));
@@ -1496,6 +1567,10 @@ export function createIsland(
     }
     if (!near) return false;
     boarded = near;
+    sim.flightMode = false;
+    sim.engineForward = 0;
+    sim.engineVertical = 0;
+    sim.vy = 0;
     near.pivot.remove(near.hull);
     near.hull.visible = true;
     bike.add(near.hull);

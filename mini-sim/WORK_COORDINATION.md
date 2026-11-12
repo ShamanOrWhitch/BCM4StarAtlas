@@ -335,3 +335,14 @@ Handoff / close reason:
 - **Source CI:** 8/8 source workflows PASS on tested PR head `b4ec426`: Warp visual tiers, Warp course/portal first frame, Warp maze return, Ring menu controls, Mini-Sim regression, UI layer, Tower top cap and UI/weapons/cabin.
 - **Browser QA:** [40501631745](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/40501631745) is BLOCKED-ENVIRONMENT (HTTP 403 before `.bcm-mini-sim` appears). No WordPress deployment or live/device verification is claimed.
 - **Preserved boundaries:** no SAGE adapter, map data, Ring logic, Tower physics, Galia Desk/scanner/pricing, planet placement, or firewall changes. The existing map's unknown sector coordinates remain unknown rather than fabricated.
+
+
+## Direct-main update — vehicle behavior and visual test path (12 November 2026)
+
+- Current source target: `main`. No feature branch or PR created for this change. Mini-Sim version `0.12.11`.
+- Added a First Planet Ground / Flight toggle (T + HUD button), terrain-following ground motion, and gravity-driven return to ground. Max Hog receives rig-specific wheel spin, ground flame-off and thrust-vector pod movement using its four existing wheel pivots / flame nodes.
+- Space remains first person by default; F8 enables a temporary rear camera only for the ordinary ship renderer. Removed manual sliders from medium demo panels while retaining discrete mechanical modes and cargo / ramp actions. Demo thrusters are tied to ship speed.
+- Rainbow camouflage, scanner / pricing, Galia Desk, wallets, SAGE, Warp physics, island scenery and Shoal Race logic are not part of this change.
+- CI and live-site testing remain pending until their actual results are read; do not claim deployment to WordPress.
+
+---

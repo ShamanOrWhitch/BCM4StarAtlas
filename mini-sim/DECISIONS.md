@@ -722,3 +722,16 @@ HEAD at the start of the session was `748998250d39ac9ed163b84caa1f7178da920d9a` 
 - Map labels show MUD / ONI / Ustur without "CSS"; sector coordinates and identifiers remain intact.
 - Asteroid crystals: up to twelve, scale 0.60–0.67, route-first deterministic placement on existing vertical side panels on all maze levels. Decorative only; preserve the maze RNG, topology, wall collision list and gameplay.
 - Branch: `fix/warp-original-frame-flow-map-labels-crystal-visibility`; issue [#95](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/95). Mini-Sim 0.11.23: source CI 9/9 PASS; standalone Chromium 20/20 PASS. WordPress browser QA returned HTTP 403 before the game DOM; status BLOCKED-ENVIRONMENT, no deployment.
+
+
+## D-049 — Vehicle drive mode is explicit; visual propulsion follows motion (12 November 2026)
+
+**Status:** Implemented directly on `main` in Mini-Sim `0.12.11`.
+
+- First Planet vehicles use an explicit Ground / Flight state, not a speed threshold. Ground mode follows terrain and disables vertical controls; Flight mode enables vertical control. T and the HUD button switch states.
+- Max Hog is a rig-specific case: its existing wheel-pod nodes and flame nodes are animated in place. No guessed alternate GLB or generic animation is imposed on other ship families.
+- Space remains first person by default. F8 is a temporary rear-camera diagnostic for the ordinary ship renderer only; custom Ring camera rendering keeps ownership.
+- Medium demo panels expose discrete mechanical modes and quick actions only. Numeric manual sliders and independent engine / shader toggles are removed; ramp / load modes remain. Thruster brightness follows ship speed except when parked / loading.
+- Rainbow camouflage is explicitly out of scope and unchanged.
+
+---

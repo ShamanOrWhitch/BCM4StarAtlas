@@ -42,6 +42,7 @@ type Save = {
 
 export type IslandHud = {
   mode: "foot" | "bike";
+  flightMode: boolean;
   speed: number;
   alt: number;
   region: string;
@@ -216,6 +217,9 @@ export function createSim(seed = 0) {
     speed: 0,
     steer: 0,
     mode: "foot" as "foot" | "bike",
+    flightMode: false,
+    engineForward: 0,
+    engineVertical: 0,
     bikeX: BIKE_PARK.x,
     bikeZ: BIKE_PARK.z,
     bikeYaw: BIKE_PARK.yaw,
@@ -236,6 +240,7 @@ export function createSim(seed = 0) {
     board: null as null | (() => boolean),
     respawnPrev: false,
     jumpPrev: false,
+    flightTogglePrev: false,
     moodPrev: false,
     dash: 0,
     tale: 0,
@@ -418,6 +423,10 @@ export function createSim(seed = 0) {
       }
       if (this.mode === "foot" && hit(this.bikeX, this.bikeZ, 3.8)) {
         this.mode = "bike";
+        this.flightMode = false;
+        this.vy = 0;
+        this.engineForward = 0;
+        this.engineVertical = 0;
         this.x = this.bikeX;
         this.z = this.bikeZ;
         this.yaw = this.bikeYaw;
@@ -435,6 +444,9 @@ export function createSim(seed = 0) {
           return;
         }
         this.mode = "foot";
+        this.flightMode = false;
+        this.engineForward = 0;
+        this.engineVertical = 0;
         this.bikeX = this.x;
         this.bikeZ = this.z;
         this.bikeYaw = this.yaw;
@@ -445,9 +457,22 @@ export function createSim(seed = 0) {
         this.vz = 0;
       }
     },
+    toggleFlightMode() {
+      if (this.mode !== "bike") return false;
+      this.flightMode = !this.flightMode;
+      this.vy = this.flightMode ? 0 : Math.min(0, this.vy);
+      this.engineForward = 0;
+      this.engineVertical = 0;
+      if (this.flightMode) this.y = hoverFloor(this.x, this.z, this.y);
+      return this.flightMode;
+    },
     respawn() {
       this.towerEnter = false;
       this.mode = "foot";
+      this.flightMode = false;
+      this.flightTogglePrev = false;
+      this.engineForward = 0;
+      this.engineVertical = 0;
       this.x = SPAWN.x;
       this.z = SPAWN.z;
       this.yaw = SPAWN.yaw;
@@ -487,7 +512,9 @@ export function createSim(seed = 0) {
       else if (hit(TOWER_GATE.x, TOWER_GATE.z, TOWER_GATE.radius)) this.prompt = "E — маяк · подъём в Tower";
       else if (hit(RING.x, RING.z, 3.4)) this.prompt = "E — берег цитадели, гонка";
       else if (this.mode === "foot" && hit(this.bikeX, this.bikeZ, 3.8)) this.prompt = "E — сесть на байк";
-      else if (this.mode === "bike") this.prompt = "E — спешиться";
+      else if (this.mode === "bike") this.prompt = this.flightMode
+        ? "T — режим земли · E — спешиться"
+        : "T — режим полёта · E — спешиться";
       else this.prompt = "";
     },
     step(dt: number) {
@@ -512,6 +539,9 @@ export function createSim(seed = 0) {
       this.usePrev = use;
       if (respawn && !this.respawnPrev) this.respawn();
       this.respawnPrev = respawn;
+      const flightToggle = this.mode === "bike" && keys.has("KeyT");
+      if (flightToggle && !this.flightTogglePrev) this.toggleFlightMode();
+      this.flightTogglePrev = flightToggle;
       this.steer = steer;
 
       if (!this.dialogue) {
@@ -539,10 +569,13 @@ export function createSim(seed = 0) {
         this.vx = fx * forward;
         this.vz = fz * forward;
         this.speed = forward;
+        this.engineForward = this.mode === "bike" && this.flightMode
+          ? (Math.abs(forward) > 0.45 ? Math.sign(forward) : wish)
+          : 0;
 
         let nx = this.x + this.vx * dt;
         let nz = this.z + this.vz * dt;
-        if (this.mode === "foot") {
+        if (this.mode === "foot" || (this.mode === "bike" && !this.flightMode)) {
           const nextH = footY(nx, nz, this.y);
           const hereH = footY(this.x, this.z, this.y);
           if (nextH < -0.48 && nextH < hereH - 0.02) {
@@ -575,8 +608,26 @@ export function createSim(seed = 0) {
             if (this.vy < 0) this.vy = 0;
           }
           this.y = ny;
+          this.engineForward = 0;
+          this.engineVertical = 0;
+        } else if (!this.flightMode) {
+          const floor = hoverFloor(this.x, this.z, this.y);
+          if (this.y > floor + 0.04) {
+            this.vy = Math.max(-12, this.vy - 18 * dt);
+            this.y = Math.max(floor, this.y + this.vy * dt);
+            if (this.y <= floor) this.vy = 0;
+          } else {
+            this.y = floor;
+            this.vy = 0;
+          }
+          this.engineForward = 0;
+          this.engineVertical = 0;
+          this.bikeX = this.x;
+          this.bikeZ = this.z;
+          this.bikeYaw = this.yaw;
         } else {
           const climb = (keys.has("Space") ? 1 : 0) - (keys.has("KeyQ") ? 1 : 0);
+          this.engineVertical = climb || (this.vy > 0.35 ? 1 : this.vy < -0.35 ? -1 : 0);
           if (climb !== 0) this.vy += climb * 26 * dt;
           else this.vy *= Math.exp(-2.4 * dt);
           this.vy = Math.min(12, Math.max(-12, this.vy));
@@ -652,6 +703,7 @@ export function createSim(seed = 0) {
       ];
       return {
         mode: this.mode,
+        flightMode: this.flightMode,
         speed: this.speed,
         alt: this.y,
         region: regionName(this.x, this.z, this.y),
