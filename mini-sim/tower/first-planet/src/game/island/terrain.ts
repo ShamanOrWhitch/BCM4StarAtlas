@@ -199,7 +199,7 @@ export const TAPES = [
     x: null,
     z: null,
     source: "chest",
-    url: "https://walkingyog.com/wp-content/uploads/2026/01/Invaders10.mp4",
+    url: "https://walkingyog.com/wp-content/uploads/2026/11/lq-Invaders.mp4",
   },
 ] as const;
 
