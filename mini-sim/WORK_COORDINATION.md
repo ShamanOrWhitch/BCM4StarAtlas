@@ -346,3 +346,15 @@ Handoff / close reason:
 - CI and live-site testing remain pending until their actual results are read; do not claim deployment to WordPress.
 
 ---
+
+
+
+## Direct-main update — shared vehicles, media inventory and ship transfer (12 November 2026)
+
+- Main target, Mini-Sim `0.12.12`; no feature branch or PR. Shared Max Hog controls sidecar is used by space and First Planet. First Planet sends ground speed and flight direction to that sidecar; ground and space movement physics remain separate.
+- Repaired ship controller reattachment after repeated script loads. Transfer parks the active hull at its current position/orientation and adds it to the available ship list before mounting the destination hull.
+- TV sound uses player position and stronger proximity attenuation. Fullscreen tape playback gets exclusive audio focus and mutes island/race ambience. Escape/close restores ambience.
+- Save schema v2 keeps a cassette collection; chest adds Invaders 10 and migrates old saves with an already-open chest. TV selection is driven by the player's owned tapes.
+- Rainbow camouflage and the Galia Desk / scanner / pricing surfaces are not part of this change. CI and live WordPress deployment are tracked separately.
+
+---

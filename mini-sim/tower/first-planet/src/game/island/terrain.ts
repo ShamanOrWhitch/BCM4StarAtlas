@@ -190,7 +190,16 @@ export const TAPES = [
     title: "Дед",
     x: 11.55,
     z: 13.4,
+    source: "ground",
     url: "https://walkingyog.com/wp-content/uploads/2026/10/remaster-ded.mp4",
+  },
+  {
+    id: "invaders10",
+    title: "Invaders 10",
+    x: null,
+    z: null,
+    source: "chest",
+    url: "https://walkingyog.com/wp-content/uploads/2026/01/Invaders10.mp4",
   },
 ] as const;
 

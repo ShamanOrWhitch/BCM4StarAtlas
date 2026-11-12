@@ -409,3 +409,13 @@ Issue #28 остаётся открытым только для полной г�
 - Space first-person remains the default. F8 temporarily switches the ordinary ship renderer to a rear test camera; Ring's custom camera renderer is not overridden. The setting is runtime-only and starts off each load.
 - Removed generic numeric sliders and independent engine / shader switches from the five medium demo panels. Discrete ship modes and cargo / ramp actions remain. Space demo thruster intensity follows actual ship velocity, except pad / load modes. Rainbow camouflage and its sliders are unchanged.
 - Source-only change. CI and live WordPress / device playtesting must be recorded separately; no website deployment is implied.
+
+
+
+## Direct-main update — shared Max Hog, tape inventory, TV audio focus and ship transfer (12 November 2026)
+
+- Mini-Sim version `0.12.12`. Max Hog's shared `maxhog_controls.js` now drives the same four thruster/wheel pods in space and First Planet. Island ground/flight physics supply ground speed and the forward/vertical motion vector to that shared controller; it is no longer a duplicate scene-only animation.
+- Space ship controller attachment uses deterministic sidecar factory names and cached script-load promises, so a controller is reattached after a ship change even when its script was loaded earlier. Ship transfer preserves the currently active hull as a parked world object at the exact exit position and orientation before mounting the destination ship.
+- TV proximity is calculated from the character/vehicle position with a wider smooth falloff. A dedicated fullscreen audio-focus event mutes island/race ambience while the tape is in fullscreen and restores it on close or Escape.
+- Cassette inventory is saved in localStorage schema v2. The chest grants `Invaders 10`; old saves with an already-open chest receive the new tape during migration. The player can select any owned tape near the TV. The original ground cassette remains a pickup.
+- CI and source checks are added for shared Max Hog controls, ship transfer, cassette migration, and exclusive TV audio. Site deployment and hands-on browser testing remain separate; the site's 403 response to external GitHub runners is not treated as a gameplay verdict.

@@ -57,6 +57,7 @@ test("all four medium demo rigs keep their existing controls and panels", async 
     "medium/mamba_ex/fimbul_mamba_ex_panel.js",
     "medium/pearce_f4/pearce_f4_controls.js",
     "medium/pearce_f4/pearce_f4_panel.js",
+    "xsmall/maxhog/maxhog_controls.js",
   ];
   for (const relative of required) await access(resolve(shipRoot, relative));
   const panels = required.filter((relative) => relative.endsWith("_panel.js"));
@@ -71,6 +72,11 @@ test("all four medium demo rigs keep their existing controls and panels", async 
   assert.match(mini, /testRearCamera/);
   assert.match(mini, /e.code === "F8"/);
   assert.match(mini, /shipRig.api.setThrust/);
+  assert.match(mini, /shipControllerFactories\[leaf\]/);
+  assert.match(mini, /function parkCurrentFlightHull\(\)/);
+  assert.match(mini, /pivot: current/);
+  assert.match(mini, /ship\.visual = null/);
+  assert.match(mini, /shipRig.api.setFlightMotion/);
 });
 
 test("first-person space picker and orbital yard use paired catalog forms", async () => {
@@ -84,8 +90,29 @@ test("first-person space picker and orbital yard use paired catalog forms", asyn
   assert.match(mini, /assetUrl\(spec\.parkedFile\)/);
   assert.match(mini, /dockedShips\.push\(\{[\s\S]*?id: spec\.id,[\s\S]*?file: spec\.file/);
   assert.match(mini, /mountFlightHull\(\{ id: dock\.id, name: dock\.name, file: dock\.file/);
-  assert.match(mini, /title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.12\.11"/);
-  assert.match(php, /Version: 0\.12\.11/);
+  assert.match(mini, /title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.12\.12"/);
+  assert.match(php, /Version: 0\.12\.12/);
+});
+
+test("First Planet TV tapes persist in inventory and own exclusive spatial audio", async () => {
+  const terrain = await read("mini-sim/tower/first-planet/src/game/island/terrain.ts");
+  const sim = await read("mini-sim/tower/first-planet/src/game/island/sim.ts");
+  const scene = await read("mini-sim/tower/first-planet/src/game/island/scene.ts");
+  const island = await read("mini-sim/tower/first-planet/src/components/desert-island.tsx");
+  const embed = await read("mini-sim/tower/first-planet/src/first-planet-embed.tsx");
+  assert.match(terrain, /id: "invaders10"/);
+  assert.match(terrain, /Invaders10\.mp4/);
+  assert.match(sim, /tapes: string\[\]/);
+  assert.match(sim, /selectedTape: string/);
+  assert.match(sim, /selectTape\(id: string\)/);
+  assert.match(sim, /this\.tapes\.push\("invaders10"\)/);
+  assert.match(sim, /parsed\.chest && !tapes\.includes\("invaders10"\)/);
+  assert.match(island, /hud\.tapes\.map/);
+  assert.match(scene, /bcm:tape-focus/);
+  assert.match(scene, /document\.addEventListener\("fullscreenchange"/);
+  assert.match(scene, /const distanceToTape = Math\.hypot\(sim\.x - STORY_BOX\.x/);
+  assert.match(embed, /window\.addEventListener\("bcm:tape-focus", focus\)/);
+  assert.match(embed, /tapeFocused \? 0 : 0\.42/);
 });
 
 test("First Planet uses parked forms at berths and flight forms when the craft moves", async () => {
@@ -112,11 +139,15 @@ test("First Planet uses parked forms at berths and flight forms when the craft m
   assert.match(scene, /if \(spec\.flightFile && spec\.flightFile !== spec\.file\)/);
   assert.match(scene, /boarded\.hull\.visible = !blazing \|\| !boarded\.flightHull/);
   assert.match(scene, /boarded\.flightHull\.visible = blazing/);
-  assert.match(scene, /const blazing = sim.mode === "bike" && sim.flightMode/);
-  assert.match(scene, /createMaxhogDriveRig/);
-  assert.match(scene, /getObjectByName\("wheel_" \+ side\)/);
-  assert.match(scene, /getObjectByName\("flame_" \+ side\)/);
-  assert.match(scene, /pod.flame.visible = flight/);
+  const maxhog = await read("mini-sim/assets/mesh/ships/xsmall/maxhog/maxhog_controls.js");
+  assert.match(scene, /createMaxhogController/);
+  assert.match(scene, /driveController\.setMode\(blazing \? "flight" : "pad"\)/);
+  assert.match(scene, /driveController\.setFlightMotion\(sim\.engineForward, sim\.engineVertical\)/);
+  assert.match(maxhog, /scope\.createMaxhogControls/);
+  assert.match(maxhog, /wheel_" \+ side/);
+  assert.match(maxhog, /flame_" \+ side/);
+  assert.match(maxhog, /setGroundSpeed: function/);
+  assert.match(maxhog, /setFlightMotion: function/);
   assert.match(sim, /flightMode: false/);
   assert.match(sim, /toggleFlightMode\(\)/);
   assert.match(sim, /keys.has\("KeyT"\)/);

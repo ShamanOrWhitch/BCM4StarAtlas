@@ -34,6 +34,9 @@ const EMPTY: IslandHud = {
   depart: false,
   towerEnter: false,
   tape: "floor",
+  tapes: [],
+  selectedTape: "",
+  nearTapeDeck: false,
 };
 
 export function DesertIsland({
@@ -302,6 +305,27 @@ export function DesertIsland({
           </div>
 
           <div className="flex flex-col items-center gap-2">
+            {phase === "play" && hud.nearTapeDeck && hud.tapes.length > 0 ? (
+              <div className="pointer-events-auto flex max-w-[min(92vw,28rem)] flex-wrap items-center justify-center gap-2 rounded-2xl border border-line bg-surface/92 px-3 py-2 shadow-lg backdrop-blur-md">
+                <span className="px-1 text-xs font-semibold uppercase tracking-wider text-muted">Кассеты</span>
+                {hud.tapes.map((tape) => (
+                  <button
+                    key={tape.id}
+                    type="button"
+                    aria-pressed={hud.selectedTape === tape.id}
+                    onClick={() => {
+                      const sim = worldRef.current?.sim;
+                      if (sim?.selectTape(tape.id)) setHud(sim.hud());
+                    }}
+                    className={hud.selectedTape === tape.id
+                      ? "rounded-full border border-primary bg-primary px-3 py-1.5 text-sm font-semibold text-bg"
+                      : "rounded-full border border-line bg-surface px-3 py-1.5 text-sm text-fg"}
+                  >
+                    {tape.title}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             {hud.prompt.includes("экран") ? (
               <button
                 type="button"

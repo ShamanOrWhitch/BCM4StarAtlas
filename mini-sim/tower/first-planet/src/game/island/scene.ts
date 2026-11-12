@@ -27,7 +27,6 @@ import {
   footY,
   groundY,
   houseAabbs,
-  hoverFloor,
   onSky,
   surfaceY,
   type House,
@@ -70,64 +69,50 @@ function makeLabel(text: string) {
   return sprite;
 }
 
-type MaxhogWheelMesh = { mesh: THREE.Mesh; rest: THREE.Quaternion };
-type MaxhogPod = { pivot: THREE.Object3D; flame: THREE.Object3D; rest: THREE.Quaternion; exhaustLocal: THREE.Vector3; wheels: MaxhogWheelMesh[] };
-type MaxhogDriveRig = { pods: MaxhogPod[]; wheelAngle: number; wheelRadius: number };
+type MaxhogController = {
+  setMode: (mode: string) => unknown;
+  setThrust: (value: number) => unknown;
+  setGroundSpeed: (value: number) => unknown;
+  setFlightMotion: (forward: number, vertical: number) => unknown;
+  update: (time: number) => unknown;
+  dispose: () => void;
+};
 
-function createMaxhogDriveRig(root: THREE.Object3D): MaxhogDriveRig | undefined {
-  root.updateMatrixWorld(true);
-  const pods: MaxhogPod[] = [];
-  let wheelRadius = 0;
-  for (const side of ["front_left", "front_right", "rear_left", "rear_right"]) {
-    const pivot = root.getObjectByName("wheel_" + side);
-    const flame = root.getObjectByName("flame_" + side);
-    if (!pivot || !flame) return undefined;
-    const worldRotation = pivot.getWorldQuaternion(new THREE.Quaternion());
-    const origin = pivot.getWorldPosition(new THREE.Vector3());
-    const outlet = new THREE.Box3().setFromObject(flame).getCenter(new THREE.Vector3());
-    const exhaustLocal = outlet.sub(origin).applyQuaternion(worldRotation.invert()).normalize();
-    const wheels: MaxhogWheelMesh[] = [];
-    pivot.traverse((node) => {
-      if (!(node instanceof THREE.Mesh) || !/__(tires|wheel_hubs|wheel_centers|wheel_tread)_/i.test(node.name)) return;
-      wheels.push({ mesh: node, rest: node.quaternion.clone() });
-      if (/__tires_/i.test(node.name)) {
-        const size = new THREE.Box3().setFromObject(node).getSize(new THREE.Vector3());
-        wheelRadius = Math.max(wheelRadius, size.x, size.y) * 0.5;
-      }
-    });
-    flame.visible = false;
-    pods.push({ pivot, flame, rest: pivot.quaternion.clone(), exhaustLocal, wheels });
-  }
-  return pods.length === 4 ? { pods, wheelAngle: 0, wheelRadius: Math.max(0.25, wheelRadius) } : undefined;
-}
+let maxhogControlsScript: Promise<void> | null = null;
 
-function updateMaxhogDriveRig(rig: MaxhogDriveRig, sim: Sim, active: boolean, dt: number) {
-  const flight = active && sim.flightMode;
-  const floor = hoverFloor(sim.x, sim.z, sim.y);
-  const grounded = active && !flight && sim.y <= floor + 0.16;
-  rig.wheelAngle += grounded ? (sim.speed * dt) / rig.wheelRadius : 0;
-  const forward = Math.max(-1, Math.min(1, sim.engineForward));
-  const vertical = Math.max(-1, Math.min(1, sim.engineVertical));
-  const exhaust = vertical > 0.05 ? new THREE.Vector3(0, -1, forward * 0.45)
-    : vertical < -0.05 ? new THREE.Vector3(0, 1, forward * 0.45)
-    : Math.abs(forward) > 0.05 ? new THREE.Vector3(0, 0, Math.sign(forward))
-    : new THREE.Vector3(0, -1, 0);
-  exhaust.normalize();
-  const blend = 1 - Math.exp(-9 * Math.max(0, dt));
-  for (const pod of rig.pods) {
-    pod.flame.visible = flight;
-    if (flight) {
-      const base = pod.exhaustLocal.clone().applyQuaternion(pod.rest);
-      const delta = new THREE.Quaternion().setFromUnitVectors(base, exhaust);
-      pod.pivot.quaternion.slerp(delta.multiply(pod.rest), blend);
-    } else pod.pivot.quaternion.copy(pod.rest);
-    for (const wheel of pod.wheels) {
-      if (grounded) wheel.mesh.quaternion.copy(wheel.rest).multiply(
-        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), rig.wheelAngle),
-      );
-      else wheel.mesh.quaternion.copy(wheel.rest);
+async function createMaxhogController(root: THREE.Object3D, mode: "pad" | "flight" = "pad") {
+  const getFactory = () => (window as Window & {
+    createMaxhogControls?: (root: THREE.Object3D, options?: { mode?: string }) => MaxhogController;
+  }).createMaxhogControls;
+  if (!getFactory()) {
+    if (!maxhogControlsScript) {
+      maxhogControlsScript = new Promise<void>((resolve, reject) => {
+        const url = shipUrl("ships/xsmall/maxhog/maxhog_controls.js");
+        const existing = document.querySelector<HTMLScriptElement>('script[data-bcm-maxhog-controls]');
+        const script = existing || document.createElement("script");
+        if (existing?.dataset.loaded === "true" && getFactory()) {
+          resolve();
+          return;
+        }
+        script.addEventListener("load", () => {
+          script.dataset.loaded = "true";
+          if (getFactory()) resolve();
+          else reject(new Error("Max Hog controller factory missing"));
+        }, { once: true });
+        script.addEventListener("error", () => reject(new Error("Max Hog controller failed to load")), { once: true });
+        if (!existing) {
+          script.src = url;
+          script.async = true;
+          script.dataset.bcmMaxhogControls = "true";
+          document.head.appendChild(script);
+        }
+      });
     }
+    await maxhogControlsScript;
   }
+  const factory = getFactory();
+  if (!factory) throw new Error("Max Hog controller factory is unavailable");
+  return factory(root, { mode });
 }
 
 function fireSprite() {
@@ -536,6 +521,7 @@ export function createIsland(
   let cassette: THREE.Group | null = null;
 
   TAPES.forEach((tape) => {
+    if (tape.x === null || tape.z === null) return;
     const shell = new THREE.Mesh(
       new THREE.BoxGeometry(0.28, 0.16, 0.05),
       new THREE.MeshStandardMaterial({ color: 0x1a1c22, roughness: 0.55, metalness: 0.2 }),
@@ -595,7 +581,7 @@ export function createIsland(
   scene.add(bike);
   let bikeOff: THREE.Object3D | null = null;
   let bikeFull: THREE.Object3D | null = null;
-  let bikeDriveRig: MaxhogDriveRig | null = null;
+  let bikeDriveController: MaxhogController | null = null;
 
   const crystalPivots: THREE.Object3D[] = [];
   const crystalMarkers: THREE.Object3D[] = [];
@@ -911,7 +897,7 @@ export function createIsland(
       fitLength: number;
       flightHull?: THREE.Object3D | null;
       flightLoading?: boolean;
-      driveRig?: MaxhogDriveRig;
+      driveController?: MaxhogController;
       x: number;
       z: number;
       y: number;
@@ -945,7 +931,9 @@ export function createIsland(
         const hull = gltf.scene;
         settleNose(hull);
         if (!fitLength(hull, spec.island)) continue;
-        const driveRig = spec.id === "maxhog" ? createMaxhogDriveRig(hull) : undefined;
+        const driveController = spec.id === "maxhog"
+          ? await createMaxhogController(hull, "pad").catch((err) => { console.warn("Max Hog island controller unavailable", err); return undefined; })
+          : undefined;
         const pivot = new THREE.Group();
         pivot.add(hull);
         pivot.rotation.y = i * 0.55;
@@ -954,7 +942,7 @@ export function createIsland(
         block(x, z, 1.5, 1.5);
         parked.push({
           pivot, hull, parkedFile: spec.file, flightFile: spec.flightFile,
-          fitLength: spec.island, x, z, y, crew: spec.crew, driveRig,
+          fitLength: spec.island, x, z, y, crew: spec.crew, driveController,
         });
       } catch (err) {
         console.warn("BCM island ship skipped", spec.file, err);
@@ -981,7 +969,9 @@ export function createIsland(
         const hull = gltf.scene;
         settleNose(hull);
         if (!fitLength(hull, entry.spec.show)) continue;
-        const driveRig = entry.spec.id === "maxhog" ? createMaxhogDriveRig(hull) : undefined;
+        const driveController = entry.spec.id === "maxhog"
+          ? await createMaxhogController(hull, "pad").catch((err) => { console.warn("Max Hog showcase controller unavailable", err); return undefined; })
+          : undefined;
         const pivot = new THREE.Group();
         pivot.add(hull);
         pivot.rotation.y = 0.4;
@@ -989,7 +979,7 @@ export function createIsland(
         const y = sit(pivot, entry.x, entry.z, SKY.y);
         parked.push({
           pivot, hull, parkedFile: entry.spec.file, flightFile: entry.spec.flightFile,
-          fitLength: entry.spec.show, x: entry.x, z: entry.z, y, crew: entry.spec.crew, driveRig,
+          fitLength: entry.spec.show, x: entry.x, z: entry.z, y, crew: entry.spec.crew, driveController,
         });
       } catch (err) {
         console.warn("BCM asteroid ship skipped", entry.spec.file, err);
@@ -1128,7 +1118,7 @@ export function createIsland(
     fitLength: number;
     flightHull?: THREE.Object3D | null;
     flightLoading?: boolean;
-    driveRig?: MaxhogDriveRig;
+    driveController?: MaxhogController;
     x: number;
     z: number;
     y: number;
@@ -1227,13 +1217,17 @@ export function createIsland(
     } else if (!tapeVideo.paused) {
       tapeVideo.pause();
     }
-    const hear = Math.max(0, 1 - Math.hypot(sim.x - STORY_BOX.x, sim.z - STORY_BOX.z) / 9);
-    tapeVideo.volume = tapePhase === "playing" ? 0.85 * hear : 0;
+    const distanceToTape = Math.hypot(sim.x - STORY_BOX.x, sim.z - STORY_BOX.z);
+    const falloff = Math.max(0, Math.min(1, (distanceToTape - 2) / 14));
+    const smoothFalloff = falloff * falloff * (3 - 2 * falloff);
+    const hear = 1 - smoothFalloff;
+    tapeVideo.volume = tapePhase === "playing" ? (tapeOverlay ? 0.85 : 0.82 * hear) : 0;
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("bcm:tape-near", { detail: tapePhase === "playing" ? hear : 0 }));
     }
     if (cassette) {
-      const loose = tapePhase === "floor" || tapePhase === "spent";
+      const ownsFloorTape = sim.tapes.includes("ded");
+      const loose = (tapePhase === "floor" && !ownsFloorTape) || tapePhase === "spent";
       cassette.visible = loose;
       if (tapePhase === "spent") closeTapeOverlay();
       else eject = 0;
@@ -1261,7 +1255,7 @@ export function createIsland(
       fitLength: number;
       flightHull?: THREE.Object3D | null;
       flightLoading?: boolean;
-      driveRig?: MaxhogDriveRig;
+      driveController?: MaxhogController;
       x: number;
       z: number;
       y: number;
@@ -1273,6 +1267,9 @@ export function createIsland(
       return (spot.x - sim.x) ** 2 + (spot.z - sim.z) ** 2 < reach * reach;
     };
     if (boarded && sim.mode === "foot") {
+      boarded.driveController?.setMode("pad");
+      boarded.driveController?.setThrust(0);
+      boarded.driveController?.setGroundSpeed(0);
       bike.remove(boarded.hull);
       boarded.hull.visible = true;
       boarded.pivot.add(boarded.hull);
@@ -1302,11 +1299,17 @@ export function createIsland(
       bike.rotation.y = sim.bikeYaw;
       bike.rotation.z = 0;
     }
-    const driveRig = boarded?.driveRig || bikeDriveRig;
-    if (driveRig) updateMaxhogDriveRig(driveRig, sim, sim.mode === "bike", dt);
+    const driveController = boarded?.driveController || bikeDriveController;
     const blazing = sim.mode === "bike" && sim.flightMode;
-    if (driveRig) bike.rotation.z = 0;
-    if (bikeOff) bikeOff.visible = !boarded && !blazing;
+    if (driveController) {
+      driveController.setMode(blazing ? "flight" : "pad");
+      driveController.setGroundSpeed(sim.mode === "bike" && !blazing ? sim.speed : 0);
+      driveController.setFlightMotion(sim.engineForward, sim.engineVertical);
+      driveController.setThrust(blazing ? 0.72 : 0);
+      driveController.update(elapsed);
+      bike.rotation.z = blazing ? -sim.steer * 0.14 : 0;
+    }
+    if (bikeOff) bikeOff.visible = !boarded && (!blazing || !bikeFull);
     if (bikeFull) bikeFull.visible = !boarded && blazing;
     if (boarded) {
       boarded.hull.visible = !blazing || !boarded.flightHull;
@@ -1422,6 +1425,9 @@ export function createIsland(
   function dispose() {
     alive = false;
     observer.disconnect();
+    document.removeEventListener("fullscreenchange", handleTapeFullscreenChange);
+    closeTapeOverlay();
+    window.dispatchEvent(new CustomEvent("bcm:tape-near", { detail: 0 }));
     tapeVideo.pause();
     tapeVideo.removeAttribute("src");
     tapeTex.dispose();
@@ -1467,6 +1473,9 @@ export function createIsland(
       .then(async () => {
         if (!alive) return;
         if (boarded) {
+          boarded.driveController?.setMode("pad");
+          boarded.driveController?.setThrust(0);
+          boarded.driveController?.setGroundSpeed(0);
           bike.remove(boarded.hull);
           boarded.hull.visible = true;
           boarded.pivot.add(boarded.hull);
@@ -1495,9 +1504,12 @@ export function createIsland(
         bike.clear();
         bike.add(parkedHull);
         if (flightHull) bike.add(flightHull);
+        bikeDriveController?.dispose();
         bikeOff = parkedHull;
         bikeFull = flightHull;
-        bikeDriveRig = spec.id === "maxhog" ? createMaxhogDriveRig(parkedHull) || null : null;
+        bikeDriveController = spec.id === "maxhog"
+          ? await createMaxhogController(parkedHull, "pad").catch((err) => { console.warn("Max Hog pilot controller unavailable", err); return null; })
+          : null;
         await wearCrew(pilotSpecies(spec.crew));
       })
       .catch((err) => console.warn("BCM pilot ship skipped", spec.id, err));
@@ -1513,14 +1525,26 @@ export function createIsland(
   }
 
   let tapeOverlay: HTMLDivElement | null = null;
+  function setTapeAudioFocus(active: boolean) {
+    window.dispatchEvent(new CustomEvent("bcm:tape-focus", { detail: active }));
+  }
   function closeTapeOverlay() {
-    if (document.fullscreenElement) document.exitFullscreen?.();
-    if (!tapeOverlay) return;
-    tapeOverlay.remove();
+    const overlay = tapeOverlay;
+    if (!overlay) {
+      setTapeAudioFocus(false);
+      return;
+    }
     tapeOverlay = null;
+    overlay.remove();
+    if (document.fullscreenElement === overlay) document.exitFullscreen?.();
     tapeVideo.style.cssText = "position:fixed;width:2px;height:2px;opacity:0;pointer-events:none";
     host.appendChild(tapeVideo);
+    setTapeAudioFocus(false);
   }
+  function handleTapeFullscreenChange() {
+    if (tapeOverlay && document.fullscreenElement !== tapeOverlay) closeTapeOverlay();
+  }
+  document.addEventListener("fullscreenchange", handleTapeFullscreenChange);
   function toggleTapeScreen() {
     const tapeOn = sim.tapePhase === "playing" || sim.tapePhase === "paused";
     if (!tapeOn) {
@@ -1543,6 +1567,7 @@ export function createIsland(
     overlay.appendChild(close);
     document.body.appendChild(overlay);
     tapeOverlay = overlay;
+    setTapeAudioFocus(true);
     const request = overlay.requestFullscreen || (overlay as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> }).webkitRequestFullscreen;
     if (request) request.call(overlay, { navigationUI: "hide" })?.catch(() => {});
     void tapeVideo.play()?.catch(() => {});
@@ -1553,6 +1578,7 @@ export function createIsland(
     const parked = ((scene.userData as { parked?: Array<{
       pivot: THREE.Group; hull: THREE.Object3D; parkedFile: string; flightFile: string;
       fitLength: number; flightHull?: THREE.Object3D | null; flightLoading?: boolean;
+      driveController?: MaxhogController;
       x: number; z: number; y: number;
     }> }).parked) ?? [];
     let near: (typeof parked)[number] | undefined;

@@ -31,13 +31,15 @@ export type Dialogue = { who: string; pages: string[]; i: number; commit: Quest 
 export type QuestId = "sera" | "orr" | "bulb";
 
 type Save = {
-  v: 1;
+  v: 2;
   crystals: boolean[];
   key: boolean;
   fires: boolean[];
   quests: Record<QuestId, Quest>;
   coins: number;
   chest: boolean;
+  tapes: string[];
+  selectedTape: string;
 };
 
 export type IslandHud = {
@@ -59,24 +61,45 @@ export type IslandHud = {
   towerEnter: boolean;
   mood: "walk" | "sport" | "fight" | "stealth";
   tape: "floor" | "held" | "playing" | "paused" | "spent";
+  tapes: { id: string; title: string }[];
+  selectedTape: string;
+  nearTapeDeck: boolean;
 };
 
 function loadSave(storageKey = SAVE_KEY): Save {
   const blank: Save = {
-    v: 1,
+    v: 2,
     crystals: [false, false, false],
     key: false,
     fires: [false, false],
     quests: { sera: "new", orr: "new", bulb: "new" },
     coins: 0,
     chest: false,
+    tapes: [],
+    selectedTape: "",
   };
   try {
     const raw = localStorage.getItem(storageKey);
     if (!raw) return blank;
-    const parsed = JSON.parse(raw) as Save;
-    if (parsed.v !== 1 || parsed.crystals?.length !== 3) return blank;
-    return { ...blank, ...parsed, quests: { ...blank.quests, ...parsed.quests } };
+    const parsed = JSON.parse(raw) as Partial<Save> & { v?: number };
+    if ((parsed.v !== 1 && parsed.v !== 2) || parsed.crystals?.length !== 3) return blank;
+    const tapes = Array.isArray(parsed.tapes)
+      ? parsed.tapes.filter((id): id is string => typeof id === "string" && TAPES.some((tape) => tape.id === id))
+      : [];
+    // Older saves may already have opened the chest before cassette inventory
+    // existed. Keep that progress and grant the new chest tape retroactively.
+    if (parsed.chest && !tapes.includes("invaders10")) tapes.push("invaders10");
+    const selectedTape = typeof parsed.selectedTape === "string" && tapes.includes(parsed.selectedTape)
+      ? parsed.selectedTape
+      : "";
+    return {
+      ...blank,
+      ...parsed,
+      v: 2,
+      tapes: [...new Set(tapes)],
+      selectedTape,
+      quests: { ...blank.quests, ...parsed.quests },
+    };
   } catch {
     return blank;
   }
@@ -146,7 +169,7 @@ const BULB_DONE = ["Северное кольцо за оазисом — это
 
 const JAHMAN_LINES = [
   "Я Джаман. Ящик — видеомагнитофон. Сказка живёт на кассете, не в эфире.",
-  "Подними кассету, вставь в ящик. Лента крутится один раз и сама выпадает. E ставит на паузу, G открывает на весь экран. Отойдёшь — музыка острова её заглушит.",
+  "Найденные и добытые кассеты хранятся в инвентаре. Подойди к ящику, выбери ленту и нажми E. E ставит на паузу, G открывает на весь экран. Музыка острова возле экрана почти затихает.",
 ];
 
 const TALES: { title: string; pages: string[] }[] = [
@@ -205,6 +228,7 @@ export function createSim(seed = 0) {
   const locationSeed = Number(seed) >>> 0;
   const storageKey = locationSeed ? SAVE_KEY + "-" + locationSeed.toString(16) : SAVE_KEY;
   const save = loadSave(storageKey);
+  const initialTape = TAPES.find((tape) => tape.id === save.selectedTape && save.tapes.includes(tape.id));
   const sim = {
     seed: locationSeed,
     x: SPAWN.x,
@@ -229,6 +253,8 @@ export function createSim(seed = 0) {
     quests: { ...save.quests },
     coins: save.coins,
     chest: save.chest,
+    tapes: save.tapes.slice(),
+    selectedTape: save.selectedTape,
     dialogue: null as Dialogue | null,
     prompt: "",
     depart: false,
@@ -244,9 +270,9 @@ export function createSim(seed = 0) {
     moodPrev: false,
     dash: 0,
     tale: 0,
-    tapeUrl: "",
-    tapeTitle: "",
-    tapePhase: "floor" as "floor" | "held" | "playing" | "paused" | "spent",
+    tapeUrl: initialTape?.url || "",
+    tapeTitle: initialTape?.title || "",
+    tapePhase: initialTape ? "held" as "floor" | "held" | "playing" | "paused" | "spent" : "floor" as "floor" | "held" | "playing" | "paused" | "spent",
     tapePlay: 0,
     dirty: false,
     saveAt: 0,
@@ -262,15 +288,29 @@ export function createSim(seed = 0) {
       this.props.push(box);
       this.walls.push(box);
     },
+    selectTape(id: string) {
+      if (!this.tapes.includes(id)) return false;
+      const tape = TAPES.find((item) => item.id === id);
+      if (!tape) return false;
+      this.selectedTape = id;
+      this.tapeUrl = tape.url;
+      this.tapeTitle = tape.title;
+      this.tapePhase = "held";
+      this.persist();
+      this.refreshPrompt();
+      return true;
+    },
     persist() {
       const data: Save = {
-        v: 1,
+        v: 2,
         crystals: this.crystals,
         key: this.key,
         fires: this.fires,
         quests: this.quests,
         coins: this.coins,
         chest: this.chest,
+        tapes: this.tapes,
+        selectedTape: this.selectedTape,
       };
       try {
         localStorage.setItem(storageKey, JSON.stringify(data));
@@ -326,12 +366,15 @@ export function createSim(seed = 0) {
       if (hit(NPC.bulb.x, NPC.bulb.z, 2.3)) return this.openTalk("bulb", NPC.bulb.name);
       if (hit(JAHMAN.x, JAHMAN.z, 1.45)) return this.say("Джаман", JAHMAN_LINES);
       for (const tape of TAPES) {
-        const onTape = hit(tape.x, tape.z, 1.25) || (this.tapePhase === "spent" && hit(STORY_BOX.x - 0.95, STORY_BOX.z, 1.35));
-        if ((this.tapePhase === "floor" || this.tapePhase === "spent") && onTape) {
-          this.tapePhase = "held";
+        if (tape.x === null || tape.z === null || this.tapes.includes(tape.id)) continue;
+        if (hit(tape.x, tape.z, 1.25)) {
+          this.tapes.push(tape.id);
+          this.selectedTape = tape.id;
           this.tapeUrl = tape.url;
           this.tapeTitle = tape.title;
-          return this.say("Кассета", [`«${tape.title}» в руках. E у ящика — вставить и включить.`]);
+          this.tapePhase = "held";
+          this.persist();
+          return this.say("Кассета", [`«${tape.title}» добавлена в инвентарь. Выбери её у видеоящика и нажми E.`]);
         }
       }
       if (hit(STORY_BOX.x, STORY_BOX.z, 1.55)) {
@@ -343,12 +386,14 @@ export function createSim(seed = 0) {
           this.tapePhase = "playing";
           return;
         }
-        if (this.tapePhase === "held" && this.tapeUrl) {
+        if ((this.tapePhase === "held" || this.tapePhase === "spent") && this.tapeUrl && this.selectedTape) {
           this.tapePlay += 1;
           this.tapePhase = "playing";
           return;
         }
-        this.say("Ящик", ["Лоток пуст. Кассета выпадает после одного просмотра — подними и вставь ещё раз."]);
+        this.say("Ящик", [this.tapes.length
+          ? "Выбери кассету в инвентаре рядом с экраном. Каждая лента остаётся в коллекции после просмотра."
+          : "Лоток пуст. Сначала найди кассету или открой сундук у Лампа."]);
         return;
       }
       for (let i = 0; i < CRYSTALS.length; i++) {
@@ -389,8 +434,10 @@ export function createSim(seed = 0) {
         if (!this.chest) {
           this.chest = true;
           this.coins += 12;
+          if (!this.tapes.includes("invaders10")) this.tapes.push("invaders10");
           this.dirty = true;
-          this.say("Сундук", ["Двенадцать монет посадочного сбора. Хватит на лампу и на молчание Орра."]);
+          this.persist();
+          this.say("Сундук", ["Двенадцать монет посадочного сбора и кассета «Invaders 10». Лента добавлена в инвентарь — её можно выбрать у видеоящика."]);
           return;
         }
         this.say("Сундук", ["Пусто. Рынок честный ровно один раз."]);
@@ -498,10 +545,13 @@ export function createSim(seed = 0) {
       else if (hit(NPC.orr.x, NPC.orr.z, 2.3)) this.prompt = "E — Орр-1";
       else if (hit(NPC.bulb.x, NPC.bulb.z, 2.3)) this.prompt = "E — Ламп";
       else if (hit(JAHMAN.x, JAHMAN.z, 1.45)) this.prompt = "E — Джаман";
-      else if (TAPES.some((tape) => hit(tape.x, tape.z, 1.25)) && (this.tapePhase === "floor" || this.tapePhase === "spent")) this.prompt = "E — взять кассету";
-      else if (this.tapePhase === "spent" && hit(STORY_BOX.x - 0.95, STORY_BOX.z, 1.35)) this.prompt = "E — поднять кассету";
+      else if (TAPES.some((tape) => tape.x !== null && tape.z !== null && !this.tapes.includes(tape.id) && hit(tape.x, tape.z, 1.25))) this.prompt = "E — взять кассету";
       else if (hit(STORY_BOX.x, STORY_BOX.z, 1.55)) {
-        this.prompt = this.tapePhase === "playing" ? "E — пауза · G — весь экран" : this.tapePhase === "paused" ? "E — дальше" : this.tapePhase === "held" ? "E — вставить кассету" : "E — ящик пуст";
+        this.prompt = this.tapePhase === "playing" ? "E — пауза · G — весь экран"
+          : this.tapePhase === "paused" ? "E — дальше"
+          : this.selectedTape ? `E — вставить «${this.tapeTitle}»`
+          : this.tapes.length ? "Выбери кассету в инвентаре"
+          : "E — ящик пуст";
       }
       else if (CRYSTALS.some((c, i) => !this.crystals[i] && hit(c.x, c.z, 2))) this.prompt = "E — поднять кристалл";
       else if (!this.key && hit(KEY_SPOT.x, KEY_SPOT.z, 1.8)) this.prompt = "E — поднять ключ";
@@ -722,6 +772,9 @@ export function createSim(seed = 0) {
         depart: this.depart,
         towerEnter: this.towerEnter,
         tape: this.tapePhase,
+        tapes: TAPES.filter((tape) => this.tapes.includes(tape.id)).map((tape) => ({ id: tape.id, title: tape.title })),
+        selectedTape: this.selectedTape,
+        nearTapeDeck: Math.hypot(this.x - STORY_BOX.x, this.z - STORY_BOX.z) < 6.5,
       };
     },
   };

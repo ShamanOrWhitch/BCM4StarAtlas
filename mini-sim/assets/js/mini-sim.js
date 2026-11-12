@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.11",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.12",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -90,7 +90,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.12.11",
+      title: "SPACE LABYRINTH — 0.12.12",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -5425,7 +5425,12 @@
         if (typeof shipRig.api.setThrust === "function") {
           const mode = typeof shipRig.api.getMode === "function" ? shipRig.api.getMode() : "flight";
           const parkedMode = mode === "pad" || mode === "load";
-          const speed = ship.velocity && typeof ship.velocity.length === "function" ? ship.velocity.length() : 0;
+          const velocity = ship.velocity && typeof ship.velocity.clone === "function" ? ship.velocity.clone() : new THREE.Vector3();
+          if (ship.quaternion && velocity.applyQuaternion) velocity.applyQuaternion(ship.quaternion.clone().invert());
+          if (typeof shipRig.api.setFlightMotion === "function") {
+            shipRig.api.setFlightMotion(Math.max(-1, Math.min(1, -velocity.z / 22)), Math.max(-1, Math.min(1, velocity.y / 22)));
+          }
+          const speed = velocity.length();
           shipRig.api.setThrust(parkedMode ? 0 : Math.max(0, Math.min(1, speed / 22)));
         }
         if (shipRig.api.update) shipRig.api.update((typeof now === "number" ? now : performance.now()) / 1000, camera);
@@ -5915,7 +5920,6 @@
   const asteroidBerths = [];
   const dockedShips = [];
   const rainbowHulls = [];
-  let occupiedDock = null;
   const camo = { on: false, hue: 0.08, glow: 0.35, test: false, dirty: false };
   let shipRig = null;
   let testRearCamera = false;
@@ -5942,7 +5946,8 @@
         file: "mesh/ships/" + String(ship.flight),
         parkedFile: "mesh/ships/" + String(ship.parked || ship.flight),
         length: Number(ship.seatLength) || 12,
-        yardLength: Number(ship.yardLength) || 12
+        yardLength: Number(ship.yardLength) || 12,
+        controlsFile: ship.id === "maxhog" ? "mesh/ships/xsmall/maxhog/maxhog_controls.js" : ""
       }))
     : legacyFlightShips;
   let chosenFlight = FLIGHT_SHIPS.find((ship) => ship.id ===
@@ -6102,59 +6107,107 @@
     root.position.sub(cockpit);
   }
 
+  let shipRigGeneration = 0;
+  const shipScriptLoads = new Map();
+  const shipControllerFactories = {
+    "ca_enforcer_controls.js": { controls: "createEnforcerControls", panel: "createEnforcerPanel" },
+    "packlite_controls.js": { controls: "createPackliteControls", panel: "createPacklitePanel" },
+    "fimbul_mamba_controls.js": { controls: "createFimbulMambaControls", panel: "createFimbulMambaPanel" },
+    "fimbul_mamba_ex_controls.js": { controls: "createFimbulMambaControls", panel: "createFimbulMambaPanel" },
+    "pearce_f4_controls.js": { controls: "createPearceF4Controls", panel: "createPearceF4Panel" },
+    "maxhog_controls.js": { controls: "createMaxhogControls", panel: "" }
+  };
+
   function clearShipRig() {
+    shipRigGeneration += 1;
+    if (shipRig && shipRig.api) {
+      try { if (shipRig.api.setThrust) shipRig.api.setThrust(0); } catch (e) {}
+      try { if (shipRig.api.setMode) shipRig.api.setMode("pad"); } catch (e) {}
+      try { if (shipRig.api.dispose) shipRig.api.dispose(); } catch (e) {}
+    }
     if (shipRig && shipRig.panel && shipRig.panel.destroy) shipRig.panel.destroy();
-    if (shipRig && shipRig.api && shipRig.api.dispose) shipRig.api.dispose();
     shipRig = null;
   }
 
   function loadScript(url) {
-    return new Promise((resolve, reject) => {
-      const existing = document.querySelector('script[data-ship-script="' + url + '"]');
-      if (existing) {
+    if (!url) return Promise.resolve();
+    if (shipScriptLoads.has(url)) return shipScriptLoads.get(url);
+    const promise = new Promise((resolve, reject) => {
+      let script = document.querySelector('script[data-ship-script="' + url + '"]');
+      if (script && script.dataset.loaded === "true") {
         resolve();
         return;
       }
-      const script = document.createElement("script");
+      const loaded = () => {
+        if (script) script.dataset.loaded = "true";
+        resolve();
+      };
+      const failed = () => reject(new Error(url));
+      if (script) {
+        script.addEventListener("load", loaded, { once: true });
+        script.addEventListener("error", failed, { once: true });
+        return;
+      }
+      script = document.createElement("script");
       script.src = url;
       script.async = true;
       script.setAttribute("data-ship-script", url);
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error(url));
+      script.addEventListener("load", loaded, { once: true });
+      script.addEventListener("error", failed, { once: true });
       document.head.appendChild(script);
     });
+    shipScriptLoads.set(url, promise);
+    promise.catch(() => shipScriptLoads.delete(url));
+    return promise;
   }
 
   function besideGlb(file, suffix) {
     const glb = assetUrl(file);
     if (!glb) return "";
-    return glb.replace(/[^/?#]+(?=($|\?))/, (leaf) => {
-      const base = leaf.replace(/\.glb$/i, "");
+    return glb.replace(/[^/?#]+(?=($|\\?))/, (leaf) => {
+      const base = leaf.replace(/\\.glb$/i, "");
       return encodeURIComponent(base + suffix);
     });
   }
 
-  function attachShipScripts(hull, file) {
-    clearShipRig();
-    const controlsUrl = besideGlb(file, "_controls.js");
-    const panelUrl = besideGlb(file, "_panel.js");
-    if (!controlsUrl) return;
-    const before = new Set(Object.keys(window));
-    loadScript(controlsUrl).then(() => loadScript(panelUrl).catch(() => {})).then(() => {
-      const fresh = Object.keys(window).filter((key) => !before.has(key) && typeof window[key] === "function");
-      const controlsKey = fresh.find((key) => /Controls$/.test(key));
-      const panelKey = fresh.find((key) => /Panel$/.test(key));
-      if (!controlsKey || !hull.parent) return;
-      try {
-        const api = window[controlsKey](hull, { mode: "flight" });
-        const panel = panelKey ? window[panelKey](api, { parent: root, position: "fixed", top: 68, left: 12 }) : null;
-        shipRig = { api, panel };
+  function attachShipScripts(hull, file, controlsFile) {
+    const generation = shipRigGeneration;
+    const controlsUrl = controlsFile ? assetUrl(controlsFile) : besideGlb(file, "_controls.js");
+    const leaf = (controlsFile || controlsUrl || "").split(/[/?#]/).filter(Boolean).pop() || "";
+    const factories = shipControllerFactories[leaf];
+    if (!controlsUrl || !factories) return;
+    const panelUrl = factories.panel
+      ? controlsUrl.replace(/_controls\\.js(?=($|[?#]))/, "_panel.js")
+      : "";
+    const controlsReady = typeof window[factories.controls] === "function"
+      ? Promise.resolve()
+      : loadScript(controlsUrl);
+    controlsReady
+      .then(() => factories.panel && typeof window[factories.panel] !== "function"
+        ? loadScript(panelUrl).catch(() => {})
+        : undefined)
+      .then(() => {
+        if (generation !== shipRigGeneration || !hull.parent || !ship.visual ||
+            ship.visual.getObjectById(hull.id) !== hull) return;
+        const createControls = window[factories.controls];
+        if (typeof createControls !== "function") throw new Error("Missing ship controller: " + factories.controls);
+        const api = createControls(hull, { mode: "flight" });
+        const createPanel = factories.panel ? window[factories.panel] : null;
+        const panel = typeof createPanel === "function"
+          ? createPanel(api, { parent: root, position: "fixed", top: 68, left: 12 })
+          : null;
+        if (generation !== shipRigGeneration || !hull.parent) {
+          try { api.dispose && api.dispose(); } catch (e) {}
+          if (panel && panel.destroy) panel.destroy();
+          return;
+        }
+        shipRig = { api, panel, hull };
         if (api.setMode) api.setMode("flight");
-      } catch (err) {
-        setStatus("Скрипт корабля не встал");
-        console.warn(err);
-      }
-    }).catch(() => {});
+      })
+      .catch((err) => {
+        if (generation === shipRigGeneration) setStatus("Скрипт корабля не встал");
+        console.warn("BCM ship controller:", file, err);
+      });
   }
 
   let camoPanel = null;
@@ -6207,7 +6260,7 @@
       const panel = ensureCamoPanel();
       panel.hidden = !rainbow;
       if (!rainbow) rainbowHulls.forEach((item) => restoreRainbow(item));
-      attachShipScripts(hull, spec.file);
+      attachShipScripts(hull, spec.file, spec.controlsFile);
       setStatus((spec.name || "Корабль") + " · КАБИНА");
     });
   }
@@ -6217,7 +6270,7 @@
     let best = null;
     let bestD = Infinity;
     dockedShips.forEach((dock) => {
-      if (!dock.pivot || dock.pivot === occupiedDock || dock.pivot.visible === false) return;
+      if (!dock.pivot || dock.pivot.visible === false) return;
       const distance = dock.pivot.position.distanceTo(ship.position);
       const reach = Math.max(22, (dock.length || 12) * 0.7 + 14);
       if (distance < reach && distance < bestD) {
@@ -6228,30 +6281,63 @@
     return best;
   }
 
+  function parkCurrentFlightHull() {
+    const current = ship.visual;
+    const currentSpec = chosenFlight;
+    clearShipRig();
+    if (!current) return;
+    current.position.copy(ship.position);
+    current.quaternion.copy(ship.quaternion);
+    current.name = "parked-player-ship-" + (currentSpec && currentSpec.id || "previous");
+    current.userData.playerParked = true;
+    scene.add(current);
+    dockedShips.push({
+      pivot: current,
+      id: currentSpec && currentSpec.id || "previous",
+      file: currentSpec && currentSpec.file || "",
+      controlsFile: currentSpec && currentSpec.controlsFile || "",
+      length: currentSpec && currentSpec.length || 12,
+      name: currentSpec && currentSpec.name || "Оставленный корабль"
+    });
+    ship.visual = null;
+  }
+
   function tryTransferDock() {
     const dock = nearestDock();
     if (!dock || !running) return false;
-    if (occupiedDock) occupiedDock.visible = true;
-    occupiedDock = dock.pivot;
+    const transfer = {
+      id: dock.id,
+      name: dock.name,
+      file: dock.file,
+      controlsFile: dock.controlsFile || "",
+      length: dock.length,
+      position: dock.pivot.position.clone(),
+      quaternion: dock.pivot.quaternion.clone()
+    };
+    // Keep the active hull exactly where the player left it.
+    parkCurrentFlightHull();
     dock.pivot.visible = false;
-    ship.position.copy(dock.pivot.position);
+    ship.position.copy(transfer.position);
     ship.position.y += 2.2;
     ship.velocity.set(0, 0, 0);
     ship.angularVelocity.set(0, 0, 0);
-    ship.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), dock.pivot.rotation.y);
+    ship.quaternion.copy(transfer.quaternion);
     if (camera) {
       camera.position.copy(ship.position);
       camera.quaternion.copy(ship.quaternion);
     }
-    mountFlightHull({ id: dock.id, name: dock.name, file: dock.file, length: dock.length });
-    chosenFlight = FLIGHT_SHIPS.find((spec) => spec.id === dock.id) || chosenFlight;
+    chosenFlight = FLIGHT_SHIPS.find((spec) => spec.id === transfer.id) || {
+      id: transfer.id, name: transfer.name, file: transfer.file,
+      controlsFile: transfer.controlsFile, length: transfer.length
+    };
+    mountFlightHull(transfer);
     if (window.BCMMiniCrewSelection) {
-      window.BCMMiniCrewSelection.shipId = dock.id;
-      window.BCMMiniCrewSelection.shipFile = dock.file;
-      window.BCMMiniCrewSelection.shipName = dock.name;
-      window.BCMMiniCrewSelection.shipLength = dock.length;
+      window.BCMMiniCrewSelection.shipId = transfer.id;
+      window.BCMMiniCrewSelection.shipFile = transfer.file;
+      window.BCMMiniCrewSelection.shipName = transfer.name;
+      window.BCMMiniCrewSelection.shipLength = transfer.length;
     }
-    setStatus("ПЕРЕСЕЛ · " + dock.name);
+    setStatus("ПЕРЕСЕЛ · " + transfer.name);
     return true;
   }
 
@@ -6318,6 +6404,7 @@
       parkedFile: spec.parkedFile || spec.file,
       length: spec.length || 12,
       displayLength: spec.yardLength || spec.length || 12,
+      controlsFile: spec.controlsFile || "",
       index
     }));
     const ensureLoader = () => new Promise((resolve, reject) => {
@@ -6383,7 +6470,8 @@
               id: spec.id,
               file: spec.file,
               length: spec.length,
-              name: spec.name
+              name: spec.name,
+              controlsFile: spec.controlsFile || ""
             });
           }
           window.setTimeout(next, 120);

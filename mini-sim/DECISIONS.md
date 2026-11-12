@@ -735,3 +735,17 @@ HEAD at the start of the session was `748998250d39ac9ed163b84caa1f7178da920d9a` 
 - Rainbow camouflage is explicitly out of scope and unchanged.
 
 ---
+
+
+
+## D-050 — Share vehicle rig controls across worlds; preserve transfer hulls and TV media ownership (12 November 2026)
+
+**Status:** Implemented on `main` in Mini-Sim `0.12.12`.
+
+- Max Hog visual propulsion is a shared sidecar controller. Space and island environments provide movement state to the same API; they do not each implement separate wheel/thruster animations. Ground physics and six-degree space flight remain world-specific.
+- Ship sidecars attach by a stable factory map, not by scanning for newly created globals. Ship transfer parks the active hull at its actual world transform, then mounts and connects the selected dock hull.
+- TV media has exclusive fullscreen audio focus. Character/vehicle distance attenuates location audio; fullscreen mutes ambience completely until the overlay exits.
+- Cassette ownership is stored in save schema v2. The chest awards Invaders 10; existing saves with an opened chest are migrated without loss of progress. UI selection chooses any owned cassette at the TV.
+- Rainbow camouflage remains untouched.
+
+---

@@ -62,22 +62,36 @@ function FirstPlanetApp({
       const audio = new Audio(url);
       audio.preload = "none";
       audio.loop = true;
-      audio.volume = 0.58;
+      audio.volume = 0.42;
       return audio;
     };
     const planetAudio = makeAudio(context.audioUrl);
     const raceAudio = makeAudio(context.raceAudioUrl);
     planetMusicRef.current = planetAudio;
     raceMusicRef.current = raceAudio;
-    const duck = (event: Event) => {
-      const near = Number((event as CustomEvent<number>).detail) || 0;
-      const level = 0.58 * (1 - near * 0.85);
+    let tapeNear = 0;
+    let tapeFocused = false;
+    const syncAmbience = () => {
+      // The character-to-TV proximity is a strong duck; fullscreen playback
+      // owns the sound channel and silences the island/race soundtrack entirely.
+      const level = tapeFocused ? 0 : 0.42 * (1 - 0.985 * tapeNear);
       if (planetAudio) planetAudio.volume = level;
       if (raceAudio) raceAudio.volume = level;
     };
+    const duck = (event: Event) => {
+      tapeNear = Math.max(0, Math.min(1, Number((event as CustomEvent<number>).detail) || 0));
+      syncAmbience();
+    };
+    const focus = (event: Event) => {
+      tapeFocused = Boolean((event as CustomEvent<boolean>).detail);
+      syncAmbience();
+    };
     window.addEventListener("bcm:tape-near", duck);
+    window.addEventListener("bcm:tape-focus", focus);
+    syncAmbience();
     return () => {
       window.removeEventListener("bcm:tape-near", duck);
+      window.removeEventListener("bcm:tape-focus", focus);
       [planetAudio, raceAudio].forEach((audio) => {
         if (!audio) return;
         audio.pause();
