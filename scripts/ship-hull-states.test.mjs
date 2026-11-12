@@ -161,6 +161,7 @@ test("ship sidecars load, generic controls exist, and Rainbow settings are isola
   const mini = await read("mini-sim/assets/js/mini-sim.js");
   assert.match(mini, /createGenericShipControls\(hull\)/);
   assert.match(mini, /createGenericShipPanel\(api\)/);
+  assert.match(mini, /dispose\(\)[\s\S]*effects\.forEach\(\(\{ node \}\) => \{ node\.visible = false; \}\)/);
   assert.match(mini, /syncCamoPanel\(hull\)/);
   assert.match(mini, /root\.userData\.bcmCamo/);
   assert.match(mini, /state\.dirty = true/);

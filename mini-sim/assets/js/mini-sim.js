@@ -6219,7 +6219,7 @@
     const effects = [];
     const effectName = /flame|thruster|exhaust|plume|jet[_ -]?fx|engine[_ -]?(glow|flame|light)/i;
     hull.traverse((node) => {
-      if (effectName.test(node.name || "")) effects.push({ node, visible: node.visible });
+      if (effectName.test(node.name || "")) effects.push({ node });
     });
     let mode = "flight", thrust = 0, forward = 0, vertical = 0, disposed = false;
     const sync = () => effects.forEach(({ node }) => {
@@ -6244,7 +6244,7 @@
       getState: () => ({ mode, thrust, forward, vertical, generic: true }),
       dispose() {
         disposed = true;
-        effects.forEach(({ node, visible }) => { node.visible = visible; });
+        effects.forEach(({ node }) => { node.visible = false; });
       }
     };
     sync();
