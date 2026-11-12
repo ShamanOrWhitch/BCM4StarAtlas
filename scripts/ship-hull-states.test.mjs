@@ -67,7 +67,7 @@ test("all four medium demo rigs keep their existing controls and panels", async 
     assert.equal(panel.includes("controller.setMode(mo.id)"), true, relative + " keeps discrete modes");
   }
   const mini = await read("mini-sim/assets/js/mini-sim.js");
-  assert.match(mini, /attachShipScripts\(hull, spec\.file\)/);
+  assert.match(mini, /attachShipScripts\(hull, spec\.file, spec\.controlsFile\)/);
   assert.match(mini, /setMode\("flight"\)/);
   assert.match(mini, /testRearCamera/);
   assert.match(mini, /e.code === "F8"/);
@@ -89,7 +89,7 @@ test("first-person space picker and orbital yard use paired catalog forms", asyn
   assert.match(mini, /const yard = FLIGHT_SHIPS\.map/);
   assert.match(mini, /assetUrl\(spec\.parkedFile\)/);
   assert.match(mini, /dockedShips\.push\(\{[\s\S]*?id: spec\.id,[\s\S]*?file: spec\.file/);
-  assert.match(mini, /mountFlightHull\(\{ id: dock\.id, name: dock\.name, file: dock\.file/);
+  assert.match(mini, /mountFlightHull\(transfer\)/);
   assert.match(mini, /title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.12\.12"/);
   assert.match(php, /Version: 0\.12\.12/);
 });
