@@ -6143,7 +6143,7 @@
     const cockpit = candidates.find((eye) => eyeIsClear(root, eye)) || candidates[2];
     root.position.sub(cockpit);
     // Move the Opal hull slightly behind the first-person eye to clear its two nose pods.
-    if (shipId === "opal") root.position.z += 0.55;
+    if (shipId === "opal") root.translateZ(0.55);
   }
 
   let shipRigGeneration = 0;

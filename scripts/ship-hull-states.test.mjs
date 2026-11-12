@@ -168,7 +168,7 @@ test("ship sidecars load, generic controls exist, and Rainbow settings are isola
   assert.match(mini, /zone\.el\.muted = silent/);
   assert.doesNotMatch(mini, /const camo = \{/);
   assert.match(mini, /e\.code === "KeyF".*tryTransferDock/s);
-  assert.match(mini, /if \(shipId === "opal"\) root\.position\.z \+= 0\.55/);
+  assert.match(mini, /if \(shipId === "opal"\) root\.translateZ\(0\.55\)/);
   assert.match(mini, /i <= 30[\s\S]*api\.dispose/);
 });
 
