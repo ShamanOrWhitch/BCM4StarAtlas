@@ -358,3 +358,11 @@ Handoff / close reason:
 - Rainbow camouflage and the Galia Desk / scanner / pricing surfaces are not part of this change. CI and live WordPress deployment are tracked separately.
 
 ---
+
+
+## Completed — retire live WordPress browser QA (12 November 2026)
+
+- User requested removal of the automated browser test targeting `https://walkingyog.com/bcm4sa/`; automated traffic is blocked by the site's protections and the long wait does not verify gameplay.
+- Disabled `.github/workflows/minisim-browser-qa.yml` on branch `chore/disable-live-wordpress-minisim-qa-20261112` (initial commit `c3786109c2988269d30b7edb363bf6ebe7a40a95`): workflow has no triggers and an inert job condition. It cannot run on push, PR, or manual dispatch.
+- Preserved local-only browser coverage (`minisim-standalone-browser-qa.yml` / local fixture), JS/source regression checks, and the gameplay modules. Do not modify the shared Playwright runner as part of this change.
+- Remote website QA WORK LOCK #17 is retired at the user's direction. No anti-bot bypass and no live WordPress probe were performed for this change.
