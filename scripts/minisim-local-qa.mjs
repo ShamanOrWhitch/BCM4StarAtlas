@@ -40,11 +40,30 @@ const isVideo=p=>/\.(mp4|webm|mov|m4v)(?:$|\?)/i.test(p);
 if(!url){console.error('Usage: npm run qa:minisim -- --url "http://localhost/mini-sim-page/" [--headed] [--full-media]');process.exit(2);}
 await mkdir(out,{recursive:true});
 let handleMap=new Map();
+const stopPreflight = async (message) => {
+ report.status="BLOCKED_ENVIRONMENT";
+ report.error=message;
+ report.finishedAt=new Date().toISOString();
+ await writeFile(resolve(out,"minisim-qa-report.json"),JSON.stringify(report,null,2)+"\n","utf8");
+ console.log(JSON.stringify({
+   status:report.status,url:report.targetUrl,preflightStatus:report.preflightStatus,
+   preflightError:report.preflightError,error:report.error,report:".qa-artifacts/minisim-qa-report.json"
+ },null,2));
+ process.exit(2);
+};
 try{
- const pre=await fetch(url,{redirect:"follow",signal:AbortSignal.timeout(60000)});
+ const pre=await fetch(url,{redirect:"follow",signal:AbortSignal.timeout(10000)});
  report.preflightStatus=pre.status;
- if(pre.ok)handleMap=wordpressHandleMap(await pre.text(),pre.url||url);
-}catch(e){report.preflightError=String(e&&e.message?e.message:e);}
+ const html=await pre.text();
+ if(!pre.ok)await stopPreflight("Preflight HTTP "+pre.status+"; stopping before Chromium. Treat this as BLOCKED_ENVIRONMENT, not a Mini-Sim failure.");
+ if(!/<[^>]+\\bclass=["'][^"']*\\bbcm-mini-sim\\b[^"']*["']/i.test(html)){
+   await stopPreflight("Preflight returned no .bcm-mini-sim root; likely an access/protection page or the wrong WordPress page. Stopping before Chromium.");
+ }
+ handleMap=wordpressHandleMap(html,pre.url||url);
+}catch(e){
+ report.preflightError=String(e&&e.message?e.message:e);
+ await stopPreflight("Preflight could not reach the target within 10 seconds; stopping before Chromium. Treat this as BLOCKED_ENVIRONMENT.");
+}
 report.handleAliases=[...handleMap.entries()].map(([requested,file])=>({requested,file}));
 let browser,page;
 try{
@@ -91,9 +110,23 @@ try{
    }
    return route.continue();
  });
- const response=await page.goto(url,{waitUntil:"domcontentloaded",timeout:60000});
+ let response;
+ try{
+   response=await page.goto(url,{waitUntil:"domcontentloaded",timeout:standalone?60000:15000});
+ }catch(e){
+   if(!standalone)throw Object.assign(new Error("Live WordPress navigation did not complete; BLOCKED_ENVIRONMENT, not a gameplay failure."),{qaStatus:"BLOCKED_ENVIRONMENT"});
+   throw e;
+ }
  report.httpStatus=response?response.status():null;
- await page.locator(".bcm-mini-sim").first().waitFor({state:"attached",timeout:30000});
+ if(!standalone&&(!response||response.status()>=400)){
+   throw Object.assign(new Error("Live WordPress browser response was not successful (HTTP "+(response?response.status():"no response")+"); BLOCKED_ENVIRONMENT."),{qaStatus:"BLOCKED_ENVIRONMENT"});
+ }
+ try{
+   await page.locator(".bcm-mini-sim").first().waitFor({state:"attached",timeout:standalone?30000:8000});
+ }catch(e){
+   if(!standalone)throw Object.assign(new Error("Live WordPress response did not expose .bcm-mini-sim within 8 seconds; likely protection/challenge response. BLOCKED_ENVIRONMENT."),{qaStatus:"BLOCKED_ENVIRONMENT"});
+   throw e;
+ }
  await page.locator(".bcm-mini-sim-canvas").first().waitFor({state:"visible",timeout:30000});
  await page.waitForTimeout(900);await shot(page,"01-menu.png");
  check(!!response&&response.status()<400,standalone?"Standalone QA fixture responds successfully":"WordPress page responds successfully");
@@ -223,7 +256,7 @@ try{
  report.seriousPageErrors=report.pageErrors.filter(text=>!benignPage(text));
  report.pluginHttpErrors=report.httpErrors.filter(item=>item.url.includes("/wp-content/plugins/mini-sim/")&&(full||!isVideo(item.url)));
  report.status=report.checks.every(c=>c.ok)&&report.seriousPageErrors.length===0&&report.pluginHttpErrors.length===0?"PASS":"FAIL";
-}catch(e){report.status="FAIL";report.error=String(e&&e.stack?e.stack:e);if(page){try{await shot(page,"failure.png");}catch(_){}}}
+}catch(e){report.status=e?.qaStatus||"FAIL";report.error=String(e&&e.stack?e.stack:e);if(page){try{await shot(page,"failure.png");}catch(_){}}}
 finally{
  report.finishedAt=new Date().toISOString();
  try{await writeFile(resolve(out,"minisim-qa-report.json"),JSON.stringify(report,null,2)+"\n","utf8");}catch(e){}
