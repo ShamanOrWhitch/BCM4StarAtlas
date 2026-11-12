@@ -429,8 +429,8 @@ Issue #28 остаётся открытым только для полной г�
 
 ## Retired — live WordPress browser QA (12 November 2026)
 
-- **User direction:** remove the automated browser test that opens `https://walkingyog.com/bcm4sa/`; the site's anti-bot protection blocks automated requests and causes long, irrelevant waits.
-- **IMPLEMENTED on branch** `chore/disable-live-wordpress-minisim-qa-20261112`: `.github/workflows/minisim-browser-qa.yml` has no event triggers (`on: []`) and its job is additionally guarded by `if: false`. It no longer installs Chromium, fetches the live page, or gates Mini-Sim pushes / pull requests.
-- Keep source/regression checks and `minisim-standalone-browser-qa.yml`: that standalone browser run uses a local HTTP fixture and repository assets, not the public WordPress site. Do not change the shared Playwright runner used by that local workflow.
-- WORK LOCK #17 (remote website QA) is retired at the user's request. No firewall bypass or further live-site probe is authorized. This change itself did not request `/bcm4sa`.
-- Status: **IMPLEMENTED on branch**; CI/merge status is recorded in the pull request. No live gameplay result is claimed.
+- **User direction:** remove the automatic browser test that opens `https://walkingyog.com/bcm4sa/`; anti-bot protection has blocked GitHub-hosted requests and wasted test time.
+- **Merged:** PR [#109](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/109), commit `cb4ead0418bfcf99f4b3a808bfdb09ce507e3ec3`. `.github/workflows/minisim-browser-qa.yml` has no event triggers (`on: []`) and an additional `if: false` job guard. It does not install Chromium or fetch the live page.
+- Keep source/regression checks and `minisim-standalone-browser-qa.yml`: it serves a localhost fixture and uses repository assets, not WordPress.
+- WORK LOCK #17 (remote website QA) is retired. Do not bypass or reconfigure the firewall, update security plugins as a workaround, or repeat the blocked live route.
+- This branch separately adds a 10-second fail-fast preflight to the manual live runner while preserving the standalone fixture path. See [TESTING.md](TESTING.md). No live gameplay result is claimed.
