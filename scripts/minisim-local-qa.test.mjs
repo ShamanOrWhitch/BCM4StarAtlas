@@ -267,3 +267,14 @@ test("Warp travel motion increases while shimmer rate stays on its own previous 
   assert.match(warp, /Math\.pow\(warpCourseProgress\(elapsed\), 0\.86\)/);
   assert.match(warp, /const courseLayerCount = 22/);
 });
+
+
+test("live WordPress QA fails fast on denied or non-Mini-Sim responses", async () => {
+  const runner = await read("scripts/minisim-local-qa.mjs");
+  assert.match(runner, /AbortSignal\.timeout\(10000\)/);
+  assert.match(runner, /const stopPreflight = async/);
+  assert.match(runner, /BLOCKED_ENVIRONMENT/);
+  assert.match(runner, /process\.exit\(2\)/);
+  assert.match(runner, /timeout:standalone\?30000:8000/);
+  assert.match(runner, /report\.status=e\?\.qaStatus\|\|"FAIL"/);
+});
