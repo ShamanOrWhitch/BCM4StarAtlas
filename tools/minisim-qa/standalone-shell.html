@@ -15,6 +15,7 @@ body{overflow:hidden}
 <script id="bcm-qa-config">
 window.BCMMiniSimConfig = __BCM_MINI_SIM_CONFIG__;
 window.BCMTowerConfig = __BCM_TOWER_CONFIG__;
+window.BCMFirstPlanetConfig = __BCM_FIRST_PLANET_CONFIG__;
 </script>
 </head>
 <body>
@@ -152,6 +153,10 @@ window.BCMTowerConfig = __BCM_TOWER_CONFIG__;
   <button class="bcm-tower-restart" type="button" hidden>НОВЫЙ СПУСК</button>
   <script type="application/json" class="bcm-tower-inline-config">{}</script>
 </div>
+<div class="bcm-first-planet-host" hidden>
+  <div class="bcm-first-planet-root"></div>
+  <div class="bcm-first-planet-load-status" role="status" aria-live="polite">Подготовка First Planet…</div>
+</div>
 
 <script id="bcm-crew-wallet-js" src="/wp-content/plugins/mini-sim/assets/js/crew-wallet.js?ver=standalone"></script>
 <script id="bcm-mini-sim-js" src="/wp-content/plugins/mini-sim/assets/js/mini-sim.js?ver=standalone"></script>
@@ -160,5 +165,6 @@ window.BCMTowerConfig = __BCM_TOWER_CONFIG__;
 <script id="bcm-deep-space-warp-js" src="/wp-content/plugins/mini-sim/assets/js/deep-space-warp.js?ver=standalone"></script>
 <script id="bcm-ui-layer-audit-js" src="/wp-content/plugins/mini-sim/assets/js/ui-layer-audit.js?ver=standalone"></script>
 <script id="bcm-tower-js" src="/wp-content/plugins/mini-sim/tower/assets/js/tower.js?ver=standalone"></script>
+<script id="bcm-first-planet-loader-js" src="/wp-content/plugins/mini-sim/tower/first-planet/loader.js?ver=standalone"></script>
 </body>
 </html>

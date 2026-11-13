@@ -2,6 +2,16 @@ name: Mini-Sim standalone browser QA
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "mini-sim/**"
+      - "scripts/minisim-local-transitions-playwright.mjs"
+      - "scripts/minisim-transition-cycle.test.mjs"
+      - "scripts/minisim-standalone-qa.mjs"
+      - "tools/minisim-qa/**"
+      - "package.json"
+      - ".github/workflows/minisim-standalone-browser-qa.yml"
   pull_request:
     branches: [main]
     paths:
@@ -10,6 +20,8 @@ on:
       - "scripts/minisim-standalone-qa.mjs"
       - "scripts/minisim-standalone-qa.test.mjs"
       - "scripts/minisim-012-local-transitions.test.mjs"
+      - "scripts/minisim-local-transitions-playwright.mjs"
+      - "scripts/minisim-transition-cycle.test.mjs"
       - "tools/minisim-qa/**"
       - "package.json"
       - ".github/workflows/minisim-standalone-browser-qa.yml"
@@ -46,6 +58,8 @@ jobs:
         run: npm run test:minisim
       - name: Run real browser smoke against standalone fixture
         run: npm run qa:minisim:standalone
+      - name: Run local Tower → First Planet → same-seed ascent → return-state cycle (audio disabled)
+        run: npm run qa:minisim:transitions:standalone
       - name: Upload browser screenshots and report
         if: always()
         uses: actions/upload-artifact@v4

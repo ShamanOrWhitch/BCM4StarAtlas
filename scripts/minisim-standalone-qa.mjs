@@ -6,6 +6,7 @@ import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const transitionsOnly = process.argv.includes("--transitions-only");
 const shellPath = resolve(root, "tools/minisim-qa/standalone-shell.html");
 const allowedExt = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".webm", ".ogg", ".mp3", ".m4a", ".wav", ".glb"]);
 const mime = (file) => ({
@@ -86,8 +87,8 @@ const server = createServer(async (req, res) => {
         towerFallbackUrl: "",
         doorTexture: pick(["door1.png", "door.png"], "image"),
         menuBackgroundUrl: pick(["perference bg.png"], "image"),
-        musicUrl: pick(["starbase ost.mp3", "starbase-ost.mp3", "ost.mp3"], "audio"),
-        warpMusicUrl: pick(["warp.mp3"], "audio"),
+        musicUrl: transitionsOnly ? "" : pick(["starbase ost.mp3", "starbase-ost.mp3", "ost.mp3"], "audio"),
+        warpMusicUrl: transitionsOnly ? "" : pick(["warp.mp3"], "audio"),
         spaceVideoZones: [
           { url: pick(["onicss.mp4"], "video"), x: 0, y: -2, z: -260, radius: 36, preloadRadius: 80, maxWidth: 13, maxHeight: 8, preloadWhenStarted: true, towerGate: true },
           { url: pick(["portal1.mp4"], "video"), x: -4.2, y: 1.4, z: -42, radius: 9, maxWidth: 7.2, maxHeight: 4.5 },
@@ -109,8 +110,9 @@ const server = createServer(async (req, res) => {
       const towerConfig = {
         threeUrl: assetUrl("assets/js/three.min.js"),
         transition: pick(["tower.mp4"], "video", allAssets),
+        planetTransition: pick(["onicss.mp4"], "video", allAssets),
         transitionFallbacks: [],
-        towerAudio: pick(["tower.mp3"], "audio", allAssets),
+        towerAudio: transitionsOnly ? "" : pick(["tower.mp3"], "audio", allAssets),
         towerWallJpgPool: byBase(/^(towerwall|wall)[^/]*\.(jpg|jpeg)$/i),
         towerWallPngPool: byBase(/^towerwall[^/]*\.png$/i),
         platformPool: byBase(/^(platform|paltform)(?!lava|ice)[^/]*\.(png|jpg|jpeg|webp)$/i),
@@ -133,8 +135,18 @@ const server = createServer(async (req, res) => {
         planetMaps: byBase(/^planet[^/]*\.(png|webp|jpg|jpeg)$/i),
         version: towerVersion
       };
+      const firstPlanetConfig = {
+        bundleUrl: assetUrl("tower/first-planet/wp-dist/first-planet.js") + "?ver=" + encodeURIComponent(towerVersion),
+        styleUrl: assetUrl("tower/first-planet/wp-dist/first-planet.css") + "?ver=" + encodeURIComponent(towerVersion),
+        meshBase: base + "/assets/first-planet/mesh/",
+        propBase: base + "/assets/mesh/",
+        audioUrl: transitionsOnly ? "" : pick(["FP.mp3"], "audio", allAssets),
+        raceAudioUrl: transitionsOnly ? "" : pick(["desertrace.mp3"], "audio", allAssets)
+      };
       let html = await readFile(resolve(root, "tools/minisim-qa/standalone-shell.html"), "utf8");
-      html = html.replace("__BCM_MINI_SIM_CONFIG__", encodeConfig(miniConfig)).replace("__BCM_TOWER_CONFIG__", encodeConfig(towerConfig));
+      html = html.replace("__BCM_MINI_SIM_CONFIG__", encodeConfig(miniConfig))
+        .replace("__BCM_TOWER_CONFIG__", encodeConfig(towerConfig))
+        .replace("__BCM_FIRST_PLANET_CONFIG__", encodeConfig(firstPlanetConfig));
       res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
       res.end(html);
       return;
@@ -167,7 +179,8 @@ const targetUrl = origin + "/";
 const flags = process.argv.slice(2).filter((x) => ["--headed", "--full-media"].includes(x));
 console.log("[standalone-qa] Serving current repository build at " + targetUrl);
 console.log("[standalone-qa] This fixture tests the repository browser runtime, not live WordPress integration or physical hardware.");
-const child = spawn(process.execPath, [resolve(root, "scripts/minisim-local-qa.mjs"), "--url", targetUrl, ...flags], {
+const childScript = transitionsOnly ? "scripts/minisim-local-transitions-playwright.mjs" : "scripts/minisim-local-qa.mjs";
+const child = spawn(process.execPath, [resolve(root, childScript), "--url", targetUrl, ...flags], {
   cwd: root, env: { ...process.env, MINISIM_QA_TARGET_KIND: "standalone-repository-build" }, stdio: "inherit"
 });
 const childCode = await new Promise((resolveExit) => {
@@ -175,7 +188,7 @@ const childCode = await new Promise((resolveExit) => {
   child.once("exit", (code, signal) => resolveExit(signal ? 1 : (code ?? 1)));
 });
 try {
-  const reportPath = resolve(root, ".qa-artifacts/minisim-qa-report.json");
+  const reportPath = resolve(root, transitionsOnly ? ".qa-artifacts/minisim-transition-cycle-report.json" : ".qa-artifacts/minisim-qa-report.json");
   const report = JSON.parse(await readFile(reportPath, "utf8"));
   report.targetType = "standalone repository build (not live WordPress integration)";
   report.wpIntegrationVerified = false;
@@ -183,6 +196,7 @@ try {
   catch { report.repositoryCommit = process.env.GITHUB_SHA || null; }
   report.fixture = "tools/minisim-qa/standalone-shell.html";
   report.execution = "Playwright Chromium against a local HTTP fixture; JavaScript/CSS/media assets are routed from this checkout.";
+  if (transitionsOnly) report.audioPolicy = "Audio URLs disabled in fixture config; audio requests blocked and all video playback forced muted.";
   await writeFile(reportPath, JSON.stringify(report, null, 2) + "\n", "utf8");
   console.log(JSON.stringify({
     targetType: report.targetType, repositoryCommit: report.repositoryCommit,
