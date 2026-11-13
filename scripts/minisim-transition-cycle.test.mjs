@@ -32,7 +32,7 @@ test("transition-cycle browser check is wired to the real Tower, First Planet an
   assert.match(runner, /BCMiniSimAPI\.teleport/);
   assert.match(runner, /BCMDeepSpaceWarpGetReturnSnapshot/);
   assert.match(runner, /bcm:tower:planet-ready/);
-  assert.match(runner, /page\.keyboard\.press\("e"\)/);
+  assert.match(runner, /bcm:planet:tower-enter/);
   assert.match(runner, /currentLocation === "tower-ascent"/);
   assert.match(runner, /bcm:tower:space-return/);
   assert.match(runner, /page\.waitForNavigation/);

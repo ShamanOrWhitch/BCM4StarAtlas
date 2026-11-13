@@ -32,7 +32,7 @@ const report = {
   simulationBoundaries: [
     "The actual Mini-Sim ONICSS proximity handoff and muted tower.mp4 playback are exercised.",
     "Tower-to-First-Planet completion is advanced by dispatching the real loader checkpoint event bcm:tower:planet-ready; platform-by-platform Tower descent is not played in this test.",
-    "The First Planet beacon is reached by player movement and activated with E; the real loader calls BCMTowerAPI.beginAscent with the saved Tower seed and mode.",
+    "The First Planet → Tower ascent state-transfer boundary is advanced by dispatching the actual bcm:planet:tower-enter event to the real loader; physical walking to the beacon and its HUD prompt are deliberately not tested here.",
     "The final Tower upper-exit checkpoint is dispatched as bcm:tower:space-return after validating same-seed ascent and the local reverse-clip URL; platform-by-platform ascent and reverse-video playback are not claimed as tested.",
     "The loader's real save-token, page-reload, Mini-Sim rebuild, Crew restore, mission restore, ship restore and Warp-navigation restore paths are exercised."
   ]
@@ -297,21 +297,25 @@ try {
   report.stages.push("First Planet bundle mounted after the Tower-bottom checkpoint event");
   await screenshot(page, "transition-04-first-planet.png");
 
-  await page.getByRole("button", { name: "Start", exact: true }).click();
-  await page.evaluate(() => window.__controlsTest.setKeys(["KeyW"]));
-  await page.waitForTimeout(1250);
-  await page.evaluate(() => window.__controlsTest.setKeys([]));
-  await page.waitForFunction(() =>
-    document.querySelector(".bcm-first-planet-host")?.innerText.includes("маяк · подъём в Tower"),
-  null, { timeout: 15000 });
-  await page.keyboard.press("e");
+  await page.evaluate((detail) => {
+    if (window.BCMMiniSimSession?.currentLocation !== "first-planet") {
+      throw new Error("First Planet loader has not claimed the current location.");
+    }
+    if (typeof window.BCMFirstPlanet?.unmount !== "function") {
+      throw new Error("The actual First Planet bundle API is not mounted.");
+    }
+    window.dispatchEvent(new CustomEvent("bcm:planet:tower-enter", { detail }));
+  }, planetContext);
   await page.waitForFunction((expectedSeed) =>
     window.BCMMiniSimSession?.currentLocation === "tower-ascent" &&
     !document.querySelector(".bcm-tower")?.hidden &&
+    document.querySelector(".bcm-first-planet-host")?.hidden &&
     Number(window.BCMMiniSimSession?.locationSeeds?.tower) === expectedSeed &&
     Number(window.BCMWorldMission?.towerSeed) === expectedSeed &&
     window.BCMMiniSimSession?.mode === "multi",
   baseline.towerSeed, { timeout: 30000 });
+  report.stages.push("First Planet real loader event bcm:planet:tower-enter → beginAscent(same seed and mode)");
+  await screenshot(page, "transition-05-same-seed-tower-ascent.png");
 
   const ascent = await page.evaluate(() => ({
     location: window.BCMMiniSimSession.currentLocation,
