@@ -1,3 +1,17 @@
+# Актуальное дополнение владельца — 14 ноября 2026
+
+Это дополнение имеет приоритет над историческими записями ниже, когда они противоречат более поздним прямым указаниям владельца.
+
+- **Git workflow:** работать непосредственно в `main`. Не создавать feature-ветки и PR без нового прямого разрешения владельца. Старые branch/PR refs ниже — история и материалы для diff, а не требование продолжать работу в тех ветках.
+- **Concurrency:** один writer одновременно; остальные агенты — read-only reviewer/tester. До записи сверить текущий HEAD, Issues/PR и пересечения файлов.
+- **AUDIO FREEZE:** никакой новой работы со звуком, музыкой, OST, эффектами, голосами или аудиосистемой. Существующие файлы/код не удалять; аудио-части старых задач исключать из scope.
+- **Protected scope:** не менять wordpress/galia-desk, scanner/pricing, firewall/security, production WordPress, wallet writes и SAGE transactions без отдельного прямого разрешения.
+- **Live QA:** automatic live WordPress test для walkingyog.com/bcm4sa отключён владельцем. Не восстанавливать, не обходить защиту и не повторять 403 URL. Source/regression и standalone local browser QA сохранить.
+- **Baseline при сверке:** main HEAD cb4ead0418bfcf99f4b3a808bfdb09ce507e3ec3; Mini-Sim 0.12.13; Tower 0.2.79 (14.11.2026). Перед работой всегда сверить свежий HEAD.
+- **Render:** корневой render.yaml использует main и autoDeployTrigger: commit; commit в main может запустить деплой, в том числе документационный.
+
+---
+
 ## Merged — WORK LOCK #107: ship parked/flight forms (11 November 2026)
 
 - **Merged:** [PR #108](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/108), main commit [`c4754e019dc4a45a00aa26a4b0c3675c11d77931`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/c4754e019dc4a45a00aa26a4b0c3675c11d77931). Mini-Sim `0.12.10`.
