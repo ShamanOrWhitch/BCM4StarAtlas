@@ -291,7 +291,7 @@ try {
     return !!host && !host.hidden && !!towerRoot?.hidden &&
       !!window.__controlsTest?.setKeys;
   }, null, { timeout: 90000 });
-  check("First Planet mounted using the local WordPress bundle from the repository", true);
+  check("First Planet mounted using the local repository bundle", true);
   check("First Planet received original Tower seed and local MULTI mode",
     planetContext.seed === baseline.towerSeed && planetContext.mode === "multi");
   report.stages.push("First Planet bundle mounted after the Tower-bottom checkpoint event");
@@ -315,8 +315,6 @@ try {
     window.BCMMiniSimSession?.mode === "multi",
   baseline.towerSeed, { timeout: 30000 });
   report.stages.push("First Planet real loader event bcm:planet:tower-enter → beginAscent(same seed and mode)");
-  await screenshot(page, "transition-05-same-seed-tower-ascent.png");
-
   const ascent = await page.evaluate(() => ({
     location: window.BCMMiniSimSession.currentLocation,
     mode: window.BCMMiniSimSession.mode,
@@ -327,7 +325,7 @@ try {
     reverseVideoSource: document.querySelector(".bcm-tower-transition-video")?.getAttribute("src") || ""
   }));
   report.ascent = ascent;
-  check("the real First Planet beacon prompt and E interaction starts Tower ascent",
+  check("the real First Planet loader event starts Tower ascent",
     ascent.location === "tower-ascent");
   check("Tower ascent reuses exact seed, session and MULTI mode",
     ascent.mode === "multi" &&
@@ -338,7 +336,7 @@ try {
     /onicss\.mp4/i.test(ascent.reverseClip) &&
     /onicss\.mp4/i.test(ascent.reverseVideoSource),
     ascent.reverseClip || ascent.reverseVideoSource);
-  report.stages.push("Actual First Planet beacon movement + E → beginAscent(same seed and mode)");
+  report.stages.push("First Planet loader event bcm:planet:tower-enter → beginAscent(same seed and mode)");
   await screenshot(page, "transition-05-same-seed-tower-ascent.png");
 
   report.audioPlayAttempts.push(...await page.evaluate(() => window.__BCM_QA_AUDIO_PLAY_ATTEMPTS || []));
