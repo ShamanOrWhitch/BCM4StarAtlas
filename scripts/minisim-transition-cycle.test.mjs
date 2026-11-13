@@ -27,7 +27,7 @@ test("transition-cycle browser check is wired to the real Tower, First Planet an
   const tower = await read("mini-sim/tower/assets/js/tower.js");
   const loader = await read("mini-sim/tower/first-planet/loader.js");
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
-  assert.match(runner, /BCMMiniSimAPI\.teleport/);
+  assert.match(runner, /BCMiniSimAPI\.teleport/);
   assert.match(runner, /BCMDeepSpaceWarpGetReturnSnapshot/);
   assert.match(runner, /bcm:tower:planet-ready/);
   assert.match(runner, /page\.keyboard\.press\("e"\)/);
