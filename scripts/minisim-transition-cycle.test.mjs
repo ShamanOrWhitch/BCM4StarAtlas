@@ -12,6 +12,8 @@ test("standalone transition-cycle Playwright runner is loopback-only and disable
   assert.match(runner, /127\.0\.0\.1/);
   assert.match(runner, /audio requests are blocked/i);
   assert.match(runner, /requestUrl\.origin !== target\.origin/);
+  assert.match(runner, /blockedExternalRequests/);
+  assert.match(runner, /externalResponses/);
   assert.match(standalone, /--transitions-only/);
   assert.match(standalone, /const firstPlanetConfig/);
   assert.match(standalone, /audioUrl: transitionsOnly \? ""/);

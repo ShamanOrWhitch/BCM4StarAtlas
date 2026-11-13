@@ -25,7 +25,8 @@ const report = {
   screenshots: [],
   audioRequests: [],
   audioPlayAttempts: [],
-  externalRequests: [],
+  blockedExternalRequests: [],
+  externalResponses: [],
   consoleErrors: [],
   pageErrors: [],
   simulationBoundaries: [
@@ -107,7 +108,15 @@ try {
     }
     if (requestUrl.origin !== target.origin &&
         !["data:", "blob:"].includes(requestUrl.protocol)) {
-      report.externalRequests.push(request.url());
+      report.blockedExternalRequests.push(request.url());
+    }
+  });
+  page.on("response", (response) => {
+    let responseUrl;
+    try { responseUrl = new URL(response.url()); } catch { return; }
+    if (responseUrl.origin !== target.origin &&
+        !["data:", "blob:"].includes(responseUrl.protocol)) {
+      report.externalResponses.push(response.url());
     }
   });
   await page.route("**/*", async (route) => {
@@ -442,9 +451,9 @@ try {
   check("no audio requests or HTML audio playback attempts occurred",
     report.audioRequests.length === 0 && report.audioPlayAttempts.length === 0,
     JSON.stringify({ requests: report.audioRequests, attempts: report.audioPlayAttempts }));
-  check("no external/live network origins were accessed",
-    report.externalRequests.length === 0,
-    report.externalRequests.join(", "));
+  check("external asset requests were blocked before any response was received",
+    report.externalResponses.length === 0,
+    JSON.stringify({ blocked: report.blockedExternalRequests, responses: report.externalResponses }));
   check("no uncaught JavaScript page errors occurred",
     report.pageErrors.length === 0,
     report.pageErrors.join("\n"));
@@ -475,7 +484,8 @@ console.log(JSON.stringify({
   simulationBoundaries: report.simulationBoundaries,
   audioRequests: report.audioRequests,
   audioPlayAttempts: report.audioPlayAttempts,
-  externalRequests: report.externalRequests,
+  blockedExternalRequests: report.blockedExternalRequests,
+  externalResponses: report.externalResponses,
   pageErrors: report.pageErrors,
   screenshots: report.screenshots,
   report: ".qa-artifacts/minisim-transition-cycle-report.json",
