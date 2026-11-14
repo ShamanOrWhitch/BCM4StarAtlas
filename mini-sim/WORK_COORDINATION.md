@@ -7,8 +7,22 @@
 - **AUDIO FREEZE:** никакой новой работы со звуком, музыкой, OST, эффектами, голосами или аудиосистемой. Существующие файлы/код не удалять; аудио-части старых задач исключать из scope.
 - **Protected scope:** не менять wordpress/galia-desk, scanner/pricing, firewall/security, production WordPress, wallet writes и SAGE transactions без отдельного прямого разрешения.
 - **Live QA:** automatic live WordPress test для walkingyog.com/bcm4sa отключён владельцем. Не восстанавливать, не обходить защиту и не повторять 403 URL. Source/regression и standalone local browser QA сохранить.
-- **Baseline при сверке:** main HEAD cb4ead0418bfcf99f4b3a808bfdb09ce507e3ec3; Mini-Sim 0.12.13; Tower 0.2.79 (14.11.2026). Перед работой всегда сверить свежий HEAD.
+- **Baseline при сверке:** Mini-Sim 0.14.0; Tower 0.2.79 (14.11.2026). Перед любой новой работой всегда получить актуальный `main` HEAD; release commit фиксируется в `PROJECT_STATE.md` и коммите GitHub.
 - **Render:** корневой render.yaml использует main и autoDeployTrigger: commit; commit в main может запустить деплой, в том числе документационный.
+
+## Completed — WORK LOCK #112: Mini-Sim 0.14.0 first gameplay corrections (14 November 2026)
+
+- **Baseline:** Mini-Sim 0.12.13 (played by owner); starting main SHA `7cb00b4870a18f805883cc00569e8598d8bb90b4`. Tower stays at `0.2.79`.
+- **Warp feel:** 12× speed ramp now uses exponent 0.60 (more speed in the opening phase), corridor roll restored from 45% to 72%, axial sway widened from 0.126 to 0.20, and hazard count increased from 22 to 24 without narrowing the safe gate.
+- **Class II:** reverse sign now applies to visible corridor travel, roll and surface shimmer, not just the colour pulse. Course/collision timing is unchanged and still advances forward.
+- **Arrival:** successful Warp automatically enters the selected destination after a 700 ms arrival beat. Removed the Continue control. Retry remains on failure; Cancel remains available.
+- **Flight overview:** existing ship systems panels now start collapsed behind a small gear toggle. Existing panel controls and callbacks are retained.
+- **Version:** PHP plugin header/constant, visible PHP title, RU/EN runtime titles and runtime fallback advanced to `0.14.0`. Tower not bumped because Tower code was not changed.
+- **AUDIO FREEZE:** no audio source, asset or playback code was edited. Galia Desk, scanner/pricing, firewall/security, wallet writes, SAGE transactions and production WordPress were not touched. Live QA was not run.
+- **Next:** integrate the already-uploaded asteroid GLB packs into a bounded, seeded sector field; develop Ring 2.5D section prototype; then landing cutscene and First Planet desert/crab/crystal loop. User does not need to re-upload asteroid GLBs already in this repo. Blender GUI is not installed in this environment; scriptable Three.js integration and Blender Python scripts remain possible.
+- **Checks:** source regression + local standalone browser workflows triggered on main; status is reported separately after GitHub Actions completes.
+
+---
 
 ## Completed — WORK LOCK #111: BCM4SA DOS attract mode + read-only product copy (14 November 2026)
 

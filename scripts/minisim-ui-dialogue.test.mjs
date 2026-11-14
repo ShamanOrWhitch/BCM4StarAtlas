@@ -215,3 +215,12 @@ test("DOS attract ticker and Crew preflight visual motion are responsive and hon
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(css, /\.bcm-mini-sim\.game-active \.bcm-mini-sim-attract-marquee/);
 });
+
+
+test("Ship systems panels stay out of the flight view until explicitly opened", () => {
+  assert.match(mini, /function minimizeShipPanel\(panel\)/);
+  assert.match(mini, /element\.hidden = true/);
+  assert.match(mini, /data-ship-panel-toggle/);
+  assert.match(mini, /aria-expanded/);
+  assert.match(mini, /minimizeShipPanel\(typeof createPanel === "function"/);
+});

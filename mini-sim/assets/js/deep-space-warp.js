@@ -665,7 +665,7 @@
           '<button type="button" data-warp-tier="4" aria-pressed="false" aria-disabled="true" disabled title="Class IV выключен" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #3a444a;border-radius:6px;background:rgba(19,25,30,.82);color:#64737b;opacity:.58;cursor:not-allowed">IV ×</button>' +
         '</div>' +
         '<div class="bcm-warp-touch-controls"><button type="button" data-warp-control="left" aria-label="Рулить влево">◀</button><button type="button" data-warp-control="tilt" aria-label="Включить или откалибровать управление наклоном">↻ TILT</button><button type="button" data-warp-control="right" aria-label="Рулить вправо">▶</button></div>' +
-        '<div class="bcm-warp-result" data-tube-result hidden><h2 data-tube-result-title></h2><p data-tube-result-text></p><div class="bcm-warp-actions"><button type="button" data-tube-continue hidden>ПРОДОЛЖИТЬ</button><button type="button" data-tube-retry>ПОВТОРИТЬ WARP</button><button type="button" data-tube-abort class="bcm-warp-secondary">ОТМЕНА</button></div></div>' +
+        '<div class="bcm-warp-result" data-tube-result hidden><h2 data-tube-result-title></h2><p data-tube-result-text></p><div class="bcm-warp-actions"><button type="button" data-tube-retry>ПОВТОРИТЬ WARP</button><button type="button" data-tube-abort class="bcm-warp-secondary">ОТМЕНА</button></div></div>' +
       '</section>';
     root.appendChild(overlay);
 
@@ -719,7 +719,6 @@
     const tubeResultTitle = overlay.querySelector("[data-tube-result-title]");
     const tubeResultText = overlay.querySelector("[data-tube-result-text]");
     const tubeRetry = overlay.querySelector("[data-tube-retry]");
-    const tubeContinue = overlay.querySelector("[data-tube-continue]");
     const tubeAbort = overlay.querySelector("[data-tube-abort]");
     const touchControls = overlay.querySelector(".bcm-warp-touch-controls");
     const tiltButton = overlay.querySelector('[data-warp-control="tilt"]');
@@ -1745,7 +1744,7 @@
       }
       const rng = randomFrom(warpRunSeed);
       state.layers = [];
-      const courseLayerCount = 22;
+      const courseLayerCount = 24;
       let previousSafeAngle = null;
       for (let i = 0; i < courseLayerCount; i += 1) {
         const typeRoll = rng();
@@ -1805,11 +1804,17 @@
       tubeTitle.textContent = success ? "WARP STABLE" : "WARP DISTURBED";
       tubeResultTitle.textContent = success ? "Переход завершён" : "Защита туннеля перегружена";
       tubeResultText.textContent = success
-        ? "Координаты " + sectorText(state.target) + " подтверждены. «Продолжить» ведёт дальше. «Отмена» оставляет корабль там, откуда открыт Warp."
+        ? "Координаты " + sectorText(state.target) + " подтверждены. Автоматический вход в сектор…"
         : "Пилот получил слишком много попаданий. Повторите короткий участок или отмените переход — корабль останется на прежнем месте.";
       tubeRetry.hidden = success;
-      tubeContinue.hidden = !success;
       tubeAbort.textContent = "ОТМЕНА";
+      if (success) {
+        // Give the arrival status one short beat, then enter the selected sector.
+        // Cancel changes the mode first, so this callback cannot override the pilot.
+        window.setTimeout(() => {
+          if (state.mode === "result") confirmTubeArrival();
+        }, 700);
+      }
     }
 
     function isOniCssDestination(sector) {
@@ -5464,7 +5469,7 @@
     // smoothly reaching 8x by the final second without desynchronizing the gates.
     function warpSpeedMultiplier(elapsed) {
       // Start at 1x, ramp sooner than the old 8x curve, and reach 12x at arrival.
-      const t = Math.pow(warpNormalizedTime(elapsed), 0.82);
+      const t = Math.pow(warpNormalizedTime(elapsed), 0.60);
       return Math.pow(12, t);
     }
 
@@ -5499,16 +5504,16 @@
     }
 
     function drawTubeTunnel(g, w, h, now) {
-      const t = state.tubeTravel;
-      const shimmerTime = Number(state.tubeShimmerTime || 0);
       const visualClass = activeWarpVisualClass();
-      // Drive a colour pulse down the original longitudinal frame itself.
-      // Class II reverses the pulse; no new lines, dashes or transverse rings.
+      // Class II reverses visible corridor motion, not just its colour pulse.
+      // Course timing and obstacle collision remain on the same forward clock.
       const flowDirection = visualClass === 2 ? -1 : 1;
-      const flowPhase = ((Number(state.tubeTravel || 0) * 0.052 * flowDirection + 0.12) % 1 + 1) % 1;
+      const t = Number(state.tubeTravel || 0) * flowDirection;
+      const shimmerTime = Number(state.tubeShimmerTime || 0) * flowDirection;
+      const flowPhase = ((t * 0.052 + 0.12) % 1 + 1) % 1;
       const flowPulsePosition = 1 - flowPhase;
-      // 45% of the former roll rate: midway between the old over-rotation and the current almost-static tube.
-      const axialRoll = Number(state.tubeRoll || 0) + Math.sin(t * 0.13) * 0.126;
+      // Restore a clear but controlled roll so the pilot can feel the corridor moving.
+      const axialRoll = Number(state.tubeRoll || 0) * flowDirection + Math.sin(t * 0.13) * 0.20;
       const mid = w * 0.5;
       const minDim = Math.min(w, h);
       const maxRadius = minDim * 0.435;
@@ -5599,7 +5604,7 @@ return axialRoll + ahead * 0.12 +
           g.lineTo(p10.x, p10.y);
           g.closePath();
           const shimmer = Math.sin(shimmerTime * 1.35 + panel * 1.72 + step * 0.77 + playerAngle) * 0.5 + 0.5;
-          const light = ((step + Math.floor(shimmerTime * 8) + panel * 3) % 5 === 0) ? 1 : 0;
+          const light = (((step + Math.floor(shimmerTime * 8) + panel * 3) % 5 + 5) % 5 === 0) ? 1 : 0;
           const red = visualClass === 3
             ? Math.round(17 + shimmer * 12 + light * 3)
             : Math.round(8 + shimmer * 8 + light * 2);
@@ -5812,7 +5817,7 @@ return axialRoll + ahead * 0.12 +
       // while keeping its established material shimmer tempo independent.
       state.tubeTravel += dt * speed * 1.48;
       state.tubeShimmerTime = Number(state.tubeShimmerTime || 0) + dt * speed;
-      state.tubeRoll = Number(state.tubeRoll || 0) + dt * tubeSectionBlend(rollRates, state.elapsed).value * 0.45;
+      state.tubeRoll = Number(state.tubeRoll || 0) + dt * tubeSectionBlend(rollRates, state.elapsed).value * 0.72;
       const routeProgress = warpObstacleProgress(state.elapsed);
 
       let padX = 0;
@@ -6077,7 +6082,6 @@ return axialRoll + ahead * 0.12 +
     cancelButton.addEventListener("click", () => closeOverlay(true));
     startButton.addEventListener("click", showTube);
     tubeRetry.addEventListener("click", showTube);
-    tubeContinue.addEventListener("click", confirmTubeArrival);
     tubeAbort.addEventListener("click", () => closeOverlay(true));
     exitButton.addEventListener("click", returnToWarpMap);
     manualForm.addEventListener("submit", (event) => {

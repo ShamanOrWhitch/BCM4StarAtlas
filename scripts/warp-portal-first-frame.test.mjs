@@ -37,7 +37,7 @@ test("Tube rendering is a rotating cylinder, not a fixed trapezoid", () => {
 });
 
 test("Tube displays multiple obstacle types and tests collisions against their visible open angles", () => {
-  const create = section(warp, "const courseLayerCount = 22", "tubeTitle.textContent");
+  const create = section(warp, "const courseLayerCount = 24", "tubeTitle.textContent");
   const update = section(warp, "function updateTube(dt, now)", "window.BCMDeepSpaceWarpToggle");
   const draw = section(warp, "function drawTubeTunnel", "function drawBackdrop");
   assert.match(create, /const typeRoll = rng\(\)/);
@@ -58,11 +58,12 @@ test("Tube displays multiple obstacle types and tests collisions against their v
   assert.match(update, /state\.playerAngle = Number\(state\.playerAngle \|\| 0\) - steer \* dt \* 2\.2/);
 });
 
-test("a successful Warp to (-40,30) returns home only after the continue button", () => {
+test("a successful Warp automatically enters the selected destination without a Continue button", () => {
   const finish = section(warp, "function finishTube(success)", "function isOniCssDestination");
+  assert.doesNotMatch(warp, /data-tube-continue|tubeContinue/);
+  assert.match(finish, /Автоматический вход в сектор/);
+  assert.match(finish, /window\.setTimeout\(\(\) => \{[\s\S]{0,110}if \(state\.mode === "result"\) confirmTubeArrival\(\)/);
   assert.doesNotMatch(finish, /returnToOniCss\(\)/);
-  assert.doesNotMatch(finish, /setTimeout/);
-  assert.match(finish, /tubeContinue\.hidden = !success/);
   const confirm = section(warp, "function confirmTubeArrival()", "function returnToOniCss()");
   assert.match(confirm, /isOniCssDestination\(state\.target\)/);
   assert.match(confirm, /returnToOniCss\(\)/);

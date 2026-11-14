@@ -82,8 +82,8 @@ test("Room 2 central return opening is passable without making side walls noclip
   assert.match(mini, /function pointOnSideWall\(point, room\)/);
 });
 
-test("Warp preserves 22 randomized obstacle layers and uses the faster shared 12x curve", () => {
-  const start = warp.indexOf("const courseLayerCount = 22");
+test("Warp preserves 24 randomized obstacle layers and uses the faster shared 12x curve", () => {
+  const start = warp.indexOf("const courseLayerCount = 24");
   const end = warp.indexOf("tubeTitle.textContent", start);
   assert.ok(start >= 0 && end > start, "22-layer Warp course exists");
   const create = warp.slice(start, end);
@@ -93,7 +93,7 @@ test("Warp preserves 22 randomized obstacle layers and uses the faster shared 12
   assert.match(create, /typeRoll < 0\.70 \? "spikes"/);
   assert.match(create, /typeRoll < 0\.86 \? "boost" : "launcher"/);
   assert.match(create, /gapHalf: type === "gate" \? 0\.94 : 0\.86/);
-  assert.match(warp, /const t = Math\.pow\(warpNormalizedTime\(elapsed\), 0\.82\)/);
+  assert.match(warp, /const t = Math\.pow\(warpNormalizedTime\(elapsed\), 0\.60\)/);
   assert.match(warp, /return Math\.pow\(12, t\)/);
   assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) - 1\) \/ 11/);
   assert.match(warp, /Math\.max\(1, Math\.min\(12,/);

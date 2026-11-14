@@ -1,3 +1,17 @@
+## Completed implementation — Mini-Sim 0.14.0 first gameplay corrections (14 November 2026)
+
+- **Base:** owner-played Mini-Sim `0.12.13`; starting main SHA `7cb00b4870a18f805883cc00569e8598d8bb90b4`. Target release is `0.14.0`; Tower remains `0.2.79`.
+- Warp's opening speed curve is stronger while keeping the same 1× start and 12× finish; the exponent changed from `0.82` to `0.60`. Course density increased from 22 to 24 layers; safe gate widths, steering and collision rules are unchanged.
+- The corridor's visible roll increased from 45% to 72%, with slightly stronger axial sway. Class II reverses corridor visual travel, roll and shimmer; obstacle timing still runs forward.
+- Successful Warp now auto-enters the chosen destination after a 700 ms arrival beat; Continue is removed. Failed Warp still exposes Retry and Cancel.
+- Ship mode/system panels no longer cover the opening flight view: they start hidden and are reopened using a small gear control.
+- PHP/plugin version, visible PHP title, RU/EN UI titles and runtime fallback are synchronized at `0.14.0`.
+- Existing asteroid GLB asset packs are present in main but not yet connected to the active sector scene; the next work item is a seeded, performance-bounded integration, not another upload.
+- No audio, Tower logic, SAGE writes, wallet operations, Galia Desk, firewall or production WordPress was changed. Live-page QA was not run.
+- **CI:** pending for the 0.14.0 commit; record exact Actions results once complete.
+
+---
+
 ## Completed implementation — WORK LOCK #111: DOS attract mode and read-only console copy (14 November 2026)
 
 - **Issue:** [#111](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/111). Final main HEAD: `3a32edf26bb33d0c301d5f3301008d1d0a58cc1e`.

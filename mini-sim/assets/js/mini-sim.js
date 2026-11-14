@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.12.13",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.14.0",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -91,7 +91,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.12.13",
+      title: "SPACE LABYRINTH — 0.14.0",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -6289,6 +6289,42 @@
     return { element: box, refresh, destroy: () => box.remove() };
   }
 
+  function minimizeShipPanel(panel) {
+    const element = panel && panel.element;
+    if (!element) return panel;
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.textContent = "⚙";
+    toggle.setAttribute("data-ship-panel-toggle", "");
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-label", "Показать панель корабля");
+    toggle.title = "Показать панель корабля";
+    toggle.style.cssText = [
+      "position:fixed", "top:14px", "left:14px", "z-index:1001300",
+      "width:34px", "height:34px", "padding:0", "border-radius:50%",
+      "border:1px solid rgba(150,190,210,.55)", "background:rgba(5,13,22,.72)",
+      "color:#e7faff", "font:18px/1 system-ui,sans-serif", "cursor:pointer",
+      "box-shadow:0 2px 12px rgba(0,0,0,.3)"
+    ].join(";");
+    element.hidden = true;
+    toggle.addEventListener("click", () => {
+      const open = element.hidden;
+      element.hidden = !open;
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      toggle.setAttribute("aria-label", open ? "Скрыть панель корабля" : "Показать панель корабля");
+      toggle.title = open ? "Скрыть панель корабля" : "Показать панель корабля";
+    });
+    (root || document.body).appendChild(toggle);
+
+    const destroy = panel.destroy;
+    panel.destroy = function () {
+      toggle.remove();
+      if (typeof destroy === "function") destroy.call(panel);
+    };
+    return panel;
+  }
+
   function attachShipScripts(hull, file, controlsFile) {
     const generation = shipRigGeneration;
     const controlsUrl = controlsFile ? assetUrl(controlsFile) : besideGlb(file, "_controls.js");
@@ -6312,9 +6348,9 @@
           ? createControls(hull, { mode: "flight" })
           : createGenericShipControls(hull);
         const createPanel = factories && factories.panel ? window[factories.panel] : null;
-        const panel = typeof createPanel === "function"
+        const panel = minimizeShipPanel(typeof createPanel === "function"
           ? createPanel(api, { parent: root, position: "fixed", top: 68, left: 12 })
-          : createGenericShipPanel(api);
+          : createGenericShipPanel(api));
         if (generation !== shipRigGeneration || !hull.parent) {
           try { api.dispose && api.dispose(); } catch (e) {}
           if (panel && panel.destroy) panel.destroy();
@@ -6660,7 +6696,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.12.10") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.14.0") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();

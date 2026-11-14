@@ -194,7 +194,7 @@ test("Playwright runner overrides plugin files from local checkout",async()=>{
 
 test("Warp hazards preserve depth separation, accelerate to 12x, and keep actual speed telemetry", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
-  assert.match(warp, /const t = Math\.pow\(warpNormalizedTime\(elapsed\), 0\.82\)/);
+  assert.match(warp, /const t = Math\.pow\(warpNormalizedTime\(elapsed\), 0\.60\)/);
   assert.match(warp, /return Math\.pow\(12, t\)/);
   assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) - 1\) \/ 11/);
   assert.match(warp, /Math\.max\(1, Math\.min\(12,/);
@@ -204,7 +204,7 @@ test("Warp hazards preserve depth separation, accelerate to 12x, and keep actual
   assert.match(warp, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
   assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.48/);
   assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
-  assert.match(warp, /const courseLayerCount = 22/);
+  assert.match(warp, /const courseLayerCount = 24/);
   assert.match(warp, /tubeMeta\.textContent[\s\S]{0,180}"SPEED " \+ speed\.toFixed\(1\)/);
 });
 

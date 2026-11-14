@@ -44,3 +44,6 @@ assert.match(flight, /productNote\.textContent = textForLanguage\("productNote"\
 assert.match(audit, /event\.ctrlKey[\s\S]{0,80}event\.altKey[\s\S]{0,80}KeyU/);
 
 console.log("PASS Mini-Sim 0.11.23 UI layer regressions: pilot view, helm default, gamepad assignment, Ring entry and hit testing.");
+assert.match(flight, /function minimizeShipPanel\(panel\)/);
+assert.match(flight, /element\.hidden = true/);
+assert.match(flight, /data-ship-panel-toggle/);

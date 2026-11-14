@@ -1,3 +1,16 @@
+## D-050 — Mini-Sim 0.14.0 restores Warp motion and removes manual arrival confirmation (14 November 2026)
+
+**Status:** Implemented in main from the owner's played Mini-Sim 0.12.13 baseline.
+
+- The Warp opening speed ramp uses exponent 0.60 while preserving the 1× start and 12× finish. The course contains 24 seeded hazards; gate openings and steering limits remain unchanged.
+- Corridor roll is restored to 72% of the prior rate with a stronger but controlled axial sway. Class II reverses the visible corridor's travel/roll/shimmer; collision and course timing stay forward and synchronized.
+- Successful Warp automatically enters the selected destination after a short arrival beat. Continue is removed; Cancel can still interrupt during the beat, and failed Warp retains Retry/Cancel.
+- Ship mode/system panels start collapsed; a compact accessible gear toggle exposes the original controls on demand.
+- No audio, Tower, wallet, SAGE or protected production code changes are part of this release.
+- Existing asteroid GLB packs remain assets only until the next separate seeded sector-field integration.
+
+---
+
 ## D-049 — BCM4SA is a read-only arcade cartridge companion, with a DOS attract mode (14 November 2026)
 
 **Status:** Implemented in main. Final HEAD `3a32edf26bb33d0c301d5f3301008d1d0a58cc1e`; WORK LOCK [#111](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/111).

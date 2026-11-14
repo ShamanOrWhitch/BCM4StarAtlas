@@ -1,4 +1,4 @@
-# BCM Mini-Sim 0.9.92
+# BCM Mini-Sim 0.14.0
 
 > **Новый сеанс / краткая передача:** [HANDOFF.md](HANDOFF.md). Сверяйся с ним вместе с AGENTS, PROJECT_STATE и DECISIONS перед продолжением работы.
 
@@ -7,7 +7,19 @@
 > Первым делом сверить коммиты и журнал решений. Старые bug reports не должны автоматически превращаться в новые задачи, если исправление уже есть в коде.
 
 
-### 0.9.92 current source baseline — 2026-10-16
+## Current main release — Mini-Sim 0.14.0 (14 November 2026)
+
+- User-played baseline: Mini-Sim 0.12.13. This release advances to 0.14.0; Tower remains 0.2.79.
+- Warp opens with a stronger early speed ramp (1× to 12×), a more perceptible controlled corridor roll, and 24 obstacle layers instead of 22. Obstacle collision/course timing remains on the same forward clock.
+- Warp visual Class II reverses the corridor travel animation (geometry roll and surface shimmer as well as the colour pulse); the mini-game's course and collisions remain deterministic and forward-progressing.
+- Successful Warp now enters the selected destination automatically after a brief arrival status. The old Continue button is removed; Cancel remains available during the short handoff, and failures still offer Retry/Cancel.
+- Ship mode/system panels are collapsed by default to clear the flight view. A small gear button reopens the existing panel when needed.
+- Existing asteroid model packs uploaded to the repository are not yet wired into the live asteroid-sector scene. Blender GUI/export and live-site testing are not claimed. Audio sources and assets are unchanged.
+- Verification is through repository source tests and local standalone browser QA only; no production WordPress page is accessed by this release.
+
+---
+
+### Historical baseline: 0.9.92 — 2026-10-16
 
 - Integrated the Grok Warp/Room 2 line from `fix/warp-angle-and-room2-view` (previously 0.9.91) directly into `main`.
 - Warp Tube keeps the course and obstacles aligned with the ring, keeps steering on one angle, and requires an explicit Continue after successful arrival.

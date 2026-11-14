@@ -87,10 +87,10 @@ test("Warp multiplier and displayed speed ramp faster from 1x to 12x", () => {
   assert.equal(speed.warpSpeedMultiplier(42), 12);
   assert.equal(speed.warpCourseProgress(0), 0);
   assert.equal(speed.warpCourseProgress(42), 1);
-  assert.match(warp, /const t = Math\.pow\(warpNormalizedTime\(elapsed\), 0\.82\)/);
+  assert.match(warp, /const t = Math\.pow\(warpNormalizedTime\(elapsed\), 0\.60\)/);
   assert.match(warp, /return Math\.pow\(12, t\)/);
   assert.match(warp, /return \(warpSpeedMultiplier\(elapsed\) - 1\) \/ 11/);
-  assert.match(warp, /const courseLayerCount = 22/);
+  assert.match(warp, /const courseLayerCount = 24/);
   assert.match(warp, /const typeRoll = rng\(\)/);
   assert.match(warp, /Math\.max\(1, Math\.min\(12,/);
   assert.match(warp, /tubeMeta\.textContent[\s\S]{0,180}"SPEED " \+ speed\.toFixed\(1\)/);
@@ -105,7 +105,10 @@ test("Warp directional flow animates the original longitudinal frame lines witho
 
   const tunnel = section(warp, "function drawTubeTunnel", "function drawBackdrop");
   assert.ok(tunnel.includes("const flowDirection = visualClass === 2 ? -1 : 1"));
-  assert.ok(tunnel.includes("const flowPhase = ((Number(state.tubeTravel || 0) * 0.052 * flowDirection + 0.12) % 1 + 1) % 1"));
+  assert.ok(tunnel.includes("const t = Number(state.tubeTravel || 0) * flowDirection"));
+  assert.ok(tunnel.includes("const shimmerTime = Number(state.tubeShimmerTime || 0) * flowDirection"));
+  assert.ok(tunnel.includes("const flowPhase = ((t * 0.052 + 0.12) % 1 + 1) % 1"));
+  assert.ok(tunnel.includes("Number(state.tubeRoll || 0) * flowDirection"));
   assert.ok(tunnel.includes("const flowPulsePosition = 1 - flowPhase"));
   assert.ok(tunnel.includes("for (let seam = 0; seam < 12; seam += 1)"));
   assert.ok(tunnel.includes("const flowGradient = g.createLinearGradient(frameStart.x, frameStart.y, frameEnd.x, frameEnd.y)"));
