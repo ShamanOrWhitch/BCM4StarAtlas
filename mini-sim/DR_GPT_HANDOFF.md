@@ -123,9 +123,10 @@ BCM4StarAtlas (Best Crew Missions 4 Star Atlas) — симулятор/конф�
 - mini-sim/assets/js/crew-core.js и crew-wallet.js — общие данные/визуализация Crew, read-only wallet context.
 - mini-sim/tower/ — Tower и WordPress-интеграция.
 - mini-sim/tower/assets/js/tower.js — Tower runtime, управление, игровая логика.
-- mini-sim/tower/bcm-tower.php — интеграция Tower/First Planet и версия.
-- mini-sim/tower/first-planet/ — отдельное приложение First Planet; исходники в src/, WordPress bundle в wp-dist/.
+- mini-sim/tower/bcm-tower.php — Tower и переход/загрузчик независимого First Planet.
+- mini-sim/first-planet/ — единственная папка First Planet; исходники в src/, модели в mesh/ и mesh/library/, звук в audio/, WordPress bundle в wp-dist/.
 - mini-sim/assets/mesh/ships/catalog.json — общий каталог корабельных моделей и состояний.
+- mini-sim/assets/mesh/ — общие корабельные/Crew модели; First Planet-specific GLB packs находятся внутри mini-sim/first-planet/mesh/.
 - scripts/ — source/regression и standalone browser QA.
 - .github/workflows/ — CI и тестовые workflows.
 - wordpress/galia-desk/ — отдельный Galia Desk (карта, Crew, флот, цены, сканер); не смешивать его с Mini-Sim.

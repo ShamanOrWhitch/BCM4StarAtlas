@@ -1,4 +1,4 @@
-import SHIP_CATALOG from "../../../../assets/mesh/ships/catalog.json";
+import SHIP_CATALOG from "../../../assets/mesh/ships/catalog.json";
 import { meshUrl, propUrl } from "@/game/mesh-url";
 
 /** Every ship the game asks for lives under mini-sim/assets/mesh/ships/. */

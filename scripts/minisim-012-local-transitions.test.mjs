@@ -14,19 +14,19 @@ test("Mini-Sim and Tower versions stay synchronized", async () => {
   assert.ok(miniVersion, "Mini-Sim PHP header exposes a version");
   assert.ok(miniPhp.includes(`BCM_MINI_SIM_VERSION', '${miniVersion}'`));
   assert.ok(miniJs.includes(`SPACE LABYRINTH — ${miniVersion}`));
-  assert.match(towerPhp, /BCM_TOWER_VERSION\', \'0\.2\.79\'/);
-  assert.match(towerJs, /const TOWER_VERSION = "0\.2\.79"/);
+  assert.match(towerPhp, /BCM_TOWER_VERSION\', \'0\.2\.80\'/);
+  assert.match(towerJs, /const TOWER_VERSION = "0\.2\.80"/);
   assert.match(towerJs, /function makeSpaceExit\(cell\)/);
   assert.match(towerJs, /const reachedExit = ascentMode \? onSpaceExit : p\.y < bottomY - 4\.2/);
   assert.doesNotMatch(towerJs, /p\.y > topY \+ 4\.2/);
 });
 
 test("First Planet 0.12.4 faces the crew outward, rides the bike forward, and keeps the world light", async () => {
-  const scene = await read("mini-sim/tower/first-planet/src/game/island/scene.ts");
-  const bake = await read("mini-sim/tower/first-planet/src/game/island/bake.ts");
-  const terrain = await read("mini-sim/tower/first-planet/src/game/island/terrain.ts");
-  const world = await read("mini-sim/tower/first-planet/src/game/world.ts");
-  const sim = await read("mini-sim/tower/first-planet/src/game/island/sim.ts");
+  const scene = await read("mini-sim/first-planet/src/game/island/scene.ts");
+  const bake = await read("mini-sim/first-planet/src/game/island/bake.ts");
+  const terrain = await read("mini-sim/first-planet/src/game/island/terrain.ts");
+  const world = await read("mini-sim/first-planet/src/game/world.ts");
+  const sim = await read("mini-sim/first-planet/src/game/island/sim.ts");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   assert.match(scene, /renderer\.shadowMap\.enabled = false/);
   assert.match(scene, /lighthouse\.glb/);
@@ -40,11 +40,12 @@ test("First Planet 0.12.4 faces the crew outward, rides the bike forward, and ke
   assert.match(world, /raceLength/);
   assert.match(world, /barrier_redwhite\.glb/);
   assert.match(towerPhp, /propBase/);
+  assert.match(towerPhp, /meshLibraryBase/);
 });
 
 test("one persistent local session derives independent deterministic location seeds", async () => {
   const mini = await read("mini-sim/assets/js/mini-sim.js");
-  const seed = await read("mini-sim/tower/first-planet/src/game/seed.ts");
+  const seed = await read("mini-sim/first-planet/src/game/seed.ts");
   assert.match(mini, /function deriveLocalLocationSeed\(baseSeed, label\)/);
   const seedFactory = mini.slice(mini.indexOf("function makeLabyrinthSeed()"), mini.indexOf("const labyrinthSeed = makeLabyrinthSeed()"));
   assert.ok(seedFactory.indexOf("fromReturn") < seedFactory.indexOf("fromUrl"), "the saved session seed outranks the URL seed on a return");
@@ -87,7 +88,7 @@ test("Tower returns through the original same-seed layout from bottom to top", a
 
 test("Tower reverse ONICSS transition reuses the existing landing clip and has a seek fallback", async () => {
   const tower = await read("mini-sim/tower/assets/js/tower.js");
-  const loader = await read("mini-sim/tower/first-planet/loader.js");
+  const loader = await read("mini-sim/first-planet/loader.js");
   assert.match(tower, /function beginReverseSpaceLabyrinthReturn\(\)/);
   assert.match(tower, /const url = String\(CONFIG\.planetTransition \|\| ""\)/);
   assert.match(tower, /transitionVideo\.playbackRate = -1/);
@@ -98,11 +99,11 @@ test("Tower reverse ONICSS transition reuses the existing landing clip and has a
 });
 
 test("First Planet is a seeded local location with a walk-up same-seed Tower gate", async () => {
-  const terrain = await read("mini-sim/tower/first-planet/src/game/island/terrain.ts");
-  const island = await read("mini-sim/tower/first-planet/src/game/island/sim.ts");
-  const scene = await read("mini-sim/tower/first-planet/src/game/island/scene.ts");
-  const component = await read("mini-sim/tower/first-planet/src/components/desert-island.tsx");
-  const loader = await read("mini-sim/tower/first-planet/loader.js");
+  const terrain = await read("mini-sim/first-planet/src/game/island/terrain.ts");
+  const island = await read("mini-sim/first-planet/src/game/island/sim.ts");
+  const scene = await read("mini-sim/first-planet/src/game/island/scene.ts");
+  const component = await read("mini-sim/first-planet/src/components/desert-island.tsx");
+  const loader = await read("mini-sim/first-planet/loader.js");
   assert.match(terrain, /export const TOWER_GATE =/);
   assert.match(island, /export function createSim\(seed = 0\)/);
   assert.match(island, /const storageKey = locationSeed \? SAVE_KEY \+ "-"/);
@@ -117,10 +118,10 @@ test("First Planet is a seeded local location with a walk-up same-seed Tower gat
 });
 
 test("Shoal Race receives its own seed without changing the established track route", async () => {
-  const race = await read("mini-sim/tower/first-planet/src/game/sim.ts");
-  const track = await read("mini-sim/tower/first-planet/src/game/track.ts");
-  const component = await read("mini-sim/tower/first-planet/src/components/shoal-race.tsx");
-  const embed = await read("mini-sim/tower/first-planet/src/first-planet-embed.tsx");
+  const race = await read("mini-sim/first-planet/src/game/sim.ts");
+  const track = await read("mini-sim/first-planet/src/game/track.ts");
+  const component = await read("mini-sim/first-planet/src/components/shoal-race.tsx");
+  const embed = await read("mini-sim/first-planet/src/first-planet-embed.tsx");
   assert.match(race, /export function createRace\(seed = 0\)/);
   assert.match(race, /layoutBoxes\(track, locationSeed\)/);
   assert.match(race, /createSeededRandom\(seed, "shoal-race-boxes"\)/);
@@ -131,16 +132,16 @@ test("Shoal Race receives its own seed without changing the established track ro
 
 test("FP and Desert Race soundtracks are separate, optional and resume across location switches", async () => {
   const php = await read("mini-sim/tower/bcm-tower.php");
-  const loader = await read("mini-sim/tower/first-planet/loader.js");
-  const embed = await read("mini-sim/tower/first-planet/src/first-planet-embed.tsx");
-  const island = await read("mini-sim/tower/first-planet/src/components/desert-island.tsx");
-  const race = await read("mini-sim/tower/first-planet/src/components/shoal-race.tsx");
+  const loader = await read("mini-sim/first-planet/loader.js");
+  const embed = await read("mini-sim/first-planet/src/first-planet-embed.tsx");
+  const island = await read("mini-sim/first-planet/src/components/desert-island.tsx");
+  const race = await read("mini-sim/first-planet/src/components/shoal-race.tsx");
   assert.ok(php.includes("'firstPlanetAudio' => bcm_tower_pick_asset"));
   assert.ok(php.includes("'desertRaceAudio' => bcm_tower_pick_asset"));
   assert.ok(php.includes("'audioUrl' => bcm_tower_pick_asset"));
   assert.ok(php.includes("'raceAudioUrl' => bcm_tower_pick_asset"));
-  assert.ok(php.includes("assets/FP.mp3"));
-  assert.ok(php.includes("assets/desertrace.mp3"));
+  assert.ok(php.includes("first-planet/audio/FP.mp3"));
+  assert.ok(php.includes("first-planet/audio/desertrace.mp3"));
   assert.ok(loader.includes('audioUrl: config.audioUrl || ""'));
   assert.ok(loader.includes('raceAudioUrl: config.raceAudioUrl || ""'));
   assert.ok(embed.includes("const planetMusicRef = useRef"));
@@ -159,7 +160,7 @@ test("FP and Desert Race soundtracks are separate, optional and resume across lo
 
 test("return snapshot preserves Crew, ship pose, mission, local seeds and internal repair compartments", async () => {
   const mini = await read("mini-sim/assets/js/mini-sim.js");
-  const loader = await read("mini-sim/tower/first-planet/loader.js");
+  const loader = await read("mini-sim/first-planet/loader.js");
   assert.match(mini, /mission\.originShipSnapshot = snapshot/);
   assert.match(mini, /crew: Array\.isArray\(window\.BCMMiniCrewSelection\?\.players\)/);
   assert.match(mini, /hullRepair: \{/);
@@ -191,9 +192,9 @@ test("0.12.4 package workflow builds and includes the First Planet WordPress bun
 
 test("Tower preloads First Planet during the descent and the bundle exports mount", async () => {
   const tower = await read("mini-sim/tower/assets/js/tower.js");
-  const loader = await read("mini-sim/tower/first-planet/loader.js");
-  const embed = await read("mini-sim/tower/first-planet/src/first-planet-embed.tsx");
-  const vite = await read("mini-sim/tower/first-planet/vite.wordpress.config.ts");
+  const loader = await read("mini-sim/first-planet/loader.js");
+  const embed = await read("mini-sim/first-planet/src/first-planet-embed.tsx");
+  const vite = await read("mini-sim/first-planet/vite.wordpress.config.ts");
   const start = tower.slice(tower.indexOf("function startMode(nextMode)"), tower.indexOf("function showMenu()"));
   assert.match(tower, /function queuePlanetPreload\(\)/);
   assert.match(start, /queuePlanetPreload\(\)/);
@@ -204,4 +205,20 @@ test("Tower preloads First Planet during the descent and the bundle exports moun
   assert.match(embed, /setLive\(target: HTMLElement, live: boolean\)/);
   assert.match(vite, /external: \[\]/);
   assert.match(vite, /exports: "default"/);
+});
+
+
+test("First Planet has one standalone module folder and Tower only loads it", async () => {
+  const towerPhp = await read("mini-sim/tower/bcm-tower.php");
+  const moduleLoader = await read("mini-sim/first-planet/loader.js");
+  const meshUrls = await read("mini-sim/first-planet/src/game/mesh-url.ts");
+  const vite = await read("mini-sim/first-planet/vite.config.ts");
+  assert.match(towerPhp, /BCM_MINI_SIM_URL \. 'first-planet\/loader\.js'/);
+  assert.match(towerPhp, /BCM_MINI_SIM_URL \. 'first-planet\/wp-dist\/first-planet\.js/);
+  assert.match(towerPhp, /'meshBase' => BCM_MINI_SIM_URL \. 'first-planet\/mesh\//);
+  assert.match(towerPhp, /'meshLibraryBase' => BCM_MINI_SIM_URL \. 'first-planet\/mesh\/library\//);
+  assert.match(moduleLoader, /function loadBundle\(\)/);
+  assert.match(meshUrls, /function libraryUrl\(path: string\)/);
+  assert.match(vite, /emitMeshes\(meshRoot\)/);
+  await assert.rejects(read("mini-sim/tower/first-planet/loader.js"));
 });

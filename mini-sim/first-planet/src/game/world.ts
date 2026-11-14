@@ -5,7 +5,7 @@ import { RACE_SHIPS, raceLength, shipUrl } from "./ships";
 import { createSeededRandom, seededShuffle } from "./seed";
 import { ROAD_Y, type Track } from "./track";
 import { aimNose, bake } from "./island/bake";
-import { propUrl } from "./mesh-url";
+import { libraryUrl } from "./mesh-url";
 
 export type Phase = "gate" | "race" | "pause" | "finish";
 
@@ -397,7 +397,7 @@ export function createWorld(canvas: HTMLCanvasElement): World {
     rails[1].count = redIndex;
     scene.add(rails[0], rails[1]);
 
-    const barrierUrl = propUrl("coastal_pack02/coastal_pack02/barrier_redwhite.glb");
+    const barrierUrl = libraryUrl("coastal_pack02/coastal_pack02/barrier_redwhite.glb");
     if (barrierUrl) {
       const barrierLoader = new GLTFLoader();
       void barrierLoader.loadAsync(barrierUrl).then((gltf) => {

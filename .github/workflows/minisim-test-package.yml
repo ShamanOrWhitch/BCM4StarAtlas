@@ -42,32 +42,32 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -s mini-sim/tower/first-planet/wp-dist/first-planet.js
-          test -s mini-sim/tower/first-planet/wp-dist/first-planet.css
-          grep -q "mount" mini-sim/tower/first-planet/wp-dist/first-planet.js
+          test -s mini-sim/first-planet/wp-dist/first-planet.js
+          test -s mini-sim/first-planet/wp-dist/first-planet.css
+          grep -q "mount" mini-sim/first-planet/wp-dist/first-planet.js
 
       - name: Install First Planet build dependencies
         run: npm ci
-        working-directory: mini-sim/tower/first-planet
+        working-directory: mini-sim/first-planet
 
       - name: Build First Planet WordPress bundle
         run: npm run build:wordpress
-        working-directory: mini-sim/tower/first-planet
+        working-directory: mini-sim/first-planet
 
       - name: Verify First Planet WordPress bundle
         shell: bash
         run: |
           set -euo pipefail
-          test -s mini-sim/tower/first-planet/wp-dist/first-planet.js
-          test -s mini-sim/tower/first-planet/wp-dist/first-planet.css
+          test -s mini-sim/first-planet/wp-dist/first-planet.js
+          test -s mini-sim/first-planet/wp-dist/first-planet.css
 
       - name: Verify single-level package contents
         shell: bash
         run: |
           set -euo pipefail
           test -s mini-sim/bcm-mini-sim.php
-          test -s mini-sim/tower/first-planet/wp-dist/first-planet.js
-          test -s mini-sim/tower/first-planet/wp-dist/first-planet.css
+          test -s mini-sim/first-planet/wp-dist/first-planet.js
+          test -s mini-sim/first-planet/wp-dist/first-planet.css
           if find mini-sim -type f -iname '*.zip' -print -quit | grep -q .; then
             echo "Nested ZIP archives are forbidden inside the Mini-Sim package." >&2
             exit 1

@@ -3,7 +3,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { bake, settleNose, fitHeight, fitLength } from "./bake";
 import { bindCrewRig, type CrewRig } from "./rig";
 import { ASTEROID_SHOW, characterHeight, characterPath, PILOT_SHIPS, pilotShip, shipUrl } from "@/game/ships";
-import { meshUrl, propUrl } from "../mesh-url";
+import { libraryUrl, meshUrl, propUrl } from "../mesh-url";
 import { activeKeys } from "../input";
 import { createSim, type Sim } from "./sim";
 import {
@@ -697,7 +697,7 @@ export function createIsland(
   }
 
   void (async () => {
-    const lighthouse = propUrl("coastal_environment/coastal_environment/lighthouse.glb");
+    const lighthouse = libraryUrl("coastal_environment/coastal_environment/lighthouse.glb");
     if (lighthouse) {
       try {
         const model = await loadMesh(lighthouse, 8.6, "y");
@@ -719,7 +719,7 @@ export function createIsland(
     for (const [file, height, spots] of scatter) {
       const name = file.slice(file.lastIndexOf("/") + 1);
       const previewHas = name === "cactus_branching.glb" || name === "shrub_dry.glb";
-      const url = propUrl(file) || (previewHas ? meshUrl(name) : "");
+      const url = libraryUrl(file) || (previewHas ? meshUrl(name) : "");
       if (!url || !alive) continue;
       try {
         const mesh = await loadMesh(url, height, "y");
@@ -755,7 +755,7 @@ export function createIsland(
     for (const [propPath, previewFile, height, x, z, yaw] of landmarks) {
       if (!alive || !fits(x, z, 3.2)) continue;
       try {
-        const mesh = await loadMesh(propUrl(propPath) || meshUrl(previewFile), height, "y");
+        const mesh = await loadMesh(libraryUrl(propPath) || meshUrl(previewFile), height, "y");
         if (!alive) return;
         let y = surfaceY(x, z);
         mesh.position.set(x, y, z);

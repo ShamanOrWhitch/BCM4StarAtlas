@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_TOWER_VERSION', '0.2.79');
+define('BCM_TOWER_VERSION', '0.2.80');
 define('BCM_TOWER_PATH', __DIR__ . '/');
 define('BCM_TOWER_URL', trailingslashit(plugin_dir_url(__FILE__)));
 
@@ -130,8 +130,8 @@ function bcm_tower_get_client_config($assets = null) {
         'transitionFallbacks' => array(),
         'towerAudio' => bcm_tower_pick_asset($assets, array('tower.mp3'), 'audio'),
         'planetTransition' => bcm_tower_pick_asset($assets, array('onicss.mp4'), 'video'),
-        'firstPlanetAudio' => bcm_tower_pick_asset($assets, array('FP.mp3'), 'audio') ?: 'https://raw.githubusercontent.com/ShamanOrWhitch/BCM4StarAtlas/main/mini-sim/assets/FP.mp3',
-        'desertRaceAudio' => bcm_tower_pick_asset($assets, array('desertrace.mp3'), 'audio') ?: 'https://raw.githubusercontent.com/ShamanOrWhitch/BCM4StarAtlas/main/mini-sim/assets/desertrace.mp3',
+        'firstPlanetAudio' => bcm_tower_pick_asset($assets, array('FP.mp3'), 'audio') ?: BCM_MINI_SIM_URL . 'first-planet/audio/FP.mp3',
+        'desertRaceAudio' => bcm_tower_pick_asset($assets, array('desertrace.mp3'), 'audio') ?: BCM_MINI_SIM_URL . 'first-planet/audio/desertrace.mp3',
         'towerWallJpgPool' => bcm_tower_asset_urls($assets, '/^(towerwall|wall)[^\\/]*\\.(jpg|jpeg)$/i'),
         'towerWallPngPool' => bcm_tower_asset_urls($assets, '/^towerwall[^\\/]*\\.png$/i'),
         'platformPool' => bcm_tower_asset_urls($assets, '/^(platform|paltform)(?!lava|ice)[^\\/]*\\.(png|jpg|jpeg|webp)$/i'),
@@ -199,18 +199,19 @@ function bcm_tower_enqueue_assets() {
     wp_localize_script('bcm-tower', 'BCMTowerConfig', bcm_tower_get_client_config($assets));
     wp_enqueue_script(
         'bcm-first-planet-loader',
-        BCM_TOWER_URL . 'first-planet/loader.js',
+        BCM_MINI_SIM_URL . 'first-planet/loader.js',
         array('bcm-tower'),
         BCM_TOWER_VERSION,
         false
     );
     wp_localize_script('bcm-first-planet-loader', 'BCMFirstPlanetConfig', array(
-        'bundleUrl' => BCM_TOWER_URL . 'first-planet/wp-dist/first-planet.js?ver=' . BCM_TOWER_VERSION,
-        'styleUrl' => BCM_TOWER_URL . 'first-planet/wp-dist/first-planet.css?ver=' . BCM_TOWER_VERSION,
-        'meshBase' => BCM_MINI_SIM_URL . 'assets/first-planet/mesh/',
+        'bundleUrl' => BCM_MINI_SIM_URL . 'first-planet/wp-dist/first-planet.js?ver=' . BCM_TOWER_VERSION,
+        'styleUrl' => BCM_MINI_SIM_URL . 'first-planet/wp-dist/first-planet.css?ver=' . BCM_TOWER_VERSION,
+        'meshBase' => BCM_MINI_SIM_URL . 'first-planet/mesh/',
+        'meshLibraryBase' => BCM_MINI_SIM_URL . 'first-planet/mesh/library/',
         'propBase' => BCM_MINI_SIM_URL . 'assets/mesh/',
-        'audioUrl' => bcm_tower_pick_asset($assets, array('FP.mp3'), 'audio') ?: 'https://raw.githubusercontent.com/ShamanOrWhitch/BCM4StarAtlas/main/mini-sim/assets/FP.mp3',
-        'raceAudioUrl' => bcm_tower_pick_asset($assets, array('desertrace.mp3'), 'audio') ?: 'https://raw.githubusercontent.com/ShamanOrWhitch/BCM4StarAtlas/main/mini-sim/assets/desertrace.mp3',
+        'audioUrl' => bcm_tower_pick_asset($assets, array('FP.mp3'), 'audio') ?: BCM_MINI_SIM_URL . 'first-planet/audio/FP.mp3',
+        'raceAudioUrl' => bcm_tower_pick_asset($assets, array('desertrace.mp3'), 'audio') ?: BCM_MINI_SIM_URL . 'first-planet/audio/desertrace.mp3',
     ));
 }
 

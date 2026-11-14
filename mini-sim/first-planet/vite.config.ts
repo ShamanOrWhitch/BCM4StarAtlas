@@ -145,19 +145,18 @@ function authPopupPlugin(): Plugin {
 
 
 /**
- * First Planet models are stored once under mini-sim/assets.
- * The Grok preview reads that directory in dev/build; WordPress reads it from
- * its existing asset scanner via BCMFirstPlanetConfig.meshBase.
+ * All First Planet-owned GLBs live in this module's mesh/ directory.
+ * The same recursive asset paths are served by the preview and emitted by the WP build.
  */
 function firstPlanetMeshPlugin(): Plugin {
-  const meshRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "../../assets/first-planet/mesh");
+  const meshRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "mesh");
 
   return {
-    name: "bcm-first-planet-shared-mesh",
+    name: "bcm-first-planet-owned-mesh",
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const rawPath = (req.url ?? "").split("?", 1)[0] ?? "";
-        const match = rawPath.match(/(?:^|\/)mesh\/([^/]+)$/);
+        const match = rawPath.match(/(?:^|\/)mesh\/(.+)$/);
         if (!match) {
           next();
           return;
@@ -171,13 +170,17 @@ function firstPlanetMeshPlugin(): Plugin {
           res.end("Bad mesh path");
           return;
         }
-        if (!/^[a-z0-9_-]+\.glb$/i.test(name)) {
+        if (
+          !/^[a-z0-9_.-]+(?:\/[a-z0-9_.-]+)*\.glb$/i.test(name) ||
+          name.split("/").some((part) => part === "." || part === "..") ||
+          name.includes("\\")
+        ) {
           res.statusCode = 404;
           res.end("Not found");
           return;
         }
 
-        const file = join(meshRoot, name);
+        const file = resolve(meshRoot, name);
         try {
           const stat = statSync(file);
           if (!stat.isFile()) {
@@ -196,20 +199,27 @@ function firstPlanetMeshPlugin(): Plugin {
       });
     },
     generateBundle() {
-      for (const name of readdirSync(meshRoot)) {
-        if (!/^[a-z0-9_-]+\.glb$/i.test(name)) continue;
-        const file = join(meshRoot, name);
-        try {
-          if (!statSync(file).isFile()) continue;
-          this.emitFile({
-            type: "asset",
-            fileName: `mesh/${name}`,
-            source: readFileSync(file),
-          });
-        } catch {
-          // One optional missing model must not abort the world build.
+      const emitMeshes = (directory: string, relativeDirectory = "") => {
+        for (const entry of readdirSync(directory, { withFileTypes: true })) {
+          const relativePath = relativeDirectory ? `${relativeDirectory}/${entry.name}` : entry.name;
+          const file = join(directory, entry.name);
+          if (entry.isDirectory()) {
+            emitMeshes(file, relativePath);
+            continue;
+          }
+          if (!entry.isFile() || !/\.glb$/i.test(entry.name)) continue;
+          try {
+            this.emitFile({
+              type: "asset",
+              fileName: `mesh/${relativePath}`,
+              source: readFileSync(file),
+            });
+          } catch {
+            // One optional model must not abort the complete world build.
+          }
         }
-      }
+      };
+      emitMeshes(meshRoot);
     },
   };
 }
