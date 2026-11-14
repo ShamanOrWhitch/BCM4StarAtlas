@@ -136,12 +136,13 @@ const server = createServer(async (req, res) => {
         version: towerVersion
       };
       const firstPlanetConfig = {
-        bundleUrl: assetUrl("tower/first-planet/wp-dist/first-planet.js") + "?ver=" + encodeURIComponent(towerVersion),
-        styleUrl: assetUrl("tower/first-planet/wp-dist/first-planet.css") + "?ver=" + encodeURIComponent(towerVersion),
-        meshBase: base + "/assets/first-planet/mesh/",
+        bundleUrl: assetUrl("first-planet/wp-dist/first-planet.js") + "?ver=" + encodeURIComponent(towerVersion),
+        styleUrl: assetUrl("first-planet/wp-dist/first-planet.css") + "?ver=" + encodeURIComponent(towerVersion),
+        meshBase: base + "/first-planet/mesh/",
+        meshLibraryBase: base + "/first-planet/mesh/library/",
         propBase: base + "/assets/mesh/",
-        audioUrl: transitionsOnly ? "" : pick(["FP.mp3"], "audio", allAssets),
-        raceAudioUrl: transitionsOnly ? "" : pick(["desertrace.mp3"], "audio", allAssets)
+        audioUrl: transitionsOnly ? "" : assetUrl("first-planet/audio/FP.mp3"),
+        raceAudioUrl: transitionsOnly ? "" : assetUrl("first-planet/audio/desertrace.mp3")
       };
       let html = await readFile(resolve(root, "tools/minisim-qa/standalone-shell.html"), "utf8");
       html = html.replace("__BCM_MINI_SIM_CONFIG__", encodeConfig(miniConfig))
