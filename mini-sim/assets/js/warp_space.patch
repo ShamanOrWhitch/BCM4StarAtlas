@@ -1,0 +1,2533 @@
+diff --git a/mini-sim/assets/js/deep-space-warp.js b/mini-sim/assets/js/deep-space-warp.js
+index 9c58532..9ebb30c 100644
+--- a/mini-sim/assets/js/deep-space-warp.js
++++ b/mini-sim/assets/js/deep-space-warp.js
+@@ -316,12 +316,58 @@
+       elapsed: 0,
+       tubeTravel: 0,
+       tubeShimmerTime: 0,
+       warpDriveSlotSize: currentWarpDriveSlotSize(),
+       warpVisualClass: warpVisualClassForSlotSize(currentWarpDriveSlotSize()),
+       warpPreviewClass: null,
++      // Seed, из которого строится декоративный фон (не влияет на курс).
++      tubeBackdropSeed: 0,
++      // Перелив палитры: по умолчанию выключен, вид 0.14.0 сохраняется.
++      warpPaletteFlow: false,
++      warpPaletteMix: 0,
++      warpPaletteTarget: 0,
++      warpPalettePeriod: 11,
++      // Качество рисуемой стенки: null = авто по замеру кадра.
++      warpQualityTier: null,
++      warpFrameMs: 0,
++      warpSlowStreak: 0,
++      // Сглаженный множитель направления: 1 = вперёд, -1 = назад.
++      warpDirMix: 1,
++      // Цикл фоновых сцен: выровнен по тактам, ~18 с (2 с переход + 16 с пауза).
++      // 142 BPM — точный темп от владельца; такт 1.6901 с, цикл 11 тактов.
++      warpBgBpm: 142,
++      // Ритм сцены: случайный по умолчанию — пауза ~2 с, переход ~0.9 с,
++      // каждый переход свой (вид, сила, следующая сцена). Тактовая сетка
++      // осталась вторым режимом: BCMDeepSpaceWarpSetRandomCycle(false).
++      warpBgRandom: true,
++      warpBgHold: 2,
++      warpBgSeed: 0x5F3A21C7,
++      warpBgPower: 1.6,
++      warpBgCycle: true,
++      warpBgIndex: 0,
++      warpBgCells: null,
++      // Обои seed: 'sketch' — векторные скетчи из assets/scetchs, 'procedural' —
++      // генерация. При отсутствии файла скетч сам падает в процедурный фон.
++      // Радужный перелив вместо перехода между двумя наборами цветов.
++      warpRainbow: true,
++      // Чем сменяется кадр фона: 'dissolve' — рассыпание (по умолчанию),
++      // либо другой вид двери: iris / doors / blinds / spiral / sweep.
++      warpTransition: "dissolve",
++      warpTransitionAuto: false,
++      warpTransitionStep: 0,
++      warpTransitionFrom: -1,
++      // Корабль: вид сзади. Спрайт (если игра его запечёт) важнее силуэта.
++      warpShipSprite: null,
++      warpShipSpec: "pearce-f4",
++      // Ручной крен корабля (Q/E в третьем лице): радианы сверх кольцевого.
++      warpShipRoll: 0,
++      warpShipScale: 1,
++      // Пиксель перехода: "auto" — по профилю устройства (ПК мельче, телефон крупнее).
++      warpCellSize: "auto",
++      warpArtMode: "sketch",
++      warpSketch: null,
+       startedAt: 0,
+       shields: 100,
+       playerX: 0,
+       playerY: 0,
+       pointerDown: false,
+       pointerX: 0,
+@@ -461,12 +507,158 @@
+       if (typeof updateWarpTierPreviewButtons === "function") updateWarpTierPreviewButtons();
+       return state.warpVisualClass;
+     };
+     window.BCMDeepSpaceWarpGetVisualClass = () => state.warpVisualClass;
+     window.BCMDeepSpaceWarpGetSpeedMode = () => api()?.getSpeedMode?.() ?? null;
+     window.BCMDeepSpaceWarpGetPreviewClass = () => Number(state.warpPreviewClass) || null;
++    // Перелив палитры A <-> B: вкл/выкл и период в секундах.
++    window.BCMDeepSpaceWarpSetPaletteFlow = (on, period) => {
++      state.warpPaletteFlow = !!on;
++      if (period) state.warpPalettePeriod = Math.max(2, Number(period) || 11);
++    };
++    window.BCMDeepSpaceWarpSetPaletteTarget = (value) => {
++      state.warpPaletteTarget = Math.max(0, Math.min(1, Number(value) || 0));
++      if (!state.warpPaletteFlow) state.warpPaletteMix = state.warpPaletteTarget;
++    };
++    window.BCMDeepSpaceWarpGetPaletteMix = () => Number(warpSpaceGlobalMix());
++    // Радужный перелив: полный цветовой круг вместо одного перехода A <-> B.
++    window.BCMDeepSpaceWarpSetRainbow = (on) => { state.warpRainbow = !!on; };
++    // Способ смены кадра: id вида, либо 'auto' — по кругу, как двери в первой комнате.
++    window.BCMDeepSpaceWarpSetTransition = (kind) => {
++      const want = String(kind || "dissolve");
++      if (want === "auto") {
++        state.warpTransitionAuto = true;
++      } else if (warpSpace.warpSpaceTransitionIds().indexOf(want) >= 0) {
++        state.warpTransitionAuto = false;
++        state.warpTransition = want;
++      }
++      state.warpBgCells = null;
++      return warpSpaceTransitionNow();
++    };
++    window.BCMDeepSpaceWarpGetTransition = () => warpSpaceTransitionNow();
++    window.BCMDeepSpaceWarpGetTransitions = () => warpSpace.warpSpaceTransitionIds();
++    // Корабль сзади: настоящий запечённый спрайт важнее процедурного силуэта.
++    window.BCMDeepSpaceWarpSetShipSprite = (source) => {
++      if (!source) { state.warpShipSprite = null; return false; }
++      if (typeof source === "string") {
++        if (typeof Image !== "function") return false;
++        const img = new Image();
++        img.onload = () => { state.warpShipSprite = img; };
++        img.onerror = () => { state.warpShipSprite = null; };
++        img.src = source;
++        return true;
++      }
++      state.warpShipSprite = source;
++      return true;
++    };
++    window.BCMDeepSpaceWarpSetShip = (spec, scale) => {
++      if (spec != null) state.warpShipSpec = warpSpace.warpSpaceShipSpec(spec).id;
++      if (scale) state.warpShipScale = Math.max(0.5, Math.min(2.2, Number(scale) || 1));
++      return warpShipInfo();
++    };
++    window.BCMDeepSpaceWarpShipStats = () => warpShipInfo();
++    // Ручной крен, как Q/E в третьем лице. Абсолютный поворот = положение
++    // на кольце минус 90° плюс этот крен, поэтому на верхней точке кольца
++    // корабль честно оказывается вверх тормашками.
++    window.BCMDeepSpaceWarpSetShipRoll = (radians) => {
++      const r = Number(radians);
++      state.warpShipRoll = isFinite(r) ? r : 0;
++      return state.warpShipRoll;
++    };
++    window.BCMDeepSpaceWarpAddShipRoll = (delta) => {
++      const d = Number(delta);
++      if (isFinite(d)) state.warpShipRoll = Number(state.warpShipRoll || 0) + d;
++      return state.warpShipRoll;
++    };
++    window.BCMDeepSpaceWarpGetRainbow = () => !!state.warpRainbow;
++    window.BCMDeepSpaceWarpRainbowAt = (phase, mix) => {
++      // clampUnit живёт внутри замыкания ядра, снаружи его нет — считаем здесь.
++      const m = mix == null ? warpSpaceGlobalMix() : Number(mix);
++      const k = !isFinite(m) ? 0 : m < 0 ? 0 : m > 1 ? 1 : m;
++      return warpSpace.warpSpacePaletteAt(
++        activeWarpVisualClass(), k, state.warpRainbow ? Number(phase || 0) : null);
++    };
++    // Качество: 'auto' по замеру кадра, либо принудительно high/low.
++    window.BCMDeepSpaceWarpSetQuality = (tier) => {
++      state.warpQualityTier = tier === 'low' ? 'low' : tier === 'high' ? 'high' : null;
++    };
++    window.BCMDeepSpaceWarpGetQuality = () => warpSpaceTierNow();
++    // Цикл фоновых сцен и диагностика памяти.
++    window.BCMDeepSpaceWarpSetBgCycle = (on) => { state.warpBgCycle = !!on; state.warpBgCells = null; };
++    // Ритм сцены: true — случайный (~2 с пауза), false — тактовая сетка.
++    window.BCMDeepSpaceWarpSetRandomCycle = (on) => {
++      state.warpBgRandom = !!on;
++      state.warpBgCells = null;
++      state.warpBgIndex = 0;
++      return state.warpBgRandom;
++    };
++    window.BCMDeepSpaceWarpGetRandomCycle = () => !!state.warpBgRandom;
++    // Длина паузы в случайном ритме (по умолчанию 2 с) и seed порядка.
++    window.BCMDeepSpaceWarpSetBgHold = (sec) => {
++      state.warpBgHold = Math.max(0.6, Math.min(8, Number(sec) || 2));
++      state.warpBgCells = null;
++      return state.warpBgHold;
++    };
++    window.BCMDeepSpaceWarpSetBgSeed = (seed) => {
++      state.warpBgSeed = Number(seed) >>> 0;
++      state.warpBgCells = null;
++      state.warpBgIndex = 0;
++      return state.warpBgSeed;
++    };
++    window.BCMDeepSpaceWarpSetBgBpm = (bpm, power) => {
++      state.warpBgBpm = Math.max(40, Math.min(220, Number(bpm) || 142));
++      if (power) state.warpBgPower = Math.max(1, Math.min(3, Number(power) || 1.6));
++      state.warpBgCells = null;
++    };
++    window.BCMDeepSpaceWarpBgStats = () => ({
++      cached: warpBgStore.size,
++      pool: WARP_BG_POOL,
++      created: warpBgCreated,
++      index: Number(state.warpBgIndex || 0),
++      cycle: !!state.warpBgCycle,
++      random: !!state.warpBgRandom,
++      hold: Number(state.warpBgHold || 2),
++      kind: String(state.warpBgKind || "dissolve")
++    });
++    // Обои seed: скетчи из assets/scetchs, иначе генерация.
++    window.BCMDeepSpaceWarpSetArtMode = (mode) => {
++      state.warpArtMode = String(mode) === "procedural" ? "procedural" : "sketch";
++      warpBgReset();
++    };
++    window.BCMDeepSpaceWarpSetSketch = (name) => {
++      state.warpSketch = name ? String(name) : null;
++      warpBgReset();
++    };
++    window.BCMDeepSpaceWarpGetSketches = () => warpSpace.WARP_SPACE_SKETCHES.slice();
++    // Пиксель перехода: ступень ('coarse'...'micro') либо 'auto' по устройству.
++    window.BCMDeepSpaceWarpSetCellSize = (size) => {
++      const key = String(size || "auto");
++      state.warpCellSize = warpSpace.WARP_SPACE_CELL_PRESETS[key] ? key : "auto";
++      state.warpBgCells = null;
++      return state.warpCellSize;
++    };
++    // Профиль устройства и фактическая сетка перехода — для QA на живом сайте.
++    window.BCMDeepSpaceWarpDevice = (w, h) => ({
++      id: warpDevice.id,
++      label: warpDevice.label,
++      dprCap: warpDevice.dprCap,
++      cellBudget: warpCellBudget(),
++      grid: (() => {
++        const g = warpCellGrid(
++          Number(w || (typeof window !== "undefined" ? window.innerWidth : 800)) || 800,
++          Number(h || (typeof window !== "undefined" ? window.innerHeight : 500)) || 500);
++        return g.cols + "x" + g.rows;
++      })()
++    });
++    window.BCMDeepSpaceWarpArtStats = () => ({
++      mode: state.warpArtMode,
++      sketch: state.warpSketch,
++      loaded: Array.from(warpSketchImages.keys()).filter((k) => warpSketchImages.get(k)),
++      failed: Array.from(warpSketchImages.keys()).filter((k) => !warpSketchImages.get(k)),
++      scenes: warpSketchScenes.size
++    });
+ 
+     const hullEnterButton = document.createElement("button");
+     hullEnterButton.className = "bcm-warp-hull-enter";
+     hullEnterButton.type = "button";
+     hullEnterButton.textContent = "ВНУТРЬ КОРАБЛЯ · U / R3";
+     hullEnterButton.setAttribute("aria-label", "Войти внутрь корабля");
+@@ -1739,12 +1931,13 @@
+       const warpRunSeed = hashSeed(warpBaseSeed + "|" + warpRun + "|" +
+         state.nav.current.id + ">" + state.target.id + ":" + state.target.x + ":" + state.target.y);
+       if (localSession) {
+         localSession.activeSeeds = localSession.activeSeeds || {};
+         localSession.activeSeeds.warp = warpRunSeed;
+       }
++      state.tubeBackdropSeed = warpRunSeed;
+       const rng = randomFrom(warpRunSeed);
+       state.layers = [];
+       const courseLayerCount = 24;
+       let previousSafeAngle = null;
+       for (let i = 0; i < courseLayerCount; i += 1) {
+         const typeRoll = rng();
+@@ -1793,12 +1986,14 @@
+       resizeBackdrop();
+       startBackdropLoop();
+     }
+ 
+     function finishTube(success) {
+       if (state.mode !== "tube") return;
++      // Прибытие — настоящее событие, а не таймер: гасим цикл фонов здесь.
++      stopWarpBackgroundCycle();
+       // Keep the same Warp OST running through retries, arrival and the asteroid maze.
+       state.mode = "result";
+       touchControls.hidden = true;
+       tubeResult.hidden = false;
+       overlay.classList.remove("is-tubing");
+       tubeTitle.textContent = success ? "WARP STABLE" : "WARP DISTURBED";
+@@ -5500,17 +5695,2066 @@
+     }
+ 
+     function angleDifference(a, b) {
+       return Math.atan2(Math.sin(a - b), Math.cos(a - b));
+     }
+ 
++
++    // ---------------------------------------------------------------------
++    // WARP SPACE — декоративный слой Canvas 2D (фон космоса, кольца, ленты,
++    // пульс). Ничего не читает и не меняет в курсе, столкновениях, скорости,
++    // щитах, тайминге, управлении и звуке. Удаление блока = только пиксели.
++    // ---------------------------------------------------------------------
++    const warpSpace = (() => {
++  /* ---------------------------------------------------------------- profiles
++   * Five looks, five sets of numbers, one drawing path. `rings: 0` reproduces
++   * the accepted 0.14.0 look exactly, so Class I is never forced to change.
++   */
++  /* Порядок = порядок в меню. «Ленты» стоят первыми и включены по умолчанию:
++   * это выбор владельца, поэтому первый пункт списка и стартовый вид — одно и то же. */
++  var WARP_SPACE_PROFILES = [
++    { id: "ribbon",  label: "Ленты",   spokes: 12, rings: 5,  ringAlpha: 0.20, ringStep: 2, ribbon: true,  pulse: false, nebula: 0.70, planets: 2 },
++    { id: "grid",    label: "Сетка",   spokes: 12, rings: 0,  ringAlpha: 0.00, ringStep: 0, ribbon: false, pulse: false, nebula: 0.55, planets: 1 },
++    { id: "lattice", label: "Решётка", spokes: 12, rings: 7,  ringAlpha: 0.30, ringStep: 1, ribbon: false, pulse: false, nebula: 0.55, planets: 2 },
++    { id: "dense",   label: "Плотная", spokes: 24, rings: 21, ringAlpha: 0.13, ringStep: 1, ribbon: false, pulse: false, nebula: 0.45, planets: 1 },
++    { id: "pulse",   label: "Пульс",   spokes: 12, rings: 9,  ringAlpha: 0.26, ringStep: 1, ribbon: false, pulse: true,  nebula: 0.55, planets: 1, seedShift: 1, reverseMotion: true }
++  ];
++
++  var WARP_SPACE_PROFILE_INDEX = (function () {
++    var map = {};
++    for (var i = 0; i < WARP_SPACE_PROFILES.length; i += 1) map[WARP_SPACE_PROFILES[i].id] = i;
++    return map;
++  })();
++
++  /* Which look a live Warp run gets.
++   * Only visual classes I..III are live: `activeWarpVisualClass()` clamps to
++   * [1,2,3] and the Class IV button ships disabled. So the variation axis is
++   * "which of the five looks inside this class", seeded by the run seed that
++   * the course already derives — not a new menu and not a fourth axis.
++   */
++  function warpSpaceProfileFor(visualClass, seed) {
++    var cls = Math.max(1, Math.min(3, Number(visualClass) || 1));
++    // Пулы заданы идентификаторами, а не номерами: перестановка пунктов меню
++    // («Ленты» первыми) не должна менять то, какой вид выпадает заезду.
++    var idx = WARP_SPACE_PROFILE_INDEX;
++    var pool = cls === 1 ? ["grid", "lattice"]
++      : cls === 2 ? ["lattice", "dense", "ribbon"]
++        : ["dense", "ribbon", "pulse"];
++    var roll = (Number(seed) >>> 0) % pool.length;
++    return WARP_SPACE_PROFILES[idx[pool[roll]]];
++  }
++
++  /* ------------------------------------------------------------------ seeds */
++  function makeRandom(seed, hashSeed) {
++    if (typeof hashSeed === "function") return null; // caller's RNG wins
++    var value = (Number(seed) >>> 0) || 1;
++    return function () {
++      value += 0x6D2B79F5;
++      var t = value;
++      t = Math.imul(t ^ (t >>> 15), t | 1);
++      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
++      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
++    };
++  }
++
++  /* -------------------------------------------------------------- cache size
++   * The backdrop is painted once into an offscreen canvas and then blitted.
++   * Repainting gradients and 140 stars every frame is what kills a weak
++   * Android, not the blit. Scale is capped so the cache stays ~0.5 MB at 800px.
++   */
++  function warpSpaceQuality(w, h) {
++    var px = Math.max(1, w) * Math.max(1, h);
++    if (px > 1100000) return 0.34;
++    if (px > 620000) return 0.45;
++    return 0.55;
++  }
++
++  /* --------------------------------------------------------- backdrop painter
++   * Deterministic: same seed + same size => identical pixels. Draws, in order:
++   * deep gradient, galaxy band, nebula blobs, far/mid/near star layers,
++   * one or two planets with a terminator and an optional thin ring.
++   */
++  function paintSpaceBackdrop(g, w, h, seed, profile, hashSeed) {
++    var rnd = makeRandom(seed, null);
++    var neb = profile && profile.nebula != null ? profile.nebula : 0.55;
++    var planets = profile && profile.planets != null ? profile.planets : 1;
++
++    var deep = g.createLinearGradient(0, 0, w * 0.35, h);
++    deep.addColorStop(0, "#01030a");
++    deep.addColorStop(0.45, "#050b1c");
++    deep.addColorStop(1, "#01020a");
++    g.fillStyle = deep;
++    g.fillRect(0, 0, w, h);
++
++    /* galaxy band: a soft diagonal wash with dust dashes */
++    g.save();
++    g.translate(w * 0.5, h * 0.5);
++    g.rotate(-0.42);
++    var band = g.createLinearGradient(0, -h * 0.34, 0, h * 0.34);
++    band.addColorStop(0, "rgba(24,52,120,0)");
++    band.addColorStop(0.34, "rgba(66,104,190," + (0.16 * neb) + ")");
++    band.addColorStop(0.5, "rgba(150,196,255," + (0.22 * neb) + ")");
++    band.addColorStop(0.66, "rgba(78,92,190," + (0.16 * neb) + ")");
++    band.addColorStop(1, "rgba(24,52,120,0)");
++    g.fillStyle = band;
++    g.fillRect(-w, -h * 0.34, w * 2, h * 0.68);
++    for (var dash = 0; dash < 90; dash += 1) {
++      var dx = (rnd() - 0.5) * w * 1.9;
++      var dy = (rnd() - 0.5) * h * 0.40;
++      var dl = 6 + rnd() * 46;
++      g.fillStyle = "rgba(198,222,255," + (0.05 + rnd() * 0.16) + ")";
++      g.fillRect(dx, dy, dl, 1);
++    }
++    g.restore();
++
++    /* nebula blobs */
++    var tint = [[64, 140, 255], [150, 84, 220], [64, 208, 220], [230, 140, 190]];
++    for (var n = 0; n < 4; n += 1) {
++      var bx = (0.12 + rnd() * 0.76) * w;
++      var by = (0.12 + rnd() * 0.76) * h;
++      var br = (0.16 + rnd() * 0.30) * Math.min(w, h);
++      var c = tint[n % tint.length];
++      var blob = g.createRadialGradient(bx, by, 0, bx, by, br);
++      blob.addColorStop(0, "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + (0.20 * neb) + ")");
++      blob.addColorStop(0.55, "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + (0.07 * neb) + ")");
++      blob.addColorStop(1, "rgba(" + c[0] + "," + c[1] + "," + c[2] + ",0)");
++      g.fillStyle = blob;
++      g.beginPath();
++      g.arc(bx, by, br, 0, Math.PI * 2);
++      g.fill();
++    }
++
++    /* stars: three depth layers, one flat rect per star (no arcs: cheaper) */
++    var layers = [
++      { count: 150, size: 1, alpha: 0.36 },
++      { count: 70, size: 1.6, alpha: 0.62 },
++      { count: 22, size: 2.4, alpha: 0.92 }
++    ];
++    layers.forEach(function (layer) {
++      for (var i = 0; i < layer.count; i += 1) {
++        var sx = rnd() * w;
++        var sy = rnd() * h;
++        g.fillStyle = "rgba(226,240,255," + (layer.alpha * (0.55 + rnd() * 0.45)).toFixed(3) + ")";
++        g.fillRect(sx, sy, layer.size, layer.size);
++      }
++    });
++
++    /* planets */
++    var palette = [
++      ["#5b8ec9", "#11213c"],
++      ["#c98a5b", "#2a1508"],
++      ["#7bc9a6", "#0d2a24"]
++    ];
++    for (var p = 0; p < planets; p += 1) {
++      var px2 = (0.10 + rnd() * 0.80) * w;
++      var py2 = (0.10 + rnd() * 0.80) * h;
++      var pr = (0.045 + rnd() * 0.075) * Math.min(w, h);
++      var pal = palette[Math.floor(rnd() * palette.length)];
++      var pl = g.createRadialGradient(px2 - pr * 0.32, py2 - pr * 0.34, pr * 0.1, px2, py2, pr);
++      pl.addColorStop(0, pal[0]);
++      pl.addColorStop(0.72, pal[1]);
++      pl.addColorStop(1, "#02040b");
++      g.fillStyle = pl;
++      g.beginPath();
++      g.arc(px2, py2, pr, 0, Math.PI * 2);
++      g.fill();
++      if (rnd() > 0.55) {
++        g.strokeStyle = "rgba(190,224,255,0.22)";
++        g.lineWidth = Math.max(1, pr * 0.10);
++        g.beginPath();
++        g.ellipse(px2, py2, pr * 1.7, pr * 0.42, -0.35, 0, Math.PI * 2);
++        g.stroke();
++      }
++    }
++    return g;
++  }
++
++  /* Build (or reuse) the offscreen cache. Returns { canvas, w, h, scale }. */
++  function createSpaceBackdropCache(w, h, seed, profile, makeCanvas, hashSeed) {
++    var scale = warpSpaceQuality(w, h);
++    var cw = Math.max(2, Math.round(w * scale));
++    var ch = Math.max(2, Math.round(h * scale));
++    var canvas = makeCanvas(cw, ch);
++    var g = canvas.getContext("2d");
++    paintSpaceBackdrop(g, cw, ch, seed, profile, hashSeed);
++    return { canvas: canvas, w: cw, h: ch, scale: scale, seed: seed, id: profile && profile.id };
++  }
++
++  /* One blit + a slow sine drift. Sine, not modulo: a wrapped nebula would
++   * jump at the seam, a bounded sine never does. */
++  function drawSpaceBackdrop(g, cache, w, h, t) {
++    if (!cache || !cache.canvas) return;
++    var drift = Math.sin(t * 0.045) * w * 0.008;
++    var rise = Math.cos(t * 0.031) * h * 0.006;
++    g.drawImage(cache.canvas, drift - w * 0.004, rise - h * 0.003, w * 1.008, h * 1.008);
++  }
++
++  /* --------------------------------------------------------------- palettes
++   * Two colour sets per visual class: A is the approved 0.14.0 look, B is the
++   * "перевёрнутая" variant. Between them is a continuous parameter `mix`.
++   *
++   * Hard requirement: at mix = 0 the produced strings are byte-identical to
++   * what 0.14.0 draws, INCLUDING the moving light pattern. The wall animation
++   * lives in `shimmer` and `light`, so both sets carry the same modulation
++   * terms and the modulation is added AFTER blending — that keeps the panels
++   * moving exactly as approved at every point of the transition.
++   */
++  var WARP_SPACE_PALETTES = {
++    /* Classes I and II share the same wall formula in 0.14.0. */
++    1: {
++      a: {
++        fillBase: [8, 20, 31], fillShim: [8, 18, 22], fillLight: [2, 12, 18],
++        seamThick: [110, 239, 246], seamThickA: 0.72,
++        seamThin: [110, 191, 210], seamThinA: 0.25,
++        accent: [190, 255, 255], accentA: 1,
++        ring: [122, 232, 255]
++      },
++      b: {
++        fillBase: [86, 196, 214], fillShim: [8, 18, 22], fillLight: [2, 12, 18],
++        seamThick: [235, 252, 255], seamThickA: 0.72,
++        seamThin: [214, 240, 250], seamThinA: 0.25,
++        accent: [255, 255, 255], accentA: 1,
++        ring: [240, 252, 255]
++      }
++    },
++    /* Второй режим носит ФИОЛЕТОВЫЕ настройки третьего — прямое указание
++     * владельца («сделай ему фиолетовые настройки третьего»). Значения взяты
++     * один в один из набора класса III, поэтому «второй» и «третий» отличаются
++     * не цветом, а ходом коридора: класс II разворачивает видимое движение.
++     * Исключение из правила «mix 0 = 0.14.0 бит в бит» — только для класса II;
++     * класс I остаётся эталоном, по нему и сверяется совместимость. */
++    2: {
++      a: {
++        fillBase: [17, 12, 34], fillShim: [12, 8, 28], fillLight: [3, 5, 12],
++        seamThick: [189, 139, 246], seamThickA: 0.86,
++        seamThin: [131, 96, 184], seamThinA: 0.36,
++        accent: [230, 205, 255], accentA: 1,
++        ring: [189, 139, 246]
++      },
++      b: {
++        fillBase: [124, 86, 186], fillShim: [12, 8, 28], fillLight: [3, 5, 12],
++        seamThick: [244, 232, 255], seamThickA: 0.86,
++        seamThin: [222, 206, 250], seamThinA: 0.36,
++        accent: [255, 248, 255], accentA: 1,
++        ring: [244, 232, 255]
++      }
++    },
++    3: {
++      a: {
++        fillBase: [17, 12, 34], fillShim: [12, 8, 28], fillLight: [3, 5, 12],
++        seamThick: [189, 139, 246], seamThickA: 0.86,
++        seamThin: [131, 96, 184], seamThinA: 0.36,
++        accent: [230, 205, 255], accentA: 1,
++        ring: [189, 139, 246]
++      },
++      b: {
++        fillBase: [124, 86, 186], fillShim: [12, 8, 28], fillLight: [3, 5, 12],
++        seamThick: [244, 232, 255], seamThickA: 0.86,
++        seamThin: [222, 206, 250], seamThinA: 0.36,
++        accent: [255, 248, 255], accentA: 1,
++        ring: [244, 232, 255]
++      }
++    }
++  };
++
++  /* B inverts the WALL, not the lines. Inverting both cannot be animated
++   * continuously: a line that starts brighter than the wall and ends darker
++   * must equal the wall colour at some instant and would vanish there. */
++
++  /* Положительный остаток.
++   * Под «Пульсом» стенка идёт назад, поэтому `t` отрицательное, а `% 1` в JS
++   * сохраняет знак: получались отрицательные фазы, отрицательные радиусы и
++   * `ctx.arc()` с ними — в браузере это IndexSizeError и мёртвый кадр.
++   * Именно это и было «пульс сломан». Теперь фаза всегда 0..1. */
++  function wrap01(v) {
++    var n = Number(v);
++    if (!isFinite(n)) return 0;
++    var m = n % 1;
++    return m < 0 ? m + 1 : m;
++  }
++
++  function clampUnit(v) {
++    var n = Number(v);
++    if (!isFinite(n)) return 0;
++    return n < 0 ? 0 : n > 1 ? 1 : n;
++  }
++
++  function lerpChannel(a, b, k) {
++    return a + (b - a) * k;
++  }
++
++  function mixRgb(from, to, k) {
++    return [
++      Math.round(lerpChannel(from[0], to[0], k)),
++      Math.round(lerpChannel(from[1], to[1], k)),
++      Math.round(lerpChannel(from[2], to[2], k))
++    ];
++  }
++
++  /* Rec. 709 luminance, 0..255 */
++  function relativeLuminance(rgb) {
++    return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
++  }
++
++  /* ------------------------------------------------------- радужный перелив
++   * «Зачем ограничиваться одним цветом» — незачем. Технология перелива та же,
++   * что уже работает (непрерывный ping-pong + волна по поверхности), но
++   * отображается она не в отрезок A->B, а в цветовой круг.
++   *
++   * Как это читается на стенке: панель берёт свой оттенок из hue-круга, сдвиг
++   * вдоль поверхности (`spread`) даёт диагональные полосы, а общий mix гонит
++   * всю радугу по кругу за период перелива. Получается то же «переливание»,
++   * что на Rainbow Photoli: цвет течёт по поверхности, а не переключается.
++   *
++   * Порядок цветов — натуральный спектральный (красный -> жёлтый -> зелёный ->
++   * голубой -> синий -> фиолетовый), а не два конца. Числа подобраны так, чтобы
++   * стенка оставалась тёмной (иначе она перестаёт читаться как коридор), а шов
++   * и акцент — светлыми: контраст «линия ярче стенки» обязан сохраняться.
++   */
++  var WARP_SPACE_RAINBOW = {
++    // Классы различаются насыщенностью и стартовой точкой круга, а не одним цветом.
++    1: { hue: 0.50, sat: 0.78, spread: 0.55, wallL: 0.115, seamL: 0.66, accentL: 0.90 },
++    2: { hue: 0.74, sat: 0.74, spread: 0.62, wallL: 0.125, seamL: 0.66, accentL: 0.90 },
++    3: { hue: 0.90, sat: 0.80, spread: 0.48, wallL: 0.130, seamL: 0.68, accentL: 0.92 }
++  };
++
++  function rainbowPhaseIsSet(value) {
++    return value != null && isFinite(Number(value));
++  }
++
++  function normalizeHue(h) {
++    var v = Number(h);
++    if (!isFinite(v)) return 0;
++    v = v % 1;
++    return v < 0 ? v + 1 : v;
++  }
++
++  /* HSL -> RGB. Без зависимостей и без hsla-строк: цвет нужен массивом,
++   * потому что к нему ещё прибавляется модуляция огоньков. */
++  function hslToRgb(h, s, l) {
++    var hue = normalizeHue(h);
++    var sat = clampUnit(s);
++    var light = clampUnit(l);
++    var a = sat * Math.min(light, 1 - light);
++    function channel(n) {
++      var k = (n + hue * 12) % 12;
++      var v = light - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
++      return Math.round(v * 255);
++    }
++    return [channel(0), channel(8), channel(4)];
++  }
++
++  /* Полный набор цветов на заданной фазе. `shade` — сдвиг оттенка внутри
++   * набора, чтобы шов не сливался со стенкой в один тон. */
++  function warpSpaceRainbowPalette(visualClass, mix, rainbowPhase) {
++    var cls = Math.max(1, Math.min(3, Number(visualClass) || 1));
++    var cfg = WARP_SPACE_RAINBOW[cls];
++    var phase = Number(rainbowPhase);
++    if (!isFinite(phase)) phase = 0;
++    var hue = normalizeHue(cfg.hue + clampUnit(mix) + phase * cfg.spread);
++    var sat = cfg.sat;
++    return {
++      fill: hslToRgb(hue, sat * 0.92, cfg.wallL),
++      seamThick: hslToRgb(hue + 0.035, sat, cfg.seamL),
++      seamThin: hslToRgb(hue - 0.035, sat * 0.82, Math.max(0.16, cfg.seamL - 0.34)),
++      accent: hslToRgb(hue + 0.09, Math.min(1, sat + 0.12), cfg.accentL),
++      ring: hslToRgb(hue + 0.02, sat * 0.9, cfg.seamL - 0.08),
++      hue: hue
++    };
++  }
++
++  function paletteSet(visualClass) {
++    var cls = Math.max(1, Math.min(3, Number(visualClass) || 1));
++    return WARP_SPACE_PALETTES[cls];
++  }
++
++  /* Wall panel colour.
++   * `shimmer` and `light` are the 0.14.0 animation inputs (0..1 each), passed
++   * through untouched, so the moving light cells and the continuous shimmer
++   * keep their approved tempo and phase at every mix value.
++   *
++   * Пятый аргумент — фаза радуги. Если она задана, базовый цвет берётся из
++   * цветового круга (см. WARP_SPACE_RAINBOW), а модуляция shimmer/light
++   * остаётся прежней: огоньки на стенке продолжают ходить с тем же темпом. */
++  function warpSpacePanelRgb(visualClass, shimmer, light, mix, rainbowPhase) {
++    var set = paletteSet(visualClass);
++    var k = clampUnit(mix);
++    var sh = isFinite(shimmer) ? shimmer : 0;
++    var li = isFinite(light) ? light : 0;
++    var out = [0, 0, 0];
++    if (rainbowPhaseIsSet(rainbowPhase)) {
++      // Радуга модулируется по СВЕТЛОТЕ того же оттенка, а не прибавкой
++      // фиксированных RGB: иначе огоньки уводили бы красную стенку в бирюзу.
++      // Огоньки от этого не исчезают — они идут как более светлые пятна
++      // своего же оттенка, с прежним темпом shimmer/light.
++      var cfg = WARP_SPACE_RAINBOW[Math.max(1, Math.min(3, Number(visualClass) || 1))];
++      var pal = warpSpaceRainbowPalette(visualClass, k, rainbowPhase);
++      var lit = cfg.wallL + sh * 0.042 + li * 0.055;
++      return hslToRgb(pal.hue, Math.min(1, cfg.sat * (0.90 + sh * 0.10 + li * 0.05)),
++        lit > 0.34 ? 0.34 : lit);
++    }
++    var base = warpSpacePaletteAt(visualClass, k).fill;
++    for (var i = 0; i < 3; i += 1) {
++      var value = base[i] + sh * set.a.fillShim[i] + li * set.a.fillLight[i];
++      var v = Math.round(value);
++      out[i] = v < 0 ? 0 : v > 255 ? 255 : v;
++    }
++    return out;
++  }
++
++  function warpSpacePanelCss(visualClass, shimmer, light, mix, rainbowPhase) {
++    return "rgba(" + rgbCss(warpSpacePanelRgb(visualClass, shimmer, light, mix, rainbowPhase)) + ",0.98)";
++  }
++
++  function warpSpaceSeamRgb(visualClass, kind, mix) {
++    var set = paletteSet(visualClass);
++    var k = clampUnit(mix);
++    var key = kind === "thin" ? "seamThin" : "seamThick";
++    return mixRgb(set.a[key], set.b[key], k);
++  }
++
++  function warpSpaceSeamCss(visualClass, kind, mix, rainbowPhase) {
++    var set = paletteSet(visualClass);
++    var alpha = kind === "thin" ? set.a.seamThinA : set.a.seamThickA;
++    if (rainbowPhaseIsSet(rainbowPhase)) {
++      var pal = warpSpaceRainbowPalette(visualClass, clampUnit(mix), rainbowPhase);
++      return rgbaCss(kind === "thin" ? pal.seamThin : pal.seamThick, alpha);
++    }
++    return rgbaCss(warpSpaceSeamRgb(visualClass, kind, mix), alpha);
++  }
++
++  function warpSpaceAccentCss(visualClass, mix, rainbowPhase) {
++    var set = paletteSet(visualClass);
++    if (rainbowPhaseIsSet(rainbowPhase)) {
++      return rgbaCss(warpSpaceRainbowPalette(visualClass, clampUnit(mix), rainbowPhase).accent, set.a.accentA);
++    }
++    return rgbaCss(mixRgb(set.a.accent, set.b.accent, clampUnit(mix)), set.a.accentA);
++  }
++
++  function warpSpaceRingRgb(visualClass, mix, rainbowPhase) {
++    var set = paletteSet(visualClass);
++    if (rainbowPhaseIsSet(rainbowPhase)) {
++      return warpSpaceRainbowPalette(visualClass, clampUnit(mix), rainbowPhase).ring;
++    }
++    return mixRgb(set.a.ring, set.b.ring, clampUnit(mix));
++  }
++
++  /* Blended base colours without modulation, for rings and for tests.
++   * Если задана фаза радуги — возвращается цвет с цветового круга: радужный
++   * перелив вместо перехода между двумя наборами. */
++  function warpSpacePaletteAt(visualClass, mix, rainbowPhase) {
++    if (rainbowPhaseIsSet(rainbowPhase)) {
++      return warpSpaceRainbowPalette(visualClass, clampUnit(mix), rainbowPhase);
++    }
++    var set = paletteSet(visualClass);
++    var k = clampUnit(mix);
++    return {
++      fill: mixRgb(set.a.fillBase, set.b.fillBase, k),
++      seamThick: warpSpaceSeamRgb(visualClass, "thick", k),
++      seamThin: warpSpaceSeamRgb(visualClass, "thin", k),
++      accent: mixRgb(set.a.accent, set.b.accent, k),
++      ring: warpSpaceRingRgb(visualClass, k)
++    };
++  }
++
++  /* Spatial wave: at a given point of the surface the local mix runs ahead of
++   * the global one, so the colour change travels along the tunnel instead of
++   * fading everywhere at the same instant. */
++  function warpSpaceFlowMix(mix, spatialPhase, t, amplitude) {
++    var amp = amplitude == null ? 0.20 : amplitude;
++    var wave = Math.sin((spatialPhase || 0) * Math.PI * 2 - (t || 0) * 0.9);
++    return clampUnit(clampUnit(mix) + wave * amp * 0.5);
++  }
++
++  /* Ease for the transition itself: soft start and stop. */
++  function warpSpaceEase(k) {
++    var v = clampUnit(k);
++    return v * v * (3 - 2 * v);
++  }
++
++  /* Ping-pong 0..1..0 so an unattended flow breathes between A and B. */
++  function warpSpacePingPong(t, period) {
++    var p = period && period > 0 ? period : 9;
++    return 0.5 - 0.5 * Math.cos(((t || 0) / p) * Math.PI * 2);
++  }
++
++  function rgbCss(rgb) {
++    return Math.round(rgb[0]) + "," + Math.round(rgb[1]) + "," + Math.round(rgb[2]);
++  }
++
++  function rgbaCss(rgb, alpha) {
++    var a = alpha == null ? 1 : alpha;
++    return "rgba(" + rgbCss(rgb) + "," + a + ")";
++  }
++
++  /* Под «Пульсом» космос другой и стенка идёт в обратную сторону.
++   * Направление берётся как XOR с классовым: класс II в 0.14.0 уже разворачивает
++   * видимый ход коридора, а профиль с reverseMotion разворачивает его ещё раз,
++   * поэтому «два разворота» дают нормальный ход, а не двойное отрицание вслепую. */
++  function warpSpaceSeedFor(seed, profile) {
++    var base = Number(seed) >>> 0;
++    if (!profile || !profile.seedShift) return base;
++    return (base + Math.imul(profile.seedShift, 0x9E3779B1)) >>> 0;
++  }
++
++  function warpSpaceDirectionFor(visualClass, profile) {
++    var reversedByClass = (Number(visualClass) || 1) === 2;
++    var reversedByProfile = !!(profile && profile.reverseMotion);
++    return reversedByClass !== reversedByProfile ? -1 : 1;
++  }
++
++  /* Тир качества.
++   *
++   * Две поправки после наблюдения в браузере:
++   *  1. Панели НЕ урезаются. Уменьшение panelCount с 18 до 13 превращало
++   *     круглое сечение в гранёную «бочку» — это читалось как баг, а не как
++   *     экономия. Режем только глубину и сэмплы, силуэт остаётся прежним.
++   *  2. Решение принимается по устойчивому замеру: одиночный медленный кадр
++   *     (переключение вкладки, первый кадр после кэша) не должен понижать
++   *     качество. Нужно не меньше 45 подряд медленных кадров подряд.
++   */
++  function warpSpaceTier(avgFrameMs, slowStreak) {
++    var ms = Number(avgFrameMs);
++    if (!isFinite(ms) || ms <= 0) return "high";
++    var streak = Number(slowStreak) || 0;
++    if (ms > 26 && streak >= 45) return "low";
++    return "high";
++  }
++
++  /* Геометрия НЕ зависит от тира.
++   *
++   * История: сначала я резал число панелей (18 -> 13), и круглое сечение
++   * становилось гранёной «бочкой». Потом резал глубину (23 -> 18) — на классе III
++   * с его 12 панелями это дало «купол» из крупных плоских граней. Оба раза
++   * экономия ломала силуэт.
++   *
++   * Теперь силуэт одинаков во всех тирах: глубина 23, панелей 18 (III тоже 18).
++   * Экономия берётся только там, где не видно: отсечение субпиксельных панелей,
++   * меньше точек у колец, фон в кэше мельче.
++   */
++  function warpSpaceTierParams(tier) {
++    return tier === "low"
++      ? { ringAlphaScale: 0.8, backdropScale: 0.34, cullScale: 3.2 }
++      : { ringAlphaScale: 1, backdropScale: null, cullScale: 1.6 };
++  }
++
++  /* Плавная смена направления: без этого переключение вида разворачивает
++   * стенку за один кадр, и она «телепортируется». */
++  function warpSpaceDirectionRamp(current, target, dt) {
++    var cur = Number(current);
++    if (!isFinite(cur)) cur = target >= 0 ? 1 : -1;
++    var tgt = target >= 0 ? 1 : -1;
++    var k = Math.min(1, (Number(dt) || 0) * 3.2);
++    var next = cur + (tgt - cur) * k;
++    if (Math.abs(next - tgt) < 0.02) next = tgt;
++    return next;
++  }
++
++  /* ------------------------------------------------------------- sketches
++   * Шесть векторных обоев из mini-sim/assets/scetchs. Они статические: в каждом
++   * 300–620 элементов и по три feGaussianBlur, поэтому растеризация стоит
++   * заметно дороже процедурного фона. Отсюда правила:
++   *  - растеризуем ОДИН раз в offscreen-кэш, как и процедурный фон;
++   *  - делаем это в паузе (предзагрузка), а не в кадре перехода;
++   *  - пока картинка не готова, показываем процедурный фон — экран не пустует;
++   *  - если загрузка не удалась, остаёмся на процедурном без ошибок.
++   */
++  var WARP_SPACE_SKETCHES = [
++    "01-star-tunnel.svg",
++    "02-particle-seed.svg",
++    "03-energy-waves.svg",
++    "04-scan-transition.svg",
++    "05-deep-parallax.svg",
++    "06-portal-shift.svg"
++  ];
++
++  function warpSpaceSketchFor(index) {
++    var n = Math.max(0, Math.floor(Number(index) || 0));
++    return WARP_SPACE_SKETCHES[n % WARP_SPACE_SKETCHES.length];
++  }
++
++  /* Cover-подгонка: картинка заполняет кадр целиком без полей, лишнее режется. */
++  function warpSpaceCoverRect(iw, ih, cw, ch) {
++    var sw = Math.max(1, Number(iw) || 1);
++    var sh = Math.max(1, Number(ih) || 1);
++    var scale = Math.max(cw / sw, ch / sh);
++    var w = sw * scale;
++    var h = sh * scale;
++    return { x: (cw - w) * 0.5, y: (ch - h) * 0.5, w: w, h: h };
++  }
++
++  /* Готовит кэш из уже загруженной картинки. Возвращает объект той же формы,
++   * что и процедурный кэш, поэтому растворение работает с любым источником. */
++  function createSketchCache(image, w, h, makeCanvas, scale) {
++    var q = isFinite(scale) && scale > 0 ? Number(scale) : warpSpaceQuality(w, h);
++    var cw = Math.max(2, Math.round(w * q));
++    var ch = Math.max(2, Math.round(h * q));
++    var canvas = makeCanvas(cw, ch);
++    var g = canvas.getContext("2d");
++    g.fillStyle = "#01030a";
++    g.fillRect(0, 0, cw, ch);
++    var iw = image && (image.naturalWidth || image.width) || 1600;
++    var ih = image && (image.naturalHeight || image.height) || 900;
++    var rect = warpSpaceCoverRect(iw, ih, cw, ch);
++    g.drawImage(image, rect.x, rect.y, rect.w, rect.h);
++    return { canvas: canvas, w: cw, h: ch, scale: q, id: "sketch" };
++  }
++
++  /* ------------------------------------------------------- cycling seeds
++   * Фон не меняется «сам по себе» и не режется жёстким срезом: он проходит
++   * цикл из спецификации — 3 с переход частицами, 4,5 с пауза, 7,5 с полный
++   * цикл. Порядок seed детерминированный, производный от seed заезда, поэтому
++   * повторный вход в тот же заезд даёт тот же ряд фонов.
++   */
++  /* Полный цикл 18 с: 3 с переход частицами + 15 с паузы.
++   * Переход укоротить нельзя без потери читаемости (3 с — минимум, при котором
++   * разлёт успевает прочитаться как движение, а не как рябь), поэтому растёт
++   * именно пауза. Значения вынесены в конфиг, а не зашиты в цикл. */
++  /* Полный цикл 18 с. По умолчанию границы переходов сидят на тактовой сетке:
++   * при 120 BPM такт = 2 с, значит переход 2 с = 1 такт и пауза 16 с = 8 тактов,
++   * итого ровно 9 тактов. Переход, который начинается на сильной доле, читается
++   * как часть музыки, а не как случайная вспышка.
++   *
++   * ВАЖНО про AUDIO FREEZE: звук здесь не трогается вообще. Мы только выравниваем
++   * ФАЗУ КАРТИНКИ по постоянному BPM, взятого как константа. Ни одного аудиофайла
++   * не создаётся, не меняется и не запускается.
++   */
++  /* 142 BPM — точный показатель, названный владельцем. При нём такт = 240/142 =
++   * 1.6901 с, переход = ровно 1 такт, а весь цикл ложится в 11 тактов =
++   * 18.59 с (по-прежнему «около 18 секунд», но теперь сетка не «примерно»,
++   * а точно по темпу). Значение 120 остаётся доступным и даёт прежние
++   * 2.00 / 16.00 / 18.00 — сетка от этого не меняется. */
++  var WARP_SPACE_CYCLE = { transition: 2, hold: 16, period: 18, bpm: 142 };
++
++  /* Длина такта в секундах для 4/4. */
++  function warpSpaceBarSeconds(bpm) {
++    var b = Number(bpm);
++    if (!isFinite(b) || b <= 0) b = 120;
++    return 240 / b;
++  }
++
++  /* Подгоняет длительности под целое число тактов, сохраняя общий период 18 с. */
++  function warpSpaceBeatAligned(total, bpm) {
++    var bar = warpSpaceBarSeconds(bpm);
++    var bars = Math.max(1, Math.round((Number(total) || 18) / bar));
++    var period = bars * bar;
++    var transitionBars = Math.max(1, Math.round(1));
++    return {
++      bar: bar,
++      bars: bars,
++      period: period,
++      transition: bar * transitionBars,
++      hold: period - bar * transitionBars
++    };
++  }
++
++  function warpSpaceCycleConfig(transition, hold, bpm) {
++    var t = Number(transition);
++    var h = Number(hold);
++    var bars = Number(bpm);
++    if (isFinite(bars) && bars > 0) {
++      var aligned = warpSpaceBeatAligned(
++        (isFinite(t) && t > 0 ? t : WARP_SPACE_CYCLE.transition) +
++        (isFinite(h) && h >= 0 ? h : WARP_SPACE_CYCLE.hold), bars);
++      return {
++        transition: aligned.transition,
++        hold: aligned.hold,
++        period: aligned.period,
++        bpm: bars,
++        bar: aligned.bar,
++        bars: aligned.bars
++      };
++    }
++    return {
++      transition: isFinite(t) && t > 0 ? t : WARP_SPACE_CYCLE.transition,
++      hold: isFinite(h) && h >= 0 ? h : WARP_SPACE_CYCLE.hold,
++      period: (isFinite(t) && t > 0 ? t : WARP_SPACE_CYCLE.transition) +
++              (isFinite(h) && h >= 0 ? h : WARP_SPACE_CYCLE.hold)
++    };
++  }
++
++  /* Фаза внутри такта 0..1 — для синхронизации вспышек и скорости разлёта. */
++  function warpSpaceBeatPhase(elapsed, bpm) {
++    var bar = warpSpaceBarSeconds(bpm);
++    var e = Math.max(0, Number(elapsed) || 0);
++    var v = (e / bar) % 1;
++    return v < 0 ? v + 1 : v;
++  }
++
++  /* N-й seed ряда. Не «случайная картинка»: чистая функция от базового seed. */
++  function warpSpaceNextSeed(seed, index) {
++    var base = (Number(seed) >>> 0) || 1;
++    var n = Math.max(0, Math.floor(Number(index) || 0));
++    var v = base + Math.imul(n + 1, 0x9E3779B1);
++    v >>>= 0;
++    v ^= v >>> 15;
++    v = Math.imul(v, 0x85EBCA6B) >>> 0;
++    v ^= v >>> 13;
++    return v >>> 0;
++  }
++
++  /* Состояние цикла в момент elapsed.
++   * remaining — сколько секунд осталось до прибытия; переход, который не успеет
++   * дорисоваться, не начинается. Это и есть «не использовать произвольный
++   * таймер вместо реального события прибытия»: окно закрывается по времени
++   * заезда, а событие прибытия просто обнуляет remaining.
++   */
++  function warpSpaceCycleAt(elapsed, config, remaining) {
++    var cfg = config || WARP_SPACE_CYCLE;
++    var e = Math.max(0, Number(elapsed) || 0);
++    var left = remaining == null ? Infinity : Math.max(0, Number(remaining) || 0);
++    var index = Math.floor(e / cfg.period);
++    var within = e - index * cfg.period;
++    if (within < cfg.hold) {
++      return { phase: "hold", from: index, to: index, k: 0, index: index, remaining: left };
++    }
++    var k = (within - cfg.hold) / cfg.transition;
++    if (k > 1) k = 1;
++    // Переход не стартует, если до прибытия меньше его длительности.
++    if (left < cfg.transition * (1 - k)) {
++      return { phase: "hold", from: index, to: index, k: 0, index: index, remaining: left };
++    }
++    return { phase: "transition", from: index, to: index + 1, k: k, index: index, remaining: left };
++  }
++
++  /* ---------- случайный ритм: пауза ~2 с, дальше сам разнообразит ----------
++   * Владельцу не нужна привязка к тактам: «сама разнообразность эффективно».
++   * Поэтому ритм больше не выровнен по музыке, а идёт короткими отрезками —
++   * ~2 с паузы и ~0.9 с перехода, каждый раз чуть разные (±джиттер), и каждый
++   * переход берёт СЛУЧАЙНЫЙ способ из всех шести, случайную силу и следующую
++   * по порядку сцену. Способ выбирается «мешком»: все шесть видов выпадают по
++   * одному разу за круг, но в случайном порядке, и подряд два одинаковых не
++   * встают — так разнообразие видно сразу, без повторов и без залипания.
++   *
++   * Всё это по-прежнему ЧИСТАЯ функция от elapsed: таблица отрезков строится
++   * детерминированно из seed, поэтому кадр можно пересчитать с любого момента,
++   * а тест — сравнить два прогона.
++   */
++  var WARP_SPACE_RANDOM = {
++    hold: 2, holdJitter: 0.4,
++    transition: 0.9, transitionJitter: 0.25,
++    powerMin: 1, powerMax: 2.5,
++    seed: 0x5F3A21C7
++  };
++
++  var randomCycleCache = { key: "", segs: [], bag: null, prevKind: null, rnd: null, upto: 0 };
++
++  function randomCycleOpts(opts) {
++    var o = opts || {};
++    function num(v, fallback, min) {
++      var n = Number(v);
++      return isFinite(n) && n >= min ? n : fallback;
++    }
++    return {
++      hold: num(o.hold, WARP_SPACE_RANDOM.hold, 0.1),
++      holdJitter: num(o.holdJitter, WARP_SPACE_RANDOM.holdJitter, 0),
++      transition: num(o.transition, WARP_SPACE_RANDOM.transition, 0.1),
++      transitionJitter: num(o.transitionJitter, WARP_SPACE_RANDOM.transitionJitter, 0),
++      powerMin: num(o.powerMin, WARP_SPACE_RANDOM.powerMin, 0),
++      powerMax: num(o.powerMax, WARP_SPACE_RANDOM.powerMax, 0),
++      seed: (Number(o.seed) >>> 0) || WARP_SPACE_RANDOM.seed
++    };
++  }
++
++  function randomCycleKey(o) {
++    return [o.hold, o.holdJitter, o.transition, o.transitionJitter,
++      o.powerMin, o.powerMax, o.seed].join("|");
++  }
++
++  function randomCycleStep(cache, o) {
++    var ids = warpSpaceTransitionIds();
++    var n = ids.length;
++    var index = cache.segs.length;
++    var rnd = cache.rnd;
++    if (index % n === 0) {
++      var bag = ids.slice();
++      for (var a = bag.length - 1; a > 0; a -= 1) {
++        var b = Math.floor(rnd() * (a + 1));
++        if (b < 0) b = 0;
++        if (b > a) b = a;
++        var tmp = bag[a]; bag[a] = bag[b]; bag[b] = tmp;
++      }
++      // два одинаковых подряд на стыке кругов — единственный заметный «сбой»
++      if (cache.prevKind && bag[0] === cache.prevKind && bag.length > 1) {
++        var first = bag[0]; bag[0] = bag[1]; bag[1] = first;
++      }
++      cache.bag = bag;
++    }
++    var kind = cache.bag[index % n];
++    if (ids.indexOf(kind) < 0) kind = ids[0];
++    cache.prevKind = kind;
++
++    var hold = o.hold + (rnd() * 2 - 1) * o.holdJitter;
++    if (hold < 0.25) hold = 0.25;
++    var trans = o.transition + (rnd() * 2 - 1) * o.transitionJitter;
++    if (trans < 0.3) trans = 0.3;
++    var power = o.powerMin + rnd() * (o.powerMax - o.powerMin);
++
++    var prev = cache.segs[index - 1];
++    var start = prev ? prev.start + prev.hold + prev.transition : 0;
++    cache.segs.push({
++      index: index, from: index, to: index + 1,
++      start: start, hold: hold, transition: trans,
++      kind: kind, power: power
++    });
++    cache.upto = start + hold + trans;
++    return cache.segs[index];
++  }
++
++  function randomCycleReady(opts, upto) {
++    var o = randomCycleOpts(opts);
++    var key = randomCycleKey(o);
++    if (randomCycleCache.key !== key) {
++      randomCycleCache = {
++        key: key, segs: [], bag: null, prevKind: null,
++        rnd: makeRandom(o.seed, null), upto: 0
++      };
++    }
++    // Потолок на перебор: даже если elapsed пришёл абсурдно большой, кадр
++    // не должен зависнуть в цикле на тысячу отрезков.
++    var guard = 0;
++    while (randomCycleCache.upto <= upto && guard < 20000) {
++      randomCycleStep(randomCycleCache, o);
++      guard += 1;
++    }
++    return randomCycleCache;
++  }
++
++  function warpSpaceRandomCycleAt(elapsed, opts, remaining) {
++    var o = randomCycleOpts(opts);
++    var e = Math.max(0, Number(elapsed) || 0);
++    var left = remaining == null ? Infinity : Math.max(0, Number(remaining) || 0);
++    var cache = randomCycleReady(o, e);
++    var segs = cache.segs;
++    var at = segs.length - 1;
++    for (var i = 0; i < segs.length; i += 1) {
++      var end = segs[i].start + segs[i].hold + segs[i].transition;
++      if (e < end) { at = i; break; }
++    }
++    var seg = segs[at];
++    var within = e - seg.start;
++    var isHold = within < seg.hold;
++    var k = isHold ? 0 : (within - seg.hold) / seg.transition;
++    if (k > 1) k = 1;
++    if (!isHold && left < seg.transition * (1 - k)) isHold = true, k = 0;
++    return {
++      phase: isHold ? "hold" : "transition",
++      from: seg.from,
++      to: seg.to,
++      k: k,
++      index: seg.from,
++      kind: seg.kind,
++      power: seg.power,
++      start: seg.start,
++      hold: seg.hold,
++      transition: seg.transition,
++      period: seg.hold + seg.transition,
++      remaining: left
++    };
++  }
++
++  /* Раскладка ближайших переходов — для панели и для тестов. */
++  function warpSpaceRandomCyclePlan(opts, count) {
++    var o = randomCycleOpts(opts);
++    var n = Math.max(1, Math.floor(Number(count) || 1));
++    var cache = randomCycleReady(o, 0);
++    while (cache.segs.length < n) randomCycleStep(cache, o);
++    return cache.segs.slice(0, n).map(function (seg) {
++      return {
++        index: seg.index, start: seg.start, hold: seg.hold,
++        transition: seg.transition, kind: seg.kind, power: seg.power
++      };
++    });
++  }
++
++  /* Прямоугольники ячеек для растворения. Считаются один раз на переход. */
++  function warpSpaceCellField(cols, rows, seed) {
++    var n = Math.max(1, cols | 0) * Math.max(1, rows | 0);
++    var rnd = makeRandom(((Number(seed) >>> 0) || 1) ^ 0x51ED270B, null);
++    var cells = new Array(n);
++    for (var i = 0; i < n; i += 1) {
++      var cx = i % cols;
++      var cy = Math.floor(i / cols);
++      var nx = (cx + 0.5) / cols - 0.5;
++      var ny = (cy + 0.5) / rows - 0.5;
++      var len = Math.sqrt(nx * nx + ny * ny) || 0.0001;
++      cells[i] = {
++        col: cx,
++        row: cy,
++        ux: nx / len,
++        uy: ny / len,
++        spin: (rnd() * 2 - 1) * 0.9,
++        delay: rnd() * 0.35,
++        spread: 0.55 + rnd() * 0.9
++      };
++    }
++    return cells;
++  }
++
++  /* ------------------------------------------------------- пиксель перехода
++   * Раньше сетка перехода была зашита: 12x7 / 18x10 / 26x15. Это одинаково
++   * плохо с двух сторон: на телефоне с DPR 3 клетка 18x10 — это всё равно
++   * крупный «конфетти», а на нормальном ПК та же сетка — заведомо грубая
++   * мозаика, хотя железо тянет на порядок мельче.
++   *
++   * Теперь сетка задаётся БЮДЖЕТОМ КЛЕТОК, а не готовой парой чисел.
++   * Клетки держим квадратными и ограничиваем снизу 3 пикселями кадра:
++   * мельче всё равно не видно, а blit стоит столько же.
++   *
++   * Стоимость кадра перехода = 2 * (cols * rows) drawImage (уходящая +
++   * приходящая картинка). Отсюда все числа ниже: 84 клетки на слабом
++   * устройстве, 5184 на обычном ПК.
++   */
++  var WARP_SPACE_CELL_PRESETS = {
++    coarse: 84,      // 12x7   — крупные осколки, самый дешёвый
++    fine: 180,       // 18x10  — прежний вид по умолчанию
++    small: 390,      // 26x15
++    tiny: 1100,      // 44x25  — «очень мелкий»
++    micro: 5184      // 96x54  — «микро», только для теста на ПК
++  };
++
++  function warpSpaceCellGrid(budget, w, h) {
++    var width = Math.max(2, Number(w) || 2);
++    var height = Math.max(2, Number(h) || 2);
++    var b = Number(budget);
++    if (!isFinite(b) || b < 12) b = WARP_SPACE_CELL_PRESETS.fine;
++    // Не мельче 3 px на клетку: дальше растёт только счётчик вызовов.
++    var maxByPixels = Math.max(12, Math.floor((width / 3) * (height / 3)));
++    if (b > maxByPixels) b = maxByPixels;
++    var aspect = width / height;
++    var cols = Math.max(4, Math.round(Math.sqrt(b * aspect)));
++    var rows = Math.max(3, Math.round(b / cols));
++    return { cols: cols, rows: rows, cells: cols * rows, budget: b };
++  }
++
++  /* Профиль устройства: насколько мелкий пиксель и какое разрешение канвы
++   * заслуживает это железо.
++   *
++   * Смысл — не «урезать всем», а не требовать с телефона то, что он не может:
++   * на телефоне DPR 3 при экране 390x844 — это канва 1170x2532, то есть
++   * 3 млн пикселей на кадр только на заливку. Поэтому у телефона потолок
++   * DPR 1.25 и крупный пиксель перехода, у ПК — мелкий пиксель и полный DPR.
++   *
++   * info: { cores, dpr, shortSide (css px), coarsePointer, tier }
++   */
++  function warpSpaceDeviceProfile(info) {
++    var i = info || {};
++    var tier = i.tier === "low" ? "low" : "high";
++    var cores = Number(i.cores) || 0;
++    var dpr = Number(i.dpr) || 1;
++    if (!isFinite(dpr) || dpr <= 0) dpr = 1;
++    var shortSide = Number(i.shortSide) || 0;
++    var coarse = !!i.coarsePointer;
++
++    if (tier === "low") {
++      return { id: "weak", label: "слабое устройство", dprCap: 1, cellBudget: 84, backdropScale: 0.34 };
++    }
++    if (coarse || (shortSide && shortSide <= 600)) {
++      return { id: "touch", label: "телефон", dprCap: 1.25, cellBudget: 180, backdropScale: 0.40 };
++    }
++    if (shortSide && shortSide <= 1000 && cores > 0 && cores < 8) {
++      return { id: "tablet", label: "планшет / ноутбук", dprCap: 1.35, cellBudget: 1100, backdropScale: 0.45 };
++    }
++    return { id: "desktop", label: "ПК", dprCap: Math.max(1, Math.min(1.5, dpr)), cellBudget: 5184, backdropScale: 0.55 };
++  }
++
++  /* --------------------------------------------------- корабль, вид сзади
++   * «Активную модельку можно крепить от вида сзади конкретного корабля в
++   * режиме полёт, только таким же маленьким, удобно управляемым внутри
++   * кольца». В варпе корабль — это 2D-слой, поэтому здесь два пути:
++   *
++   *  1. Готовый спрайт (обязательный случай для игры): если передан
++   *     `sprite` — Image или canvas с запечённым видом сзади настоящей модели,
++   *     рисуется он. Печётся он в игре один раз (WebGL-рендер в offscreen),
++   *     поэтому в кадре это один drawImage, а не второй WebGL-контекст.
++   *  2. Процедурный силуэт сзади: если спрайта нет, рисуется маленький
++   *     корабль по параметрам силуэта — двигатели, крылья, огни. Это фолбэк,
++   *     который обязан выглядеть прилично, потому что спрайта может не быть.
++   *
++   * Размер сознательно маленький: корабль живёт ВНУТРИ кольца и не должен
++   * закрывать собой коридор. Размер задаётся в пикселях кадра и ограничен
++   * сверху, чтобы на 4K он не вырос в полэкрана.
++   */
++  var WARP_SPACE_SHIP_SPECS = [
++    { id: "pearce-f4", label: "Pearce F4", span: 1.00, engines: 2, engineSpread: 0.34,
++      hullW: 0.30, hullL: 1.00, fin: 0.34, hull: "#26424f", accent: "#8eeaf4", glow: "99,222,255" },
++    { id: "fimbul-mamba", label: "Fimbul Mamba", span: 1.34, engines: 4, engineSpread: 0.52,
++      hullW: 0.42, hullL: 0.92, fin: 0.22, hull: "#3b2a24", accent: "#ffcf8e", glow: "255,166,92" },
++    { id: "chi", label: "Chi", span: 0.86, engines: 2, engineSpread: 0.26,
++      hullW: 0.34, hullL: 0.86, fin: 0.46, hull: "#1f3a52", accent: "#b8f0ff", glow: "140,226,255" },
++    { id: "om", label: "Om", span: 1.12, engines: 3, engineSpread: 0.44,
++      hullW: 0.38, hullL: 0.98, fin: 0.28, hull: "#40323f", accent: "#f0c4ff", glow: "214,150,255" },
++    { id: "packlite", label: "Packlite", span: 1.20, engines: 2, engineSpread: 0.60,
++      hullW: 0.52, hullL: 0.80, fin: 0.18, hull: "#2c3a2c", accent: "#d8f5b0", glow: "180,240,140" }
++  ];
++
++  function warpSpaceShipSpec(idOrIndex) {
++    if (typeof idOrIndex === "number") {
++      var byIndex = WARP_SPACE_SHIP_SPECS[Math.abs(Math.trunc(idOrIndex)) % WARP_SPACE_SHIP_SPECS.length];
++      return byIndex;
++    }
++    var want = String(idOrIndex || "").toLowerCase();
++    for (var i = 0; i < WARP_SPACE_SHIP_SPECS.length; i += 1) {
++      if (WARP_SPACE_SHIP_SPECS[i].id === want) return WARP_SPACE_SHIP_SPECS[i];
++    }
++    return WARP_SPACE_SHIP_SPECS[0];
++  }
++
++  /* Размер корабля в пикселях кадра: маленький, но не точка. */
++  function warpSpaceShipSize(w, h) {
++    var minDim = Math.min(Number(w) || 0, Number(h) || 0) || 500;
++    var size = minDim * 0.075;
++    if (size < 22) size = 22;
++    if (size > 46) size = 46;
++    return size;
++  }
++
++  /* Вид сзади. (cx, cy) — центр силуэта, size — его высота в пикселях,
++   * bank — крен (-1..1), thrust — 0..1 (насколько горят двигатели).
++   * Всё считается от size, поэтому силуэт одинаков на любом разрешении. */
++  function paintShipRear(g, cx, cy, size, spec, bank, thrust, rollAbs) {
++    var s0 = warpSpaceShipSpec(spec && spec.id ? spec.id : spec) || WARP_SPACE_SHIP_SPECS[0];
++    var height = Number(size) || 32;
++    var width = height * (s0.span || 1);
++    var bankAmount = isFinite(bank) ? Math.max(-1, Math.min(1, Number(bank))) : 0;
++    var fire = isFinite(thrust) ? clampUnit(Number(thrust)) : 0.7;
++    var halfW = width * 0.5;
++    var halfH = height * 0.5;
++    // rollAbs — абсолютный поворот в экранных радианах (кольцо + Q/E).
++    // Если он не задан, остаётся старое поведение: лёгкий крен от руля.
++    var absolute = isFinite(rollAbs) ? Number(rollAbs) : null;
++
++    g.save();
++    g.translate(cx, cy);
++    if (absolute == null) {
++      g.rotate(bankAmount * 0.28);
++      g.translate(bankAmount * width * 0.10, 0);
++    } else {
++      g.rotate(absolute);
++    }
++
++    // 1. факелы двигателей — за корпусом, чтобы свет шёл из-под него
++    var engines = Math.max(1, s0.engines | 0);
++    var spread = halfW * (s0.engineSpread || 0.4);
++    var engineY = halfH * 0.62;
++    var engineR = Math.max(1.2, height * 0.085);
++    for (var e = 0; e < engines; e += 1) {
++      var t = engines === 1 ? 0 : (e / (engines - 1)) * 2 - 1;
++      var ex = t * spread;
++      var flareH = height * (0.22 + fire * 0.30);
++      var grad = g.createLinearGradient(ex, engineY, ex, engineY + flareH);
++      grad.addColorStop(0, "rgba(" + s0.glow + "," + (0.55 * fire + 0.15).toFixed(3) + ")");
++      grad.addColorStop(1, "rgba(" + s0.glow + ",0)");
++      g.fillStyle = grad;
++      g.beginPath();
++      g.moveTo(ex - engineR, engineY);
++      g.lineTo(ex + engineR, engineY);
++      g.lineTo(ex, engineY + flareH);
++      g.closePath();
++      g.fill();
++    }
++
++    // 2. крылья: два сужения к краям, с навигационными огнями на концах
++    g.fillStyle = s0.hull;
++    g.strokeStyle = "rgba(200,240,255,0.45)";
++    g.lineWidth = Math.max(0.8, height * 0.022);
++    var wingReach = halfW * (0.86 + s0.fin * 0.1);
++    g.beginPath();
++    g.moveTo(-halfW * 0.30, -halfH * 0.34);
++    g.lineTo(-wingReach, halfH * (0.10 + s0.fin * 0.18));
++    g.lineTo(-halfW * 0.34, halfH * 0.30);
++    g.closePath();
++    g.fill();
++    g.stroke();
++    g.beginPath();
++    g.moveTo(halfW * 0.30, -halfH * 0.34);
++    g.lineTo(wingReach, halfH * (0.10 + s0.fin * 0.18));
++    g.lineTo(halfW * 0.34, halfH * 0.30);
++    g.closePath();
++    g.fill();
++    g.stroke();
++
++    // 3. корпус: сверху уже (нос уходит вдаль), снизу шире (корма к камере)
++    g.fillStyle = s0.hull;
++    g.beginPath();
++    g.moveTo(-halfW * (0.16 + s0.hullW * 0.10), -halfH * s0.hullL * 0.52);
++    g.lineTo(halfW * (0.16 + s0.hullW * 0.10), -halfH * s0.hullL * 0.52);
++    g.lineTo(halfW * s0.hullW * 0.62, halfH * 0.30);
++    g.lineTo(-halfW * s0.hullW * 0.62, halfH * 0.30);
++    g.closePath();
++    g.fill();
++    g.stroke();
++
++    // 4. двигатели: сопла с ярким ядром
++    for (var p = 0; p < engines; p += 1) {
++      var u = engines === 1 ? 0 : (p / (engines - 1)) * 2 - 1;
++      var px = u * spread;
++      g.fillStyle = "rgba(12,18,26,0.95)";
++      g.beginPath();
++      g.arc(px, engineY, engineR * 1.55, 0, Math.PI * 2);
++      g.fill();
++      g.fillStyle = s0.accent;
++      g.globalAlpha = 0.55 + fire * 0.45;
++      g.beginPath();
++      g.arc(px, engineY, engineR, 0, Math.PI * 2);
++      g.fill();
++      g.globalAlpha = 1;
++    }
++
++    // 5. фонарь кабины и огни
++    g.fillStyle = "rgba(190,240,255,0.75)";
++    g.beginPath();
++    g.ellipse(0, -halfH * s0.hullL * 0.30, Math.max(1, height * 0.055), Math.max(1.6, height * 0.10), 0, 0, Math.PI * 2);
++    g.fill();
++    g.fillStyle = "rgba(255,86,86,0.95)";
++    g.fillRect(-wingReach, halfH * (0.06 + s0.fin * 0.18), Math.max(1.4, height * 0.05), Math.max(1.4, height * 0.035));
++    g.fillStyle = "rgba(120,255,140,0.95)";
++    g.fillRect(wingReach - Math.max(1.4, height * 0.05), halfH * (0.06 + s0.fin * 0.18),
++      Math.max(1.4, height * 0.05), Math.max(1.4, height * 0.035));
++
++    g.restore();
++    return { width: width, height: height, engines: engines };
++  }
++
++  /* Точка входа для игры и демо: спрайт, если он есть, иначе силуэт.
++   * В кадре это ровно один drawImage либо один paintShipRear — не цикл. */
++  function drawWarpShip(g, cx, cy, size, spec, bank, thrust, sprite, rollAbs) {
++    var height = Number(size) || 32;
++    var bankAmount = isFinite(bank) ? Math.max(-1, Math.min(1, Number(bank))) : 0;
++    var absolute = isFinite(rollAbs) ? Number(rollAbs) : null;
++    if (sprite && (sprite.naturalWidth || sprite.width)) {
++      var iw = sprite.naturalWidth || sprite.width;
++      var ih = sprite.naturalHeight || sprite.height;
++      var scale = height / Math.max(1, ih);
++      var dw = iw * scale;
++      g.save();
++      g.translate(cx, cy);
++      g.rotate(absolute == null ? bankAmount * 0.28 : absolute);
++      g.drawImage(sprite, -dw * 0.5, -height * 0.5, dw, height);
++      g.restore();
++      return { width: dw, height: height, sprite: true };
++    }
++    return paintShipRear(g, cx, cy, height, spec, bank, thrust, absolute);
++  }
++
++  /* Поворот корабля на кольце.
++   *
++   * Просьба владельца: «должен вращаться, как будто я кнопками Q/E его кручу,
++   * чтобы по кольцу красиво ходить и вверх тормашками в том числе».
++   *
++   * Корабль висит на стенке трубы: «верх» силуэта всегда смотрит к центру
++   * кольца. Поэтому поворот считается из положения на кольце:
++   *   низ кольца (θ = π/2)  -> 0        (стоит как обычно)
++   *   верх кольца (θ = 3π/2) -> π       (вверх тормашками)
++   *   правый борт (θ = 0)   -> -π/2     (лёг на бок)
++   * Q/E добавляют ручной крен сверху — как обзор в третьем лице.
++   */
++  function warpSpaceShipRollFor(ringAngle, manualRoll) {
++    var a = Number(ringAngle);
++    if (!isFinite(a)) a = Math.PI / 2;
++    var m = Number(manualRoll);
++    if (!isFinite(m)) m = 0;
++    var roll = a - Math.PI / 2 + m;
++    // держим в -π..π, чтобы поворот не накапливался бесконечно
++    var turns = Math.round(roll / (Math.PI * 2));
++    return roll - turns * Math.PI * 2;
++  }
++
++  /* ------------------------------------------------------ виды переходов
++   * «Переход между кадрами, кроме рассыпания, может быть и другой — как двери
++   * в первой комнате открываются разными способами». Поэтому способ смены
++   * фона — список, а не одна функция. Приоритет остаётся за рассыпанием:
++   * оно по умолчанию, остальные — варианты на выбор.
++   *
++   * Все варианты на Canvas 2D, без шейдеров: каждый — это clip плюс 1–2
++   * drawImage на кадр, то есть дешевле рассыпания (там 2 * клеток blit-ов).
++   * Ни один не читает и не меняет игровое состояние.
++   */
++  var WARP_SPACE_TRANSITIONS = [
++    { id: "dissolve", label: "Рассыпание", cost: "клетки" },
++    { id: "iris",     label: "Диафрагма",  cost: "2 blit" },
++    { id: "doors",    label: "Створки",    cost: "2 blit" },
++    { id: "blinds",   label: "Жалюзи",     cost: "полосы" },
++    { id: "spiral",   label: "Спираль",    cost: "2 blit" },
++    { id: "sweep",    label: "Сектор",     cost: "2 blit" }
++  ];
++
++  function warpSpaceTransitionIds() {
++    return WARP_SPACE_TRANSITIONS.map(function (t) { return t.id; });
++  }
++
++  /* Детерминированный выбор способа для номера перехода: «по кругу» в
++   * настройках означает именно это, а не случайность — повторный вход в тот
++   * же заезд даёт ту же последовательность дверей. */
++  function warpSpaceTransitionFor(index) {
++    var list = warpSpaceTransitionIds();
++    var n = Number(index);
++    if (!isFinite(n)) n = 0;
++    var i = ((Math.trunc(n) % list.length) + list.length) % list.length;
++    return list[i];
++  }
++
++  function easeInOutCubic(v) {
++    var t = clampUnit(v);
++    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
++  }
++
++  /* Переход, кроме рассыпания. Возвращает число сделанных blit-ов, чтобы
++   * вызывающий код мог честно показать стоимость кадра. */
++  function drawSpaceWipe(g, prevCache, nextCache, k, w, h, kind) {
++    var t = clampUnit(k);
++    var e = easeInOutCubic(t);
++    var prev = prevCache && prevCache.canvas;
++    var next = nextCache && nextCache.canvas;
++    if (!next && !prev) return 0;
++    var blits = 0;
++
++    function drawFull(canvas) {
++      if (!canvas) return;
++      g.drawImage(canvas, 0, 0, w, h);
++      blits += 1;
++    }
++
++    if (kind === "iris") {
++      // Круглая диафрагма: новый кадр раскрывается из центра.
++      drawFull(prev);
++      if (next) {
++        var radius = e * Math.sqrt(w * w + h * h) * 0.55;
++        g.save();
++        g.beginPath();
++        g.arc(w * 0.5, h * 0.5, Math.max(0.5, radius), 0, Math.PI * 2);
++        g.closePath();
++        g.clip();
++        g.drawImage(next, 0, 0, w, h);
++        g.restore();
++        blits += 1;
++        // светящаяся кромка: читается как дверь, а не как «просто проявилось»
++        g.save();
++        g.globalAlpha = 0.5 * Math.sin(Math.PI * t);
++        g.strokeStyle = "#dff2ff";
++        g.lineWidth = Math.max(1.5, Math.min(w, h) * 0.006);
++        g.beginPath();
++        g.arc(w * 0.5, h * 0.5, Math.max(0.5, radius), 0, Math.PI * 2);
++        g.stroke();
++        g.restore();
++      }
++      return blits;
++    }
++
++    if (kind === "doors") {
++      // Створки расходятся от центра: две половины нового кадра выезжают
++      // наружу, старый остаётся под ними.
++      drawFull(prev);
++      if (next) {
++        var half = (w * 0.5) * e;
++        if (half > 0.5) {
++          g.save();
++          g.beginPath();
++          g.rect(w * 0.5 - half, 0, half, h);
++          g.rect(w * 0.5, 0, half, h);
++          g.clip();
++          g.drawImage(next, 0, 0, w, h);
++          g.restore();
++          blits += 1;
++        }
++        // стык створок
++        g.save();
++        g.globalAlpha = 0.45 * (1 - t);
++        g.fillStyle = "#eaf7ff";
++        g.fillRect(w * 0.5 - 1, 0, 2, h);
++        g.restore();
++      }
++      return blits;
++    }
++
++    if (kind === "blinds") {
++      // Жалюзи: горизонтальные полосы нового кадра открываются по очереди,
++      // сверху вниз. Число полос фиксировано, поэтому цена постоянная.
++      drawFull(prev);
++      if (next) {
++        var strips = 14;
++        var sh = h / strips;
++        for (var i = 0; i < strips; i += 1) {
++          var delay = (i / strips) * 0.35;
++          var local = clampUnit((t - delay) / 0.65);
++          if (local <= 0) continue;
++          var open = sh * local;
++          g.save();
++          g.beginPath();
++          g.rect(0, i * sh, w, open + 0.5);
++          g.clip();
++          g.drawImage(next, 0, i * sh, w, sh);
++          g.restore();
++          blits += 1;
++        }
++      }
++      return blits;
++    }
++
++    if (kind === "spiral") {
++      // Спираль: новый кадр вкручивается — растёт круг и проворачивается.
++      drawFull(prev);
++      if (next) {
++        var scale = 0.25 + e * 0.75;
++        var angle = (1 - e) * Math.PI * 1.6;
++        g.save();
++        g.beginPath();
++        g.arc(w * 0.5, h * 0.5, Math.max(0.5, e * Math.sqrt(w * w + h * h) * 0.55), 0, Math.PI * 2);
++        g.clip();
++        g.translate(w * 0.5, h * 0.5);
++        g.rotate(angle);
++        g.globalAlpha = Math.min(1, 0.35 + e);
++        g.drawImage(next, -w * 0.5 * scale, -h * 0.5 * scale, w * scale, h * scale);
++        g.restore();
++        g.globalAlpha = 1;
++        blits += 1;
++      }
++      return blits;
++    }
++
++    if (kind === "sweep") {
++      // Сектор: как радар — новый кадр заливается по кругу от верхней точки.
++      drawFull(prev);
++      if (next) {
++        var end = -Math.PI / 2 + e * Math.PI * 2;
++        g.save();
++        g.beginPath();
++        g.moveTo(w * 0.5, h * 0.5);
++        g.arc(w * 0.5, h * 0.5, Math.sqrt(w * w + h * h) * 0.55, -Math.PI / 2, end);
++        g.closePath();
++        g.clip();
++        g.drawImage(next, 0, 0, w, h);
++        g.restore();
++        blits += 1;
++        // бегущая кромка
++        g.save();
++        g.globalAlpha = 0.35;
++        g.strokeStyle = "#dff2ff";
++        g.lineWidth = 2;
++        g.beginPath();
++        g.moveTo(w * 0.5, h * 0.5);
++        g.lineTo(w * 0.5 + Math.cos(end) * Math.sqrt(w * w + h * h), h * 0.5 + Math.sin(end) * Math.sqrt(w * w + h * h));
++        g.stroke();
++        g.restore();
++      }
++      return blits;
++    }
++
++    // Неизвестный вид — не падаем и не оставляем пустой кадр: растворяем.
++    drawFull(prev);
++    drawFull(next);
++    return blits;
++  }
++
++  /* Единая точка входа: способ + общие входные данные. «Рассыпание» идёт
++   * прежним путём (клетки), остальные — через drawSpaceWipe. */
++  function drawSpaceTransition(g, prevCache, nextCache, k, w, h, kind, cells, cols, rows, quality, intensity) {
++    if (!kind || kind === "dissolve") {
++      drawSpaceDissolve(g, prevCache, nextCache, k, w, h, cells, cols, rows, quality, intensity);
++      return;
++    }
++    drawSpaceWipe(g, prevCache, nextCache, k, w, h, kind);
++  }
++
++  /* ------------------------------------------------- dissolve transition
++   * Растворение одного фона в другой «частицами» на Canvas 2D.
++   *
++   * Почему не Three.js-шейдер из референса: в варпе уже есть единственный
++   * Canvas 2D на слой фона, и второй WebGL-рендерер был бы и дублирующим
++   * циклом, и лишним контекстом на слабом Android. Тот же эффект даётся
++   * нарезкой кэша на ячейки: уходящая картинка разлетается, приходящая
++   * собирается из тех же клеток. Никаких новых зависимостей.
++   *
++   * Стоимость: 2 * (cols * rows) drawImage за кадр перехода и 1 за кадр паузы.
++   * На 12x7 это 168 blit-ов только в переходе; в паузе — один.
++   */
++  /* Положение клетки в кадре, 0 = центр, 1 = угол. Нужен для радиальной
++   * волны распада; считается на месте, без дополнительных полей в клетке. */
++  function cellRadius(cell) {
++    var nx = (cell.col + 0.5) * 2 - 1;
++    var ry = (cell.row + 0.5) * 2 - 1;
++    var r = Math.sqrt(nx * nx + ry * ry) / 1.4142;
++    return r > 1 ? 1 : r;
++  }
++
++  function drawSpaceDissolve(g, prevCache, nextCache, k, w, h, cells, cols, rows, quality, intensity) {
++    var t = clampUnit(k);
++    var eased = t * t * (3 - 2 * t);
++    var q = quality == null ? 1 : quality;
++    var power = isFinite(intensity) && intensity > 0 ? Number(intensity) : 1;
++    var cw = w / cols;
++    var ch = h / rows;
++    var prev = prevCache && prevCache.canvas;
++    var next = nextCache && nextCache.canvas;
++    var prevW = prev ? prev.width : 0;
++    var prevH = prev ? prev.height : 0;
++    var nextW = next ? next.width : 0;
++    var nextH = next ? next.height : 0;
++    var throwScale = (0.55 + 0.45 * q) * power;
++    var spinScale = (0.6 + 0.4 * q) * power;
++
++    /* Мелкий пиксель ведёт себя иначе, чем крупный.
++     * При клетке меньше 8 px вращение превращается в мерцание: поворот
++     * квадрата 5x5 px — это субпиксельный шум, а не «осколок». Поэтому у
++     * мелкой сетки вращение гасится, а разлёт становится волной по радиусу:
++     * картинка распадается кольцом от центра, как в референсах с шейдером,
++     * вместо случайного конфетти. Крупная сетка (12x7) остаётся как была. */
++    var cellSide = Math.min(cw, ch);
++    var tiny = cellSide < 8;
++    // Гашение поворота квадратичное: 6 px — уже почти без вращения, 9–10 px —
++    // как раньше, 3 px — вращения практически нет (иначе субпиксельное мерцание).
++    var spinFactor = Math.min(1, (cellSide / 10) * (cellSide / 10));
++    spinScale *= Math.max(0.06, spinFactor);
++    if (tiny) throwScale *= 1.15;
++
++    // Уходящая картинка: клетки уезжают от центра, растут и гаснут.
++    // На мелкой сетке добавляется радиальная волна: клетки с большим |u|
++    // уходят позже, поэтому распад идёт кольцом, а не пятном.
++    if (prev) {
++      for (var i = 0; i < cells.length; i += 1) {
++        var c = cells[i];
++        // На мелкой сетке разлёт идёт кольцом от центра: радиус добавляет
++        // задержку, поэтому картинка «раскрывается», а не рябит случайно.
++        var delayEff = tiny ? c.delay * 0.45 + cellRadius(c) * 0.40 : c.delay;
++        var local = (t - delayEff) / Math.max(0.001, 1 - delayEff);
++        if (local <= 0) local = 0;
++        if (local >= 1) continue;               // уже улетела
++        var alpha = 1 - local;
++        if (alpha <= 0.02) continue;
++        var sx = c.col * cw;
++        var sy = c.row * ch;
++        var dist = local * c.spread * throwScale;
++        var dx = sx + c.ux * dist * w * 0.55;
++        var dy = sy + c.uy * dist * h * 0.55;
++        var scale = 1 + local * 0.45;
++        var side = cw * scale;
++        var sideY = ch * scale;
++        g.save();
++        g.globalAlpha = alpha;
++        g.translate(dx + cw * 0.5, dy + ch * 0.5);
++        g.rotate(c.spin * spinScale * local);
++        g.drawImage(
++          prev,
++          c.col * (prevW / cols), c.row * (prevH / rows),
++          prevW / cols, prevH / rows,
++          -side * 0.5, -sideY * 0.5, side, sideY
++        );
++        g.restore();
++      }
++    }
++
++    // Приходящая картинка: те же клетки слетаются на своё место.
++    if (next) {
++      for (var j = 0; j < cells.length; j += 1) {
++        var c2 = cells[j];
++        var local2 = eased;
++        var delay2 = tiny ? c2.delay * 0.45 + (1 - cellRadius(c2)) * 0.30 : c2.delay * 0.3;
++        var appear = clampUnit((local2 - delay2) / 0.7);
++        if (appear <= 0) continue;
++        var alpha2 = appear;
++        var back = 1 - appear;
++        var sx2 = c2.col * cw;
++        var sy2 = c2.row * ch;
++        var dist2 = back * c2.spread * throwScale;
++        var dx2 = sx2 + c2.ux * dist2 * w * 0.55;
++        var dy2 = sy2 + c2.uy * dist2 * h * 0.55;
++        var scale2 = 1 + back * 0.45;
++        var side2 = cw * scale2;
++        var sideY2 = ch * scale2;
++        g.save();
++        g.globalAlpha = alpha2;
++        g.translate(dx2 + cw * 0.5, dy2 + ch * 0.5);
++        g.rotate(c2.spin * spinScale * back);
++        g.drawImage(
++          next,
++          c2.col * (nextW / cols), c2.row * (nextH / rows),
++          nextW / cols, nextH / rows,
++          -side2 * 0.5, -sideY2 * 0.5, side2, sideY2
++        );
++        g.restore();
++      }
++    }
++    // Вспышка на пике перехода: короткая, только в середине, чтобы стык
++    // «разошлось / собралось» читался как один удар, а не как два.
++    if (power > 1.05) {
++      var flare = Math.sin(t * Math.PI);
++      if (flare > 0.02) {
++        g.globalAlpha = 0.20 * flare * (power - 1);
++        g.fillStyle = "#bfe6ff";
++        g.fillRect(0, 0, w, h);
++      }
++    }
++    g.globalAlpha = 1;
++  }
++
++  /* ------------------------------------------------------------------ rings
++   * Rings ride the same `point(depth, angle, extra)` the wall and obstacles
++   * use, so they cannot desync from the corridor. They are thin, uniformly
++   * coloured and never segmented, to avoid reading as a collision gate.
++   */
++  function drawWarpSpaceRings(g, point, profile, t, palette) {
++    if (!profile || !profile.rings) return 0;
++    var col = palette || "122,232,255";
++    var drawn = 0;
++    for (var i = 0; i < profile.rings; i += 1) {
++      var phase = wrap01((i / profile.rings) + t * 0.028);
++      var d = 0.06 + phase * 0.86;
++      if (profile.ringStep > 1 && i % profile.ringStep !== 0) continue;
++      var depthFade = Math.sin(phase * Math.PI);
++      var alpha = profile.ringAlpha * depthFade;
++      if (alpha <= 0.012) continue;
++      // Число сэмплов по видимому радиусу: дальние кольца всё равно занимают
++      // считанные пиксели, рисовать их 26 точками — чистая трата кадра.
++      var edge = point(d, 0, 0);
++      var midP = point(d, Math.PI, 0);
++      var rx = Math.abs(edge.x - midP.x) * 0.5;
++      var samples = Math.max(8, Math.min(26, Math.round(rx / 5)));
++      g.beginPath();
++      for (var s = 0; s <= samples; s += 1) {
++        var p = point(d, (s / samples) * Math.PI * 2, 0);
++        if (!s) g.moveTo(p.x, p.y);
++        else g.lineTo(p.x, p.y);
++      }
++      g.strokeStyle = "rgba(" + col + "," + alpha.toFixed(3) + ")";
++      g.lineWidth = 0.8 + depthFade * 1.1;
++      g.stroke();
++      drawn += 1;
++    }
++    return drawn;
++  }
++
++  /* Outward-travelling pulse rings for the "pulse" profile. */
++  function drawWarpSpacePulse(g, px, py, rBase, t, profile, palette) {
++    if (!profile || !profile.pulse) return 0;
++    var col = palette || "190,255,255";
++    var base = Math.abs(Number(rBase) || 0);
++    var time = Number(t);
++    if (!isFinite(time)) time = 0;
++    var drawn = 0;
++    for (var i = 0; i < 3; i += 1) {
++      // Фаза нормализована: при обратном ходе (t < 0) раньше выходил
++      // отрицательный радиус, и arc() ронял весь кадр.
++      var phase = wrap01(time * 0.11 + i / 3);
++      var r = base * (0.12 + phase * 1.05);
++      if (!(r > 0.5)) continue;                 // страховка: никогда не 0 и не минус
++      var alpha = 0.26 * (1 - phase) * (1 - phase);
++      if (alpha <= 0.01) continue;
++      g.strokeStyle = "rgba(" + col + "," + alpha.toFixed(3) + ")";
++      g.lineWidth = 0.8 + (1 - phase) * 1.2;
++      g.beginPath();
++      g.arc(px, py, r, 0, Math.PI * 2);
++      g.stroke();
++      drawn += 1;
++    }
++    return drawn;
++  }
++
++  /* Ribbon seams: same path as the frame lines, three stacked wide strokes.
++   * No shadowBlur — it is the single most expensive 2D effect on low-end GPUs. */
++  function drawWarpSpaceRibbon(g, pathPoints, baseColor, thickness) {
++    var k = isFinite(thickness) && thickness > 0 ? Number(thickness) : 1;
++    var widths = [7 * k, 4 * k, 1.6 * k];
++    var alphas = [0.10, 0.16, 0.95];
++    for (var i = 0; i < widths.length; i += 1) {
++      g.beginPath();
++      pathPoints.forEach(function (p, index) {
++        if (!index) g.moveTo(p.x, p.y);
++        else g.lineTo(p.x, p.y);
++      });
++      g.strokeStyle = i === 0 || i === 1
++        ? "rgba(122,232,255," + (alphas[i] * k) + ")"
++        : baseColor;
++      g.lineWidth = widths[i];
++      g.lineCap = "round";
++      g.stroke();
++    }
++  }
++
++      return {
++        WARP_SPACE_PROFILES,
++        warpSpaceProfileFor,
++        warpSpaceQuality,
++        paintSpaceBackdrop,
++        createSpaceBackdropCache,
++        drawSpaceBackdrop,
++        drawWarpSpaceRings,
++        drawWarpSpacePulse,
++        warpSpacePaletteAt,
++        warpSpaceFlowMix,
++        warpSpacePingPong,
++        warpSpacePanelCss,
++        warpSpacePanelRgb,
++        warpSpaceSeamCss,
++        warpSpaceAccentCss,
++        warpSpaceRingRgb,
++        warpSpaceSeedFor,
++        warpSpaceNextSeed,
++        warpSpaceDirectionFor,
++        warpSpaceDirectionRamp,
++        warpSpaceTier,
++        warpSpaceTierParams,
++        warpSpaceCycleConfig,
++        warpSpaceCycleAt,
++        WARP_SPACE_RANDOM,
++        warpSpaceRandomCycleAt,
++        warpSpaceRandomCyclePlan,
++        warpSpaceCellField,
++        drawSpaceDissolve,
++        WARP_SPACE_TRANSITIONS,
++        warpSpaceTransitionIds,
++        warpSpaceTransitionFor,
++        drawSpaceWipe,
++        drawSpaceTransition,
++        WARP_SPACE_SHIP_SPECS,
++        warpSpaceShipSpec,
++        warpSpaceShipSize,
++        paintShipRear,
++        drawWarpShip,
++        warpSpaceShipRollFor,
++        warpSpaceCellGrid,
++        warpSpaceDeviceProfile,
++        WARP_SPACE_CELL_PRESETS,
++        WARP_SPACE_SKETCHES,
++        warpSpaceSketchFor,
++        warpSpaceCoverRect,
++        createSketchCache,
++        rgbCss,
++        rgbaCss
++      };
++    })();
++
++    let warpSpaceCache = null;
++
++    function warpSpaceProfile() {
++      return warpSpace.warpSpaceProfileFor(
++        activeWarpVisualClass(),
++        Number(state.tubeBackdropSeed || 0) >>> 0
++      );
++    }
++
++    function warpSpaceRingTint() {
++      const cls = activeWarpVisualClass();
++      return cls === 3 ? "189,139,246" : cls === 2 ? "115,193,206" : "122,232,255";
++    }
++
++    function warpSpacePulseTint() {
++      return activeWarpVisualClass() === 3 ? "230,205,255" : "190,255,255";
++    }
++
++    // Фон рисуется один раз в offscreen-canvas и потом только копируется:
++    // перерисовка градиентов и 240 звёзд каждый кадр — это и есть просадка
++    // на слабом Android, а не сам blit.
++    // Палитра: не переключение, а непрерывный перелив A <-> B. В каждой точке
++    // стенки локальный mix опережает общий, поэтому смена цвета бежит волной —
++    // тот же приём, что перелив текстуры на Rainbow Photoli.
++    function warpSpaceGlobalMix() {
++      if (!state.warpPaletteFlow) return Number(state.warpPaletteMix || 0);
++      return warpSpace.warpSpacePingPong(state.elapsed, Number(state.warpPalettePeriod) || 11);
++    }
++
++    function warpSpaceLocalMix(spatialPhase) {
++      // Волна только в режиме перелива. При закреплённой палитре mix равен цели
++      // ровно, поэтому вид A воспроизводит 0.14.0 бит в бит.
++      if (!state.warpPaletteFlow) return warpSpaceGlobalMix();
++      return warpSpace.warpSpaceFlowMix(warpSpaceGlobalMix(), spatialPhase, state.elapsed, 0.22);
++    }
++
++    function warpSpacePalette(spatialPhase) {
++      // Радуга включена по умолчанию: цвет берётся с цветового круга, фаза
++      // сдвигается вдоль поверхности — полосы переливаются по стенке, а не
++      // переключаются в один момент. Выключенная радуга возвращает переход
++      // A <-> B, то есть при mix 0 — ровно вид 0.14.0.
++      return warpSpace.warpSpacePaletteAt(
++        activeWarpVisualClass(),
++        warpSpaceLocalMix(spatialPhase),
++        state.warpRainbow ? spatialPhase : null
++      );
++    }
++
++    // Тир качества: если кадр стабильно дороже 22 мс, режем глубину стенки.
++    // Порог и параметры — в ядре, здесь только сглаживание замера.
++    function warpSpaceTierNow() {
++      if (state.warpQualityTier) return state.warpQualityTier;
++      return warpSpace.warpSpaceTier(Number(state.warpFrameMs || 0), Number(state.warpSlowStreak || 0));
++    }
++
++    // Глубина и число панелей НЕ зависят от тира: урезание ломало силуэт
++    // (гранёная «бочка», потом «купол» на классе III). Экономия — только
++    // отсечением субпиксельных панелей и разрешением фона.
++    function warpSpaceDepthSteps() {
++      return 23;
++    }
++
++    function warpSpaceCullScale() {
++      return warpSpace.warpSpaceTierParams(warpSpaceTierNow()).cullScale;
++    }
++
++    // ---------------------------------------------------------- устройство
++    // Пиксель перехода и разрешение канвы подбираются под железо, а не
++    // выдаются всем одинаково: телефон с DPR 3 — это 3 млн пикселей на кадр
++    // ни за что, а ПК зря получал грубую мозаику 18x10.
++    const warpDevice = (() => {
++      let cores = 0;
++      let coarse = false;
++      try {
++        if (typeof navigator !== "undefined" && navigator.hardwareConcurrency) {
++          cores = Number(navigator.hardwareConcurrency) || 0;
++        }
++        if (typeof window !== "undefined" && window.matchMedia) {
++          coarse = !!window.matchMedia("(pointer: coarse)").matches;
++        }
++      } catch (e) {}
++      const dpr = typeof window !== "undefined" && window.devicePixelRatio ? window.devicePixelRatio : 1;
++      const shortSide = typeof window !== "undefined"
++        ? Math.min(Number(window.innerWidth) || 0, Number(window.innerHeight) || 0)
++        : 0;
++      return warpSpace.warpSpaceDeviceProfile({ cores, dpr, shortSide, coarsePointer: coarse });
++    })();
++
++    // Ручная ступень из хука; null = авто по профилю устройства.
++    function warpCellBudget(w) {
++      const preset = warpSpace.WARP_SPACE_CELL_PRESETS[String(state.warpCellSize || "")];
++      let budget = typeof preset === "number" ? preset : warpDevice.cellBudget;
++      if (warpSpaceTierNow() === "low") {
++        budget = Math.min(budget, warpSpace.WARP_SPACE_CELL_PRESETS.coarse);
++      }
++      return budget;
++    }
++
++    function warpCellGrid(w, h) {
++      return warpSpace.warpSpaceCellGrid(warpCellBudget(w), w, h);
++    }
++
++    // ------------------------------------------------- способ смены кадра
++    // Приоритет — рассыпание (по указанию владельца). Остальные виды — как
++    // двери в первой комнате: каждый переход может открываться по-своему.
++    function warpSpaceTransitionNow(randomKind) {
++      if (state.warpTransitionAuto) {
++        // Случайный ритм уже выбрал вид за нас — главнее «по кругу».
++        if (state.warpBgRandom && randomKind &&
++            warpSpace.warpSpaceTransitionIds().indexOf(randomKind) >= 0) {
++          return randomKind;
++        }
++        // step начинается с 1 (первый переход), индекс — с 0
++        return warpSpace.warpSpaceTransitionFor(Math.max(0, Number(state.warpTransitionStep || 1) - 1));
++      }
++      const want = String(state.warpTransition || "dissolve");
++      return warpSpace.warpSpaceTransitionIds().indexOf(want) >= 0 ? want : "dissolve";
++    }
++
++    // -------------------------------------------------- корабль, вид сзади
++    // Маленький силуэт внутри кольца. Если игра передала запечённый спрайт
++    // настоящей модели (BCMDeepSpaceWarpSetShipSprite), рисуется он: в кадре
++    // это один drawImage, второй WebGL-контекст не создаётся.
++    // Размеры кадра: во время отрисовки они приходят из drawTubeTunnel, а при
++    // вызове хука снаружи берутся из window. Без этого хук падал бы с
++    // ReferenceError на w/h — ровно тот класс ошибки, что ловят новые стражи.
++    function warpFrameSize() {
++      const fw = Number(state.warpW || (typeof window !== "undefined" ? window.innerWidth : 800)) || 800;
++      const fh = Number(state.warpH || (typeof window !== "undefined" ? window.innerHeight : 500)) || 500;
++      return { w: fw, h: fh };
++    }
++
++    function warpShipInfo() {
++      const spec = warpSpace.warpSpaceShipSpec(state.warpShipSpec);
++      const frame = warpFrameSize();
++      const size = warpSpace.warpSpaceShipSize(frame.w, frame.h) * (Number(state.warpShipScale) || 1);
++      return {
++        spec: spec.id,
++        engines: spec.engines,
++        sprite: !!state.warpShipSprite,
++        roll: Number(state.warpShipRollShown || 0),
++        manualRoll: Number(state.warpShipRoll || 0),
++        size: Math.round(size)
++      };
++    }
++
++    function drawWarpShipLayer(g, x, y, bank, thrust, roll) {
++      const frame = warpFrameSize();
++      const size = warpSpace.warpSpaceShipSize(frame.w, frame.h) * (Number(state.warpShipScale) || 1);
++      warpSpace.drawWarpShip(g, x, y, size, state.warpShipSpec, bank, thrust,
++        state.warpShipSprite || null, roll);
++      return size;
++    }
++
++    // Кэш фоновых сцен. Ритм смены кадра быстрый (~2 с пауза), поэтому сцены
++    // идут по кругу из пула: строить полноэкранный фон на каждый переход —
++    // заметный рывок на слабом Android. Пул 4: текущая, следующая и две под
++    // переиспользование. Разнообразие даёт способ перехода и сила, а не
++    // бесконечная генерация новых звёзд.
++    const WARP_BG_POOL = 4;
++    const warpBgStore = new Map();
++    const warpBgOrder = [];
++    let warpBgCreated = 0;
++
++    function warpBgSceneSlot(index) {
++      const i = Number(index) || 0;
++      return ((i % WARP_BG_POOL) + WARP_BG_POOL) % WARP_BG_POOL;
++    }
++
++    function warpBgKey(index, w, h) {
++      const profile = warpSpaceProfile();
++      const seed = warpSpace.warpSpaceSeedFor(Number(state.tubeBackdropSeed || 0) >>> 0, profile);
++      return warpBgSceneSlot(index) + "|" + seed + "|" + profile.id + "|" + Math.round(w) + "x" + Math.round(h) +
++        "|" + warpSpaceTierNow();
++    }
++
++    function warpBgTouch(key) {
++      const at = warpBgOrder.indexOf(key);
++      if (at >= 0) warpBgOrder.splice(at, 1);
++      warpBgOrder.push(key);
++    }
++
++    // ---------------------------------------------------------------------
++    // Обои seed из mini-sim/assets/scetchs (векторные скетчи 1600x900).
++    // Путь берётся из config.assets — тем же способом, что и GLB для астероидной
++    // стенки (loadAsteroidWallAssetTemplate) — с запасным путём рядом со скриптом.
++    // Пока картинки нет или файл не найден, на экране процедурный фон: кадр не
++    // пустует, исключений нет, повторных запросов к отсутствующему файлу нет.
++    // SVG тяжёлый (300-600 элементов + feGaussianBlur), поэтому растеризация
++    // делается один раз в offscreen-кэш, а не каждый кадр.
++    // ---------------------------------------------------------------------
++    const warpSketchImages = new Map();      // имя -> Image | null (null = отказ)
++    const warpSketchLoading = new Set();
++    const warpSketchScenes = new Map();      // "имя|WxH" -> готовая сцена
++    const warpSketchSceneOrder = [];
++
++    function warpSketchBaseUrl() {
++      const explicit = String(config.warpSketchBaseUrl || "").trim();
++      if (explicit) return explicit.charAt(explicit.length - 1) === "/" ? explicit : explicit + "/";
++      try {
++        const doc = typeof document !== "undefined" ? document : null;
++        const script = doc && (doc.currentScript ||
++          (doc.querySelector && doc.querySelector('script[src*="deep-space-warp"]')));
++        const src = script && script.src ? String(script.src) : "";
++        // assets/js/deep-space-warp.js -> assets/scetchs/
++        if (src) return src.split(/[?#]/)[0].replace(/[^/]*$/, "") + "../scetchs/";
++      } catch (e) {}
++      return "assets/scetchs/";
++    }
++
++    function warpSketchUrl(name) {
++      const assets = Array.isArray(config.assets) ? config.assets : [];
++      const wanted = String(name || "").toLowerCase();
++      const asset = assets.find((item) => {
++        if (!item || typeof item.url !== "string" || !item.url) return false;
++        const file = String(item.name || item.filename || item.path || item.url)
++          .split(/[?#]/)[0].split("/").pop().toLowerCase();
++        return file === wanted;
++      });
++      if (asset) return asset.url;
++      return warpSketchBaseUrl() + name;
++    }
++
++    function warpSketchName(index) {
++      if (state.warpSketch) return String(state.warpSketch);
++      return warpSpace.warpSpaceSketchFor(index);
++    }
++
++    function loadWarpSketch(name) {
++      if (!name || warpSketchImages.has(name) || warpSketchLoading.has(name)) return;
++      if (typeof Image !== "function") return;
++      const img = new Image();
++      warpSketchLoading.add(name);
++      img.onload = () => {
++        warpSketchLoading.delete(name);
++        warpSketchImages.set(name, img);
++        warpSketchDropPending();
++      };
++      img.onerror = () => {
++        warpSketchLoading.delete(name);
++        warpSketchImages.set(name, null);   // запоминаем отказ: фолбэк постоянный
++      };
++      try {
++        if ("decoding" in img) img.decoding = "async";
++        img.src = warpSketchUrl(name);
++      } catch (e) {
++        warpSketchLoading.delete(name);
++        warpSketchImages.set(name, null);
++      }
++    }
++
++    // Сбрасываем ТОЛЬКО сцены, ждавшие картинку: соседний фон валиден и не
++    // перестраивается (иначе лишняя растеризация прямо посреди паузы).
++    function warpSketchDropPending() {
++      const stale = [];
++      warpBgStore.forEach((value, key) => {
++        if (value && value.pendingSketch) stale.push(key);
++      });
++      for (let i = 0; i < stale.length; i += 1) {
++        warpBgStore.delete(stale[i]);
++        const at = warpBgOrder.indexOf(stale[i]);
++        if (at >= 0) warpBgOrder.splice(at, 1);
++      }
++    }
++
++    function warpSketchScene(name, w, h) {
++      if (!name) return null;
++      if (!warpSketchImages.has(name)) loadWarpSketch(name);
++      const img = warpSketchImages.get(name);
++      if (!img) return null;
++      const key = name + "|" + Math.round(w) + "x" + Math.round(h);
++      const hit = warpSketchScenes.get(key);
++      if (hit) return hit;
++      const made = warpSpace.createSketchCache(img, w, h, (cw, ch) => {
++        const canvas = document.createElement("canvas");
++        canvas.width = cw;
++        canvas.height = ch;
++        return canvas;
++      });
++      if (!made) return null;
++      warpSketchScenes.set(key, made);
++      warpSketchSceneOrder.push(key);
++      while (warpSketchSceneOrder.length > 3) {
++        warpSketchScenes.delete(warpSketchSceneOrder.shift());
++      }
++      return made;
++    }
++
++    function warpBgGet(index, w, h) {
++      const sketchMode = state.warpArtMode !== "procedural";
++      const key = warpBgKey(index, w, h) + "|" + (sketchMode ? "sk" : "pr");
++      const cached = warpBgStore.get(key);
++      if (cached) { warpBgTouch(key); return cached; }
++      const profile = warpSpaceProfile();
++      const makeCanvas = (cw, ch) => {
++        const canvas = document.createElement("canvas");
++        canvas.width = cw;
++        canvas.height = ch;
++        return canvas;
++      };
++      const sketchName = sketchMode ? warpSketchName(index) : null;
++      let built = sketchName ? warpSketchScene(sketchName, w, h) : null;
++      if (!built) {
++        const base = warpSpace.warpSpaceSeedFor(Number(state.tubeBackdropSeed || 0) >>> 0, profile);
++        const seed = warpSpace.warpSpaceNextSeed(base, index);
++        built = warpSpace.createSpaceBackdropCache(w, h, seed, profile, makeCanvas);
++        // Пока SVG в пути — процедурный фон уже на экране, кадр не пустует.
++        // Если файла нет вовсе, флаг не ставится и пересборки не будет.
++        if (sketchName && warpSketchLoading.has(sketchName)) built.pendingSketch = true;
++      }
++      built.key = key;
++      warpBgCreated += 1;
++      warpBgStore.set(key, built);
++      warpBgTouch(key);
++      while (warpBgOrder.length > WARP_BG_POOL) {
++        const oldest = warpBgOrder.shift();
++        if (oldest !== key) warpBgStore.delete(oldest);
++      }
++      return built;
++    }
++
++    function warpBgReset() {
++      warpBgStore.clear();
++      warpBgOrder.length = 0;
++      state.warpBgCells = null;
++    }
++
++    // Текущий отрезок ритма: случайный (по умолчанию) либо тактовая сетка.
++    // Обе ветки возвращают одинаковый набор полей, поэтому кадр ниже один.
++    function warpBgCycleState(remaining) {
++      const elapsed = Number(state.elapsed || 0);
++      if (state.warpBgRandom) {
++        return warpSpace.warpSpaceRandomCycleAt(elapsed, {
++          seed: Number(state.warpBgSeed || 0),
++          hold: Number(state.warpBgHold) || 2
++        }, remaining);
++      }
++      const cfg = warpSpace.warpSpaceCycleConfig(3, 15, Number(state.warpBgBpm) || 142);
++      const cs = warpSpace.warpSpaceCycleAt(elapsed, cfg, remaining);
++      cs.kind = null;
++      cs.power = Number(state.warpBgPower) || 1.6;
++      return cs;
++    }
++
++    // Сила перехода: в случайном ритме она тоже своя на каждый переход, но
++    // общий регулятор игры (warpBgPower) остаётся главным — он множитель.
++    function warpBgPowerNow(cs) {
++      const base = Number(state.warpBgPower) || 1.6;
++      if (!state.warpBgRandom || !cs || !isFinite(cs.power)) return base;
++      const scaled = Number(cs.power) * (base / 1.6);
++      return Math.max(0.6, Math.min(3, scaled));
++    }
++
++    // Декоративный фон живёт своим циклом: 3 с переход частицами, 4,5 с пауза.
++    // Переход не начинается, если до прибытия он не успеет дорисоваться.
++    function drawWarpSpaceBackdrop(g, w, h, t) {
++      const remaining = Math.max(0, WARP_DURATION - Number(state.elapsed || 0));
++
++      if (!state.warpBgCycle) {
++        warpSpace.drawSpaceBackdrop(g, warpBgGet(Number(state.warpBgIndex || 0), w, h), w, h, t);
++        return;
++      }
++
++      // Ритм сцены. По умолчанию — СЛУЧАЙНЫЙ: пауза ~2 с, переход ~0.9 с, и
++      // каждый переход берёт свой способ из всех шести (случайный «мешок» без
++      // повторов подряд) и свою силу. Тактовую сетку (142 BPM) владелец оставил
++      // вторым режимом: BCMDeepSpaceWarpSetRandomCycle(false).
++      const cs = warpBgCycleState(remaining);
++      const current = warpBgGet(cs.from, w, h);
++
++      if (cs.phase === "hold") {
++        warpBgGet(cs.from + 1, w, h);            // предзагрузка в паузе
++        warpSpace.drawSpaceBackdrop(g, current, w, h, t);
++        state.warpBgIndex = cs.from;
++        state.warpBgCells = null;
++        return;
++      }
++
++      const incoming = warpBgGet(cs.to, w, h);
++      const low = warpSpaceTierNow() === "low";
++      // Шаг «по кругу» считается по входу в переход: каждый новый переход —
++      // следующая дверь, как в первой комнате. Последовательность детерминированная.
++      if (state.warpTransitionFrom !== cs.to) {
++        state.warpTransitionFrom = cs.to;
++        state.warpTransitionStep = Number(state.warpTransitionStep || 0) + 1;
++      }
++      const kind = warpSpaceTransitionNow(cs.kind);
++      state.warpBgKind = kind;
++      if (kind !== "dissolve") {
++        // Остальные виды — clip + 1–2 drawImage: дешевле рассыпания.
++        warpSpace.drawSpaceTransition(g, current, incoming, cs.k, w, h, kind);
++        state.warpBgIndex = cs.to;
++        state.warpBgCells = null;
++        return;
++      }
++      if (!state.warpBgCells) {
++        // Пиксель перехода считается под кадр и под устройство: на ПК это
++        // ~96x54 клетки, на телефоне ~18x10, на слабом — 12x7. Сетка
++        // пересчитывается на каждый переход, поэтому смена размера окна или
++        // тира не оставляет старую.
++        const grid = warpCellGrid(w, h);
++        state.warpBgCells = warpSpace.warpSpaceCellField(grid.cols, grid.rows, cs.from * 7919 + cs.to);
++        state.warpBgCols = grid.cols;
++        state.warpBgRows = grid.rows;
++      }
++      warpSpace.drawSpaceDissolve(g, current, incoming, cs.k, w, h,
++        state.warpBgCells, state.warpBgCols, state.warpBgRows, low ? 0.35 : 1,
++        warpBgPowerNow(cs));
++      state.warpBgIndex = cs.to;
++    }
++
++    // Остановка по РЕАЛЬНОМУ событию прибытия: finishTube() переводит режим из
++    // tube, после чего фон больше не цикличный и таймер не запускается.
++    function stopWarpBackgroundCycle() {
++      state.warpBgCycle = false;
++      state.warpBgCells = null;
++      warpBgReset();
++    }
++
+     function drawTubeTunnel(g, w, h, now) {
++      state.warpW = w;
++      state.warpH = h;
+       const visualClass = activeWarpVisualClass();
++      // Профиль нужен до расчёта направления: под «Пульсом» стенка идёт назад.
++      const spaceProfile = warpSpaceProfile();
+       // Class II reverses visible corridor motion, not just its colour pulse.
+       // Course timing and obstacle collision remain on the same forward clock.
+-      const flowDirection = visualClass === 2 ? -1 : 1;
++      // Профиль с reverseMotion разворачивает ход ещё раз, поэтому два
++      // разворота дают нормальный ход — XOR, а не двойное отрицание вслепую.
++      const flowDirection = warpSpace.warpSpaceDirectionFor(visualClass, spaceProfile);
+       const t = Number(state.tubeTravel || 0) * flowDirection;
+       const shimmerTime = Number(state.tubeShimmerTime || 0) * flowDirection;
+       const flowPhase = ((t * 0.052 + 0.12) % 1 + 1) % 1;
+       const flowPulsePosition = 1 - flowPhase;
+       // Restore a clear but controlled roll so the pilot can feel the corridor moving.
+       const axialRoll = Number(state.tubeRoll || 0) * flowDirection + Math.sin(t * 0.13) * 0.20;
+@@ -5580,50 +7824,68 @@ return axialRoll + ahead * 0.12 +
+       bg.addColorStop(0, "#02060d");
+       bg.addColorStop(0.46, "#071b2a");
+       bg.addColorStop(1, "#02040a");
+       g.fillStyle = bg;
+       g.fillRect(0, 0, w, h);
+ 
++      // Космос виден вокруг силуэта трубы и в дальнем отверстии.
++      // Рисуется до стенки: стенка непрозрачна, значит препятствия не перекрываются.
++      drawWarpSpaceBackdrop(g, w, h, t);
++
+       // Build the inside wall from circumferential panels. Seams, panel
+       // highlights, rings, and obstacles all rotate around the tunnel axis.
+-      const depthSteps = 23;
+-      const panelCount = visualClass === 3 ? 12 : 18;
++      const depthSteps = warpSpaceDepthSteps();
++      // 18 панелей для всех классов: при 12 у класса III сечение читалось
++      // как гранёный «купол» — это и было видно на скриншотах.
++      const panelCount = 18;
+       for (let step = 0; step < depthSteps; step += 1) {
+         const d0 = 0.04 + (step / depthSteps) * 0.96;
+         const d1 = 0.04 + ((step + 1) / depthSteps) * 0.96;
+         for (let panel = 0; panel < panelCount; panel += 1) {
+           const a0 = panel * Math.PI * 2 / panelCount;
+           const a1 = (panel + 1) * Math.PI * 2 / panelCount;
+           const p00 = point(d0, a0, 0);
+           const p01 = point(d0, a1, 0);
+           const p11 = point(d1, a1, 0);
+           const p10 = point(d1, a0, 0);
++          // Субпиксельные панели у точки схода не видны, но каждый fill стоит
++          // вызова. Отсечение ниже порога в 1.6 px² экономит около десятой части
++          // заливок и не меняет картинку заметно.
++          if (Math.abs(p01.x - p00.x) * Math.abs(p10.y - p00.y) < warpSpaceCullScale()) continue;
+           g.beginPath();
+           g.moveTo(p00.x, p00.y);
+           g.lineTo(p01.x, p01.y);
+           g.lineTo(p11.x, p11.y);
+           g.lineTo(p10.x, p10.y);
+           g.closePath();
+           const shimmer = Math.sin(shimmerTime * 1.35 + panel * 1.72 + step * 0.77 + playerAngle) * 0.5 + 0.5;
+           const light = (((step + Math.floor(shimmerTime * 8) + panel * 3) % 5 + 5) % 5 === 0) ? 1 : 0;
+-          const red = visualClass === 3
+-            ? Math.round(17 + shimmer * 12 + light * 3)
+-            : Math.round(8 + shimmer * 8 + light * 2);
+-          const green = visualClass === 3
+-            ? Math.round(12 + shimmer * 8 + light * 5)
+-            : Math.round(20 + shimmer * 18 + light * 12);
+-          const blue = visualClass === 3
+-            ? Math.round(34 + shimmer * 28 + light * 12)
+-            : Math.round(31 + shimmer * 22 + light * 18);
+-          g.fillStyle = "rgba(" + red + "," + green + "," + blue + ",0.98)";
++          // Цвет панели берётся из палитры класса с локальным сдвигом перелива,
++          // поэтому смена A -> B идёт волной вдоль стенки, а не разом.
++          // Цвет панели целиком из палитры (при радуге — из цветового круга).
++          // warpSpacePanelCss сам добавляет модуляцию shimmer/light: в радужном
++          // режиме она идёт по светлоте того же оттенка, чтобы огоньки не
++          // уводили красную стенку в бирюзу.
++          const panelMix = warpSpaceLocalMix(panel / panelCount + step * 0.04);
++          g.fillStyle = warpSpace.warpSpacePanelCss(
++            activeWarpVisualClass(), shimmer, light, panelMix,
++            state.warpRainbow ? (panel / panelCount + step * 0.04) : null
++          );
+           g.fill();
+           // No transverse panel outlines: they read as hoops at speed.
+           // The longitudinal strips below are the sole continuous surface lines.
+         }
+       }
+ 
++      // Глубинные кольца и (опционально) расходящийся пульс. Тонкие, одного
++      // цвета, без разрывов — чтобы не читались как ворота столкновения.
++      const seamPalette = warpSpacePalette(0.25);
++      warpSpace.drawWarpSpaceRings(g, point, spaceProfile, t, warpSpace.rgbCss(seamPalette.ring));
++      warpSpace.drawWarpSpacePulse(g, centerX(0.5), centerY(0.5),
++        maxRadius * 0.9, t, spaceProfile, warpSpace.rgbCss(seamPalette.accent));
++
+       // Keep the established 12 longitudinal frame lines. Their geometry and
+       // width stay unchanged; only a colour pulse moves along each same path.
+       for (let seam = 0; seam < 12; seam += 1) {
+         const theta = seam * Math.PI * 2 / 12;
+         g.beginPath();
+         let frameStart = null;
+@@ -5637,32 +7899,38 @@ return axialRoll + ahead * 0.12 +
+           } else {
+             if (step === 35) frameEnd = p;
+             g.lineTo(p.x, p.y);
+           }
+         }
+ 
+-        const baseColor = visualClass === 3
+-          ? (seam % 3 === 0 ? "rgba(189,139,246,0.86)" : "rgba(131,96,184,0.36)")
+-          : visualClass === 2
+-            ? (seam % 3 === 0 ? "rgba(115,193,206,0.56)" : "rgba(110,191,210,0.22)")
+-            : (seam % 3 === 0 ? "rgba(110,239,246,0.72)" : "rgba(110,191,210,0.25)");
+-        const pulseColor = visualClass === 3
+-          ? "rgba(230,205,255,1)"
+-          : visualClass === 2
+-            ? "rgba(190,244,250,0.98)"
+-            : "rgba(190,255,255,1)";
++        const seamPalette = warpSpacePalette(seam / 12);
++        const baseColor = seam % 3 === 0
++          ? warpSpace.rgbaCss(seamPalette.seam, 0.80)
++          : warpSpace.rgbaCss(seamPalette.seam, 0.26);
++        const pulseColor = warpSpace.rgbaCss(seamPalette.accent, 1);
+         const flowGradient = g.createLinearGradient(frameStart.x, frameStart.y, frameEnd.x, frameEnd.y);
+         const pulseWidth = 0.085;
+         const pulseStart = Math.max(0, flowPulsePosition - pulseWidth);
+         const pulseEnd = Math.min(1, flowPulsePosition + pulseWidth);
+         flowGradient.addColorStop(0, baseColor);
+         if (pulseStart > 0) flowGradient.addColorStop(pulseStart, baseColor);
+         flowGradient.addColorStop(flowPulsePosition, pulseColor);
+         if (pulseEnd < 1) flowGradient.addColorStop(pulseEnd, baseColor);
+         flowGradient.addColorStop(1, baseColor);
+         g.strokeStyle = flowGradient;
++        if (spaceProfile.ribbon && seam % 3 === 0) {
++          // Лента: широкий мягкий проход под чёткой линией. Без shadowBlur —
++          // это самый дорогой 2D-эффект на слабых GPU.
++          g.globalAlpha = 0.16;
++          g.lineWidth = 6;
++          g.stroke();
++          g.globalAlpha = 0.28;
++          g.lineWidth = 2.6;
++          g.stroke();
++          g.globalAlpha = 1;
++        }
+         g.lineWidth = seam % 3 === 0 ? 1.25 : 0.65;
+         g.stroke();
+       }
+ 
+       // Class II is a quieter tint of the same tunnel, not a second set of rails.
+       // Class III has a distinct violet identity without circular geometry.
+@@ -5731,31 +7999,35 @@ return axialRoll + ahead * 0.12 +
+         }
+         // Boost/launcher pickups remain functional but have no distracting checkmark decoration.
+       });
+ 
+       // The ship rides the wall. Right decreases the angle so it moves screen-right
+       // from the bottom; the tunnel itself stays put.
++      // Корабль: вид СЗАДИ, маленький, внутри кольца. Раньше здесь был
++      // плоский глиф сверху и он был крупным; теперь силуэт сзади (двигатели
++      // к камере), размер ограничен, управление то же — он едет по стенке.
+       const nearDepth = 0.92;
+-      const craftAngle = playerAngle + courseTwist(nearDepth);
+       const craftPoint = point(nearDepth, playerAngle, -radiusX(nearDepth) * 0.20);
++      const craftThrust = 0.55 + (Math.sin(now * 0.006) + 1) * 0.22;
++      // Корабль висит на стенке: «верх» силуэта смотрит к центру кольца,
++      // поэтому при ходе по кольцу он честно переворачивается (на верхней
++      // точке — вверх тормашками). Ручной крен Q/E добавляется сверху.
++      const craftRing = playerAngle + courseTwist(nearDepth);
++      const craftRoll = warpSpace.warpSpaceShipRollFor(craftRing, Number(state.warpShipRoll) || 0);
++      state.warpShipRollShown = craftRoll;
++      const craftSize = drawWarpShipLayer(g, craftPoint.x, craftPoint.y,
++        (state.steerBank || 0) * 1.4, craftThrust, craftRoll);
++      // Кольцо вокруг корабля: видно, что он маленький и летит по стенке,
++      // а не «висит» на экране. Тонкое, декоративное, на столкновения не влияет.
+       g.save();
+-      g.translate(craftPoint.x, craftPoint.y);
+-      g.rotate(craftAngle - Math.PI / 2 + (state.steerBank || 0));
+-      g.scale(Math.min(1, w / 900), Math.min(1, w / 900));
+-      const flare = 0.65 + (Math.sin(now * 0.032) + 1) * 0.18;
+-      g.fillStyle = "rgba(63,213,255," + flare * 0.42 + ")";
+-      g.beginPath();
+-      g.moveTo(-5, 14); g.lineTo(0, 35 + flare * 10); g.lineTo(5, 14); g.closePath(); g.fill();
+-      g.fillStyle = "#1b3e56"; g.strokeStyle = "#c2f0fb"; g.lineWidth = 2;
++      g.globalAlpha = 0.20 + 0.10 * Math.sin(now * 0.004);
++      g.strokeStyle = "rgba(200,245,255,0.85)";
++      g.lineWidth = 1;
+       g.beginPath();
+-      g.moveTo(0, -23); g.lineTo(13, -7); g.lineTo(25, 12); g.lineTo(8, 8);
+-      g.lineTo(0, 16); g.lineTo(-8, 8); g.lineTo(-25, 12); g.lineTo(-13, -7);
+-      g.closePath(); g.fill(); g.stroke();
+-      g.fillStyle = "#8eeaf4";
+-      g.beginPath(); g.moveTo(0, -16); g.lineTo(5, 2); g.lineTo(0, 7); g.lineTo(-5, 2); g.closePath(); g.fill();
+-      g.fillStyle = "#ffce91"; g.fillRect(-17, 8, 5, 3); g.fillRect(12, 8, 5, 3);
++      g.arc(craftPoint.x, craftPoint.y, craftSize * 0.95, 0, Math.PI * 2);
++      g.stroke();
+       g.restore();
+ 
+       const progress = warpObstacleProgress(t);
+       g.fillStyle = "rgba(255,255,255,.15)"; g.fillRect(w * 0.18, h - 17, w * 0.64, 3);
+       g.fillStyle = "#56f0d0"; g.fillRect(w * 0.18, h - 17, w * 0.64 * progress, 3);
+       if (state.shields < 100) {
+@@ -5801,12 +8073,32 @@ return axialRoll + ahead * 0.12 +
+ 
+       if (!overlay.hidden) requestAnimationFrame(drawBackdrop);
+       else state.animationRunning = false;
+     }
+ 
+     function updateTube(dt, now) {
++      // Сглаженный замер кадра. Понижение качества — только по устойчивому
++      // ряду медленных кадров: один тяжёлый кадр не должен менять вид.
++      state.warpFrameMs = state.warpFrameMs
++        ? state.warpFrameMs * 0.94 + dt * 1000 * 0.06
++        : dt * 1000;
++      state.warpSlowStreak = state.warpFrameMs > 26
++        ? Number(state.warpSlowStreak || 0) + 1
++        : 0;
++      // Направление хода стенки меняется плавно, а не за один кадр.
++      state.warpDirMix = warpSpace.warpSpaceDirectionRamp(
++        state.warpDirMix, warpSpace.warpSpaceDirectionFor(activeWarpVisualClass(), warpSpaceProfile()), dt);
++      // При выключенном переливе mix плавно догоняет цель: переключение
++      // A -> B занимает около секунды, а не происходит мгновенно.
++      if (!state.warpPaletteFlow) {
++        const mixNow = Number(state.warpPaletteMix || 0);
++        const mixTarget = Number(state.warpPaletteTarget || 0);
++        if (Math.abs(mixTarget - mixNow) > 0.001) {
++          state.warpPaletteMix = mixNow + (mixTarget - mixNow) * Math.min(1, dt * 1.6);
++        }
++      }
+       state.elapsed = Math.max(0, (now - state.startedAt) / 1000);
+       const speedBySection = [0.76, 1.24, 0.84, 1.34, 0.68, 1.14];
+       const rollRates = [0.42, 0.82, 0.55, 1.12, 0.31, 0.72];
+       const boosted = state.elapsed < Number(state.tubeBoostUntil || 0);
+       const rampMultiplier = warpSpeedMultiplier(state.elapsed);
+       const speed = Math.max(1, Math.min(12,

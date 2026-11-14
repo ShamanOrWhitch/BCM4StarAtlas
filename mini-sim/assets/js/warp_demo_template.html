@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warp Space — лёгкие вариации (мокап)</title>
+<style>
+  html,body{margin:0;height:100%;background:#01030a;color:#d6e6f2;font:13px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
+  #stage{position:fixed;inset:0}
+  canvas{display:block;width:100%;height:100%}
+  .panel{position:fixed;left:10px;top:10px;max-width:min(92vw,330px);background:rgba(6,16,26,.9);border:1px solid #27505f;border-radius:10px;padding:10px;backdrop-filter:blur(4px)}
+  .panel h1{margin:0 0 2px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#7be4f4}
+  .panel p{margin:0 0 8px;font-size:11px;color:#8fb0c2}
+  .row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px}
+  button{font:600 11px system-ui;color:#cfe9f3;background:rgba(16,35,45,.96);border:1px solid #426779;border-radius:6px;padding:5px 8px;cursor:pointer}
+  button[aria-pressed="true"]{background:rgba(28,92,113,.98);border-color:#7be4f4;box-shadow:0 0 0 1px rgba(123,228,244,.3)}
+  .lbl{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#5f8ea3;margin:0 0 3px}
+  #meta{position:fixed;right:10px;top:10px;font:600 11px system-ui;color:#6fd2e2;background:rgba(6,16,26,.85);border:1px solid #27505f;border-radius:8px;padding:6px 9px;text-align:right}
+  #hint{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);font:11px system-ui;color:#7e9fb0;background:rgba(6,16,26,.8);border:1px solid #22414e;border-radius:8px;padding:5px 10px;white-space:nowrap}
+  .joke{color:#a8c8d8;font-size:10.5px;font-style:italic;margin:6px 0 0}
+  /* Настройки скрыты по умолчанию: при открытии видно только сам варп.
+     Клавиша H возвращает панель, счётчик и строку подсказок. */
+  .hide-ui{display:none !important}
+  #toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);font:600 11.5px system-ui;
+    color:#9fd6e4;background:rgba(6,16,26,.78);border:1px solid #22414e;border-radius:8px;
+    padding:6px 12px;letter-spacing:.02em;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas></div>
+
+<div class="panel" id="panel">
+  <h1>Warp Space · мокап</h1>
+  <p>Декоративный слой. Ни курс, ни столкновения, ни тайминг не меняются.<br>Середина перехода — как в Earthworm Jim 2: та же труба, только её переливает.</p>
+
+  <p class="lbl">Вид внутри варпа</p>
+  <div class="row" id="profiles"></div>
+
+  <p class="lbl">Класс (как в игре: I–III)</p>
+  <div class="row" id="classes"></div>
+
+  <p class="lbl">Космос на фоне</p>
+  <div class="row">
+    <button id="bgOn" aria-pressed="true">фон вкл</button>
+    <button id="bgStep">сменить seed</button>
+  </div>
+
+  <p class="lbl">Обои seed <span id="artRead"></span></p>
+  <div class="row" id="artModes"></div>
+  <div class="row" id="artPick"></div>
+
+  <p class="lbl">Цикл фонов <span id="cycleRead"></span></p>
+  <div class="row">
+    <button id="cycleOn" aria-pressed="true">цикл вкл</button>
+    <button id="cycleJump">переход сейчас</button>
+  </div>
+
+  <p class="lbl">Ритм переходов · разнообразие</p>
+  <div class="row" id="rhythms"></div>
+
+  <p class="lbl">Сетка музыки <span id="barRead"></span></p>
+  <div class="row" id="bpms"></div>
+
+  <p class="lbl">Сила перехода</p>
+  <div class="row" id="powers"></div>
+
+  <p class="lbl">Чем сменяется кадр <span id="transRead"></span></p>
+  <div class="row" id="transitions"></div>
+
+  <p class="lbl">Пиксель перехода <span id="cellRead"></span></p>
+  <div class="row" id="cellSizes"></div>
+
+  <p class="lbl">Корабль сзади <span id="shipRead"></span></p>
+  <div class="row" id="shipPick"></div>
+  <div class="row" id="shipSizes"></div>
+
+  <p class="lbl">Качество (авто по кадру)</p>
+  <div class="row">
+    <button id="qAuto" aria-pressed="true">авто</button>
+    <button id="qHigh" aria-pressed="false">высокое</button>
+    <button id="qLow" aria-pressed="false">слабое устройство</button>
+  </div>
+
+  <p class="lbl">Палитра: радужный перелив</p>
+  <div class="row">
+    <button id="rainbowOn" aria-pressed="true">радуга вкл</button>
+    <button id="flowOn" aria-pressed="true">перелив вкл</button>
+    <button id="palA" aria-pressed="false">A: сейчас</button>
+    <button id="palB" aria-pressed="false">B: «наоборот»</button>
+  </div>
+  <div class="row" id="periods"></div>
+  <p class="lbl" id="mixRead">перелив: —</p>
+
+  <p class="joke" id="joke"></p>
+</div>
+
+<div id="meta"><span id="fps">—</span> fps<br><span id="calls">—</span> вызовов</div>
+<div id="hint">← → вести · Q/E крен корабля · 1…5 вид · B фон · P перелив · R радуга · T переход · K корабль · H настройки</div>
+<div id="toast">H — настройки · ← → вести · Q/E крен · 1…5 вид</div>
+
+<!--SKETCH_DATA-->
+<script>
+/*__CORE__*/
+
+(function () {
+  "use strict";
+  var WS = window.BCMWarpSpace;
+  var canvas = document.getElementById("c");
+  var g = canvas.getContext("2d");
+  var WARP_DURATION = 42;
+
+  var state = {
+    elapsed: 0, tubeTravel: 0, tubeRoll: 0, shimmer: 0,
+    playerAngle: Math.PI * 0.5, steerBank: 0, seed: 2026114,
+    // Дефолт — как у владельца: «Пульс» на классе I (самый дешёвый для
+    // слабого Android), скетчи, seed 05, 142 BPM, «сильный» переход.
+    visualClass: 1, profileIndex: 4, backdropOn: true, paletteB: false,
+    flowOn: true, flowPeriod: 11, manualMix: 0, speedNow: 1, bpm: 142, transitionPower: 1.6,
+    tier: "high", lowMode: false, frameMsAvg: 0, slowStreak: 0, dirMix: 1,
+    // Ритм: по умолчанию случайный — пауза ~2 с и каждый переход свой
+    // (случайный способ, сила и следующая сцена). Привязка к тактам осталась
+    // вторым режимом, но по умолчанию не нужна: «сама разнообразность».
+    cycleOn: true, cycleRandom: true, randomSeed: 0x5F3A21C7, bgIndex: 0, cells: null,
+    // Способ перехода по умолчанию — «как выпадет»: в случайном ритме вид
+    // приходит из плана (все шесть по кругу, без повторов). Закрепить один
+    // вид по-прежнему можно кнопкой — тогда он главнее плана.
+    rainbow: true, transition: "dissolve", transitionAuto: true,
+    shipIndex: 0, shipSize: "small", shipRoll: 0, shipRollDir: 0, shipRollShown: 0,
+    artMode: "sketch", sketchIndex: 0, sketchForce: "05-deep-parallax.svg",
+    uiOn: false,
+    cellSize: "auto", cellsNow: null, device: null
+  };
+
+  var JOKES = {
+    grid: "Сетка — минимализм: спицы есть, колец нет. Варп эконом-класса.",
+    lattice: "Решётка — как штакетник на даче, только летит на 0.4c.",
+    dense: "Плотная — колец втрое больше, каждое почти прозрачное. Как утренний туман, только неоновый.",
+    ribbon: "Ленты — вместо нитей полосы. Туннель в свитере.",
+    pulse: "Пульс — кольца расходятся наружу, космос новый, стенка идёт назад. Варп, который дышит и пятится."
+  };
+
+  /* ---------- профиль устройства: телефону — крупнее пиксель, ПК — мельче ----------
+   * Разрешение канвы не «одинаково всем»: у телефона DPR 3 при экране 390x844
+   * даёт 3 млн пикселей на кадр, и это плата ни за что — глаз всё равно не
+   * различит. Поэтому потолок DPR берётся из профиля (ядро: warpSpaceDeviceProfile),
+   * а вместе с ним приходит бюджет клеток перехода: слабому устройству крупный
+   * пиксель, ПК — микроскопический.
+   */
+  function deviceInfo() {
+    var nav = typeof navigator !== "undefined" ? navigator : null;
+    var mm = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(pointer: coarse)") : null;
+    return {
+      cores: nav && nav.hardwareConcurrency ? nav.hardwareConcurrency : 0,
+      dpr: window.devicePixelRatio || 1,
+      shortSide: Math.min(window.innerWidth || 0, window.innerHeight || 0),
+      coarsePointer: !!(mm && mm.matches),
+      tier: state.lowMode ? "low" : "high"
+    };
+  }
+
+  function deviceProfile() {
+    if (!state.device) state.device = WS.warpSpaceDeviceProfile(deviceInfo());
+    return state.device;
+  }
+
+  /* ---------- canvas sizing: cap DPR, low-end friendly ---------- */
+  var W = 0, H = 0, cache = null, cacheKey = "";
+  function resize() {
+    var dpr = Math.min(window.devicePixelRatio || 1, deviceProfile().dprCap);
+    W = Math.max(320, Math.round(window.innerWidth * dpr));
+    H = Math.max(240, Math.round(window.innerHeight * dpr));
+    canvas.width = W; canvas.height = H;
+    canvas.style.width = window.innerWidth + "px";
+    canvas.style.height = window.innerHeight + "px";
+    cache = null; cacheKey = "";
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  /* ---------- geometry, mirrored from deep-space-warp.js ---------- */
+  /* Скорости и roll — дословно из updateTube() 0.14.0, иначе стенка «не ходит». */
+  var speedBySection = [0.76, 1.24, 0.84, 1.34, 0.68, 1.14];
+  var rollRates = [0.42, 0.82, 0.55, 1.12, 0.31, 0.72];
+
+  var widths = [0.92, 0.78, 1.02, 0.87, 1.08, 0.95];
+  var curves = [0.10, 0.85, -0.72, 1.18, -0.45, 0.62];
+  var liftShape = [0, -0.55, 0.25, -0.1, 0.9, 0.05];
+
+  function blend(arr, elapsed) {
+    var n = arr.length, sd = WARP_DURATION / n;
+    var pos = elapsed / sd, i0 = Math.floor(pos) % n, i1 = (i0 + 1) % n;
+    var frac = pos - Math.floor(pos), e = frac * frac * (3 - 2 * frac);
+    return { value: arr[i0] * (1 - e) + arr[i1] * e, phase: (i0 + e) / n * Math.PI * 2 };
+  }
+
+  function currentProfile() {
+    return WS.WARP_SPACE_PROFILES[state.profileIndex];
+  }
+
+  function direction() {
+    return WS.warpSpaceDirectionFor(state.visualClass, currentProfile());
+  }
+
+  function spaceSeed() {
+    return WS.warpSpaceSeedFor(state.seed, currentProfile());
+  }
+
+  function tierParams() {
+    return WS.warpSpaceTierParams(state.lowMode ? "low" : "high");
+  }
+
+  function frameGeometry(now) {
+    var minDim = Math.min(W, H);
+    var maxRadius = minDim * 0.435;
+    // Чистая фаза: направление уже учтено в интеграторе.
+    var t = state.tubeTravel, shimmerTime = state.shimmer;
+    var widthScale = blend(widths, state.elapsed).value;
+    var curveScale = blend(curves, state.elapsed).value;
+    var liftScale = blend(liftShape, state.elapsed).value;
+    var phase = blend(curves, state.elapsed).phase;
+    var loopMix = Math.max(0, Math.min(1, Math.min((state.elapsed - 20) / 2.5, (34 - state.elapsed) / 2.5)));
+    var loopPhase = ((state.elapsed + 5) / 10.5) * Math.PI * 2;
+    var axialRoll = state.tubeRoll + Math.sin(t * 0.13) * 0.20;
+    var mid = W * 0.5;
+
+    function centerX(d) {
+      return mid + (Math.sin(t * 0.19 + d * 4.3) * 0.045 + Math.sin(t * 0.11 + d * 7.1) * 0.02 +
+        Math.sin(d * Math.PI * 1.55 + phase) * curveScale * 0.05 +
+        Math.sin(loopPhase + d * Math.PI * 2.4) * loopMix * 0.06) * minDim * (1 - d);
+    }
+    function centerY(d) {
+      return H * 0.5 + (Math.sin(t * 0.15 + d * 3.6) * 0.035 + Math.sin(t * 0.09 + d * 7.7) * 0.018 +
+        Math.sin(d * Math.PI * 1.25 + phase) * liftScale * 0.04 +
+        Math.sin(loopPhase + d * Math.PI * 2.4) * loopMix * 0.05) * minDim * (1 - d);
+    }
+    function radiusX(d) { return 4 + maxRadius * Math.pow(Math.max(0, d), 1.20) * widthScale; }
+    function radiusY(d) { return radiusX(d) * 0.91; }
+    function courseTwist(d) {
+      var ahead = d - 0.92;
+      return axialRoll + ahead * 0.12 +
+        (Math.sin(d * Math.PI * 2 + phase) - Math.sin(0.92 * Math.PI * 2 + phase)) * curveScale * 0.04 +
+        (Math.sin(loopPhase + d * Math.PI * 2.4) - Math.sin(loopPhase + 0.92 * Math.PI * 2.4)) * loopMix * 0.10;
+    }
+    function point(d, theta, extra) {
+      var angle = theta + courseTwist(d);
+      var rx = radiusX(d) + (extra || 0);
+      var ry = radiusY(d) + (extra || 0) * 0.91;
+      return { x: centerX(d) + Math.cos(angle) * rx, y: centerY(d) + Math.sin(angle) * ry };
+    }
+    return {
+      point: point, radiusX: radiusX, radiusY: radiusY, centerX: centerX, centerY: centerY,
+      courseTwist: courseTwist, maxRadius: maxRadius, minDim: minDim,
+      t: t, shimmerTime: shimmerTime, phase: phase, loopMix: loopMix
+    };
+  }
+
+  /* ---------- palette: непрерывный перелив A <-> B с волной по поверхности ----------
+   * Цвет не переключается, а течёт: в каждой точке стенки локальный `mix`
+   * опережает общий, поэтому смена палитры бежит вдоль трубы волной — тот же
+   * приём, что перелив текстуры на Rainbow Photoli.
+   */
+  function globalMix() {
+    if (!state.flowOn) return state.manualMix;
+    return WS.warpSpacePingPong(state.elapsed, state.flowPeriod);
+  }
+
+  function localMix(spatialPhase) {
+    // Волна живёт только в режиме перелива. При закреплённой палитре mix равен
+    // цели ровно, поэтому вид A — это буквально 0.14.0, без примесей.
+    if (!state.flowOn) return state.manualMix;
+    return WS.warpSpaceFlowMix(globalMix(), spatialPhase, state.elapsed, 0.22);
+  }
+
+  // Фаза радуги: null = обычный переход A <-> B (вид 0.14.0 при mix 0),
+  // число = цвет берётся с цветового круга. Вдоль поверхности сдвиг даёт
+  // диагональные полосы, а общий mix гонит всю радугу по кругу.
+  function rainbowAt(spatialPhase) {
+    return state.rainbow ? spatialPhase : null;
+  }
+
+  function paletteFor(spatialPhase) {
+    return WS.warpSpacePaletteAt(state.visualClass, localMix(spatialPhase), rainbowAt(spatialPhase));
+  }
+
+  /* ---------- фоновый слой: кэш из двух сцен, предзагрузка, переход ---------- */
+  // Ключ — индекс в ряду seed, а не «слот A/B»: иначе после каждого перехода
+  // кэш пересоздавался заново (проверено тестом: 23 канваса вместо 8).
+  var bgStore = new Map();
+  var bgOrder = [];
+  var bgCreated = 0;                       // для тестов и QA: сколько сцен построено всего
+
+  // Пул сцен. Ритм стал быстрым (~2 с пауза), и строить новый фон на каждый
+  // переход — это полная растеризация звёзд раз в ~2.8 с, то есть заметный
+  // рывок на слабом Android. Поэтому индексы заворачиваются в пул: сцена
+  // переиспользуется, пока до неё снова не дойдёт очередь. Разнообразие даёт
+  // не новый фон каждый раз, а способы перехода, сила и перелив.
+  var SCENE_POOL = 4;   // сцены переиспользуются по кругу, см. sceneSlot()
+  function sceneSlot(index) {
+    var n = SCENE_POOL;
+    var i = Number(index) || 0;
+    return ((i % n) + n) % n;
+  }
+
+  function bgKey(index) {
+    var profile = currentProfile();
+    return sceneSlot(index) + "|" + spaceSeed() + "|" + profile.id + "|" + Math.round(W) + "x" + Math.round(H) +
+      "|" + (state.lowMode ? "lo" : "hi");
+  }
+
+  function bgTouch(key) {
+    var at = bgOrder.indexOf(key);
+    if (at >= 0) bgOrder.splice(at, 1);
+    bgOrder.push(key);
+  }
+
+  /* ---------- обои из mini-sim/assets/scetchs ---------- */
+  // В демо SVG встроены как data URI (превью без сети). В игре тот же загрузчик
+  // берёт файл по URL из манифеста config.assets.
+  var sketchImages = new Map();     // имя -> Image (или null, если не удалось)
+  var sketchPending = new Set();
+
+  function sketchName(index) {
+    if (state.sketchForce) return state.sketchForce;
+    return WS.warpSpaceSketchFor(index);
+  }
+
+  function sketchSource(name) {
+    var data = window.BCM_WARP_SKETCH_DATA;
+    return data && data[name] ? data[name] : "scetchs/" + name;
+  }
+
+  function ensureSketch(name) {
+    if (!name) return;
+    if (sketchImages.has(name) || sketchPending.has(name)) return;
+    sketchPending.add(name);
+    var img = new Image();
+    img.onload = function () {
+      sketchPending.delete(name);
+      sketchImages.set(name, img);
+      // Сбрасываем ТОЛЬКО сцены, которые ждали эту картинку. Полный bgReset здесь
+      // выбрасывал исправный соседний фон и заставлял строить его заново —
+      // лишняя растеризация прямо посреди паузы.
+      var stale = [];
+      bgStore.forEach(function (value, key) {
+        if (value && value.pendingSketch) stale.push(key);
+      });
+      for (var i = 0; i < stale.length; i += 1) {
+        bgStore.delete(stale[i]);
+        var at = bgOrder.indexOf(stale[i]);
+        if (at >= 0) bgOrder.splice(at, 1);
+      }
+    };
+    img.onerror = function () {
+      sketchPending.delete(name);
+      sketchImages.set(name, null); // запоминаем отказ, чтобы не долбить
+    };
+    img.src = sketchSource(name);
+  }
+
+  // Растеризованный поверх-кадр скетча. SVG тяжёлый (300–600 элементов,
+  // feGaussianBlur), поэтому drawImage делается один раз на размер, а не на кадр.
+  var sketchCover = new Map();       // "имя|WxH" -> готовая сцена
+  var sketchCoverOrder = [];
+  function sketchCache(name) {
+    if (!name) return null;
+    var img = sketchImages.get(name);
+    if (!img) return null;
+    var ck = name + "|" + W + "x" + H;
+    var hit = sketchCover.get(ck);
+    if (hit) {
+      var at = sketchCoverOrder.indexOf(ck);
+      if (at >= 0) sketchCoverOrder.splice(at, 1);
+      sketchCoverOrder.push(ck);
+      return hit;
+    }
+    var made = WS.createSketchCache(img, W, H, makeCanvas);
+    if (!made) return null;
+    sketchCover.set(ck, made);
+    sketchCoverOrder.push(ck);
+    while (sketchCoverOrder.length > 3) sketchCover.delete(sketchCoverOrder.shift());
+    return made;
+  }
+
+  function bgGet(index) {
+    var key = bgKey(index) + "|" + (state.artMode === "sketch" ? "sk" : "pr");
+    var cached = bgStore.get(key);
+    if (cached) { bgTouch(key); return cached; }
+    var built = null;
+    if (state.artMode === "sketch") {
+      var name = sketchName(index);
+      ensureSketch(name);
+      built = sketchCache(name);
+      // Картинка ещё не пришла — показываем процедурный фон, кадр не пустует.
+      if (!built) {
+        built = WS.createSpaceBackdropCache(W, H, WS.warpSpaceNextSeed(spaceSeed(), index), currentProfile(), makeCanvas);
+        built.pendingSketch = true;
+      }
+    }
+    if (!built) {
+      var seed = WS.warpSpaceNextSeed(spaceSeed(), index);
+      built = WS.createSpaceBackdropCache(W, H, seed, currentProfile(), makeCanvas);
+    }
+    built.key = key;
+    bgCreated += 1;
+    bgStore.set(key, built);
+    bgTouch(key);
+    // Держим ровно пул сцен (4): текущая, следующая и пара под переиспользование.
+    // Больше — память, меньше — пересборка на каждом переходе.
+    while (bgOrder.length > SCENE_POOL) {
+      var oldest = bgOrder.shift();
+      if (oldest !== key) bgStore.delete(oldest);
+    }
+    return built;
+  }
+
+  // Размер «пикселя» перехода: сетка ячеек. Мельче — эффектнее и дороже
+  // ровно вдвое на каждое удвоение клеток (каждая клетка = один blit).
+  // «авто» берёт бюджет из профиля устройства: ПК — 96x54, телефон — 18x10,
+  // слабое — 12x7. Ручные ступени остаются для теста.
+  function cellGrid() {
+    var preset = WS.WARP_SPACE_CELL_PRESETS[state.cellSize];
+    if (typeof preset !== "number") preset = deviceProfile().cellBudget;
+    if (state.lowMode) preset = Math.min(preset, WS.WARP_SPACE_CELL_PRESETS.coarse);
+    var grid = WS.warpSpaceCellGrid(preset, W, H);
+    return [grid.cols, grid.rows];
+  }
+
+  function bgReset() {
+    bgStore = new Map();
+    bgOrder = [];
+    state.cells = null;
+  }
+  // bgReset не сбрасывает bgCreated: счётчик нужен, чтобы ловить утечки.
+
+  function makeCanvas(cw, ch) {
+    var cv = document.createElement("canvas");
+    cv.width = cw; cv.height = ch;
+    return cv;
+  }
+
+  // Для тестов и QA: сколько сцен держим в памяти.
+  // Для QA и замеров: размер пикселя перехода и число клеток.
+  window.BCMWarpSetCellSize = function (size) {
+    if (["auto", "coarse", "fine", "small", "tiny", "micro"].indexOf(size) < 0) return;
+    state.cellSize = size;
+    bgReset();
+    state.cellsNow = null;
+  };
+
+  window.BCMWarpBgStats = function () {
+    return {
+      cached: bgStore.size,
+      order: bgOrder.length,
+      created: bgCreated,
+      phase: state.phaseLabel || "—",
+      index: state.bgIndex || 0
+    };
+  };
+
+  function cycleCfg() {
+    return WS.warpSpaceCycleConfig(3, 15, state.bpm);
+  }
+
+  // Одна точка, где решается ритм: случайный (по умолчанию) или по тактам.
+  // В случайном режиме приходит и способ перехода, и его сила — поэтому
+  // кадры не повторяются, хотя код кадра остался прежним.
+  function cycleState(remaining) {
+    if (state.cycleRandom) {
+      return WS.warpSpaceRandomCycleAt(state.elapsed, { seed: state.randomSeed }, remaining);
+    }
+    var cs = WS.warpSpaceCycleAt(state.elapsed, cycleCfg(), remaining);
+    cs.kind = null;
+    cs.power = state.transitionPower;
+    return cs;
+  }
+
+  function drawBackdropLayer(g) {
+    var remaining = Math.max(0, 40 - state.elapsed);
+
+    if (!state.cycleOn) {
+      var still = bgGet(state.bgIndex);
+      WS.drawSpaceBackdrop(g, still, W, H, state.elapsed);
+      state.phaseLabel = "пауза";
+      return 1;
+    }
+
+    var cs = cycleState(remaining);
+    var current = bgGet(cs.from);
+
+    if (cs.phase === "hold") {
+      bgGet(cs.from + 1);           // предзагрузка во время паузы
+      WS.drawSpaceBackdrop(g, current, W, H, state.elapsed);
+      state.phaseLabel = "пауза";
+      state.phaseK = 0;
+      state.bgIndex = cs.from;
+      state.cells = null;
+      return 1;
+    }
+
+    var incoming = bgGet(cs.to);
+    // Способ смены кадра. По умолчанию — рассыпание (приоритет владельца);
+    // «по кругу» перебирает виды как двери в первой комнате: каждый переход
+    // открывается своим способом, но последовательность детерминированная.
+    // Шаг считается по смене ПРИХОДЯЩЕЙ сцены: «переход сейчас» в панели
+    // запускает новый переход, и «по кругу» обязан шагнуть дальше, а не
+    // застрять на первой двери.
+    if (state.lastTo !== cs.to) {
+      state.lastTo = cs.to;
+      state.transitionStep = (state.transitionStep || 0) + 1;
+    }
+    // В случайном ритме способ приходит из плана переходов (все шесть видов
+    // по кругу, без повторов подряд). Если вид закреплён руками — он главнее.
+    var kind = state.transitionAuto
+      ? (cs.kind || WS.warpSpaceTransitionFor((state.transitionStep || 1) - 1))
+      : state.transition;
+    state.transitionKind = kind;
+    var power = state.cycleRandom
+      ? Math.max(0.6, Math.min(3, cs.power * (state.transitionPower / 1.6)))
+      : state.transitionPower;
+    state.powerNow = power;
+    var needsCells = kind === "dissolve";
+    if (needsCells && !state.cells) {
+      var grid = cellGrid();
+      state.cells = WS.warpSpaceCellField(grid[0], grid[1], cs.from * 7919 + cs.to);
+      state.cellsCols = grid[0];
+      state.cellsRows = grid[1];
+      state.cellsNow = grid[0] + "×" + grid[1];
+    }
+    if (kind === "dissolve") {
+      WS.drawSpaceDissolve(g, current, incoming, cs.k, W, H,
+        state.cells, state.cellsCols, state.cellsRows, state.lowMode ? 0.35 : 1,
+        power);
+    } else {
+      WS.drawSpaceTransition(g, current, incoming, cs.k, W, H, kind);
+    }
+    state.phaseLabel = "переход";
+    state.phaseK = cs.k;
+    state.bgIndex = cs.to;
+    return state.lowMode ? 90 : 168;
+  }
+
+  // Три ступени размера корабля: он и так маленький, но на 4K можно чуть крупнее.
+  var SHIP_SCALE = { small: 1, medium: 1.35, tiny: 0.75 };
+
+  /* ---------- the frame ---------- */
+  var drawCalls = 0;
+  function draw(now) {
+    var geo = frameGeometry(now);
+    var profile = WS.WARP_SPACE_PROFILES[state.profileIndex];
+    var point = geo.point;
+    drawCalls = 0;
+
+    // 1. background gradient — unchanged from 0.14.0
+    var bg = g.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#02060d");
+    bg.addColorStop(0.46, "#071b2a");
+    bg.addColorStop(1, "#02040a");
+    g.fillStyle = bg;
+    g.fillRect(0, 0, W, H);
+
+    // 2. Космос: кэш текущего фона + предзагрузка следующего + переход частицами.
+    if (state.backdropOn) {
+      drawCalls += drawBackdropLayer(g);
+    }
+
+    // 3. wall panels — те же, что в 0.14.0, но глубина зависит от тира качества
+    var tp = tierParams();
+    // Геометрия одинаковая во всех тирах и у всех классов: глубина 23, панелей 18.
+    // При 12 панелях (было у класса III) сечение читалось как гранёный «купол».
+    var depthSteps = 23;
+    var panelCount = 18;
+    for (var step = 0; step < depthSteps; step += 1) {
+      var d0 = 0.04 + (step / depthSteps) * 0.96;
+      var d1 = 0.04 + ((step + 1) / depthSteps) * 0.96;
+      for (var panel = 0; panel < panelCount; panel += 1) {
+        var a0 = panel * Math.PI * 2 / panelCount;
+        var a1 = (panel + 1) * Math.PI * 2 / panelCount;
+        var p00 = point(d0, a0, 0), p01 = point(d0, a1, 0),
+            p11 = point(d1, a1, 0), p10 = point(d1, a0, 0);
+        // Отсечение субпиксельных панелей у точки схода: они всё равно не видны,
+        // но каждый fill стоит вызова. На глаз это неотличимо, на кадр — дешевле.
+        var quadW = Math.abs(p01.x - p00.x) + Math.abs(p10.x - p00.x);
+        var quadH = Math.abs(p01.y - p00.y) + Math.abs(p10.y - p00.y);
+        if (quadW * quadH < (tp.cullScale || 1.6)) continue;
+        var shimmer = Math.sin(geo.shimmerTime * 1.35 + panel * 1.72 + step * 0.77 + state.playerAngle) * 0.5 + 0.5;
+        var light = (((step + Math.floor(geo.shimmerTime * 8) + panel * 3) % 5 + 5) % 5 === 0) ? 1 : 0;
+        // Тот же цвет, что в 0.14.0 (при mix = 0 — бит в бит), плюс перелив.
+        g.beginPath();
+        g.moveTo(p00.x, p00.y); g.lineTo(p01.x, p01.y);
+        g.lineTo(p11.x, p11.y); g.lineTo(p10.x, p10.y);
+        g.closePath();
+        var panelPhase = panel / panelCount + step * 0.04;
+        g.fillStyle = WS.warpSpacePanelCss(state.visualClass, shimmer, light,
+          localMix(panelPhase), rainbowAt(panelPhase));
+        g.fill();
+        drawCalls += 1;
+      }
+    }
+
+    // 4. NEW: rings ride the same point() the wall uses.
+    var ringMix = localMix(0.25);
+    var ringPalette = WS.rgbCss(WS.warpSpaceRingRgb(state.visualClass, ringMix, rainbowAt(0.25)));
+    var pulsePalette = WS.rgbCss(WS.warpSpacePaletteAt(state.visualClass, ringMix, rainbowAt(0.25)).accent);
+    if (W && WS.drawWarpSpaceRings) {
+      drawCalls += WS.drawWarpSpaceRings(g, point, profile, geo.t, ringPalette);
+    }
+    if (WS && WS.drawWarpSpacePulse) {
+      WS.drawWarpSpacePulse(g, geo.centerX(0.5), geo.centerY(0.5), geo.maxRadius * 0.9, geo.t, profile, ringPalette);
+    }
+
+    // 5. frame lines — unchanged, optionally as ribbons
+    for (var seam = 0; seam < 12; seam += 1) {
+      var theta = seam * Math.PI * 2 / 12;
+      var pts = [];
+      for (var s = 0; s <= 35; s += 1) {
+        var d = 0.04 + (s / 35) * 0.96;
+        pts.push(point(d, theta + (d - 0.92) * 0.36, -1.5));
+      }
+      var seamMix = localMix(seam / 12);
+      var seamPhase = rainbowAt(seam / 12);
+      if (profile.ribbon && seam % 3 === 0) {
+        // Лента теперь трёхслойная и тоньше: широкий «свитер» читался как
+        // мазок поверх трубы, а не как полоса на её поверхности.
+        WS.drawWarpSpaceRibbon(g, pts, WS.warpSpaceAccentCss(state.visualClass, seamMix, seamPhase), 0.62);
+        drawCalls += 3;
+      } else {
+        g.beginPath();
+        pts.forEach(function (p, i) { if (!i) g.moveTo(p.x, p.y); else g.lineTo(p.x, p.y); });
+        g.strokeStyle = WS.warpSpaceSeamCss(state.visualClass,
+          seam % 3 === 0 ? "thick" : "thin", seamMix, seamPhase);
+        g.lineWidth = seam % 3 === 0 ? 1.25 : 0.65;
+        g.lineCap = "round";
+        g.stroke();
+        drawCalls += 1;
+      }
+    }
+
+    // 6. one demo gate, to prove rings do not read as collision barriers
+    var gateDepth = 0.30;
+    for (var piece = 0; piece < 32; piece += 1) {
+      var from = piece * Math.PI * 2 / 32, to = (piece + 1) * Math.PI * 2 / 32;
+      if (Math.abs(((from + to) * 0.5) - Math.PI * 0.5) <= 0.42) continue;
+      g.beginPath();
+      for (var k = 0; k <= 4; k += 1) {
+        var pp = point(gateDepth, from + 0.012 + (to - from - 0.024) * (k / 4), 0);
+        if (!k) g.moveTo(pp.x, pp.y); else g.lineTo(pp.x, pp.y);
+      }
+      g.strokeStyle = piece % 4 === 0 ? "rgba(255,191,119,0.98)" : "rgba(117,204,222,0.92)";
+      g.lineWidth = Math.max(5, geo.radiusX(gateDepth) * 0.065);
+      g.stroke();
+      drawCalls += 1;
+    }
+
+    // 7. Корабль: вид СЗАДИ, маленький, внутри кольца.
+    // Раньше здесь был плоский глиф сверху и он был крупным. Теперь силуэт
+    // сзади (двигатели к камере), размер ограничен 22–46 px, стоит на том же
+    // месте у стенки и так же слушается стрелок.
+    var nearDepth = 0.92;
+    var craftAngle = state.playerAngle + geo.courseTwist(nearDepth);
+    var craftPoint = point(nearDepth, state.playerAngle, -geo.radiusX(nearDepth) * 0.20);
+    var shipSize = WS.warpSpaceShipSize(W, H) * SHIP_SCALE[state.shipSize];
+    var shipSpec = WS.WARP_SPACE_SHIP_SPECS[state.shipIndex];
+    var shipThrust = 0.55 + (Math.sin(now * 0.006) + 1) * 0.22;
+    // Корабль висит на стенке: «верх» смотрит к центру кольца, поэтому на
+    // верхней точке он вверх тормашками. Q/E добавляют ручной крен сверху.
+    var shipRoll = WS.warpSpaceShipRollFor(craftAngle, state.shipRoll);
+    state.shipRollShown = shipRoll;
+    state.shipDrawn = WS.drawWarpShip(g, craftPoint.x, craftPoint.y, shipSize, shipSpec.id,
+      state.steerBank * 1.4, shipThrust, state.shipSprite || null, shipRoll);
+    // Кольцо вокруг корабля: то самое «внутри кольца», по которому видно,
+    // что корабль маленький и летит по стенке, а не «висит» на экране.
+    g.save();
+    g.globalAlpha = 0.20 + 0.10 * Math.sin(now * 0.004);
+    g.strokeStyle = "rgba(200,245,255,0.85)";
+    g.lineWidth = 1;
+    g.beginPath();
+    g.arc(craftPoint.x, craftPoint.y, shipSize * 0.95, 0, Math.PI * 2);
+    g.stroke();
+    g.restore();
+    drawCalls += 8;
+  }
+
+  /* ---------- loop ---------- */
+  var last = 0, fpsAcc = 0, fpsFrames = 0, fpsEl = document.getElementById("fps"), callsEl = document.getElementById("calls");
+  function frame(now) {
+    fadeToast();
+    var dt = last ? Math.min((now - last) / 1000, 0.04) : 0.016;
+    last = now;
+    state.elapsed = (state.elapsed + dt) % 40;
+    // Дословно как в updateTube(): speed из секций, travel *1.48, shimmer = dt*speed,
+    // roll накапливается, а не синусоидит. Это и есть «ход» стенки в 0.14.0.
+    var speed = Math.max(1, Math.min(12, blend(speedBySection, state.elapsed).value * 1.25));
+    state.speedNow = speed;
+    // dir = XOR классового разворота и профиля: под «Пульсом» стенка идёт назад.
+    // Разворот применяется ЗДЕСЬ, в интеграторе, а не умножением готового хода:
+    // умножение на множитель, проходящий через ноль, замораживало фазу
+    // геометрии и складывало трубу. При интегрировании ход честно замедляется,
+    // останавливается и идёт назад — фаза непрерывна.
+    state.dirMix = WS.warpSpaceDirectionRamp(state.dirMix, direction(), dt);
+    var dir = state.dirMix;
+    state.tubeTravel += dt * speed * 1.48 * dir;
+    state.shimmer += dt * speed * dir;
+    state.tubeRoll += dt * blend(rollRates, state.elapsed).value * 0.72 * dir;
+
+    // Наблюдатель качества: только по устойчивому замеру, одиночный медленный
+    // кадр (переключение вкладки, первый кадр) не понижает качество.
+    state.frameMsAvg = state.frameMsAvg ? state.frameMsAvg * 0.94 + dt * 1000 * 0.06 : dt * 1000;
+    state.slowStreak = state.frameMsAvg > 26 ? state.slowStreak + 1 : 0;
+    var wantLow = WS.warpSpaceTier(state.frameMsAvg, state.slowStreak) === "low";
+    if (wantLow !== state.lowMode && !state.tierLocked) {
+      state.lowMode = wantLow;
+      bgReset();
+      syncQuality();
+    }
+    state.playerAngle -= (state.steer || 0) * dt * 2.2;
+    // Q/E — ручной крен, как обзор в третьем лице. Скорость 2.6 рад/с:
+    // полный оборот примерно за 2.4 с, поэтому «вверх тормашками» достижимо
+    // и по кольцу, и отдельно, не дёргая саму трубу.
+    if (state.shipRollDir) state.shipRoll += state.shipRollDir * dt * 2.6;
+    state.steerBank = (state.steer || 0) * -0.42;
+
+    draw(now);
+
+    fpsAcc += dt; fpsFrames += 1;
+    if (fpsAcc >= 0.5) {
+      if (mixRead) {
+        var m = globalMix();
+        mixRead.textContent = (state.rainbow ? "радуга: " : "фикс: ") + m.toFixed(2) +
+          (state.flowOn ? " · волна ±0.22" : "") +
+          " · speed " + state.speedNow.toFixed(1) +
+          " · " + (direction() < 0 ? "стенка назад" : "стенка вперёд") +
+          " · " + (state.phaseLabel || "—") +
+          (state.phaseLabel === "переход" ? " " + (state.phaseK || 0).toFixed(2) + " " + (state.cellsNow || "") : "") +
+          (state.lowMode ? " · low" : "");
+      }
+      // Подпись перехода обновляется по кадру, а не только по нажатию:
+      // в режиме «по кругу» вид меняется сам.
+      if (shipRead) {
+        var sp = WS.WARP_SPACE_SHIP_SPECS[state.shipIndex];
+        shipRead.textContent = "(" + sp.engines + " дв. · " +
+          Math.round(WS.warpSpaceShipSize(W, H) * SHIP_SCALE[state.shipSize]) + " px · крен " +
+          Math.round((state.shipRollShown || 0) * 180 / Math.PI) + "°)";
+      }
+      if (transRead) {
+        transRead.textContent = state.transitionAuto
+          ? "(по кругу: " + (state.transitionKind || "dissolve") + ")"
+          : "(" + (state.transitionKind || state.transition) + ")";
+      }
+      fpsEl.textContent = Math.round(fpsFrames / fpsAcc);
+      callsEl.textContent = drawCalls;
+      fpsAcc = 0; fpsFrames = 0;
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- UI ---------- */
+  function paintButtons(container, items, activeIndex, onPick) {
+    container.innerHTML = "";
+    items.forEach(function (item, index) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = item.text;
+      b.setAttribute("aria-pressed", index === activeIndex ? "true" : "false");
+      b.addEventListener("click", function () { onPick(index); paintButtons(container, items, index, onPick); });
+      container.appendChild(b);
+    });
+  }
+
+  var profileHost = document.getElementById("profiles");
+  function renderProfiles() {
+    paintButtons(profileHost, WS.WARP_SPACE_PROFILES.map(function (p, i) {
+      return { text: (i + 1) + " " + p.label };
+    }), state.profileIndex, function (i) {
+      state.profileIndex = i;
+      document.getElementById("joke").textContent = JOKES[WS.WARP_SPACE_PROFILES[i].id] || "";
+    });
+  }
+  var classHost = document.getElementById("classes");
+  function renderClasses() {
+    paintButtons(classHost, [{ text: "I" }, { text: "II" }, { text: "III" }], state.visualClass - 1, function (i) {
+      state.visualClass = i + 1;
+    });
+  }
+
+  document.getElementById("bgOn").addEventListener("click", function () {
+    state.backdropOn = !state.backdropOn;
+    this.setAttribute("aria-pressed", state.backdropOn ? "true" : "false");
+  });
+  document.getElementById("bgStep").addEventListener("click", function () {
+    state.seed = (state.seed * 1664525 + 1013904223) >>> 0;
+    state.bgIndex = 0;
+    bgReset();
+    renderArt();
+  });
+  var palA = document.getElementById("palA"), palB = document.getElementById("palB");
+  var flowBtn = document.getElementById("flowOn");
+  var mixRead = document.getElementById("mixRead");
+
+  function syncPaletteButtons() {
+    flowBtn.setAttribute("aria-pressed", state.flowOn ? "true" : "false");
+    palA.setAttribute("aria-pressed", (!state.flowOn && state.manualMix === 0) ? "true" : "false");
+    palB.setAttribute("aria-pressed", (!state.flowOn && state.manualMix === 1) ? "true" : "false");
+  }
+  var rainbowBtn = document.getElementById("rainbowOn");
+  // «Радуга» включает весь цветовой круг вместо перехода между двумя
+  // наборами. Выключенная радуга + закреплённый A = ровно вид 0.14.0.
+  function setRainbow(on) {
+    state.rainbow = !!on;
+    if (rainbowBtn) rainbowBtn.setAttribute("aria-pressed", state.rainbow ? "true" : "false");
+  }
+  if (rainbowBtn) rainbowBtn.addEventListener("click", function () { setRainbow(!state.rainbow); });
+  window.BCMWarpSetRainbow = setRainbow;
+
+  function setFlow(on) { state.flowOn = on; syncPaletteButtons(); }
+  function setMix(v) { state.flowOn = false; state.manualMix = v; syncPaletteButtons(); }
+
+  flowBtn.addEventListener("click", function () { setFlow(!state.flowOn); });
+  palA.addEventListener("click", function () { setMix(0); });
+  palB.addEventListener("click", function () { setMix(1); });
+
+  var periodHost = document.getElementById("periods");
+  function renderPeriods() {
+    paintButtons(periodHost, [{ text: "6 с" }, { text: "11 с" }, { text: "18 с" }],
+      [6, 11, 18].indexOf(state.flowPeriod), function (i) {
+        state.flowPeriod = [6, 11, 18][i];
+        setFlow(true);
+      });
+  }
+
+  /* ---------- панели: по умолчанию выключены ---------- */
+  var UI_NODES = ["panel", "meta", "hint", "toast"];
+  function applyUi(on) {
+    UI_NODES.forEach(function (id) {
+      var node = document.getElementById(id);
+      if (node && node.classList) {
+        if (on) node.classList.remove("hide-ui");
+        else node.classList.add("hide-ui");
+      }
+    });
+  }
+  function setUi(on) {
+    state.uiOn = !!on;
+    applyUi(state.uiOn);
+    return state.uiOn;
+  }
+  window.BCMWarpSetUi = setUi;
+  window.BCMWarpGetUi = function () { return state.uiOn; };
+  applyUi(false);          // при открытии видно только варп
+  // Тост с подсказкой живёт первые секунды и гаснет сам — таймеры не нужны,
+  // время кадра уже есть.
+  function fadeToast() {
+    if (state.toastGone || state.elapsed < 4.5) return;
+    state.toastGone = true;
+    var t = document.getElementById("toast");
+    if (t && t.classList && state.uiOn) t.classList.add("hide-ui");
+  }
+
+  window.addEventListener("keydown", function (e) {
+    if (e.key === "h" || e.key === "H" || e.key === "р" || e.key === "Р") {
+      setUi(!state.uiOn);
+      state.toastGone = true;
+    }
+    if (e.key === "ArrowLeft") state.steer = -1;
+    if (e.key === "ArrowRight") state.steer = 1;
+    if (e.key === "q" || e.key === "Q" || e.key === "й" || e.key === "Й") state.shipRollDir = -1;
+    if (e.key === "e" || e.key === "E" || e.key === "у" || e.key === "У") state.shipRollDir = 1;
+    if (e.key >= "1" && e.key <= "5") {
+      state.profileIndex = Number(e.key) - 1;
+      renderProfiles();
+      document.getElementById("joke").textContent = JOKES[WS.WARP_SPACE_PROFILES[state.profileIndex].id] || "";
+    }
+    if (e.key === "b" || e.key === "B") document.getElementById("bgOn").click();
+    if (e.key === "p" || e.key === "P") setFlow(!state.flowOn);
+    if (e.key === "a" || e.key === "A") setMix(0);
+    if (e.key === "s" || e.key === "S") setMix(1);
+    if (e.key === "r" || e.key === "R") setRainbow(!state.rainbow);
+    if (e.key === "t" || e.key === "T") {
+      var ids = WS.warpSpaceTransitionIds();
+      var at = ids.indexOf(state.transition);
+      state.transitionAuto = false;
+      state.transition = ids[(at + 1) % ids.length];
+      state.cells = null;
+      renderTransitions();
+    }
+    if (e.key === "k" || e.key === "K") window.BCMWarpSetShip(state.shipIndex + 1);
+  });
+  window.addEventListener("keyup", function (e) {
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") state.steer = 0;
+    if (["q", "Q", "й", "Й", "e", "E", "у", "У"].indexOf(e.key) >= 0) state.shipRollDir = 0;
+  });
+
+  var cycleBtn = document.getElementById("cycleOn");
+  cycleBtn.addEventListener("click", function () {
+    state.cycleOn = !state.cycleOn;
+    cycleBtn.setAttribute("aria-pressed", state.cycleOn ? "true" : "false");
+    bgReset();
+  });
+  document.getElementById("cycleJump").addEventListener("click", function () {
+    // Прыжок к началу перехода: пауза в текущем отрезке уже прошла.
+    // Считаем по ТОМУ ЖЕ ритму, по которому живёт кадр: в случайном режиме
+    // отрезки не равны, и старый расчёт по периоду промахивался мимо перехода.
+    var cs = cycleState(Math.max(0, 40 - state.elapsed));
+    state.elapsed = cs.phase === "hold"
+      ? cs.start + cs.hold
+      : cs.start + cs.period + cs.hold;    // пауза уже идёт — прыгаем через одну
+    bgReset();
+    // Ручной запуск — это тоже новый переход: в режиме «по кругу» он должен
+    // открыться следующей дверью, а не той же самой.
+    state.transitionStep = (state.transitionStep || 0) + 1;
+    state.lastTo = null;
+  });
+
+  var artModes = document.getElementById("artModes");
+  var artPick = document.getElementById("artPick");
+  var artRead = document.getElementById("artRead");
+  function renderArt() {
+    paintButtons(artModes, [{ text: "процедурный" }, { text: "скетчи" }],
+      state.artMode === "procedural" ? 0 : 1, function (i) {
+        state.artMode = i === 0 ? "procedural" : "sketch";
+        bgReset();
+        renderArt();
+      });
+    var names = WS.WARP_SPACE_SKETCHES;
+    paintButtons(artPick, [{ text: "по seed" }].concat(names.map(function (n, i) {
+      return { text: String(i + 1).padStart(2, "0") };
+    })), state.sketchForce ? names.indexOf(state.sketchForce) + 1 : 0, function (i) {
+      state.sketchForce = i === 0 ? null : names[i - 1];
+      bgReset();
+      renderArt();
+    });
+    artPick.style.display = state.artMode === "sketch" ? "flex" : "none";
+    artRead.textContent = state.artMode === "sketch"
+      ? "(" + sketchName(state.bgIndex || 0).replace(".svg", "") + ")"
+      : "(процедурный)";
+  }
+
+  var bpmHost = document.getElementById("bpms");
+  var barRead = document.getElementById("barRead");
+  function renderBpms() {
+    paintButtons(bpmHost, [{ text: "100" }, { text: "120" }, { text: "142" }],
+      state.cycleRandom ? -1 : [100, 120, 142].indexOf(state.bpm), function (i) {
+        // Клик по темпу — это выбор ритма «по тактам»: иначе подсвеченная
+        // кнопка ничего не делает и путает.
+        state.bpm = [100, 120, 142][i];
+        state.cycleRandom = false;
+        bgReset();
+        renderRhythms();
+        renderBpms();
+      });
+    var cfg = cycleCfg();
+    barRead.textContent = state.cycleRandom
+      ? "(не используется: ритм случайный)"
+      : "(" + cfg.bar.toFixed(2) + " с/такт, цикл " + cfg.period.toFixed(2) +
+        " с = " + cfg.bars + " тактов)";
+  }
+
+  var rhythmHost = document.getElementById("rhythms");
+  var cycleRead = document.getElementById("cycleRead");
+  function renderRhythms() {
+    paintButtons(rhythmHost, [{ text: "случайно (~2 с)" }, { text: "по тактам" }],
+      state.cycleRandom ? 0 : 1, function (i) {
+        state.cycleRandom = i === 0;
+        state.cells = null;
+        state.lastTo = null;
+        renderRhythms();
+        renderBpms();
+      });
+    cycleRead.textContent = state.cycleRandom
+      ? "(случайные, пауза ~2 с + переход ~0.9 с)"
+      : "(по тактам)";
+  }
+
+  var powerHost = document.getElementById("powers");
+  function renderPowers() {
+    paintButtons(powerHost, [{ text: "спокойный" }, { text: "сильный" }, { text: "максимум" }],
+      [1, 1.6, 2.4].indexOf(state.transitionPower), function (i) {
+        state.transitionPower = [1, 1.6, 2.4][i];
+        renderPowers();
+      });
+  }
+
+  var cellHost = document.getElementById("cellSizes");
+  var cellRead = document.getElementById("cellRead");
+  var CELL_STEPS = [
+    { key: "auto", text: "авто" },
+    { key: "coarse", text: "крупный" },
+    { key: "fine", text: "мелкий" },
+    { key: "small", text: "мельче" },
+    { key: "tiny", text: "очень мелкий" },
+    { key: "micro", text: "микро" }
+  ];
+  function renderCellSizes() {
+    var keys = CELL_STEPS.map(function (s) { return s.key; });
+    paintButtons(cellHost, CELL_STEPS, keys.indexOf(state.cellSize), function (i) {
+      state.cellSize = keys[i];
+      bgReset();
+      state.cellsNow = null;
+      renderCellSizes();
+    });
+    var grid = cellGrid();
+    cellRead.textContent = "(" + grid[0] + "×" + grid[1] + " · " + deviceProfile().label + ")";
+  }
+
+  var transHost = document.getElementById("transitions");
+  var transRead = document.getElementById("transRead");
+  function renderTransitions() {
+    var items = WS.WARP_SPACE_TRANSITIONS.map(function (t, i) { return { text: t.label }; });
+    items.push({ text: "по кругу" });
+    var active = state.transitionAuto
+      ? WS.WARP_SPACE_TRANSITIONS.length
+      : Math.max(0, WS.warpSpaceTransitionIds().indexOf(state.transition));
+    paintButtons(transHost, items, active, function (i) {
+      if (i === WS.WARP_SPACE_TRANSITIONS.length) {
+        state.transitionAuto = true;
+      } else {
+        state.transitionAuto = false;
+        state.transition = WS.WARP_SPACE_TRANSITIONS[i].id;
+      }
+      state.cells = null;
+      renderTransitions();
+    });
+    transRead.textContent = state.transitionAuto
+      ? "(по кругу: " + (state.transitionKind || "dissolve") + ")"
+      : "(" + (state.transitionKind || state.transition) + ")";
+  }
+
+  var shipPick = document.getElementById("shipPick");
+  var shipSizes = document.getElementById("shipSizes");
+  var shipRead = document.getElementById("shipRead");
+  function renderShips() {
+    paintButtons(shipPick, WS.WARP_SPACE_SHIP_SPECS.map(function (s) { return { text: s.label }; }),
+      state.shipIndex, function (i) { state.shipIndex = i; renderShips(); });
+    paintButtons(shipSizes, [{ text: "крошечный" }, { text: "маленький" }, { text: "средний" }],
+      ["tiny", "small", "medium"].indexOf(state.shipSize), function (i) {
+        state.shipSize = ["tiny", "small", "medium"][i];
+        renderShips();
+      });
+    var spec = WS.WARP_SPACE_SHIP_SPECS[state.shipIndex];
+    var size = Math.round(WS.warpSpaceShipSize(W, H) * SHIP_SCALE[state.shipSize]);
+    var rollDeg = Math.round((state.shipRollShown || 0) * 180 / Math.PI);
+    shipRead.textContent = "(" + spec.engines + " дв. · " + size + " px · крен " + rollDeg + "°)";
+  }
+  window.BCMWarpSetTransition = function (id) {
+    if (id === "auto") { state.transitionAuto = true; } 
+    else if (WS.warpSpaceTransitionIds().indexOf(id) >= 0) { state.transitionAuto = false; state.transition = id; }
+    state.cells = null;
+    renderTransitions();
+  };
+  window.BCMWarpSetShip = function (idOrIndex) {
+    state.shipIndex = typeof idOrIndex === "number"
+      ? Math.abs(Math.trunc(idOrIndex)) % WS.WARP_SPACE_SHIP_SPECS.length
+      : WS.WARP_SPACE_SHIP_SPECS.findIndex(function (s) { return s.id === String(idOrIndex); });
+    if (state.shipIndex < 0) state.shipIndex = 0;
+    renderShips();
+  };
+  // Подключение настоящего запечённого спрайта сзади: та же точка входа, что в игре.
+  window.BCMWarpSetShipSprite = function (src) {
+    if (!src) { state.shipSprite = null; return null; }
+    var img = new Image();
+    img.onload = function () { state.shipSprite = img; };
+    img.src = src;
+    return true;
+  };
+
+  var qAuto = document.getElementById("qAuto"), qHigh = document.getElementById("qHigh"), qLow = document.getElementById("qLow");
+  function syncQuality() {
+    qAuto.setAttribute("aria-pressed", state.tierLocked ? "false" : "true");
+    qHigh.setAttribute("aria-pressed", (state.tierLocked && !state.lowMode) ? "true" : "false");
+    qLow.setAttribute("aria-pressed", (state.tierLocked && state.lowMode) ? "true" : "false");
+  }
+  qAuto.addEventListener("click", function () { state.tierLocked = false; state.frameMsAvg = 0; state.slowStreak = 0; syncQuality(); });
+  qHigh.addEventListener("click", function () { state.tierLocked = true; state.lowMode = false; bgReset(); syncQuality(); });
+  qLow.addEventListener("click", function () { state.tierLocked = true; state.lowMode = true; bgReset(); syncQuality(); });
+
+  renderProfiles();
+  renderClasses();
+  renderPeriods();
+  renderCellSizes();
+  renderTransitions();
+  renderShips();
+  renderRhythms();
+  renderBpms();
+  renderPowers();
+  renderArt();
+  syncPaletteButtons();
+  syncQuality();
+  document.getElementById("joke").textContent = JOKES[WS.WARP_SPACE_PROFILES[state.profileIndex].id];
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

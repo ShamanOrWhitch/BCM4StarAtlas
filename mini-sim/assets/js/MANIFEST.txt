@@ -1,0 +1,57 @@
+BCM4SA — WARP SPACE, ревизия 15 (итоговая сборка «как есть»)
+============================================================
+
+База: mini-sim/assets/js/deep-space-warp.js из main@40d8a7b2 = то, что отдаёт
+живой сайт walkingyog.com/bcm4sa (0.14.0).
+  база:  md5 e5271ffb2b8e33f1cb1f162d6fd8dad6, 308 087 Б
+  итог:  md5 fae712e5e70a0020b2942b769aa4d582, 421 453 Б
+
+ЧТО КЛАСТЬ В РЕПОЗИТОРИЙ
+------------------------
+Вариант A (файлом, проще):
+  repo-drop/mini-sim/assets/js/deep-space-warp.js
+    -> mini-sim/assets/js/deep-space-warp.js
+Вариант B (патчем, видно diff +2330 / -38):
+  warp_space.patch      (git apply --check, затем git apply)
+То же самое лежит в replace/ (deep-space-warp.js + bump_version.sh + README).
+
+ПОСЛЕ ЗАЛИВКИ ОБЯЗАТЕЛЬНО: bash replace/bump_version.sh  (6 мест, иначе браузер
+отдаст закэшированный старый файл).
+
+ЧТО ВНУТРИ
+----------
+- 5 видов фона варпа, радужный перелив, обои из assets/scetchs с фолбэком;
+- смена сцены случайным ритмом: пауза ~2 с, переход ~0.9 с, каждый раз свой
+  способ (6 видов, без повторов подряд) и своя сила; тактовая сетка 142 BPM —
+  второй режим (BCMDeepSpaceWarpSetRandomCycle(false));
+- корабль сзади: Pearce F4 по умолчанию (2 двигателя), маленький, висит на
+  кольце и переворачивается по нему; ручной крен Q/E через хук;
+- «Пульс» не роняет кадр при обратном ходе (wrap01, радиус > 0);
+- сцены идут по кругу из пула 4: без пересборки фона на каждый переход.
+
+ФАЙЛЫ
+-----
+warp_demo.html                     демо (открывается на Pearce F4, «Пульс», класс I)
+warp_space.patch                   патч против базы
+warp_patched.js                    результат применения патча (= файл под замену)
+warp_source.js                     чистая база 0.14.0 для сверки
+warp_backdrop_core.js              ядро эффекта (без игры)
+warp_backdrop_core.test.mjs        51 тест ядра
+demo_smoke.test.mjs                15 тестов демо
+demo_cycle.test.mjs                4 теста цикла
+warp_space_wiring.test.mjs         20 тестов контракта патча
+warp_patch_runtime.test.mjs        5 тестов рантайма патча в фейковом DOM
+warp_sketch_loader.js(+test)       сниппет обоев из assets/scetchs
+build_patch.py / build_demo.py     сборка патча и демо из ядра
+warp_demo_template.html            шаблон демо
+verify_live_base.sh                проверка «база = живой сайт» + patch + тесты
+NOTES.md                           разделы 1e–1o: что и почему сделано
+replace/                           файл под замену + bump_version.sh + README
+repo-drop/                         зеркальная папка пути репозитория + ЗАЛИТЬ-В-РЕПО.md
+scetchs/                           6 SVG-обоев (встроены в демо, в игре — отдельно)
+
+ПРОВЕРКИ НА МОМЕНТ СБОРКИ
+-------------------------
+node --test *.test.mjs   -> tests 101 / pass 101 / fail 0
+verify_live_base.sh      -> база = живой сайт, патч применим, node --check OK, 101/101
+node --check warp_patched.js -> OK
