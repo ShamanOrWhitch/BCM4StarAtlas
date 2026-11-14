@@ -154,6 +154,7 @@ test("First Planet uses parked forms at berths and flight forms when the craft m
   assert.match(sim, /this.engineForward/);
   assert.match(island, /hud.flightMode \? "ЗЕМЛЯ" : "ПОЛЁТ"/);
   assert.match(scene, /loader\.loadAsync\(shipUrl\(near\.flightFile\)\)/);
+  assert.match(ships, /return meshUrl\(path\);/);
 });
 
 

@@ -5,7 +5,7 @@ import { meshUrl, propUrl } from "@/game/mesh-url";
 export function shipUrl(path: string) {
   const plugin = propUrl(path);
   if (plugin) return plugin;
-  return meshUrl(path.split("/").map((part) => encodeURIComponent(part)).join("/"));
+  return meshUrl(path);
 }
 
 type CatalogShip = {
