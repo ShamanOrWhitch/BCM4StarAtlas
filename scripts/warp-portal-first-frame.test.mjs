@@ -31,7 +31,8 @@ test("Tube rendering is a rotating cylinder, not a fixed trapezoid", () => {
   assert.doesNotMatch(draw, /Circumferential rings and seams|for \(let ring = 0/);
   assert.match(draw, /theta \+ \(d - 0\.92\) \* 0\.36/);
   assert.match(draw, /for \(let seam = 0; seam < 12; seam \+= 1\)/);
-  assert.match(draw, /g\.rotate\(craftAngle - Math\.PI \/ 2 \+ \(state\.steerBank \|\| 0\)\)/);
+  assert.match(draw, /warpSpace\.warpSpaceShipRollFor\(craftRing, Number\(state\.warpShipRoll\) \|\| 0\)/);
+  assert.match(draw, /\(state\.steerBank \|\| 0\) \* 1\.4/);
   assert.match(draw, /Math\.sin\(loopPhase \+ d \* Math\.PI \* 2\.4\) \* loopMix/);
   assert.doesNotMatch(draw, /const roadY=d=>|const half=d=>|Continuous floor panels and centre dashes/);
 });

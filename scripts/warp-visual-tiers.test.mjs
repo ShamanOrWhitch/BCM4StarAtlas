@@ -104,7 +104,9 @@ test("Warp directional flow animates the original longitudinal frame lines witho
   assert.ok(!frame.includes("const length = 2 + star.z * 22"));
 
   const tunnel = section(warp, "function drawTubeTunnel", "function drawBackdrop");
-  assert.ok(tunnel.includes("const flowDirection = visualClass === 2 ? -1 : 1"));
+  assert.ok(tunnel.includes("const flowDirection = warpSpace.warpSpaceDirectionFor(visualClass, spaceProfile)"));
+  assert.ok(warp.includes("var reversedByClass = (Number(visualClass) || 1) === 2"));
+  assert.ok(warp.includes("return reversedByClass !== reversedByProfile ? -1 : 1"));
   assert.ok(tunnel.includes("const t = Number(state.tubeTravel || 0) * flowDirection"));
   assert.ok(tunnel.includes("const shimmerTime = Number(state.tubeShimmerTime || 0) * flowDirection"));
   assert.ok(tunnel.includes("const flowPhase = ((t * 0.052 + 0.12) % 1 + 1) % 1"));

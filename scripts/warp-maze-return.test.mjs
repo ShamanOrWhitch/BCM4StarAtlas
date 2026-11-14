@@ -116,7 +116,8 @@ test("Warp Tube is a rolling circular cylinder with a curved / corkscrew route",
   assert.match(body, /layer\.type === "spikes"/);
   assert.match(update, /layer\.type === "boost"/);
   assert.match(update, /layer\.type === "launcher"/);
-  assert.match(body, /g\.rotate\(craftAngle - Math\.PI \/ 2 \+ \(state\.steerBank \|\| 0\)\)/);
+  assert.match(body, /warpSpace\.warpSpaceShipRollFor\(craftRing, Number\(state\.warpShipRoll\) \|\| 0\)/);
+  assert.match(body, /\(state\.steerBank \|\| 0\) \* 1\.4/);
   assert.match(update, /state\.playerAngle = Number\(state\.playerAngle \|\| 0\) - steer \* dt \* 2\.2/);
   assert.match(update, /angleDifference\(playerAngle, layer\.safeAngle\)/);
   assert.match(update, /layer\.blockedAngles\.some/);
