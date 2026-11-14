@@ -90,8 +90,8 @@ test("first-person space picker and orbital yard use paired catalog forms", asyn
   assert.match(mini, /assetUrl\(spec\.parkedFile\)/);
   assert.match(mini, /dockedShips\.push\(\{[\s\S]*?id: spec\.id,[\s\S]*?file: spec\.file/);
   assert.match(mini, /mountFlightHull\(transfer\)/);
-  assert.match(mini, /title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.14\.1"/);
-  assert.match(php, /Version: 0\.14\.1/);
+  assert.match(mini, /title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0\.14\.2"/);
+  assert.match(php, /Version: 0\.14\.2/);
 });
 
 test("First Planet TV tapes persist in inventory and own exclusive spatial audio", async () => {

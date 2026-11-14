@@ -335,8 +335,9 @@
       // Цикл фоновых сцен: выровнен по тактам, ~18 с (2 с переход + 16 с пауза).
       // 142 BPM — точный темп от владельца; такт 1.6901 с, цикл 11 тактов.
       warpBgBpm: 142,
-      // Ритм сцены: случайный по умолчанию — пауза ~2 с, переход ~0.9 с,
-      // каждый переход свой (вид, сила, следующая сцена). Тактовая сетка
+      // Ритм сцены: случайный по умолчанию — пауза ~2 с, переход ~6.75 с
+      // (в 7.5 раза длиннее прежних 0.9 с, чтобы переход можно было смотреть).
+      // Каждый переход свой (вид, сила, следующая сцена). Тактовая сетка
       // осталась вторым режимом: BCMDeepSpaceWarpSetRandomCycle(false).
       warpBgRandom: true,
       warpBgHold: 2,
@@ -345,8 +346,9 @@
       warpBgCycle: true,
       warpBgIndex: 0,
       warpBgCells: null,
-      // Обои seed: 'sketch' — векторные скетчи из assets/scetchs, 'procedural' —
-      // генерация. При отсутствии файла скетч сам падает в процедурный фон.
+      // Обои seed: 'mix' — программный фон и скетч из assets/scetchs вместе,
+      // 'sketch' — только скетч, 'procedural' — только генерация.
+      // Если файла нет, остаётся программный фон.
       // Радужный перелив вместо перехода между двумя наборами цветов.
       warpRainbow: true,
       // Чем сменяется кадр фона: 'dissolve' — рассыпание (по умолчанию),
@@ -363,7 +365,7 @@
       warpShipScale: 1,
       // Пиксель перехода: "auto" — по профилю устройства (ПК мельче, телефон крупнее).
       warpCellSize: "auto",
-      warpArtMode: "sketch",
+      warpArtMode: "mix",
       warpSketch: null,
       startedAt: 0,
       shields: 100,
@@ -621,8 +623,10 @@
     });
     // Обои seed: скетчи из assets/scetchs, иначе генерация.
     window.BCMDeepSpaceWarpSetArtMode = (mode) => {
-      state.warpArtMode = String(mode) === "procedural" ? "procedural" : "sketch";
+      const name = String(mode || "");
+      state.warpArtMode = name === "procedural" || name === "sketch" ? name : "mix";
       warpBgReset();
+      return state.warpArtMode;
     };
     window.BCMDeepSpaceWarpSetSketch = (name) => {
       state.warpSketch = name ? String(name) : null;
@@ -6419,7 +6423,8 @@
   /* ---------- случайный ритм: пауза ~2 с, дальше сам разнообразит ----------
    * Владельцу не нужна привязка к тактам: «сама разнообразность эффективно».
    * Поэтому ритм больше не выровнен по музыке, а идёт короткими отрезками —
-   * ~2 с паузы и ~0.9 с перехода, каждый раз чуть разные (±джиттер), и каждый
+   * ~2 с паузы и ~6.75 с перехода (прежние 0.9 с, растянутые в 7.5 раза),
+   * каждый раз чуть разные (±джиттер), и каждый
    * переход берёт СЛУЧАЙНЫЙ способ из всех шести, случайную силу и следующую
    * по порядку сцену. Способ выбирается «мешком»: все шесть видов выпадают по
    * одному разу за круг, но в случайном порядке, и подряд два одинаковых не
@@ -6431,7 +6436,7 @@
    */
   var WARP_SPACE_RANDOM = {
     hold: 2, holdJitter: 0.4,
-    transition: 0.9, transitionJitter: 0.25,
+    transition: 6.75, transitionJitter: 1.875,
     powerMin: 1, powerMax: 2.5,
     seed: 0x5F3A21C7
   };
@@ -7610,9 +7615,34 @@
       return made;
     }
 
+    function warpArtModeNow() {
+      const mode = String(state.warpArtMode || "mix");
+      return mode === "procedural" || mode === "sketch" ? mode : "mix";
+    }
+
+    function mixWarpBackdrop(procedural, sketch, makeCanvas) {
+      const canvas = makeCanvas(procedural.w, procedural.h);
+      const g = canvas.getContext("2d");
+      g.drawImage(procedural.canvas, 0, 0);
+      g.save();
+      // Screen keeps the generated stars in the dark of the sketch and adds its bright lines.
+      g.globalCompositeOperation = "screen";
+      g.globalAlpha = 0.85;
+      g.drawImage(sketch.canvas, 0, 0, procedural.w, procedural.h);
+      g.restore();
+      return {
+        canvas: canvas,
+        w: procedural.w,
+        h: procedural.h,
+        scale: procedural.scale,
+        seed: procedural.seed,
+        id: "mix"
+      };
+    }
+
     function warpBgGet(index, w, h) {
-      const sketchMode = state.warpArtMode !== "procedural";
-      const key = warpBgKey(index, w, h) + "|" + (sketchMode ? "sk" : "pr");
+      const mode = warpArtModeNow();
+      const key = warpBgKey(index, w, h) + "|" + mode;
       const cached = warpBgStore.get(key);
       if (cached) { warpBgTouch(key); return cached; }
       const profile = warpSpaceProfile();
@@ -7622,15 +7652,22 @@
         canvas.height = ch;
         return canvas;
       };
-      const sketchName = sketchMode ? warpSketchName(index) : null;
-      let built = sketchName ? warpSketchScene(sketchName, w, h) : null;
-      if (!built) {
+      const sketchName = mode === "procedural" ? null : warpSketchName(index);
+      const sketch = sketchName ? warpSketchScene(sketchName, w, h) : null;
+      let built = null;
+      if (mode === "sketch" && sketch) {
+        built = sketch;
+      } else {
         const base = warpSpace.warpSpaceSeedFor(Number(state.tubeBackdropSeed || 0) >>> 0, profile);
         const seed = warpSpace.warpSpaceNextSeed(base, index);
-        built = warpSpace.createSpaceBackdropCache(w, h, seed, profile, makeCanvas);
-        // Пока SVG в пути — процедурный фон уже на экране, кадр не пустует.
-        // Если файла нет вовсе, флаг не ставится и пересборки не будет.
-        if (sketchName && warpSketchLoading.has(sketchName)) built.pendingSketch = true;
+        const procedural = warpSpace.createSpaceBackdropCache(w, h, seed, profile, makeCanvas);
+        if (mode === "mix" && sketch) built = mixWarpBackdrop(procedural, sketch, makeCanvas);
+        else {
+          built = procedural;
+          // Пока SVG в пути — программный фон уже на экране. Когда картинка
+          // дойдёт, сцена с pendingSketch пересобирается уже смешанной.
+          if (sketchName && warpSketchLoading.has(sketchName)) built.pendingSketch = true;
+        }
       }
       built.key = key;
       warpBgCreated += 1;
@@ -7685,7 +7722,7 @@
         return;
       }
 
-      // Ритм сцены. По умолчанию — СЛУЧАЙНЫЙ: пауза ~2 с, переход ~0.9 с, и
+      // Ритм сцены. По умолчанию — СЛУЧАЙНЫЙ: пауза ~2 с, переход ~6.75 с, и
       // каждый переход берёт свой способ из всех шести (случайный «мешок» без
       // повторов подряд) и свою силу. Тактовую сетку (142 BPM) владелец оставил
       // вторым режимом: BCMDeepSpaceWarpSetRandomCycle(false).
