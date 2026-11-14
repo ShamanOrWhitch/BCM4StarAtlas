@@ -8,7 +8,8 @@
 - PHP/plugin version, visible PHP title, RU/EN UI titles and runtime fallback are synchronized at `0.14.0`.
 - Existing asteroid GLB asset packs are present in main but not yet connected to the active sector scene; the next work item is a seeded, performance-bounded integration, not another upload.
 - No audio, Tower logic, SAGE writes, wallet operations, Galia Desk, firewall or production WordPress was changed. Live-page QA was not run.
-- **CI:** pending for the 0.14.0 commit; record exact Actions results once complete.
+- **Final 0.14.0 verification (14 Nov 2026):** Mini-Sim source/regression PASS [run #43582745712](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43582745712); Tower top-cap source-contract PASS [#43582745636](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43582745636); standalone Chromium smoke plus Tower → First Planet → same-seed ascent → return-state cycle PASS [#43582745647](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43582745647). Browser report/screenshots artifact: [#14109426036](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43582745647/artifacts/14109426036). PHP/First Planet package build PASS [#43582543868](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43582543868); UI Layer Regression PASS [#43582173529](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43582173529). Package and UI tests ran on the same 0.14.0 runtime source tree; later commits only adjusted test expectations, test slogan, and documentation. All checks are repository/local only; production WordPress/live URL was not accessed and deployment status is not claimed.
+
 
 ---
 
