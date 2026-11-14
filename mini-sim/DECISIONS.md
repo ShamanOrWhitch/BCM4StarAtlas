@@ -1,3 +1,16 @@
+## D-049 — BCM4SA is a read-only arcade cartridge companion, with a DOS attract mode (14 November 2026)
+
+**Status:** Implemented in main. Final HEAD `3a32edf26bb33d0c301d5f3301008d1d0a58cc1e`; WORK LOCK [#111](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/111).
+
+- Position BCM4SA as an independent Star Atlas-inspired Crew/ship analyzer paired with a local arcade simulation. “Cartridge” is a metaphor for the companion experience, not a minted NFT.
+- The attract line is `INSPIRED BY STAR ATLAS // MADE FOR ALL CREATURES // BCM4SA`. Use restrained terminal/arcade motion; the Crew panel's entrance and slot cascade are CSS-only and honor `prefers-reduced-motion`.
+- The read-only contract is explicit: paste a public address, or optionally obtain its public key via Phantom. No signature, transaction, wallet-write or actual SAGE fleet command is needed or sent.
+- Current scanner surfaces Crew and recognized NFT inventory. Do not advertise price valuation or automatic guild join/member-event monitoring as implemented; those require separate verified public read-only sources.
+- Keep the local arcade/session distinct from live Star Atlas state. No gameplay mechanics or audio systems are part of this UI pass.
+- **Verification:** regression + Tower source-contract + standalone Chromium PASS on main. Standalone browser QA includes ticker visibility/animation, preflight copy/animation and the local cross-world return state suite. UI Layer and First Planet package checks passed on the implementation tree.
+
+---
+
 ## D-048 — One shared ship catalog, separate parked and flight forms (11 November 2026)
 
 **Status:** Implemented and merged via [PR #108](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/108), main commit [`c4754e019dc4a45a00aa26a4b0c3675c11d77931`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/c4754e019dc4a45a00aa26a4b0c3675c11d77931).

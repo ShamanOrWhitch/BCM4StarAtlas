@@ -1,3 +1,15 @@
+## Completed implementation — WORK LOCK #111: DOS attract mode and read-only console copy (14 November 2026)
+
+- **Issue:** [#111](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/111). Final main HEAD: `3a32edf26bb33d0c301d5f3301008d1d0a58cc1e`.
+- Start HUD now carries a DOS-style scrolling slogan: `INSPIRED BY STAR ATLAS // MADE FOR ALL CREATURES // BCM4SA`, followed by read-only Crew/ship-console and no-signature copy.
+- Crew preflight explains BCM4SA in RU/EN, distinguishes manual public-address scan from optional Phantom public-key retrieval, and labels blockchain access as read-only. Crew card and roster slots use restrained CSS entrance motion; reduced-motion preferences are honored.
+- `mini-sim/PRODUCT.md` records current capabilities, no-signature/no-transaction boundaries, independent-project status and future-only integrations. Market-price valuation and guild member/join monitoring are explicitly marked not implemented.
+- **PASS:** Mini-Sim regression [run #43540219879](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43540219879), Tower top cap [#43540219904](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43540219904), standalone Chromium [#43540219884](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43540219884). UI Layer [#43539971584](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43539971584) and package / First Planet bundle [#43539971511](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43539971511) passed on implementation commit `a592211`; later commits only corrected a case-sensitive test matcher and enabled the local-browser push trigger.
+- Standalone browser run checks ticker visibility/marquee, Crew copy/entrance, existing local smoke, and transition persistence. Artifact: [screenshots + JSON](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43540219884/artifacts/14092040539).
+- No audio, wallet/RPC, gameplay, pricing, guild events, SAGE or protected Galia Desk code changed. Local browser test only; no live WordPress, production or hardware verification claimed.
+
+---
+
 ## Merged implementation — WORK LOCK #107: ship parked/flight forms (11 November 2026)
 
 - **Issue:** [#107](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/107). **Merged:** [PR #108](https://github.com/ShamanOrWhitch/BCM4StarAtlas/pull/108), main commit [`c4754e019dc4a45a00aa26a4b0c3675c11d77931`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/c4754e019dc4a45a00aa26a4b0c3675c11d77931). Mini-Sim: `0.12.10`.
