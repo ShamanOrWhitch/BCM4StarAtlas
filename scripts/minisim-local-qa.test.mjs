@@ -265,5 +265,5 @@ test("Warp travel motion increases while shimmer rate stays on its own previous 
   assert.match(warp, /Math\.sin\(shimmerTime \* 1\.35/);
   assert.match(warp, /Math\.floor\(shimmerTime \* 8\)/);
   assert.match(warp, /Math\.pow\(warpCourseProgress\(elapsed\), 0\.86\)/);
-  assert.match(warp, /const courseLayerCount = 22/);
+  assert.match(warp, /const courseLayerCount = 24/);
 });
