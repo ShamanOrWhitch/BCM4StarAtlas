@@ -95,11 +95,11 @@ test("first-person space picker and orbital yard use paired catalog forms", asyn
 });
 
 test("First Planet TV tapes persist in inventory and own exclusive spatial audio", async () => {
-  const terrain = await read("mini-sim/tower/first-planet/src/game/island/terrain.ts");
-  const sim = await read("mini-sim/tower/first-planet/src/game/island/sim.ts");
-  const scene = await read("mini-sim/tower/first-planet/src/game/island/scene.ts");
-  const island = await read("mini-sim/tower/first-planet/src/components/desert-island.tsx");
-  const embed = await read("mini-sim/tower/first-planet/src/first-planet-embed.tsx");
+  const terrain = await read("mini-sim/first-planet/src/game/island/terrain.ts");
+  const sim = await read("mini-sim/first-planet/src/game/island/sim.ts");
+  const scene = await read("mini-sim/first-planet/src/game/island/scene.ts");
+  const island = await read("mini-sim/first-planet/src/components/desert-island.tsx");
+  const embed = await read("mini-sim/first-planet/src/first-planet-embed.tsx");
   assert.match(terrain, /id: "invaders10"/);
   assert.match(terrain, /lq-Invaders\.mp4/);
   assert.match(sim, /tapes: string\[\]/);
@@ -116,11 +116,11 @@ test("First Planet TV tapes persist in inventory and own exclusive spatial audio
 });
 
 test("First Planet uses parked forms at berths and flight forms when the craft moves", async () => {
-  const ships = await read("mini-sim/tower/first-planet/src/game/ships.ts");
-  const scene = await read("mini-sim/tower/first-planet/src/game/island/scene.ts");
-  const sim = await read("mini-sim/tower/first-planet/src/game/island/sim.ts");
-  const island = await read("mini-sim/tower/first-planet/src/components/desert-island.tsx");
-  const config = await read("mini-sim/tower/first-planet/tsconfig.json");
+  const ships = await read("mini-sim/first-planet/src/game/ships.ts");
+  const scene = await read("mini-sim/first-planet/src/game/island/scene.ts");
+  const sim = await read("mini-sim/first-planet/src/game/island/sim.ts");
+  const island = await read("mini-sim/first-planet/src/components/desert-island.tsx");
+  const config = await read("mini-sim/first-planet/tsconfig.json");
   assert.match(config, /"resolveJsonModule": true/);
   assert.match(ships, /import SHIP_CATALOG from "\.\.\/\.\.\/\.\.\/\.\.\/assets\/mesh\/ships\/catalog\.json"/);
   assert.match(ships, /CATALOG\.filter\(\(ship\) => ship\.planetDrive\)/);
@@ -181,9 +181,9 @@ test("Max Hog starts idle and repeated flight-mode updates do not restart exhaus
 });
 
 test("First Planet separates E/F/V, opens the chest after both fires, and tracks item hand-ins", async () => {
-  const sim = await read("mini-sim/tower/first-planet/src/game/island/sim.ts");
-  const scene = await read("mini-sim/tower/first-planet/src/game/island/scene.ts");
-  const ui = await read("mini-sim/tower/first-planet/src/components/desert-island.tsx");
+  const sim = await read("mini-sim/first-planet/src/game/island/sim.ts");
+  const scene = await read("mini-sim/first-planet/src/game/island/scene.ts");
+  const ui = await read("mini-sim/first-planet/src/components/desert-island.tsx");
   assert.match(sim, /const use = keys\.has\("KeyE"\);/);
   assert.match(sim, /const boardKey = keys\.has\("KeyF"\);/);
   assert.match(sim, /const ejectKey = keys\.has\("KeyV"\);/);
