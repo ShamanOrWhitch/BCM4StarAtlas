@@ -108,7 +108,7 @@ try{
    };
  });
  report.attractMode = marqueeInfo;
- check(marqueeInfo.visible && /INSPIRED BY STAR ATLAS/i.test(marqueeInfo.text) && /MADE FOR ALL CREATURES/i.test(marqueeInfo.text),
+ check(marqueeInfo.visible && /INSPIRED BY STAR ATLAS/i.test(marqueeInfo.text) && /POWERED FOR ALL CREATURES/i.test(marqueeInfo.text),
    "DOS attract ticker is visible and carries the BCM4SA slogan");
  check(marqueeInfo.animationName === "bcm4sa-marquee-scroll" && marqueeInfo.animationDuration !== "0s",
    "DOS attract ticker runs a CSS marquee animation");

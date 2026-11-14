@@ -267,3 +267,10 @@ test("Warp travel motion increases while shimmer rate stays on its own previous 
   assert.match(warp, /Math\.pow\(warpCourseProgress\(elapsed\), 0\.86\)/);
   assert.match(warp, /const courseLayerCount = 24/);
 });
+
+
+test("standalone browser smoke expects the current POWERED FOR ALL CREATURES attract slogan", async () => {
+  const qa = await read("scripts/minisim-local-qa.mjs");
+  assert.match(qa, /POWERED FOR ALL CREATURES/);
+  assert.doesNotMatch(qa, /MADE FOR ALL CREATURES/);
+});
