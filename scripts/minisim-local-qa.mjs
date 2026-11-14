@@ -96,6 +96,22 @@ try{
  await page.locator(".bcm-mini-sim").first().waitFor({state:"attached",timeout:30000});
  await page.locator(".bcm-mini-sim-canvas").first().waitFor({state:"visible",timeout:30000});
  await page.waitForTimeout(900);await shot(page,"01-menu.png");
+ const marqueeInfo = await page.evaluate(() => {
+   const rail = document.querySelector(".bcm-mini-sim-attract-marquee");
+   const track = rail?.querySelector(".bcm-mini-sim-attract-track");
+   const motion = track ? getComputedStyle(track) : null;
+   return {
+     visible: !!rail && rail.getBoundingClientRect().width > 0,
+     text: rail?.getAttribute("aria-label") || "",
+     animationName: motion?.animationName || "",
+     animationDuration: motion?.animationDuration || ""
+   };
+ });
+ report.attractMode = marqueeInfo;
+ check(marqueeInfo.visible && /INSPIRED BY STAR ATLAS/.test(marqueeInfo.text) && /MADE FOR ALL CREATURES/.test(marqueeInfo.text),
+   "DOS attract ticker is visible and carries the BCM4SA slogan");
+ check(marqueeInfo.animationName === "bcm4sa-marquee-scroll" && marqueeInfo.animationDuration !== "0s",
+   "DOS attract ticker runs a CSS marquee animation");
  check(!!response&&response.status()<400,standalone?"Standalone QA fixture responds successfully":"WordPress page responds successfully");
  check(await page.locator(".bcm-mini-sim").count()>0,standalone?"Mini-Sim fixture root is present":"Mini-Sim shortcode is present");
  check(report.overrides.some(item=>item.file==="mini-sim/assets/js/mini-sim.js"),"Main Mini-Sim JavaScript is served from this GitHub commit");
@@ -103,6 +119,14 @@ try{
  check(report.overrides.some(item=>item.file==="mini-sim/assets/css/mini-sim.css"),"Mini-Sim CSS is served from this GitHub commit");
  await page.locator(".bcm-mini-sim-start").first().click({timeout:12000});
  await page.locator(".bcm-mini-sim-crew-preflight:not([hidden])").first().waitFor({state:"visible",timeout:12000});
+ const productCopy = (await page.locator("[data-product-note]").first().textContent()) || "";
+ const preflightMotion = await page.locator(".bcm-mini-sim-crew-preflight-card").evaluate((element) => getComputedStyle(element).animationName);
+ report.productCopy = productCopy;
+ report.preflightAnimation = preflightMotion;
+ check(/BCM4SA/.test(productCopy) && /public|публичн/i.test(productCopy) && /signature|подпис/i.test(productCopy),
+   "Crew preflight explains the public-address read-only scanner");
+ check(preflightMotion === "bcm4sa-preflight-enter",
+   "Crew preflight card uses its terminal entrance animation");
  await shot(page,"02-crew-preflight.png");
  const start=page.locator("[data-crew-start]").first();await start.waitFor({state:"visible",timeout:10000});await start.click({timeout:12000});
  try{await page.waitForFunction(()=>{const r=document.querySelector(".bcm-mini-sim");return !!r&&r.classList.contains("game-active")&&!!window.BCMiniSimAPI;},null,{timeout:30000});}

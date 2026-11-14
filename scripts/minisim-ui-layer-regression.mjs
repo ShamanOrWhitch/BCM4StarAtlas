@@ -10,6 +10,7 @@ const flight = read("mini-sim/assets/js/mini-sim.js");
 const hull = read("mini-sim/assets/js/hull-dive.js");
 const warp = read("mini-sim/assets/js/deep-space-warp.js");
 const audit = read("mini-sim/assets/js/ui-layer-audit.js");
+const css = read("mini-sim/assets/css/mini-sim.css");
 
 const miniVersion = php.match(/Version:\s+([0-9.]+)/)?.[1];
 assert.ok(miniVersion, "Mini-Sim PHP header exposes a version");
@@ -34,6 +35,12 @@ assert.doesNotMatch(warp, /transitionWatchdog = window\.setTimeout/);
 assert.match(audit, /document\.elementFromPoint/);
 assert.match(audit, /partially-covered/);
 assert.match(audit, /getLastReport/);
+assert.match(php, /bcm-mini-sim-attract-marquee/);
+assert.match(php, /bcm-mini-sim-readonly-stamp/);
+assert.match(css, /@keyframes bcm4sa-marquee-scroll/);
+assert.match(css, /@keyframes bcm4sa-preflight-enter/);
+assert.ok(css.includes("prefers-reduced-motion: reduce"));
+assert.match(flight, /productNote\.textContent = textForLanguage\("productNote"\)/);
 assert.match(audit, /event\.ctrlKey[\s\S]{0,80}event\.altKey[\s\S]{0,80}KeyU/);
 
 console.log("PASS Mini-Sim 0.11.23 UI layer regressions: pilot view, helm default, gamepad assignment, Ring entry and hit testing.");

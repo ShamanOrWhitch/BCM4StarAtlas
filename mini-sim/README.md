@@ -2,6 +2,7 @@
 
 > **Новый сеанс / краткая передача:** [HANDOFF.md](HANDOFF.md). Сверяйся с ним вместе с AGENTS, PROJECT_STATE и DECISIONS перед продолжением работы.
 
+> **Описание продукта и read-only границы:** [PRODUCT.md](PRODUCT.md).  
 > **Рабочий порядок:** [AGENTS.md](AGENTS.md) · [PROJECT_STATE.md](PROJECT_STATE.md) · [DECISIONS.md](DECISIONS.md).  
 > Первым делом сверить коммиты и журнал решений. Старые bug reports не должны автоматически превращаться в новые задачи, если исправление уже есть в коде.
 

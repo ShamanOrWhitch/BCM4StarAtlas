@@ -885,6 +885,16 @@ function bcm_mini_sim_shortcode($atts = array())
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
             <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.12.13</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS</div>
+            <div class="bcm-mini-sim-attract-marquee" role="img" aria-label="Inspired by Star Atlas. Made for all creatures. BCM4SA. Read-only Crew and ship console.">
+                <span class="bcm-mini-sim-attract-prefix" aria-hidden="true">BCM4SA //</span>
+                <div class="bcm-mini-sim-attract-viewport" aria-hidden="true">
+                    <div class="bcm-mini-sim-attract-track">
+                        <span>INSPIRED BY STAR ATLAS // MADE FOR ALL CREATURES // BCM4SA // READ-ONLY CREW + SHIP CONSOLE // NO SIGNATURE REQUIRED //</span>
+                        <span>INSPIRED BY STAR ATLAS // MADE FOR ALL CREATURES // BCM4SA // READ-ONLY CREW + SHIP CONSOLE // NO SIGNATURE REQUIRED //</span>
+                    </div>
+                </div>
+                <span class="bcm-mini-sim-attract-state" aria-hidden="true">SYS: READY</span>
+            </div>
             <div class="bcm-mini-sim-status">ENGINE LOADING...</div>
             <div class="bcm-mini-sim-interaction"></div>
             <div class="bcm-mini-sim-help bcm-mini-sim-help-keyboard">
@@ -909,8 +919,17 @@ function bcm_mini_sim_shortcode($atts = array())
         <button class="bcm-mini-sim-start" type="button">ИГРАТЬ</button>
         <div class="bcm-mini-sim-crew-preflight" hidden>
             <div class="bcm-mini-sim-crew-preflight-card">
-                <div class="bcm-mini-sim-crew-preflight-kicker">STAR ATLAS · CREW</div>
+                <div class="bcm-mini-sim-crew-preflight-kicker">BCM4SA · READ-ONLY TERMINAL</div>
                 <h2>ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ</h2>
+                <p class="bcm-mini-sim-product-note" data-product-note>
+                    BCM4SA — независимый цифровой бортовой аркадный картридж-компаньон по Crew и кораблям Star Atlas. Он читает публичный адрес и показывает Crew, характеристики и распознанный NFT-инвентарь. Адрес можно вставить вручную — подпись и транзакции не нужны.
+                </p>
+                <div class="bcm-mini-sim-readonly-stamp" aria-label="Только чтение. Подпись и транзакции отключены.">
+                    <span>CHAIN ACCESS: READ ONLY</span>
+                    <span>WALLET SIGN: NOT REQUIRED</span>
+                    <span>TX / FLEET COMMAND: OFF</span>
+                </div>
+
                 <p class="bcm-mini-sim-crew-preflight-note">
                     Без кошелька используется двухместный Opal Jetjet. После скана число P1…Pn зависит от вместимости кораблей в инвентаре: Crew на корабле = места для игроков. Можно собрать несколько кораблей в один игровой флот.
                 </p>

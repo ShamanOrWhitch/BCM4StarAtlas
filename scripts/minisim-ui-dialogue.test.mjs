@@ -189,3 +189,29 @@ test("Mini-Sim asset version, regression assertions and long-operation timeout b
   assert.match(browserWorkflow, /timeout-minutes: 25/);
   assert.match(regressionWorkflow, /timeout-minutes: 25/);
 });
+
+test("BCM4SA product copy is bilingual, read-only and does not advertise unimplemented price/guild feeds", async () => {
+  const product = await read("mini-sim/PRODUCT.md");
+  assert.match(php, /INSPIRED BY STAR ATLAS/);
+  assert.match(php, /MADE FOR ALL CREATURES/);
+  assert.match(php, /NO SIGNATURE REQUIRED/);
+  assert.match(php, /data-product-note/);
+  assert.match(mini, /productNote: "BCM4SA — независимый цифровой бортовой аркадный картридж-компаньон/);
+  assert.match(mini, /productNote: "BCM4SA is an independent Star Atlas-inspired arcade cartridge companion/);
+  assert.match(mini, /productNote\.textContent = textForLanguage\("productNote"\)/);
+  assert.match(product, /ручную/);
+  assert.match(product, /Подписание сообщения или транзакции для чтения Crew не требуется/);
+  assert.match(product, /не предоставляет подтверждённую рыночную оценку/);
+  assert.match(product, /не отслеживает события вступления в гильдию/);
+  assert.match(product, /не является официальным клиентом Star Atlas/);
+});
+
+test("DOS attract ticker and Crew preflight visual motion are responsive and honor reduced motion", () => {
+  assert.match(php, /bcm-mini-sim-attract-marquee/);
+  assert.match(php, /bcm-mini-sim-readonly-stamp/);
+  assert.match(css, /@keyframes bcm4sa-marquee-scroll/);
+  assert.match(css, /@keyframes bcm4sa-preflight-enter/);
+  assert.match(css, /@keyframes bcm4sa-crew-slot-enter/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(css, /\.bcm-mini-sim\.game-active \.bcm-mini-sim-attract-marquee/);
+});

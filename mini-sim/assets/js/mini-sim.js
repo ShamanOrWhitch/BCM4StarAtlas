@@ -74,6 +74,7 @@
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
+      productNote: "BCM4SA — независимый цифровой бортовой аркадный картридж-компаньон по Crew и кораблям Star Atlas. Он читает публичный адрес и показывает Crew, характеристики и распознанный NFT-инвентарь. Адрес можно вставить вручную — подпись и транзакции не нужны.",
       address: "Публичный адрес",
       scan: "СКАН",
       connect: "PHANTOM",
@@ -94,6 +95,7 @@
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
+      productNote: "BCM4SA is an independent Star Atlas-inspired arcade cartridge companion for Crew and ships. It reads a public address and lists Crew, traits and recognized NFT inventory. Paste the address manually — no signature or transaction is required.",
       address: "Public address",
       scan: "SCAN",
       connect: "PHANTOM",
@@ -165,8 +167,10 @@
     if (mission) mission.textContent = textForLanguage("mission");
     const crewTitle = root.querySelector(".bcm-mini-sim-crew-preflight-card h2");
     const crewNote = root.querySelector(".bcm-mini-sim-crew-preflight-note");
+    const productNote = root.querySelector("[data-product-note]");
     if (crewTitle) crewTitle.textContent = textForLanguage("crewTitle");
     if (crewNote) crewNote.textContent = textForLanguage("crewNote");
+    if (productNote) productNote.textContent = textForLanguage("productNote");
     const address = root.querySelector(".bcm-mini-sim-crew-address");
     if (address && address.firstChild && address.firstChild.nodeType === Node.TEXT_NODE) {
       address.firstChild.nodeValue = textForLanguage("address") + " ";
@@ -607,7 +611,7 @@
       const meta = crew
         ? escapeHtml((crew.species || "Раса —") + " · " + (Array.isArray(crew.profession) && crew.profession.length ? crew.profession.join(", ") : "Профессия —"))
         : "Команда не назначена";
-      return '<label class="bcm-mini-sim-crew-slot-card rarity-' + rarity + '">' +
+      return '<label class="bcm-mini-sim-crew-slot-card rarity-' + rarity + '" style="--bcm-slot-order:' + Math.min(index, 8) + ';">' +
         image +
         '<span class="bcm-mini-sim-crew-slot-main">' +
           '<strong>' + escapeHtml(crew?.name || "Без имени") + '</strong>' +
