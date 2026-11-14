@@ -410,3 +410,11 @@ Handoff / close reason:
 - Disabled `.github/workflows/minisim-browser-qa.yml` on branch `chore/disable-live-wordpress-minisim-qa-20261112` (initial commit `c3786109c2988269d30b7edb363bf6ebe7a40a95`): workflow has no triggers and an inert job condition. It cannot run on push, PR, or manual dispatch.
 - Preserved local-only browser coverage (`minisim-standalone-browser-qa.yml` / local fixture), JS/source regression checks, and the gameplay modules. Do not modify the shared Playwright runner as part of this change.
 - Remote website QA WORK LOCK #17 is retired at the user's direction. No anti-bot bypass and no live WordPress probe were performed for this change.
+
+## First Planet directory contract — 15 November 2026
+
+- Canonical root: `mini-sim/first-planet/`; do not create `mini-sim/tower/first-planet/` or `mini-sim/assets/first-planet/` again.
+- First Planet-only models and scenery belong under `mini-sim/first-planet/mesh/`; nested packs belong under `mesh/library/`; First Planet audio belongs under `audio/`.
+- Tower remains a separate integration module. It may reference First Planet URLs, but must not own copies of its code, bundle, models or audio.
+- Shared ships/Crew and other shared Mini-Sim resources remain in `mini-sim/assets/mesh/`; reference them instead of duplicating them.
+- Implemented by main commit [`2ada830`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/2ada830da0e9eeeb25ed418d137e75db13e22376). CI was pending at the time of this entry; update status only from results for that SHA.

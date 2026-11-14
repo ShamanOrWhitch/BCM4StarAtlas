@@ -785,3 +785,11 @@ HEAD at the start of the session was `748998250d39ac9ed163b84caa1f7178da920d9a` 
 - Disable `.github/workflows/minisim-browser-qa.yml` completely: no event triggers and an inert job guard. No live-site fetch, browser navigation, or Chromium installation remains in that workflow.
 - Keep local source/regression checks and the independent standalone Chromium fixture. The standalone fixture is served from localhost and must not be described as live WordPress validation.
 - Do not bypass or weaken the site's firewall / anti-bot protection to restore this workflow. Reopen live testing only on the user's explicit direction and a materially different, user-approved test route.
+
+## Decision — One canonical First Planet folder (15 November 2026)
+
+First Planet is a standalone game module, not a subdirectory of Tower. Its code, preview/build files, WordPress loader/bundle, dedicated meshes and soundtracks live together under `mini-sim/first-planet/`. Tower only owns the entry/exit transition and loads this module by URL.
+
+Dedicated scenery packs are nested under `mini-sim/first-planet/mesh/library/`; the original 29 game models remain directly under `mesh/`. Shared Mini-Sim ship/Crew assets remain in `mini-sim/assets/mesh/` and are referenced, not copied. Do not recreate a second First Planet asset tree or place its loader/bundle under Tower.
+
+Implemented on main in [`2ada830`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/2ada830da0e9eeeb25ed418d137e75db13e22376). GitHub Actions verification was pending when this decision was recorded.

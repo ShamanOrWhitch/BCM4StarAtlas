@@ -457,3 +457,14 @@ Issue #28 остаётся открытым только для полной г�
 - Keep source/regression checks and `minisim-standalone-browser-qa.yml`: that standalone browser run uses a local HTTP fixture and repository assets, not the public WordPress site. Do not change the shared Playwright runner used by that local workflow.
 - WORK LOCK #17 (remote website QA) is retired at the user's request. No firewall bypass or further live-site probe is authorized. This change itself did not request `/bcm4sa`.
 - Status: **IMPLEMENTED on branch**; CI/merge status is recorded in the pull request. No live gameplay result is claimed.
+
+
+## 15 November 2026 — First Planet standalone directory
+
+- **IMPLEMENTED on main:** [`2ada830`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/2ada830da0e9eeeb25ed418d137e75db13e22376).
+- First Planet now has one canonical owner directory: `mini-sim/first-planet/`. The former `mini-sim/tower/first-planet/` and `mini-sim/assets/first-planet/` locations are removed.
+- Moved the First Planet app, WordPress bundle, loader, 29 original GLBs, desert/coastal scenery libraries, `FP.mp3` and `desertrace.mp3` into that directory.
+- Tower remains in `mini-sim/tower/`; it now loads the First Planet loader/bundle from the independent folder and keeps only Tower-specific assets.
+- Shared ship/Crew models and `assets/mesh/ships/catalog.json` intentionally remain in the common `mini-sim/assets/mesh/` library.
+- Updated WordPress URLs, Vite recursive mesh serving/build output, package workflow and local transition regression paths.
+- **Verification at documentation time:** GitHub Actions for Mini-Sim regression (#43648203311), Tower top-cap (#43648203342), standalone Chromium (#43648203304) and package build (#43648203293) were still running. Do not mark TESTED-CODE or VERIFIED-LIVE until final results are read.
