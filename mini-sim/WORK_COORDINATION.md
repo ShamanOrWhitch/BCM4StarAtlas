@@ -418,3 +418,13 @@ Handoff / close reason:
 - Tower remains a separate integration module. It may reference First Planet URLs, but must not own copies of its code, bundle, models or audio.
 - Shared ships/Crew and other shared Mini-Sim resources remain in `mini-sim/assets/mesh/`; reference them instead of duplicating them.
 - Implemented by main commit [`2ada830`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/2ada830da0e9eeeb25ed418d137e75db13e22376). CI was pending at the time of this entry; update status only from results for that SHA.
+
+## Verification record — First Planet standalone folder
+
+Latest implementation head at this note: `7d0bb646a9126ba21bbf96406363aa7c20eec7e2`.
+
+- Mini-Sim regression: PASS, run #43648574782.
+- Tower top-cap regression: PASS, run #43648574834.
+- First Planet WordPress bundle build + package-content verification: PASS steps, run #43648574879; artifact upload pending.
+- Standalone Chromium source assertions: PASS, run #43648574823; browser smoke and transition-cycle steps pending.
+- Keep one writer at a time. Do not merge path-stale PR #105 without reworking it against `mini-sim/first-planet/`.

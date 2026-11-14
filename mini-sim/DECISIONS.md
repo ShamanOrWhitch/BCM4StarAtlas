@@ -793,3 +793,9 @@ First Planet is a standalone game module, not a subdirectory of Tower. Its code,
 Dedicated scenery packs are nested under `mini-sim/first-planet/mesh/library/`; the original 29 game models remain directly under `mesh/`. Shared Mini-Sim ship/Crew assets remain in `mini-sim/assets/mesh/` and are referenced, not copied. Do not recreate a second First Planet asset tree or place its loader/bundle under Tower.
 
 Implemented on main in [`2ada830`](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/2ada830da0e9eeeb25ed418d137e75db13e22376). GitHub Actions verification was pending when this decision was recorded.
+
+## Decision follow-up — verification after standalone relocation
+
+The path relocation is implemented on main and its test expectations are aligned to `mini-sim/first-planet/`. Shared ship catalogue references intentionally point back to `mini-sim/assets/mesh/ships/catalog.json`; this is a shared dependency, not a duplicate First Planet asset.
+
+On head `7d0bb64`, Mini-Sim regression and Tower top-cap regression passed. The First Planet WordPress bundle build and package-content checks passed; artifact upload was in progress. Standalone Chromium source assertions passed, while the real browser smoke/transition cycle was still running. No live WordPress deployment is claimed.

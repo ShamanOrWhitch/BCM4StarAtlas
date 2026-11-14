@@ -468,3 +468,12 @@ Issue #28 остаётся открытым только для полной г�
 - Shared ship/Crew models and `assets/mesh/ships/catalog.json` intentionally remain in the common `mini-sim/assets/mesh/` library.
 - Updated WordPress URLs, Vite recursive mesh serving/build output, package workflow and local transition regression paths.
 - **Verification at documentation time:** GitHub Actions for Mini-Sim regression (#43648203311), Tower top-cap (#43648203342), standalone Chromium (#43648203304) and package build (#43648203293) were still running. Do not mark TESTED-CODE or VERIFIED-LIVE until final results are read.
+
+
+## First Planet relocation — verification update (15 November 2026)
+
+- Follow-up test/QA adjustments landed on main: `bedfb946`, `5a2b9ed`, `a785b913`; ship-path encoding correction: `7d0bb64`.
+- **TESTED-CODE:** Mini-Sim regression PASS [run #43648574782](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43648574782); Tower top-cap regression PASS [run #43648574834](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43648574834), both on head `7d0bb64`.
+- **First Planet package:** bundle dependency install, WordPress build, JS/CSS verification and single-level package-content verification all PASS in [run #43648574879](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43648574879); artifact upload was still in progress at this note.
+- **Standalone Chromium:** source assertions PASS in [run #43648574823](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43648574823); real browser smoke and Tower → First Planet → Tower cycle were still in progress.
+- No WordPress production deployment or live website verification is claimed.
