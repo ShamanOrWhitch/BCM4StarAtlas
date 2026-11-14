@@ -7904,8 +7904,8 @@ return axialRoll + ahead * 0.12 +
 
         const seamPalette = warpSpacePalette(seam / 12);
         const baseColor = seam % 3 === 0
-          ? warpSpace.rgbaCss(seamPalette.seam, 0.80)
-          : warpSpace.rgbaCss(seamPalette.seam, 0.26);
+          ? warpSpace.rgbaCss(seamPalette.seamThick, 0.80)
+          : warpSpace.rgbaCss(seamPalette.seamThin, 0.26);
         const pulseColor = warpSpace.rgbaCss(seamPalette.accent, 1);
         const flowGradient = g.createLinearGradient(frameStart.x, frameStart.y, frameEnd.x, frameEnd.y);
         const pulseWidth = 0.085;
