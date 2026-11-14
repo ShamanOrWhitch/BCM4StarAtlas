@@ -24,6 +24,8 @@
 
 ---
 
+- **Verification after follow-up assertion updates (14 Nov 2026):** Mini-Sim regression PASS, 118 tests / 0 failures, [run #43582405254](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43582405254); Tower top-cap source-contract PASS, [run #43582405244](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43582405244). UI Layer Regression PASS [#43582173529](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43582173529); First Planet/package build PASS [#43582173546](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43582173546) on runtime source commit `784be9d`. Standalone browser QA is triggered again by this documentation sync; no production/live-page QA has run.
+
 ## Completed — WORK LOCK #111: BCM4SA DOS attract mode + read-only product copy (14 November 2026)
 
 - **Issue:** [#111](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/111). Main implementation commit [a592211](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/a59221169eea1a4a02d5114813fb049905adc73f); browser assertion case correction [827b794](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/827b7940f5c6b9b78a75bfbcb93849ddacc364b7); standalone push-filter correction [3a32edf](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/3a32edf26bb33d0c301d5f3301008d1d0a58cc1e).
