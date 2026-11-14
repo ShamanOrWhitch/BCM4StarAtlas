@@ -1,6 +1,6 @@
 # BCM4SA — продукт и границы функций
 
-**Slogan:** INSPIRED BY STAR ATLAS // MADE FOR ALL CREATURES // BCM4SA
+**Slogan:** INSPIRED BY STAR ATLAS // POWERED FOR ALL CREATURES // BCM4SA
 
 ## Короткое описание
 
@@ -35,5 +35,5 @@ BCM4SA **inspired by Star Atlas** и использует публичные д�
 
 ## Короткий текст для заставки
 
-> INSPIRED BY STAR ATLAS // MADE FOR ALL CREATURES // BCM4SA  
+> INSPIRED BY STAR ATLAS // POWERED FOR ALL CREATURES // BCM4SA  
 > READ-ONLY CREW + SHIP CONSOLE // NO SIGNATURE REQUIRED

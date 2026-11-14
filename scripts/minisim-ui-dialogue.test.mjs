@@ -193,7 +193,7 @@ test("Mini-Sim asset version, regression assertions and long-operation timeout b
 test("BCM4SA product copy is bilingual, read-only and does not advertise unimplemented price/guild feeds", async () => {
   const product = await read("mini-sim/PRODUCT.md");
   assert.match(php, /INSPIRED BY STAR ATLAS/);
-  assert.match(php, /MADE FOR ALL CREATURES/);
+  assert.match(php, /POWERED FOR ALL CREATURES/);
   assert.match(php, /NO SIGNATURE REQUIRED/);
   assert.match(php, /data-product-note/);
   assert.match(mini, /productNote: "BCM4SA — независимый цифровой бортовой аркадный картридж-компаньон/);

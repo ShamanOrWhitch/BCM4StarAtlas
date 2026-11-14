@@ -885,12 +885,12 @@ function bcm_mini_sim_shortcode($atts = array())
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
             <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.12.13</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS</div>
-            <div class="bcm-mini-sim-attract-marquee" role="img" aria-label="Inspired by Star Atlas. Made for all creatures. BCM4SA. Read-only Crew and ship console.">
+            <div class="bcm-mini-sim-attract-marquee" role="img" aria-label="Inspired by Star Atlas. Powered for all creatures. BCM4SA. Read-only Crew and ship console.">
                 <span class="bcm-mini-sim-attract-prefix" aria-hidden="true">BCM4SA //</span>
                 <div class="bcm-mini-sim-attract-viewport" aria-hidden="true">
                     <div class="bcm-mini-sim-attract-track">
-                        <span>INSPIRED BY STAR ATLAS // MADE FOR ALL CREATURES // BCM4SA // READ-ONLY CREW + SHIP CONSOLE // NO SIGNATURE REQUIRED //</span>
-                        <span>INSPIRED BY STAR ATLAS // MADE FOR ALL CREATURES // BCM4SA // READ-ONLY CREW + SHIP CONSOLE // NO SIGNATURE REQUIRED //</span>
+                        <span>INSPIRED BY STAR ATLAS // POWERED FOR ALL CREATURES // BCM4SA // READ-ONLY CREW + SHIP CONSOLE // NO SIGNATURE REQUIRED //</span>
+                        <span>INSPIRED BY STAR ATLAS // POWERED FOR ALL CREATURES // BCM4SA // READ-ONLY CREW + SHIP CONSOLE // NO SIGNATURE REQUIRED //</span>
                     </div>
                 </div>
                 <span class="bcm-mini-sim-attract-state" aria-hidden="true">SYS: READY</span>
