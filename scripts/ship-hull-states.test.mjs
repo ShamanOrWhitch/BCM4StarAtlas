@@ -122,7 +122,7 @@ test("First Planet uses parked forms at berths and flight forms when the craft m
   const island = await read("mini-sim/first-planet/src/components/desert-island.tsx");
   const config = await read("mini-sim/first-planet/tsconfig.json");
   assert.match(config, /"resolveJsonModule": true/);
-  assert.match(ships, /import SHIP_CATALOG from "\.\.\/\.\.\/\.\.\/\.\.\/assets\/mesh\/ships\/catalog\.json"/);
+  assert.match(ships, /import SHIP_CATALOG from "\.\.\/\.\.\/\.\.\/assets\/mesh\/ships\/catalog\.json"/);
   assert.match(ships, /CATALOG\.filter\(\(ship\) => ship\.planetDrive\)/);
   assert.match(ships, /CATALOG\.filter\(\(ship\) => !ship\.planetDrive\)/);
   assert.match(ships, /ship\.flight/);
