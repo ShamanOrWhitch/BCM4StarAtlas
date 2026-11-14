@@ -2,7 +2,11 @@
 
 Это дополнение имеет приоритет над историческими записями ниже, когда они противоречат более поздним прямым указаниям владельца.
 
+- **Единая память команды:** `mini-sim/DR_FABLE_PLAYBOOK.md` задаёт рабочий цикл Lead Orchestrator → специалисты → Repo Operator → CI → приёмка. Все агенты используют одну и ту же память проекта.
+
 - **Git workflow:** работать непосредственно в `main`. Не создавать feature-ветки и PR без нового прямого разрешения владельца. Старые branch/PR refs ниже — история и материалы для diff, а не требование продолжать работу в тех ветках.
+- **Leadership:** Dr Fable — Lead Orchestrator / технический руководитель: архитектура, декомпозиция, приоритеты, раздача work packets и приёмка результатов. Он координирует всю команду, а не является обычным исполнителем.
+- **Repository execution:** DR GPT — текущий Repo Operator и единственный writer в `main`, потому что его GitHub write доступ подтверждён, а Shell Dr Fable ранее блокировался. Fable руководит; DR GPT записывает одобренные work packets через GitHub API и возвращает CI evidence. Если у Fable будут подтверждены Shell + GitHub write и владелец явно передаст ему запись, назначение writer меняется; два writers одновременно запрещены.
 - **Concurrency:** один writer одновременно; остальные агенты — read-only reviewer/tester. До записи сверить текущий HEAD, Issues/PR и пересечения файлов.
 - **AUDIO FREEZE:** никакой новой работы со звуком, музыкой, OST, эффектами, голосами или аудиосистемой. Существующие файлы/код не удалять; аудио-части старых задач исключать из scope.
 - **Protected scope:** не менять wordpress/galia-desk, scanner/pricing, firewall/security, production WordPress, wallet writes и SAGE transactions без отдельного прямого разрешения.
