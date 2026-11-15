@@ -3,6 +3,17 @@
 Рабочая память разделена. Идеи: `JOURNAL_IDEAS.md`. Баги: `JOURNAL_BUGS.md`. Комплектация мини-игр: `JOURNAL_KIT.md`.
 Проверка больше не замораживает правки. Версия игры от этого не менялась: Mini-Sim `0.14.6`, Tower `0.2.80`, HEAD на момент записи журналов `129ad52`.
 
+## Completed implementation — Mini-Sim 0.14.8 / Tower 0.2.82: Crew facing and walking rig in crew-core (15 November 2026)
+
+- **WORK LOCK:** [#117](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/117). Implementation `99b224a`. Decision D-056. BUG-001 `FIXED`.
+- New `mini-sim/assets/js/crew-rig.js` (from the SYNTX Dr Fable chat, unchanged, `selfTest() == []`), loaded before `crew-core.js` in both plugins and the standalone shell.
+- `crew-core.js`: `crewFace` (one mirror rule), `crewSpritePose` (phase from dt through the rig). Tower, Ring, Hull Dive pass direction and dt only.
+- **Red on `3177740`:** `Mierese moving right is mirrored unlike Tower: 1 !== -1`; `pose moved with performance.now() while dt = 0`.
+- **Local (Windows):** `regression.mjs` syntax 10/10, tests 148/148 (CI list now includes the crew-core tests); Tower suites 34/34.
+- **Not verified yet:** CI for this SHA (see next entry/Issue), Chromium locally (`BROWSER-MISSING`), the walk by eye in Tower/Ring/Hull, Mierese facing on the live site.
+
+---
+
 ## Completed implementation — Mini-Sim 0.14.7 / Tower 0.2.81: Crew cutout in crew-core (15 November 2026)
 
 - **WORK LOCK:** [#116](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/116). Red test `952f861`, implementation `4e8d931`. Decision D-055.
