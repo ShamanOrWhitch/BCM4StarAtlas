@@ -1,3 +1,13 @@
+## D-059 — Одна SAGE-карта для Galia и Mini-Sim; Galia — источник (15 ноября 2026)
+
+**Status:** Реализовано в `a6f1ee3`, Mini-Sim `0.15.2`, WORK LOCK [#121](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/121). IDEA-014, шаг 1.
+
+- **Указание владельца:** «внедрение карты Галии надо сделать, и сектор ONI CSS как раз вот так и выглядит, если его прожать».
+- **Источник правды — Galia** (`src/data/sage-plane.ts`, `src/data/systems.ts`, палитра `KIND_COLOR`). Mini-Sim — плагин без сборки, поэтому получает сгенерированную копию `mini-sim/assets/js/sage-map.js` и текстуры планет в `mini-sim/assets/sage/`. Ручная правка копии запрещена; тест `scripts/sage-map-galia.test.mjs` падает, если копия разошлась с Galia.
+- **Логика отдельно от данных:** `sage-map-core.js` (`sectorTitle`, `systemForSector`, `starColor`). Старые захардкоженные точки в `deep-space-warp.js` оставлены только как запасной путь, если карта не загрузилась.
+- **Планеты:** MUD — `earth_hi.jpg` (Земля NASA, по словам владельца так было раньше), Ustur — `mars.jpg` (бывшая MUD). Изменено в Galia, Mini-Sim подхватил генератором.
+- **Не менялось:** механика Warp (кольца клеток, трубка, прибытие в астероид), адаптер живой навигации.
+
 ## D-058 — Asteroid: камни везде в открытом космосе; Mierese как все (15 ноября 2026)
 
 **Status:** Реализовано в `acd8b21`, Mini-Sim `0.15.1`, WORK LOCK [#119](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/119). Закрывает выбор D-054.

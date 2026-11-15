@@ -3,6 +3,16 @@
 Рабочая память разделена. Идеи: `JOURNAL_IDEAS.md`. Баги: `JOURNAL_BUGS.md`. Комплектация мини-игр: `JOURNAL_KIT.md`.
 Проверка больше не замораживает правки. Версия игры от этого не менялась: Mini-Sim `0.14.6`, Tower `0.2.80`, HEAD на момент записи журналов `129ad52`.
 
+## Patch — Mini-Sim 0.15.2: Galia SAGE map inside Mini-Sim; Galia Fleet cold start (15 November 2026)
+
+- **WORK LOCKs:** [#120](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/120) Galia Fleet (`e7cd90c`), [#121](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/121) SAGE map (`a6f1ee3`). Decision D-059.
+- **Galia (Render):** Fleet was empty after a cold start — Galaxy catalogue 10 s timeout and a market without ships cached for 2 min. Fixed: 30 s + last good catalogue, no caching of a ship-less market, loading/retry on the page. **Render still served the old bundle 30+ min after the push** (old text present, new absent) — Render deploy needs the owner's check.
+- **Mini-Sim:** Warp map from Galia data; red before: `local navigation still labelled as test-only`; after 3/3. Local Edge frames: ONI · Akenat card with the station on orbit, stars named and coloured.
+- **Local:** regression 157/157 (12/12 syntax), Tower suites 39/39.
+- **Not verified yet:** CI for this SHA, live site, MUD/Ustur cards by eye.
+
+---
+
 ## Patch — Mini-Sim 0.15.1: Mierese facing, asteroid field in open space (15 November 2026)
 
 - **WORK LOCK:** [#119](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/119). Fix `acd8b21`. Decision D-058. BUG-001 fixed again, BUG-004 `FIXED`; new BUG-005 (First Planet 3D character), IDEA-013 (desert entry video).
