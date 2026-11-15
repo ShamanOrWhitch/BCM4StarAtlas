@@ -125,13 +125,16 @@ test("Hull Dive exclusively owns key input and handles X across keyboard layouts
   assert.match(mini, /two-handed control/);
 });
 
-test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, ammunition and repair stations", async () => {
+test("Hull Dive uses crew-core Crew cut-outs and supplies working pilot, weapon, ammunition and repair stations", async () => {
   const hull = await read("mini-sim/assets/js/hull-dive.js");
   assert.match(hull, /window\.BCMMiniCrewSelection\?\.players/);
   assert.match(hull, /function makeCrewTexture\(THREE, crew\)/);
   assert.match(hull, /function makeFallbackChibiTexture\(THREE, suitColor, accentColor\)/);
-  assert.match(hull, /bcm-tower-crew-cutouts-v8/);
-  assert.match(hull, /function officialCrewCutoutUrl\(url\)/);
+  // Cutout moved to crew-core.js (owner directive, WORK LOCK #116).
+  const crewCore = await read("mini-sim/assets/js/crew-core.js");
+  assert.match(hull, /window\.BCMCrewCore\.loadCrewTexture\(THREE, crew\)/);
+  assert.match(crewCore, /bcm-tower-crew-cutouts-v8/);
+  assert.match(crewCore, /function officialCrewCutoutUrl\(url\)/);
   assert.match(hull, /new THREE\.Sprite\(new THREE\.SpriteMaterial/);
   assert.match(hull, /data-hull-control="shoot"/);
   assert.match(hull, /data-hull-control="reload"/);
@@ -165,7 +168,7 @@ test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, amm
   assert.match(hull, /function fireWeapon\(player\)/);
   assert.match(hull, /const maxAmmo = 6/);
   assert.match(hull, /reloadProgress\[index\] >= 1\.05/);
-  assert.match(hull, /window\.caches\.open\("bcm-tower-crew-cutouts-v8"\)/);
+  assert.match(crewCore, /window\.caches\.open\("bcm-tower-crew-cutouts-v8"\)/);
   assert.match(hull, /function readAssignedGamepads\(\)/);
   assert.match(hull, /function readGamepad\(gp\)/);
   assert.match(hull, /navigator\.getGamepads/);
@@ -177,6 +180,8 @@ test("Hull Dive uses Tower Crew cut-outs and supplies working pilot, weapon, amm
   assert.match(hull, /let pilotMode = true/);
   assert.match(hull, /texture\.flipY = true/);
   assert.doesNotMatch(hull, /createImageBitmap\(cached\)/);
+  assert.match(crewCore, /texture\.flipY = true/);
+  assert.doesNotMatch(crewCore, /createImageBitmap/);
   assert.match(hull, /window\.BCMHullRepairState/);
   assert.match(hull, /repairState\.triggerExternalImpact =/);
   assert.match(hull, /repairState\.patchExternalHole =/);

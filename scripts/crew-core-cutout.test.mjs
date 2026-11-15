@@ -103,7 +103,7 @@ function makeEnv({ images, segmenter }) {
   return { context, window, loads, THREE };
 }
 
-function figure(width, height, { opaqueBackground = false, top = 2, bottom = 7, left = 2, right = 5 } = {}) {
+function figure(width, height, { opaqueBackground = false, top = 6, bottom = 30, left = 12, right = 24 } = {}) {
   const px = new Uint8ClampedArray(width * height * 4);
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
     const i = (y * width + x) * 4;
@@ -123,7 +123,7 @@ const settle = () => new Promise((r) => setTimeout(r, 5));
 test("official alpha PNG: one load, cropped silhouette, texture goes pending → ready, shared between levels", async () => {
   const full = "https://cdn.staratlas.com/crew/v1/42_full.jpg";
   const official = "https://cdn.staratlas.com/crew/v1/42.png";
-  const env = makeEnv({ images: { [official]: figure(10, 10) } });
+  const env = makeEnv({ images: { [official]: figure(40, 40) } });
   const core = await loadCore(env);
   assert.equal(core.officialCrewCutoutUrl(full), official);
 
@@ -139,7 +139,7 @@ test("official alpha PNG: one load, cropped silhouette, texture goes pending →
     assert.equal(tex.userData.bcmCutoutFailed, false);
     assert.equal(tex.userData.bcmOfficialCutout, true);
     assert.equal(tex.needsUpdate, true);
-    assert.ok(tex.image.width < 10 && tex.image.height < 10, `cropped, got ${tex.image.width}x${tex.image.height}`);
+    assert.ok(tex.image.width <= 21 && tex.image.height <= 34, `cropped to the figure, got ${tex.image.width}x${tex.image.height}`);
     assert.equal(tex.encoding, env.THREE.sRGBEncoding, "r128 colour space");
   }
   assert.deepEqual(env.loads, [official], "the core cuts each Crew once, not once per level");
@@ -152,20 +152,20 @@ test("card with opaque background goes through the segmenter matte; failure is r
   const segmenter = async (canvas) => {
     seen.push([canvas.width, canvas.height]);
     const mask = { width: canvas.width, height: canvas.height, channels: 1, data: new Uint8Array(canvas.width * canvas.height) };
-    for (let y = 3; y <= 8; y++) for (let x = 3; x <= 6; x++) mask.data[y * canvas.width + x] = 255;
+    for (let y = 6; y <= 30; y++) for (let x = 12; x <= 24; x++) mask.data[y * canvas.width + x] = 255;
     return [{ mask }];
   };
-  const env = makeEnv({ images: { [card]: figure(12, 12, { opaqueBackground: true }) }, segmenter });
+  const env = makeEnv({ images: { [card]: figure(48, 48, { opaqueBackground: true }) }, segmenter });
   const core = await loadCore(env);
   const tex = core.requestCrewTexture(env.THREE, card);
   await settle();
   assert.equal(seen.length, 1, "segmenter runs once");
   assert.equal(tex.userData.bcmCutoutReady, true);
-  assert.ok(tex.image.width <= 10, `background cropped away, got ${tex.image.width}`);
+  assert.ok(tex.image.width <= 21, `background cropped away, got ${tex.image.width}`);
   const corner = tex.image.getContext("2d").getImageData(0, 0, 1, 1).data[3];
   assert.equal(corner, 0, "card background is transparent after the matte");
 
-  const env2 = makeEnv({ images: { [card]: figure(12, 12, { opaqueBackground: true }) }, segmenter: async () => { throw new Error("offline"); } });
+  const env2 = makeEnv({ images: { [card]: figure(48, 48, { opaqueBackground: true }) }, segmenter: async () => { throw new Error("offline"); } });
   const core2 = await loadCore(env2);
   const bad = core2.requestCrewTexture(env2.THREE, card);
   await settle();

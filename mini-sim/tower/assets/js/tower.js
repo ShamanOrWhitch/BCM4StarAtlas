@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.80";
+  const TOWER_VERSION = "0.2.81";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -89,161 +89,8 @@
 
 
 
-  // Run image matting once per selected Crew image, never inside the render loop.
-  // Xenova/modnet is a Transformers.js background-removal model (Apache-2.0).
-  let crewSegmentationPipelinePromise = null;
-
-  function crewCutoutCacheRequest(url) {
-    if (!window.caches || !window.location || !window.location.origin) return null;
-    let hash = 2166136261;
-    const input = String(url || "") + "|crew-isnet-v8";
-    for (let i = 0; i < input.length; i += 1) {
-      hash ^= input.charCodeAt(i);
-      hash = Math.imul(hash, 16777619);
-    }
-    return new Request(window.location.origin + "/?bcm-crew-cutout=v8-" + (hash >>> 0).toString(36));
-  }
-
-  async function readCrewCutoutCache(url) {
-    try {
-      const request = crewCutoutCacheRequest(url);
-      if (!request) return null;
-      const cache = await window.caches.open("bcm-tower-crew-cutouts-v8");
-      const response = await cache.match(request);
-      return response && response.ok ? await response.blob() : null;
-    } catch (error) {
-      return null;
-    }
-  }
-
-  async function writeCrewCutoutCache(url, canvas) {
-    try {
-      const request = crewCutoutCacheRequest(url);
-      if (!request || !canvas.toBlob) return;
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-      if (!blob) return;
-      const cache = await window.caches.open("bcm-tower-crew-cutouts-v8");
-      await cache.put(request, new Response(blob, { headers: { "Content-Type": "image/png" } }));
-    } catch (error) {}
-  }
-
-  function getCrewSegmentationPipeline() {
-    if (!crewSegmentationPipelinePromise) {
-      crewSegmentationPipelinePromise = import("https://esm.sh/@huggingface/transformers@3.8.1?bundle")
-        .then((module) => {
-          if (module.env) {
-            module.env.useBrowserCache = true;
-            module.env.allowRemoteModels = true;
-          }
-          // General-use ISNet is better suited to illustrated/game characters than
-          // portrait-only matting. Quantized weights run once per selected image
-          // and the transparent PNG is cached in this browser.
-          return module.pipeline("background-removal", "Ko033/isnet-general-use-onnx", { dtype: "q8" });
-        })
-        .catch((error) => {
-          crewSegmentationPipelinePromise = null;
-          throw error;
-        });
-    }
-    return crewSegmentationPipelinePromise;
-  }
-
-  function cropCrewCanvas(canvas, ctx, frame, texture) {
-    const w = canvas.width;
-    const h = canvas.height;
-    const pixels = frame.data;
-    let minX = w;
-    let minY = h;
-    let maxX = -1;
-    let maxY = -1;
-    for (let y = 0; y < h; y += 1) {
-      for (let x = 0; x < w; x += 1) {
-        // Keep faint anti-aliased pixels at hair, fingers and shoe edges.
-        if (pixels[(y * w + x) * 4 + 3] < 4) continue;
-        if (x < minX) minX = x;
-        if (y < minY) minY = y;
-        if (x > maxX) maxX = x;
-        if (y > maxY) maxY = y;
-      }
-    }
-    if (maxX < minX || maxY < minY) return false;
-    const sourceMaxY = maxY;
-    const padX = Math.max(4, Math.round(w * 0.025));
-    const padTop = Math.max(4, Math.round(h * 0.025));
-    const padBottom = Math.max(2, Math.round(h * 0.01));
-    minX = Math.max(0, minX - padX);
-    minY = Math.max(0, minY - padTop);
-    maxX = Math.min(w - 1, maxX + padX);
-    maxY = Math.min(h - 1, maxY + padBottom);
-    const cropHeight = maxY - minY + 1;
-    const transparentBottom = Math.max(0, maxY - sourceMaxY);
-    ctx.putImageData(frame, 0, 0);
-    const crop = ctx.getImageData(minX, minY, maxX - minX + 1, cropHeight);
-    canvas.width = crop.width;
-    canvas.height = crop.height;
-    ctx.putImageData(crop, 0, 0);
-    if (texture?.userData) {
-      texture.userData.bcmCutoutFeetPadRatio = transparentBottom / Math.max(1, crop.height);
-    }
-    return true;
-  }
-
-  function pruneCrewMatteSpecks(frame, width, height) {
-    const pixels = frame.data;
-    const total = width * height;
-    const seen = new Uint8Array(total);
-    const stack = [];
-    const component = [];
-    const minComponentPixels = Math.max(4, Math.floor(total * 0.00002));
-    // Clear near-transparent model noise while retaining the smooth semitransparent edge band.
-    for (let p = 0; p < total; p += 1) {
-      if (pixels[p * 4 + 3] < 24) pixels[p * 4 + 3] = 0;
-    }
-
-    const visit = (start) => {
-      stack.length = 0;
-      component.length = 0;
-      stack.push(start);
-      seen[start] = 1;
-      while (stack.length) {
-        const p = stack.pop();
-        component.push(p);
-        const x = p % width;
-        const y = Math.floor(p / width);
-        const neighbours = [];
-        if (x > 0) neighbours.push(p - 1);
-        if (x + 1 < width) neighbours.push(p + 1);
-        if (y > 0) neighbours.push(p - width);
-        if (y + 1 < height) neighbours.push(p + width);
-        for (const q of neighbours) {
-          if (seen[q]) continue;
-          seen[q] = 1;
-          if (pixels[q * 4 + 3] >= 64) stack.push(q);
-        }
-      }
-    };
-
-    let largest = 0;
-    let largestCount = 0;
-    for (let p = 0; p < total; p += 1) {
-      if (seen[p] || pixels[p * 4 + 3] < 64) continue;
-      visit(p);
-      if (component.length > largestCount) {
-        largestCount = component.length;
-        largest = p;
-      }
-    }
-
-    seen.fill(0);
-    for (let p = 0; p < total; p += 1) {
-      if (seen[p] || pixels[p * 4 + 3] < 64) continue;
-      visit(p);
-      // Keep the largest island unconditionally. Drop only tiny disconnected
-      // islands that are characteristic of residual background specks.
-      if (component.length >= minComponentPixels || component[0] === largest) continue;
-      for (const q of component) pixels[q * 4 + 3] = 0;
-    }
-  }
+  // Crew background cutout lives in crew-core.js (BCMCrewCore.requestCrewTexture).
+  // Tower only displays the texture it returns.
 
   function speciesMotion(species, sex) {
     if (window.BCMCrewCore && window.BCMCrewCore.speciesMotion) {
@@ -264,40 +111,34 @@
     return { bob: 0.036, speed: 0.018, sway: 0.018, squash: 0.04 };
   }
 
+  // BUG-003: leg split is not implemented; it belongs to Crew assembly in crew-core.js.
   function splitCrewLegs() {
     return;
-  }
-
-  function officialCrewCutoutUrl(url) {
-    const text = String(url || "");
-    const full = text.match(/^(https?:\/\/cdn\.staratlas\.com\/crew\/v1\/)(\d+)_full\.(?:jpe?g|png|webp)(?:\?.*)?$/i);
-    if (full) return full[1] + full[2] + ".png";
-    const bare = text.match(/^https?:\/\/cdn\.staratlas\.com\/crew\/v1\/\d+\.png(?:\?.*)?$/i);
-    return bare ? text : "";
-  }
-
-  function crewImageHasCutoutAlpha(pixels) {
-    let samples = 0;
-    let clear = 0;
-    for (let i = 3; i < pixels.length; i += 16) {
-      samples += 1;
-      if (pixels[i] < 16) clear += 1;
-    }
-    return samples > 0 && clear / samples > 0.18;
   }
 
   function assetTexture(url, renderer, options = {}) {
     if (!url || !window.THREE) return null;
     options = options && typeof options === "object" ? options : {};
 
-    const cleanKey = (options.officialAlpha ? "|official" : options.cutout ? "|cutout" : options.removeWhite ? "|whitekey" : "") + (options.removeBlack ? "|black" : "");
+    const cleanKey = options.cutout ? "|cutout" : (options.removeWhite ? "|whitekey" : "") + (options.removeBlack ? "|black" : "");
     const cacheKey = String(url) + cleanKey;
     const cache = assetTexture.cache || (assetTexture.cache = new Map());
     if (cache.has(cacheKey)) return cache.get(cacheKey);
 
+    // Crew characters are cut out and assembled by crew-core.js. Tower only
+    // displays the returned texture and reads its pending/ready/failed flags.
+    if (options.cutout) {
+      const crewTex = window.BCMCrewCore && window.BCMCrewCore.requestCrewTexture
+        ? window.BCMCrewCore.requestCrewTexture(THREE, String(url))
+        : null;
+      if (!crewTex) console.error("Tower: BCMCrewCore is not loaded; Crew sprite replaced by marker", url);
+      else cache.set(cacheKey, crewTex);
+      return crewTex;
+    }
+
     let tex;
 
-    if ((options.removeWhite || options.removeBlack || options.cutout || options.officialAlpha) && (rasterUrl(url) || /^https?:/i.test(String(url)))) {
+    if ((options.removeWhite || options.removeBlack) && (rasterUrl(url) || /^https?:/i.test(String(url)))) {
       // Some of the supplied PNG cards contain an opaque white matte instead
       // of real alpha. Remove only near-white pixels and preserve antialiased
       // edges so doors, NPCs and landing cards behave as cut-outs.
@@ -305,215 +146,47 @@
       canvas.width = 2;
       canvas.height = 2;
       tex = new THREE.CanvasTexture(canvas);
-      tex.userData = tex.userData || {};
-      if (options.cutout || options.officialAlpha) {
-        tex.userData.bcmCutoutPending = true;
-        tex.userData.bcmCutoutReady = false;
-      }
 
       const image = new Image();
       image.crossOrigin = "anonymous";
       image.decoding = "async";
       image.onerror = () => {
-        if (options.officialAlpha && options.fallbackUrl && image.src !== options.fallbackUrl) {
-          options.officialAlpha = false;
-          options.cutout = true;
-          image.src = options.fallbackUrl;
-          return;
-        }
-        if (tex.userData) {
-          tex.userData.bcmCutoutPending = false;
-          tex.userData.bcmCutoutFailed = true;
-        }
         tex.needsUpdate = true;
       };
-      image.onload = async () => {
+      image.onload = () => {
         try {
-          const srcW = image.naturalWidth || image.width || 1;
-          const srcH = image.naturalHeight || image.height || 1;
-          const maxSide = options.cutout ? 512 : Math.max(srcW, srcH);
-          const scale = Math.min(1, maxSide / Math.max(srcW, srcH));
-          canvas.width = Math.max(1, Math.round(srcW * scale));
-          canvas.height = Math.max(1, Math.round(srcH * scale));
+          canvas.width = Math.max(1, image.naturalWidth || image.width || 1);
+          canvas.height = Math.max(1, image.naturalHeight || image.height || 1);
           const ctx = canvas.getContext("2d", { willReadFrequently: true });
           if (!ctx) return;
-
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-
           const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const pixels = frame.data;
-
-          if (options.officialAlpha && crewImageHasCutoutAlpha(pixels)) {
-            if (!cropCrewCanvas(canvas, ctx, frame, tex, 40)) {
-              throw new Error("official crew png had no silhouette");
+          for (let i = 0; i < pixels.length; i += 4) {
+            const r = pixels[i];
+            const g = pixels[i + 1];
+            const b = pixels[i + 2];
+            const a = pixels[i + 3];
+            if (!a) continue;
+            const nearWhite = options.removeWhite && Math.min(r, g, b) >= 246 && Math.max(r, g, b) <= 255;
+            const softWhite = options.removeWhite && Math.min(r, g, b) >= 232;
+            const nearBlack = options.removeBlack && Math.max(r, g, b) <= 18;
+            const softBlack = options.removeBlack && Math.max(r, g, b) <= 40;
+            if (nearWhite || nearBlack) {
+              pixels[i + 3] = 0;
+            } else if (softWhite) {
+              const fade = Math.max(0, Math.min(1, (246 - Math.min(r, g, b)) / 14));
+              pixels[i + 3] = Math.round(a * fade);
+            } else if (softBlack) {
+              const fade = Math.max(0, Math.min(1, (Math.max(r, g, b) - 18) / 22));
+              pixels[i + 3] = Math.round(a * fade);
             }
-            splitCrewLegs(canvas, tex);
-            tex.userData.bcmCutoutPending = false;
-            tex.userData.bcmCutoutReady = true;
-            tex.userData.bcmCutoutFailed = false;
-            tex.userData.bcmOfficialCutout = true;
-            tex.needsUpdate = true;
-            return;
           }
-          if (options.officialAlpha && options.fallbackUrl && image.src !== options.fallbackUrl) {
-            options.officialAlpha = false;
-            options.cutout = true;
-            image.src = options.fallbackUrl;
-            return;
-          }
-
-          if (options.cutout) {
-            const cachedBlob = await readCrewCutoutCache(url);
-            if (cachedBlob && typeof createImageBitmap === "function") {
-              const bitmap = await createImageBitmap(cachedBlob);
-              canvas.width = bitmap.width;
-              canvas.height = bitmap.height;
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              ctx.drawImage(bitmap, 0, 0);
-              // Cached PNGs must preserve the same floor anchoring as freshly
-              // segmented images. Re-measure transparent bottom padding from alpha.
-              const cachedPixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-              let lastVisibleY = -1;
-              for (let y = canvas.height - 1; y >= 0 && lastVisibleY < 0; y -= 1) {
-                for (let x = 0; x < canvas.width; x += 1) {
-                  if (cachedPixels[(y * canvas.width + x) * 4 + 3] >= 4) {
-                    lastVisibleY = y;
-                    break;
-                  }
-                }
-              }
-              const blankBottomRows = lastVisibleY < 0 ? 0 : Math.max(0, canvas.height - 1 - lastVisibleY);
-              tex.userData.bcmCutoutFeetPadRatio = blankBottomRows / Math.max(1, canvas.height);
-              if (typeof bitmap.close === "function") bitmap.close();
-              splitCrewLegs(canvas, tex);
-              tex.userData.bcmCutoutPending = false;
-              tex.userData.bcmCutoutReady = true;
-              tex.needsUpdate = true;
-              return;
-            }
-
-            let segmented = false;
-            try {
-              const segmenter = await getCrewSegmentationPipeline();
-              const output = await segmenter(canvas);
-              const results = Array.isArray(output) ? output : [output];
-              const picked = results.find((item) =>
-                item && item.mask && item.mask.data && item.mask.width && item.mask.height
-              ) || results.find((item) =>
-                item && item.data && item.width && item.height
-              );
-              const mask = picked && picked.mask ? picked.mask : picked;
-              if (!mask || !mask.data || !mask.width || !mask.height) {
-                throw new Error("MODNet returned no matte");
-              }
-
-              // Transformers.js background-removal normally returns a complete
-              // RGBA cut-out, not a grayscale matte. In that case the prediction
-              // is already in channel 4; using channel 1 (red) as the matte makes
-              // costume colors determine transparency and clips body parts.
-              const maskChannels = Math.max(1, Number(mask.channels) || 1);
-              const embeddedAlpha = !picked.mask && maskChannels === 4;
-              const maskChannel = embeddedAlpha ? 3 : 0;
-              const maskPixels = mask.width * mask.height;
-              if (mask.data.length < maskPixels * maskChannels) {
-                throw new Error("ISNet returned an incomplete matte");
-              }
-
-              let minMask = Infinity;
-              let maxMask = -Infinity;
-              for (let p = 0; p < maskPixels; p += 1) {
-                const value = Number(mask.data[p * maskChannels + maskChannel]) || 0;
-                if (value < minMask) minMask = value;
-                if (value > maxMask) maxMask = value;
-              }
-              const byteMask =
-                mask.data instanceof Uint8Array ||
-                mask.data instanceof Uint8ClampedArray ||
-                maxMask > 1.5;
-              const maskScale = byteMask ? 255 : 1;
-              if (
-                !Number.isFinite(minMask) ||
-                !Number.isFinite(maxMask) ||
-                maxMask - minMask < (byteMask ? 2 : 0.01)
-              ) {
-                throw new Error("ISNet returned a flat matte");
-              }
-              const smoothstep = (a, b, value) => {
-                const t = clamp((value - a) / (b - a), 0, 1);
-                return t * t * (3 - 2 * t);
-              };
-
-              for (let y = 0; y < canvas.height; y += 1) {
-                const my = Math.min(mask.height - 1, Math.round(y * (mask.height - 1) / Math.max(1, canvas.height - 1)));
-                for (let x = 0; x < canvas.width; x += 1) {
-                  const mx = Math.min(mask.width - 1, Math.round(x * (mask.width - 1) / Math.max(1, canvas.width - 1)));
-                  const mi = (my * mask.width + mx) * maskChannels + maskChannel;
-                  const normalized = clamp((Number(mask.data[mi]) || 0) / maskScale, 0, 1);
-                  // For a returned RGBA cut-out, retain the model's soft alpha
-                  // and clear only very low-opacity edge noise. If a model returns
-                  // a single-channel probability matte instead, threshold it.
-                  const alpha = embeddedAlpha
-                    ? smoothstep(0.025, 0.26, normalized)
-                    : smoothstep(0.18, 0.52, normalized);
-                  const pi = (y * canvas.width + x) * 4;
-                  pixels[pi + 3] = Math.round(pixels[pi + 3] * alpha);
-                }
-              }
-
-              // Remove only tiny detached matte specks; preserve the principal
-              // silhouette and any substantial separated costume/equipment pieces.
-              pruneCrewMatteSpecks(frame, canvas.width, canvas.height);
-              if (!cropCrewCanvas(canvas, ctx, frame, tex)) {
-                throw new Error("ISNet returned an empty silhouette");
-              }
-              await writeCrewCutoutCache(url, canvas);
-              segmented = true;
-            } catch (segmentationError) {
-              console.error("Tower Crew cutout failed; card background hidden", url, segmentationError);
-              canvas.width = 2;
-              canvas.height = 2;
-              ctx.clearRect(0, 0, 2, 2);
-              tex.userData.bcmCutoutPending = false;
-              tex.userData.bcmCutoutReady = false;
-              tex.userData.bcmCutoutFailed = true;
-              tex.needsUpdate = true;
-              return;
-            }
-            splitCrewLegs(canvas, tex);
-            tex.userData.bcmCutoutPending = false;
-            tex.userData.bcmCutoutReady = true;
-          } else {
-            for (let i = 0; i < pixels.length; i += 4) {
-              const r = pixels[i];
-              const g = pixels[i + 1];
-              const b = pixels[i + 2];
-              const a = pixels[i + 3];
-              if (!a) continue;
-              const nearWhite = options.removeWhite && Math.min(r, g, b) >= 246 && Math.max(r, g, b) <= 255;
-              const softWhite = options.removeWhite && Math.min(r, g, b) >= 232;
-              const nearBlack = options.removeBlack && Math.max(r, g, b) <= 18;
-              const softBlack = options.removeBlack && Math.max(r, g, b) <= 40;
-              if (nearWhite || nearBlack) {
-                pixels[i + 3] = 0;
-              } else if (softWhite) {
-                const fade = Math.max(0, Math.min(1, (246 - Math.min(r, g, b)) / 14));
-                pixels[i + 3] = Math.round(a * fade);
-              } else if (softBlack) {
-                const fade = Math.max(0, Math.min(1, (Math.max(r, g, b) - 18) / 22));
-                pixels[i + 3] = Math.round(a * fade);
-              }
-            }
-            ctx.putImageData(frame, 0, 0);
-          }
-
+          ctx.putImageData(frame, 0, 0);
           tex.needsUpdate = true;
         } catch (error) {
           console.warn("Tower PNG alpha cleanup failed", url, error);
-          if (options.cutout && tex.userData) {
-            tex.userData.bcmCutoutPending = false;
-            tex.userData.bcmCutoutReady = true;
-          }
           tex.needsUpdate = true;
         }
       };
@@ -1834,11 +1507,9 @@
           : (String(species).toLowerCase().includes("mierese") ? 1 : -1);
         playerMotion[i] = speciesMotion(species, sex);
         const imageUrl = selectedCrew?.image || "";
-        const officialUrl = officialCrewCutoutUrl(imageUrl);
+        // crew-core picks the official alpha PNG first and falls back to the card.
         playerTextures[i] = imageUrl
-          ? assetTexture(officialUrl || imageUrl, renderer, officialUrl
-            ? { officialAlpha: true, fallbackUrl: officialUrl === imageUrl ? "" : imageUrl, cutout: true }
-            : { cutout: true })
+          ? assetTexture(imageUrl, renderer, { cutout: true })
           : fallbackPlayerTexture;
       }
 

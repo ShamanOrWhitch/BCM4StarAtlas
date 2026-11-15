@@ -4264,12 +4264,6 @@
           try { texture = window.BCMCrewCutout.placeholder(THREE, player.index); } catch (e) {}
         }
         if (!texture) texture = fallbackCrewTexture(player.index);
-        if (imageUrl && window.BCMTowerAPI?.makeCrewSpriteTexture) {
-          try {
-            const shared = window.BCMTowerAPI.makeCrewSpriteTexture(imageUrl);
-            if (shared) texture = shared;
-          } catch (e) {}
-        }
         if (texture.colorSpace !== undefined && THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
         const material = new THREE.SpriteMaterial({
           map: texture, transparent: true, alphaTest: 0.035, depthWrite: false
@@ -4281,9 +4275,11 @@
         scene.add(sprite);
         player.sprite = sprite;
         player.spriteMaterial = material;
-        const swapCutout = window.BCMCrewCutout?.makeTexture || null;
-        if (swapCutout && imageUrl) {
-          swapCutout(THREE, imageUrl).then((cut) => {
+        // crew-core.js cuts and assembles the Crew; Ring shows the placeholder
+        // until it is ready. Tower does not have to be loaded (BUG-002).
+        if (imageUrl && window.BCMCrewCore?.requestCrewTexture) {
+          const pending = window.BCMCrewCore.requestCrewTexture(THREE, imageUrl);
+          if (pending) pending.bcmCrewReady.then((cut) => {
             if (!cut || !player.spriteMaterial || player.spriteMaterial.map === cut) return;
             player.spriteMaterial.map = cut;
             player.spriteMaterial.needsUpdate = true;

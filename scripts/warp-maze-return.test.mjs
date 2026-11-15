@@ -292,7 +292,7 @@ test("Ring Frontier is a continuous side-scrolling action level with three large
   assert.ok(ring.includes("data-ring-single"));
   assert.ok(ring.includes("data-ring-multi"));
   assert.ok(ring.includes("window.BCMMiniCrewSelection?.players"));
-  assert.ok(ring.includes("makeCrewSpriteTexture"));
+  assert.ok(ring.includes("BCMCrewCore?.requestCrewTexture"), "Ring asks crew-core for the Crew, not Tower");
   assert.ok(ring.includes("function updateSplitState()"));
   assert.ok(ring.includes("function renderRingViews(frameContext)"));
   assert.ok(ring.includes("function drawMiniMap()"));
