@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.81";
+  const TOWER_VERSION = "0.2.82";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -91,25 +91,6 @@
 
   // Crew background cutout lives in crew-core.js (BCMCrewCore.requestCrewTexture).
   // Tower only displays the texture it returns.
-
-  function speciesMotion(species, sex) {
-    if (window.BCMCrewCore && window.BCMCrewCore.speciesMotion) {
-      return window.BCMCrewCore.speciesMotion(species, sex);
-    }
-    const key = String(species || "").toLowerCase();
-    const female = /female/i.test(String(sex || ""));
-    if (key.includes("profound") || key.includes("high punaab") || key.includes("punaab")) {
-      return { bob: 0.055, speed: 0.011, sway: 0.035, squash: 0.045 };
-    }
-    if (key.includes("sogmian")) return { bob: 0.04, speed: 0.01, sway: 0.02, squash: 0.03 };
-    if (key.includes("ustur")) return { bob: 0.012, speed: 0.009, sway: 0.055, squash: 0.015 };
-    if (key.includes("mierese")) {
-      return female
-        ? { bob: 0.048, speed: 0.021, sway: 0.07, squash: 0.05 }
-        : { bob: 0.034, speed: 0.015, sway: 0.025, squash: 0.035 };
-    }
-    return { bob: 0.036, speed: 0.018, sway: 0.018, squash: 0.04 };
-  }
 
   // BUG-003: leg split is not implemented; it belongs to Crew assembly in crew-core.js.
   function splitCrewLegs() {
@@ -696,8 +677,8 @@
     let playerJetEffects = [];
     let playerTextures = [null, null];
     // Mierese art uses the current facing; most other races need the reverse.
-    let playerFacingFactors = [-1, -1];
-    let playerMotion = [speciesMotion("Human", "Male"), speciesMotion("Human", "Male")];
+    // Facing and walk come from crew-core; Tower keeps only the Crew profile it selected.
+    let playerCrewProfiles = [null, null];
     let birds = [];
 
     const radius = 8.4;
@@ -1502,10 +1483,7 @@
           : "";
         const species = String(selectedCrew?.species || selectedCrew?.spec || traitSpecies || "");
         const sex = String(selectedCrew?.sex || "");
-        playerFacingFactors[i] = window.BCMCrewCore && window.BCMCrewCore.facingFactor
-          ? window.BCMCrewCore.facingFactor(species)
-          : (String(species).toLowerCase().includes("mierese") ? 1 : -1);
-        playerMotion[i] = speciesMotion(species, sex);
+        playerCrewProfiles[i] = window.BCMCrewCore ? window.BCMCrewCore.readCrewProfile({ species, sex }) : null;
         const imageUrl = selectedCrew?.image || "";
         // crew-core picks the official alpha PNG first and falls back to the card.
         playerTextures[i] = imageUrl
@@ -2169,7 +2147,7 @@
       }
     }
 
-    function updatePlayerVisual(index) {
+    function updatePlayerVisual(index, dt) {
       const p = players[index];
       const a = p.angle;
       const r = Math.max(p.radial || playerWallRadius, playerWallRadius);
@@ -2225,24 +2203,30 @@
 
       const delta = angleDelta(a, p.visualAngle ?? a);
       const turnInput = (controls[index]?.right ? 1 : 0) - (controls[index]?.left ? 1 : 0);
-      const facingFactor = playerFacingFactors[index] ?? -1;
-      if (turnInput !== 0) {
-        p.visualFacing = (turnInput > 0 ? -1 : 1) * facingFactor;
-      } else if (Math.abs(delta) > 0.001) {
-        p.visualFacing = (delta > 0 ? -1 : 1) * facingFactor;
-      }
+      // Tower reports only where the Crew moves on screen; crew-core decides the
+      // mirror for the race and the walk pose (phase advanced by dt).
+      if (turnInput !== 0) p.walkDirection = turnInput > 0 ? 1 : -1;
+      else if (Math.abs(delta) > 0.001) p.walkDirection = delta > 0 ? 1 : -1;
       p.visualAngle = a;
-
-      const motion = playerMotion[index] || speciesMotion("", "");
       const moving = !p.finished && (
         Math.abs(p.vy) > 0.4 ||
         Math.abs(delta) > 0.01 ||
         turnInput !== 0 ||
         !p.grounded
       );
-      const wave = Math.sin(performance.now() * motion.speed + index);
-      const movingAmp = moving ? 1 : 0.35;
-      const bob = wave * motion.bob * movingAmp;
+      const crewPose = window.BCMCrewCore && window.BCMCrewCore.crewSpritePose
+        ? window.BCMCrewCore.crewSpritePose({
+            profile: playerCrewProfiles[index] || undefined,
+            crew: {},
+            direction: p.walkDirection || 1,
+            moving,
+            grounded: p.grounded,
+            vy: p.vy,
+            index
+          }, dt, p)
+        : { face: 1, bob: 0, scaleX: 1, scaleY: 1, rotation: 0 };
+      p.visualFacing = crewPose.face;
+      const bob = crewPose.bob;
       if (halo) {
         const haloRadius = Math.max(0.1, r - 0.045);
         halo.position.set(Math.sin(a) * haloRadius, p.y - feetOffset + footLift + 1.07 + bob, Math.cos(a) * haloRadius);
@@ -2267,11 +2251,11 @@
       const spriteWidth = clamp(spriteHeight * aspect, 0.55, 1.75);
       // Align the bottom of the full-body cutout to the visible platform top.
       const transparentFootPad = Number(texture?.userData?.bcmCutoutFeetPadRatio || 0);
-      const stretch = 1 + wave * motion.squash * movingAmp;
       const feetY = p.y - feetOffset + footLift - transparentFootPad * spriteHeight + bob;
       sprite.position.set(x, feetY, z);
-      sprite.scale.set(spriteWidth / stretch, spriteHeight * stretch, 1);
-      if (sprite.material) sprite.material.rotation = wave * motion.sway * face * movingAmp * 0.35;
+      sprite.scale.set(spriteWidth * crewPose.scaleX, spriteHeight * crewPose.scaleY, 1);
+      // Tower shows a smaller roll than the side-view levels; the sign follows the mirror.
+      if (sprite.material) sprite.material.rotation = crewPose.rotation * face * 0.35;
       const legs = playerLegSprites[index];
       if (legs) legs.visible = false;
     }
@@ -3442,11 +3426,7 @@
 
           for (let i = 0; i < (mode === "multi" ? 2 : 1); i++) {
             updatePlayer(i, dt);
-            updatePlayerVisual(i);
-          }
-
-          if (mode === "multi") {
-            updatePlayerVisual(1);
+            updatePlayerVisual(i, dt);
           }
 
           updateHud();

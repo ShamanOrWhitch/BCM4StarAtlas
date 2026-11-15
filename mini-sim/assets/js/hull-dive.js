@@ -920,7 +920,7 @@
             crew: player.crew,
             index: index,
             y: player.y + 0.16
-          });
+          }, dt);
           player.sprite.position.x = player.x;
           player.sprite.position.z = 0.82 + index * 0.015;
         } else if (player.sprite) {

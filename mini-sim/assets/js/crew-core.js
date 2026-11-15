@@ -33,41 +33,77 @@
     return { species, sex, motion: speciesMotion(species, sex), facingFactor: facingFactor(species) };
   }
 
-  function applyPlatformSprite(sprite, actor) {
-    if (!sprite || !actor) return 0;
+  /* Which way the cut-out must be drawn. `direction` is where the Crew moves on
+     screen (+1 right, -1 left). The NFT art itself is turned: Mierese art looks
+     one way, every other race the other (facingFactor). One rule for every
+     level — the one Tower always used. BUG-001: Ring and Hull Dive used to add
+     a Mierese exception that made all races flip the same way. */
+  function crewFace(direction, species) {
+    return (Number(direction) < 0 ? -1 : 1) * -facingFactor(species);
+  }
+
+  /* The pose of a cut-out Crew for this frame. The walk phase is advanced by dt
+     through BCMCrewRig and kept in `state`, so a paused game (dt = 0) holds the
+     pose and two calls in one frame do not walk twice as fast.
+     actor: { crew | profile, direction | facing, moving, grounded, vy, index }.
+     Returns numbers only; the level positions the sprite. */
+  function crewSpritePose(actor, dt, state) {
     const profile = actor.profile || readCrewProfile(actor.crew || actor);
     const motion = profile.motion || speciesMotion("", "");
-    // The current Ring/Hull cut-outs run backwards for non-Mierese. Correct those textures,
-    // but preserve Mierese artwork, whose source already matches the movement direction.
-    const baseFacing = profile.facingFactor || -1;
-    const faceFactor = String(profile.species || "").toLowerCase().includes("mierese") ? baseFacing : -baseFacing;
-    const face = (Number(actor.facing) < 0 ? -1 : 1) * faceFactor;
+    const rig = window.BCMCrewRig || null;
+    const store = state || actor;
+    const moving = !!actor.moving;
+    const rigProfile = rig ? rig.rigProfile(profile.species, profile.sex) : null;
+    let phase = Number(store.bcmWalkPhase);
+    // Two Crew of the same race should not march in lockstep.
+    if (!Number.isFinite(phase)) phase = ((Number(actor.index) || 0) * 0.37) % 1;
+    phase = rig
+      ? rig.stepPhase(phase, dt, rigProfile, moving)
+      : (phase + Math.max(0, Number(dt) || 0) * (moving ? 1 : 0.2)) % 1;
+    store.bcmWalkPhase = phase;
+    const pose = rig ? rig.walkPose(phase, rigProfile) : null;
+    const turn = phase * Math.PI * 2;
+    const sway = Math.sin(turn);        // one shoulder roll per stride
+    const bounce = Math.sin(turn * 2);  // the body rises at each footfall
+    const amp = moving ? 1 : 0.35;
+    const falling = actor.grounded === false && Number(actor.vy) < -0.35;
+    const squash = moving ? 1 + bounce * motion.squash : 1;
+    const direction = actor.direction !== undefined ? actor.direction : actor.facing;
+    return {
+      face: crewFace(direction, profile.species),
+      phase: phase,
+      pose: pose,
+      bob: bounce * motion.bob * amp + (falling ? -0.06 : 0),
+      scaleX: falling ? 0.92 : squash,
+      scaleY: falling ? 1.12 : 1 / Math.max(0.82, squash),
+      rotation: sway * motion.sway * amp,
+      falling: falling
+    };
+  }
+
+  // Draws the cut-out the way crewSpritePose says: mirror, stretch, roll, bob.
+  // Ring and Hull Dive call this with their own dt.
+  function applyPlatformSprite(sprite, actor, dt) {
+    if (!sprite || !actor) return 0;
+    const data = sprite.userData || (sprite.userData = {});
+    const pose = crewSpritePose(actor, dt !== undefined ? dt : actor.dt, data);
     const map = sprite.material && sprite.material.map;
     if (map) {
       map.wrapS = 1000;
-      map.repeat.x = face < 0 ? -1 : 1;
-      map.offset.x = face < 0 ? 1 : 0;
+      map.repeat.x = pose.face < 0 ? -1 : 1;
+      map.offset.x = pose.face < 0 ? 1 : 0;
     }
-    const data = sprite.userData || (sprite.userData = {});
     if (!data.bcmBaseScale) {
       data.bcmBaseScale = {
         x: Math.abs(sprite.scale.x) || 1,
         y: Math.abs(sprite.scale.y) || 1
       };
     }
-    const moving = !!actor.moving;
-    const falling = actor.grounded === false && Number(actor.vy) < -0.35;
-    const wave = Math.sin(performance.now() * motion.speed + (Number(actor.index) || 0));
-    const amp = moving ? 1 : 0.35;
-    const bob = wave * motion.bob * amp;
-    const squash = moving ? 1 + wave * motion.squash : 1;
-    const baseX = data.bcmBaseScale.x;
-    const baseY = data.bcmBaseScale.y;
-    sprite.scale.x = baseX * (falling ? 0.92 : squash);
-    sprite.scale.y = falling ? baseY * 1.12 : baseY / Math.max(0.82, squash);
-    if (sprite.material) sprite.material.rotation = wave * motion.sway * amp;
-    if (Number.isFinite(actor.y)) sprite.position.y = actor.y + bob + (falling ? -0.06 : 0);
-    return bob;
+    sprite.scale.x = data.bcmBaseScale.x * pose.scaleX;
+    sprite.scale.y = data.bcmBaseScale.y * pose.scaleY;
+    if (sprite.material) sprite.material.rotation = pose.rotation;
+    if (Number.isFinite(actor.y)) sprite.position.y = actor.y + pose.bob;
+    return pose.bob;
   }
 
   /* ---------------------------------------------------------------------------
@@ -469,6 +505,8 @@
     facingFactor: facingFactor,
     readCrewProfile: readCrewProfile,
     applyPlatformSprite: applyPlatformSprite,
+    crewFace: crewFace,
+    crewSpritePose: crewSpritePose,
     officialCrewCutoutUrl: officialCrewCutoutUrl,
     crewCutout: crewCutout,
     requestCrewTexture: requestCrewTexture,

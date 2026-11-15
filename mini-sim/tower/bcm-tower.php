@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_TOWER_VERSION', '0.2.81');
+define('BCM_TOWER_VERSION', '0.2.82');
 define('BCM_TOWER_PATH', __DIR__ . '/');
 define('BCM_TOWER_URL', trailingslashit(plugin_dir_url(__FILE__)));
 
@@ -181,9 +181,17 @@ function bcm_tower_enqueue_assets() {
     );
 
     wp_enqueue_script(
+        'bcm-crew-rig',
+        plugins_url('assets/js/crew-rig.js', dirname(__DIR__) . '/bcm-mini-sim.php'),
+        array(),
+        BCM_TOWER_VERSION,
+        false
+    );
+
+    wp_enqueue_script(
         'bcm-crew-core',
         plugins_url('assets/js/crew-core.js', dirname(__DIR__) . '/bcm-mini-sim.php'),
-        array(),
+        array('bcm-crew-rig'),
         BCM_TOWER_VERSION,
         false
     );

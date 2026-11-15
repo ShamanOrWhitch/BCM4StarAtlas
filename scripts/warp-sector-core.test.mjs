@@ -206,10 +206,10 @@ test("Mini-Sim invokes sector collision after physics and reuses existing impact
   assert.match(call, /onCollision:\s*\(contact\)\s*=>/);
   assert.match(call, /triggerCollisionImpact\(contact\.force\)/);
   assert.match(hostSource, /if \(sectorFrameResult && sectorFrameResult\.collision && ship\.position\)/);
-  assert.match(hostSource, /0\.14\.7/);
-  assert.match(phpSource, /Version: 0\.14\.7/);
-  assert.match(phpSource, /BCM_MINI_SIM_VERSION', '0\.14\.7'/);
-  assert.match(phpSource, /SPACE LABYRINTH — 0\.14\.7/);
+  assert.match(hostSource, /0\.14\.8/);
+  assert.match(phpSource, /Version: 0\.14\.8/);
+  assert.match(phpSource, /BCM_MINI_SIM_VERSION', '0\.14\.8'/);
+  assert.match(phpSource, /SPACE LABYRINTH — 0\.14\.8/);
   assert.match(phpSource, /warp-sector-core\.js/);
   assert.match(phpSource, /warp-sector-scene\.js/);
   assert.match(phpSource, /asteroid_clusters_v2/);

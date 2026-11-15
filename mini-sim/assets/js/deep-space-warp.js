@@ -4152,7 +4152,8 @@
           mate.supportPlatform = null;
           const node = mate.ringCurrent || worldState.cellPath?.current;
           mate.checkpointX = node?.large ? worldState.spawnX : worldState.cellPath.homeX;
-          updatePlayerSprite(mate);
+          // Teleport, not a step: pose without advancing the walk.
+          updatePlayerSprite(mate, 0);
         });
       }
 
@@ -4290,7 +4291,7 @@
       function playerWorldPosition(player) {
         return { x: player.worldX, y: player.worldY + 0.98, z: 0.45 };
       }
-      function updatePlayerSprite(player) {
+      function updatePlayerSprite(player, dt) {
         if (!player.sprite) return;
         const moved = Math.abs((player._prevX ?? player.worldX) - player.worldX) > 0.01;
         player._prevX = player.worldX;
@@ -4303,7 +4304,7 @@
             crew: crewSelection[player.index],
             index: player.index,
             y: player.worldY + 0.98
-          });
+          }, dt);
           player.sprite.position.x = player.worldX;
           player.sprite.position.z = 0.45;
         } else {
@@ -5058,7 +5059,7 @@
           collectAt(player); collectHydrogenAt(player); collectRouteCrystal(player);
           const blinking = now < player.invulnerableUntil && Math.floor(now / 90) % 2 === 0;
           if (player.sprite) player.sprite.visible = !blinking;
-          updatePlayerSprite(player);
+          updatePlayerSprite(player, dt);
         }
         worldState.shockwaves = worldState.shockwaves.filter((wave) => {
           wave.age += dt; wave.x += wave.direction * 8.5 * dt; wave.mesh.position.x = wave.x;
