@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.14.5",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.14.6",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -91,7 +91,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.14.5",
+      title: "SPACE LABYRINTH — 0.14.6",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -5422,7 +5422,8 @@
     // The renderer below only draws the InstancedMesh buffers built by this manager.
     if (typeof window.BCMWarpSectorSceneFrame === "function") {
       try {
-        window.BCMWarpSectorSceneFrame({
+        const positionBeforeSectorCollision = ship.position.clone();
+        const sectorFrameResult = window.BCMWarpSectorSceneFrame({
           dt,
           running,
           active: !!(running && exteriorFlight && ship.position &&
@@ -5431,8 +5432,19 @@
           scene, camera, ship, THREE: window.THREE, root, renderer,
           originMesh: spaceSatellite.stationMesh,
           runSeed: Number(window.BCMMiniSimSession?.locationSeeds?.warp ||
-            window.BCMMiniSimSession?.activeSeeds?.warp || labyrinthSeed || 1) >>> 0
+            window.BCMMiniSimSession?.activeSeeds?.warp || labyrinthSeed || 1) >>> 0,
+          onCollision: (contact) => {
+            if (contact && Number(contact.force) > 0) triggerCollisionImpact(contact.force);
+          }
         });
+        if (sectorFrameResult && sectorFrameResult.collision && ship.position) {
+          const correction = ship.position.clone().sub(positionBeforeSectorCollision);
+          if (camera && camera.position) camera.position.add(correction);
+          if (ship.visual) {
+            ship.visual.position.copy(ship.position);
+            ship.visual.quaternion.copy(ship.quaternion);
+          }
+        }
       } catch (err) {
         reportDeepSpaceCallbackError("WARP SECTOR STREAM ERROR", err);
       }
@@ -6721,7 +6733,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.14.5") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.14.6") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();
