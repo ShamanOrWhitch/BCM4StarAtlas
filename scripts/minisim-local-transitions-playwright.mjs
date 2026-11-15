@@ -209,6 +209,24 @@ try {
     };
   });
   report.expected = baseline;
+  // BCM_QA_WARP_MAP=1: frames of the open Warp map (SAGE map from Galia, ONI CSS
+  // system card) for visual acceptance. Off by default; CI unchanged.
+  if (process.env.BCM_QA_WARP_MAP) {
+    const overlay = page.locator(".bcm-warp-overlay:not([hidden])").first();
+    if (await overlay.count()) {
+      await page.waitForTimeout(600);
+      await screenshot(page, "warp-map-overview.png");
+      const zoomIn = page.locator("[data-warp-map-zoom-in]").first();
+      for (let i = 0; i < 2; i += 1) if (await zoomIn.isEnabled().catch(() => false)) await zoomIn.click();
+      await page.waitForTimeout(300);
+      await screenshot(page, "warp-map-zoomed.png");
+      const card = page.locator(".bcm-warp-system-card").first();
+      if (await card.count()) {
+        await card.scrollIntoViewIfNeeded();
+        await screenshot(page, "warp-map-oni-card.png");
+      }
+    }
+  }
   check("standalone Crew selection has at least two identities", baseline.crewIds.length >= 2, baseline.crewIds.join(", "));
   check("local Warp snapshot contains the ONI/NEUNO start sector",
     baseline.navigationId === "oni-css-neuno--40-30", baseline.navigationLabel);

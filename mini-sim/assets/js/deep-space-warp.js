@@ -1167,9 +1167,11 @@
       const match = (known || []).find((sector) => sector && sector.x === x && sector.y === y);
       if (match) return match;
       const ring = Math.max(Math.abs(dx), Math.abs(dy));
+      // Real SAGE sector from the Galia map (star, station or empty), IDEA-014.
+      const sageTitle = window.BCMSageMapCore ? window.BCMSageMapCore.sectorTitle(x, y) : "[" + x + ", " + y + "]";
       return {
         id: "coord-" + x + "-" + y,
-        name: (ring > 1 ? "NEXT [" : "[") + x + ", " + y + (ring > 1 ? "]" : "]"),
+        name: (ring > 1 ? "NEXT · " : "") + sageTitle,
         x: x,
         y: y,
         raw: { coordinateStep: true }
@@ -1242,14 +1244,14 @@
 
       // The prototype starts at the known ONI CSS position on the NEUNO sector grid.
       // Show the eight adjacent cells and the next ring, not only the four cardinals.
-      const current = { id: "oni-css-neuno--40-30", name: "ONI · NEUNO", x: -40, y: 30, raw: null };
+      const current = { id: "oni-css-neuno--40-30", name: window.BCMSageMapCore ? window.BCMSageMapCore.sectorTitle(-40, 30) : "ONI · NEUNO", x: -40, y: 30, raw: null };
       return {
         current,
         targets: withCoordinateRings(current, []),
         live: false,
         localPreview: true,
         adapter: null,
-        label: "LOCAL TEST · ONI / NEUNO · START X -40, Y 30 · NEIGHBOR CELLS ARE TEST ONLY",
+        label: "SAGE · КАРТА GALIA · ONI CSS · X -40, Y 30",
         coordsKnown: true
       };
     }
@@ -1430,12 +1432,66 @@
           const sub = document.createElement("small");
           sub.textContent = isCurrent
             ? (current.x != null && current.y != null ? "X " + current.x + " · Y " + current.y + " · CURRENT" : "CURRENT SECTOR")
-            : "[" + x + ", " + y + "]";
+            : (window.BCMSageMapCore ? window.BCMSageMapCore.sectorTitle(x, y) : "[" + x + ", " + y + "]");
           cell.appendChild(title);
           cell.appendChild(sub);
           gridElement.appendChild(cell);
         }
       }
+    }
+
+    // The look of a station sector on the Galia map: the planet with its
+    // atmosphere and the CSS station on orbit, plus the system lore.
+    function buildSystemCard(system) {
+      if (!document.getElementById("bcm-warp-system-card-style")) {
+        const style = document.createElement("style");
+        style.id = "bcm-warp-system-card-style";
+        style.textContent =
+          ".bcm-warp-system-card{display:flex;gap:12px;align-items:center;margin:0 0 8px;padding:10px;border:1px solid rgba(126,182,255,.35);border-radius:10px;background:rgba(7,11,18,.85)}" +
+          ".bcm-warp-system-card .sys-orbit{position:relative;flex:0 0 96px;height:96px}" +
+          ".bcm-warp-system-card .sys-planet{position:absolute;inset:14px;border-radius:50%;background-size:cover;background-position:center}" +
+          ".bcm-warp-system-card .sys-ring{position:absolute;inset:2px;border:1px dashed rgba(200,220,255,.28);border-radius:50%;animation:bcm-sys-orbit 14s linear infinite}" +
+          ".bcm-warp-system-card .sys-station{position:absolute;top:-4px;left:50%;width:9px;height:9px;margin-left:-4px;border-radius:2px;background:#f4fbff;box-shadow:0 0 8px #9fd4ff}" +
+          ".bcm-warp-system-card b{display:block;font:700 13px system-ui,sans-serif;color:#f4fbff}" +
+          ".bcm-warp-system-card small{display:block;font:600 10px system-ui,sans-serif;letter-spacing:.04em;margin:2px 0 4px}" +
+          ".bcm-warp-system-card p{margin:0;font:11px/1.35 system-ui,sans-serif;color:#b9cdda}" +
+          "@keyframes bcm-sys-orbit{to{transform:rotate(360deg)}}" +
+          "@media (prefers-reduced-motion:reduce){.bcm-warp-system-card .sys-ring{animation:none}}";
+        document.head.appendChild(style);
+      }
+      const card = document.createElement("div");
+      card.className = "bcm-warp-system-card";
+      const orbit = document.createElement("div");
+      orbit.className = "sys-orbit";
+      const planet = document.createElement("div");
+      planet.className = "sys-planet";
+      planet.style.backgroundImage = "url('" + sageAssetUrl(system.texture) + "')";
+      planet.style.boxShadow = "inset -14px -10px 22px rgba(0,0,0,.65), 0 0 18px " + system.atmosphere;
+      const ring = document.createElement("div");
+      ring.className = "sys-ring";
+      const station = document.createElement("i");
+      station.className = "sys-station";
+      station.title = "CSS";
+      ring.appendChild(station);
+      orbit.append(planet, ring);
+      const copy = document.createElement("div");
+      const title = document.createElement("b");
+      title.textContent = system.name;
+      const sub = document.createElement("small");
+      sub.textContent = "СТАНЦИЯ · ОРБИТА · " + system.planet;
+      sub.style.color = window.BCMSageMapCore ? window.BCMSageMapCore.factionTone(system.faction) : "#9fb6c7";
+      const lore = document.createElement("p");
+      lore.textContent = system.lore;
+      copy.append(title, sub, lore);
+      card.append(orbit, copy);
+      return card;
+    }
+
+    // Plugin asset URL next to the SAGE map script (textures ship in mini-sim/assets/sage).
+    function sageAssetUrl(path) {
+      const script = document.querySelector('script[src*="sage-map-core.js"]');
+      const base = script ? script.src.replace(/js\/sage-map-core\.js.*$/, "") : "";
+      return base + String(path || "");
     }
 
     function renderSectorLocations(sector) {
@@ -1483,6 +1539,19 @@
           locations.push(location);
         }
       };
+      // A station sector opens its Galia system: planet, station on orbit, places (IDEA-014).
+      const sageSystem = window.BCMSageMapCore && Number.isFinite(x) && Number.isFinite(y)
+        ? window.BCMSageMapCore.systemForSector(x, y)
+        : null;
+      if (sageSystem) {
+        sageSystem.markers.forEach((marker) => addKnownLocation({
+          id: marker.id,
+          name: marker.name,
+          kind: marker.kind === "station" || marker.placement === "orbit" ? "station" : marker.placement === "surface" ? "planet" : marker.kind,
+          detail: marker.blurb,
+          status: "reference"
+        }));
+      }
       if (isOniCss) {
         if (!hasKind(/asteroid|астероид/i)) {
           locations.unshift({
@@ -1514,6 +1583,7 @@
         if (/station|css|orbit|станц/i.test(kind)) return { icon: "⌖", label: "СТАНЦИЯ / ОРБИТА" };
         return { icon: "•", label: "ЛОКАЦИЯ СЕКТОРА" };
       };
+      if (sageSystem) galaxyLocalLocations.appendChild(buildSystemCard(sageSystem));
       if (locations.length) {
         locations.forEach((location) => {
           const info = kindInfo(location.kind);
@@ -1638,13 +1708,33 @@
       }
       // Keep known star locations as orientation landmarks even with live
       // sector coordinates; the two data layers are separate on the map.
-      SAGE_STAR_REFERENCE_POINTS.forEach(([x, y]) => {
-        const p = toPoint(x, y);
-        g.fillStyle = "rgba(230,193,120,0.72)";
-        g.beginPath(); g.arc(p.x, p.y, zoom >= 4 ? 2.2 : 1.8, 0, Math.PI * 2); g.fill();
-      });
+      const sageCore = window.BCMSageMapCore || null;
+      if (sageCore && sageCore.stars.length) {
+        // Galia palette: colour by spectral kind, radius by star size, names when zoomed in.
+        sageCore.stars.forEach((star) => {
+          const p = toPoint(star.x, star.y);
+          g.fillStyle = sageCore.starColor(star);
+          g.globalAlpha = 0.9;
+          g.beginPath(); g.arc(p.x, p.y, sageCore.starRadius(star, zoom), 0, Math.PI * 2); g.fill();
+          g.globalAlpha = 1;
+          if (zoom >= 4) {
+            g.fillStyle = "rgba(230,226,214,0.78)"; g.font = "8px system-ui,sans-serif";
+            g.textAlign = "left"; g.textBaseline = "middle";
+            g.fillText(star.name, p.x + 5, p.y);
+          }
+        });
+      } else {
+        SAGE_STAR_REFERENCE_POINTS.forEach(([x, y]) => {
+          const p = toPoint(x, y);
+          g.fillStyle = "rgba(230,193,120,0.72)";
+          g.beginPath(); g.arc(p.x, p.y, zoom >= 4 ? 2.2 : 1.8, 0, Math.PI * 2); g.fill();
+        });
+      }
 
-      SAGE_CSS_REFERENCE_POINTS.forEach((css) => {
+      const cssPoints = sageCore && sageCore.css.length
+        ? sageCore.css.map((css) => ({ id: css.id + "-css", name: css.faction, x: css.x, y: css.y, color: sageCore.factionTone(css.faction) }))
+        : SAGE_CSS_REFERENCE_POINTS;
+      cssPoints.forEach((css) => {
         const p = toPoint(css.x, css.y);
         g.beginPath(); g.arc(p.x, p.y, zoom >= 4 ? 4.8 : 4.2, 0, Math.PI * 2);
         g.fillStyle = css.color; g.fill();
@@ -1717,7 +1807,9 @@
       if (galaxyMapStatus) {
         galaxyMapStatus.textContent = nav && nav.live
           ? statusText
-          : "ЛОКАЛЬНЫЙ ТЕСТ · ONI / NEUNO · КООРДИНАТЫ −50…50";
+          : (window.BCMSageMapCore
+            ? "SAGE · КАРТА GALIA · " + window.BCMSageMapCore.stars.length + " ЗВЁЗД · " + window.BCMSageMapCore.css.length + " CSS"
+            : "SAGE · КООРДИНАТЫ −50…50");
       }
       renderSectorLocations(state.target || current);
     }
