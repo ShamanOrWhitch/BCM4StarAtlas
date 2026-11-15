@@ -822,17 +822,20 @@ test("поворот доходит до отрисовки: силуэт вра
 
 /* ---------- ревизия 15: случайный ритм и разнообразие ---------- */
 
-test("случайный ритм: пауза ~2 с, переход ~0.9 с, отрезок ~2.9 с", () => {
+test("случайный ритм: пауза ~2 с, переход ~1.8 с, отрезок ~3.8 с", () => {
   const plan = WS.warpSpaceRandomCyclePlan({}, 200);
   const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
   const holds = plan.map((p) => p.hold);
   const trans = plan.map((p) => p.transition);
   assert.ok(Math.abs(mean(holds) - 2) < 0.1, "средняя пауза ~2 с: " + mean(holds).toFixed(3));
-  assert.ok(Math.abs(mean(trans) - 0.9) < 0.1, "средний переход ~0.9 с: " + mean(trans).toFixed(3));
-  assert.ok(Math.abs(mean(holds) + mean(trans) - 2.9) < 0.15, "отрезок ~2.9 с");
-  // переходов в минуту в разы больше, чем на тактовой сетке 142 BPM (3.2)
+  // ревизия 19: длина перехода между кадрами скетчей увеличена ровно в 2 раза (0.9 → 1.8 с)
+  assert.ok(Math.abs(mean(trans) - 1.8) < 0.2, "средний переход ~1.8 с: " + mean(trans).toFixed(3));
+  assert.ok(Math.abs(mean(holds) + mean(trans) - 3.8) < 0.25, "отрезок ~3.8 с");
+  // переходов в минуту заметно больше, чем на тактовой сетке 142 BPM (3.2), но реже прежнего —
+  // длинный переход сам занимает половину отрезка, поэтому живой порог 12, а не 15
   const perMinute = 60 / (mean(holds) + mean(trans));
-  assert.ok(perMinute > 15, "переходов в минуту: " + perMinute.toFixed(1));
+  assert.ok(perMinute > 12, "переходов в минуту: " + perMinute.toFixed(1));
+  assert.ok(perMinute < 20, "переходов в минуту слишком много: " + perMinute.toFixed(1));
   // при этом пауза не скачет как попало
   assert.ok(Math.min(...holds) > 1.2 && Math.max(...holds) < 2.8, "пауза гуляет: " + Math.min(...holds) + "…" + Math.max(...holds));
 });
@@ -949,4 +952,122 @@ test("площадь панели: субпиксельные всё-таки о
   const b = WS.warpSpaceQuadArea({ x: 0, y: 0 }, { x: 0, y: 6 }, { x: 10, y: 0 });
   assert.equal(a, 60);
   assert.equal(b, 60);
+});
+
+/* ---------- ревизия 17: астероиды из настоящих мешей ---------- */
+
+const FAKE_ART = {
+  small_01: "data:image/png;base64,AA", small_02: "data:image/png;base64,BB",
+  medium_01: "data:image/png;base64,CC", medium_02: "data:image/png;base64,DD",
+  large_01: "data:image/png;base64,EE", large_02: "data:image/png;base64,FF"
+};
+
+function withArt(fn) {
+  const prev = global.window;
+  global.window = { BCM_WARP_ASTEROID_ART: FAKE_ART };
+  try { return fn(); } finally { global.window = prev; }
+}
+
+test("поле астероидов: 30 слотов, все классы, раскладка повторяема", () => {
+  withArt(() => {
+    const ids = WS.warpSpaceAsteroidIds();
+    assert.equal(ids.length, 6, "шесть спрайтов: по два на класс");
+    const field = WS.warpSpaceAsteroidField(42, 1);
+    assert.equal(field.length, WS.WARP_SPACE_ASTEROID_SLOTS);
+    // раскладка — чистая функция от seed
+    const again = WS.warpSpaceAsteroidField(42, 1);
+    assert.deepEqual(Array.from(field, (s) => s.id), Array.from(again, (s) => s.id));
+    assert.deepEqual(Array.from(field, (s) => s.angle), Array.from(again, (s) => s.angle));
+    // другой seed — другое поле
+    const other = WS.warpSpaceAsteroidField(43, 1);
+    assert.notDeepEqual(Array.from(field, (s) => s.angle), Array.from(other, (s) => s.angle));
+    // все три класса присутствуют, плотность работает
+    const sizes = new Set(field.map((s) => s.size));
+    assert.deepEqual([...sizes].sort(), ["large", "medium", "small"]);
+    assert.equal(WS.warpSpaceAsteroidField(42, 0).length, 0, "плотность 0 — пусто");
+    assert.equal(WS.warpSpaceAsteroidField(42, 0.5).length, 15);
+    // глубины внутри 0..1 и порядок от дальних к ближним
+    field.forEach((s) => assert.ok(s.depth > 0 && s.depth <= 1, "глубина: " + s.depth));
+    for (let i = 1; i < field.length; i += 1) {
+      assert.ok(field[i - 1].depth >= field[i].depth, "камни должны идти от дальних к ближним");
+    }
+  });
+});
+
+test("размеры камней: классы small/medium/large с клампом, а не «во что выйдет»", () => {
+  const r = (size, wall) => WS.warpSpaceAsteroidRadius(size, wall);
+  assert.equal(r("small", 420), 20);      // 420 * 0.12 = 50 → кламп до 20
+  assert.equal(r("medium", 420), 46);
+  assert.equal(r("large", 420), 92);      // 420 * 0.30 = 126 → кламп до 92
+  // на узком экране (телефон) камни не исчезают
+  assert.ok(r("small", 90) >= 7);
+  assert.ok(r("large", 90) > r("small", 90));
+  // мусор не даёт NaN
+  assert.ok(Number.isFinite(r("нет-такого", 420)));
+  assert.ok(Number.isFinite(r("medium", NaN)));
+  assert.equal(WS.warpSpaceAsteroidSizeOf("large_02"), "large");
+  assert.equal(WS.warpSpaceAsteroidSizeOf("medium_01"), "medium");
+  assert.equal(WS.warpSpaceAsteroidSizeOf("small_02"), "small");
+  assert.equal(WS.warpSpaceAsteroidSizeOf("что-то"), "medium");
+});
+
+test("рисование поля: камни идут через drawImage, без картинок — гранёный фолбэк", () => {
+  withArt(() => {
+    const ops = [];
+    const ctx = {
+      save() {}, restore() {}, translate() {}, rotate() {},
+      beginPath() { ops.push("beginPath"); }, moveTo() {}, lineTo() {}, closePath() {},
+      fill() { ops.push("fill"); }, stroke() { ops.push("stroke"); },
+      drawImage(img, x, y, w, h) {
+        assert.ok(img, "drawImage без картинки");
+        [x, y, w, h].forEach((v) => assert.ok(Number.isFinite(v), "координата: " + v));
+        ops.push("img:" + Math.round(w));
+      },
+      set fillStyle(v) {}, set strokeStyle(v) {}, set lineWidth(v) {},
+      set globalAlpha(v) { assert.ok(v > 0 && v <= 1, "alpha: " + v); }
+    };
+    const point = (d, a) => ({ x: 400 + Math.cos(a) * 300 * (1 - d), y: 300 + Math.sin(a) * 260 * (1 - d) });
+    const images = {};
+    Object.keys(FAKE_ART).forEach((id) => { images[id] = { id }; });
+    const drawn = WS.drawWarpSpaceAsteroids(ctx, point, 420, 42, 1, images, 3.5);
+    const imgs = ops.filter((o) => o.indexOf("img:") === 0);
+    assert.equal(drawn, imgs.length, "вернулось число нарисованных камней");
+    assert.ok(drawn >= 20, "камней в кадре: " + drawn);
+    imgs.forEach((o) => {
+      const px = Number(o.slice(4));
+      assert.ok(px >= 6 && px <= 140, "размер камня вне разумного: " + px);
+    });
+    // без картинок поле не исчезает — рисуется гранёный фолбэк
+    const bare = [];
+    const ctx2 = {
+      save() {}, restore() {}, translate() {}, rotate() {},
+      beginPath() { bare.push("beginPath"); }, moveTo() {}, lineTo() {}, closePath() {},
+      fill() { bare.push("fill"); }, stroke() { bare.push("stroke"); },
+      drawImage() { bare.push("img"); },
+      set fillStyle(v) {}, set strokeStyle(v) {}, set lineWidth(v) {}, set globalAlpha(v) {}
+    };
+    const drawn2 = WS.drawWarpSpaceAsteroids(ctx2, point, 420, 42, 1, null, 0);
+    assert.ok(drawn2 > 0 && bare.includes("fill"), "фолбэк должен рисовать полигоны");
+    assert.equal(bare.filter((o) => o === "img").length, 0);
+  });
+});
+
+test("поле астероидов устойчиво к мусору и отсутствию спрайтов", () => {
+  const prev = global.window;
+  global.window = {};
+  try {
+    assert.deepEqual(Array.from(WS.warpSpaceAsteroidIds()), [], "без art — пустой список");
+    const field = WS.warpSpaceAsteroidField(1, 1);
+    assert.equal(field.length, 30, "поле всё равно раскладывается");
+    assert.ok(field.every((s) => s.id === null), "без спрайтов id пустой — сработает фолбэк");
+  } finally { global.window = prev; }
+  withArt(() => {
+    [null, undefined, NaN, "x", -100, 1e9].forEach((bad) => {
+      const field = WS.warpSpaceAsteroidField(bad, bad);
+      assert.ok(field.length <= WS.WARP_SPACE_ASTEROID_SLOTS, "слотов: " + field.length);
+      field.forEach((s) => {
+        assert.ok(Number.isFinite(s.angle) && Number.isFinite(s.depth), "мусор в раскладке");
+      });
+    });
+  });
 });

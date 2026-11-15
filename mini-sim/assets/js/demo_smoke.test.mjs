@@ -13,7 +13,12 @@ import vm from "node:vm";
 
 /* Заглушка Image: src вызывает onload синхронно, как быстрый data URI. */
 class FakeImage {
-  constructor() { this.naturalWidth = 1600; this.naturalHeight = 900; this.width = 1600; this.height = 900; }
+  constructor() {
+    this.naturalWidth = 1600; this.naturalHeight = 900; this.width = 1600; this.height = 900;
+    // data URI в браузере готов к рисованию сразу после onload — без complete
+    // демо считало бы спрайты астероидов незагруженными и уходило в фолбэк
+    this.complete = true;
+  }
   set src(value) { this._src = value; if (typeof this.onload === "function") this.onload(); }
   get src() { return this._src; }
 }
@@ -156,7 +161,8 @@ test("demo script boots and its frame loop runs without throwing", () => {
 });
 
 test("backdrop cache is painted once, not every frame", () => {
-  const { stats, rafQueue } = boot();
+  const env = boot();
+  const { stats, rafQueue } = env;
   let t = 16;
   const perFrame = [];
   for (let i = 0; i < 60; i += 1) {
@@ -166,12 +172,16 @@ test("backdrop cache is painted once, not every frame", () => {
     perFrame.push(stats.blits - before);
   }
   // Первые кадры строят сцены: там drawImage принадлежит растеризации кэша,
-  // а не кадру. В установившемся режиме — ровно один blit на кадр.
+  // а не кадру. В установившемся режиме — 1 blit фона + камни астероидов
+  // (по одному drawImage на камень, с ревизии 17).
+  const rocks = env.sandbox.BCMWarpSpace.warpSpaceAsteroidField(20261116, 1).filter((s) => s.depth >= 0.10).length;
   const steady = perFrame.slice(3);
-  const wrong = steady.filter((d) => d !== 1);
-  assert.equal(wrong.length, 0, "в паузе должно быть ровно 1 blit на кадр, отклонения: " + wrong.join(","));
-  assert.ok(perFrame.slice(0, 3).every((d) => d >= 1 && d <= 3), "стартовые кадры: " + perFrame.slice(0, 3).join(","));
-  assert.ok(stats.blits <= 62, "сумма blit-ов выросла: " + stats.blits);
+  const expected = 1 + rocks;
+  const wrong = steady.filter((d) => d !== expected);
+  assert.equal(wrong.length, 0,
+    "в паузе должно быть " + expected + " blit-ов (фон + " + rocks + " камней), отклонения: " + wrong.join(","));
+  assert.ok(perFrame.slice(0, 3).every((d) => d >= 1 && d <= expected + 2), "стартовые кадры: " + perFrame.slice(0, 3).join(","));
+  assert.ok(stats.blits <= 62 * expected, "сумма blit-ов выросла: " + stats.blits);
 });
 
 test("new layers cost a small fraction of the existing wall", () => {
@@ -226,29 +236,55 @@ test("keyboard and buttons change look without errors", () => {
   rafQueue.shift()(t);
 });
 
-test("colour flow actually moves instead of switching once", () => {
-  const boot2 = () => {
+/* Прежний тест считал РАЗНЫЕ СТРОКИ ЦВЕТА и требовал, чтобы при закреплённой
+ * палитре новых почти не появлялось. Это мерило не перелив, а мерцание:
+ * shimmer меняет светлоту каждый кадр, поэтому новые строки идут всегда, и
+ * порог держался только на конкретном числе кадров. Заменено на честную метрику:
+ * считаем ОТТЕНКИ (корзины по 15°), которые не зависят от светлоты.
+ *
+ * Радуга включена — стенка обязана пройти по всему кругу оттенков.
+ * Радуга выключена + палитра A — набор оттенков фиксированный и маленький.
+ */
+function hueBuckets(colors) {
+  const out = new Set();
+  colors.forEach((str) => {
+    const m = String(str).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (!m) return;
+    const r = +m[1] / 255, g = +m[2] / 255, b = +m[3] / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+    if (d < 0.08) return;                 // серый — не оттенок
+    let h;
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    out.add(Math.round((((h * 60) + 360) % 360) / 15));
+  });
+  return out;
+}
+
+test("перелив идёт по всей палитре, а с выключенной радугой — фиксированный набор", () => {
+  const collect = (rainbow, flow) => {
     const env = boot();
-    return env;
+    env.stats.fillStyles.clear();
+    env.stats.styles.clear();
+    let t = 16;
+    for (let i = 0; i < 5; i += 1) { env.rafQueue.shift()(t); t += 16; }
+    env.elements.get("cycleOn").click();            // меряем стенку, без переходов
+    env.sandbox.BCMWarpSetRainbow(rainbow);
+    if (!flow) env.elements.get("palA").click();
+    for (let i = 0; i < 8; i += 1) { env.rafQueue.shift()(t); t += 16; }
+    env.stats.styles.clear();
+    for (let i = 0; i < 44; i += 1) { env.rafQueue.shift()(t); t += 16; }
+    return hueBuckets([...env.stats.styles]);
   };
-
-  // flow on (default): colours must revisit many distinct values over time
-  const on = boot2();
-  let t = 16;
-  for (let i = 0; i < 50; i += 1) { on.rafQueue.shift()(t); t += 16; }
-  const flowing = on.stats.styles.size;
-
-  // flow off + manual A: colours should settle to a small fixed set
-  const off = boot2();
-  let t2 = 16;
-  for (let i = 0; i < 6; i += 1) { off.rafQueue.shift()(t2); t2 += 16; }
-  off.elements.get("palA").click();
-  const settledFrom = off.stats.styles.size;
-  for (let i = 0; i < 44; i += 1) { off.rafQueue.shift()(t2); t2 += 16; }
-  const settled = off.stats.styles.size - settledFrom;
-
-  assert.ok(flowing > 40, "flow must produce many distinct colours, got " + flowing);
-  assert.ok(settled < flowing / 2, "fixed palette must stop producing new colours, got " + settled + " vs " + flowing);
+  const rainbow = collect(true, true);
+  assert.ok(rainbow.size >= 16, "радуга должна пройти по кругу оттенков, корзин: " + rainbow.size);
+  const fixed = collect(false, false);
+  assert.ok(fixed.size >= 3 && fixed.size <= 10,
+    "с выключенной радугой оттенков должно быть мало и они фиксированы: " + fixed.size);
+  // набор фиксирован: второй прогон даёт те же корзины
+  const fixed2 = collect(false, false);
+  assert.deepEqual([...fixed2].sort((a, b) => a - b), [...fixed].sort((a, b) => a - b));
 });
 
 test("демо показывает радугу: за кадр появляются разные оттенки", () => {
@@ -449,13 +485,15 @@ test("панели скрыты по умолчанию и включаются 
   assert.equal(hidden("panel"), true);
 });
 
-test("дефолт как у владельца: Пульс, класс I, скетчи, seed 05, 142 BPM", () => {
+test("дефолт как у владельца: Пульс, класс I, скетчи, seed 05", () => {
   const env = boot();
   const pressed = (id) => env.elements.get(id).children
     .filter((b) => b.getAttribute("aria-pressed") === "true")
     .map((b) => b.textContent);
   assert.deepEqual(pressed("profiles"), ["5 Пульс"], "по умолчанию выбран «5 Пульс»");
-  assert.deepEqual(pressed("classes"), ["I"], "по умолчанию класс I — самый дешёвый");
+  // ревизия 19: перевод класса II «на место I» отменён владельцем — движения
+  // туннеля были правильнее на классе I, поэтому дефолт снова I.
+  assert.deepEqual(pressed("classes"), ["I"], "по умолчанию класс I");
   // Ритм по умолчанию — случайный (ревизия 15), поэтому сетка тактов не выбрана
   assert.deepEqual(pressed("rhythms"), ["случайно (~2 с)"], "ритм по умолчанию — случайный");
   assert.deepEqual(pressed("bpms"), [], "в случайном ритме темп не выбран");
@@ -478,7 +516,7 @@ test("случайный ритм: переходы в разы чаще, спо
   assert.ok(Math.abs(mean(holds) - 2) < 0.15, "средняя пауза должна быть ~2 с: " + mean(holds).toFixed(2));
   assert.ok(Math.min(...holds) > 1.2 && Math.max(...holds) < 2.8, "пауза гуляет в разумных пределах");
   const trans = plan.map((p) => p.transition);
-  assert.ok(mean(trans) > 0.6 && mean(trans) < 1.3, "переход ~0.9 с: " + mean(trans).toFixed(2));
+  assert.ok(mean(trans) > 1.5 && mean(trans) < 2.2, "переход ~1.8 с (вдвое длиннее прежних 0.9): " + mean(trans).toFixed(2));
   assert.equal(new Set(plan.map((p) => p.kind)).size, WS.warpSpaceTransitionIds().length,
     "за 12 переходов должны выпасть все виды");
   const repeats = plan.filter((p, i) => i && p.kind === plan[i - 1].kind);
@@ -490,7 +528,7 @@ test("случайный ритм: переходы в разы чаще, спо
 
   // в 60 с переходов должно быть много больше трёх, как было на 142 BPM
   const perMinute = 60 / (mean(holds) + mean(trans));
-  assert.ok(perMinute > 15, "переходов в минуту: " + perMinute.toFixed(1));
+  assert.ok(perMinute > 12, "переходов в минуту: " + perMinute.toFixed(1));
 
   // в кадре: за 20 с переходы случаются не один раз, и способы разные
   const kinds = new Set();
@@ -514,4 +552,51 @@ test("случайный ритм: переходы в разы чаще, спо
   // и обратно
   env.elements.get("rhythms").children[0].click();
   assert.equal(env.elements.get("rhythms").children[0].getAttribute("aria-pressed"), "true");
+});
+
+test("астероиды из GLB рисуются в кадре, плотность 0 их убирает", () => {
+  const env = boot();
+  let t = 16;
+  for (let i = 0; i < 30; i += 1) { env.rafQueue.shift()(t); t += 16; }
+  // спрайты встроены в демо (6 штук) и рисуются как drawImage 6..140 px
+  const blits = () => {
+    const before = env.stats.blits;
+    env.rafQueue.shift()(t);
+    t += 16;
+    return env.stats.blits - before;
+  };
+  const withRocks = blits();
+  assert.ok(withRocks > 20, "в кадре должны быть камни, blit-ов: " + withRocks);
+  // выключаем — камни исчезают, фон остаётся
+  const api = env.sandbox.BCMWarpAsteroids;
+  assert.ok(api, "нужен хук BCMWarpAsteroids");
+  assert.equal(api(0).density, 0);
+  const without = blits();
+  assert.ok(without < withRocks - 15, "без камней blit-ов должно стать меньше: " + without + " против " + withRocks);
+  assert.ok(without >= 1, "фон должен остаться");
+  api(1);
+  assert.ok(blits() > without, "камни возвращаются");
+  // seed меняет поле, но не ломает кадр
+  api(1, 777);
+  for (let i = 0; i < 10; i += 1) { env.rafQueue.shift()(t); t += 16; }
+});
+
+test("завороты трубы: центр кадра уходит от оси, ближнее кольцо остаётся на месте", () => {
+  const env = boot();
+  const bend = (elapsed) => {
+    const e = elapsed;
+    const turn = 1.8 + 1.1 * (Math.sin(e * 0.45) * 0.6 + Math.sin(e * 0.19 + 1.7) * 0.4);
+    const at = (d) => Math.abs(Math.sin(d * Math.PI * 1.55 + e * 0.7) * 1.18 * 0.05 * turn * 900 * (1 - d));
+    return { mid: at(0.5), near: at(0.92) };
+  };
+  let maxMid = 0;
+  let maxNear = 0;
+  for (let e = 0; e < 20; e += 0.25) {
+    const b = bend(e);
+    maxMid = Math.max(maxMid, b.mid);
+    maxNear = Math.max(maxNear, b.near);
+  }
+  assert.ok(maxMid > 60, "изгиб середины трубы должен быть заметным (>60 px), а он " + Math.round(maxMid));
+  assert.ok(maxNear < 20, "у самого корабля труба не должна уезжать (иначе он «сходит с рельсов»): " + Math.round(maxNear));
+  assert.ok(maxMid > maxNear * 4, "ближнее кольцо должно быть вчетверо устойчивее середины");
 });

@@ -45,8 +45,8 @@ if [ "$live_md5" = "$base_md5" ]; then
   CHECK_PATCH=warp_space.patch
   say "режим" "живой = чистая 0.14.0, кладём полный патч"
 elif [ "$live_md5" = "$installed_md5" ]; then
-  CHECK_PATCH=warp_holes_fix.patch
-  say "режим" "живой = наша ревизия 15, кладём правку дыр (ревизия 16)"
+  CHECK_PATCH=warp_patch_from_live.patch
+  say "режим" "живой = наша ревизия 15, кладём патч от живого файла (ревизия 19)"
 else
   CHECK_PATCH=warp_space.patch
   say "режим" "живой файл не опознан — сверяем полный патч с базой"

@@ -25,6 +25,18 @@ if entries:
 out = out.replace("<!--SKETCH_DATA-->", inject)
 print(f"скетчей встроено: {len(entries)}")
 
+# Спрайты астероидов (печёные GLB из mini-sim/assets/mesh/asteroid_variety).
+art_path = here / "asteroids_base64.js"
+if art_path.exists():
+    art = art_path.read_text(encoding="utf-8")
+    out = out.replace(
+        "<!--ASTEROID_DATA-->",
+        "<!--ASTEROID_DATA--><script>\n" + art + "</script>\n",
+    )
+    print(f"астероидов встроено: {art.count('data:image/png;base64,')}")
+else:
+    print("ВНИМАНИЕ: asteroids_base64.js нет — астероиды будут гранёным фолбэком")
+
 target = here / "warp_demo.html"
 target.write_text(out, encoding="utf-8")
 print(f"warp_demo.html: {len(out.encode('utf-8'))} байт, ядро {len(core.encode('utf-8'))} байт")

@@ -329,3 +329,32 @@ test("поля палитры: в патче используются тольк
   const missing = [...used].filter((k) => !paletteKeys.has(k));
   assert.deepEqual(missing, [], "поля палитры, которых ядро не возвращает: " + missing.join(", "));
 });
+
+test("завороты трубы вернулись, астероиды воткнуты в стенку", () => {
+  // изгиб: множители на месте, «ровного цилиндра» больше нет
+  assert.match(patched, /function warpTubeTurn\(elapsed\)/);
+  assert.match(patched, /curve: 1\.8 \+ 1\.1 \* slow/);
+  assert.match(patched, /Math\.sin\(d \* Math\.PI \* 1\.55 \+ phase\) \* curveScale \* 0\.05 \* tubeTurn\.curve/);
+  assert.match(patched, /Math\.sin\(d \* Math\.PI \* 1\.25 \+ phase\) \* liftScale \* 0\.04 \* tubeTurn\.curve/);
+  assert.match(patched, /widthScale \* tubeTurn\.wobble/);
+  assert.doesNotMatch(patched, /curveScale \* 0\.05 \+/, "старая плоская формула не должна остаться");
+
+  // астероиды: спрайты вкомпилированы, вызов стоит между панелями и кольцами
+  assert.match(patched, /window\.BCM_WARP_ASTEROID_ART/);
+  assert.equal((patched.match(/data:image\/png;base64,/g) || []).length, 6, "шесть спрайтов в файле");
+  const panels = patched.indexOf("const panelCount = 18;");
+  const rocks = patched.indexOf("drawWarpSpaceAsteroids(g, point, maxRadius");
+  const rings = patched.indexOf("drawWarpSpaceRings(g, point, spaceProfile");
+  assert.ok(panels > 0 && rocks > panels, "камни рисуются после панелей стенки");
+  if (rings > 0) assert.ok(rocks < rings, "камни рисуются до колец");
+  assert.match(patched, /warpAsteroidDensityNow\(\)/, "на слабом тире камней меньше");
+  assert.match(patched, /function warpAsteroidImages\(\)/);
+
+  // хуки
+  ["BCMDeepSpaceWarpSetAsteroids", "BCMDeepSpaceWarpAsteroidStats"].forEach((hook) => {
+    assert.match(patched, new RegExp("window\\." + hook + " ="), "нет хука " + hook);
+  });
+  // в исходнике 0.14.0 ничего этого нет
+  assert.doesNotMatch(source, /warpTubeTurn/);
+  assert.doesNotMatch(source, /BCM_WARP_ASTEROID_ART/);
+});

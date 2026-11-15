@@ -99,6 +99,7 @@
 <div id="toast">H — настройки · ← → вести · Q/E крен · 1…5 вид</div>
 
 <!--SKETCH_DATA-->
+<!--ASTEROID_DATA-->
 <script>
 /*__CORE__*/
 
@@ -114,6 +115,7 @@
     playerAngle: Math.PI * 0.5, steerBank: 0, seed: 2026114,
     // Дефолт — как у владельца: «Пульс» на классе I (самый дешёвый для
     // слабого Android), скетчи, seed 05, 142 BPM, «сильный» переход.
+    // Класс II по умолчанию: он и должен запускаться у большинства на старте.
     visualClass: 1, profileIndex: 4, backdropOn: true, paletteB: false,
     flowOn: true, flowPeriod: 11, manualMix: 0, speedNow: 1, bpm: 142, transitionPower: 1.6,
     tier: "high", lowMode: false, frameMsAvg: 0, slowStreak: 0, dirMix: 1,
@@ -126,6 +128,7 @@
     // вид по-прежнему можно кнопкой — тогда он главнее плана.
     rainbow: true, transition: "dissolve", transitionAuto: true,
     shipIndex: 0, shipSize: "small", shipRoll: 0, shipRollDir: 0, shipRollShown: 0,
+    asteroids: 1, asteroidSeed: 20261116,
     artMode: "sketch", sketchIndex: 0, sketchForce: "05-deep-parallax.svg",
     uiOn: false,
     cellSize: "auto", cellsNow: null, device: null
@@ -209,6 +212,14 @@
     return WS.warpSpaceTierParams(state.lowMode ? "low" : "high");
   }
 
+  // Завороты трубы: та же формула, что в патче (warpTubeTurn). Медленная
+  // волна даёт длинные изгибы (период ~14 с), вторая — «дыхание» сечения.
+  function tubeTurn(elapsed) {
+    var e = Number(elapsed) || 0;
+    var slow = Math.sin(e * 0.45) * 0.6 + Math.sin(e * 0.19 + 1.7) * 0.4;
+    return { curve: 1.8 + 1.1 * slow, wobble: 1 + 0.06 * Math.sin(e * 0.33 + 0.6) };
+  }
+
   function frameGeometry(now) {
     var minDim = Math.min(W, H);
     var maxRadius = minDim * 0.435;
@@ -221,19 +232,20 @@
     var loopMix = Math.max(0, Math.min(1, Math.min((state.elapsed - 20) / 2.5, (34 - state.elapsed) / 2.5)));
     var loopPhase = ((state.elapsed + 5) / 10.5) * Math.PI * 2;
     var axialRoll = state.tubeRoll + Math.sin(t * 0.13) * 0.20;
+    var turn = tubeTurn(state.elapsed);
     var mid = W * 0.5;
 
     function centerX(d) {
       return mid + (Math.sin(t * 0.19 + d * 4.3) * 0.045 + Math.sin(t * 0.11 + d * 7.1) * 0.02 +
-        Math.sin(d * Math.PI * 1.55 + phase) * curveScale * 0.05 +
+        Math.sin(d * Math.PI * 1.55 + phase) * curveScale * 0.05 * turn.curve +
         Math.sin(loopPhase + d * Math.PI * 2.4) * loopMix * 0.06) * minDim * (1 - d);
     }
     function centerY(d) {
       return H * 0.5 + (Math.sin(t * 0.15 + d * 3.6) * 0.035 + Math.sin(t * 0.09 + d * 7.7) * 0.018 +
-        Math.sin(d * Math.PI * 1.25 + phase) * liftScale * 0.04 +
+        Math.sin(d * Math.PI * 1.25 + phase) * liftScale * 0.04 * turn.curve +
         Math.sin(loopPhase + d * Math.PI * 2.4) * loopMix * 0.05) * minDim * (1 - d);
     }
-    function radiusX(d) { return 4 + maxRadius * Math.pow(Math.max(0, d), 1.20) * widthScale; }
+    function radiusX(d) { return 4 + maxRadius * Math.pow(Math.max(0, d), 1.20) * widthScale * turn.wobble; }
     function radiusY(d) { return radiusX(d) * 0.91; }
     function courseTwist(d) {
       var ahead = d - 0.92;
@@ -381,6 +393,28 @@
     return made;
   }
 
+  /* ---------- спрайты астероидов (печёные GLB из репозитория) ---------- */
+  var asteroidImgCache = new Map();
+  var asteroidReady = null;
+  function asteroidImages() {
+    var art = window.BCM_WARP_ASTEROID_ART || {};
+    var ids = Object.keys(art);
+    if (!ids.length) return null;
+    var allReady = true;
+    ids.forEach(function (id) {
+      var img = asteroidImgCache.get(id);
+      if (!img) { img = new Image(); img.src = art[id]; asteroidImgCache.set(id, img); }
+      if (!(img.complete && img.naturalWidth > 0)) allReady = false;
+    });
+    if (allReady && !asteroidReady) {
+      asteroidReady = {};
+      asteroidImgCache.forEach(function (img, id) {
+        if (img && img.complete && img.naturalWidth > 0) asteroidReady[id] = img;
+      });
+    }
+    return asteroidReady;
+  }
+
   function bgGet(index) {
     var key = bgKey(index) + "|" + (state.artMode === "sketch" ? "sk" : "pr");
     var cached = bgStore.get(key);
@@ -421,7 +455,8 @@
     var preset = WS.WARP_SPACE_CELL_PRESETS[state.cellSize];
     if (typeof preset !== "number") preset = deviceProfile().cellBudget;
     if (state.lowMode) preset = Math.min(preset, WS.WARP_SPACE_CELL_PRESETS.coarse);
-    var grid = WS.warpSpaceCellGrid(preset, W, H);
+    // Частицы в 23 раза мельче: во столько же раз больше клеток.
+    var grid = WS.warpSpaceCellGrid(WS.warpSpaceDissolveBudget(preset), W, H);
     return [grid.cols, grid.rows];
   }
 
@@ -529,7 +564,8 @@
     if (kind === "dissolve") {
       WS.drawSpaceDissolve(g, current, incoming, cs.k, W, H,
         state.cells, state.cellsCols, state.cellsRows, state.lowMode ? 0.35 : 1,
-        power);
+        power, state.frameNo || 0,
+        WS.warpSpaceDissolveFrameCap(state.lowMode ? "low" : "high"));
     } else {
       WS.drawSpaceTransition(g, current, incoming, cs.k, W, H, kind);
     }
@@ -545,6 +581,7 @@
   /* ---------- the frame ---------- */
   var drawCalls = 0;
   function draw(now) {
+    state.frameNo = (state.frameNo || 0) + 1;   // для предохранителя рассыпания
     var geo = frameGeometry(now);
     var profile = WS.WARP_SPACE_PROFILES[state.profileIndex];
     var point = geo.point;
@@ -595,6 +632,13 @@
         g.fill();
         drawCalls += 1;
       }
+    }
+
+    // 3b. Астероиды на стенке — те же печёные спрайты из GLB, что и в игре.
+    if (state.asteroids > 0) {
+      WS.drawWarpSpaceAsteroids(g, point, geo.maxRadius, state.asteroidSeed >>> 0,
+        state.asteroids, asteroidImages(), state.elapsed);
+      drawCalls += 1;
     }
 
     // 4. NEW: rings ride the same point() the wall uses.
@@ -843,6 +887,16 @@
     applyUi(state.uiOn);
     return state.uiOn;
   }
+  // Астероиды: плотность и seed доступны снаружи — для QA и тестов.
+  window.BCMWarpAsteroids = function (density, seed) {
+    if (density != null) {
+      var d = Number(density);
+      state.asteroids = isFinite(d) ? Math.max(0, Math.min(1, d)) : 1;
+    }
+    if (seed != null) state.asteroidSeed = Number(seed) >>> 0;
+    return { density: state.asteroids, seed: state.asteroidSeed };
+  };
+
   window.BCMWarpSetUi = setUi;
   window.BCMWarpGetUi = function () { return state.uiOn; };
   applyUi(false);          // при открытии видно только варп

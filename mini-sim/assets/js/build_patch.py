@@ -108,10 +108,20 @@ wrapper = """
         WARP_SPACE_RANDOM,
         warpSpaceRandomCycleAt,
         warpSpaceRandomCyclePlan,
+        WARP_SPACE_ASTEROIDS,
+        WARP_SPACE_ASTEROID_SLOTS,
+        warpSpaceAsteroidIds,
+        warpSpaceAsteroidSizeOf,
+        warpSpaceAsteroidField,
+        warpSpaceAsteroidRadius,
+        drawWarpSpaceAsteroids,
         warpSpaceCellField,
         warpSpaceQuadArea,
         warpSpacePanelVisible,
         drawSpaceDissolve,
+        WARP_SPACE_DISSOLVE,
+        warpSpaceDissolveBudget,
+        warpSpaceDissolveFrameCap,
         WARP_SPACE_TRANSITIONS,
         warpSpaceTransitionIds,
         warpSpaceTransitionFor,
@@ -193,6 +203,61 @@ wrapper = """
     // Глубина и число панелей НЕ зависят от тира: урезание ломало силуэт
     // (гранёная «бочка», потом «купол» на классе III). Экономия — только
     // отсечением субпиксельных панелей и разрешением фона.
+    // ---------------------------------------------- астероиды на стенке
+    // Спрайты уже вкомпилированы (window.BCM_WARP_ASTEROID_ART) — это печёные
+    // кадры настоящих GLB из mini-sim/assets/mesh/asteroid_variety. Здесь их
+    // только декодируем один раз: в кадре остаётся один drawImage на камень,
+    // никакого GLTFLoader и второго WebGL-контекста.
+    const warpAsteroidImageCache = new Map();
+    let warpAsteroidReadyMap = null;
+
+    function warpAsteroidArt() {
+      return (typeof window !== "undefined" && window.BCM_WARP_ASTEROID_ART) || {};
+    }
+
+    function warpAsteroidImages() {
+      const art = warpAsteroidArt();
+      const ids = Object.keys(art);
+      if (!ids.length) return null;
+      let allReady = true;
+      ids.forEach((id) => {
+        let img = warpAsteroidImageCache.get(id);
+        if (!img) {
+          img = new Image();
+          img.src = art[id];
+          warpAsteroidImageCache.set(id, img);
+        }
+        if (!(img.complete && img.naturalWidth > 0)) allReady = false;
+      });
+      if (allReady && !warpAsteroidReadyMap) {
+        warpAsteroidReadyMap = {};
+        warpAsteroidImageCache.forEach((img, id) => {
+          if (img && img.complete && img.naturalWidth > 0) warpAsteroidReadyMap[id] = img;
+        });
+      }
+      return warpAsteroidReadyMap;
+    }
+
+    // ------------------------------------------------- завороты трубы
+    // Вернули изгиб: амплитуда была срезана «на глаз» до 0.05, и стенка
+    // читалась ровным цилиндром. Медленная волна даёт длинные завороты
+    // (период ~14 с), вторая — короткое «дыхание» сечения.
+    function warpTubeTurn(elapsed) {
+      const e = Number(elapsed) || 0;
+      const slow = Math.sin(e * 0.45) * 0.6 + Math.sin(e * 0.19 + 1.7) * 0.4;
+      return {
+        curve: 1.8 + 1.1 * slow,
+        wobble: 1 + 0.06 * Math.sin(e * 0.33 + 0.6)
+      };
+    }
+
+    // Плотность поля: на слабом тире камней вдвое меньше (они дороже панелей —
+    // это drawImage 80–160 px, а не заливка полигона).
+    function warpAsteroidDensityNow() {
+      const base = Math.max(0, Math.min(1, Number(state.warpAsteroids) || 0));
+      return warpSpaceTierNow() === "low" ? base * 0.55 : base;
+    }
+
     function warpSpaceDepthSteps() {
       return 23;
     }
@@ -233,8 +298,21 @@ wrapper = """
       return budget;
     }
 
+    // Ревизия 19: «частицы рассыпания в 23 раза мельче» — считаем по площади,
+    // то есть клеток ровно в 23 раза больше (клетка ~3 px вместо ~15). Меньше
+    // 3 px уже упирается в warpSpaceCellGrid, поэтому дальше не мельчим.
+    function warpDissolveBudget() {
+      return warpSpace.warpSpaceDissolveBudget(warpCellBudget());
+    }
+
+    // Потолок отрисовки за кадр: переполненная сетка дорисовывается долями по
+    // номеру кадра, на слабом тире доля меньше — иначе кадр не влезает.
+    function warpDissolveFrameCap() {
+      return warpSpace.warpSpaceDissolveFrameCap(warpSpaceTierNow());
+    }
+
     function warpCellGrid(w, h) {
-      return warpSpace.warpSpaceCellGrid(warpCellBudget(w), w, h);
+      return warpSpace.warpSpaceCellGrid(warpDissolveBudget(), w, h);
     }
 
     // ------------------------------------------------- способ смены кадра
@@ -377,6 +455,9 @@ wrapper = """
     // Переход не начинается, если до прибытия он не успеет дорисоваться.
     function drawWarpSpaceBackdrop(g, w, h, t) {
       const remaining = Math.max(0, WARP_DURATION - Number(state.elapsed || 0));
+      // Номер кадра нужен рассыпанию: при переполненной сетке оно рисует долю
+      // клеток, и без счётчика одна и та же доля повторялась бы каждый кадр.
+      state.warpFrameNo = (Number(state.warpFrameNo || 0) + 1) % 100000;
 
       if (!state.warpBgCycle) {
         warpSpace.drawSpaceBackdrop(g, warpBgGet(Number(state.warpBgIndex || 0), w, h), w, h, t);
@@ -416,10 +497,13 @@ wrapper = """
         return;
       }
       if (!state.warpBgCells) {
-        // Пиксель перехода считается под кадр и под устройство: на ПК это
-        // ~96x54 клетки, на телефоне ~18x10, на слабом — 12x7. Сетка
-        // пересчитывается на каждый переход, поэтому смена размера окна или
-        // тира не оставляет старую.
+        // Пиксель перехода считается под кадр и под устройство, а в ревизии 19
+        // ещё и мельче в 23 раза по площади: на ПК это ~437x273 клетки (клетка
+        // 3.3 px), на телефоне ~44x94, на слабом — ещё грубее. Рисуется такая
+        // сетка долями за кадр (warpSpaceDissolveFrameCap), поэтому снаружи
+        // видна не мозаика 15 px, а мелкое рассыпание, собирающееся за ~10
+        // кадров. Сетка пересчитывается на каждый переход, поэтому смена
+        // размера окна или тира не оставляет старую.
         const grid = warpCellGrid(w, h);
         state.warpBgCells = warpSpace.warpSpaceCellField(grid.cols, grid.rows, cs.from * 7919 + cs.to);
         state.warpBgCols = grid.cols;
@@ -427,7 +511,7 @@ wrapper = """
       }
       warpSpace.drawSpaceDissolve(g, current, incoming, cs.k, w, h,
         state.warpBgCells, state.warpBgCols, state.warpBgRows, low ? 0.35 : 1,
-        warpBgPowerNow(cs));
+        warpBgPowerNow(cs), state.warpFrameNo, warpDissolveFrameCap());
       state.warpBgIndex = cs.to;
     }
 
@@ -440,6 +524,25 @@ wrapper = """
     }
 
 """
+
+ASTEROID_ART = ""
+_art_path = Path(__file__).with_name("asteroids_base64.js")
+if _art_path.exists():
+    # Берём только тело объекта: строки "id": "data:..." между { и };
+    _raw = _art_path.read_text(encoding="utf-8")
+    _body = _raw[_raw.index("{") + 1: _raw.rindex("}")]
+    _pairs = [ln.strip().rstrip(",") for ln in _body.strip().splitlines() if ln.strip()]
+    ASTEROID_ART = (
+        "    // Спрайты астероидов: испечены из настоящих GLB\n"
+        "    // mini-sim/assets/mesh/asteroid_variety (large/medium/small).\n"
+        "    // Печём заранее, потому что слой варпа — Canvas 2D и второй\n"
+        "    // WebGL-контекст на слабом Android не нужен.\n"
+        "    window.BCM_WARP_ASTEROID_ART = window.BCM_WARP_ASTEROID_ART || {};\n"
+        "    Object.assign(window.BCM_WARP_ASTEROID_ART, {\n"
+        + ",\n".join("      " + pair for pair in _pairs)
+        + "\n    });\n\n"
+    )
+
 
 def apply(text: str) -> str:
     """Пять хирургических вставок. Каждый анкер обязан встретиться ровно один раз."""
@@ -488,6 +591,9 @@ def apply(text: str) -> str:
         "      warpBgHold: 2,\n"
         "      warpBgSeed: 0x5F3A21C7,\n"
         "      warpBgPower: 1.6,\n"
+        "      // Астероиды на стенке: плотность 0..1 (0 — выключить), seed поля.\n"
+        "      warpAsteroids: 1,\n"
+        "      warpAsteroidSeed: 20261116,\n"
         "      warpBgCycle: true,\n"
         "      warpBgIndex: 0,\n"
         "      warpBgCells: null,\n"
@@ -591,6 +697,27 @@ def apply(text: str) -> str:
         "    window.BCMDeepSpaceWarpGetQuality = () => warpSpaceTierNow();\n"
         "    // Цикл фоновых сцен и диагностика памяти.\n"
         "    window.BCMDeepSpaceWarpSetBgCycle = (on) => { state.warpBgCycle = !!on; state.warpBgCells = null; };\n"
+        "    // Астероиды на стенке: плотность 0..1 и seed поля. 0 — выключить.\n"
+        "    window.BCMDeepSpaceWarpSetAsteroids = (density, seed) => {\n"
+        "      const d = Number(density);\n"
+        "      state.warpAsteroids = isFinite(d) ? Math.max(0, Math.min(1, d)) : 1;\n"
+        "      if (seed != null) state.warpAsteroidSeed = Number(seed) >>> 0;\n"
+        "      return state.warpAsteroids;\n"
+        "    };\n"
+        "    window.BCMDeepSpaceWarpAsteroidStats = () => {\n"
+        "      const field = warpSpace.warpSpaceAsteroidField(\n"
+        "        Number(state.warpAsteroidSeed || 0) >>> 0, Number(state.warpAsteroids));\n"
+        "      const sizes = { small: 0, medium: 0, large: 0 };\n"
+        "      field.forEach((slot) => { sizes[slot.size] = (sizes[slot.size] || 0) + 1; });\n"
+        "      const art = warpAsteroidArt();\n"
+        "      return {\n"
+        "        density: Number(state.warpAsteroids),\n"
+        "        slots: field.length,\n"
+        "        sizes: sizes,\n"
+        "        art: Object.keys(art).length,\n"
+        "        decoded: warpAsteroidReadyMap ? Object.keys(warpAsteroidReadyMap).length : 0\n"
+        "      };\n"
+        "    };\n"
         "    // Ритм сцены: true — случайный (~2 с пауза), false — тактовая сетка.\n"
         "    window.BCMDeepSpaceWarpSetRandomCycle = (on) => {\n"
         "      state.warpBgRandom = !!on;\n"
@@ -649,6 +776,8 @@ def apply(text: str) -> str:
         "      label: warpDevice.label,\n"
         "      dprCap: warpDevice.dprCap,\n"
         "      cellBudget: warpCellBudget(),\n"
+        "      dissolveBudget: warpDissolveBudget(),\n"
+        "      dissolveFrameCap: warpDissolveFrameCap(),\n"
         "      grid: (() => {\n"
         "        const g = warpCellGrid(\n"
         "          Number(w || (typeof window !== \"undefined\" ? window.innerWidth : 800)) || 800,\n"
@@ -672,6 +801,12 @@ def apply(text: str) -> str:
         "      if (state.mode !== \"tube\") return;\n"
         "      // Прибытие — настоящее событие, а не таймер: гасим цикл фонов здесь.\n"
         "      stopWarpBackgroundCycle();\n",
+    )
+
+    # (3ab) спрайты астероидов (испечены из GLB репозитория) — рядом с ядром
+    once(
+        "    function drawTubeTunnel(g, w, h, now) {\n",
+        ASTEROID_ART + "    function drawTubeTunnel(g, w, h, now) {\n",
     )
 
     # (3) блок ядра перед drawTubeTunnel
@@ -721,6 +856,74 @@ def apply(text: str) -> str:
         "      // Космос виден вокруг силуэта трубы и в дальнем отверстии.\n"
         "      // Рисуется до стенки: стенка непрозрачна, значит препятствия не перекрываются.\n"
         "      drawWarpSpaceBackdrop(g, w, h, t);\n",
+    )
+
+    # (4y) заполнение дыр в стенке: соседние панели перекрываются на 1 px,
+    #       поэтому дыр нет даже при моргании цвета или сглаживании краёв
+    once(
+        """          g.beginPath();
+          g.moveTo(p00.x, p00.y);
+          g.lineTo(p01.x, p01.y);""",
+        """          // Перекрытие на 1 px: у соседних панелей общие рёбра, и любое
+          // сглаживание края давало волосяные щели. Расширяем от центра.
+          const cxq = (p00.x + p01.x) / 2;
+          const cyq = (p00.y + p01.y) / 2;
+          const push = (p) => {
+            const dx = p.x - cxq;
+            const dy = p.y - cyq;
+            const len = Math.sqrt(dx * dx + dy * dy) || 1;
+            return { x: p.x + (dx / len) * 1.0, y: p.y + (dy / len) * 1.0 };
+          };
+          const q00 = push(p00), q01 = push(p01), q11 = push(p11), q10 = push(p10);
+          g.beginPath();
+          g.moveTo(q00.x, q00.y);
+          g.lineTo(q01.x, q01.y);""",
+    )
+    once(
+        """          g.lineTo(p11.x, p11.y);
+          g.lineTo(p10.x, p10.y);
+          g.closePath();
+          const shimmer""",
+        """          g.lineTo(q11.x, q11.y);
+          g.lineTo(q10.x, q10.y);
+          g.closePath();
+          const shimmer""",
+    )
+
+    # (4w) ЗАВОРОТЫ ТРУБЫ: вернуть изгиб, который был срезан до ровного цилиндра
+    once(
+        "      const loopPhase = ((state.elapsed + 5) / 10.5) * Math.PI * 2;\n",
+        "      const loopPhase = ((state.elapsed + 5) / 10.5) * Math.PI * 2;\n"
+        "      // Завороты трубы: медленная волна изгиба плюс «дыхание» сечения.\n"
+        "      // Раньше амплитуда была 0.05, и стенка читалась ровным цилиндром.\n"
+        "      const tubeTurn = warpTubeTurn(state.elapsed);\n",
+    )
+    once(
+        "         Math.sin(d * Math.PI * 1.55 + phase) * curveScale * 0.05 +\n",
+        "         Math.sin(d * Math.PI * 1.55 + phase) * curveScale * 0.05 * tubeTurn.curve +\n",
+    )
+    once(
+        "         Math.sin(d * Math.PI * 1.25 + phase) * liftScale * 0.04 +\n",
+        "         Math.sin(d * Math.PI * 1.25 + phase) * liftScale * 0.04 * tubeTurn.curve +\n",
+    )
+    once(
+        "      const radiusX = (d) => 4 + maxRadius * Math.pow(Math.max(0, d), 1.20) * widthScale;\n",
+        "      const radiusX = (d) => 4 + maxRadius * Math.pow(Math.max(0, d), 1.20) * widthScale * tubeTurn.wobble;\n",
+    )
+
+    # (4x) астероиды на стенке: после панелей, до глубинных колец
+    once(
+        "      // Keep the established 12 longitudinal frame lines. Their geometry and\n",
+        "      // Астероиды на стенке: настоящие меши, испечённые в спрайты. Рисуются\n"
+        "      // после панелей (стенка уже залита) и до колец, чтобы кольца и пульс\n"
+        "      // остались поверх — иначе поле перекрывает ориентиры глубины.\n"
+        "      if (Number(state.warpAsteroids) > 0) {\n"
+        "        warpSpace.drawWarpSpaceAsteroids(g, point, maxRadius,\n"
+        "          Number(state.warpAsteroidSeed || 0) >>> 0,\n"
+        "          warpAsteroidDensityNow(), warpAsteroidImages(),\n"
+        "          Number(state.elapsed || 0));\n"
+        "      }\n\n"
+        "      // Keep the established 12 longitudinal frame lines. Their geometry and\n",
     )
 
     # (4z) число панелей одинаковое у всех классов: при 12 у III был «купол»

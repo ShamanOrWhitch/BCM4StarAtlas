@@ -725,6 +725,134 @@
     return { phase: "transition", from: index, to: index + 1, k: k, index: index, remaining: left };
   }
 
+  /* ---------------------------------------------------- астероиды в стенке
+   * Настоящие меши из mini-sim/assets/mesh/asteroid_variety. В игре они НЕ
+   * грузятся как GLB: слой варпа — Canvas 2D, второй WebGL-контекст на слабом
+   * Android не нужен (решение ревизии 11 в силе). Меши испечены в спрайты
+   * заранее (bake_asteroids.py): в кадре это один drawImage на камень.
+   *
+   * Раскладка — чистая функция от глубины, угла и seed: камень «прибит» к
+   * стенке и уезжает в точку схода вместе с ней, поэтому поле не дёргается.
+   * Классы — как папки в репозитории: small / medium / large.
+   */
+  var WARP_SPACE_ASTEROIDS = {
+    large: { px: 160, minPx: 26, maxPx: 92, scale: 0.30 },
+    medium: { px: 112, minPx: 14, maxPx: 46, scale: 0.20 },
+    small: { px: 80, minPx: 7, maxPx: 20, scale: 0.12 }
+  };
+
+  var WARP_SPACE_ASTEROID_SLOTS = 30;
+  var asteroidSlotCache = {};
+
+  function warpSpaceAsteroidArt() {
+    var art = typeof window !== "undefined" ? window.BCM_WARP_ASTEROID_ART : null;
+    return art && typeof art === "object" ? art : null;
+  }
+
+  function warpSpaceAsteroidIds() {
+    var art = warpSpaceAsteroidArt();
+    if (!art) return [];
+    return Object.keys(art).sort();
+  }
+
+  function warpSpaceAsteroidSizeOf(id) {
+    var name = String(id || "");
+    if (name.indexOf("large") === 0) return "large";
+    if (name.indexOf("medium") === 0) return "medium";
+    if (name.indexOf("small") === 0) return "small";
+    return "medium";
+  }
+
+  /* Раскладка поля. depth 0..1 (0 — у камеры, 1 — точка схода), как у стенки.
+   * Отдаёт массив слотов: угол, глубина, размер-класс, id спрайта, поворот. */
+  function warpSpaceAsteroidField(seed, density) {
+    var s = (Number(seed) >>> 0) || 1;
+    var d = Number(density);
+    var count = isFinite(d) && d >= 0 ? Math.round(d * WARP_SPACE_ASTEROID_SLOTS) : WARP_SPACE_ASTEROID_SLOTS;
+    count = Math.max(0, Math.min(WARP_SPACE_ASTEROID_SLOTS, count));
+    var key = s + "|" + count;
+    if (asteroidSlotCache[key]) return asteroidSlotCache[key];
+    var ids = warpSpaceAsteroidIds();
+    var rnd = makeRandom(s ^ 0x2C1B3C6D, null);
+    var slots = [];
+    for (var i = 0; i < count; i += 1) {
+      var deep = 0.06 + rnd() * 0.94;
+      var sizeRoll = rnd();
+      var size = sizeRoll > 0.72 ? "large" : sizeRoll > 0.38 ? "medium" : "small";
+      var pool = ids.filter(function (id) { return warpSpaceAsteroidSizeOf(id) === size; });
+      var id = pool.length ? pool[Math.floor(rnd() * pool.length) % pool.length] : (ids[0] || null);
+      slots.push({
+        angle: rnd() * Math.PI * 2,
+        depth: deep,
+        size: size,
+        id: id,
+        spin: (rnd() * 2 - 1) * 0.35
+      });
+    }
+    // Ближние рисуются последними: порядок фиксирован, чтобы кадр был стабилен.
+    slots.sort(function (a, b) { return b.depth - a.depth; });
+    asteroidSlotCache[key] = slots;
+    return slots;
+  }
+
+  function warpSpaceAsteroidRadius(size, wallRadius) {
+    var spec = WARP_SPACE_ASTEROIDS[size] || WARP_SPACE_ASTEROIDS.medium;
+    var wall = Number(wallRadius);
+    if (!isFinite(wall) || wall <= 0) wall = 320;   // запас: кадр без размеров
+    var px = wall * spec.scale;
+    if (!isFinite(px)) px = spec.minPx;
+    return Math.max(spec.minPx, Math.min(spec.maxPx, px));
+  }
+
+  /* Рисует камни на стенке. point(depth, angle) даёт точку кольца; images —
+   * карта id -> Image (их грузит игра/демо один раз). */
+  function drawWarpSpaceAsteroids(g, point, wallRadius, seed, density, images, t) {
+    var slots = warpSpaceAsteroidField(seed, density);
+    if (!slots.length) return 0;
+    var drawn = 0;
+    for (var i = 0; i < slots.length; i += 1) {
+      var slot = slots[i];
+      // Ближние камни у самой камеры выходят за кольцо — не рисуем их.
+      if (slot.depth < 0.10) continue;
+      var radius = warpSpaceAsteroidRadius(slot.size, wallRadius);
+      if (!(radius > 0.5)) continue;
+      var p = point(slot.depth, slot.angle);
+      if (!p || !isFinite(p.x) || !isFinite(p.y)) continue;
+      var spec = WARP_SPACE_ASTEROIDS[slot.size] || WARP_SPACE_ASTEROIDS.medium;
+      // Настоящий размер камня: ближе к камере — крупнее. Без этого поле
+      // читается как плоские наклейки.
+      var zoom = 0.42 + (1 - slot.depth) * 1.15;
+      var size = Math.max(spec.minPx * 0.8, Math.min(spec.maxPx * 1.2, radius * zoom));
+      var image = images && slot.id ? images[slot.id] : null;
+      var alpha = 0.55 + (1 - slot.depth) * 0.45;
+      g.save();
+      g.globalAlpha = Math.max(0.12, Math.min(1, alpha));
+      g.translate(p.x, p.y);
+      g.rotate(slot.angle * 1.7 + (Number(t) || 0) * slot.spin + slot.depth);
+      if (image) {
+        g.drawImage(image, -size * 0.5, -size * 0.5, size, size);
+      } else {
+        // Фолбэк без картинки: гранёный камень, чтобы поле не исчезало.
+        g.beginPath();
+        for (var k = 0; k < 7; k += 1) {
+          var a = (k / 7) * Math.PI * 2;
+          var rr = size * (k % 2 ? 0.34 : 0.5);
+          if (!k) g.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+          else g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+        }
+        g.closePath();
+        g.fillStyle = "rgba(58,62,70,0.92)";
+        g.fill();
+        g.strokeStyle = "rgba(150,160,170,0.55)";
+        g.lineWidth = 1;
+        g.stroke();
+      }
+      g.restore();
+      drawn += 1;
+    }
+    return drawn;
+  }
+
   /* ---------- случайный ритм: пауза ~2 с, дальше сам разнообразит ----------
    * Владельцу не нужна привязка к тактам: «сама разнообразность эффективно».
    * Поэтому ритм больше не выровнен по музыке, а идёт короткими отрезками —
@@ -740,7 +868,9 @@
    */
   var WARP_SPACE_RANDOM = {
     hold: 2, holdJitter: 0.4,
-    transition: 0.9, transitionJitter: 0.25,
+    // Переход между кадрами скетчей — вдвое длиннее, чем было (0.9): на 1.8 с
+    // рассыпание успевает прочитаться, а не мигнуть.
+    transition: 1.8, transitionJitter: 0.4,
     powerMin: 1, powerMax: 2.5,
     seed: 0x5F3A21C7
   };
@@ -938,6 +1068,34 @@
    * приходящая картинка). Отсюда все числа ниже: 84 клетки на слабом
    * устройстве, 5184 на обычном ПК.
    */
+  /* Мельчесть частиц рассыпания. Владелец: «мелкие частицы ещё мельче в
+   * переходе рассыпания, прям в 23 раза». Понимаем буквально по площади:
+   * частиц в 23 раза больше, каждая в 23 раза меньше по площади (линейно
+   * ~4.8 раза мельче — клетка 15 px становится ~3 px). Меньше 3 px на клетку
+   * не имеет смысла: это уже субпиксельный шум, поэтому сетка упирается в
+   * потолок warpSpaceCellGrid.
+   *
+   * maxDraws — предохранитель кадра: на ПК 23x от «микро» даёт ~119 тысяч
+   * клеток, и рисовать их все каждый кадр физически нельзя. Когда живых
+   * клеток больше maxDraws, кадр рисует свою долю, а следующие кадры — соседние
+   * доли (сдвиг по номеру кадра). Мозаика на 3 px собирается как обычно, а
+   * кадр остаётся кадром, а не слайд-шоу.
+   */
+  var WARP_SPACE_DISSOLVE = { fineness: 23, maxDraws: 24000 };
+
+  /* Потолок клеток на кадр по тиру: ПК держит больше, слабому хватает малого.
+   * Это не «мельчесть», а предохранитель — сама сетка считается отдельно. */
+  function warpSpaceDissolveFrameCap(tier) {
+    if (tier === "low") return 2400;
+    return 12000;
+  }
+
+  function warpSpaceDissolveBudget(baseBudget) {
+    var b = Number(baseBudget);
+    if (!isFinite(b) || b <= 0) b = 180;
+    return Math.round(b * WARP_SPACE_DISSOLVE.fineness);
+  }
+
   var WARP_SPACE_CELL_PRESETS = {
     coarse: 84,      // 12x7   — крупные осколки, самый дешёвый
     fine: 180,       // 18x10  — прежний вид по умолчанию
@@ -1410,7 +1568,7 @@
     return r > 1 ? 1 : r;
   }
 
-  function drawSpaceDissolve(g, prevCache, nextCache, k, w, h, cells, cols, rows, quality, intensity) {
+  function drawSpaceDissolve(g, prevCache, nextCache, k, w, h, cells, cols, rows, quality, intensity, frame, maxDraws) {
     var t = clampUnit(k);
     var eased = t * t * (3 - 2 * t);
     var q = quality == null ? 1 : quality;
@@ -1443,8 +1601,20 @@
     // Уходящая картинка: клетки уезжают от центра, растут и гаснут.
     // На мелкой сетке добавляется радиальная волна: клетки с большим |u|
     // уходят позже, поэтому распад идёт кольцом, а не пятном.
+    // Предохранитель кадра (см. WARP_SPACE_DISSOLVE): если клеток больше
+    // maxDraws, каждый кадр рисует свою долю, а соседние доли берут следующие
+    // кадры. Порядок детерминированный, от seed не зависит.
+    var total = cells.length;
+    // Потолок кадра задаёт вызывающий (по тиру устройства): на слабом ему
+    // незачем столько же, сколько на ПК.
+    var cap = Number(maxDraws);
+    if (!isFinite(cap) || cap <= 0) cap = WARP_SPACE_DISSOLVE.maxDraws;
+    var stride = total > cap ? Math.ceil(total / cap) : 1;
+    var offset = stride > 1 ? (((Number(frame) || 0) % stride) + stride) % stride : 0;
+    var drawn = 0;
+
     if (prev) {
-      for (var i = 0; i < cells.length; i += 1) {
+      for (var i = offset; i < cells.length; i += stride) {
         var c = cells[i];
         // На мелкой сетке разлёт идёт кольцом от центра: радиус добавляет
         // задержку, поэтому картинка «раскрывается», а не рябит случайно.
@@ -1473,12 +1643,13 @@
           -side * 0.5, -sideY * 0.5, side, sideY
         );
         g.restore();
+        drawn += 1;
       }
     }
 
     // Приходящая картинка: те же клетки слетаются на своё место.
     if (next) {
-      for (var j = 0; j < cells.length; j += 1) {
+      for (var j = offset; j < cells.length; j += stride) {
         var c2 = cells[j];
         var local2 = eased;
         var delay2 = tiny ? c2.delay * 0.45 + (1 - cellRadius(c2)) * 0.30 : c2.delay * 0.3;
@@ -1505,6 +1676,7 @@
           -side2 * 0.5, -sideY2 * 0.5, side2, sideY2
         );
         g.restore();
+        drawn += 1;
       }
     }
     // Вспышка на пике перехода: короткая, только в середине, чтобы стык
@@ -1518,6 +1690,7 @@
       }
     }
     g.globalAlpha = 1;
+    return drawn;
   }
 
   /* ------------------------------------------------------------------ rings
@@ -1635,6 +1808,13 @@
     WARP_SPACE_CYCLE: WARP_SPACE_CYCLE,
     warpSpaceCycleConfig: warpSpaceCycleConfig,
     WARP_SPACE_RANDOM: WARP_SPACE_RANDOM,
+    WARP_SPACE_ASTEROIDS: WARP_SPACE_ASTEROIDS,
+    WARP_SPACE_ASTEROID_SLOTS: WARP_SPACE_ASTEROID_SLOTS,
+    warpSpaceAsteroidIds: warpSpaceAsteroidIds,
+    warpSpaceAsteroidSizeOf: warpSpaceAsteroidSizeOf,
+    warpSpaceAsteroidField: warpSpaceAsteroidField,
+    warpSpaceAsteroidRadius: warpSpaceAsteroidRadius,
+    drawWarpSpaceAsteroids: drawWarpSpaceAsteroids,
     warpSpaceRandomCycleAt: warpSpaceRandomCycleAt,
     warpSpaceRandomCyclePlan: warpSpaceRandomCyclePlan,
     warpSpaceBarSeconds: warpSpaceBarSeconds,
@@ -1647,6 +1827,9 @@
     warpSpacePanelVisible: warpSpacePanelVisible,
     WARP_SPACE_CELL_PRESETS: WARP_SPACE_CELL_PRESETS,
     warpSpaceCellGrid: warpSpaceCellGrid,
+    WARP_SPACE_DISSOLVE: WARP_SPACE_DISSOLVE,
+    warpSpaceDissolveBudget: warpSpaceDissolveBudget,
+    warpSpaceDissolveFrameCap: warpSpaceDissolveFrameCap,
     warpSpaceDeviceProfile: warpSpaceDeviceProfile,
     drawSpaceDissolve: drawSpaceDissolve,
     WARP_SPACE_SHIP_SPECS: WARP_SPACE_SHIP_SPECS,
