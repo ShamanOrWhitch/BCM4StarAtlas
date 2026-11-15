@@ -3,6 +3,17 @@
 Рабочая память разделена. Идеи: `JOURNAL_IDEAS.md`. Баги: `JOURNAL_BUGS.md`. Комплектация мини-игр: `JOURNAL_KIT.md`.
 Проверка больше не замораживает правки. Версия игры от этого не менялась: Mini-Sim `0.14.6`, Tower `0.2.80`, HEAD на момент записи журналов `129ad52`.
 
+## Patch — Mini-Sim 0.15.3: First Planet crew steps; planet by SAGE sector (16 November 2026)
+
+- **WORK LOCK:** [#122](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/122), `cd75cfe`. Decision D-060. Tower `0.2.84` is a version bump only (First Planet bundle cache key).
+- **BUG-005 fixed:** island rig poses hip/knee/shoulder pivots built from the race GLB parts with `BCMCrewRig.walkPose`, phase by dt. Red before: `feet did not stride: front-back spread 0.000 -> 0.000`; after 16/16.
+- **BUG-006 fixed:** `hoverFloor` was not imported in `scene.ts`; the CI-built bundle threw on boarding the bike. Red: `called but not imported: hoverFloor`.
+- **IDEA-002 step 1:** MUD CSS sector → Pearce (Earth-like), Ustur CSS → Ioki (red), elsewhere the desert. Red before: `First Planet has no planet profiles` / `scene ignores the planet`; after 4/4.
+- **Local:** regression 178/178 (12/12 syntax), Tower suites 34/34, `tsc` no new errors (3 old), eslint 0 errors. Planet Lab in Edge (`tools/planet-lab/shoot.mjs`): 3 planets × Human/Profound/Mierese, page errors 0.
+- **Not verified yet:** CI for this SHA, live site, Warp → MUD/Ustur → Tower → planet in one run.
+
+---
+
 ## Patch — Mini-Sim 0.15.2: Galia SAGE map inside Mini-Sim; Galia Fleet cold start (15 November 2026)
 
 - **WORK LOCKs:** [#120](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/120) Galia Fleet (`e7cd90c`), [#121](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/121) SAGE map (`a6f1ee3`). Decision D-059.
@@ -227,14 +238,14 @@
 
 - First Panda dialog is flight and screen approach. The Warp button (V, or WARP on a phone) is the second dialog, after the screens.
 - Ring entry plays the landing clip, then the menu. The 2s abort stays gone. The side view uses the asteroid seed's wall textures. The forward door follows Hydrogen, then the return to the landing cell, including vertical floors.
-- Mini-Sim/cache/title version: `0.11.20`; Tower version: `0.2.66`. No WordPress deployment from this commit.
+- Mini-Sim/cache/title version: `0.11.20`; Tower version: `0.2.66`. No WordPress deployment from `cd75cfe`.
 
 ## Previous state — Mini-Sim 0.11.19 / Tower 0.2.66 (26 October 2026)
 
 - Ring level opens on approach and stays open. The 0.11.18 two-second video abort is gone. The crash was `portalMaterial.emissive.setHex` on a basic material, plus a maze-frame ReferenceError that skipped the approach check.
 - Warp cancel on the asteroid keeps that locale and those coordinates. Place label is `ASTEROID · X / Y`, not Room 1.
 - Flight radius is 160 so the asteroid can be flown around. Wall damping remains the 0.11.2 contact rule (0.15). V = Warp, U = hold, X = helm.
-- Mini-Sim/cache/title version: `0.11.19`; Tower version: `0.2.66`. No WordPress deployment from this commit. 0.11.18 was already merged as PR #81.
+- Mini-Sim/cache/title version: `0.11.19`; Tower version: `0.2.66`. No WordPress deployment from `cd75cfe`. 0.11.18 was already merged as PR #81.
 
 ## Previous state — Mini-Sim 0.11.18 / Tower 0.2.66 (26 October 2026)
 
