@@ -1,4 +1,4 @@
-# Актуальное дополнение владельца — 14 ноября 2026
+# Актуальное дополнение владельца — 15 ноября 2026
 
 Это дополнение имеет приоритет над историческими записями ниже, когда они противоречат более поздним прямым указаниям владельца.
 
@@ -12,8 +12,20 @@
 - **AUDIO FREEZE:** никакой новой работы со звуком, музыкой, OST, эффектами, голосами или аудиосистемой. Существующие файлы/код не удалять; аудио-части старых задач исключать из scope.
 - **Protected scope:** не менять wordpress/galia-desk, scanner/pricing, firewall/security, production WordPress, wallet writes и SAGE transactions без отдельного прямого разрешения.
 - **Live QA:** automatic live WordPress test для walkingyog.com/bcm4sa отключён владельцем. Не восстанавливать, не обходить защиту и не повторять 403 URL. Source/regression и standalone local browser QA сохранить.
-- **Baseline при сверке:** линия правил `0.14`; текущий исходник Mini-Sim `0.14.5`; Tower `0.2.80`. Запись про 0.14.0 ниже — история той волны, не потолок версии. Перед записью всегда сверять актуальный `main` HEAD.
+- **Baseline при сверке:** линия правил `0.14`; текущий исходник Mini-Sim `0.14.6`; Tower `0.2.80`. Запись про 0.14.0 ниже — история той волны, не потолок версии. Перед записью всегда сверять актуальный `main` HEAD.
 - **Render:** корневой render.yaml использует main и autoDeployTrigger: commit; commit в main может запустить деплой, в том числе документационный.
+
+## Completed — WORK LOCK #114: Mini-Sim 0.14.6 volumetric Warp asteroid field (15 November 2026)
+
+- Runtime commit [bfe7486](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/bfe7486b9b2e02beaf700a70c3956e2e37922b86); test-harness correction [e5efcad](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/e5efcadbee379a4867a7a7dce7224a278aa832e9).
+- Mini-Sim version 0.14.6; Tower stays 0.2.80. 0.14.5 odometer, exact 8 slots, positive modulo and 5% hysteresis are retained. The slot distribution is 3 behind/current/4 ahead.
+- Each sector has 8 deterministic cluster instances distributed by axial coordinate, full-circle angle and radial bands. Component spheres are derived from disconnected GLB mesh islands. CPU performs layout, bounds and swept 3D collisions; existing Three.js r128 only renders InstancedMesh.
+- Broadphase uses axial/depth separation before full 3D sweep. Collision candidates include neighboring sectors at boundaries; long teleports skip collision sweep.
+- **PASS:** Mini-Sim 138/138 [#43708071219]; Tower source-contract [#43708071147]; UI Layer [#43707937383]; package/First Planet build [#43707937307], artifact #14159042830.
+- **Browser pending:** initial standalone run at runtime SHA `bfe7486` failed before Chromium because it executed the three source assertions corrected in `e5efcad`. The documentation update triggers a fresh run; append its actual result. Do not mark the 3D sector field visually tested until the browser or a manual 3D flight has exercised it.
+- No edits to 2D Canvas Warp clocks/course, controls, OST, Three.js version, Tower gameplay, Galia Desk/scanner/pricing, firewall/security, production WordPress, wallet/SAGE.
+
+---
 
 ## Completed — WORK LOCK #113: Mini-Sim 0.14.5 CPU Warp sector ring (15 November 2026)
 

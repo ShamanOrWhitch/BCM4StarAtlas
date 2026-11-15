@@ -3,12 +3,22 @@
 Дата сверки: 15 ноября 2026  
 Репозиторий: https://github.com/ShamanOrWhitch/BCM4StarAtlas  
 Рабочая ветка по прямому указанию владельца: main  
-Последний проверенный кодовый HEAD Mini-Sim 0.14.5: 5531d75995ac618038ba87bf1ac26607036cb22e  
-Текущие версии из исходников: Mini-Sim 0.14.5; Tower 0.2.80.
+Последний проверенный кодовый HEAD Mini-Sim 0.14.6: e5efcadbee379a4867a7a7dce7224a278aa832e9  
+Текущие версии из исходников: Mini-Sim 0.14.6; Tower 0.2.80.
 
 Этот документ — долговременная передача контекста для GPT, SYNTX, Grok и других AI-агентов проекта. Он не заменяет сверку актуального кода, Git-коммитов, Issues и PR перед каждой задачей. При расхождении этого документа с более свежим прямым указанием владельца приоритет имеет указание владельца; при расхождении с текущим кодом приоритет имеет код и Git-история.
 
 **Каноническое руководство по лидерству и оркестрации:** `mini-sim/DR_FABLE_PLAYBOOK.md`. Dr Fable начинает с него; DR GPT, Grok, Einstein и другие исполнители используют его роли и формат work packets.
+
+---
+
+## Актуальное дополнение — Mini-Sim 0.14.6 (15 ноября 2026)
+
+- WORK LOCK [#114](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/114); runtime commit [bfe7486](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/bfe7486b9b2e02beaf700a70c3956e2e37922b86); corrected Node VM test assertions [e5efcad](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/e5efcadbee379a4867a7a7dce7224a278aa832e9).
+- The 0.14.5 odometer, absolute signed sector index, eight slots, modulo and 5% hysteresis are kept. The window is redistributed 3 trailing / current / 4 ahead. Sector contents are now volumetric: eight cluster instances, axial + angle + radius + rotation + scale, derived from run seed + absolute sector index.
+- Per-rock collision proxies are derived from disconnected triangle islands in the six existing GLB assets. CPU broadphase rejects candidates by axial depth; full swept-sphere check measures radial and axial separation. Boundary candidates check both adjacent sectors. Long teleports are not interpreted as a physical sweep.
+- CPU computes template/component bounds, layout and matrices. Existing local Three.js r128 only renders InstancedMesh. Canvas `tubeTravel`, `obstacleDepth`, obstacle course/controls/OST and Tower are untouched.
+- Mini-Sim 138/138 + JS syntax PASS [#43708071219]; Tower source contract PASS [#43708071147]; UI layer PASS [#43707937383]; package build PASS [#43707937307], artifact #14159042830. Standalone Browser run before test correction failed at source assertions before Chromium; the next documentation-triggered browser run must be checked. No visual 3D flight verification or production deployment is claimed.
 
 ---
 

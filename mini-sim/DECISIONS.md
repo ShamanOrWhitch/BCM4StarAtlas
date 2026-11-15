@@ -1,3 +1,18 @@
+## D-052 — Volumetric deterministic Warp field and per-rock swept collisions (15 November 2026)
+
+**Status:** IMPLEMENTED / SOURCE-TESTED in Mini-Sim 0.14.6. WORK LOCK [#114](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/114). Runtime commit [bfe7486](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/bfe7486b9b2e02beaf700a70c3956e2e37922b86).
+
+- Preserve 0.14.5 odometer, signed `traveled`, absolute sector derivation, fixed eight physical slots, modulo and 5% cache hysteresis. Window layout becomes three sectors behind + current + four ahead (eight total) to cover camera.far 400 and one ahead sector.
+- Sector layout is fully deterministic from run seed + absolute sector number. Each of eight cluster instances per sector has `axial`, full-circle `angle`, radial `radius`, rotation and scale. The radial distribution covers inner, middle and outer bands; no empty center lane is intentionally reserved.
+- Ship bounding sphere defines a bounded tube radius; component spheres from the selected existing GLB establish the cluster extent and safe wall margin. All geometry analysis and matrices are CPU-side.
+- GLB disconnected triangle components become independent rock collision spheres. Broadphase rejects rocks by axial/depth separation; narrowphase checks full 3D swept distance of the ship segment against each individual component. Candidate sectors include both sides of a sector boundary. Large position jumps are not treated as physical sweeps.
+- The root frame stays at ONICSS and its cross-section rotates with ship roll. The existing r128 renderer only draws InstancedMesh buffers. No shader/GPU math, no new renderer.
+- Do not conflate the new 3D field with the existing 2D Canvas Warp: `tubeTravel`, `obstacleDepth`, `routeProgress`, gate/sweeper/spike course and their collision rules stay intact.
+- **Verification:** Mini-Sim 138/138 PASS and syntax checks PASS [#43708071219]; Tower source-contract PASS [#43708071147]; UI Layer PASS [#43707937383]; package/First Planet build PASS [#43707937307], artifact #14159042830. Browser visual verification remains pending: initial standalone run stopped during source assertions before Chromium; a post-documentation run must be checked.
+- No Tower, OST, wallet/SAGE, Galia Desk, scanner/pricing, security, production WordPress or odometer reload persistence changes.
+
+---
+
 ## D-051 — CPU Warp odometer and fixed eight-slot sector residency (15 November 2026)
 
 **Status:** IMPLEMENTED / TESTED-CODE on `main` for Mini-Sim 0.14.5. WORK LOCK [#113](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/113). Runtime commit [a179209](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/a179209e89466e73d6170f62b1a0f2f089fd2530).
