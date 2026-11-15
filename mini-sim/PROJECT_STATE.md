@@ -3,6 +3,17 @@
 Рабочая память разделена. Идеи: `JOURNAL_IDEAS.md`. Баги: `JOURNAL_BUGS.md`. Комплектация мини-игр: `JOURNAL_KIT.md`.
 Проверка больше не замораживает правки. Версия игры от этого не менялась: Mini-Sim `0.14.6`, Tower `0.2.80`, HEAD на момент записи журналов `129ad52`.
 
+## Release — Mini-Sim 0.15.0 / Tower 0.2.83: crew legs, Crew Lab, Dr Fable automation, 0.15 rules line (15 November 2026)
+
+- **WORK LOCK:** [#118](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/118). Legs `56be8d6`; automation `6512a33`; release `b91f368`. Decision D-057. BUG-003 `FIXED`.
+- Tower Crew walk on two shins assembled by `crew-core.js` from the NFT cut-out; robes stay whole.
+- `tools/crew-lab`: six races, real NFT art, crew-core cutout + rig; phase screenshots and leg-gap measurements (local Edge).
+- Dr Fable automation: `/fable` (SYNTX bridge), `/packet` (work packet → WORK LOCK), `/accept` + `.claude/tools/evidence.mjs`.
+- **Local:** regression 151/151 (10/10 syntax), Tower suites 41/41; standalone transitions QA in Edge PASS (crew not seated there — markers).
+- **Not verified yet:** CI for this SHA (next entry), Tower with a selected NFT Crew in a browser, live site, manual play.
+
+---
+
 ## Completed implementation — Mini-Sim 0.14.8 / Tower 0.2.82: Crew facing and walking rig in crew-core (15 November 2026)
 
 - **WORK LOCK:** [#117](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/117). Implementation `99b224a`. Decision D-056. BUG-001 `FIXED`.
