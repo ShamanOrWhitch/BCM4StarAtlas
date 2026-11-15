@@ -197,7 +197,15 @@ function kindOf(itemType: string): WalletItem["kind"] {
 
 async function loadCatalog(): Promise<Map<string, CatItem>> {
   if (catalogCache && Date.now() - catalogCache.at < CATALOG_TTL) return catalogCache.byMint;
-  const rows = await getJson<Array<Record<string, unknown>>>("https://galaxy.staratlas.com/nfts");
+  // The Galaxy catalogue is ~0.7 MB; right after a Render cold start 10 s is not
+  // enough. A late or failed answer falls back to the last good catalogue.
+  let rows: Array<Record<string, unknown>>;
+  try {
+    rows = await getJson<Array<Record<string, unknown>>>("https://galaxy.staratlas.com/nfts", 30000);
+  } catch (error) {
+    if (catalogCache) return catalogCache.byMint;
+    throw error;
+  }
   const byMint = new Map<string, CatItem>();
   for (const row of rows) {
     const mint = String(row.mint ?? "");
@@ -544,7 +552,12 @@ export async function buildMarket(): Promise<MarketSnap> {
     atlasUsdcCandles.length > 1 ||
     polisUsdcCandles.length > 1;
 
-  if (hasUsefulMarketData) {
+  // Never cache a market without the ship catalogue: the Fleet page would show
+  // "пусто" to every visitor until the TTL ran out. Serve the last full market instead.
+  if (nfts.size === 0 && marketCache && marketCache.data.marketShips?.length) {
+    return marketCache.data;
+  }
+  if (hasUsefulMarketData && nfts.size > 0) {
     marketCache = { at: Date.now(), data };
   }
   return data;

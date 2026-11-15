@@ -47,12 +47,44 @@ export function ShipsPage() {
   const [fleets, setFleets] = useState<SavedFleet[]>([]);
   const [tab, setTab] = useState("market");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
+
+  // Galaxy catalogue: the Render server may be waking up. Keep "loading" until
+  // ships arrive, retry an empty answer a few times, then offer a manual retry.
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+    const load = async () => {
+      for (let tryNo = 0; tryNo < 4 && !cancelled; tryNo += 1) {
+        try {
+          const snap = await loadMarket();
+          if (cancelled) return;
+          if (snap.marketShips?.length) {
+            setShips(snap.marketShips);
+            setLoading(false);
+            return;
+          }
+        } catch (err: unknown) {
+          if (cancelled) return;
+          setError(err instanceof Error ? err.message : "Каталог не открылся");
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2500 * (tryNo + 1)));
+      }
+      if (!cancelled) {
+        setLoading(false);
+        setError((current) => current || "Каталог Galaxy пока не ответил");
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [attempt]);
 
   useEffect(() => {
     setFleets(loadFleets());
-    void loadMarket()
-      .then((snap) => setShips(snap.marketShips ?? []))
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Каталог не открылся"));
     const owner = localStorage.getItem("galia-owner");
     if (!owner) return;
     void scanDeskWallet({ data: { owner } })
@@ -124,7 +156,14 @@ export function ShipsPage() {
                     </button>
                   </li>
                 ))}
-                {!visible.length ? <li className="px-3 py-8 text-sm text-muted">В этом классе пусто.</li> : null}
+                {!visible.length && loading ? <li className="px-3 py-8 text-sm text-muted">Загружаю каталог кораблей Galaxy…</li> : null}
+                {!visible.length && !loading && !ships.length ? (
+                  <li className="px-3 py-8 text-sm text-muted">
+                    {error || "Каталог Galaxy пока не ответил"}.{" "}
+                    <button type="button" onClick={() => setAttempt((n) => n + 1)} className="underline">Повторить</button>
+                  </li>
+                ) : null}
+                {!visible.length && !loading && ships.length ? <li className="px-3 py-8 text-sm text-muted">В этом классе пусто.</li> : null}
               </ul>
             </div>
             <div className={`${picked ? "flex" : "hidden md:flex"} min-h-0 min-w-0 flex-1 flex-col overflow-y-auto`}>
