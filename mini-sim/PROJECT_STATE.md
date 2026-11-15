@@ -10,7 +10,8 @@
 - `tools/crew-lab`: six races, real NFT art, crew-core cutout + rig; phase screenshots and leg-gap measurements (local Edge).
 - Dr Fable automation: `/fable` (SYNTX bridge), `/packet` (work packet → WORK LOCK), `/accept` + `.claude/tools/evidence.mjs`.
 - **Local:** regression 151/151 (10/10 syntax), Tower suites 41/41; standalone transitions QA in Edge PASS (crew not seated there — markers).
-- **Not verified yet:** CI for this SHA (next entry), Tower with a selected NFT Crew in a browser, live site, manual play.
+- **CI PASS on `91cc5ef`:** Mini-Sim regression 151/151 [#43746283034](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43746283034); Tower top-cap 34/34 [#43746283065](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43746283065); standalone Chromium [#43746283058](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43746283058); UI Layer [#43746283072](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43746283072); **test package `bcm-mini-sim-0.15.0-test`** [artifact #14174057237](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43746282982/artifacts/14174057237) (401.2 MB).
+- **Not verified:** Tower with a selected NFT Crew in a browser, live site, manual play.
 
 ---
 
