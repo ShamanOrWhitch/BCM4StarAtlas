@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.14.3",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.14.5",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -91,7 +91,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.14.3",
+      title: "SPACE LABYRINTH — 0.14.5",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -4389,6 +4389,12 @@
       try { liveWall.texture.dispose(); } catch (e) {}
     }
 
+    // Remove the bounded Warp sector manager before the generic scene disposer;
+    // its GLB templates are shared by all eight slots and have their own owner.
+    if (typeof window.BCMWarpSectorSceneDestroy === "function") {
+      try { window.BCMWarpSectorSceneDestroy(); } catch (e) {}
+    }
+
     const seenTextures = new Set();
     const seenMaterials = new Set();
     const seenGeometries = new Set();
@@ -5410,6 +5416,25 @@
     if (running && !settings.open) {
       try { updatePhysics(dt); } catch (err) {
         setStatus("LOOP ERR " + (err && err.message ? err.message : "pad"));
+      }
+    }
+    // CPU-only sector math samples the final ship pose after physics and collisions.
+    // The renderer below only draws the InstancedMesh buffers built by this manager.
+    if (typeof window.BCMWarpSectorSceneFrame === "function") {
+      try {
+        window.BCMWarpSectorSceneFrame({
+          dt,
+          running,
+          active: !!(running && exteriorFlight && ship.position &&
+            getSpaceZone(ship.position.z) === "DEEP_SPACE" && spaceSatellite.stationMesh),
+          paused: externalPause || settings.open,
+          scene, camera, ship, THREE: window.THREE, root, renderer,
+          originMesh: spaceSatellite.stationMesh,
+          runSeed: Number(window.BCMMiniSimSession?.locationSeeds?.warp ||
+            window.BCMMiniSimSession?.activeSeeds?.warp || labyrinthSeed || 1) >>> 0
+        });
+      } catch (err) {
+        reportDeepSpaceCallbackError("WARP SECTOR STREAM ERROR", err);
       }
     }
     // A separate lightweight module can add a Warp tunnel or asteroid maze to this same scene.
@@ -6696,7 +6721,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.14.3") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.14.5") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();

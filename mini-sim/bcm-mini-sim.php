@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.14.3
+ * Version: 0.14.5
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.14.3');
+define('BCM_MINI_SIM_VERSION', '0.14.5');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -795,7 +795,9 @@ function bcm_mini_sim_enqueue_assets()
     // Lightweight Warp arcade layer uses the existing r128 scene; it creates no second renderer.
     wp_enqueue_script('bcm-crew-core', BCM_MINI_SIM_URL . 'assets/js/crew-core.js', array(), BCM_MINI_SIM_VERSION, true);
     wp_enqueue_script('bcm-hull-dive', BCM_MINI_SIM_URL . 'assets/js/hull-dive.js', array('bcm-mini-sim', 'bcm-crew-core'), BCM_MINI_SIM_VERSION, true);
-    wp_enqueue_script('bcm-deep-space-warp', BCM_MINI_SIM_URL . 'assets/js/deep-space-warp.js', array('bcm-mini-sim', 'bcm-hull-dive', 'bcm-crew-core'), BCM_MINI_SIM_VERSION, true);
+    wp_enqueue_script('bcm-warp-sector-core', BCM_MINI_SIM_URL . 'assets/js/warp-sector-core.js', array('bcm-mini-sim'), BCM_MINI_SIM_VERSION, true);
+    wp_enqueue_script('bcm-warp-sector-scene', BCM_MINI_SIM_URL . 'assets/js/warp-sector-scene.js', array('bcm-mini-sim', 'bcm-warp-sector-core'), BCM_MINI_SIM_VERSION, true);
+    wp_enqueue_script('bcm-deep-space-warp', BCM_MINI_SIM_URL . 'assets/js/deep-space-warp.js', array('bcm-mini-sim', 'bcm-hull-dive', 'bcm-crew-core', 'bcm-warp-sector-scene'), BCM_MINI_SIM_VERSION, true);
     wp_enqueue_script('bcm-ui-layer-audit', BCM_MINI_SIM_URL . 'assets/js/ui-layer-audit.js', array('bcm-deep-space-warp'), BCM_MINI_SIM_VERSION, true);
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
         'crewServerAjax' => admin_url('admin-ajax.php'),
@@ -803,6 +805,7 @@ function bcm_mini_sim_enqueue_assets()
         'threeUrl' => BCM_MINI_SIM_URL . 'assets/js/three.min.js',
         // Loaded lazily only when the asteroid wall-decoration model is first needed.
         'gltfLoaderUrl' => BCM_MINI_SIM_URL . 'assets/js/GLTFLoader.js?ver=' . BCM_MINI_SIM_VERSION,
+        'warpSectorAssetBase' => BCM_MINI_SIM_URL . 'assets/mesh/asteroid_clusters_v2/',
         'towerApproach' => array(
             // Preload around the actual automatic Tower gate: onicss.mp4.
             'x' => 0.0,
@@ -883,7 +886,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.14.3</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.14.5</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS</div>
             <div class="bcm-mini-sim-attract-marquee" role="img" aria-label="Inspired by Star Atlas. Powered for all creatures. BCM4SA. Read-only Crew and ship console.">
                 <span class="bcm-mini-sim-attract-prefix" aria-hidden="true">BCM4SA //</span>
