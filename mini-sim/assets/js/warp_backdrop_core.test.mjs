@@ -906,3 +906,47 @@ test("случайный ритм не привязан к музыкально�
   const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
   assert.ok(mean(plan.map((p) => p.hold + p.transition)) < 4, "отрезок должен быть ~3 с, а не ~18");
 });
+
+/* ---------- ревизия 16: дыры в стенке из-за неверной площади панели ---------- */
+
+test("площадь панели: полная шнуровка не обнуляется на 0° и 180°", () => {
+  // Геометрия как в игре: эллиптическое кольцо, 18 панелей.
+  const cx = 700, cy = 450, n = 18;
+  const rx = (d) => 560 * (1 - d) + 40;
+  const ry = (d) => 470 * (1 - d) + 34;
+  const P = (d, a) => ({ x: cx + Math.cos(a) * rx(d), y: cy + Math.sin(a) * ry(d) });
+  const d0 = 0.45, d1 = 0.45 + 0.96 / 23;
+  const rows = [];
+  for (let panel = 0; panel < n; panel += 1) {
+    const a0 = (panel * 2 * Math.PI) / n;
+    const a1 = ((panel + 1) * 2 * Math.PI) / n;
+    const p00 = P(d0, a0), p01 = P(d0, a1), p10 = P(d1, a0);
+    // старый (сломанный) критерий — один член векторного произведения
+    const broken = Math.abs(p01.x - p00.x) * Math.abs(p10.y - p00.y);
+    const area = WS.warpSpaceQuadArea(p00, p01, p10);
+    rows.push({ panel, broken, area });
+    assert.ok(area > 300, "панель " + panel + ": площадь должна быть большой, а не " + area.toFixed(1));
+    assert.equal(WS.warpSpacePanelVisible(p00, p01, p10, 1.6), true, "панель " + panel + " не должна отсекаться");
+  }
+  // именно эти панели старый критерий выбрасывал — отсюда были дыры
+  const lost = rows.filter((r) => r.broken < 1.6);
+  assert.ok(lost.length >= 2, "старый критерий должен был терять панели на 0°/180°, а потерял " + lost.length);
+  assert.ok(lost.some((r) => r.area > 1000), "терялись целые панели, а не субпиксельные");
+});
+
+test("площадь панели: субпиксельные всё-таки отсекаются, мусор не ломает", () => {
+  const tiny = { x: 10, y: 10 }, tinyB = { x: 10.3, y: 10.2 }, tinyC = { x: 10.1, y: 10.4 };
+  assert.equal(WS.warpSpacePanelVisible(tiny, tinyB, tinyC, 1.6), false, "панель 0.3 px должна отсекаться");
+  assert.equal(WS.warpSpacePanelVisible(tiny, tinyB, tinyC, 0), true, "при нулевом пороге не отсекаем");
+  // вырожденные входы: ноль, а не NaN
+  assert.equal(WS.warpSpaceQuadArea(null, tiny, tinyC), 0);
+  // NaN в координатах не должен протекать наружу: он приводится к 0,
+  // и площадь остаётся конечным числом
+  assert.ok(Number.isFinite(WS.warpSpaceQuadArea({ x: NaN, y: 0 }, tiny, tinyC)));
+  assert.equal(WS.warpSpaceQuadArea(tiny, tiny, tiny), 0);
+  // порядок точек не важен: модуль произведения
+  const a = WS.warpSpaceQuadArea({ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 0, y: 6 });
+  const b = WS.warpSpaceQuadArea({ x: 0, y: 0 }, { x: 0, y: 6 }, { x: 10, y: 0 });
+  assert.equal(a, 60);
+  assert.equal(b, 60);
+});

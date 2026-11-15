@@ -194,3 +194,30 @@ test("случайный ритм: хуки работают и ритм реа�
   assert.equal(stats.pool, 4, "пул сцен должен быть виден в статистике");
   assert.deepEqual(Array.from(sandbox.BCMDeepSpaceWarpGetTransitions()).includes(stats.kind), true);
 });
+
+test("стенка без дыр: отсечение панелей считает полную площадь", () => {
+  // Проверяем именно то, из-за чего были дыры: на 0° и 180° радиальное ребро
+  // панели горизонтально. Один член произведения даёт ~0 (панель выбрасывалась),
+  // полная шнуровка — нормальную площадь.
+  const src = code;                       // загруженный пропатченный файл
+  const fn = src.slice(src.indexOf("function warpSpaceQuadArea(p00, p01, p10)"));
+  assert.ok(fn.length > 0, "в патче должна быть функция площади панели");
+  const body = fn.slice(0, fn.indexOf("\n  }"));
+  // считаем её в песочнице: у ядра внутри патча она замкнута, поэтому
+  // повторяем ровно её выражения на реальной геометрии кольца
+  const area = (p00, p01, p10) => {
+    const dx1 = p01.x - p00.x, dy1 = p01.y - p00.y;
+    const dx2 = p10.x - p00.x, dy2 = p10.y - p00.y;
+    return Math.abs(dx1 * dy2 - dx2 * dy1);
+  };
+  assert.match(body, /Math\.abs\(dx1 \* dy2 - dx2 \* dy1\)/, "площадь — шнуровкой, оба члена");
+  const cx = 700, cy = 450, rx = (d) => 560 * (1 - d) + 40, ry = (d) => 470 * (1 - d) + 34;
+  const P = (d, a) => ({ x: cx + Math.cos(a) * rx(d), y: cy + Math.sin(a) * ry(d) });
+  [0, 9].forEach((panel) => {
+    const a0 = (panel * 2 * Math.PI) / 18, a1 = ((panel + 1) * 2 * Math.PI) / 18;
+    const p00 = P(0.45, a0), p01 = P(0.45, a1), p10 = P(0.45 + 0.96 / 23, a0);
+    const broken = Math.abs(p01.x - p00.x) * Math.abs(p10.y - p00.y);
+    assert.ok(broken < 1.6, "панель " + panel + " по старому критерию выбрасывалась (" + broken.toFixed(2) + ")");
+    assert.ok(area(p00, p01, p10) > 300, "по новой формуле панель " + panel + " видима");
+  });
+});

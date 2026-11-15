@@ -875,6 +875,31 @@
     });
   }
 
+  /* ---------- площадь панели для отсечения субпиксельных ----------
+   * Панель стенки — четырёхугольник p00(p01) x p10(p11). Раньше площадь
+   * оценивалась как |dx1 * dy2|, то есть ОДНИМ членом векторного произведения:
+   * на 0° и 180° радиальное ребро горизонтально (dy2 ≈ 0), произведение
+   * обнулялось, и панель 40x60 px выбрасывалась как «субпиксельная» — на
+   * стенке появлялись дыры, которые ездили вместе с поворотом кольца.
+   * Здесь полная шнуровка: |dx1*dy2 - dx2*dy1| (это удвоенная площадь, для
+   * отсечения это не важно — порог тот же).
+   */
+  function warpSpaceQuadArea(p00, p01, p10) {
+    if (!p00 || !p01 || !p10) return 0;
+    var dx1 = (Number(p01.x) || 0) - (Number(p00.x) || 0);
+    var dy1 = (Number(p01.y) || 0) - (Number(p00.y) || 0);
+    var dx2 = (Number(p10.x) || 0) - (Number(p00.x) || 0);
+    var dy2 = (Number(p10.y) || 0) - (Number(p00.y) || 0);
+    var area = Math.abs(dx1 * dy2 - dx2 * dy1);
+    return isFinite(area) ? area : 0;
+  }
+
+  function warpSpacePanelVisible(p00, p01, p10, minArea) {
+    var m = Number(minArea);
+    if (!isFinite(m) || m < 0) m = 0;
+    return warpSpaceQuadArea(p00, p01, p10) >= m;
+  }
+
   /* Прямоугольники ячеек для растворения. Считаются один раз на переход. */
   function warpSpaceCellField(cols, rows, seed) {
     var n = Math.max(1, cols | 0) * Math.max(1, rows | 0);
@@ -1618,6 +1643,8 @@
     warpSpaceNextSeed: warpSpaceNextSeed,
     warpSpaceCycleAt: warpSpaceCycleAt,
     warpSpaceCellField: warpSpaceCellField,
+    warpSpaceQuadArea: warpSpaceQuadArea,
+    warpSpacePanelVisible: warpSpacePanelVisible,
     WARP_SPACE_CELL_PRESETS: WARP_SPACE_CELL_PRESETS,
     warpSpaceCellGrid: warpSpaceCellGrid,
     warpSpaceDeviceProfile: warpSpaceDeviceProfile,

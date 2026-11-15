@@ -109,6 +109,8 @@ wrapper = """
         warpSpaceRandomCycleAt,
         warpSpaceRandomCyclePlan,
         warpSpaceCellField,
+        warpSpaceQuadArea,
+        warpSpacePanelVisible,
         drawSpaceDissolve,
         WARP_SPACE_TRANSITIONS,
         warpSpaceTransitionIds,
@@ -745,9 +747,11 @@ def apply(text: str) -> str:
           const p11 = point(d1, a1, 0);
           const p10 = point(d1, a0, 0);
           // Субпиксельные панели у точки схода не видны, но каждый fill стоит
-          // вызова. Отсечение ниже порога в 1.6 px² экономит около десятой части
-          // заливок и не меняет картинку заметно.
-          if (Math.abs(p01.x - p00.x) * Math.abs(p10.y - p00.y) < warpSpaceCullScale()) continue;
+          // вызова. Площадь — полная шнуровка (ядро: warpSpacePanelVisible).
+          // Раньше здесь стоял один член |dx1*dy2|: на 0° и 180° радиальное
+          // ребро горизонтально, произведение обнулялось, и здоровая панель
+          // выбрасывалась — это и были «дыры» в стенке на живом сайте.
+          if (!warpSpace.warpSpacePanelVisible(p00, p01, p10, warpSpaceCullScale())) continue;
 """,
     )
 
@@ -835,8 +839,8 @@ def apply(text: str) -> str:
 """,
         """        const seamPalette = warpSpacePalette(seam / 12);
         const baseColor = seam % 3 === 0
-          ? warpSpace.rgbaCss(seamPalette.seam, 0.80)
-          : warpSpace.rgbaCss(seamPalette.seam, 0.26);
+          ? warpSpace.rgbaCss(seamPalette.seamThick, 0.80)
+          : warpSpace.rgbaCss(seamPalette.seamThin, 0.26);
         const pulseColor = warpSpace.rgbaCss(seamPalette.accent, 1);
 """,
     )

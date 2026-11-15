@@ -1,5 +1,5 @@
 diff --git a/mini-sim/assets/js/deep-space-warp.js b/mini-sim/assets/js/deep-space-warp.js
-index 9c58532..9ebb30c 100644
+index 9c58532..a05fb1f 100644
 --- a/mini-sim/assets/js/deep-space-warp.js
 +++ b/mini-sim/assets/js/deep-space-warp.js
 @@ -316,12 +316,58 @@
@@ -249,7 +249,7 @@ index 9c58532..9ebb30c 100644
        tubeResult.hidden = false;
        overlay.classList.remove("is-tubing");
        tubeTitle.textContent = success ? "WARP STABLE" : "WARP DISTURBED";
-@@ -5500,17 +5695,2066 @@
+@@ -5500,17 +5695,2093 @@
      }
  
      function angleDifference(a, b) {
@@ -1124,6 +1124,31 @@ index 9c58532..9ebb30c 100644
 +    });
 +  }
 +
++  /* ---------- площадь панели для отсечения субпиксельных ----------
++   * Панель стенки — четырёхугольник p00(p01) x p10(p11). Раньше площадь
++   * оценивалась как |dx1 * dy2|, то есть ОДНИМ членом векторного произведения:
++   * на 0° и 180° радиальное ребро горизонтально (dy2 ≈ 0), произведение
++   * обнулялось, и панель 40x60 px выбрасывалась как «субпиксельная» — на
++   * стенке появлялись дыры, которые ездили вместе с поворотом кольца.
++   * Здесь полная шнуровка: |dx1*dy2 - dx2*dy1| (это удвоенная площадь, для
++   * отсечения это не важно — порог тот же).
++   */
++  function warpSpaceQuadArea(p00, p01, p10) {
++    if (!p00 || !p01 || !p10) return 0;
++    var dx1 = (Number(p01.x) || 0) - (Number(p00.x) || 0);
++    var dy1 = (Number(p01.y) || 0) - (Number(p00.y) || 0);
++    var dx2 = (Number(p10.x) || 0) - (Number(p00.x) || 0);
++    var dy2 = (Number(p10.y) || 0) - (Number(p00.y) || 0);
++    var area = Math.abs(dx1 * dy2 - dx2 * dy1);
++    return isFinite(area) ? area : 0;
++  }
++
++  function warpSpacePanelVisible(p00, p01, p10, minArea) {
++    var m = Number(minArea);
++    if (!isFinite(m) || m < 0) m = 0;
++    return warpSpaceQuadArea(p00, p01, p10) >= m;
++  }
++
 +  /* Прямоугольники ячеек для растворения. Считаются один раз на переход. */
 +  function warpSpaceCellField(cols, rows, seed) {
 +    var n = Math.max(1, cols | 0) * Math.max(1, rows | 0);
@@ -1856,6 +1881,8 @@ index 9c58532..9ebb30c 100644
 +        warpSpaceRandomCycleAt,
 +        warpSpaceRandomCyclePlan,
 +        warpSpaceCellField,
++        warpSpaceQuadArea,
++        warpSpacePanelVisible,
 +        drawSpaceDissolve,
 +        WARP_SPACE_TRANSITIONS,
 +        warpSpaceTransitionIds,
@@ -2317,7 +2344,7 @@ index 9c58532..9ebb30c 100644
        const flowPulsePosition = 1 - flowPhase;
        // Restore a clear but controlled roll so the pilot can feel the corridor moving.
        const axialRoll = Number(state.tubeRoll || 0) * flowDirection + Math.sin(t * 0.13) * 0.20;
-@@ -5580,50 +7824,68 @@ return axialRoll + ahead * 0.12 +
+@@ -5580,50 +7851,70 @@ return axialRoll + ahead * 0.12 +
        bg.addColorStop(0, "#02060d");
        bg.addColorStop(0.46, "#071b2a");
        bg.addColorStop(1, "#02040a");
@@ -2347,9 +2374,11 @@ index 9c58532..9ebb30c 100644
            const p11 = point(d1, a1, 0);
            const p10 = point(d1, a0, 0);
 +          // Субпиксельные панели у точки схода не видны, но каждый fill стоит
-+          // вызова. Отсечение ниже порога в 1.6 px² экономит около десятой части
-+          // заливок и не меняет картинку заметно.
-+          if (Math.abs(p01.x - p00.x) * Math.abs(p10.y - p00.y) < warpSpaceCullScale()) continue;
++          // вызова. Площадь — полная шнуровка (ядро: warpSpacePanelVisible).
++          // Раньше здесь стоял один член |dx1*dy2|: на 0° и 180° радиальное
++          // ребро горизонтально, произведение обнулялось, и здоровая панель
++          // выбрасывалась — это и были «дыры» в стенке на живом сайте.
++          if (!warpSpace.warpSpacePanelVisible(p00, p01, p10, warpSpaceCullScale())) continue;
            g.beginPath();
            g.moveTo(p00.x, p00.y);
            g.lineTo(p01.x, p01.y);
@@ -2398,7 +2427,7 @@ index 9c58532..9ebb30c 100644
          const theta = seam * Math.PI * 2 / 12;
          g.beginPath();
          let frameStart = null;
-@@ -5637,32 +7899,38 @@ return axialRoll + ahead * 0.12 +
+@@ -5637,32 +7928,38 @@ return axialRoll + ahead * 0.12 +
            } else {
              if (step === 35) frameEnd = p;
              g.lineTo(p.x, p.y);
@@ -2417,8 +2446,8 @@ index 9c58532..9ebb30c 100644
 -            : "rgba(190,255,255,1)";
 +        const seamPalette = warpSpacePalette(seam / 12);
 +        const baseColor = seam % 3 === 0
-+          ? warpSpace.rgbaCss(seamPalette.seam, 0.80)
-+          : warpSpace.rgbaCss(seamPalette.seam, 0.26);
++          ? warpSpace.rgbaCss(seamPalette.seamThick, 0.80)
++          : warpSpace.rgbaCss(seamPalette.seamThin, 0.26);
 +        const pulseColor = warpSpace.rgbaCss(seamPalette.accent, 1);
          const flowGradient = g.createLinearGradient(frameStart.x, frameStart.y, frameEnd.x, frameEnd.y);
          const pulseWidth = 0.085;
@@ -2447,7 +2476,7 @@ index 9c58532..9ebb30c 100644
  
        // Class II is a quieter tint of the same tunnel, not a second set of rails.
        // Class III has a distinct violet identity without circular geometry.
-@@ -5731,31 +7999,35 @@ return axialRoll + ahead * 0.12 +
+@@ -5731,31 +8028,35 @@ return axialRoll + ahead * 0.12 +
          }
          // Boost/launcher pickups remain functional but have no distracting checkmark decoration.
        });
@@ -2498,7 +2527,7 @@ index 9c58532..9ebb30c 100644
        g.fillStyle = "rgba(255,255,255,.15)"; g.fillRect(w * 0.18, h - 17, w * 0.64, 3);
        g.fillStyle = "#56f0d0"; g.fillRect(w * 0.18, h - 17, w * 0.64 * progress, 3);
        if (state.shields < 100) {
-@@ -5801,12 +8073,32 @@ return axialRoll + ahead * 0.12 +
+@@ -5801,12 +8102,32 @@ return axialRoll + ahead * 0.12 +
  
        if (!overlay.hidden) requestAnimationFrame(drawBackdrop);
        else state.animationRunning = false;

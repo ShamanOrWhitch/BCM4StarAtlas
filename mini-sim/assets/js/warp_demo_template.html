@@ -578,10 +578,10 @@
         var p00 = point(d0, a0, 0), p01 = point(d0, a1, 0),
             p11 = point(d1, a1, 0), p10 = point(d1, a0, 0);
         // Отсечение субпиксельных панелей у точки схода: они всё равно не видны,
-        // но каждый fill стоит вызова. На глаз это неотличимо, на кадр — дешевле.
-        var quadW = Math.abs(p01.x - p00.x) + Math.abs(p10.x - p00.x);
-        var quadH = Math.abs(p01.y - p00.y) + Math.abs(p10.y - p00.y);
-        if (quadW * quadH < (tp.cullScale || 1.6)) continue;
+        // но каждый fill стоит вызова. Площадь считается полной шнуровкой
+        // (ядро: warpSpaceQuadArea) — по одному члену панели на 0° и 180°
+        // обнулялись и давали дыры в стенке.
+        if (!WS.warpSpacePanelVisible(p00, p01, p10, tp.cullScale || 1.6)) continue;
         var shimmer = Math.sin(geo.shimmerTime * 1.35 + panel * 1.72 + step * 0.77 + state.playerAngle) * 0.5 + 0.5;
         var light = (((step + Math.floor(geo.shimmerTime * 8) + panel * 3) % 5 + 5) % 5 === 0) ? 1 : 0;
         // Тот же цвет, что в 0.14.0 (при mix = 0 — бит в бит), плюс перелив.

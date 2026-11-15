@@ -4,6 +4,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+
+const requireCore = createRequire(import.meta.url);
 
 const read = (name) => readFileSync(new URL("./" + name, import.meta.url), "utf8");
 const patched = read("warp_patched.js");
@@ -65,7 +68,7 @@ test("под «Пульсом» другой seed космоса и развор
 });
 
 test("оптимизация: отсечение субпиксельных панелей и авто-качество", () => {
-  assert.match(patched, /warpSpaceCullScale\(\)\) continue;/, "отсечение панелей по порогу тира");
+  assert.match(patched, /warpSpacePanelVisible\(p00, p01, p10, warpSpaceCullScale\(\)\)/, "отсечение панелей по порогу тира и полной площади");
   assert.match(patched, /warpSpaceTier\(Number\(state\.warpFrameMs/, "авто-тир по замеру кадра");
   assert.match(patched, /function warpSpaceDepthSteps\(\) \{\s*return 23;/, "глубина не зависит от тира");
   assert.match(patched, /const panelCount = 18;/, "18 панелей у всех классов: купола нет");
@@ -290,4 +293,39 @@ test("случайный ритм в патче: ~2 с пауза, свой ви
   // и в исходнике 0.14.0 этого нет
   assert.doesNotMatch(source, /warpSpaceRandomCycleAt/);
   assert.doesNotMatch(source, /warpBgRandom/);
+});
+
+test("дыры в стенке: отсечение панелей по полной площади, а не по одному члену", () => {
+  // было: |dx1*dy2| — на 0°/180° обнуляется, панель выбрасывалась
+  assert.doesNotMatch(patched, /Math\.abs\(p01\.x - p00\.x\) \* Math\.abs\(p10\.y - p00\.y\)/);
+  assert.match(patched, /if \(!warpSpace\.warpSpacePanelVisible\(p00, p01, p10, warpSpaceCullScale\(\)\)\) continue;/);
+  // сама функция в ядре внутри патча: две строки шнуровки
+  assert.match(patched, /function warpSpaceQuadArea\(p00, p01, p10\)/);
+  assert.match(patched, /var area = Math\.abs\(dx1 \* dy2 - dx2 \* dy1\);/);
+  // 18 панелей и 23 шага не тронуты
+  assert.match(patched, /const panelCount = 18;/);
+  assert.match(patched, /function warpSpaceDepthSteps\(\) \{\n      return 23;/);
+});
+
+test("поля палитры: в патче используются только те, что ядро реально возвращает", () => {
+  // Реальный провал: в патче стояло seamPalette.seam, а палитра отдаёт
+  // seamThick/seamThin. rgbaCss(undefined) бросает TypeError на первом кадре —
+  // node --check такое не ловит, а тест на кадр в фейковом DOM тоже (сцена
+  // drawTubeTunnel там не рисуется).
+  const core = requireCore("./warp_backdrop_core.js");
+  const paletteKeys = new Set();
+  [1, 2, 3].forEach((cls) => {
+    [0, 0.5, 1].forEach((mix) => {
+      Object.keys(core.warpSpacePaletteAt(cls, mix, null)).forEach((k) => paletteKeys.add(k));
+      Object.keys(core.warpSpacePaletteAt(cls, mix, 0.37)).forEach((k) => paletteKeys.add(k));
+    });
+  });
+  assert.ok(paletteKeys.has("seamThick") && paletteKeys.has("seamThin"), "палитра должна отдавать seamThick/seamThin");
+  const used = new Set();
+  const re = /seamPalette\.([A-Za-z_][A-Za-z0-9_]*)/g;
+  let m;
+  while ((m = re.exec(patched))) used.add(m[1]);
+  assert.ok(used.size > 0, "в патче должны быть обращения к палитре");
+  const missing = [...used].filter((k) => !paletteKeys.has(k));
+  assert.deepEqual(missing, [], "поля палитры, которых ядро не возвращает: " + missing.join(", "));
 });

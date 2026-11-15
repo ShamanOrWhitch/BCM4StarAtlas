@@ -31,13 +31,29 @@ for f in assets/js/deep-space-warp.js assets/js/mini-sim.js assets/js/hull-dive.
 done
 
 echo
-echo "== 2. сверка варпа с локальной базой"
+echo "== 2. сверка варпа с локальными ориентирами"
 live_md5=$(md5_of "$TMP/deep-space-warp.js")
 base_md5=$(md5_of warp_source.js)
+installed_md5="$( [ -f warp_base_015.js ] && md5_of warp_base_015.js || echo none )"
 say "живой deep-space-warp.js" "$live_md5"
-say "локальная база warp_source.js" "$base_md5"
+say "чистая база 0.14.0 (warp_source.js)" "$base_md5"
+say "наша сборка ревизии 15 (warp_base_015.js)" "$installed_md5"
+
+# Патч, которым проверяем применимость: к чистой базе — полный, к уже
+# установленной нашей сборке — только правка дыр.
 if [ "$live_md5" = "$base_md5" ]; then
-  say "итог" "ИДЕНТИЧНЫ — патч построен на живом файле"
+  CHECK_PATCH=warp_space.patch
+  say "режим" "живой = чистая 0.14.0, кладём полный патч"
+elif [ "$live_md5" = "$installed_md5" ]; then
+  CHECK_PATCH=warp_holes_fix.patch
+  say "режим" "живой = наша ревизия 15, кладём правку дыр (ревизия 16)"
+else
+  CHECK_PATCH=warp_space.patch
+  say "режим" "живой файл не опознан — сверяем полный патч с базой"
+fi
+
+if [ "$live_md5" = "$base_md5" ] || [ "$live_md5" = "$installed_md5" ]; then
+  say "итог" "опознан — патч построен на живом файле"
 else
   say "итог" "РАЗЛИЧАЮТСЯ — базу нужно пересобрать с сайта"
   fail=1
@@ -49,9 +65,9 @@ mkdir -p "$TMP/work/mini-sim/assets/js"
 cp "$TMP/deep-space-warp.js" "$TMP/work/mini-sim/assets/js/deep-space-warp.js"
 if ( cd "$TMP/work" && git init -q . && git add -A >/dev/null 2>&1 \
      && git -c user.email=a@b -c user.name=c commit -qm live >/dev/null 2>&1 \
-     && git apply --check "$OLDPWD/warp_space.patch" ); then
+     && git apply --check "$OLDPWD/$CHECK_PATCH" ); then
   say "git apply --check на живом файле" "OK"
-  ( cd "$TMP/work" && git apply "$OLDPWD/warp_space.patch" )
+  ( cd "$TMP/work" && git apply "$OLDPWD/$CHECK_PATCH" )
   if cmp -s "$TMP/work/mini-sim/assets/js/deep-space-warp.js" warp_patched.js; then
     say "результат применения" "совпадает с warp_patched.js"
   else
