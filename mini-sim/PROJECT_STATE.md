@@ -1,3 +1,8 @@
+## Журналы с 15 ноября 2026
+
+Рабочая память разделена. Идеи: `JOURNAL_IDEAS.md`. Баги: `JOURNAL_BUGS.md`. Комплектация мини-игр: `JOURNAL_KIT.md`.
+Проверка больше не замораживает правки. Версия игры от этого не менялась: Mini-Sim `0.14.6`, Tower `0.2.80`, HEAD на момент записи журналов `129ad52`.
+
 ## Completed implementation — Mini-Sim 0.14.6: volumetric Warp asteroid field (15 November 2026)
 
 - **WORK LOCK:** [#114](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/114). Runtime implementation [bfe7486](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/bfe7486b9b2e02beaf700a70c3956e2e37922b86); offset-rock collision broadphase fix [7d2bdfc](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/7d2bdfc79c2ad86c39a2f3fbe57b535faa432e15); Node VM test correction [e5efcad](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/e5efcadbee379a4867a7a7dce7224a278aa832e9); standalone First Planet path fix [3f9eecb](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/3f9eecb0660705cbbba028997e14e673a3e0849e); actual GLB scene smoke [7431360](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/74313602ee3368857f800187c5276541d60fbe3a); standalone loader dependencies [73c540c](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/73c540c161b9ec1a1c8a7dd0d9c251f9eb9bff9c). Mini-Sim is 0.14.6; Tower remains 0.2.80.

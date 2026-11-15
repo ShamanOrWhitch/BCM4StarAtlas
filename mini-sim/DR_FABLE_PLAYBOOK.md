@@ -109,6 +109,7 @@ Shell preflight — один короткий проход: `pwd`, `node -v`, `g
 - Browser screenshots/report: просматривать, а не просто ссылаться на зелёный статус.
 - Live WordPress QA остаётся выключенным по прямому указанию владельца. Не обходить firewall и не делать выводов о визуальном PASS по обычному HTTP 200.
 - Не смешивать source tests, Chromium localhost fixture, live site и ручной тест на устройстве.
+- Проверка не замораживает `main`. Writer решает, ждать результат, править дальше или публиковать сборку. PASS пишется только по факту и с SHA.
 - AUDIO FREEZE, WORK LOCK `galia-desk`, wallet-write/SAGE, firewall/security и production WordPress сохраняются.
 - Каждый коммит в main может запустить Render auto-deploy; учитывать это до записи.
 
@@ -126,9 +127,10 @@ Shell preflight — один короткий проход: `pwd`, `node -v`, `g
 ## 9. Постоянная память
 
 Источники истины:
-- `AGENTS.md` — неизменяемые правила и защищённые области;
-- `WORK_COORDINATION.md` — активная координация и WORK LOCK;
-- `PROJECT_STATE.md` — текущий этап, HEAD, версии и статусы;
+- `JOURNAL_IDEAS.md`, `JOURNAL_BUGS.md`, `JOURNAL_KIT.md` — идеи, поломки и комплектация. Не сваливать их в один список.
+- `AGENTS.md` — правила `main` и защищённые области;
+- `WORK_COORDINATION.md` — активная координация;
+- `PROJECT_STATE.md` — текущий этап, HEAD, версии и статусы уже сделанного;
 - `DECISIONS.md` — принятые инженерные решения и причины;
 - `DR_GPT_HANDOFF.md` — техническая передача;
 - этот файл — роль Fable и организация команды.

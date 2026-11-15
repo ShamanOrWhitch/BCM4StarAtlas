@@ -1,3 +1,15 @@
+## D-053 — Три журнала и снятие заморозки на время проверки (15 ноября 2026)
+
+**Status:** Правило владельца, записано на линии `0.14` без смены второй цифры. Игра остаётся Mini-Sim `0.14.6` / Tower `0.2.80`. Это не патч поведения.
+
+- Идеи, баги и комплектация мини-игр ведутся отдельно: `JOURNAL_IDEAS.md`, `JOURNAL_BUGS.md`, `JOURNAL_KIT.md`.
+- Каждая запись называет мини-игру, версию и категорию. Стык нескольких игр получает несколько привязок.
+- Нет модели, звука, моста или эффекта — строка комплектации «не хватает», не баг.
+- Ограничение «не менять код, пока идёт проверка» снято. Writer решает, когда остановить тест, когда править и когда рисковать сборкой.
+- Не снимаются: работа только в `main`, один writer, AUDIO FREEZE, запрет записи в кошелёк и SAGE, запрет правок galia-desk, firewall и production WordPress, выключенный live-QA.
+
+---
+
 ## D-052 — Volumetric deterministic Warp field and per-rock swept collisions (15 November 2026)
 
 **Status:** IMPLEMENTED / SOURCE- AND BROWSER-TESTED in Mini-Sim 0.14.6. WORK LOCK [#114](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/114). Runtime commit [bfe7486](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/bfe7486b9b2e02beaf700a70c3956e2e37922b86); collision broadphase extent correction [7d2bdfc](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/7d2bdfc79c2ad86c39a2f3fbe57b535faa432e15).
