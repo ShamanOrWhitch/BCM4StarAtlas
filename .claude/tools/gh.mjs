@@ -105,7 +105,8 @@ switch (cmd) {
     break;
   }
   case "runs": {
-    const sha = a1 || headSha();
+    // The API matches only full SHAs; expand short ones locally.
+    const sha = a1 ? execFileSync("git", ["rev-parse", a1], { encoding: "utf8" }).trim() : headSha();
     const d = await gh(`/repos/${REPO}/actions/runs?head_sha=${sha}&per_page=50`);
     out(d.workflow_runs, (runs) => {
       console.log(`Actions for ${sha.slice(0, 7)}:`);

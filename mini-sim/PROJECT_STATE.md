@@ -8,7 +8,8 @@
 - **WORK LOCK:** [#116](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/116). Red test `952f861`, implementation `4e8d931`. Decision D-055.
 - `crew-core.js` now cuts the NFT background and assembles the Crew; Tower, Ring and Hull Dive only display. Hull Dive's duplicate pipeline removed; Ring no longer needs Tower (BUG-002 `FIXED`).
 - **Local (Windows, LF clone):** `.claude/tools/regression.mjs` (= CI Mini-Sim regression) syntax 8/8, tests 139/139; Tower top-cap + local-qa + hull + standalone-qa source suites 43/43; `scripts/crew-core-cutout.test.mjs` 4/4 (red before: cutout found in `tower.js`, `hull-dive.js`; Ring depends on `BCMTowerAPI`).
-- **Not verified:** Chromium standalone QA not run locally (`BROWSER-MISSING`) — see CI for this SHA; ISNet run on real NFT art, live WordPress and manual play not checked.
+- **CI PASS on `14d400c`:** Mini-Sim regression 139/139 [#43738978945](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43738978945); Tower top-cap 34/34 [#43738978967](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43738978967); standalone Chromium PASS [#43738978969](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43738978969); UI Layer [#43738979006](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43738979006); package [#43738978947](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43738978947).
+- **Not verified:** the Chromium fixture does not cut a real NFT card through ISNet; live WordPress and manual play of Tower/Ring/Hull Dive with a selected Crew not checked.
 
 ---
 
