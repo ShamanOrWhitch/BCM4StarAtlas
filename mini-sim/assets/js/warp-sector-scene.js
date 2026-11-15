@@ -489,13 +489,14 @@
     }
 
     function maxCollisionReach() {
-      var maxRock = 0;
+      // A rock's component centre may be offset from its parent cluster origin.
+      // Include the complete scaled cluster extent so a protruding component
+      // in the adjacent sector is still considered by the parent-slot broadphase.
+      var maxClusterExtent = 0;
       templates.forEach(function (template) {
-        (template.collisionSpheres || []).forEach(function (sphere) {
-          maxRock = Math.max(maxRock, sphere.radius * 1.28);
-        });
+        maxClusterExtent = Math.max(maxClusterExtent, template.extent * 1.28);
       });
-      return shipRadius + maxRock + 0.15;
+      return shipRadius + maxClusterExtent + 0.15;
     }
 
     function detectCollision(ship, previousPosition) {

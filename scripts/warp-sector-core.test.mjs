@@ -155,6 +155,12 @@ test("swept collision catches a visible asteroid crossed between frames", () => 
   assert.ok(hit.t > 0 && hit.t < 1);
   assert.ok(hit.penetration >= 0);
 });
+test("collision candidate reach includes component offsets inside the cluster template", () => {
+  const body = sceneSource.slice(sceneSource.indexOf("function maxCollisionReach()"), sceneSource.indexOf("function detectCollision("));
+  assert.match(body, /template\.extent \* 1\.28/);
+  assert.match(body, /return shipRadius \+ maxClusterExtent \+ 0\.15/);
+});
+
 test("sector boundary candidates include both adjoining sectors", () => {
   const length = 180, reach = 4;
   const previous = 179.5, current = 180.5;
