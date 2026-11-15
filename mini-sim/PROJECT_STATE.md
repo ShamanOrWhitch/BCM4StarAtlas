@@ -3,6 +3,15 @@
 Рабочая память разделена. Идеи: `JOURNAL_IDEAS.md`. Баги: `JOURNAL_BUGS.md`. Комплектация мини-игр: `JOURNAL_KIT.md`.
 Проверка больше не замораживает правки. Версия игры от этого не менялась: Mini-Sim `0.14.6`, Tower `0.2.80`, HEAD на момент записи журналов `129ad52`.
 
+## Patch — Mini-Sim 0.15.1: Mierese facing, asteroid field in open space (15 November 2026)
+
+- **WORK LOCK:** [#119](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/119). Fix `acd8b21`. Decision D-058. BUG-001 fixed again, BUG-004 `FIXED`; new BUG-005 (First Planet 3D character), IDEA-013 (desert entry video).
+- **Owner flight on live 0.15.0 before this patch:** live page verified as 0.15.0 / Tower 0.2.83; deep-space field with red impact glow USER-CONFIRMED; rocks missing at the asteroid landing; Mierese mirrored wrong; walk of the First Planet 3D body weak.
+- **Local:** regression 154/154, Tower suites 34/34. Edge transitions QA: 1 PASS, 2 timeouts in different steps (baseline 9b08f8f: 1 PASS) — CI decides.
+- **Not verified yet:** CI for this SHA, Warp arrival flown in a browser, live site.
+
+---
+
 ## Release — Mini-Sim 0.15.0 / Tower 0.2.83: crew legs, Crew Lab, Dr Fable automation, 0.15 rules line (15 November 2026)
 
 - **WORK LOCK:** [#118](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/118). Legs `56be8d6`; automation `6512a33`; release `b91f368`. Decision D-057. BUG-003 `FIXED`.
