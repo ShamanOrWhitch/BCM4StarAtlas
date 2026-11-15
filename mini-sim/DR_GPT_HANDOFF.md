@@ -1,14 +1,24 @@
 # DR.GPT — инженерная передача BCM4StarAtlas
 
-Дата сверки: 14 ноября 2026  
+Дата сверки: 15 ноября 2026  
 Репозиторий: https://github.com/ShamanOrWhitch/BCM4StarAtlas  
 Рабочая ветка по прямому указанию владельца: main  
-Проверенный HEAD на 14 ноября 2026: 92e1ea608bc8fce09ed5b9ffe1705825d7919320  
-Текущие версии из исходников: Mini-Sim 0.14.0; Tower 0.2.79.
+Последний проверенный кодовый HEAD Mini-Sim 0.14.5: 5531d75995ac618038ba87bf1ac26607036cb22e  
+Текущие версии из исходников: Mini-Sim 0.14.5; Tower 0.2.80.
 
 Этот документ — долговременная передача контекста для GPT, SYNTX, Grok и других AI-агентов проекта. Он не заменяет сверку актуального кода, Git-коммитов, Issues и PR перед каждой задачей. При расхождении этого документа с более свежим прямым указанием владельца приоритет имеет указание владельца; при расхождении с текущим кодом приоритет имеет код и Git-история.
 
 **Каноническое руководство по лидерству и оркестрации:** `mini-sim/DR_FABLE_PLAYBOOK.md`. Dr Fable начинает с него; DR GPT, Grok, Einstein и другие исполнители используют его роли и формат work packets.
+
+---
+
+## Актуальное дополнение — Mini-Sim 0.14.5 (15 ноября 2026)
+
+- WORK LOCK [#113](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/113); runtime commit [a179209](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/a179209e89466e73d6170f62b1a0f2f089fd2530); version-test correction [5531d75](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/5531d75995ac618038ba87bf1ac26607036cb22e).
+- Warp now has a pure CPU odometer/planner and an eight-slot Three.js r128 scene manager. Odometer samples actual ship position after host physics/collision relative to the ONICSS station origin. The signed along-track `traveled` projection is the only sector-coordinate input; sector number is derived with floor.
+- All sector layouts and instance matrices are prepared on CPU. The existing WebGL renderer only renders instanced asteroid cluster geometry. Eight slots stay bounded; shared templates are retained through slot eviction.
+- TESTED-CODE: Mini-Sim regression 132/132, Tower source-contract 34/34, UI Layer/Tower top-cap PASS. Package build PASS, artifact #14158154252. Standalone Chromium smoke is FAIL due a single HTTP 500 console resource error although 24 functional assertions passed; it does not currently test new sector streaming during 3D Deep Space flight.
+- No browser-reload persistence, production deployment, live WordPress test or manual hardware confirmation is claimed. Preserve AUDIO FREEZE and all protected scopes.
 
 ---
 

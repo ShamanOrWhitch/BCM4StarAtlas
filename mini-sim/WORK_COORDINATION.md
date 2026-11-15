@@ -12,8 +12,19 @@
 - **AUDIO FREEZE:** никакой новой работы со звуком, музыкой, OST, эффектами, голосами или аудиосистемой. Существующие файлы/код не удалять; аудио-части старых задач исключать из scope.
 - **Protected scope:** не менять wordpress/galia-desk, scanner/pricing, firewall/security, production WordPress, wallet writes и SAGE transactions без отдельного прямого разрешения.
 - **Live QA:** automatic live WordPress test для walkingyog.com/bcm4sa отключён владельцем. Не восстанавливать, не обходить защиту и не повторять 403 URL. Source/regression и standalone local browser QA сохранить.
-- **Baseline при сверке:** линия правил `0.14`; текущий исходник Mini-Sim `0.14.3`; Tower `0.2.79`. Запись про 0.14.0 ниже — история той волны, не потолок версии. Перед записью всегда сверять актуальный `main` HEAD.
+- **Baseline при сверке:** линия правил `0.14`; текущий исходник Mini-Sim `0.14.5`; Tower `0.2.80`. Запись про 0.14.0 ниже — история той волны, не потолок версии. Перед записью всегда сверять актуальный `main` HEAD.
 - **Render:** корневой render.yaml использует main и autoDeployTrigger: commit; commit в main может запустить деплой, в том числе документационный.
+
+## Completed — WORK LOCK #113: Mini-Sim 0.14.5 CPU Warp sector ring (15 November 2026)
+
+- Runtime commit [a179209](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/a179209e89466e73d6170f62b1a0f2f089fd2530); follow-up version-test correction [5531d75](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/5531d75995ac618038ba87bf1ac26607036cb22e).
+- Added a THREE-independent CPU odometer/planner and an r128 scene manager. Eight fixed slots, two trailing/five leading, signed sector numbers, deterministic layouts, 5% cache-anchor hysteresis. Sampling uses the real post-physics ship position and ONICSS station origin. CPU handles all sector math and instance matrices; GPU only renders.
+- Six existing asteroid cluster GLBs are loaded once and shared across slots. Evicting a slot disposes only its owned InstancedMesh buffers; shared template geometry/material/texture resources remain alive.
+- Mini-Sim version 0.14.5; Tower remains 0.2.80. No edits to Tube timing, controls, audio, Tower gameplay, wallet/SAGE, Galia Desk, firewall or production WordPress.
+- **PASS:** Mini-Sim regression 132/132 [#43706031614](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43706031614); Tower source-contract 34/34 [#43706031601](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43706031601); UI Layer [#43705950468](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43705950468); Tower top-cap [#43705950444](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43705950444); package/First Planet build [#43705950523](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43705950523), artifact #14158154252.
+- **Browser limitation:** standalone Chromium [#43705950483](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43705950483) marked FAIL from one HTTP 500 console resource error despite 24/24 functional assertions returning true and no page errors/failed requests. It did not exercise the new sector manager in a 3D Deep Space flight. No live WP/manual play test is claimed.
+
+---
 
 ## Completed — WORK LOCK #112: Mini-Sim 0.14.0 first gameplay corrections (14 November 2026)
 

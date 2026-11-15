@@ -1,3 +1,18 @@
+## D-051 — CPU Warp odometer and fixed eight-slot sector residency (15 November 2026)
+
+**Status:** IMPLEMENTED / TESTED-CODE on `main` for Mini-Sim 0.14.5. WORK LOCK [#113](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/113). Runtime commit [a179209](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/a179209e89466e73d6170f62b1a0f2f089fd2530).
+
+- Keep one CPU odometer: ONICSS world origin, current ship displacement (`drift`), signed along-route projection (`traveled`), and derived sector `floor(traveled / 180)`. Never use the Canvas Tube `tubeTravel` clock as a world coordinate.
+- Residency uses a fixed eight-slot ring: anchor−2 through anchor+5. Absolute sector numbers map with positive modulo; content seed derives from run seed + sector number, never physical slot index. A 5% hysteresis applies only to the cache anchor, not to odometer coordinates or the true sector number.
+- CPU computes seeded asteroid placements and all `InstancedMesh` matrices. The existing local Three.js r128 renderer only renders them; do not add GPU compute or custom shaders for sector calculations.
+- Each slot owns its root and instance buffer. Shared GLB geometry/material/embedded textures are held by the scene manager and are never disposed when a slot is evicted. Manager shutdown releases those shared templates before generic Mini-Sim scene disposal.
+- Use one InstancedMesh per slot with three instances of one of six already-committed `asteroid_clusters_v2` assets. ONICSS and the existing background planet are not recreated when sectors change.
+- The runtime hook samples final ship position after physics/collision in the host loop. It applies only during exterior Deep Space flight. Controls, speed/collision course, Tube visuals/timing, audio, Tower, SAGE, wallet and production WordPress are out of scope.
+- **Verification:** Mini-Sim 132/132, Tower source contract 34/34, UI Layer and Tower top-cap checks PASS; package build PASS, artifact #14158154252. Standalone Chromium functional assertions all passed but its workflow is marked FAIL by one HTTP 500 console resource error; it did not test the new sector scene during a live 3D flight. No production/live/manual hardware verification.
+- No full-page reload persistence was introduced; after reload the scene manager reinitializes from the engine-provided ship position and current ONICSS origin. Sector length 180 world units and 5% hysteresis are initial implementation values for later flight tuning.
+
+---
+
 ## D-050 — Mini-Sim 0.14.0 restores Warp motion and removes manual arrival confirmation (14 November 2026)
 
 **Status:** Implemented in main from the owner's played Mini-Sim 0.12.13 baseline.
