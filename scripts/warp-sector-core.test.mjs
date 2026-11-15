@@ -23,7 +23,7 @@ const layoutOptions = {
 };
 
 test("Warp sector CPU module selfTest is clean without browser or THREE", () => {
-  assert.deepEqual(Core.selfTest(), []);
+  assert.equal(Core.selfTest().length, 0);
 });
 test("3/4 sector window still contains exactly eight unique physical slots", () => {
   const state = Core.createWindowState();
@@ -164,7 +164,7 @@ test("sector boundary candidates include both adjoining sectors", () => {
 });
 test("scene adapter selfTest works without THREE or document", () => {
   const { api: Scene, globals } = loadUmd(sceneSource, { BCMWarpSectorCore: Core });
-  assert.deepEqual(Scene.selfTest(), []);
+  assert.equal(Scene.selfTest().length, 0);
   assert.equal(Scene.SLOT_COUNT, 8);
   assert.equal(globals.BCMWarpSectorScene, Scene);
 });
@@ -199,7 +199,7 @@ test("Mini-Sim invokes sector collision after physics and reuses existing impact
   const call = hostSource.slice(sectorIndex, hostSource.indexOf("});", sectorIndex) + 3);
   assert.match(call, /onCollision:\s*\(contact\)\s*=>/);
   assert.match(call, /triggerCollisionImpact\(contact\.force\)/);
-  assert.match(call, /sectorFrameResult\.collision/);
+  assert.match(hostSource, /if \(sectorFrameResult && sectorFrameResult\.collision && ship\.position\)/);
   assert.match(hostSource, /0\.14\.6/);
   assert.match(phpSource, /Version: 0\.14\.6/);
   assert.match(phpSource, /BCM_MINI_SIM_VERSION', '0\.14\.6'/);
