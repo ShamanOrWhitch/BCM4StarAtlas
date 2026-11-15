@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crew Lab</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #070b10; color: #cfe3ee; font: 13px/1.4 system-ui, sans-serif; }
+  #bar { position: fixed; left: 0; right: 0; top: 0; padding: 8px 12px; display: flex; gap: 12px; align-items: center; background: #0d141c; border-bottom: 1px solid #1d2b38; z-index: 2; }
+  #bar label { display: flex; gap: 4px; align-items: center; }
+  #stage { position: fixed; inset: 40px 0 0 0; }
+  #labels { position: fixed; left: 0; right: 0; bottom: 8px; display: grid; grid-template-columns: repeat(6, 1fr); text-align: center; pointer-events: none; }
+  #labels small { display: block; color: #7f97a6; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <b>Crew Lab</b>
+  <span>crew-core + crew-rig, реальные NFT</span>
+  <label><input type="checkbox" id="walk" checked> идти</label>
+  <label><input type="checkbox" id="left"> влево</label>
+  <label><input type="checkbox" id="pause"> пауза</label>
+  <span id="status">загрузка…</span>
+</div>
+<div id="stage"></div>
+<div id="labels"></div>
+<script src="../../mini-sim/assets/js/three.min.js"></script>
+<script src="../../mini-sim/assets/js/crew-rig.js"></script>
+<script src="../../mini-sim/assets/js/crew-core.js"></script>
+<script>
+/* Developer harness, not shipped in the plugin. One Crew per race, cut out and
+   posed by crew-core exactly as the levels do. ?phase=0.25 freezes every Crew
+   at that walk phase (screenshots for acceptance); ?dir=-1 walks left. */
+(function () {
+  const crew = [
+    { name: "Arlinasija Otheelkorgar", species: "Profound Punaab", sex: "Male", image: "https://cdn.staratlas.com/crew/v1/565475_full.jpeg" },
+    { name: "Enyavana Aatiocenothea", species: "High Punaab", sex: "Female", image: "https://cdn.staratlas.com/crew/v1/1369091_full.jpeg" },
+    { name: "Crudzor Lexi Eko", species: "Mierese", sex: "Female", image: "https://cdn.staratlas.com/crew/v1/1011784_full.jpeg" },
+    { name: "Lilara Outro", species: "Sogmian", sex: "Female", image: "https://cdn.staratlas.com/crew/v1/1022097_full.jpeg" },
+    { name: "Moon Naima", species: "Human", sex: "Female", image: "https://cdn.staratlas.com/crew/v1/63545_full.jpeg" },
+    { name: "Qrilt .idtt", species: "Ustur", sex: "", image: "https://cdn.staratlas.com/crew/v1/723352_full.jpeg" }
+  ];
+  const params = new URLSearchParams(location.search);
+  const fixedPhase = params.has("phase") ? Number(params.get("phase")) : null;
+  const useLegs = params.get("legs") !== "0";
+  if (params.get("dir") === "-1") document.getElementById("left").checked = true;
+
+  const stage = document.getElementById("stage");
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  stage.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a1118);
+  const camera = new THREE.OrthographicCamera(-6.4, 6.4, 2.6, -0.9, 0.1, 50);
+  camera.position.set(0, 0, 10);
+
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(14, 0.04), new THREE.MeshBasicMaterial({ color: 0x2f4a5c }));
+  floor.position.set(0, 0, -1);
+  scene.add(floor);
+
+  const actors = crew.map((c, index) => {
+    const texture = window.BCMCrewCore.requestCrewTexture(THREE, c.image);
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, alphaTest: 0.035, depthWrite: false }));
+    sprite.center.set(0.5, 0);
+    sprite.visible = false;
+    scene.add(sprite);
+    const shins = [0, 1].map(() => {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, alphaTest: 0.035, depthWrite: false }));
+      s.center.set(0.5, 1);
+      s.visible = false;
+      scene.add(s);
+      return s;
+    });
+    return { crew: c, index, texture, sprite, shins, parts: null, x: -5.3 + index * 2.12, measurement: null };
+  });
+
+  const labels = document.getElementById("labels");
+  labels.style.gridTemplateColumns = "repeat(6, 1fr)";
+  labels.innerHTML = crew.map((c) => "<div>" + c.species + "<small>" + c.name + "</small></div>").join("");
+
+  function resize() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    renderer.setSize(w, h);
+    // Fit all six Crew across the width; keep the floor near the bottom.
+    const halfW = 6.5, aspect = w / Math.max(1, h), viewH = (halfW * 2) / aspect;
+    camera.left = -halfW; camera.right = halfW;
+    camera.bottom = -0.35; camera.top = -0.35 + viewH;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  const lab = window.__crewLab = { ready: false, failed: [], measurements: {}, frames: 0 };
+  Promise.allSettled(actors.map((a) => a.texture.bcmCrewReady)).then((results) => {
+    results.forEach((r, i) => {
+      const a = actors[i];
+      if (r.status !== "fulfilled") { lab.failed.push(a.crew.species + ": " + (r.reason && r.reason.message)); return; }
+      const canvas = a.texture.image;
+      const px = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+      a.measurement = window.BCMCrewCore.measureLegGap(px, canvas.width, canvas.height, a.crew.species);
+      lab.measurements[a.crew.species] = a.measurement;
+      // Crew assembly by the core: body + two shins when the legs are separable.
+      a.parts = useLegs ? window.BCMCrewCore.crewLegParts(THREE, a.texture, a.crew.species) : null;
+      if (a.parts && a.parts.splittable) {
+        a.sprite.material.map = a.parts.bodyTexture;
+        a.sprite.material.needsUpdate = true;
+        a.shins.forEach((s, i) => { s.material.map = a.parts.shinTextures[i]; s.material.needsUpdate = true; s.visible = true; });
+      }
+      a.sprite.visible = true;
+    });
+    lab.ready = true;
+    document.getElementById("status").textContent = lab.failed.length ? "ошибки: " + lab.failed.join("; ") : "готово";
+  });
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = document.getElementById("pause").checked ? 0 : Math.min(0.05, (now - last) / 1000);
+    last = now;
+    const walking = document.getElementById("walk").checked;
+    const direction = document.getElementById("left").checked ? -1 : 1;
+    for (const a of actors) {
+      if (!a.sprite.visible) continue;
+      const img = a.texture.image;
+      const height = 2.0;
+      const width = Math.min(1.9, height * img.width / Math.max(1, img.height));
+      a.sprite.scale.set(width, height, 1);
+      a.sprite.userData.bcmBaseScale = { x: width, y: height };
+      if (fixedPhase !== null) a.sprite.userData.bcmWalkPhase = fixedPhase;
+      const pad = Number(a.texture.userData.bcmCutoutFeetPadRatio || 0) * height;
+      window.BCMCrewCore.applyPlatformSprite(a.sprite, {
+        crew: a.crew, direction, facing: direction, moving: walking, grounded: true, vy: 0, index: a.index, y: -pad
+      }, fixedPhase !== null ? 0 : dt);
+      a.sprite.position.x = a.x;
+      const pose = a.sprite.userData.bcmLastPose;
+      const layout = window.BCMCrewCore.crewFigureLayout(a.parts, pose);
+      if (layout) {
+        layout.shins.forEach((s, i) => {
+          const shin = a.shins[i];
+          const map = shin.material.map;
+          if (map) { map.wrapS = 1000; map.repeat.x = layout.mirror < 0 ? -1 : 1; map.offset.x = layout.mirror < 0 ? 1 : 0; }
+          shin.position.set(a.x + s.x * width * pose.scaleX, a.sprite.position.y + s.top * height * pose.scaleY, 0.01);
+          shin.scale.set(s.width * width * pose.scaleX, s.height * height * pose.scaleY, 1);
+          shin.material.rotation = s.rotation;
+        });
+      }
+    }
+    renderer.render(scene, camera);
+    lab.frames += 1;
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

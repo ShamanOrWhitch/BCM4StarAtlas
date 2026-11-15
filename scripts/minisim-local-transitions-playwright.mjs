@@ -67,7 +67,7 @@ await mkdir(outputDir, { recursive: true });
 let browser;
 let page;
 try {
-  browser = await chromium.launch({ headless: !argv.includes("--headed") });
+  browser = await chromium.launch({ headless: !argv.includes("--headed"), channel: process.env.BCM_QA_BROWSER_CHANNEL || undefined });
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     ignoreHTTPSErrors: false

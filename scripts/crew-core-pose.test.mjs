@@ -101,3 +101,59 @@ test("levels only pass direction and dt; crew-rig loads before crew-core everywh
   const shell = await read("tools/minisim-qa/standalone-shell.html");
   assert.ok(shell.indexOf("crew-rig.js") > 0 && shell.indexOf("crew-rig.js") < shell.indexOf("crew-core.js"), "standalone shell does not load crew-rig before crew-core");
 });
+
+// ---------- 0.15.0: legs (BUG-003) — crew-core assembles body + two shins ----------
+
+function figurePixels(w, h, { gap = 10, shadow = false, robeSlit = 0 } = {}) {
+  const px = new Uint8ClampedArray(w * h * 4);
+  const mid = Math.floor(w / 2);
+  for (let y = 0; y < h; y++) for (let x = 8; x < w - 8; x++) {
+    const legs = y > h * 0.5;
+    const slit = robeSlit ? Math.abs(x - mid) < robeSlit / 2 : Math.abs(x - mid) < gap / 2;
+    const between = legs && slit;
+    const floor = shadow && y > h * 0.95;
+    if (!between || floor) px[(y * w + x) * 4 + 3] = 255;
+  }
+  return px;
+}
+
+test("measureLegGap: separate legs split, robe and touching legs do not, floor shadow does not hide the gap", async () => {
+  const { core } = await loadCore();
+  const open = core.measureLegGap(figurePixels(60, 120, { gap: 12 }), 60, 120, "Human");
+  assert.equal(open.splittable, true, JSON.stringify(open));
+  assert.ok(Math.abs(open.gapCenter - 0.5) < 0.05, "gap centre between the legs");
+  const shadowed = core.measureLegGap(figurePixels(60, 120, { gap: 12, shadow: true }), 60, 120, "Human");
+  assert.equal(shadowed.splittable, true, "floor shadow under the feet closed the gap");
+  const robe = core.measureLegGap(figurePixels(60, 120, { robeSlit: 4 }), 60, 120, "High Punaab");
+  assert.equal(robe.splittable, false, "a narrow robe slit must not cut the hem in two");
+  const touching = core.measureLegGap(figurePixels(60, 120, { gap: 0 }), 60, 120, "Human");
+  assert.equal(touching.splittable, false);
+});
+
+test("crewFigureLayout: shins step in opposite phases, swing from the knee and swap sides when mirrored", async () => {
+  const { core } = await loadCore();
+  const parts = { splittable: true, shinCenters: [-0.2, 0.2], shinWidths: [0.5, 0.5], shinTop: 0.7, shinHeight: 0.3 };
+  const at = (phase, direction) => {
+    const state = { bcmWalkPhase: phase };
+    const pose = core.crewSpritePose({ crew: crew("Human"), direction, moving: true, grounded: true, vy: 0, index: 0 }, 0, state);
+    return core.crewFigureLayout(parts, pose);
+  };
+  const a = at(0, 1), b = at(0.5, 1);
+  assert.ok(a.shins[0].top > a.shins[1].top, "left foot lifted at phase 0");
+  assert.ok(b.shins[1].top > b.shins[0].top, "right foot lifted half a stride later");
+  assert.notEqual(at(0.25, 1).shins[0].rotation, 0, "shin does not swing");
+  assert.equal(Math.sign(at(0.25, 1).shins[0].rotation), -Math.sign(at(0.75, 1).shins[0].rotation), "swing does not reverse");
+  const mirrored = at(0.25, -1 * (core.facingFactor("Human") < 0 ? -1 : 1));
+  const plain = at(0.25, core.facingFactor("Human") < 0 ? -1 : 1);
+  assert.equal(mirrored.shins[0].x, -plain.shins[0].x, "mirroring must swap shin sides");
+  assert.equal(core.crewFigureLayout({ splittable: false }, at(0, 1) && core.crewSpritePose({ crew: crew("Human"), direction: 1, moving: true }, 0, {})), null);
+});
+
+test("Tower shows two crew-core shins instead of a hidden leg slot (BUG-003)", async () => {
+  const tower = await read("mini-sim/tower/assets/js/tower.js");
+  assert.match(tower, /const legs = \[0, 1\]\.map\(\(\) => \{/);
+  assert.match(tower, /window\.BCMCrewCore\.crewLegParts\(THREE, texture, playerCrewProfiles\[index\]\?\.species\)/);
+  assert.match(tower, /window\.BCMCrewCore\.crewFigureLayout\(legParts, crewPose\)/);
+  assert.doesNotMatch(tower, /if \(legs\) legs\.visible = false;/, "legs are still hidden every frame");
+  assert.doesNotMatch(tower, /splitCrewLegs/, "the empty Tower leg stub is still there");
+});

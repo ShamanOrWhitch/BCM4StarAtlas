@@ -33,6 +33,137 @@
     return { species, sex, motion: speciesMotion(species, sex), facingFactor: facingFactor(species) };
   }
 
+  /* Can the legs of this cut-out be drawn as two separate parts?
+     Scans the shin band (knee → feet) of the finished cut-out for a vertical
+     gap of transparent columns between the two legs. Front-facing NFT art
+     often has the legs touching; then the rig keeps one leg sprite.
+     pixels: RGBA of the cut-out canvas. Returns pixel and ratio measurements. */
+  function measureLegGap(pixels, width, height, species) {
+    const w = Math.max(1, Math.floor(Number(width) || 0));
+    const h = Math.max(1, Math.floor(Number(height) || 0));
+    if (!pixels || pixels.length < w * h * 4) return null;
+    const rig = window.BCMCrewRig;
+    const cut = rig ? rig.rigProfile(species).cut : { knee: 0.73 };
+    // Shins only: the feet band often keeps the floor shadow from the NFT
+    // render, which would bridge the gap between the feet.
+    const y0 = Math.round(cut.knee * (h - 1));
+    const y1 = Math.round(0.92 * (h - 1));
+    const rows = Math.max(1, y1 - y0 + 1);
+    const filled = new Array(w).fill(false);
+    const body = new Array(w).fill(false);
+    for (let x = 0; x < w; x += 1) {
+      let opaque = 0;
+      for (let y = y0; y <= y1; y += 1) if (pixels[(y * w + x) * 4 + 3] >= 24) opaque += 1;
+      body[x] = opaque > 0;
+      // A column between the legs is open when it is see-through on most rows.
+      filled[x] = opaque / rows > 0.3;
+    }
+    const left = body.indexOf(true);
+    const right = body.lastIndexOf(true);
+    if (left < 0) return { width: w, height: h, bandY0: y0 / h, bandY1: y1 / h, gapPx: 0, gapRatio: 0, gapCenter: 0.5, splittable: false };
+    let best = 0;
+    let bestStart = -1;
+    for (let x = left, run = 0; x <= right; x += 1) {
+      run = filled[x] ? 0 : run + 1;
+      if (run > best) {
+        best = run;
+        bestStart = x - run + 1;
+      }
+    }
+    const legsWidth = right - left + 1;
+    return {
+      width: w,
+      height: h,
+      bandY0: y0 / h,
+      bandY1: y1 / h,
+      legsLeft: left / w,
+      legsRight: (right + 1) / w,
+      gapPx: best,
+      gapRatio: best / Math.max(1, legsWidth),
+      gapCenter: best ? (bestStart + best / 2) / w : 0.5,
+      // A robe or long coat leaves only a narrow slit; cutting it makes the hem
+      // swing in two halves. Split only clearly separate legs (Crew Lab, 0.15.0:
+      // High Punaab robe 8%, other races 23–34%).
+      splittable: best >= 4 && best / Math.max(1, legsWidth) >= 0.15
+    };
+  }
+
+  /* Crew assembly: body + two shins cut from the finished cut-out, so the rig
+     can step each leg. Thighs stay in the body; the shins hang from the knee
+     line and overlap it a little to hide the seam. Returns { splittable:false }
+     when the art has no gap between the legs (one-piece figure as before).
+     Cached on the texture; call after bcmCutoutReady. */
+  const LEG_SEAM_OVERLAP = 0.035;
+
+  function cropToCanvas(source, sx, sy, sw, sh) {
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, sw);
+    canvas.height = Math.max(1, sh);
+    canvasContext(canvas).drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
+    return canvas;
+  }
+
+  function crewLegParts(THREE, texture, species) {
+    THREE = THREE || window.THREE;
+    const data = texture && texture.userData;
+    if (!data || !data.bcmCutoutReady || !texture.image || !texture.image.getContext) return null;
+    if (data.bcmLegParts && data.bcmLegParts.image === texture.image) return data.bcmLegParts;
+    const source = texture.image;
+    const w = source.width;
+    const h = source.height;
+    const pixels = canvasContext(source).getImageData(0, 0, w, h).data;
+    const measurement = measureLegGap(pixels, w, h, species);
+    let parts = { image: source, splittable: false, measurement: measurement };
+    if (measurement && measurement.splittable && THREE && THREE.CanvasTexture) {
+      const rig = window.BCMCrewRig;
+      const kneeY = rig ? rig.rigProfile(species).cut.knee : 0.73;
+      const knee = Math.round(kneeY * h);
+      const top = Math.max(0, knee - Math.round(LEG_SEAM_OVERLAP * h));
+      const split = Math.max(1, Math.min(w - 1, Math.round(measurement.gapCenter * w)));
+      const body = cropToCanvas(source, 0, 0, w, h);
+      canvasContext(body).clearRect(0, knee, w, h - knee);
+      const shinL = cropToCanvas(source, 0, top, split, h - top);
+      const shinR = cropToCanvas(source, split, top, w - split, h - top);
+      const tex = (canvas) => prepareCrewTexture(THREE, new THREE.CanvasTexture(canvas));
+      parts = {
+        image: source,
+        splittable: true,
+        measurement: measurement,
+        kneeY: kneeY,
+        shinTop: top / h,
+        bodyTexture: tex(body),
+        shinTextures: [tex(shinL), tex(shinR)],
+        // Fractions of the figure width/height.
+        shinWidths: [split / w, (w - split) / w],
+        shinCenters: [split / w / 2 - 0.5, (split + w) / w / 2 - 0.5],
+        shinHeight: (h - top) / h
+      };
+    }
+    data.bcmLegParts = parts;
+    return parts;
+  }
+
+  /* Where to draw each shin this frame, in fractions of the figure size,
+     measured from the feet (y up) and the figure centre (x right on screen).
+     pose: crewSpritePose(...) result. Mirroring swaps the sides. */
+  function crewFigureLayout(parts, pose) {
+    if (!parts || !parts.splittable || !pose || !pose.pose) return null;
+    const p = pose.pose;
+    const mirror = pose.face < 0 ? -1 : 1;
+    const side = (i) => {
+      const lift = i ? p.liftR : p.liftL;
+      return {
+        x: parts.shinCenters[i] * mirror,
+        top: 1 - parts.shinTop + lift,
+        width: parts.shinWidths[i],
+        height: parts.shinHeight * (i ? p.scaleR : p.scaleL),
+        // Shin swings from the knee: forward through the stride, back on push-off.
+        rotation: -(i ? p.hipR : p.hipL) * 0.45 * mirror
+      };
+    };
+    return { shins: [side(0), side(1)], mirror: mirror };
+  }
+
   /* Which way the cut-out must be drawn. `direction` is where the Crew moves on
      screen (+1 right, -1 left). The NFT art itself is turned: Mierese art looks
      one way, every other race the other (facingFactor). One rule for every
@@ -87,6 +218,9 @@
     if (!sprite || !actor) return 0;
     const data = sprite.userData || (sprite.userData = {});
     const pose = crewSpritePose(actor, dt !== undefined ? dt : actor.dt, data);
+    // Kept so a level can lay out the shins (crewFigureLayout) without
+    // advancing the walk a second time this frame.
+    data.bcmLastPose = pose;
     const map = sprite.material && sprite.material.map;
     if (map) {
       map.wrapS = 1000;
@@ -507,6 +641,9 @@
     applyPlatformSprite: applyPlatformSprite,
     crewFace: crewFace,
     crewSpritePose: crewSpritePose,
+    measureLegGap: measureLegGap,
+    crewLegParts: crewLegParts,
+    crewFigureLayout: crewFigureLayout,
     officialCrewCutoutUrl: officialCrewCutoutUrl,
     crewCutout: crewCutout,
     requestCrewTexture: requestCrewTexture,

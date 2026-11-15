@@ -48,7 +48,8 @@ try{
 report.handleAliases=[...handleMap.entries()].map(([requested,file])=>({requested,file}));
 let browser,page;
 try{
- browser=await chromium.launch({headless:!headed});
+ // BCM_QA_BROWSER_CHANNEL=msedge uses an installed Edge when Playwright's Chromium cannot be downloaded (local Windows).
+ browser=await chromium.launch({headless:!headed,channel:process.env.BCM_QA_BROWSER_CHANNEL||undefined});
  const context=await browser.newContext({viewport:{width:1440,height:900},ignoreHTTPSErrors:true});
  await context.addInitScript(()=>{
    window.__BCM_QA_MEDIA=new Set();window.__BCM_QA_MEDIA_EVENTS=[];

@@ -92,11 +92,6 @@
   // Crew background cutout lives in crew-core.js (BCMCrewCore.requestCrewTexture).
   // Tower only displays the texture it returns.
 
-  // BUG-003: leg split is not implemented; it belongs to Crew assembly in crew-core.js.
-  function splitCrewLegs() {
-    return;
-  }
-
   function assetTexture(url, renderer, options = {}) {
     if (!url || !window.THREE) return null;
     options = options && typeof options === "object" ? options : {};
@@ -1502,8 +1497,8 @@
         safeDispose(oldHalo);
       }
       while (playerLegSprites.length) {
-        const oldLeg = playerLegSprites.pop();
-        if (oldLeg) {
+        const oldLegs = playerLegSprites.pop();
+        for (const oldLeg of oldLegs || []) {
           scene.remove(oldLeg);
           safeDispose(oldLeg);
         }
@@ -1564,15 +1559,20 @@
           sprite.renderOrder = 3;
           scene.add(sprite);
           playerSprites.push(sprite);
-          const legs = new THREE.Sprite(new THREE.SpriteMaterial({
-            transparent: true,
-            depthWrite: false,
-            sizeAttenuation: true
-          }));
-          legs.visible = false;
-          legs.center.set(0.5, 1);
-          legs.renderOrder = 4;
-          scene.add(legs);
+          // Two shins hang from the knee; crew-core cuts them from the Crew
+          // and steps them with the walking rig (BUG-003). Hidden until ready.
+          const legs = [0, 1].map(() => {
+            const shin = new THREE.Sprite(new THREE.SpriteMaterial({
+              transparent: true,
+              depthWrite: false,
+              sizeAttenuation: true
+            }));
+            shin.visible = false;
+            shin.center.set(0.5, 1);
+            shin.renderOrder = 4;
+            scene.add(shin);
+            return shin;
+          });
           playerLegSprites.push(legs);
         } else {
           playerSprites.push(null);
@@ -2234,6 +2234,16 @@
       }
 
       sprite.center.set(0.5, 0);
+      // crew-core assembles the figure: when the legs are separable the body
+      // loses its shins and two shin sprites step under it.
+      const legParts = window.BCMCrewCore && window.BCMCrewCore.crewLegParts
+        ? window.BCMCrewCore.crewLegParts(THREE, texture, playerCrewProfiles[index]?.species)
+        : null;
+      const wantedBody = legParts && legParts.splittable ? legParts.bodyTexture : texture;
+      if (sprite.material && wantedBody && sprite.material.map !== wantedBody) {
+        sprite.material.map = wantedBody;
+        sprite.material.needsUpdate = true;
+      }
       const map = sprite.material && sprite.material.map;
       const face = p.visualFacing || 1;
       if (map) {
@@ -2257,7 +2267,33 @@
       // Tower shows a smaller roll than the side-view levels; the sign follows the mirror.
       if (sprite.material) sprite.material.rotation = crewPose.rotation * face * 0.35;
       const legs = playerLegSprites[index];
-      if (legs) legs.visible = false;
+      const layout = window.BCMCrewCore && window.BCMCrewCore.crewFigureLayout
+        ? window.BCMCrewCore.crewFigureLayout(legParts, crewPose)
+        : null;
+      if (legs) {
+        legs.forEach((shin, side) => {
+          const part = layout && layout.shins[side];
+          shin.visible = !!part && sprite.visible;
+          if (!part) return;
+          if (shin.material.map !== legParts.shinTextures[side]) {
+            shin.material.map = legParts.shinTextures[side];
+            shin.material.needsUpdate = true;
+          }
+          const shinMap = shin.material.map;
+          shinMap.wrapS = THREE.RepeatWrapping;
+          shinMap.repeat.x = layout.mirror < 0 ? -1 : 1;
+          shinMap.offset.x = layout.mirror < 0 ? 1 : 0;
+          // Screen-right on the Tower wall is the direction of growing angle.
+          const along = part.x * spriteWidth * crewPose.scaleX;
+          shin.position.set(
+            x + Math.cos(a) * along,
+            feetY + part.top * spriteHeight * crewPose.scaleY,
+            z - Math.sin(a) * along
+          );
+          shin.scale.set(part.width * spriteWidth * crewPose.scaleX, part.height * spriteHeight * crewPose.scaleY, 1);
+          shin.material.rotation = part.rotation;
+        });
+      }
     }
     function updateCamera(index, viewport) {
       const p = players[index];
