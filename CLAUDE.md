@@ -27,7 +27,9 @@
 - Не добавлять тяжёлые библиотеки/ассеты, второй WebGL-контекст; не менять публичные события, API и WordPress-контракт без задачи.
 - Не создавать ZIP внутри артефакта Actions (см. §0 `mini-sim/AGENTS.md`).
 - Только `main`: без feature-веток и новых PR. Ветки `backup/*` — архив.
-- Каждый push в `main` может запустить автодеплой Render (`render.yaml`), даже документационный.
+- Каждый push в `main` запускает автодеплой Render (`render.yaml`: `branch: main`, `autoDeployTrigger: commit`), даже документационный. Это сервис `bcm4staratlas` — корневое приложение Galia (`npm run build`, free plan), **не** WordPress на walkingyog.com. Так работает каждый коммит любого агента. Пушить реже: копить мелкие правки в один push.
+- Запрещённые команды (уничтожают незакоммиченное): `git reset --hard`, `git checkout .`, `git restore .`, `git clean`; не амендить запушенное. Перед стартом проверять `git status --short` — чужое незакоммиченное не трогать.
+- Версия поднимается только после зелёных тестов, не перед правкой: тогда «откатить в 0.14.6» всегда означает рабочую сборку.
 
 Правки путей `wordpress/galia-desk/**` и аудиофайлов запрещены в `.claude/settings.json`.
 
@@ -35,7 +37,8 @@
 
 | Что | Команда |
 |---|---|
-| Регрессия Mini-Sim (как в CI) | `npm run test:minisim` |
+| Регрессия Mini-Sim **ровно как в CI** (синтаксис + 10 файлов, 139 тестов на `737ac88`) | `node .claude/tools/regression.mjs` |
+| Узкий набор (6 файлов, 62 теста — не равен CI) | `npm run test:minisim` |
 | Браузерный standalone QA (Chromium) | `npm run qa:minisim:standalone` |
 | Только переходы | `npm run qa:minisim:transitions:standalone` |
 | Один тест | `node --test scripts/<name>.test.mjs` |
@@ -48,7 +51,7 @@
 
 - `gh` CLI не установлен (нет winget). GitHub API — через `.claude/tools/gh.mjs`, токен берётся из Git Credential Manager; если его нет — `git credential-manager github login`.
 - Git с OpenSSL падает на сертификате (`unable to get local issuer certificate`). В локальном конфиге стоит `http.sslBackend=schannel` и `core.longpaths=true` — не убирать.
-- Системный git ставит `core.autocrlf=true`; с CRLF регэкспы в `scripts/minisim-local-qa.test.mjs` падают (тест «Warp OST…»). В этом клоне `core.autocrlf=false`, `core.eol=lf` — с ними `npm run test:minisim` даёт 62/62, как в CI.
+- Системный git ставит `core.autocrlf=true`; с CRLF регэкспы в `scripts/minisim-local-qa.test.mjs` падают (тест «Warp OST…»). В этом клоне `core.autocrlf=false`, `core.eol=lf` — с ними `npm run test:minisim` даёт 62/62, а `regression.mjs` 139/139, как в CI. Настройки только локальные (`.git/config`); глобальные и системные не менялись.
 - Python не установлен: скрипты `*.py` в `mini-sim/assets/**` локально не запускаются.
 - Bash-инструмент — Git Bash; PowerShell 5.1 без `&&`.
 

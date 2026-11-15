@@ -3,6 +3,7 @@
   "permissions": {
     "allow": [
       "Bash(npm run test:minisim)",
+      "Bash(node .claude/tools/regression.mjs)",
       "Bash(npm run qa:minisim:standalone)",
       "Bash(npm run qa:minisim:transitions:standalone)",
       "Bash(npm run lint)",
@@ -36,7 +37,12 @@
       "Bash(git push -f:*)",
       "Bash(git checkout -b:*)",
       "Bash(git switch -c:*)",
-      "Bash(git reset --hard origin:*)"
+      "Bash(git reset --hard:*)",
+      "Bash(git checkout .:*)",
+      "Bash(git checkout -- .:*)",
+      "Bash(git restore .:*)",
+      "Bash(git clean:*)",
+      "Bash(git commit --amend:*)"
     ]
   },
   "hooks": {
