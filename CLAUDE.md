@@ -43,12 +43,18 @@
 | Только переходы | `npm run qa:minisim:transitions:standalone` |
 | Один тест | `node --test scripts/<name>.test.mjs` |
 | Линт | `npm run lint` |
-| WORK LOCK / Issues / Actions | `node .claude/tools/gh.mjs` (без аргументов — справка) |
+| WORK LOCK / Issues / Actions / артефакты | `node .claude/tools/gh.mjs` (без аргументов — справка) |
+| Доказательства по коммиту (формат Fable) | `node .claude/tools/evidence.mjs <sha> --since <sha> --md` |
+| Crew Lab: все расы на реальных NFT, кадры фаз шага, замер ног | `BCM_QA_BROWSER_CHANNEL=msedge node tools/crew-lab/shoot.mjs` → `.qa-artifacts/crew-lab/` |
+| Браузерный QA на этой машине | `BCM_QA_BROWSER_CHANNEL=msedge npm run qa:minisim:transitions:standalone` |
+
+Команды Claude Code: `/reconcile`, `/bug`, `/idea`, `/kit`, `/ci`, а для работы с Dr Fable — `/fable` (мост с чатом SYNTX), `/packet` (задание → WORK LOCK Issue), `/accept` (приёмка с доказательствами).
 
 `npm run dev` поднимает Galia (TanStack), **не** Mini-Sim.
 
 ## Особенности этой машины (Windows, G:\BCM4StarAtlas)
 
+- Playwright не может скачать свой Chromium (проверка сертификатов). Используется установленный Microsoft Edge: `BCM_QA_BROWSER_CHANNEL=msedge`.
 - `gh` CLI не установлен (нет winget). GitHub API — через `.claude/tools/gh.mjs`, токен берётся из Git Credential Manager; если его нет — `git credential-manager github login`.
 - Git с OpenSSL падает на сертификате (`unable to get local issuer certificate`). В локальном конфиге стоит `http.sslBackend=schannel` и `core.longpaths=true` — не убирать.
 - Системный git ставит `core.autocrlf=true`; с CRLF регэкспы в `scripts/minisim-local-qa.test.mjs` падают (тест «Warp OST…»). В этом клоне `core.autocrlf=false`, `core.eol=lf` — с ними `npm run test:minisim` даёт 62/62, а `regression.mjs` 139/139, как в CI. Настройки только локальные (`.git/config`); глобальные и системные не менялись.

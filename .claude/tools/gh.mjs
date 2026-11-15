@@ -126,6 +126,15 @@ switch (cmd) {
     });
     break;
   }
+  case "artifacts": {
+    if (!a1) fail("artifacts <runId>");
+    const d = await gh(`/repos/${REPO}/actions/runs/${a1}/artifacts?per_page=50`);
+    out(d.artifacts, (list) => {
+      if (!list.length) return console.log("(no artifacts)");
+      for (const x of list) console.log(`${x.name}  id=${x.id}  ${(x.size_in_bytes / 1e6).toFixed(1)} MB  https://github.com/${REPO}/actions/runs/${a1}/artifacts/${x.id}`);
+    });
+    break;
+  }
   case "log": {
     if (!a1) fail("log <jobId>");
     const text = await gh(`/repos/${REPO}/actions/jobs/${a1}/logs`, { raw: true });

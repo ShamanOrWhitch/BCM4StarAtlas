@@ -20,6 +20,5 @@ public/ships/
 
 # Claude Code personal overrides
 .claude/settings.local.json
+.claude/*.local.json
 
-# Crew Lab and QA screenshots
-.qa-artifacts/
