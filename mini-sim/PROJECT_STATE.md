@@ -9,7 +9,9 @@
 - **Galia (Render):** Fleet was empty after a cold start — Galaxy catalogue 10 s timeout and a market without ships cached for 2 min. Fixed: 30 s + last good catalogue, no caching of a ship-less market, loading/retry on the page. **Render still served the old bundle 30+ min after the push** (old text present, new absent) — Render deploy needs the owner's check.
 - **Mini-Sim:** Warp map from Galia data; red before: `local navigation still labelled as test-only`; after 3/3. Local Edge frames: ONI · Akenat card with the station on orbit, stars named and coloured.
 - **Local:** regression 157/157 (12/12 syntax), Tower suites 39/39.
-- **Not verified yet:** CI for this SHA, live site, MUD/Ustur cards by eye.
+- **CI PASS on `683826e`:** regression [#43761527398](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43761527398), Tower [#43761527361](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43761527361), standalone Chromium [#43761527318](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43761527318), UI Layer, package → [bcm-mini-sim-0.15.2-test](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43761527379/artifacts/14180696666).
+- **Render after this push:** still `index-CTMgKAKL.js`, Fleet fix absent — the Render service is not redeploying; #120 stays open.
+- **Not verified:** live site, MUD/Ustur cards by eye.
 
 ---
 
