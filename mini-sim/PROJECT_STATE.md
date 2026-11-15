@@ -8,7 +8,8 @@
 - **WORK LOCK:** [#119](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/119). Fix `acd8b21`. Decision D-058. BUG-001 fixed again, BUG-004 `FIXED`; new BUG-005 (First Planet 3D character), IDEA-013 (desert entry video).
 - **Owner flight on live 0.15.0 before this patch:** live page verified as 0.15.0 / Tower 0.2.83; deep-space field with red impact glow USER-CONFIRMED; rocks missing at the asteroid landing; Mierese mirrored wrong; walk of the First Planet 3D body weak.
 - **Local:** regression 154/154, Tower suites 34/34. Edge transitions QA: 1 PASS, 2 timeouts in different steps (baseline 9b08f8f: 1 PASS) — CI decides.
-- **Not verified yet:** CI for this SHA, Warp arrival flown in a browser, live site.
+- **CI PASS on `fd5bad9`:** regression [#43753138179](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43753138179), Tower [#43753138208](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43753138208), standalone Chromium [#43753138267](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43753138267), UI Layer, package → [bcm-mini-sim-0.15.1-test](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43753138113/artifacts/14177180954).
+- **Not verified:** Warp arrival flown in a browser, live site, Mierese by eye.
 
 ---
 
