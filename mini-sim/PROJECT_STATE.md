@@ -10,7 +10,8 @@
 - `crew-core.js`: `crewFace` (one mirror rule), `crewSpritePose` (phase from dt through the rig). Tower, Ring, Hull Dive pass direction and dt only.
 - **Red on `3177740`:** `Mierese moving right is mirrored unlike Tower: 1 !== -1`; `pose moved with performance.now() while dt = 0`.
 - **Local (Windows):** `regression.mjs` syntax 10/10, tests 148/148 (CI list now includes the crew-core tests); Tower suites 34/34.
-- **Not verified yet:** CI for this SHA (see next entry/Issue), Chromium locally (`BROWSER-MISSING`), the walk by eye in Tower/Ring/Hull, Mierese facing on the live site.
+- **CI PASS on `a576241`:** Mini-Sim regression (incl. crew-core tests) [#43740565330](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43740565330); Tower top-cap [#43740565283](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43740565283); standalone Chromium [#43740565240](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43740565240); UI Layer [#43740565313](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43740565313); package [#43740565325](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43740565325).
+- **Not verified:** the walk by eye in Tower/Ring/Hull, Mierese facing in Ring/Hull on the live site.
 
 ---
 
