@@ -29,7 +29,10 @@ declare global {
       [key: string]: unknown;
     };
     BCMDeepSpaceWarpGetReturnSnapshot?: () => { current?: { x?: number | null; y?: number | null } | null } | null;
-    BCMSageMapCore?: { systemForSector?: (x: number, y: number) => { id?: string } | null };
+    BCMSageMapCore?: {
+      systemForSector?: (x: number, y: number) => { id?: string } | null;
+      planetForSector?: (x: number, y: number) => { id?: string } | null;
+    };
     BCMFirstPlanet?: {
       mount: (target: HTMLElement, context?: PlanetContext) => Promise<void>;
       unmount: (target: HTMLElement) => void;
@@ -191,6 +194,7 @@ const api = {
       sessionPlanet: window.BCMMiniSimSession?.planetId,
       sector,
       systemForSector: sage && typeof sage.systemForSector === "function" ? sage.systemForSector.bind(sage) : null,
+      planetForSector: sage && typeof sage.planetForSector === "function" ? sage.planetForSector.bind(sage) : null,
     });
     const safeContext: PlanetContext = {
       ...context,

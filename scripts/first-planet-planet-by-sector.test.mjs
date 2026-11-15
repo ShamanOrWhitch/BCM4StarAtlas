@@ -52,10 +52,10 @@ test("the three planets really look different", () => {
   assert.ok(planetModule);
   const { PLANETS } = planetModule;
   const ids = Object.keys(PLANETS);
-  assert.deepEqual(ids.sort(), ["first", "ioki", "pearce"]);
+  assert.deepEqual(ids.sort(), ["fable", "first", "ioki", "pearce"]);
   for (const key of ["background", "fog", "sky", "ground", "sea"]) {
     const values = new Set(ids.map((id) => JSON.stringify(PLANETS[id][key])));
-    assert.equal(values.size, 3, `${key} is the same on two planets`);
+    assert.equal(values.size, ids.length, `${key} is the same on two planets`);
   }
   // Pearce is Earth-like: a blue sky and sea, grass inland. Ioki has no water.
   const blue = (c) => (c & 0xff) > ((c >> 16) & 0xff);
@@ -81,4 +81,46 @@ test("the island draws the chosen planet, and the mount resolves it from the War
   const warp = read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(warp, /window\.BCMDeepSpaceWarpGetReturnSnapshot = /);
   assert.match(read("mini-sim/bcm-mini-sim.php"), /'bcm-sage-map-core'/);
+});
+
+// IDEA-002 step 2 (owner 16.11): Fable builds its own planet, with its own
+// design, in another sector next to ONI CSS.
+test("planet Fable sits one jump from ONI CSS and the Warp map names it", () => {
+  const core = sageCore();
+  const oni = core.data.css.find((c) => c.system === "oni");
+  const fable = (core.landmarks || []).find((l) => l.planet === "fable");
+  assert.ok(fable, "the map has no Fable planet sector");
+  assert.equal(Math.max(Math.abs(fable.x - oni.x), Math.abs(fable.y - oni.y)), 1, "Fable is not a neighbour of ONI CSS");
+  assert.equal(core.starAt(fable.x, fable.y), null, "Fable sits on a real SAGE star");
+  assert.equal(core.cssAt(fable.x, fable.y), null, "Fable sits on a station");
+  assert.match(core.sectorTitle(fable.x, fable.y), /Fable/, "the Warp map still calls the Fable sector empty");
+  assert.equal(core.systemForSector(fable.x, fable.y), null, "Fable must not pose as a Galia system");
+  assert.ok(planetModule);
+  const { resolvePlanetId } = planetModule;
+  const at = (x, y) => resolvePlanetId({
+    sector: { x, y },
+    systemForSector: core.systemForSector.bind(core),
+    planetForSector: core.planetForSector.bind(core),
+  });
+  assert.equal(at(fable.x, fable.y), "fable", "the Fable sector still lands on the desert");
+  assert.equal(at(oni.x, oni.y), "first");
+  assert.equal(at(0, -39), "pearce", "MUD still lands on Pearce through planetForSector");
+  assert.equal(resolvePlanetId({ search: "?bcm_planet=fable" }), "fable", "owner test switch does not know Fable");
+});
+
+test("planet Fable has a design of its own, not a recolour", () => {
+  assert.ok(planetModule);
+  const { PLANETS } = planetModule;
+  const fable = PLANETS.fable;
+  assert.ok(fable, "no Fable profile");
+  assert.ok(fable.extras && fable.extras.stars > 0, "Fable has no night sky");
+  assert.ok(fable.extras.aurora && fable.extras.motes && fable.extras.ring, "Fable has no aurora, light motes or ringed moon");
+  assert.ok(fable.extras.seaGlow, "Fable sea does not glow");
+  for (const id of ["first", "pearce", "ioki"]) assert.equal(PLANETS[id].extras, undefined, id + " must keep its 0.15.3 look");
+  const scene = read("mini-sim/first-planet/src/game/island/scene.ts");
+  assert.match(scene, /planet.extras/, "scene does not draw the planet extras");
+  const embed = read("mini-sim/first-planet/src/first-planet-embed.tsx");
+  assert.match(embed, /planetForSector/, "mount does not ask the map for landmark planets");
+  const warp = read("mini-sim/assets/js/deep-space-warp.js");
+  assert.match(warp, /sageCore.landmarks/, "Warp map does not draw the landmark");
 });

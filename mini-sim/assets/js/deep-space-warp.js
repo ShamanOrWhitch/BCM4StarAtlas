@@ -1746,6 +1746,21 @@
         }
       });
 
+      // Mini-Sim landmarks (planet Fable): a small diamond, named when zoomed in.
+      if (sageCore && sageCore.landmarks) {
+        sageCore.landmarks.forEach((mark) => {
+          const p = toPoint(mark.x, mark.y);
+          const r = zoom >= 4 ? 4.2 : 3.2;
+          g.beginPath(); g.moveTo(p.x, p.y - r); g.lineTo(p.x + r, p.y); g.lineTo(p.x, p.y + r); g.lineTo(p.x - r, p.y); g.closePath();
+          g.fillStyle = mark.color || "#b48cff"; g.fill();
+          g.strokeStyle = "#f3f6f9"; g.lineWidth = 0.8; g.stroke();
+          if (zoom >= 4) {
+            g.font = "600 9px system-ui,sans-serif"; g.textAlign = "left"; g.textBaseline = "top";
+            g.fillText(String(mark.name).split(" · ")[0], p.x + 6, p.y + 3);
+          }
+        });
+      }
+
       galaxyMapPoints = [];
       galaxyCurrentPoint = null;
       const hasPoint = (node) => node && node.x != null && node.y != null &&

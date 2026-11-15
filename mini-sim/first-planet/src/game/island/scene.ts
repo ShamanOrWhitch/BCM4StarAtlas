@@ -3,6 +3,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { bake, settleNose, fitHeight, fitLength } from "./bake";
 import { bindCrewRig, type CrewRig } from "./rig";
 import { planetLook } from "./planet";
+import { createSeededRandom } from "../seed";
 import { ASTEROID_SHOW, characterHeight, characterPath, PILOT_SHIPS, pilotShip, shipUrl } from "@/game/ships";
 import { libraryUrl, meshUrl, propUrl } from "../mesh-url";
 import { activeKeys } from "../input";
@@ -247,6 +248,175 @@ export function createIsland(
 
   const geos = new Set<THREE.BufferGeometry>();
   const mats = new Set<THREE.Material>();
+
+  // A planet with its own design (Fable) adds a night sky, a ringed moon,
+  // aurora curtains and light motes. Three draw calls for stars, motes and
+  // curtains each; nothing here runs for the planets without extras.
+  const skyFx = new THREE.Group();
+  let planetFx: ((elapsed: number) => void) | null = null;
+  if (planet.extras) {
+    const extras = planet.extras;
+    scene.add(skyFx);
+    const rand = createSeededRandom(Number(context.planetSeed) >>> 0, "planet-fx-" + planet.id);
+    if (extras.ring) {
+      const board = document.createElement("canvas");
+      board.width = 512;
+      board.height = 192;
+      const ctx = board.getContext("2d");
+      if (ctx) {
+        ctx.strokeStyle = extras.ring;
+        for (const [rx, ry, w, a] of [[240, 58, 3.5, 0.8], [214, 51, 2, 0.5], [192, 45, 1.2, 0.32]] as const) {
+          ctx.globalAlpha = a;
+          ctx.lineWidth = w;
+          ctx.beginPath();
+          ctx.ellipse(256, 96, rx, ry, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+      const tex = new THREE.CanvasTexture(board);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const ring = new THREE.Sprite(
+        new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, rotation: 0.32 }),
+      );
+      ring.scale.set(planet.sunSprite.size * 2.5, planet.sunSprite.size * 0.94, 1);
+      ring.position.copy(gold.position);
+      scene.add(ring);
+    }
+    if (extras.stars > 0) {
+      const pos = new Float32Array(extras.stars * 3);
+      const col = new Float32Array(extras.stars * 3);
+      for (let i = 0; i < extras.stars; i++) {
+        // Upper dome only, thinner towards the bright horizon.
+        const up = 0.12 + 0.88 * Math.sqrt(rand());
+        const ring = Math.sqrt(1 - up * up);
+        const a = rand() * Math.PI * 2;
+        pos[i * 3] = Math.cos(a) * ring * 400;
+        pos[i * 3 + 1] = up * 400;
+        pos[i * 3 + 2] = Math.sin(a) * ring * 400;
+        const warm = rand();
+        const lum = 0.55 + rand() * 0.45;
+        col[i * 3] = lum * (0.8 + warm * 0.2);
+        col[i * 3 + 1] = lum * 0.9;
+        col[i * 3 + 2] = lum * (1 - warm * 0.25);
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+      const mat = new THREE.PointsMaterial({
+        size: 1.7, sizeAttenuation: false, vertexColors: true, fog: false, depthWrite: false, transparent: true, opacity: 0.95,
+      });
+      geos.add(geo);
+      mats.add(mat);
+      skyFx.add(new THREE.Points(geo, mat));
+    }
+    const curtains: THREE.Mesh[] = [];
+    if (extras.aurora) {
+      const lowC = new THREE.Color(extras.aurora.low);
+      const highC = new THREE.Color(extras.aurora.high);
+      const mat = new THREE.MeshBasicMaterial({
+        vertexColors: true, side: THREE.DoubleSide, fog: false, depthWrite: false, transparent: true,
+        blending: THREE.AdditiveBlending, opacity: 0.55,
+      });
+      mats.add(mat);
+      for (let k = 0; k < 3; k++) {
+        const seg = 44;
+        const rows = [0, 0.22, 0.6, 1];
+        const pos = new Float32Array((seg + 1) * rows.length * 3);
+        const col = new Float32Array((seg + 1) * rows.length * 3);
+        const idx: number[] = [];
+        const start = rand() * Math.PI * 2;
+        const sweep = 1.3 + rand() * 0.9;
+        const baseEl = 0.2 + k * 0.1;
+        const waveA = 2 + rand() * 3;
+        const waveP = rand() * 6;
+        for (let s = 0; s <= seg; s++) {
+          const t = s / seg;
+          const az = start + t * sweep + Math.sin(t * waveA * 2 + waveP) * 0.06;
+          const edge = Math.sin(t * Math.PI); // fades to nothing at both ends
+          for (let r = 0; r < rows.length; r++) {
+            const el = baseEl + Math.sin(t * waveA + waveP) * 0.04 + rows[r] * (0.24 + 0.08 * Math.sin(t * 9 + k));
+            const o = (s * rows.length + r) * 3;
+            pos[o] = Math.cos(az) * Math.cos(el) * 380;
+            pos[o + 1] = Math.sin(el) * 380;
+            pos[o + 2] = Math.sin(az) * Math.cos(el) * 380;
+            // Additive: black = invisible, so the bottom and top rows fade out.
+            const glow = (r === 1 ? 1 : r === 2 ? 0.7 : 0) * edge * (0.75 + 0.25 * Math.sin(t * 23 + k * 2));
+            c.copy(lowC).lerp(highC, r === 2 ? 0.85 : 0.1).multiplyScalar(glow);
+            col[o] = c.r;
+            col[o + 1] = c.g;
+            col[o + 2] = c.b;
+          }
+          if (s < seg) {
+            for (let r = 0; r < rows.length - 1; r++) {
+              const a0 = s * rows.length + r;
+              const b0 = a0 + rows.length;
+              idx.push(a0, b0, a0 + 1, a0 + 1, b0, b0 + 1);
+            }
+          }
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+        geo.setIndex(idx);
+        geos.add(geo);
+        const curtain = new THREE.Mesh(geo, mat);
+        curtains.push(curtain);
+        skyFx.add(curtain);
+      }
+    }
+    let motes: THREE.Points | null = null;
+    if (extras.motes) {
+      const count = extras.motes.count;
+      const pos = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) {
+        const r = 6 + Math.sqrt(rand()) * 52;
+        const a = rand() * Math.PI * 2;
+        const x = Math.cos(a) * r;
+        const z = Math.sin(a) * r;
+        pos[i * 3] = x;
+        pos[i * 3 + 1] = Math.max(0, groundY(x, z)) + 0.7 + rand() * 5.5;
+        pos[i * 3 + 2] = z;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      // A soft round dot; without a map a point is a hard square.
+      const dot = document.createElement("canvas");
+      dot.width = 32;
+      dot.height = 32;
+      const dctx = dot.getContext("2d");
+      if (dctx) {
+        const glow = dctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+        glow.addColorStop(0, "rgba(255,255,255,1)");
+        glow.addColorStop(0.35, "rgba(255,255,255,0.55)");
+        glow.addColorStop(1, "rgba(255,255,255,0)");
+        dctx.fillStyle = glow;
+        dctx.fillRect(0, 0, 32, 32);
+      }
+      const dotTex = new THREE.CanvasTexture(dot);
+      const freeDot = () => dotTex.dispose();
+      const mat = new THREE.PointsMaterial({
+        map: dotTex, color: extras.motes.color, size: 0.42, sizeAttenuation: true, transparent: true, opacity: 0.9,
+        blending: THREE.AdditiveBlending, depthWrite: false, fog: true,
+      });
+      geos.add(geo);
+      mats.add(mat);
+      mat.addEventListener("dispose", freeDot);
+      motes = new THREE.Points(geo, mat);
+      scene.add(motes);
+    }
+    planetFx = (elapsed) => {
+      skyFx.position.copy(camera.position);
+      curtains.forEach((curtain, k) => {
+        curtain.rotation.y = elapsed * (0.006 + k * 0.003) * (k % 2 ? -1 : 1);
+        curtain.scale.y = 1 + Math.sin(elapsed * 0.35 + k * 1.7) * 0.06;
+      });
+      if (motes) {
+        motes.position.y = Math.sin(elapsed * 0.5) * 0.35;
+        motes.rotation.y = elapsed * 0.015;
+        (motes.material as THREE.PointsMaterial).opacity = 0.7 + Math.sin(elapsed * 1.3) * 0.2;
+      }
+    };
+  }
   const track = (mesh: THREE.Mesh) => {
     geos.add(mesh.geometry);
     const mat = mesh.material;
@@ -310,6 +480,7 @@ export function createIsland(
   const wet = new THREE.Color(planet.ground.wet);
   const rock = new THREE.Color(planet.ground.rock);
   const grass = new THREE.Color(planet.ground.grass);
+  const vein = new THREE.Color();
   const index: number[] = [];
   for (let iz = 0; iz <= n; iz++) {
     for (let ix = 0; ix <= n; ix++) {
@@ -328,6 +499,11 @@ export function createIsland(
       // A green planet grows grass inland, above the beach and off the cliffs.
       if (planet.ground.greenery > 0 && y > 0.35 && slope < 0.6) {
         c.lerp(grass, planet.ground.greenery * Math.min(1, (y - 0.35) / 0.9) * (1 - slope / 0.6));
+      }
+      // Luminous veins wander across the moss; they stop at the waterline.
+      if (planet.extras?.veins != null && y > -0.1) {
+        const v = Math.sin(x * 0.19 + Math.sin(z * 0.11) * 2.4) * Math.sin(z * 0.17 + Math.cos(x * 0.09) * 2.1);
+        if (Math.abs(v) < 0.16) c.lerp(vein.setHex(planet.extras.veins), 0.7 * (1 - Math.abs(v) / 0.16));
       }
       gCol[o] = c.r;
       gCol[o + 1] = c.g;
@@ -361,6 +537,8 @@ export function createIsland(
       metalness: planet.sea.roughness >= 1 ? 0 : 0.12,
       transparent: planet.sea.opacity < 1,
       opacity: planet.sea.opacity,
+      emissive: planet.extras?.seaGlow ?? 0x000000,
+      emissiveIntensity: planet.extras?.seaGlow != null ? 0.6 : 0,
     }),
   );
   sea.rotation.x = -Math.PI / 2;
@@ -1407,6 +1585,7 @@ export function createIsland(
     sun.position.copy(gold.position);
     sun.target.position.set(0, -0.55, 0);
     sky.position.copy(camera.position);
+    planetFx?.(elapsed);
 
     renderer.render(scene, camera);
   }

@@ -10,6 +10,18 @@
   const cssByKey = new Map((data.css || []).map((css) => [css.x + "," + css.y, css]));
   const systemById = new Map((data.systems || []).map((system) => [system.id, system]));
 
+  // Mini-Sim landmarks: places the game adds on top of the Galia map. They are
+  // not SAGE systems and never go into Galia data. Planet Fable is the owner's
+  // test planet, one jump north-east of ONI CSS (IDEA-002, 16.11.2026).
+  const landmarks = [
+    { id: "fable", x: -39, y: 31, name: "Fable · тестовая планета", planet: "fable", color: "#b48cff" }
+  ];
+  const landmarkByKey = new Map(landmarks.map((mark) => [mark.x + "," + mark.y, mark]));
+
+  function landmarkAt(x, y) {
+    return landmarkByKey.get(Number(x) + "," + Number(y)) || null;
+  }
+
   function starAt(x, y) {
     return starByKey.get(Number(x) + "," + Number(y)) || null;
   }
@@ -33,6 +45,8 @@
     if (css) return css.name;
     const star = starAt(x, y);
     if (star) return star.name + " [" + x + ", " + y + "]";
+    const mark = landmarkAt(x, y);
+    if (mark) return mark.name + " [" + x + ", " + y + "]";
     return "[" + x + ", " + y + "] · пустой сектор";
   }
 
@@ -40,6 +54,15 @@
   function systemForSector(x, y) {
     const css = cssAt(x, y);
     return css && css.system ? systemById.get(css.system) || null : null;
+  }
+
+  // Which planet a landing in this sector stands on: a landmark planet, or the
+  // Galia system of a station sector. null = no planet of its own.
+  function planetForSector(x, y) {
+    const mark = landmarkAt(x, y);
+    if (mark && mark.planet) return { id: mark.planet, name: mark.name, landmark: true };
+    const system = systemForSector(x, y);
+    return system ? { id: system.id, name: system.name, landmark: false } : null;
   }
 
   window.BCMSageMapCore = {
@@ -52,6 +75,9 @@
     starRadius: starRadius,
     sectorTitle: sectorTitle,
     systemForSector: systemForSector,
+    landmarks: landmarks,
+    landmarkAt: landmarkAt,
+    planetForSector: planetForSector,
     factionTone: function (faction) { return (data.factionTone || {})[faction] || "#9fb6c7"; }
   };
 })();

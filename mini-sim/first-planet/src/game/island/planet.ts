@@ -8,12 +8,32 @@
  *   MUD CSS   [0, -39] → Pearce, Earth-like (owner: "MUD = Земля NASA")
  *   Ustur CSS [40, 30] → Ioki, the robots' red homeworld
  *   anywhere else      → First Planet, today's desert
+ *   Fable    [-39, 31] → planet Fable, a Mini-Sim landmark with its own design
  * Step 1 changes sky, light, ground, sea and names. The island layout,
  * collisions and quests stay the same on every planet.
  *
  * Pure data and logic: no DOM, no THREE, so node --test can run it.
  */
-export type PlanetId = "first" | "pearce" | "ioki";
+export type PlanetId = "first" | "pearce" | "ioki" | "fable";
+
+/**
+ * Things only a planet with its own design draws (planet Fable). The three
+ * 0.15.3 planets have no extras and must render exactly as before.
+ */
+export type PlanetExtras = {
+  /** Number of stars on the sky dome (one Points draw call). */
+  stars: number;
+  /** Two colours of the aurora curtains, or null. */
+  aurora: { low: number; high: number } | null;
+  /** Drifting light motes over the island (one Points draw call). */
+  motes: { color: number; count: number } | null;
+  /** Colour of the ring drawn around the moon sprite, or null. */
+  ring: string | null;
+  /** Glowing veins painted into the ground colours. */
+  veins: number | null;
+  /** Emissive colour of the sea. */
+  seaGlow: number | null;
+};
 
 export type PlanetLook = {
   id: PlanetId;
@@ -33,9 +53,44 @@ export type PlanetLook = {
   ground: { sand: number; wet: number; rock: number; grass: number; greenery: number };
   sea: { color: number; opacity: number; roughness: number };
   exposure: number;
+  extras?: PlanetExtras;
 };
 
 export const PLANETS: Record<PlanetId, PlanetLook> = {
+  /*
+   * Planet Fable — designed by Claude Fable 5.2 at the owner's invitation
+   * (16.11.2026: "строить свою планету со своим дизайном в другом секторе
+   * рядом с ONI CSS"). Sector [-39, 31], one jump from the station.
+   * A storybook night: violet zenith over a teal horizon, a pale ringed moon,
+   * aurora curtains, a sea that glows from below, moss with luminous veins
+   * and slow light motes. Lit brightly enough to read the crew and the houses.
+   */
+  fable: {
+    id: "fable",
+    system: null,
+    kicker: "Fable · сектор [-39, 31] · посадочная",
+    title: "Fable",
+    blurb: "Тестовая планета рядом с ONI CSS. Здесь всегда поздний вечер: луна с кольцом, сияние над островом, светящееся море и огоньки над мхом.",
+    sky: { top: 0x140a33, mid: 0x3a2a7a, low: 0x2fb7a6 },
+    background: 0x1b1446,
+    fog: { color: 0x2a2f6e, near: 42, far: 210 },
+    hemi: { sky: 0x9fb4ff, ground: 0x1f4a48, intensity: 1.05 },
+    sunSprite: { color: "#f3ecff", size: 40 },
+    moonSprite: { color: "#7ef0d8", size: 16 },
+    sun: { color: 0xcfd6ff, intensity: 1.05 },
+    fill: 0x56e0c8,
+    ground: { sand: 0x4a5f7a, wet: 0x2c8f8a, rock: 0x3a2f63, grass: 0x2f9c7c, greenery: 0.62 },
+    sea: { color: 0x123a66, opacity: 0.92, roughness: 0.22 },
+    exposure: 1.18,
+    extras: {
+      stars: 520,
+      aurora: { low: 0x3affc0, high: 0x9a6bff },
+      motes: { color: 0xbfffe6, count: 140 },
+      ring: "#d9ccff",
+      veins: 0x58ffd0,
+      seaGlow: 0x0f6f8f,
+    },
+  },
   first: {
     id: "first",
     system: null,
@@ -103,6 +158,7 @@ const ALIASES: Record<string, PlanetId> = {
   ioki: "ioki",
   ustur: "ioki",
   mars: "ioki",
+  fable: "fable",
 };
 
 export function planetIdFrom(value: unknown): PlanetId | null {
@@ -121,6 +177,8 @@ export type PlanetInputs = {
   sector?: { x?: number | null; y?: number | null } | null;
   /** BCMSageMapCore.systemForSector, from the Galia map. */
   systemForSector?: ((x: number, y: number) => { id?: string } | null) | null;
+  /** BCMSageMapCore.planetForSector: Mini-Sim landmark planets (Fable) and Galia systems. */
+  planetForSector?: ((x: number, y: number) => { id?: string } | null) | null;
 };
 
 /** Order: context, URL test switch, session, then the Warp sector. */
@@ -138,8 +196,9 @@ export function resolvePlanetId(inputs: PlanetInputs): PlanetId {
   const fromSession = planetIdFrom(inputs.sessionPlanet);
   if (fromSession) return fromSession;
   const s = inputs.sector;
-  if (s && s.x != null && s.y != null && Number.isFinite(Number(s.x)) && Number.isFinite(Number(s.y)) && inputs.systemForSector) {
-    const system = inputs.systemForSector(Number(s.x), Number(s.y));
+  const lookup = inputs.planetForSector || inputs.systemForSector;
+  if (s && s.x != null && s.y != null && Number.isFinite(Number(s.x)) && Number.isFinite(Number(s.y)) && lookup) {
+    const system = lookup(Number(s.x), Number(s.y));
     const fromSector = planetIdFrom(system?.id);
     if (fromSector) return fromSector;
   }
