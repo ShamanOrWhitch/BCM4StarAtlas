@@ -3,6 +3,17 @@
 Рабочая память разделена. Идеи: `JOURNAL_IDEAS.md`. Баги: `JOURNAL_BUGS.md`. Комплектация мини-игр: `JOURNAL_KIT.md`.
 Проверка больше не замораживает правки. Версия игры от этого не менялась: Mini-Sim `0.14.6`, Tower `0.2.80`, HEAD на момент записи журналов `129ad52`.
 
+## Patch — Mini-Sim 0.15.4: planet Fable next to ONI CSS (16 November 2026)
+
+- **WORK LOCK:** [#123](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/123), `f397eb5`. Decision D-061. Tower `0.2.85` is a version bump only.
+- **Planet Fable:** sector `[-39, 31]`, Mini-Sim landmark (`BCMSageMapCore.landmarks`, `planetForSector`), named and drawn on the Warp map, own design through `PlanetLook.extras`. Red before: `the map has no Fable planet sector`, `no Fable profile`; after 6/6.
+- **SYNTX chats (all five) re-read 16.11:** no planet code there; owner wishes not yet in the journals recorded as IDEA-015. Already covered: Ring 2.5D (IDEA-004), landing cutscene (IDEA-005), desert/crabs (IDEA-006), sector graph (IDEA-011).
+- **Second look at 0.15.3:** mote/ring sprites and texture disposal fixed while building Fable; the three older planets render as before. Known and not done: Profound skirt and mantle do not follow the leg; one planet per page load; `scene.ts:946` old `prefer-const` lint error left as is.
+- **Local:** regression 180/180 (12/12 syntax), Tower suites 34/34, `tsc` no new errors. Planet Lab in Edge: 4 planets, page errors 0.
+- **Not verified yet:** CI for this SHA, live site, Warp ONI → Fable → Tower → planet in one run, frame rate with the Fable effects on a weak device.
+
+---
+
 ## Patch — Mini-Sim 0.15.3: First Planet crew steps; planet by SAGE sector (16 November 2026)
 
 - **WORK LOCK:** [#122](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/122), `cd75cfe`. Decision D-060. Tower `0.2.84` is a version bump only (First Planet bundle cache key).
