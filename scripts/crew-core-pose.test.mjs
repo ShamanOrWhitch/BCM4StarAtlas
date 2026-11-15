@@ -33,21 +33,21 @@ test("crew-rig.js: valid poses for every race and sex (Dr Fable selfTest)", asyn
   assert.equal(JSON.stringify(context.BCMCrewRig.selfTest()), "[]");
 });
 
-test("BUG-001: Ring/Hull mirror Mierese and other races differently, like Tower", async () => {
+// Owner, live 0.15.0 (15.11.2026): "Mierese перепутанно влево/вправо". Every race,
+// Mierese included, faces where it moves — the behaviour the owner confirmed
+// in 0.11.3 (D-027). Moving right draws the art as is; moving left mirrors it.
+test("BUG-001 (reopened): every race, Mierese included, faces where it moves, in every level", async () => {
   const { core } = await loadCore();
   const flip = (species, facing) => {
     const s = sprite();
     core.applyPlatformSprite(s, { crew: crew(species), facing, moving: true, grounded: true, vy: 0, index: 0, y: 0 }, 1 / 60);
     return s.material.map.repeat.x;
   };
-  // Tower rule (tower.js updatePlayerVisual): visualFacing = (right ? -1 : 1) * facingFactor.
-  const tower = (species, facing) => ((facing > 0 ? -1 : 1) * core.facingFactor(species) < 0 ? -1 : 1);
   for (const species of ["Mierese", "Profound Punaab", "High Punaab", "Sogmian", "Ustur", "Human"]) {
-    for (const facing of [1, -1]) {
-      assert.equal(flip(species, facing), tower(species, facing), `${species} moving ${facing > 0 ? "right" : "left"} is mirrored unlike Tower`);
-    }
+    assert.equal(flip(species, 1), 1, `${species} moving right is mirrored`);
+    assert.equal(flip(species, -1), -1, `${species} moving left is not mirrored`);
+    assert.equal(core.crewFace(1, species), 1, `${species}: crewFace (used by Tower) disagrees`);
   }
-  assert.notEqual(flip("Mierese", 1), flip("Profound Punaab", 1), "Mierese and Punaab flip the same way (BUG-001)");
 });
 
 test("walk phase comes from dt: a paused frame holds the pose whatever the clock says", async () => {

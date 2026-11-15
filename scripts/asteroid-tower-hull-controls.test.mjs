@@ -197,7 +197,8 @@ test("Crew facing follows the Tower convention and 3D wall materials use each ce
   const tower = await read("mini-sim/tower/assets/js/tower.js");
   // One facing rule for every level (Tower convention), owned by crew-core.
   // BUG-001: the old Mierese exception in applyPlatformSprite is gone. WORK LOCK #117.
-  assert.ok(core.includes("return (Number(direction) < 0 ? -1 : 1) * -facingFactor(species);"));
+  // 0.15.1: every race faces where it moves (owner, live 0.15.0; D-027). WORK LOCK #119.
+  assert.ok(core.includes("return Number(direction) < 0 ? -1 : 1;"));
   assert.doesNotMatch(core, /includes\("mierese"\) \? baseFacing : -baseFacing/);
   assert.match(core, /function facingFactor\(species\)/);
   assert.ok(tower.includes("if (turnInput !== 0) p.walkDirection = turnInput > 0 ? 1 : -1;"));

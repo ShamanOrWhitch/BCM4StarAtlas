@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.15.0",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.15.1",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -91,7 +91,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.15.0",
+      title: "SPACE LABYRINTH — 0.15.1",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -5426,8 +5426,9 @@
         const sectorFrameResult = window.BCMWarpSectorSceneFrame({
           dt,
           running,
-          active: !!(running && exteriorFlight && ship.position &&
-            getSpaceZone(ship.position.z) === "DEEP_SPACE" && spaceSatellite.stationMesh),
+          // BUG-004, owner's frame (D-054): rocks everywhere in open space — any
+          // exterior flight, not a z threshold. The manager follows the ship.
+          active: !!(running && exteriorFlight && ship.position),
           paused: externalPause || settings.open,
           scene, camera, ship, THREE: window.THREE, root, renderer,
           originMesh: spaceSatellite.stationMesh,
@@ -6733,7 +6734,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.15.0") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.15.1") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();

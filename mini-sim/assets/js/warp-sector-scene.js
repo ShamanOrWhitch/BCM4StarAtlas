@@ -429,15 +429,27 @@
       });
     }
 
-    function resetOdometer(frame) {
+    // Distance of the ship from the rock tube axis (world units).
+    function lateralDistance(position, origin, axis) {
+      var dx = position.x - origin.x;
+      var dy = position.y - origin.y;
+      var dz = position.z - origin.z;
+      var t = dx * axis.x + dy * axis.y + dz * axis.z;
+      return Math.hypot(dx - axis.x * t, dy - axis.y * t, dz - axis.z * t);
+    }
+
+    /* Open space (BUG-004, owner's frame D-054 "камни везде в космосе"): the
+       rock tube runs along the ship's heading. In first space it stays anchored
+       at ONICSS, exactly as the owner confirmed it; anywhere else — the asteroid
+       landing after Warp, or after the ship flies out of the tube — it is
+       re-anchored on the ship. ONICSS is optional. */
+    function resetOdometer(frame, anchorOnShip) {
       var ship = frame.ship;
       var originMesh = frame.originMesh;
-      if (!ship || !ship.position || !originMesh ||
-          typeof originMesh.getWorldPosition !== "function") {
-        throw new Error("Warp sector origin requires the live ONICSS station mesh and ship position");
+      if (!ship || !ship.position) {
+        throw new Error("Warp sector field requires the ship position");
       }
 
-      originMesh.getWorldPosition(worldOrigin);
       worldAxis.set(0, 0, -1);
       if (ship.quaternion) worldAxis.applyQuaternion(ship.quaternion);
       if (ship.velocity && typeof ship.velocity.lengthSq === "function" &&
@@ -447,17 +459,25 @@
         worldAxis.normalize();
       }
 
-      odometer = Core.createOdometer({
-        origin: { x: worldOrigin.x, y: worldOrigin.y, z: worldOrigin.z },
-        position: { x: ship.position.x, y: ship.position.y, z: ship.position.z },
-        axis: { x: worldAxis.x, y: worldAxis.y, z: worldAxis.z }
-      });
       shipRadius = measureShipRadius(ship);
       tubeRadius = clamp(
         shipRadius * 10,
         Core.DEFAULT_TUBE_RADIUS_MIN,
         Core.DEFAULT_TUBE_RADIUS_MAX
       );
+
+      var stationAnchor = !anchorOnShip && originMesh && typeof originMesh.getWorldPosition === "function";
+      if (stationAnchor) {
+        originMesh.getWorldPosition(worldOrigin);
+        if (lateralDistance(ship.position, worldOrigin, worldAxis) > tubeRadius) stationAnchor = false;
+      }
+      if (!stationAnchor) worldOrigin.copy(ship.position);
+
+      odometer = Core.createOdometer({
+        origin: { x: worldOrigin.x, y: worldOrigin.y, z: worldOrigin.z },
+        position: { x: ship.position.x, y: ship.position.y, z: ship.position.z },
+        axis: { x: worldAxis.x, y: worldAxis.y, z: worldAxis.z }
+      });
       updateTubeBasis(ship);
       windowState = Core.createWindowState();
       previousShipWorld = ship.position.clone();
@@ -636,6 +656,13 @@
         active = true;
         runSeed = (Number(f.runSeed) >>> 0) || runSeed || 1;
         resetOdometer(f);
+      }
+
+      // The ship left the rock tube (a Warp jump, a teleport or a long turn):
+      // rebuild the field around it instead of leaving it on the old axis.
+      if (lateralDistance(ship.position, odometer.origin, odometer.axis) > tubeRadius) {
+        clearSlots();
+        resetOdometer(f, true);
       }
 
       var previousForCollision = previousShipWorld

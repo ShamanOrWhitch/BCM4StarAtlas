@@ -19,7 +19,8 @@
     return { bob: 0.036, speed: 0.018, sway: 0.018, squash: 0.04 };
   }
 
-  // Mierese art already looks along the walk direction. The other races are drawn the other way.
+  // Historical race split (Mierese +1, others -1). Kept as public API, but since
+  // 0.15.1 it does not decide mirroring: crewFace treats every race the same.
   function facingFactor(species) {
     return String(species || "").toLowerCase().includes("mierese") ? 1 : -1;
   }
@@ -165,12 +166,14 @@
   }
 
   /* Which way the cut-out must be drawn. `direction` is where the Crew moves on
-     screen (+1 right, -1 left). The NFT art itself is turned: Mierese art looks
-     one way, every other race the other (facingFactor). One rule for every
-     level — the one Tower always used. BUG-001: Ring and Hull Dive used to add
-     a Mierese exception that made all races flip the same way. */
-  function crewFace(direction, species) {
-    return (Number(direction) < 0 ? -1 : 1) * -facingFactor(species);
+     screen (+1 right, -1 left). Every race, Mierese included, faces where it
+     moves: right draws the art as is, left mirrors it. Owner, live 0.15.0:
+     "Mierese перепутанно влево/вправо" — the 0.14.8 race split (Tower's old
+     facingFactor rule) was wrong; this restores what the owner confirmed in
+     0.11.3 (D-027) and applies it to Tower too. `species` is kept in the
+     signature so a race-specific art fix can return with evidence. */
+  function crewFace(direction, species) { // eslint-disable-line no-unused-vars
+    return Number(direction) < 0 ? -1 : 1;
   }
 
   /* The pose of a cut-out Crew for this frame. The walk phase is advanced by dt
