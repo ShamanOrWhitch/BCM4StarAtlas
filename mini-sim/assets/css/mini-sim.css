@@ -1013,7 +1013,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
-  max-height: min(27vh, 210px);
+  max-height: min(46vh, 420px);
   overflow: auto;
   padding: 1px 2px 1px 1px;
   overscroll-behavior: contain;
@@ -1241,7 +1241,7 @@
   .bcm-mini-sim .bcm-warp-view { inset: 50px 7px 7px; }
   .bcm-mini-sim .bcm-warp-card { padding: 12px 11px 10px; }
   .bcm-mini-sim .bcm-warp-card h2 { font-size: 19px; }
-  .bcm-mini-sim .bcm-warp-sector-list { gap: 5px; max-height: min(24vh, 170px); }
+  .bcm-mini-sim .bcm-warp-sector-list { gap: 5px; max-height: min(40vh, 320px); }
   .bcm-mini-sim .bcm-warp-sector { padding: 7px 5px; grid-template-columns: 7px minmax(0,1fr) 8px; gap: 5px; }
   .bcm-mini-sim .bcm-warp-sector-copy strong { font-size: 11px; }
   .bcm-mini-sim .bcm-warp-sector-copy small { font-size: 8px; }
@@ -1263,12 +1263,12 @@
 }
 
 
-/* Warp test map: compact 3x3 sector grid around the known ONI CSS start. */
+/* Warp map: 5×5, the adjacent eight plus the next ring. */
 .bcm-mini-sim .bcm-warp-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 5px;
-  width: min(100%, 390px);
+  width: min(100%, 520px);
   margin: 12px auto 14px;
 }
 .bcm-mini-sim .bcm-warp-grid[hidden] { display: none !important; }
@@ -1467,9 +1467,9 @@
   align-items:flex-start;
   gap:10px;
   box-sizing:border-box;
-  width:min(900px,calc(84vw - 18px));
-  min-width:400px;
-  padding:20px 46px 20px 20px;
+  width:min(450px,calc(42vw - 9px));
+  min-width:200px;
+  padding:10px 23px 10px 10px;
   border:1px solid rgba(139,213,232,.55);
   border-radius:20px 20px 20px 7px;
   background:rgba(5,17,28,.79);
@@ -1500,9 +1500,9 @@
   border-radius:20px 20px 7px 20px;
 }
 .bcm-comic-dialog-avatar{
-  flex:0 0 80px;
-  width:80px;
-  height:80px;
+  flex:0 0 40px;
+  width:40px;
+  height:40px;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -1581,9 +1581,9 @@
 @media (max-width:760px){
   .bcm-mini-sim-language{top:calc(50% + 44px);padding:6px 7px}
   .bcm-mini-sim-language-hint{display:none}
-  .bcm-comic-dialog{width:min(820px,calc(100vw - 16px));min-width:0;gap:14px;padding:16px 36px 16px 14px;border-radius:15px 15px 15px 5px}
+  .bcm-comic-dialog{width:min(410px,calc(50vw - 8px));min-width:0;gap:7px;padding:8px 18px 8px 7px;border-radius:15px 15px 15px 5px}
   .bcm-comic-dialog-operator{left:auto;right:8px;bottom:calc(92px + env(safe-area-inset-bottom))}
-  .bcm-comic-dialog-avatar{flex-basis:60px;width:60px;height:60px;font-size:18px}
+  .bcm-comic-dialog-avatar{flex-basis:30px;width:30px;height:30px;font-size:14px}
   .bcm-comic-dialog-copy strong{font-size:13px;margin-bottom:6px}
   .bcm-comic-dialog-copy p{font-size:18px;line-height:1.5}
   .bcm-comic-dialog-choice{min-height:30px;padding:5px 7px;font-size:10px}
@@ -1595,8 +1595,8 @@
   .bcm-mini-sim-crew-slot-main > span:not(.bcm-mini-sim-crew-slot-player){font-size:11px}
 }
 @media (max-width:420px){
-  .bcm-comic-dialog{width:calc(100vw - 16px);min-width:0;padding:14px 32px 14px 12px}
-  .bcm-comic-dialog-avatar{display:flex;flex:0 0 60px;width:60px;height:60px;font-size:17px}
+  .bcm-comic-dialog{width:calc(50vw - 8px);min-width:0;padding:7px 16px 7px 6px}
+  .bcm-comic-dialog-avatar{display:flex;flex:0 0 30px;width:30px;height:30px;font-size:14px}
   .bcm-comic-dialog-copy strong{font-size:12px}
   .bcm-comic-dialog-copy p{font-size:17px;line-height:1.48}
   .bcm-mini-sim-crew-slot-card{grid-template-columns:58px minmax(0,1fr);min-height:84px}

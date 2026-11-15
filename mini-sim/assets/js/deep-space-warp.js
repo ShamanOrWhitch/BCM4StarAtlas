@@ -1152,13 +1152,54 @@
       };
     }
 
-    // SAGE XY navigation is eight-way: the four diagonal neighbors are valid sectors too.
-    // Keep this preview offset list aligned with the visible 3×3 sector grid.
+    // Eight adjacent cells, plus the next ring out. A short adapter list must
+    // not switch the diagonals or the next ring off.
     const SAGE_SECTOR_NEIGHBOR_OFFSETS = [
       [-1, 1], [0, 1], [1, 1],
       [-1, 0],          [1, 0],
       [-1, -1], [0, -1], [1, -1]
     ];
+    const SAGE_SECTOR_SPAN = 2;
+
+    function coordinateSector(origin, dx, dy, known) {
+      const x = Number(origin.x) + dx;
+      const y = Number(origin.y) + dy;
+      const match = (known || []).find((sector) => sector && sector.x === x && sector.y === y);
+      if (match) return match;
+      const ring = Math.max(Math.abs(dx), Math.abs(dy));
+      return {
+        id: "coord-" + x + "-" + y,
+        name: (ring > 1 ? "NEXT [" : "[") + x + ", " + y + (ring > 1 ? "]" : "]"),
+        x: x,
+        y: y,
+        raw: { coordinateStep: true }
+      };
+    }
+
+    function withCoordinateRings(current, targets) {
+      if (!current || current.x == null || current.y == null) return targets || [];
+      const known = Array.isArray(targets) ? targets : [];
+      const cells = [];
+      for (let dy = SAGE_SECTOR_SPAN; dy >= -SAGE_SECTOR_SPAN; dy -= 1) {
+        for (let dx = -SAGE_SECTOR_SPAN; dx <= SAGE_SECTOR_SPAN; dx += 1) {
+          if (!dx && !dy) continue;
+          cells.push(coordinateSector(current, dx, dy, known));
+        }
+      }
+      cells.sort((a, b) => {
+        const ra = Math.max(Math.abs(a.x - current.x), Math.abs(a.y - current.y));
+        const rb = Math.max(Math.abs(b.x - current.x), Math.abs(b.y - current.y));
+        return ra - rb;
+      });
+      const extras = [];
+      known.forEach((sector) => {
+        if (!sector || cells.some((row) => row.id === sector.id)) return;
+        if (sector.x == null || sector.y == null ||
+          Math.abs(sector.x - current.x) > SAGE_SECTOR_SPAN ||
+          Math.abs(sector.y - current.y) > SAGE_SECTOR_SPAN) extras.push(sector);
+      });
+      return cells.concat(extras);
+    }
 
     function readNavigation() {
       // After a local sector arrival, keep that session's current sector when
@@ -1190,7 +1231,7 @@
           const hasCoords = current.x != null && current.y != null;
           return {
             current,
-            targets,
+            targets: withCoordinateRings(current, targets),
             live: true,
             label: String(nav.source || nav.provider || "SAGE NAVIGATION ADAPTER"),
             adapter: nav,
@@ -1200,20 +1241,11 @@
       }
 
       // The prototype starts at the known ONI CSS position on the NEUNO sector grid.
-      // Show all eight adjacent XY cells in the 3×3 preview, not just cardinal directions;
-      // preview cells remain explicitly test-only until the live adapter supplies real links.
+      // Show the eight adjacent cells and the next ring, not only the four cardinals.
       const current = { id: "oni-css-neuno--40-30", name: "ONI · NEUNO", x: -40, y: 30, raw: null };
       return {
         current,
-        targets: SAGE_SECTOR_NEIGHBOR_OFFSETS.map((pair) => {
-          const x = current.x + pair[0];
-          const y = current.y + pair[1];
-          return {
-            id: "local-test-" + x + "-" + y,
-            name: "TEST NEIGHBOR [" + x + ", " + y + "]",
-            x, y, raw: null
-          };
-        }),
+        targets: withCoordinateRings(current, []),
         live: false,
         localPreview: true,
         adapter: null,
@@ -1230,18 +1262,7 @@
       const isManualTest = !!current && /^manual-test-/.test(String(current.id || ""));
       const isLocalTest = !!current && (/^local-test-/.test(String(current.id || "")) || isManualTest || !current.raw);
 
-      const makeLocalTargets = (origin) => {
-        if (!origin || origin.x == null || origin.y == null) return [];
-        return SAGE_SECTOR_NEIGHBOR_OFFSETS.map((offset) => {
-          const x = Number(origin.x) + offset[0];
-          const y = Number(origin.y) + offset[1];
-          return {
-            id: "local-test-" + x + "-" + y,
-            name: "TEST NEIGHBOR [" + x + ", " + y + "]",
-            x, y, raw: null
-          };
-        });
-      };
+      const makeLocalTargets = (origin) => withCoordinateRings(origin, []);
 
       // A generated preview can continue for interaction testing, but it remains
       // explicitly test-only and never becomes live SAGE navigation.
@@ -1309,9 +1330,9 @@
 
       return {
         current,
-        targets: targets.filter((candidate, index, rows) =>
+        targets: withCoordinateRings(current, targets.filter((candidate, index, rows) =>
           rows.findIndex((row) => row.id === candidate.id) === index
-        ),
+        )),
         live: !!previous.live,
         localPreview: false,
         adapter,
@@ -1376,7 +1397,7 @@
       const targets = state.nav.targets || [];
       const localTargets = targets.filter((sector) =>
         sector.x != null && sector.y != null &&
-        Math.abs(sector.x - current.x) <= 1 && Math.abs(sector.y - current.y) <= 1 &&
+        Math.abs(sector.x - current.x) <= SAGE_SECTOR_SPAN && Math.abs(sector.y - current.y) <= SAGE_SECTOR_SPAN &&
         !(sector.x === current.x && sector.y === current.y)
       );
       if (!state.nav.localPreview && !localTargets.length) {
@@ -1384,12 +1405,15 @@
         return;
       }
       gridElement.hidden = false;
-      for (let row = 0; row < 3; row += 1) {
-        for (let col = 0; col < 3; col += 1) {
-          const dx = col - 1;
-          const dy = 1 - row;
+      const span = SAGE_SECTOR_SPAN;
+      const size = span * 2 + 1;
+      for (let row = 0; row < size; row += 1) {
+        for (let col = 0; col < size; col += 1) {
+          const dx = col - span;
+          const dy = span - row;
           const x = current.x + dx;
           const y = current.y + dy;
+          const ring = Math.max(Math.abs(dx), Math.abs(dy));
           const isCurrent = dx === 0 && dy === 0;
           const target = isCurrent ? null : targets.find((sector) => sector.x === x && sector.y === y);
           const cell = document.createElement(target ? "button" : "div");
@@ -1402,7 +1426,7 @@
             (isCurrent ? " is-current" : target ? " is-connected" : " is-unavailable") +
             (target && state.target && target.id === state.target.id ? " is-selected" : "");
           const title = document.createElement("strong");
-          title.textContent = isCurrent ? (current.name || "CURRENT SECTOR") : target ? "WARP →" : "—";
+          title.textContent = isCurrent ? (current.name || "CURRENT SECTOR") : target ? (ring > 1 ? "NEXT" : "WARP →") : "—";
           const sub = document.createElement("small");
           sub.textContent = isCurrent
             ? (current.x != null && current.y != null ? "X " + current.x + " · Y " + current.y + " · CURRENT" : "CURRENT SECTOR")
@@ -1800,8 +1824,8 @@
       sourceElement.textContent = state.nav.label;
       sourceElement.classList.toggle("is-preview", !state.nav.live);
       footnoteElement.textContent = state.nav.live
-        ? "Маршрут показывает данные, переданные внешним SAGE-адаптером. Сам Warp — локальная мини-игра и не запускает перемещение в SAGE."
-        : "Стартовая точка ONI · NEUNO: X -40, Y 30. Соседние клетки сгенерированы только для теста. Warp/Tube/лабиринт не меняют состояние Star Atlas.";
+        ? "Имена известных секторов берёт SAGE-адаптер. Сетка не режется до 4 сторон: открыты 8 соседей и следующее кольцо. Сам Warp локальный и не двигает корабль в SAGE."
+        : "ONI · NEUNO, X -40, Y 30. На карте 8 соседних клеток и следующее кольцо. Это локальный Warp, не Star Atlas.";
       listSectorTargets();
       renderSectorGrid();
       renderGalaxyMap();
@@ -2056,11 +2080,7 @@
         const home = { id: "oni-css-neuno--40-30", name: "ONI · NEUNO", x: -40, y: 30, raw: null };
         state.nav = {
           current: home,
-          targets: [[-1, 0], [1, 0], [0, -1], [0, 1]].map(([dx, dy]) => {
-            const x = home.x + dx;
-            const y = home.y + dy;
-            return { id: "local-test-" + x + "-" + y, name: "TEST NEIGHBOR [" + x + ", " + y + "]", x, y, raw: null };
-          }),
+          targets: withCoordinateRings(home, []),
           live: false,
           localPreview: true,
           adapter: null,

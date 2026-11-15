@@ -171,9 +171,14 @@ test("Warp navigation preview exposes all eight adjacent SAGE XY sectors", () =>
   assert.ok(offsets.some(([x, y]) => x !== 0 && y !== 0), "diagonal sectors must be included");
   assert.ok(offsets.every(([x, y]) => Math.abs(x) <= 1 && Math.abs(y) <= 1 && (x !== 0 || y !== 0)));
   const navigation = section(warp, "function readNavigation()", "function navigationAfterArrival(sector)");
-  assert.match(navigation, /targets: SAGE_SECTOR_NEIGHBOR_OFFSETS\.map/);
+  assert.match(navigation, /targets: withCoordinateRings\(current, \[\]\)/);
+  assert.match(navigation, /withCoordinateRings\(current, targets\)/);
+  assert.match(warp, /const SAGE_SECTOR_SPAN = 2/);
   const arrival = section(warp, "function navigationAfterArrival(sector)", "function sectorText(sector)");
-  assert.match(arrival, /return SAGE_SECTOR_NEIGHBOR_OFFSETS\.map/);
+  assert.match(arrival, /withCoordinateRings\(origin, \[\]\)/);
+  assert.match(arrival, /withCoordinateRings\(current, targets\.filter/);
+  assert.match(warp, /ring > 1 \? "NEXT" : "WARP →"/);
+  assert.doesNotMatch(warp, /targets: \[\[-1, 0\], \[1, 0\], \[0, -1\], \[0, 1\]\]/);
 });
 
 test("Galaxy local map combines all supplied mechanics arrays instead of stopping at the first", () => {

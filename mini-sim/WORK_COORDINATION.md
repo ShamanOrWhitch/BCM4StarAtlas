@@ -4,14 +4,15 @@
 
 - **Единая память команды:** `mini-sim/DR_FABLE_PLAYBOOK.md` задаёт рабочий цикл Lead Orchestrator → специалисты → Repo Operator → CI → приёмка. Все агенты используют одну и ту же память проекта.
 
-- **Git workflow:** работать непосредственно в `main`. Не создавать feature-ветки и PR без нового прямого разрешения владельца. Старые branch/PR refs ниже — история и материалы для diff, а не требование продолжать работу в тех ветках.
+- **Git:** только `main`. Отдельные ветки и новые PR не создавать. Старые рабочие ветки не источник правды: игра правится в `main`. Каталоги `backup/` — архив, не место работы.
+- **Версия `0.n.0`:** вторая цифра — линия правил. Пока она не сменилась, правки идут в текущий `main` (сейчас линия `0.14`). Когда вторая цифра меняется, в том же обновлении `main` переписываются рабочие правила под новую линию. Патч `0.n.x` правила линии не отменяет.
 - **Leadership:** Dr Fable — Lead Orchestrator / технический руководитель: архитектура, декомпозиция, приоритеты, раздача work packets и приёмка результатов. Он координирует всю команду, а не является обычным исполнителем.
 - **Repository execution:** DR GPT — текущий Repo Operator и единственный writer в `main`, потому что его GitHub write доступ подтверждён, а Shell Dr Fable ранее блокировался. Fable руководит; DR GPT записывает одобренные work packets через GitHub API и возвращает CI evidence. Если у Fable будут подтверждены Shell + GitHub write и владелец явно передаст ему запись, назначение writer меняется; два writers одновременно запрещены.
 - **Concurrency:** один writer одновременно; остальные агенты — read-only reviewer/tester. До записи сверить текущий HEAD, Issues/PR и пересечения файлов.
 - **AUDIO FREEZE:** никакой новой работы со звуком, музыкой, OST, эффектами, голосами или аудиосистемой. Существующие файлы/код не удалять; аудио-части старых задач исключать из scope.
 - **Protected scope:** не менять wordpress/galia-desk, scanner/pricing, firewall/security, production WordPress, wallet writes и SAGE transactions без отдельного прямого разрешения.
 - **Live QA:** automatic live WordPress test для walkingyog.com/bcm4sa отключён владельцем. Не восстанавливать, не обходить защиту и не повторять 403 URL. Source/regression и standalone local browser QA сохранить.
-- **Baseline при сверке:** Mini-Sim 0.14.0; Tower 0.2.79 (14.11.2026). Перед любой новой работой всегда получить актуальный `main` HEAD; release commit фиксируется в `PROJECT_STATE.md` и коммите GitHub.
+- **Baseline при сверке:** линия правил `0.14`; текущий исходник Mini-Sim `0.14.3`; Tower `0.2.79`. Запись про 0.14.0 ниже — история той волны, не потолок версии. Перед записью всегда сверять актуальный `main` HEAD.
 - **Render:** корневой render.yaml использует main и autoDeployTrigger: commit; commit в main может запустить деплой, в том числе документационный.
 
 ## Completed — WORK LOCK #112: Mini-Sim 0.14.0 first gameplay corrections (14 November 2026)

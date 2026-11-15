@@ -49,9 +49,9 @@ test("Panda dialogue carries flight and Warp controls without a separate right-s
   assert.match(mini, /showOperatorDialog\("ПАНДА", message, choices, "panda\.mp4"\)/);
   assert.match(css, /\.bcm-comic-dialog-operator/);
   assert.doesNotMatch(css, /\.bcm-comic-dialog-controls/);
-  assert.match(css, /width:min\(900px,calc\(84vw - 18px\)\)/);
-  assert.match(css, /width:min\(820px,calc\(100vw - 16px\)\)/);
-  assert.match(css, /\.bcm-comic-dialog-avatar\{display:flex;flex:0 0 60px/);
+  assert.match(css, /width:min\(450px,calc\(42vw - 9px\)\)/);
+  assert.match(css, /width:min\(410px,calc\(50vw - 8px\)\)/);
+  assert.match(css, /\.bcm-comic-dialog-avatar\{display:flex;flex:0 0 30px/);
   assert.match(css, /\.bcm-mini-sim\.game-active \.bcm-mini-sim-hud[\s\S]*?visibility:hidden/);
 });
 
@@ -171,10 +171,10 @@ test("SafeMode, animated faces, readable dialog timing and flight pointer-lock h
   assert.ok(mini.includes('localStorage.setItem("bcm-mini-sim-safe-mode"'));
   assert.ok(mini.includes('if (safeModeEnabled)'));
   assert.ok(mini.includes('video data-operator-avatar-video hidden muted autoplay playsinline loop preload="auto"'));
-  assert.ok(mini.includes("window.setTimeout(hideOperatorDialog, 26000)"));
+  assert.ok(mini.includes("window.setTimeout(hideOperatorDialog, 13000)"));
   assert.ok(mini.includes("requestFlightPointerLock"));
   assert.ok(mini.includes("releaseFlightPointerLock"));
-  assert.match(css, /width:min\(900px,calc\(84vw - 18px\)\)/);
+  assert.match(css, /width:min\(450px,calc\(42vw - 9px\)\)/);
   assert.match(css, /\.bcm-comic-dialog-copy p\{[\s\S]{0,150}font-size:19px/);
 });
 
