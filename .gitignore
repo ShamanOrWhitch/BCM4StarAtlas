@@ -17,3 +17,6 @@ public/ships/
 .qa-artifacts/
 /tools/minisim-qa/node_modules/
 /tools/minisim-qa/package-lock.json
+
+# Claude Code personal overrides
+.claude/settings.local.json

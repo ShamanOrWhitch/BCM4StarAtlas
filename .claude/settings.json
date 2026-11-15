@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(npm run test:minisim)",
+      "Bash(npm run qa:minisim:standalone)",
+      "Bash(npm run qa:minisim:transitions:standalone)",
+      "Bash(npm run lint)",
+      "Bash(node --test:*)",
+      "Bash(node .claude/tools/gh.mjs whoami:*)",
+      "Bash(node .claude/tools/gh.mjs locks:*)",
+      "Bash(node .claude/tools/gh.mjs issues:*)",
+      "Bash(node .claude/tools/gh.mjs issue:*)",
+      "Bash(node .claude/tools/gh.mjs runs:*)",
+      "Bash(node .claude/tools/gh.mjs jobs:*)",
+      "Bash(node .claude/tools/gh.mjs log:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull --ff-only:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git blame:*)"
+    ],
+    "deny": [
+      "Edit(/wordpress/galia-desk/**)",
+      "Write(/wordpress/galia-desk/**)",
+      "Edit(**/*.mp3)",
+      "Write(**/*.mp3)",
+      "Edit(**/*.ogg)",
+      "Write(**/*.ogg)",
+      "Edit(**/*.wav)",
+      "Write(**/*.wav)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git checkout -b:*)",
+      "Bash(git switch -c:*)",
+      "Bash(git reset --hard origin:*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.mjs\"",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-journal-check.mjs\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}
