@@ -10,7 +10,9 @@
 - **BUG-006 fixed:** `hoverFloor` was not imported in `scene.ts`; the CI-built bundle threw on boarding the bike. Red: `called but not imported: hoverFloor`.
 - **IDEA-002 step 1:** MUD CSS sector → Pearce (Earth-like), Ustur CSS → Ioki (red), elsewhere the desert. Red before: `First Planet has no planet profiles` / `scene ignores the planet`; after 4/4.
 - **Local:** regression 178/178 (12/12 syntax), Tower suites 34/34, `tsc` no new errors (3 old), eslint 0 errors. Planet Lab in Edge (`tools/planet-lab/shoot.mjs`): 3 planets × Human/Profound/Mierese, page errors 0.
-- **Not verified yet:** CI for this SHA, live site, Warp → MUD/Ustur → Tower → planet in one run.
+- **CI PASS on `b1b8d24`:** regression 178/178 [#43772520482](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43772520482), Tower [#43772520423](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43772520423), standalone Chromium [#43772520449](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43772520449), UI Layer [#43772520440](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43772520440), package → [bcm-mini-sim-0.15.3-test](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43772520426/artifacts/14185390490). `minisim-browser-qa.yml` red = disabled on purpose.
+- **Not verified yet:** live site, Warp → MUD/Ustur → Tower → planet in one run, the owner by eye.
+- **Galia (Render, #120):** still serves `index-CTMgKAKL.js` after `b1b8d24` too — Render is not redeploying on push; owner check of the Render dashboard needed.
 
 ---
 
