@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { bake, settleNose, fitHeight, fitLength } from "./bake";
 import { bindCrewRig, type CrewRig } from "./rig";
+import { planetLook } from "./planet";
 import { ASTEROID_SHOW, characterHeight, characterPath, PILOT_SHIPS, pilotShip, shipUrl } from "@/game/ships";
 import { libraryUrl, meshUrl, propUrl } from "../mesh-url";
 import { activeKeys } from "../input";
@@ -26,6 +27,7 @@ import {
   TOWER_GATE,
   footY,
   groundY,
+  hoverFloor,
   houseAabbs,
   onSky,
   surfaceY,
@@ -176,24 +178,26 @@ export function createIsland(
   canvas: HTMLCanvasElement,
   onProps?: () => void,
   onLoadError?: (error: unknown) => void,
-  context: { planetSeed?: number; players?: Array<{ species?: string; name?: string }>; shipId?: string } = {},
+  context: { planetSeed?: number; players?: Array<{ species?: string; name?: string }>; shipId?: string; planet?: string } = {},
 ): IslandWorld {
   const sim = createSim(Number(context.planetSeed) >>> 0);
+  // Sky, light, ground and sea of the planet this sector lands on (planet.ts).
+  const planet = planetLook(context.planet);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false });
   const host = canvas.parentElement ?? canvas;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1));
   renderer.shadowMap.enabled = false;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.12;
+  renderer.toneMappingExposure = planet.exposure;
   canvas.style.width = "100%";
   canvas.style.height = "100%";
   canvas.style.display = "block";
   canvas.style.touchAction = "none";
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xff7a3c);
-  scene.fog = new THREE.Fog(0xe56a3a, 48, 200);
+  scene.background = new THREE.Color(planet.background);
+  scene.fog = new THREE.Fog(planet.fog.color, planet.fog.near, planet.fog.far);
 
   const camera = new THREE.PerspectiveCamera(58, 1, 0.12, 600);
   camera.position.set(16, 8, 58);
@@ -202,19 +206,19 @@ export function createIsland(
   const LOCAL = 1;
   camera.layers.enable(LOCAL);
 
-  const hemi = new THREE.HemisphereLight(0xffc4a0, 0x7a3a32, 0.95);
-  const gold = sunSprite("#ffe08a", 58);
+  const hemi = new THREE.HemisphereLight(planet.hemi.sky, planet.hemi.ground, planet.hemi.intensity);
+  const gold = sunSprite(planet.sunSprite.color, planet.sunSprite.size);
   gold.position.set(78, 42, -40);
-  const rose = sunSprite("#ff6a4a", 30);
+  const rose = sunSprite(planet.moonSprite.color, planet.moonSprite.size);
   rose.position.set(-62, 30, -90);
   scene.add(gold, rose);
   // Specular on the water follows these lights. They sit on the sprites,
   // otherwise the glint lands to the left of the sun you actually see.
-  const sun = new THREE.DirectionalLight(0xffb15a, 1.35);
+  const sun = new THREE.DirectionalLight(planet.sun.color, planet.sun.intensity);
   sun.position.copy(gold.position);
   sun.target.position.set(0, -0.55, 0);
   sun.castShadow = false;
-  const fill = new THREE.DirectionalLight(0xffc4a0, 0.16);
+  const fill = new THREE.DirectionalLight(planet.fill, 0.16);
   fill.position.copy(rose.position);
   fill.target.position.set(0, -0.55, 0);
   scene.add(hemi, sun, sun.target, fill, fill.target);
@@ -222,9 +226,9 @@ export function createIsland(
   const skyGeo = new THREE.SphereGeometry(420, 20, 12);
   const skyPos = skyGeo.getAttribute("position");
   const skyCol = new Float32Array(skyPos.count * 3);
-  const top = new THREE.Color(0x3d245c);
-  const mid = new THREE.Color(0xff7a3a);
-  const low = new THREE.Color(0xffc48a);
+  const top = new THREE.Color(planet.sky.top);
+  const mid = new THREE.Color(planet.sky.mid);
+  const low = new THREE.Color(planet.sky.low);
   const c = new THREE.Color();
   for (let i = 0; i < skyPos.count; i++) {
     const y = skyPos.getY(i) / 420;
@@ -302,10 +306,10 @@ export function createIsland(
   const groundGeo = new THREE.BufferGeometry();
   const gPos = new Float32Array((n + 1) * (n + 1) * 3);
   const gCol = new Float32Array((n + 1) * (n + 1) * 3);
-  const sand = new THREE.Color(0xe3924e);
-  const wet = new THREE.Color(0xc46a45);
-  const rock = new THREE.Color(0x8a4038);
-  const grass = new THREE.Color(0x3f7d68);
+  const sand = new THREE.Color(planet.ground.sand);
+  const wet = new THREE.Color(planet.ground.wet);
+  const rock = new THREE.Color(planet.ground.rock);
+  const grass = new THREE.Color(planet.ground.grass);
   const index: number[] = [];
   for (let iz = 0; iz <= n; iz++) {
     for (let ix = 0; ix <= n; ix++) {
@@ -321,6 +325,10 @@ export function createIsland(
       if (y < -0.15) c.lerp(wet, Math.min(1, (-0.15 - y) / 1.2));
       if (slope > 0.45) c.lerp(rock, Math.min(1, (slope - 0.45) / 0.8));
       if (Math.hypot(x - 2.4, z + 17) < 8 && y > -0.2 && y < 0.9) c.lerp(grass, 0.55);
+      // A green planet grows grass inland, above the beach and off the cliffs.
+      if (planet.ground.greenery > 0 && y > 0.35 && slope < 0.6) {
+        c.lerp(grass, planet.ground.greenery * Math.min(1, (y - 0.35) / 0.9) * (1 - slope / 0.6));
+      }
       gCol[o] = c.r;
       gCol[o + 1] = c.g;
       gCol[o + 2] = c.b;
@@ -348,11 +356,11 @@ export function createIsland(
   const sea = new THREE.Mesh(
     new THREE.CircleGeometry(420, 48),
     new THREE.MeshStandardMaterial({
-      color: 0x6a3d78,
-      roughness: 0.42,
-      metalness: 0.12,
-      transparent: true,
-      opacity: 0.86,
+      color: planet.sea.color,
+      roughness: planet.sea.roughness,
+      metalness: planet.sea.roughness >= 1 ? 0 : 0.12,
+      transparent: planet.sea.opacity < 1,
+      opacity: planet.sea.opacity,
     }),
   );
   sea.rotation.x = -Math.PI / 2;
@@ -1204,8 +1212,12 @@ export function createIsland(
     pilot.rotation.y = sim.yaw;
     const stance = sim.mood === "stealth" ? 0.62 : 1;
     pilot.scale.set(sim.mood === "fight" ? 1.08 : 1, stance, sim.mood === "fight" ? 1.08 : 1);
-    pilot.position.y += sim.mode === "foot" && Math.abs(sim.speed) > 0.35 ? Math.abs(Math.sin(elapsed * (sim.mood === "sport" ? 14 : 11))) * 0.05 : 0;
-    crewRig?.update(sim.mode === "foot" && Math.abs(sim.speed) > 0.35);
+    const walking = sim.mode === "foot" && Math.abs(sim.speed) > 0.35;
+    // The crew body bobs from its own step (rig). Only the stand-in mannequin
+    // keeps the old whole-body hop.
+    if (!crewRig) pilot.position.y += walking ? Math.abs(Math.sin(elapsed * (sim.mood === "sport" ? 14 : 11))) * 0.05 : 0;
+    // 1 = an easy walk; sport pace reads as a run (capped at 2 in crew-rig).
+    crewRig?.update(walking ? Math.min(2, Math.abs(sim.speed) / 3.6) : 0, dt);
     const tapePhase = sim.tapePhase;
     const tapeOn = tapePhase === "playing" || tapePhase === "paused";
     screenMat.map = tapeOn ? tapeTex : null;
@@ -1476,7 +1488,7 @@ export function createIsland(
       });
       pilot.add(body);
       crewBody = body;
-      crewRig = bindCrewRig(body);
+      crewRig = bindCrewRig(body, species);
     } catch (err) {
       console.warn("BCM crew body skipped", err);
     }

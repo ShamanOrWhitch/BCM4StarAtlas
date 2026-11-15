@@ -14,8 +14,9 @@ test("Mini-Sim and Tower versions stay synchronized", async () => {
   assert.ok(miniVersion, "Mini-Sim PHP header exposes a version");
   assert.ok(miniPhp.includes(`BCM_MINI_SIM_VERSION', '${miniVersion}'`));
   assert.ok(miniJs.includes(`SPACE LABYRINTH — ${miniVersion}`));
-  assert.match(towerPhp, /BCM_TOWER_VERSION\', \'0\.2\.83\'/);
-  assert.match(towerJs, /const TOWER_VERSION = "0\.2\.83"/);
+  const towerVersion = towerPhp.match(/BCM_TOWER_VERSION', '([0-9.]+)'/)?.[1];
+  assert.ok(towerVersion, "Tower PHP exposes a version");
+  assert.ok(towerJs.includes(`const TOWER_VERSION = "${towerVersion}"`), "Tower JS and PHP versions differ");
   assert.match(towerJs, /function makeSpaceExit\(cell\)/);
   assert.match(towerJs, /const reachedExit = ascentMode \? onSpaceExit : p\.y < bottomY - 4\.2/);
   assert.doesNotMatch(towerJs, /p\.y > topY \+ 4\.2/);

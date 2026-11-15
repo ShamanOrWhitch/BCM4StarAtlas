@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { DesertIsland } from "@/components/desert-island";
 import { ShoalRace } from "@/components/shoal-race";
+import { resolvePlanetId } from "@/game/island/planet";
 import "./styles.css";
 
 type PlanetContext = {
@@ -9,6 +10,8 @@ type PlanetContext = {
   sessionSeed?: number;
   seed?: number;
   planetSeed?: number;
+  /** Optional: first | pearce (MUD) | ioki (Ustur). Otherwise from the Warp sector. */
+  planet?: string;
   raceSeed?: number;
   mode?: "single" | "multi";
   players?: Array<{ id?: string; name?: string; image?: string; species?: string }>;
@@ -21,9 +24,12 @@ declare global {
   interface Window {
     BCMMiniSimSession?: {
       currentLocation?: string;
+      planetId?: string;
       locationSeeds?: Record<string, number>;
       [key: string]: unknown;
     };
+    BCMDeepSpaceWarpGetReturnSnapshot?: () => { current?: { x?: number | null; y?: number | null } | null } | null;
+    BCMSageMapCore?: { systemForSector?: (x: number, y: number) => { id?: string } | null };
     BCMFirstPlanet?: {
       mount: (target: HTMLElement, context?: PlanetContext) => Promise<void>;
       unmount: (target: HTMLElement) => void;
@@ -171,8 +177,24 @@ const api = {
       roots.set(target, root);
     }
 
+    // The planet follows the SAGE sector the Warp left the ship in (planet.ts).
+    let sector: { x?: number | null; y?: number | null } | null = null;
+    try {
+      sector = window.BCMDeepSpaceWarpGetReturnSnapshot?.()?.current ?? null;
+    } catch {
+      sector = null;
+    }
+    const sage = window.BCMSageMapCore;
+    const planet = resolvePlanetId({
+      contextPlanet: context.planet,
+      search: window.location.search,
+      sessionPlanet: window.BCMMiniSimSession?.planetId,
+      sector,
+      systemForSector: sage && typeof sage.systemForSector === "function" ? sage.systemForSector.bind(sage) : null,
+    });
     const safeContext: PlanetContext = {
       ...context,
+      planet,
       audioUrl: String(context.audioUrl || ""),
       raceAudioUrl: String(context.raceAudioUrl || ""),
       live: context.live !== false,

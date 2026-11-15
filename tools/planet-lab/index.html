@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planet Lab</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #101418; color: #eee; font: 14px sans-serif; }
+  #planet { position: absolute; inset: 0; }
+</style>
+</head>
+<body>
+<!-- First Planet as Mini-Sim mounts it: the real wp-dist bundle, crew-rig.js on
+     the page, meshes from the plugin folders. ?planet=first|pearce|ioki
+     &species=Human|Ustur|Mierese|Sogmian|Profound|High -->
+<div id="planet"></div>
+<script src="../../mini-sim/assets/js/crew-rig.js"></script>
+<script>
+  window.process = { env: { NODE_ENV: "production" } };
+  window.BCMFirstPlanetConfig = {
+    meshBase: "/mini-sim/first-planet/mesh/",
+    meshLibraryBase: "/mini-sim/first-planet/mesh/library/",
+    propBase: "/mini-sim/assets/mesh/",
+  };
+  window.__planetLab = { ready: false, error: "" };
+</script>
+<link rel="stylesheet" href="../../mini-sim/first-planet/wp-dist/first-planet.css">
+<script src="../../mini-sim/first-planet/wp-dist/first-planet.js"></script>
+<script>
+  (async () => {
+    const q = new URLSearchParams(location.search);
+    const raw = window.BCMFirstPlanet;
+    const api = raw && raw.mount ? raw : raw && raw.default;
+    try {
+      await api.mount(document.getElementById("planet"), {
+        planet: q.get("planet") || undefined,
+        planetSeed: 7,
+        raceSeed: 7,
+        players: [{ species: q.get("species") || "Human", name: "Lab" }],
+        live: true,
+      });
+      window.__planetLab.ready = true;
+    } catch (error) {
+      window.__planetLab.error = String(error && error.message || error);
+    }
+  })();
+</script>
+</body>
+</html>

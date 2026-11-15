@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Compass, Gauge, Pause, RotateCcw } from "lucide-react";
 import { bindKeyboard, held, setForced, tiltEnabled, toggleTilt } from "@/game/input";
 import { createIsland, type IslandWorld, type Phase } from "@/game/island/scene";
+import { planetLook } from "@/game/island/planet";
 import type { IslandHud } from "@/game/island/sim";
 
 const MOOD_NAME = {
@@ -49,7 +50,7 @@ export function DesertIsland({
   onReady,
   onLoadError,
 }: {
-  context: { planetSeed?: number; sessionSeed?: number; players?: Array<{ species?: string; name?: string }> };
+  context: { planetSeed?: number; sessionSeed?: number; planet?: string; players?: Array<{ species?: string; name?: string }> };
   live?: boolean;
   onRace: () => void;
   onTowerEnter: () => void;
@@ -58,6 +59,7 @@ export function DesertIsland({
   onLoadError?: (error: unknown) => void;
 }) {
   const planetSeed = Number(context.planetSeed) >>> 0;
+  const look = planetLook(context.planet);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mapRef = useRef<HTMLCanvasElement>(null);
   const worldRef = useRef<IslandWorld | null>(null);
@@ -101,7 +103,7 @@ export function DesertIsland({
           onReadyRef.current?.();
         },
         (loadError) => onLoadErrorRef.current?.(loadError),
-        { planetSeed, players: context.players },
+        { planetSeed, players: context.players, planet: look.id },
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось открыть остров");
@@ -170,7 +172,7 @@ export function DesertIsland({
       world.dispose();
       worldRef.current = null;
     };
-  }, [planetSeed]);
+  }, [planetSeed, look.id]);
 
   function setPhaseBoth(next: Phase) {
     phaseRef.current = next;
@@ -197,9 +199,10 @@ export function DesertIsland({
       {phase === "gate" ? (
         <section className="absolute inset-x-0 bottom-0 z-10 max-h-[70dvh] overflow-y-auto border-t border-line bg-surface/92 p-5 backdrop-blur-md md:inset-y-0 md:left-0 md:max-h-none md:w-96 md:border-t-0 md:border-r">
           <p className="text-xs font-medium tracking-widest text-primary uppercase">
-            Desert Island · посадочная
+            {look.kicker}
           </p>
-          <h1 className="font-display mt-2 text-4xl leading-none font-medium">Остров пустыни</h1>
+          <h1 className="font-display mt-2 text-4xl leading-none font-medium" data-bcm-planet={look.id}>{look.title}</h1>
+          {look.blurb ? <p className="mt-2 text-sm text-muted">{look.blurb}</p> : null}
           <p className="mt-3 text-sm text-muted">
             Корабль выбирается в меню экипажа до старта — в космосе на нём летишь из кабины.
             Здесь камера сзади и корпус виден целиком. E — сесть в стоящий корабль. Персонаж идёт спиной, раса как у выбранного Crew.
