@@ -241,6 +241,69 @@ try{
  report.asteroidWallCrystalPreview=crystalPreview;
  check(!!crystalPreview,"close-up inspection camera can render a mounted crystal without moving the ship");
  await shot(page,"07-asteroid-wall-crystal-closeup.png");
+ // Exercise the real r128 scene adapter with the repository's six asteroid GLBs.
+ // A detached probe ship and a distant ONICSS origin isolate this from live gameplay.
+ const warpSectorSmoke = await page.evaluate(async () => {
+   const runtime = window.BCMiniSimAPI?.getRuntime?.();
+   const Scene = window.BCMWarpSectorScene;
+   const Core = window.BCMWarpSectorCore;
+   const THREE = runtime?.THREE;
+   if (!runtime?.scene || !THREE || !Scene || !Core) {
+     throw new Error("Warp sector runtime, CPU core or existing Three.js scene is unavailable");
+   }
+   const origin = new THREE.Vector3(1000, 1000, 1000);
+   const ship = {
+     position: origin.clone(),
+     velocity: new THREE.Vector3(0, 0, -12),
+     quaternion: new THREE.Quaternion(),
+     visual: null,
+     maxSpeed: 18
+   };
+   const originMesh = { getWorldPosition(target) { return target.copy(origin); } };
+   const manager = Scene.create({
+     THREE,
+     scene: runtime.scene,
+     assetBase: window.BCMMiniSimConfig?.warpSectorAssetBase || "",
+     gltfLoaderUrl: window.BCMMiniSimConfig?.gltfLoaderUrl || "",
+     runSeed: 314159
+   });
+   try {
+     manager.tick({ active: true, paused: false, dt: 0.016, ship, originMesh, runSeed: 314159 });
+     const deadline = Date.now() + 30000;
+     let snapshot = manager.snapshot();
+     while (!snapshot.slots.every((slot) => slot.status === "READY")) {
+       if (snapshot.lastError) throw new Error(snapshot.lastError);
+       if (Date.now() >= deadline) throw new Error("Timed out loading six asteroid cluster GLBs");
+       await new Promise((resolve) => setTimeout(resolve, 60));
+       snapshot = manager.snapshot();
+     }
+     const templates = manager.getTemplates();
+     const rootGroup = runtime.scene.getObjectByName("bcm-warp-sector-window");
+     let instancedMeshCount = 0;
+     if (rootGroup) rootGroup.traverse((node) => {
+       if (node && node.isInstancedMesh) instancedMeshCount += 1;
+     });
+     const allSlotsReady = snapshot.slots.length === 8 && snapshot.slots.every((slot) =>
+       slot.status === "READY" && slot.instanceCount === 8 && slot.collisionSphereCount >= 7
+     );
+     const result = {
+       ok: templates.length === 6 && allSlotsReady && instancedMeshCount === 8,
+       templateCount: templates.length,
+       residentSlotCount: snapshot.slots.length,
+       readySlotCount: snapshot.slots.filter((slot) => slot.status === "READY").length,
+       instancesPerSlot: snapshot.slots.map((slot) => slot.instanceCount),
+       componentSpheresPerSlot: snapshot.slots.map((slot) => slot.collisionSphereCount),
+       instancedMeshCount,
+       lastError: snapshot.lastError
+     };
+     if (!result.ok) throw new Error("Unexpected sector scene result: " + JSON.stringify(result));
+     return result;
+   } finally {
+     manager.destroy();
+   }
+ });
+ report.warpSectorSmoke = warpSectorSmoke;
+ check(warpSectorSmoke.ok, "Warp sector adapter loads six GLBs and creates eight 8-instance r128 meshes");
  const benignConsole=text=>!full&&/ERR_BLOCKED_BY_CLIENT/.test(text);
  const benignPage=text=>{const m=String(text).match(/base64,([A-Za-z0-9+/=]+)/);if(!m)return false;try{return Buffer.from(m[1],"base64").toString("utf8").includes("wy-preloader");}catch(e){return false;}};
  report.seriousConsoleErrors=report.consoleErrors.filter(text=>!benignConsole(text));

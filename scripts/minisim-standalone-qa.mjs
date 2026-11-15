@@ -80,6 +80,7 @@ const server = createServer(async (req, res) => {
         crewServerNonce: "standalone-qa-no-wallet",
         threeUrl: assetUrl("assets/js/three.min.js"),
         gltfLoaderUrl: assetUrl("assets/js/GLTFLoader.js") + "?ver=" + encodeURIComponent(miniVersion),
+        warpSectorAssetBase: assetUrl("assets/mesh/asteroid_clusters_v2/"),
         towerApproach: { x: 0, y: -2, z: -260, preloadRadius: 150, coverageThreshold: 0.69, uiRadius: 200, gateAutoProgress: 0.85, portalCoverageThreshold: 0.60, backPortalDistance: 8.5 },
         towerJsUrl: assetUrl("tower/assets/js/tower.js") + "?ver=" + encodeURIComponent(towerVersion),
         towerCssUrl: assetUrl("tower/assets/css/tower.css") + "?ver=" + encodeURIComponent(towerVersion),
