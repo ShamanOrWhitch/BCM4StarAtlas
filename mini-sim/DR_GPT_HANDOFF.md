@@ -3,12 +3,22 @@
 Дата сверки: 15 ноября 2026  
 Репозиторий: https://github.com/ShamanOrWhitch/BCM4StarAtlas  
 Рабочая ветка по прямому указанию владельца: main  
-Последний проверенный кодовый HEAD Mini-Sim 0.14.6: e5efcadbee379a4867a7a7dce7224a278aa832e9  
+Последний проверенный runtime/QA HEAD Mini-Sim 0.14.6: 73c540c161b9ec1a1c8a7dd0d9c251f9eb9bff9c  
 Текущие версии из исходников: Mini-Sim 0.14.6; Tower 0.2.80.
 
 Этот документ — долговременная передача контекста для GPT, SYNTX, Grok и других AI-агентов проекта. Он не заменяет сверку актуального кода, Git-коммитов, Issues и PR перед каждой задачей. При расхождении этого документа с более свежим прямым указанием владельца приоритет имеет указание владельца; при расхождении с текущим кодом приоритет имеет код и Git-история.
 
 **Каноническое руководство по лидерству и оркестрации:** `mini-sim/DR_FABLE_PLAYBOOK.md`. Dr Fable начинает с него; DR GPT, Grok, Einstein и другие исполнители используют его роли и формат work packets.
+
+---
+
+## Финальный статус Mini-Sim 0.14.6 (15 ноября 2026)
+
+- Проверенный runtime/QA HEAD: [73c540c](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/73c540c161b9ec1a1c8a7dd0d9c251f9eb9bff9c). Основная реализация: [bfe7486](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/bfe7486b9b2e02beaf700a70c3956e2e37922b86); collision broadphase fix [7d2bdfc](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/7d2bdfc79c2ad86c39a2f3fbe57b535faa432e15); browser GLB probe [7431360](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/74313602ee3368857f800187c5276541d60fbe3a); standalone shell modules [73c540c](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/73c540c161b9ec1a1c8a7dd0d9c251f9eb9bff9c).
+- The 0.14.5 odometer and exact eight-slot ring/hysteresis remain intact; the window is 3 trailing/current/4 leading. Eight volumetric deterministic cluster instances per sector; component spheres reconstructed from disconnected GLB triangle islands; CPU broadphase + swept 3D collisions; shared templates survive slot eviction. Existing r128 runtime renders the scene.
+- **PASS:** Mini-Sim 139/139 + syntax [#43709102788]; Tower source contract 34/34 [#43709102843]; Chromium source assertions 62/62, six GLB templates load, eight READY sectors/InstancedMesh nodes, eight instances per slot, component sphere proxies, full standalone smoke and Tower→First Planet→same-seed ascent→return cycle [#43709102790].
+- Package/First Planet build PASS [#43708447649], artifact #14159361983, SHA-256 `ce7c8f53760f852ff798a834adcf5dd3ae718511b90a3019be91040c53057b3d`.
+- Browser tested scene construction, not a manual pilot collision run or device/hardware feel. Owner flight feedback remains useful for tuning. No production WordPress deployment/live QA is claimed.
 
 ---
 

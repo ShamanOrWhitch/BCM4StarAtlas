@@ -17,13 +17,11 @@
 
 ## Completed — WORK LOCK #114: Mini-Sim 0.14.6 volumetric Warp asteroid field (15 November 2026)
 
-- Runtime commit [bfe7486](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/bfe7486b9b2e02beaf700a70c3956e2e37922b86); test-harness correction [e5efcad](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/e5efcadbee379a4867a7a7dce7224a278aa832e9).
-- Mini-Sim version 0.14.6; Tower stays 0.2.80. 0.14.5 odometer, exact 8 slots, positive modulo and 5% hysteresis are retained. The slot distribution is 3 behind/current/4 ahead.
-- Each sector has 8 deterministic cluster instances distributed by axial coordinate, full-circle angle and radial bands. Component spheres are derived from disconnected GLB mesh islands. CPU performs layout, bounds and swept 3D collisions; existing Three.js r128 only renders InstancedMesh.
-- Broadphase uses axial/depth separation before full 3D sweep. Collision candidates include neighboring sectors at boundaries; long teleports skip collision sweep.
-- **PASS:** Mini-Sim 138/138 [#43708071219]; Tower source-contract [#43708071147]; UI Layer [#43707937383]; package/First Planet build [#43707937307], artifact #14159042830.
-- **Browser pending:** initial standalone run at runtime SHA `bfe7486` failed before Chromium because it executed the three source assertions corrected in `e5efcad`. The documentation update triggers a fresh run; append its actual result. Do not mark the 3D sector field visually tested until the browser or a manual 3D flight has exercised it.
-- No edits to 2D Canvas Warp clocks/course, controls, OST, Three.js version, Tower gameplay, Galia Desk/scanner/pricing, firewall/security, production WordPress, wallet/SAGE.
+- Runtime implementation [bfe7486](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/bfe7486b9b2e02beaf700a70c3956e2e37922b86); broadphase offset-rock fix [7d2bdfc](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/7d2bdfc79c2ad86c39a2f3fbe57b535faa432e15); standalone First Planet path fix [3f9eecb](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/3f9eecb0660705cbbba028997e14e673a3e0849e); GLB scene QA [7431360](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/74313602ee3368857f800187c5276541d60fbe3a); shell module dependency fix [73c540c](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/73c540c161b9ec1a1c8a7dd0d9c251f9eb9bff9c).
+- Mini-Sim 0.14.6; Tower 0.2.80. 0.14.5 odometer, signed absolute sector index, fixed 8 slots, modulo and 5% hysteresis unchanged. Window is 3 trailing/current/4 leading. Eight deterministic volumetric cluster instances per sector, with per-rock collision proxies.
+- **PASS:** Mini-Sim regression 139/139 [#43709102788]; Tower source-contract 34/34 [#43709102843]; standalone Chromium source assertions 62/62, real GLB/InstancedMesh scene probe and Tower → First Planet → same-seed ascent → return cycle [#43709102790]. The browser smoke confirms six templates loaded, all eight slots READY, eight InstancedMesh nodes, eight instances per slot, and at least seven collision spheres per slot. No plugin HTTP errors, serious browser errors or failed requests.
+- **PACKAGE PASS:** run [#43708447649](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43708447649), artifact [#14159361983](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43708447649/artifacts/14159361983), SHA-256 `ce7c8f53760f852ff798a834adcf5dd3ae718511b90a3019be91040c53057b3d`.
+- No Canvas Warp `tubeTravel`/course changes, no Three.js update, no Tower gameplay/audio or protected-scope edits. Browser verifies scene construction, not manual player-ship collision feel; leave #114 open for owner flight feedback. No live WordPress deploy is claimed.
 
 ---
 

@@ -1,15 +1,18 @@
 ## D-052 — Volumetric deterministic Warp field and per-rock swept collisions (15 November 2026)
 
-**Status:** IMPLEMENTED / SOURCE-TESTED in Mini-Sim 0.14.6. WORK LOCK [#114](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/114). Runtime commit [bfe7486](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/bfe7486b9b2e02beaf700a70c3956e2e37922b86).
+**Status:** IMPLEMENTED / SOURCE- AND BROWSER-TESTED in Mini-Sim 0.14.6. WORK LOCK [#114](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/114). Runtime commit [bfe7486](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/bfe7486b9b2e02beaf700a70c3956e2e37922b86); collision broadphase extent correction [7d2bdfc](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/7d2bdfc79c2ad86c39a2f3fbe57b535faa432e15).
 
-- Preserve 0.14.5 odometer, signed `traveled`, absolute sector derivation, fixed eight physical slots, modulo and 5% cache hysteresis. Window layout becomes three sectors behind + current + four ahead (eight total) to cover camera.far 400 and one ahead sector.
-- Sector layout is fully deterministic from run seed + absolute sector number. Each of eight cluster instances per sector has `axial`, full-circle `angle`, radial `radius`, rotation and scale. The radial distribution covers inner, middle and outer bands; no empty center lane is intentionally reserved.
-- Ship bounding sphere defines a bounded tube radius; component spheres from the selected existing GLB establish the cluster extent and safe wall margin. All geometry analysis and matrices are CPU-side.
-- GLB disconnected triangle components become independent rock collision spheres. Broadphase rejects rocks by axial/depth separation; narrowphase checks full 3D swept distance of the ship segment against each individual component. Candidate sectors include both sides of a sector boundary. Large position jumps are not treated as physical sweeps.
-- The root frame stays at ONICSS and its cross-section rotates with ship roll. The existing r128 renderer only draws InstancedMesh buffers. No shader/GPU math, no new renderer.
-- Do not conflate the new 3D field with the existing 2D Canvas Warp: `tubeTravel`, `obstacleDepth`, `routeProgress`, gate/sweeper/spike course and their collision rules stay intact.
-- **Verification:** Mini-Sim 138/138 PASS and syntax checks PASS [#43708071219]; Tower source-contract PASS [#43708071147]; UI Layer PASS [#43707937383]; package/First Planet build PASS [#43707937307], artifact #14159042830. Browser visual verification remains pending: initial standalone run stopped during source assertions before Chromium; a post-documentation run must be checked.
-- No Tower, OST, wallet/SAGE, Galia Desk, scanner/pricing, security, production WordPress or odometer reload persistence changes.
+- Preserve 0.14.5 odometer, signed `traveled`, absolute sector derivation, fixed eight physical slots, positive modulo and 5% cache hysteresis. Window distribution is three sectors behind + current + four ahead.
+- Each sector has eight deterministic cluster instances, laid out by `axial`, full-circle `angle`, radial `radius`, rotation and scale, all seeded from run seed + absolute sector number. The radial distribution covers inner, middle and outer bands.
+- Ship bounding sphere defines a bounded tube radius; disconnected triangle islands in each existing GLB produce per-rock collision spheres. The component bounds define the parent-cluster extent and safe wall margin.
+- Broadphase rejects objects by axial/depth separation first. Narrowphase checks the full swept 3D sphere distance. The candidate reach includes component offsets inside the parent cluster, and candidate sectors include both sides of a sector boundary. Long teleports are not interpreted as physical sweeps.
+- ONICSS remains the fixed origin. Cross-section basis follows ship roll. CPU computes sector math, component bounds, transforms and instance matrices; local Three.js r128 only renders InstancedMesh. Shared templates remain alive through slot eviction.
+- Existing 2D Canvas Warp `tubeTravel`, `obstacleDepth`, route/gate/sweeper/spike timing and collision, controls, OST, Three.js version and Tower remain untouched.
+- **Verification on exact tested HEAD `73c540c`:** Mini-Sim 139/139 + syntax PASS [#43709102788]; Tower source-contract 34/34 PASS [#43709102843]; standalone Chromium source assertions 62/62, GLB scene smoke PASS and Tower → First Planet → same-seed ascent → return-state cycle PASS [#43709102790]. The 3D browser probe loads 6 templates and confirms 8 ready sectors × 8 instances with per-component collision proxies. No page/plugin HTTP errors, serious console/page errors or failed requests.
+- **Package:** First Planet build and single-level package validation PASS [#43708447649]; artifact #14159361983. No production deployment or hands-on flight/contact tuning is claimed; owner manual playtest remains useful for balancing asteroid density and collision feel.
+
+---
+
 
 ---
 
