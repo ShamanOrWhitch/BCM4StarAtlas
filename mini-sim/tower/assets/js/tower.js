@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.86";
+  const TOWER_VERSION = "0.2.87";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -653,6 +653,27 @@
     let gameStarted = false;
     let transitionStarted = false;
     let planetHandoffStarted = false;
+    // Planet landing clips (owner 16.11.2026, "по примеру посадки на OniCSS"):
+    // the bridge plays the clip of the planet the ship lands on. The choice
+    // comes from planet-landing.js, which mirrors First Planet's planet.ts, and
+    // is handed to First Planet in the detail, so clip and island match.
+    const PLANET_TITLES = { first: "FIRST PLANET", pearce: "PEARCE", ioki: "IOKI", fable: "FABLE" };
+    let landedPlanet = null;
+    function landingPlanet() {
+      if (landedPlanet) return landedPlanet;
+      const picker = window.BCMPlanetLanding;
+      try {
+        return picker && typeof picker.planetId === "function" ? picker.planetId() : "first";
+      } catch (e) {
+        return "first";
+      }
+    }
+    function landingClip() {
+      const id = landingPlanet();
+      const picker = window.BCMPlanetLanding;
+      if (picker && typeof picker.clipFor === "function") return picker.clipFor(CONFIG, id);
+      return String((CONFIG.planetTransitions && CONFIG.planetTransitions[id]) || CONFIG.planetTransition || "");
+    }
     let planetPreloadQueued = false;
     let ascentMode = false;
     let frameHandle = 0;
@@ -2366,7 +2387,7 @@
       };
       finish.done = false;
 
-      const url = String(CONFIG.planetTransition || "");
+      const url = landingClip();
       const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (!url || !transitionVideo || reduceMotion) {
         finish();
@@ -2451,6 +2472,7 @@
       const sessionSeed = Number(window.BCMWorldMission?.sessionSeed) >>> 0;
       return {
         mode: mode || "single",
+        planet: landingPlanet(),
         seed: tower ? tower.seed : null,
         sessionSeed,
         planetSeed: Number(window.BCMMiniSimSession?.locationSeeds?.firstPlanet) >>> 0,
@@ -2496,6 +2518,7 @@
       if (transitionClose) transitionClose.hidden = true;
       stopTowerAudio();
 
+      landedPlanet = landingPlanet();
       const detail = currentPlanetDetail(false);
 
       root.dispatchEvent(new CustomEvent("bcm:tower:planet-preload", { detail }));
@@ -2524,7 +2547,7 @@
         root.dispatchEvent(new CustomEvent("bcm:tower:planet-ready", { detail }));
       };
 
-      const url = String(CONFIG.planetTransition || "");
+      const url = landingClip();
       const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (!url || !transitionVideo || reduceMotion) {
         finish();
@@ -2536,7 +2559,7 @@
         transition.style.backgroundImage = "";
       }
       const label = root.querySelector(".bcm-tower-transition-label");
-      if (label) label.textContent = "ПОСАДКА · FIRST PLANET";
+      if (label) label.textContent = "ПОСАДКА · " + (PLANET_TITLES[landingPlanet()] || "FIRST PLANET");
 
       transitionVideo.pause();
       transitionVideo.muted = true;
@@ -3579,13 +3602,14 @@
           ? "КОМАНДА ВОСХОДИТ ПО ТОМУ ЖЕ МАРШРУТУ"
           : "ВСТАНЬ НА H1 · ВЫХОД В КОСМОС";
         status.textContent = "ВОСХОЖДЕНИЕ · ТОТ ЖЕ SEED " + wantedSeed;
-        if (transitionVideo && CONFIG.planetTransition) {
+        const ascentClip = landingClip();
+        if (transitionVideo && ascentClip) {
           const absolute = (value) => {
             try { return new URL(value, document.baseURI).href; } catch (e) { return String(value || ""); }
           };
-          if (absolute(transitionVideo.getAttribute("src") || "") !== absolute(CONFIG.planetTransition)) {
+          if (absolute(transitionVideo.getAttribute("src") || "") !== absolute(ascentClip)) {
             transitionVideo.preload = "auto";
-            transitionVideo.src = CONFIG.planetTransition;
+            transitionVideo.src = ascentClip;
             transitionVideo.load();
           }
         }

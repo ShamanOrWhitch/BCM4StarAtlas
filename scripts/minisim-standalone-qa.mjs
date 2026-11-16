@@ -112,6 +112,10 @@ const server = createServer(async (req, res) => {
         threeUrl: assetUrl("assets/js/three.min.js"),
         transition: pick(["tower.mp4"], "video", allAssets),
         planetTransition: pick(["onicss.mp4"], "video", allAssets),
+        planetTransitions: {
+          fable: pick(["landing-fable.mp4"], "video", allAssets),
+          pearce: pick(["landing-pearce.mp4"], "video", allAssets),
+        },
         transitionFallbacks: [],
         towerAudio: transitionsOnly ? "" : pick(["tower.mp3"], "audio", allAssets),
         towerWallJpgPool: byBase(/^(towerwall|wall)[^/]*\.(jpg|jpeg)$/i),

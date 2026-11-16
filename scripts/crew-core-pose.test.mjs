@@ -97,7 +97,7 @@ test("levels only pass direction and dt; crew-rig loads before crew-core everywh
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   assert.match(towerPhp, /'bcm-crew-rig',\s*plugins_url\('assets\/js\/crew-rig\.js'/, "Tower plugin does not enqueue crew-rig");
   assert.match(towerPhp, /'bcm-crew-core',\s*plugins_url\('assets\/js\/crew-core\.js'[^;]*array\('bcm-crew-rig'\)/, "Tower plugin: crew-core does not depend on crew-rig");
-  assert.match(towerPhp, /BCM_TOWER_URL \. 'assets\/js\/tower\.js',\s*array\('bcm-crew-core'\)/, "tower.js does not depend on crew-core");
+  assert.match(towerPhp, /BCM_TOWER_URL \. 'assets\/js\/tower\.js',\s*array\('bcm-crew-core'[^)]*\)/, "tower.js does not depend on crew-core");
   const shell = await read("tools/minisim-qa/standalone-shell.html");
   assert.ok(shell.indexOf("crew-rig.js") > 0 && shell.indexOf("crew-rig.js") < shell.indexOf("crew-core.js"), "standalone shell does not load crew-rig before crew-core");
 });

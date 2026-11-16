@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_TOWER_VERSION', '0.2.86');
+define('BCM_TOWER_VERSION', '0.2.87');
 define('BCM_TOWER_PATH', __DIR__ . '/');
 define('BCM_TOWER_URL', trailingslashit(plugin_dir_url(__FILE__)));
 
@@ -130,6 +130,11 @@ function bcm_tower_get_client_config($assets = null) {
         'transitionFallbacks' => array(),
         'towerAudio' => bcm_tower_pick_asset($assets, array('tower.mp3'), 'audio'),
         'planetTransition' => bcm_tower_pick_asset($assets, array('onicss.mp4'), 'video'),
+        // Own landing clip per planet; a planet without one keeps onicss.mp4.
+        'planetTransitions' => array_filter(array(
+            'fable' => bcm_tower_pick_asset($assets, array('landing-fable.mp4'), 'video'),
+            'pearce' => bcm_tower_pick_asset($assets, array('landing-pearce.mp4'), 'video'),
+        )),
         'firstPlanetAudio' => bcm_tower_pick_asset($assets, array('FP.mp3'), 'audio') ?: BCM_MINI_SIM_URL . 'first-planet/audio/FP.mp3',
         'desertRaceAudio' => bcm_tower_pick_asset($assets, array('desertrace.mp3'), 'audio') ?: BCM_MINI_SIM_URL . 'first-planet/audio/desertrace.mp3',
         'towerWallJpgPool' => bcm_tower_asset_urls($assets, '/^(towerwall|wall)[^\\/]*\\.(jpg|jpeg)$/i'),
@@ -197,9 +202,17 @@ function bcm_tower_enqueue_assets() {
     );
 
     wp_enqueue_script(
+        'bcm-planet-landing',
+        plugins_url('assets/js/planet-landing.js', dirname(__DIR__) . '/bcm-mini-sim.php'),
+        array(),
+        BCM_TOWER_VERSION,
+        false
+    );
+
+    wp_enqueue_script(
         'bcm-tower',
         BCM_TOWER_URL . 'assets/js/tower.js',
-        array('bcm-crew-core'),
+        array('bcm-crew-core', 'bcm-planet-landing'),
         BCM_TOWER_VERSION,
         false
     );
