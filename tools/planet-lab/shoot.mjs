@@ -61,6 +61,19 @@ try {
       // Board the bike: BUG-006 threw "hoverFloor is not defined" here.
       await page.keyboard.press("KeyF");
       await page.waitForTimeout(400);
+      // Relief from the air: G switches the bike to flight, Space climbs.
+      await page.keyboard.press("KeyG");
+      await page.keyboard.down("Space");
+      await page.waitForTimeout(2600);
+      await page.keyboard.up("Space");
+      await page.screenshot({ path: resolve(out, `${tag}-air-0.png`) });
+      await page.keyboard.down("KeyA");
+      await page.waitForTimeout(1500);
+      await page.keyboard.up("KeyA");
+      await page.keyboard.down("KeyW");
+      await page.waitForTimeout(1800);
+      await page.keyboard.up("KeyW");
+      await page.screenshot({ path: resolve(out, `${tag}-air-1.png`) });
       await page.close();
     }
   }

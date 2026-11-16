@@ -28,6 +28,7 @@ import {
   TOWER_GATE,
   footY,
   groundY,
+  setRelief,
   hoverFloor,
   houseAabbs,
   onSky,
@@ -181,6 +182,8 @@ export function createIsland(
   onLoadError?: (error: unknown) => void,
   context: { planetSeed?: number; players?: Array<{ species?: string; name?: string }>; shipId?: string; planet?: string } = {},
 ): IslandWorld {
+  // The relief must be chosen before the sim reads the ground under the spawn.
+  setRelief(planetLook(context.planet).relief);
   const sim = createSim(Number(context.planetSeed) >>> 0);
   // Sky, light, ground and sea of the planet this sector lands on (planet.ts).
   const planet = planetLook(context.planet);

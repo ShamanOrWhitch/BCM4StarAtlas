@@ -11,8 +11,75 @@ function lerp(a: number, b: number, t: number) {
 export const TERRAIN_SPAN = 168;
 export const TERRAIN_N = 96;
 
-/** Desert island height. Sea is below about -0.5; the pad and town are flattened. */
+/**
+ * Which island the ground functions describe. The scene sets it from the
+ * planet profile before it builds the ground and the sim; everything else
+ * (feet, props, houses, quests) keeps sampling groundY as before.
+ *   desert — First Planet, Pearce, Ioki (unchanged since 0.15.4)
+ *   fable  — planet Fable: capes and coves, the Crescent ridge, Table hill,
+ *            sea stacks. Town, pad, pond and bridge stand where they stood.
+ */
+export type ReliefId = "desert" | "fable";
+let relief: ReliefId = "desert";
+
+export function setRelief(id: unknown) {
+  relief = id === "fable" ? "fable" : "desert";
+}
+
+export function getRelief(): ReliefId {
+  return relief;
+}
+
+/** Island height. Sea is below about -0.5; the pad and town are flattened. */
 export function groundY(x: number, z: number) {
+  return relief === "fable" ? fableGroundY(x, z) : desertGroundY(x, z);
+}
+
+export const FABLE_CRESCENT = { x: 34, z: -4, r: 15 };
+export const FABLE_TABLE = { x: -34, z: 24 };
+/** Sea stacks off the coves: x, z, height above the sea bed, spread. */
+export const FABLE_STACKS: Array<[number, number, number, number]> = [
+  [60, 35, 4.6, 44],
+  [66, 27, 3.4, 16],
+  [-60, 36, 4.2, 40],
+  [-52, 46, 3.2, 14],
+  [5, -67, 4.8, 42],
+  [-6, -72, 3.3, 14],
+];
+
+function fableGroundY(x: number, z: number) {
+  const r = Math.hypot(x, z);
+  const t = Math.atan2(z, x);
+  // Three capes (pad, crystal ridge, south-east) and three coves between them.
+  const coast = Math.min(1.05, 0.92 - 0.12 * Math.sin(3 * t) - 0.05 * Math.sin(5 * t));
+  const inland = smooth(76 * coast, 54 * coast, r);
+  // Long mossy swells in the wild; the town and the pad keep level ground.
+  const wild = 1 - Math.exp(-(x * x) / 520 - ((z - 20) ** 2) / 760);
+  let h = 0.7;
+  h += (Math.sin(x * 0.055 + 0.9) * Math.cos(z * 0.062 - 0.4) * 1.15 + 0.25) * wild;
+  h += Math.sin(x * 0.16 - 0.7) * Math.sin(z * 0.19 + 1.1) * 0.32 * wild;
+  const ridge = Math.exp(-((x + 32) ** 2) / 70 - ((z + 18) ** 2) / 150);
+  h += ridge * 6.2;
+  // The Crescent: an arc of rock east of the town, open towards it.
+  const cx = x - FABLE_CRESCENT.x;
+  const cz = z - FABLE_CRESCENT.z;
+  const cd = Math.hypot(cx, cz);
+  const arc = Math.exp(-((cd - FABLE_CRESCENT.r) ** 2) / 16) * smooth(-0.35, 0.45, cx / Math.max(1, cd));
+  h += arc * 5.4;
+  // Table hill: two mossy terraces in the north-west.
+  const td = Math.hypot(x - FABLE_TABLE.x, z - FABLE_TABLE.z);
+  h = lerp(h, Math.max(h, 1.7), smooth(17, 13.5, td));
+  h = lerp(h, Math.max(h, 3.1), smooth(9.5, 7, td));
+  const oasis = Math.exp(-((x - 2.4) ** 2) / 48 - ((z + 17) ** 2) / 52);
+  h -= oasis * 2.5;
+  let y = lerp(-1.7, settle(h, x, z), inland);
+  for (const [sx, sz, height, spread] of FABLE_STACKS) {
+    y = Math.max(y, -1.7 + Math.exp(-((x - sx) ** 2 + (z - sz) ** 2) / spread) * height);
+  }
+  return y;
+}
+
+function desertGroundY(x: number, z: number) {
   const r = Math.hypot(x, z);
   const inland = smooth(76, 54, r);
   let h = 0.7;
@@ -22,6 +89,11 @@ export function groundY(x: number, z: number) {
   h += ridge * 6.2;
   const oasis = Math.exp(-((x - 2.4) ** 2) / 48 - ((z + 17) ** 2) / 52);
   h -= oasis * 2.5;
+  return lerp(-1.7, settle(h, x, z), inland);
+}
+
+/** Built places: the pad, the town, four house plots and the bridge heads. */
+function settle(h: number, x: number, z: number) {
   const pad = Math.exp(-(x * x) / 55 - ((z - 38) ** 2) / 42);
   h = lerp(h, 0.48, Math.min(1, pad * 1.05));
   const town = Math.exp(-(x * x) / 280 - ((z - 8) ** 2) / 360);
@@ -38,7 +110,7 @@ export function groundY(x: number, z: number) {
   }
   if (Math.abs(x - 2.2) < 2.4 && z <= -8.4 && z >= -10.4) h = Math.max(h, 0.42);
   if (Math.abs(x - 2.2) < 2.4 && z <= -23.2 && z >= -26.2) h = Math.max(h, 0.42);
-  return lerp(-1.7, h, inland);
+  return h;
 }
 
 /** Height of the rendered ground triangle, so a stone cannot hover over a coarse face. */
@@ -211,6 +283,7 @@ export const NPC = {
 
 export function regionName(x: number, z: number, y: number) {
   if (onSky(x, z) && y > SKY.y - 1) return "Висячий остров";
+  if (relief === "fable") return fableRegionName(x, z);
   if (Math.hypot(x - 2.4, z + 17) < 9) return "Оазис";
   if (x < -22 && z < -6) return "Кристальная гряда";
   if (z > 30 && Math.abs(x) < 14) return "Посадочная";
@@ -218,4 +291,19 @@ export function regionName(x: number, z: number, y: number) {
   if (Math.abs(x) < 18 && z > -10 && z < 26) return "Дюнный посад";
   if (Math.hypot(x - RING.x, z - RING.z) < 8) return "Северное кольцо";
   return "Дюны";
+}
+
+function fableRegionName(x: number, z: number) {
+  if (Math.hypot(x - 2.4, z + 17) < 9) return "Зеркальный пруд";
+  if (x < -22 && z < -6) return "Кристальная гряда";
+  if (z > 30 && Math.abs(x) < 14) return "Посадочная";
+  if (Math.hypot(x - JAHMAN.x, z - JAHMAN.z) < 5) return "Дом Джамана";
+  if (Math.abs(x) < 18 && z > -10 && z < 26) return "Мшистый посад";
+  if (Math.hypot(x - RING.x, z - RING.z) < 8) return "Северное кольцо";
+  const cd = Math.hypot(x - FABLE_CRESCENT.x, z - FABLE_CRESCENT.z);
+  if (Math.abs(cd - FABLE_CRESCENT.r) < 6 && x > FABLE_CRESCENT.x - 6) return "Полумесяц";
+  if (cd < FABLE_CRESCENT.r - 6) return "Чаша Полумесяца";
+  if (Math.hypot(x - FABLE_TABLE.x, z - FABLE_TABLE.z) < 15) return "Столовый холм";
+  for (const [sx, sz] of FABLE_STACKS) if (Math.hypot(x - sx, z - sz) < 9) return "Морские столбы";
+  return "Мшистые холмы";
 }

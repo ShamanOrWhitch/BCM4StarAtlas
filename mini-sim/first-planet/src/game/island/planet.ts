@@ -9,8 +9,9 @@
  *   Ustur CSS [40, 30] → Ioki, the robots' red homeworld
  *   anywhere else      → First Planet, today's desert
  *   Fable    [-39, 31] → planet Fable, a Mini-Sim landmark with its own design
- * Step 1 changes sky, light, ground, sea and names. The island layout,
- * collisions and quests stay the same on every planet.
+ * Step 1 changes sky, light, ground, sea and names. Step 3 gives Fable its
+ * own relief (terrain.ts). Houses, quests and collisions stay where they are
+ * on every planet.
  *
  * Pure data and logic: no DOM, no THREE, so node --test can run it.
  */
@@ -53,6 +54,8 @@ export type PlanetLook = {
   ground: { sand: number; wet: number; rock: number; grass: number; greenery: number };
   sea: { color: number; opacity: number; roughness: number };
   exposure: number;
+  /** Island relief (terrain.ts setRelief). Absent means the desert island. */
+  relief?: "desert" | "fable";
   extras?: PlanetExtras;
 };
 
@@ -82,6 +85,7 @@ export const PLANETS: Record<PlanetId, PlanetLook> = {
     ground: { sand: 0x4a5f7a, wet: 0x2c8f8a, rock: 0x3a2f63, grass: 0x2f9c7c, greenery: 0.62 },
     sea: { color: 0x123a66, opacity: 0.92, roughness: 0.22 },
     exposure: 1.18,
+    relief: "fable",
     extras: {
       stars: 520,
       aurora: { low: 0x3affc0, high: 0x9a6bff },
