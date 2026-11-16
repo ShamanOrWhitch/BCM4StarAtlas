@@ -37,7 +37,7 @@
 
 | Что | Команда |
 |---|---|
-| Регрессия Mini-Sim **ровно как в CI** (синтаксис + 18 файлов, 183 теста на 0.15.5; нужен `npm ci` в `mini-sim/first-planet`) | `node .claude/tools/regression.mjs` |
+| Регрессия Mini-Sim **ровно как в CI** (синтаксис + 19 файлов, 187 тестов на 0.15.6; нужен `npm ci` в `mini-sim/first-planet`) | `node .claude/tools/regression.mjs` |
 | Узкий набор (6 файлов, 62 теста — не равен CI) | `npm run test:minisim` |
 | Браузерный standalone QA (Chromium) | `npm run qa:minisim:standalone` |
 | Только переходы | `npm run qa:minisim:transitions:standalone` |

@@ -3,6 +3,17 @@
 Рабочая память разделена. Идеи: `JOURNAL_IDEAS.md`. Баги: `JOURNAL_BUGS.md`. Комплектация мини-игр: `JOURNAL_KIT.md`.
 Проверка больше не замораживает правки. Версия игры от этого не менялась: Mini-Sim `0.14.6`, Tower `0.2.80`, HEAD на момент записи журналов `129ad52`.
 
+## Patch — Mini-Sim 0.15.6: planet landing clips on the Tower → planet bridge (16 November 2026)
+
+- **WORK LOCK:** [#126](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/126), `e38fba3`. Decision D-063. Tower `0.2.87`.
+- **Clips:** owner's Seedance clips (7 s, 854×480) `mini-sim/assets/landing-fable.mp4`, `landing-pearce.mp4`. Fable and Pearce play their own clip on landing and reversed on ascent; other planets keep `onicss.mp4`.
+- **Red before:** `Tower has one bridge clip for every planet: only 'planetTransition' => onicss.mp4`; `every planet lands with onicss.mp4`; `the landing still plays onicss.mp4 on every planet`. After 4/4 (`scripts/tower-planet-landing-clip.test.mjs`, in CI). Tower and First Planet agree on the planet for all 10 201 sectors.
+- **Local:** regression 187/187; standalone transitions QA in Edge PASS 24/24 (default ONI path); both clips decode and play 7.04 s in Edge.
+- **Galia Desk 0.8.19 (#125):** test package `galia-desk-0.8.19-test.zip` given to the owner, built outside `wordpress/galia-desk` (the folder stays 0.8.18 in `main`).
+- **Not verified yet:** CI for this SHA; the landing handoff with the Fable/Pearce clip in a browser (the transitions QA advances the planet step by event, not by Tower descent); live site.
+
+---
+
 ## Patch — Mini-Sim 0.15.5: planet Fable has its own relief (16 November 2026)
 
 - **WORK LOCK:** [#124](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/124), `d598f72`. Decision D-062. IDEA-002 step 3. Tower `0.2.86` is a version bump only.

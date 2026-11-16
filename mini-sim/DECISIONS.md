@@ -1,3 +1,13 @@
+## D-063 — Ролик моста Tower → планета выбирается по планете посадки (16 ноября 2026)
+
+**Status:** Реализовано в `e38fba3`, Mini-Sim `0.15.6`, Tower `0.2.87`, WORK LOCK [#126](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/126). Исполнитель — Claude Code (Claude Opus 5.5).
+
+- **Указание владельца:** «вот 2 видео с приземлением на 2 планеты я создал, загрузи их под разработки в репозиторий и подключи переходными к планете мостом ролики по примеру посадки на OniCSS».
+- **Как:** `BCMTowerConfig.planetTransitions` (`fable`, `pearce`) рядом с прежним `planetTransition` (`onicss.mp4`). Выбор планеты на стороне Tower — `mini-sim/assets/js/planet-landing.js`: тот же порядок и те же имена, что в First Planet `planet.ts` (переключатель `?bcm_planet=`, планета сессии, сектор Warp). Тест сравнивает их на всех секторах −50…50.
+- **Одна планета на посадку:** Tower фиксирует планету в момент спуска и передаёт её в First Planet (`detail.planet`). Ролик, остров и обратный ролик при восхождении показывают одну и ту же планету.
+- **Совместимость:** старый конфиг без `planetTransitions` и страница без `planet-landing.js` дают прежний `onicss.mp4`.
+- **Звук:** ролики играют без звука, как и `onicss.mp4` (AUDIO FREEZE не затронут).
+
 ## D-062 — Рельеф острова выбирает профиль планеты; застроенные места общие (16 ноября 2026)
 
 **Status:** Реализовано в `d598f72`, Mini-Sim `0.15.5`, Tower `0.2.86` (только версия, ключ кэша бандла), WORK LOCK [#124](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/124). IDEA-002, шаг 3. Исполнитель — Claude Code на модели Claude Fable 5.2.
