@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.87";
+  const TOWER_VERSION = "0.2.88";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -584,10 +584,22 @@
         || "Без имени";
     }
 
-    function syncCrewSelectionFromMiniSim() {
-      const selected = window.BCMMiniCrewSelection?.players;
-      if (!Array.isArray(selected) || selected.length < 2) return false;
+    // BUG-012: Tower inside Galia showed a blue ball. The crew was taken only
+    // from Mini-Sim's committed selection and only when it held two people.
+    // One chosen crew member is enough, and a Galia launch carries its own crew.
+    function towerCrewSource() {
+      const mini = window.BCMMiniCrewSelection && window.BCMMiniCrewSelection.players;
+      if (Array.isArray(mini) && mini.length) return mini;
+      const galia = window.GALIA_PLAY_STATE && window.GALIA_PLAY_STATE.crew;
+      if (Array.isArray(galia) && galia.length) return galia;
+      return null;
+    }
 
+    function syncCrewSelectionFromMiniSim() {
+      const selected = towerCrewSource();
+      if (!selected) return false;
+
+      const standIn = crewRoster[1] || { id: "default-crew-2", name: "Default Crew 2", source: "fallback" };
       crewRoster = selected.slice(0, 2).map((crew, index) => ({
         id: String(crew.id || crew.mint || ("crew-" + index)),
         mint: String(crew.mint || ""),
@@ -603,6 +615,7 @@
         ocean: String(crew.ocean || ""),
         mission: String(crew.mission || "")
       }));
+      if (crewRoster.length < 2) crewRoster.push(standIn.id === crewRoster[0].id ? { id: "default-crew-2", name: "Default Crew 2", source: "fallback" } : standIn);
 
       for (let i = 0; i < 2; i++) {
         if (crewRoster[i]) crewSlots[i].crewId = crewRoster[i].id;

@@ -136,6 +136,49 @@ for (const path of MODELS) {
   });
 }
 
+// BUG-009 (owner, live 0.15.5): "анимации сломались после первой же остановки",
+// "анимация покоя не переключается". A standing crew member must keep an idle
+// pose (breathing), and the change between step and rest must not snap.
+for (const path of MODELS) {
+  const name = path.split("/").pop();
+  const separateFeet = feet(buildBody(path)).length >= 2;
+  test(`${name}: after a stop the body keeps breathing and the legs ease to rest`, { skip: !separateFeet && "no separate feet in this model" }, () => {
+    const body = buildBody(path);
+    const rest = feet(body);
+    const rig = bindCrewRig(body, "");
+    const top = () => new THREE.Box3().setFromObject(body).max.y;
+    for (let i = 0; i < 45; i += 1) rig.update(1.5, 1 / 60);
+    // The frame the player lets go of the key: legs must not jump to rest at once.
+    const zBefore = feet(body).map((f) => f.z);
+    rig.update(0, 1 / 60);
+    const zAfter = feet(body).map((f) => f.z);
+    const jump = Math.max(...zAfter.map((z, k) => Math.abs(z - zBefore[k])));
+    const strideNow = Math.max(...zBefore) - Math.min(...zBefore);
+    if (strideNow > 0.2) assert.ok(jump < strideNow * 0.5, `legs snap to rest in one frame (moved ${jump.toFixed(3)} of a ${strideNow.toFixed(3)} stride)`);
+    // One second later the feet are home.
+    for (let i = 0; i < 60; i += 1) rig.update(0, 1 / 60);
+    for (const f of feet(body)) {
+      const r = rest.find((x) => x.name === f.name);
+      assert.ok(Math.abs(f.z - r.z) < 0.02 && Math.abs(f.y - r.y) < 0.03, `${f.name} is not back at rest after the stop`);
+    }
+    // Idle: the head rises and falls with the breath while the feet stay put.
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (let i = 0; i < 300; i += 1) {
+      rig.update(0, 1 / 60);
+      const y = top();
+      lo = Math.min(lo, y);
+      hi = Math.max(hi, y);
+    }
+    assert.ok(hi - lo > 0.004, `standing crew is frozen: no idle pose (head moves ${(hi - lo).toFixed(4)} m in 5 s)`);
+    assert.ok(hi - lo < 0.06, `idle pose bounces like a walk (${(hi - lo).toFixed(3)} m)`);
+    for (const f of feet(body)) {
+      const r = rest.find((x) => x.name === f.name);
+      assert.ok(Math.abs(f.z - r.z) < 0.02 && Math.abs(f.y - r.y) < 0.03, `${f.name} drifts in the idle pose`);
+    }
+  });
+}
+
 test("the island rig is paced by dt and shares the Crew pose generator", () => {
   const rig = readFileSync(new URL("mini-sim/first-planet/src/game/island/rig.ts", ROOT), "utf8");
   assert.doesNotMatch(rig, /performance\.now\(/, "rig phase still follows the wall clock");

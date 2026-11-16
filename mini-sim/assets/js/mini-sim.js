@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.15.7",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.15.8",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -91,7 +91,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.15.7",
+      title: "SPACE LABYRINTH — 0.15.8",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -783,6 +783,55 @@
     }
   }
 
+  function mouseSteers(locked, leftHeld, overGame) {
+    return !!locked || (!!leftHeld && !!overGame);
+  }
+
+  // BUG-011: the ship chosen in the Galia fleet is the ship the player flies.
+  function shipKey(name) {
+    return String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  }
+  // First fleet ship (list order is the priority) that has a model in the catalogue.
+  // A ship with quantity 0 is owned but not taken into the fleet.
+  function pickFleetFlight(ships, flightShips) {
+    const list = Array.isArray(ships) ? ships : [];
+    for (const ship of list) {
+      if (!ship || (ship.quantity != null && !(Number(ship.quantity) > 0))) continue;
+      const key = shipKey(ship.name);
+      if (!key) continue;
+      const hit = (flightShips || []).find((spec) => shipKey(spec.name) === key || shipKey(spec.id) === key);
+      if (hit) return hit;
+    }
+    return null;
+  }
+  function applyFleetShip(ships) {
+    let hit = null;
+    try {
+      hit = pickFleetFlight(ships, FLIGHT_SHIPS);
+    } catch (e) {
+      return false; // the catalogue is not built yet; the boot pick below reads GALIA_FLEET
+    }
+    if (!hit || hit === chosenFlight) return !!hit;
+    chosenFlight = hit;
+    if (window.BCMMiniCrewSelection) {
+      window.BCMMiniCrewSelection.shipId = chosenFlight.id;
+      window.BCMMiniCrewSelection.shipFile = chosenFlight.file;
+      window.BCMMiniCrewSelection.shipName = chosenFlight.name;
+      window.BCMMiniCrewSelection.shipLength = chosenFlight.length;
+    }
+    const select = root.querySelector("[data-flight-ships] select");
+    if (select) select.value = chosenFlight.id;
+    crewSetStatus("Корабль флота: " + chosenFlight.name);
+    if (running) {
+      try { mountFlightHull(chosenFlight); } catch (e) { console.warn("Fleet ship could not be mounted", chosenFlight.id, e); }
+    }
+    return true;
+  }
+  function handleFleetConfig(event) {
+    const detail = event && event.detail && typeof event.detail === "object" ? event.detail : window.GALIA_FLEET;
+    if (detail && Array.isArray(detail.ships)) applyFleetShip(detail.ships);
+  }
+
   function handleGaliaPlayRequest(event) {
     const detail = event?.detail && typeof event.detail === "object" ? event.detail : null;
     if (!detail) return;
@@ -818,6 +867,12 @@
     crewSelection = Array.from({ length: playerCapacity }, (_, index) =>
       crewRoster[index]?.id || null
     );
+
+    // The fleet built in Galia Desk is the player's choice; the launch itself
+    // lists the whole wallet.
+    applyFleetShip(window.GALIA_FLEET && Array.isArray(window.GALIA_FLEET.ships) && window.GALIA_FLEET.ships.length
+      ? window.GALIA_FLEET.ships
+      : detail.ships);
 
     renderCrewPreflight();
     crewSetStatus(
@@ -5774,7 +5829,10 @@
         ship._helmMouseY = (ship._helmMouseY || 0) - e.movementX * 0.0032;
         return;
       }
-      if (!pointerLocked) return;
+      // BUG-017: a browser that refuses pointer lock (an embedded pane) still
+      // steers while the left button is held over the game.
+      const overGame = running && e.target === canvas && !root.classList.contains("bcm-warp-open");
+      if (!mouseSteers(pointerLocked, e.buttons & 1, overGame)) return;
       ship.angularVelocity.y -= e.movementX * 0.0032;
       ship.angularVelocity.x -= e.movementY * 0.0036;
     });
@@ -5960,6 +6018,7 @@
     window.BCMiniSimAPI.getPlace = () => simPlace;
 
     window.addEventListener("galia-play-request", handleGaliaPlayRequest);
+    document.addEventListener("galia-fleet-config", handleFleetConfig);
 
     if (window.GALIA_PLAY_STATE) {
       handleGaliaPlayRequest({ detail: window.GALIA_PLAY_STATE });
@@ -6019,6 +6078,7 @@
         name: String(ship.name || ship.id),
         category: String(ship.category || "Прочие"),
         size: String(ship.size || ""),
+        nose: String(ship.nose || ""),
         file: "mesh/ships/" + String(ship.flight),
         parkedFile: "mesh/ships/" + String(ship.parked || ship.flight),
         length: Number(ship.seatLength) || 12,
@@ -6030,10 +6090,24 @@
       (window.BCMMiniCrewSelection && window.BCMMiniCrewSelection.shipId))
     || FLIGHT_SHIPS.find((ship) => ship.id === "opal")
     || FLIGHT_SHIPS[0];
+  // A fleet chosen in Galia Desk before Mini-Sim booted.
+  chosenFlight = pickFleetFlight(window.GALIA_FLEET && window.GALIA_FLEET.ships, FLIGHT_SHIPS) || chosenFlight;
 
-  function aimFlightNose(root) {
+  // BUG-015: the catalogue says where an unnamed hull's nose is; the guess
+  // from the bounding box flew the small-ship family sideways.
+  function catalogNose(idOrFile) {
+    const key = String(idOrFile || "");
+    const spec = FLIGHT_SHIPS.find((ship) => ship.id === key || ship.file === key || ship.parkedFile === key);
+    return spec ? String(spec.nose || "") : "";
+  }
+  function aimFlightNose(root, nose) {
     root.rotation.set(0, 0, 0);
     root.updateMatrixWorld(true);
+    const told = { "+x": [1, 0], "-x": [-1, 0], "+z": [0, 1], "-z": [0, -1] }[String(nose || "")];
+    if (told) {
+      root.rotation.y = Math.atan2(told[0], -told[1]);
+      return;
+    }
     const sample = (pattern) => {
       const v = new THREE.Vector3();
       const sum = new THREE.Vector3();
@@ -6163,7 +6237,7 @@
   }
 
   function seatCockpit(root, length, shipId) {
-    aimFlightNose(root);
+    aimFlightNose(root, catalogNose(shipId));
     root.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(root);
     const size = new THREE.Vector3();
@@ -6626,7 +6700,7 @@
       document.head.appendChild(script);
     });
     const fit = (root, target, file) => {
-      aimFlightNose(root);
+      aimFlightNose(root, catalogNose(file));
       root.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(root);
       const size = new THREE.Vector3();
@@ -6734,7 +6808,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.15.7") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.15.8") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();

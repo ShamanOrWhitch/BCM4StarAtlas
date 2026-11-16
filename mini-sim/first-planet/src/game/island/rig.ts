@@ -176,37 +176,52 @@ export function bindCrewRig(root: THREE.Object3D, species = "", sex = ""): CrewR
   const baseY = root.position.y;
   const baseZ = root.rotation.z;
   const hasLegs = joints.some((j) => j.kind === "hip");
+  const hipRestY = new Map(joints.filter((j) => j.kind === "hip").map((j) => [j, j.pivot.position.y] as const));
   let phase = 0;
+  /** 1 = walking pose, 0 = rest. Eased, so a stop or a start never snaps (BUG-009). */
+  let stride = 0;
+  /** Idle breath, in cycles; runs on its own clock so it does not restart at every stop. */
+  let breath = 0;
 
   return {
     update(moving, dt = 1 / 60) {
       const step = Math.min(0.1, Math.max(0, Number(dt) || 0));
       const speed = typeof moving === "number" ? moving : moving ? 1 : 0;
-      phase = api.stepPhase(phase, step, profile, speed);
       const walking = speed > 0;
+      // The stride keeps its place while the legs ease home, then idles.
+      phase = api.stepPhase(phase, step, profile, walking ? speed : stride > 0.02 ? 0.6 : 0);
+      stride += ((walking ? 1 : 0) - stride) * (1 - Math.exp(-step * (walking ? 14 : 9)));
+      if (!walking && stride < 0.002) stride = 0;
+      breath = (breath + step * 0.24) % 1;
+      const rest = 1 - stride;
+      const inhale = Math.sin(breath * Math.PI * 2);
       const pose = api.walkPose(phase, profile);
-      // Standing: the idle phase still breathes, but the legs stay planted.
-      const k = walking ? 1 : 0;
       for (const j of joints) {
         // The model faces +z and +x is its left, so L is side +1.
         const left = j.side > 0;
         // Positive pose angle = forward. Rotating about x by a negative angle
         // carries a hanging limb towards +z.
         let angle = 0;
-        if (j.kind === "hip") angle = (left ? pose.hipL : pose.hipR) * k;
-        else if (j.kind === "knee") angle = (left ? pose.kneeL : pose.kneeR) * k;
-        else if (j.kind === "foot") angle = -(left ? pose.footL : pose.footR) * k;
-        else angle = (left ? pose.armL : pose.armR) * (walking ? 1 : 0.08);
+        if (j.kind === "hip") angle = (left ? pose.hipL : pose.hipR) * stride;
+        else if (j.kind === "knee") angle = (left ? pose.kneeL : pose.kneeR) * stride;
+        else if (j.kind === "foot") angle = -(left ? pose.footL : pose.footR) * stride;
+        // Arms swing with the step; at rest they drift a little with the breath.
+        else angle = (left ? pose.armL : pose.armR) * stride + inhale * 0.035 * rest * (left ? 1 : -1);
         j.pivot.rotation.set(j.rest.x - angle, j.rest.y, j.rest.z);
       }
       const scale = root.scale.y || 1;
+      // Idle pose: the body rises and falls with the breath (about 1 cm on a
+      // 1.7 m figure), so a standing crew member is never a frozen statue.
+      const breathLift = (inhale * 0.5 + 0.5) * height * 0.007 * rest;
       if (hasLegs) {
-        root.position.y = baseY + pose.bob * height * scale * 0.35 * k;
-        root.rotation.z = baseZ + pose.sway * k;
+        root.position.y = baseY + (pose.bob * height * 0.35 * stride + breathLift) * scale;
+        root.rotation.z = baseZ + pose.sway * stride + inhale * 0.006 * rest;
+        // The feet stay on the ground while the chest breathes.
+        for (const [joint, y] of hipRestY) joint.pivot.position.y = y - breathLift;
       } else {
-        // No separable legs (one mesh for both): keep the old breathing body.
-        root.position.y = baseY + pose.bob * height * scale * (walking ? 0.6 : 0.15);
-        root.rotation.z = baseZ + pose.sway * (walking ? 1.5 : 0.4);
+        // No separable legs (one mesh for both): the whole body breathes.
+        root.position.y = baseY + (pose.bob * height * (0.15 + 0.45 * stride) ) * scale;
+        root.rotation.z = baseZ + pose.sway * (0.4 + 1.1 * stride);
       }
     },
   };

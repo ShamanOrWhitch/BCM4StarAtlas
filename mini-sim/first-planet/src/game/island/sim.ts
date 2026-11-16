@@ -270,6 +270,9 @@ export function createSim(seed = 0) {
     respawnPrev: false,
     jumpPrev: false,
     flightTogglePrev: false,
+    /** Seconds the riding hint stays on screen; set when the ride or its mode changes (BUG-016). */
+    rideHint: 0,
+    rideHintKey: "",
     moodPrev: false,
     dash: 0,
     tale: 0,
@@ -562,9 +565,11 @@ export function createSim(seed = 0) {
       else if (hit(TOWER_GATE.x, TOWER_GATE.z, TOWER_GATE.radius)) this.prompt = "E — маяк · подъём в Tower";
       else if (hit(RING.x, RING.z, 3.4)) this.prompt = "E — берег цитадели, гонка";
       else if (this.mode === "foot" && hit(this.bikeX, this.bikeZ, 3.8)) this.prompt = "F — сесть на байк";
-      else if (this.mode === "bike") this.prompt = this.flightMode
-        ? "T — режим земли · F — спешиться"
-        : "T — режим полёта · F — спешиться";
+      // Owner 16.11.2026: "быстро сказал управление и всё" — the keys are said
+      // once when the ride or its mode changes, then the hint leaves the screen.
+      else if (this.mode === "bike" && this.rideHint > 0) this.prompt = this.flightMode
+        ? "Space — вверх · Q — вниз · T — земля · F — спешиться"
+        : "T — полёт · F — спешиться";
       else this.prompt = "";
     },
     step(dt: number) {
@@ -596,6 +601,13 @@ export function createSim(seed = 0) {
       this.ejectPrev = ejectKey;
       if (respawn && !this.respawnPrev) this.respawn();
       this.respawnPrev = respawn;
+      const rideKey = this.mode === "bike" ? (this.flightMode ? "flight" : "ground") : "";
+      if (rideKey !== this.rideHintKey) {
+        this.rideHintKey = rideKey;
+        this.rideHint = rideKey ? 4.5 : 0;
+      } else if (this.rideHint > 0) {
+        this.rideHint = Math.max(0, this.rideHint - dt);
+      }
       const flightToggle = this.mode === "bike" && keys.has("KeyT");
       if (flightToggle && !this.flightTogglePrev) this.toggleFlightMode();
       this.flightTogglePrev = flightToggle;

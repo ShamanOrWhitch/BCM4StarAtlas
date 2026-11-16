@@ -4,7 +4,7 @@ import { bake, settleNose, fitHeight, fitLength } from "./bake";
 import { bindCrewRig, type CrewRig } from "./rig";
 import { planetLook } from "./planet";
 import { createSeededRandom } from "../seed";
-import { ASTEROID_SHOW, characterHeight, characterPath, PILOT_SHIPS, pilotShip, shipUrl } from "@/game/ships";
+import { ASTEROID_SHOW, characterHeight, characterPath, PILOT_SHIPS, pilotShip, shipUrl, shipNose } from "@/game/ships";
 import { libraryUrl, meshUrl, propUrl } from "../mesh-url";
 import { activeKeys } from "../input";
 import { createSim, type Sim } from "./sim";
@@ -28,6 +28,8 @@ import {
   TOWER_GATE,
   footY,
   groundY,
+  levelSpot,
+  lowestGround,
   setRelief,
   hoverFloor,
   houseAabbs,
@@ -830,11 +832,26 @@ export function createIsland(
     return true;
   }
   const seatBox = new THREE.Box3();
-  function sit(obj: THREE.Object3D, x: number, z: number, y = surfaceY(x, z)) {
-    obj.position.set(x, y, z);
+  /**
+   * Seat a prop. With an explicit y (a deck, a floor) it stands on that height.
+   * On open ground it stands on the lowest ground under its whole footprint
+   * (BUG-013): seated by the height at its centre, a wide prop on a slope left
+   * its downhill edge hanging in the air.
+   */
+  function sit(obj: THREE.Object3D, x: number, z: number, y?: number) {
+    const centre = y ?? surfaceY(x, z);
+    obj.position.set(x, centre, z);
     obj.updateWorldMatrix(true, true);
     seatBox.setFromObject(obj);
-    if (!seatBox.isEmpty() && Number.isFinite(seatBox.min.y)) obj.position.y += y - seatBox.min.y;
+    if (seatBox.isEmpty() || !Number.isFinite(seatBox.min.y)) return obj.position.y;
+    let floor = centre;
+    if (y === undefined) {
+      const tall = seatBox.max.y - seatBox.min.y;
+      const low = lowestGround(seatBox.min.x, seatBox.max.x, seatBox.min.z, seatBox.max.z);
+      // Never bury more than a third of the prop: levelSpot() handles real slopes.
+      floor = Math.max(low, centre - Math.max(0.4, tall * 0.34));
+    }
+    obj.position.y += floor - seatBox.min.y;
     return obj.position.y;
   }
   function solidify(root: THREE.Object3D) {
@@ -919,7 +936,8 @@ export function createIsland(
         batch.castShadow = false;
         batch.receiveShadow = false;
         placed.forEach(([x, z], i) => {
-          dummy.position.set(x, groundY(x, z), z);
+          const reach = Math.max(0.3, height * 0.3);
+          dummy.position.set(x, Math.max(lowestGround(x - reach, x + reach, z - reach, z + reach), groundY(x, z) - height * 0.34), z);
           dummy.rotation.set(0, i * 0.7, 0);
           dummy.scale.set(1, 1, 1);
           dummy.updateMatrix();
@@ -941,16 +959,23 @@ export function createIsland(
       ["desert_next_stage/models/ruined_wall.glb", "desert/ruined_wall.glb", 3.3, -32, -22, 0.45],
       ["desert_next_stage/models/ruined_watchtower.glb", "desert/watchtower.glb", 8.2, 40, -30, 0.9],
     ];
-    for (const [propPath, previewFile, height, x, z, yaw] of landmarks) {
-      if (!alive || !fits(x, z, 3.2)) continue;
+    for (const [propPath, previewFile, height, wantX, wantZ, yaw] of landmarks) {
+      if (!alive || !fits(wantX, wantZ, 3.2)) continue;
       try {
         const mesh = await loadMesh(libraryUrl(propPath) || meshUrl(previewFile), height, "y");
         if (!alive) return;
-        let y = surfaceY(x, z);
-        mesh.position.set(x, y, z);
+        mesh.position.set(wantX, surfaceY(wantX, wantZ), wantZ);
         mesh.rotation.y = yaw;
         scene.add(mesh);
-        sit(mesh, x, z, y);
+        mesh.updateWorldMatrix(true, true);
+        // BUG-013: a wide landmark asked for on a steep slope (the ruined wall on
+        // the crystal ridge) moves to the nearest ground level enough to carry it.
+        const foot = new THREE.Box3().setFromObject(mesh);
+        const half = Math.min(9, Math.max(foot.max.x - foot.min.x, foot.max.z - foot.min.z) / 2);
+        const spot = levelSpot(wantX, wantZ, half, Math.max(0.6, height * 0.22), 14, (px, pz) => fits(px, pz, 3.2));
+        const x = spot.x;
+        const z = spot.z;
+        sit(mesh, x, z);
         mesh.updateWorldMatrix(true, true);
         const bounds = new THREE.Box3().setFromObject(mesh);
         const sx = bounds.max.x - bounds.min.x;
@@ -1047,7 +1072,7 @@ export function createIsland(
       pivot.add(mesh.clone());
       pivot.rotation.y = yaw;
       scene.add(pivot);
-      sit(pivot, x, z, y ?? surfaceY(x, z));
+      sit(pivot, x, z, y);
       return pivot;
     };
 
@@ -1126,7 +1151,7 @@ export function createIsland(
         const gltf = await loader.loadAsync(shipUrl(spec.file));
         if (!alive) return;
         const hull = gltf.scene;
-        settleNose(hull);
+        settleNose(hull, spec.nose);
         if (!fitLength(hull, spec.island)) continue;
         const driveController = spec.id === "maxhog"
           ? await createMaxhogController(hull, "pad").catch((err) => { console.warn("Max Hog island controller unavailable", err); return undefined; })
@@ -1164,7 +1189,7 @@ export function createIsland(
         const gltf = await loader.loadAsync(shipUrl(entry.spec.file));
         if (!alive) return;
         const hull = gltf.scene;
-        settleNose(hull);
+        settleNose(hull, entry.spec.nose);
         if (!fitLength(hull, entry.spec.show)) continue;
         const driveController = entry.spec.id === "maxhog"
           ? await createMaxhogController(hull, "pad").catch((err) => { console.warn("Max Hog showcase controller unavailable", err); return undefined; })
@@ -1485,9 +1510,11 @@ export function createIsland(
         boarded.flightHull.visible = false;
         boarded.pivot.add(boarded.flightHull);
       }
-      const py = onSky(sim.x, sim.z) && sim.y > SKY.y - 2 ? SKY.y : surfaceY(sim.bikeX, sim.bikeZ);
+      const py = onSky(sim.x, sim.z) && sim.y > SKY.y - 2 ? SKY.y : undefined;
       boarded.x = sim.bikeX;
       boarded.z = sim.bikeZ;
+      // The ship stays facing the way it was flown, not the way it was first parked.
+      boarded.pivot.rotation.y = sim.bikeYaw - boarded.hull.rotation.y;
       boarded.y = sit(boarded.pivot, sim.bikeX, sim.bikeZ, py);
       boarded = null;
     }
@@ -1507,7 +1534,14 @@ export function createIsland(
       bike.rotation.z = 0;
     }
     const driveController = boarded ? boarded.driveController : bikeDriveController;
-    const blazing = sim.mode === "bike" && sim.flightMode;
+    // BUG-016: the flight form belongs to a ship that is moving or thrusting.
+    // Hanging still it shows its rest form, like on the ground.
+    const flying = sim.mode === "bike" && sim.flightMode;
+    const thrusting = Math.abs(sim.engineForward) > 0.05 || Math.abs(sim.engineVertical) > 0.05
+      || Math.abs(sim.speed) > 0.6 || Math.abs(sim.vy) > 0.6;
+    shipMovingFor = flying && thrusting ? 0.45 : Math.max(0, shipMovingFor - dt);
+    const shipMoving = shipMovingFor > 0;
+    const blazing = flying && shipMoving;
     if (driveController) {
       driveController.setMode(blazing ? "flight" : "pad");
       driveController.setGroundSpeed(sim.mode === "bike" && !blazing ? sim.speed : 0);
@@ -1572,7 +1606,8 @@ export function createIsland(
           const size = seatBox.getSize(new THREE.Vector3());
           const long = Math.max(size.x, size.z, 2.4);
           dist = long * 1.15 + 3.2;
-          height = Math.max(2.8, size.y + long * 0.34);
+          // Owner 16.11.2026 (Pearce X4): "камеру повыше" — small bikes got a low camera.
+          height = Math.max(3.7, size.y + long * 0.46);
           lookAhead = long * 0.2;
         }
       }
@@ -1700,14 +1735,14 @@ export function createIsland(
         const parkedGltf = await loader.loadAsync(shipUrl(spec.file));
         if (!alive) return;
         const parkedHull = parkedGltf.scene;
-        settleNose(parkedHull);
+        settleNose(parkedHull, spec.nose);
         if (!fitLength(parkedHull, spec.island)) return;
         let flightHull: THREE.Object3D | null = null;
         if (spec.flightFile && spec.flightFile !== spec.file) {
           const flightGltf = await loader.loadAsync(shipUrl(spec.flightFile));
           if (!alive) return;
           flightHull = flightGltf.scene;
-          settleNose(flightHull);
+          settleNose(flightHull, spec.nose);
           if (!fitLength(flightHull, spec.island)) flightHull = null;
           if (flightHull) flightHull.visible = false;
         }
@@ -1734,6 +1769,7 @@ export function createIsland(
     return people?.find((person) => person.species)?.species || fallback;
   }
 
+  let shipMovingFor = 0;
   let tapeOverlay: HTMLDivElement | null = null;
   function setTapeAudioFocus(active: boolean) {
     window.dispatchEvent(new CustomEvent("bcm:tape-focus", { detail: active }));
@@ -1766,7 +1802,9 @@ export function createIsland(
       return;
     }
     const overlay = document.createElement("div");
-    overlay.style.cssText = "position:fixed;inset:0;z-index:80;background:#000;display:flex;align-items:center;justify-content:center";
+    // BUG-014: the First Planet host is a fixed layer at z-index 1000003, so a
+    // layer at 80 opened under the game and nothing was seen.
+    overlay.style.cssText = "position:fixed;inset:0;z-index:2147483000;background:#000;display:flex;align-items:center;justify-content:center";
     tapeVideo.style.cssText = "width:100%;height:100%;object-fit:contain;background:#000";
     const close = document.createElement("button");
     close.type = "button";
@@ -1775,7 +1813,8 @@ export function createIsland(
     close.addEventListener("click", () => closeTapeOverlay());
     overlay.appendChild(tapeVideo);
     overlay.appendChild(close);
-    document.body.appendChild(overlay);
+    // If the page already has a full-screen element, only its children are drawn.
+    (document.fullscreenElement || document.body).appendChild(overlay);
     tapeOverlay = overlay;
     setTapeAudioFocus(true);
     const request = overlay.requestFullscreen || (overlay as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> }).webkitRequestFullscreen;
@@ -1835,7 +1874,7 @@ export function createIsland(
       void loader.loadAsync(shipUrl(near.flightFile)).then((gltf) => {
         if (!alive) return;
         const flightHull = gltf.scene;
-        settleNose(flightHull);
+        settleNose(flightHull, shipNose(near.flightFile));
         if (!fitLength(flightHull, near.fitLength)) return;
         flightHull.visible = false;
         near.flightHull = flightHull;

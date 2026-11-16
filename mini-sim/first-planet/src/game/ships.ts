@@ -14,6 +14,8 @@ type CatalogShip = {
   category: string;
   crew: string;
   size: string;
+  /** Where the model's nose points: "+x" | "-x" | "+z" | "-z". Absent: read from part names. */
+  nose?: string;
   flight: string;
   parked: string;
   planetDrive: boolean;
@@ -32,6 +34,8 @@ export type PilotShip = {
   /** Motion/flight form; single-model families intentionally reuse file. */
   flightFile: string;
   crew: string;
+  /** Catalogue nose axis, or "" when the hull names its nose and tail parts. */
+  nose: string;
   island: number;
   race: number;
   show: number;
@@ -46,6 +50,7 @@ function toPilotShip(ship: CatalogShip): PilotShip {
     file: "ships/" + (ship.parked || ship.flight),
     flightFile: "ships/" + ship.flight,
     crew: ship.crew || "human",
+    nose: String(ship.nose || ""),
     island: Number(ship.islandLength) || 6,
     race: Number(ship.raceLength) || 9,
     show: Number(ship.showLength) || 12,
@@ -79,6 +84,10 @@ export const ISLAND_SHIPS = PILOT_SHIPS.map((ship) => ship.file);
 
 /** Only road-safe racers are used in Shoal Race. Combat and cargo hulls stay on the island/showcase. */
 export const RACE_SHIPS = PILOT_SHIPS.filter((ship) => ship.planetRace).map((ship) => ship.flightFile);
+
+export function shipNose(file: string) {
+  return [...PILOT_SHIPS, ...ASTEROID_SHOW].find((ship) => ship.flightFile === file || ship.file === file)?.nose ?? "";
+}
 
 export function raceLength(file: string) {
   return [...PILOT_SHIPS, ...ASTEROID_SHOW].find((ship) => ship.flightFile === file || ship.file === file)?.race ?? 9;

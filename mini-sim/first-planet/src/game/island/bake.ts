@@ -189,9 +189,22 @@ function namedPoint(root: THREE.Object3D, pattern: RegExp) {
 }
 
 /** Point the nose at world −Z. That is forward for the chase camera and the race. A blind quarter-turn made Ruch drive backwards and the others drive sideways. */
-export function aimNose(root: THREE.Object3D) {
+const NOSE_AXES: Record<string, [number, number]> = { "+x": [1, 0], "-x": [-1, 0], "+z": [0, 1], "-z": [0, -1] };
+
+/**
+ * Turn a hull so that its nose looks down -z (the way the island drives).
+ * nose is the catalogue axis ("+z" ...). Without it the nose is read from the
+ * part names, and only then guessed from the bounding box (BUG-015: that guess
+ * drove the unnamed small-ship hulls sideways).
+ */
+export function aimNose(root: THREE.Object3D, nose = "") {
   root.rotation.set(0, 0, 0);
   root.updateMatrixWorld(true);
+  const told = NOSE_AXES[nose];
+  if (told) {
+    root.rotation.y = Math.atan2(told[0], -told[1]);
+    return root;
+  }
   const front = namedPoint(root, /front|nose|grille|hood|fork|headlamp|needle/i);
   const rear = namedPoint(root, /rear|tail|aft|exhaust|flame/i);
   const box = new THREE.Box3().setFromObject(root);
@@ -247,7 +260,7 @@ function bakeTransform(root: THREE.Object3D) {
 }
 
 /** Nose on local −Z and root rotation identity, so a parent yaw is the only facing. */
-export function settleNose(root: THREE.Object3D) {
+export function settleNose(root: THREE.Object3D, nose = "") {
   root.rotation.set(0, 0, 0);
   root.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(root);
@@ -257,7 +270,7 @@ export function settleNose(root: THREE.Object3D) {
     root.rotation.x = -Math.PI / 2;
     bakeTransform(root);
   }
-  aimNose(root);
+  aimNose(root, nose);
   bakeTransform(root);
   return root;
 }

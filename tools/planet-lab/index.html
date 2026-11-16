@@ -12,7 +12,7 @@
 <body>
 <!-- First Planet as Mini-Sim mounts it: the real wp-dist bundle, crew-rig.js on
      the page, meshes from the plugin folders. ?planet=first|pearce|ioki
-     &species=Human|Ustur|Mierese|Sogmian|Profound|High -->
+     &species=Human|Ustur|Mierese|Sogmian|Profound|High &ship=<catalog id> -->
 <div id="planet"></div>
 <script src="../../mini-sim/assets/js/crew-rig.js"></script>
 <script>
@@ -23,6 +23,11 @@
     propBase: "/mini-sim/assets/mesh/",
   };
   window.__planetLab = { ready: false, error: "" };
+  // &ship=<catalog id> rides that ship as the island bike (BUG-015 nose check).
+  (function () {
+    var ship = new URLSearchParams(location.search).get("ship");
+    if (ship) window.BCMMiniCrewSelection = { shipId: ship, players: [] };
+  })();
 </script>
 <link rel="stylesheet" href="../../mini-sim/first-planet/wp-dist/first-planet.css">
 <script src="../../mini-sim/first-planet/wp-dist/first-planet.js"></script>

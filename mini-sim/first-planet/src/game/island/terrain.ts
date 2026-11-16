@@ -135,6 +135,66 @@ export function surfaceY(x: number, z: number) {
   return (y00 * (1 - tx) + y10 * tx) * (1 - tz) + (y01 * (1 - tx) + y11 * tx) * tz;
 }
 
+/**
+ * Lowest rendered ground under a rectangle (BUG-013). A prop seated on the
+ * height at its centre hangs an edge in the air on a slope; seated here it
+ * touches the ground everywhere and only its uphill side sinks in.
+ */
+export function lowestGround(minX: number, maxX: number, minZ: number, maxZ: number) {
+  return groundSpan(minX, maxX, minZ, maxZ).low;
+}
+
+export function groundSpan(minX: number, maxX: number, minZ: number, maxZ: number) {
+  const nx = Math.max(1, Math.min(8, Math.ceil((maxX - minX) / 1.2)));
+  const nz = Math.max(1, Math.min(8, Math.ceil((maxZ - minZ) / 1.2)));
+  let low = Infinity;
+  let high = -Infinity;
+  for (let i = 0; i <= nx; i += 1) {
+    for (let j = 0; j <= nz; j += 1) {
+      const y = surfaceY(minX + ((maxX - minX) * i) / nx, minZ + ((maxZ - minZ) * j) / nz);
+      if (y < low) low = y;
+      if (y > high) high = y;
+    }
+  }
+  return { low, high };
+}
+
+/**
+ * The nearest spot where a square footprint of the given half-size lies on
+ * ground no rougher than maxRange. A wide ruin asked for on a peak is moved to
+ * the foot of the slope instead of being buried or left hanging.
+ */
+export function levelSpot(
+  x: number,
+  z: number,
+  half: number,
+  maxRange: number,
+  reach = 14,
+  allowed: (x: number, z: number) => boolean = () => true,
+) {
+  // Ground under water counts as the waterline: a landmark on the shore is not on a slope.
+  const rough = (px: number, pz: number) => {
+    const span = groundSpan(px - half, px + half, pz - half, pz + half);
+    return span.high - Math.max(span.low, -0.45);
+  };
+  let best = { x, z, range: rough(x, z) };
+  if (best.range <= maxRange) return best;
+  for (let ring = 2; ring <= reach; ring += 2) {
+    let found: typeof best | null = null;
+    for (let k = 0; k < 12; k += 1) {
+      const a = (k / 12) * Math.PI * 2;
+      const px = x + Math.cos(a) * ring;
+      const pz = z + Math.sin(a) * ring;
+      if (!allowed(px, pz) || surfaceY(px, pz) < -0.2) continue; // not into the sea
+      const range = rough(px, pz);
+      if (range < best.range) best = { x: px, z: pz, range };
+      if (range <= maxRange && (!found || range < found.range)) found = { x: px, z: pz, range };
+    }
+    if (found) return found;
+  }
+  return best;
+}
+
 export const SKY = { x: 24, z: -36, y: 14.2, r: 5.2 };
 export const BRIDGE = { x: 2.2, z0: -24.2, z1: -8.8, half: 0.85, deck: 0.42 };
 

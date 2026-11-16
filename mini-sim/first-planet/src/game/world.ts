@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { Race } from "./sim";
-import { RACE_SHIPS, raceLength, shipUrl } from "./ships";
+import { RACE_SHIPS, raceLength, shipUrl, shipNose } from "./ships";
 import { createSeededRandom, seededShuffle } from "./seed";
 import { ROAD_Y, type Track } from "./track";
 import { aimNose, bake } from "./island/bake";
@@ -248,7 +248,7 @@ export function createWorld(canvas: HTMLCanvasElement): World {
       try {
         const gltf = await vehicleLoader.loadAsync(shipUrl(file));
         const length = raceLength(file);
-        aimNose(gltf.scene);
+        aimNose(gltf.scene, shipNose(file));
         const mesh = bake(gltf.scene, length, "xz");
         mesh.castShadow = false;
         mesh.receiveShadow = false;
