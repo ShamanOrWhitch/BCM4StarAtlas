@@ -1,6 +1,6 @@
 ## Patch — Galia Desk 0.8.20: fleet count is a pick, wallet count stays put (16 November 2026)
 
-- **Base:** original `main` `a4bf459`, plugin header was `0.8.18`. Not the outside zip and not the timeout-only branch.
+- **Commit:** `3d1942a` on `fix/galia-desk-0.8.20`. Base: original `main` `a4bf459`, plugin header was `0.8.18`. Not the outside zip and not the timeout-only branch.
 - **BUG-008:** ship row shows `на кошельке: N` (fixed) and `во флот: M` (the field). A pick above the wallet count is cut back. Summary: `во флоте: X из Y на кошельке`.
 - **Also kept:** 50-second abort on the desk price and wallet fetches, so this file does not drop what live `0.8.19` already had.
 - **Test:** `scripts/galia-desk-fleet.qa.mjs` — repository `0.8.18` FAIL 7/7; this file PASS 7/7. PHP `php -l` was not run here (no PHP binary).
