@@ -348,6 +348,7 @@
       warpAsteroidSeed: 20261116,
       // Аномалии-«полувраги» в трубе (змейка): 1 — есть, 0 — выключить.
       warpAnomalies: 1,
+      warpAnomalyVariant: "auto",
       // Вибрация геймпада при близком проходе камня: 1 — включена.
       warpHaptics: true,
       warpHapticAt: 0,
@@ -614,10 +615,24 @@
       return state.warpAnomalies;
     };
     window.BCMDeepSpaceWarpAnomalyStats = (t) => {
-      const plan = warpSpace.warpSpaceAnomalyPlan(Number(t) || 0);
+      const plan = warpSpace.warpSpaceAnomalyPlan(Number(t) || 0, null,
+        state.warpAnomalyVariant || "auto");
       return { enabled: Number(state.warpAnomalies) > 0, alive: plan.alive,
         phase: plan.phase, head: plan.head, length: plan.length,
-        thickness: plan.thickness, spec: warpSpace.WARP_SPACE_ANOMALIES.id };
+        thickness: plan.thickness, spec: warpSpace.WARP_SPACE_ANOMALIES.id,
+        variant: plan.variant, index: plan.index, depth: plan.depth,
+        gap: plan.gapWidth, gapCenter: plan.gapCenter };
+    };
+    // Список видов аномалии (для QA и будущего меню).
+    window.BCMDeepSpaceWarpGetAnomalyVariants = () =>
+      warpSpace.warpSpaceAnomalyVariantIds().slice();
+    // Принудительный вид: "auto" — по номеру жизни, иначе id вида.
+    window.BCMDeepSpaceWarpSetAnomalyVariant = (id) => {
+      const wanted = id == null ? "auto" : String(id);
+      if (wanted === "auto" || warpSpace.warpSpaceAnomalyVariantIds().indexOf(wanted) >= 0) {
+        state.warpAnomalyVariant = wanted;
+      }
+      return state.warpAnomalyVariant;
     };
     // Вибрация при близком проходе камня (джойстик/телефон).
     window.BCMDeepSpaceWarpSetHaptics = (on) => {
@@ -6974,11 +6989,25 @@
   /* ------------------------------------------------------------- аномалии
    * «Полу-враги» уровня: простые формы, которые живут в трубе вместе с игроком,
    * но НИ НА ЧТО не влияют (курс, столкновения, тайминг не трогаются).
-   * Первая — змейка: ползущая линия, растёт со временем, ходит вперёд-назад и
-   * местами обгоняет игрока; появляется около 8-й секунды, потом на время
-   * «выключает существование», чтобы не грузить кадр.
-   * Всё считается чистой функцией от t — состояния нет, значит кадр не копит
-   * ошибку и любой момент можно воспроизвести по времени. */
+   *
+   * Рев. 21: владелец попросил разнообразия — «не только прямо, а ещё закрывать
+   * некоторые проходы и иногда из середины вместе с препятствиями». Поэтому у
+   * аномалии теперь несколько ВИДОВ, а вид выбирается детерминированно по
+   * номеру жизни. Состояния нет: план — чистая функция от t, поэтому любой
+   * момент воспроизводится, а кадр не копит ошибку.
+   *
+   *   wall — ползёт по стенке, растёт, ходит туда-обратно (как в рев. 20);
+   *   gate — ПЕРЕКРЫВАЕТ проход: тело идёт по всему сечению, оставляя щель,
+   *          и надвигается из глубины на игрока, а щель уезжает вбок;
+   *   mid  — лезет из СЕРЕДИНЫ трубы и обвивает ближний камень, то есть
+   *          двигается вместе с препятствиями;
+   *   coil — спираль вокруг оси: закрывает сектор, но не всё сечение;
+   *   twin — две змейки навстречу друг другу.
+   *
+   * Экономика кадра одна на все виды: тело рисуется ОДНОЙ ломаной и двумя
+   * штрихами (тело + ядро), twin — одной ломаной из двух кусков и теми же
+   * двумя штрихами. В паузе не рисуется ничего.
+   */
   var WARP_SPACE_ANOMALIES = {
     id: "snake",
     appearAt: 8,        // с — первое появление
@@ -6989,88 +7018,244 @@
     span: 0.34,         // какая доля глубины трубы занята телом
     speed: 0.22,        // ход по глубине, долей в секунду
     thickness: 1.6,     // px в начале
-    thicknessTo: 5.2    // px к концу жизни
+    thicknessTo: 5.2,   // px к концу жизни
+    gap: 0.25,          // доля оборота, которую gate оставляет свободной
+    inset: 0.46         // насколько глубоко внутрь трубы уходит mid/coil (доля радиуса)
   };
 
-  /* Существует ли аномалия в момент t и в какой фазе. */
-  function warpSpaceAnomalyPlan(t) {
+  /* Виды аномалии. weight — сколько раз вид попадает в «мешок» одной серии:
+   * за девять жизней встречаются все, но порядок каждый раз перемешан. */
+  var WARP_SPACE_ANOMALY_VARIANTS = [
+    { id: "wall", weight: 2, color: "178,255,230", label: "По стенке" },
+    { id: "gate", weight: 3, color: "198,214,255", label: "Перекрывает проход" },
+    { id: "mid", weight: 2, color: "216,198,255", label: "Из середины" },
+    { id: "coil", weight: 2, color: "255,228,172", label: "Спираль" },
+    { id: "twin", weight: 1, color: "170,255,208", label: "Две змейки" }
+  ];
+
+  function warpSpaceAnomalyVariantIds() {
+    return WARP_SPACE_ANOMALY_VARIANTS.map(function (v) { return v.id; });
+  }
+
+  /* Детерминированный выбор вида по номеру жизни.
+   * Раскладываем виды «мешками» по сумме весов и перемешиваем каждый мешок
+   * 32-битным хэшем номера мешка: повторный вход в тот же заезд даёт ту же
+   * последовательность, но «по кругу» она не выглядит. */
+  function warpSpaceAnomalyVariantFor(index) {
+    var list = WARP_SPACE_ANOMALY_VARIANTS;
+    var n = Math.trunc(Number(index));
+    if (!isFinite(n) || n < 0) n = 0;
+    var bag = [];
+    var total = 0;
+    var i, k;
+    for (i = 0; i < list.length; i += 1) {
+      var w = Math.max(1, Math.round(list[i].weight || 1));
+      total += w;
+      for (k = 0; k < w; k += 1) bag.push(i);
+    }
+    var block = Math.floor(n / total);
+    var pos = n % total;
+    var seed = (Math.imul(block + 1, 2654435761) >>> 0) || 1;
+    for (i = bag.length - 1; i > 0; i -= 1) {
+      seed = (Math.imul(seed, 1103515245) + 12345) >>> 0;
+      var j = seed % (i + 1);
+      var tmp = bag[i]; bag[i] = bag[j]; bag[j] = tmp;
+    }
+    return list[bag[pos]].id;
+  }
+
+  function warpSpaceAnomalySpec(id) {
+    for (var i = 0; i < WARP_SPACE_ANOMALY_VARIANTS.length; i += 1) {
+      if (WARP_SPACE_ANOMALY_VARIANTS[i].id === id) return WARP_SPACE_ANOMALY_VARIANTS[i];
+    }
+    return WARP_SPACE_ANOMALY_VARIANTS[0];
+  }
+
+  function warpSpaceAnomalyDead(phase) {
+    return {
+      alive: false, phase: phase, variant: "", index: -1, grow: 0,
+      head: 0, length: 0, thickness: 0, depth: 0, angle0: 0,
+      gapWidth: 0, gapCenter: 0, turns: 0, insetMax: 0, color: ""
+    };
+  }
+
+  /* Существует ли аномалия в момент t, каким видом и в какой фазе.
+   * anchor — необязательная точка { depth, angle } ближнего камня: к ней
+   * цепляется вид mid, чтобы змейка шла вместе с препятствиями.
+   * forced — принудительный вид (QA: BCMDeepSpaceWarpSetAnomalyVariant). */
+  function warpSpaceAnomalyPlan(t, anchor, forced) {
     var spec = WARP_SPACE_ANOMALIES;
     var time = Number(t);
     if (!isFinite(time)) time = 0;
     var cycle = spec.active + spec.rest;
     var sinceFirst = time - spec.appearAt;
-    if (sinceFirst < 0) {
-      return { alive: false, phase: 0, head: 0, length: 0, thickness: 0 };
-    }
-    var phase = (sinceFirst % cycle) / spec.active;
-    var alive = phase < 1;
-    if (!alive) {
-      // Пауза: аномалии нет вообще, кадр о ней ничего не рисует.
-      return { alive: false, phase: 1, head: 0, length: 0, thickness: 0 };
-    }
-    var grow = Math.min(1, sinceFirst / spec.growTo);
-    // Ход вперёд-назад: «туда и обратно», местами быстрее игрока.
-    var swing = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);
-    var head = 0.30 + swing * 0.62;
-    return {
-      alive: true,
-      phase: phase,
-      head: head,
-      length: spec.span * (0.35 + 0.65 * grow),
-      thickness: spec.thickness + (spec.thicknessTo - spec.thickness) * grow
+    if (sinceFirst < 0) return warpSpaceAnomalyDead(0);
+    var index = Math.floor(sinceFirst / cycle);
+    var lifeStart = sinceFirst - index * cycle;
+    var phase = lifeStart / spec.active;
+    // Пауза: аномалии нет вообще, кадр о ней ничего не рисует.
+    if (lifeStart >= spec.active) return warpSpaceAnomalyDead(1);
+    var forcedId = forced ? String(forced) : "";
+    var variant = (forcedId && forcedId !== "auto" && warpSpaceAnomalyVariantIds().indexOf(forcedId) >= 0)
+      ? forcedId
+      : warpSpaceAnomalyVariantFor(index);
+    var vspec = warpSpaceAnomalySpec(variant);
+    var grow = Math.min(1, lifeStart / Math.max(0.2, spec.growTo));
+    var thickness = spec.thickness + (spec.thicknessTo - spec.thickness) * grow;
+    var plan = {
+      alive: true, phase: phase, variant: variant, index: index, grow: grow,
+      head: 0, length: 0, thickness: thickness, depth: 0, angle0: 0,
+      gapWidth: 0, gapCenter: 0, turns: 0, insetMax: 0, color: vspec.color
     };
+    if (variant === "gate") {
+      // Надвигается из глубины: издалека к камере, потом уходит за неё.
+      var advance = phase < 0.5 ? phase * 2 : 1;
+      plan.depth = 0.94 - 0.80 * (advance * advance * (3 - 2 * advance));
+      plan.gapWidth = spec.gap;
+      // Щель уезжает вбок — проход всё время в другом месте.
+      plan.gapCenter = 0.5 + 0.30 * Math.sin(phase * Math.PI * 2.6);
+      plan.head = plan.depth;
+      plan.length = spec.span * (0.6 + 0.4 * grow);
+      plan.insetMax = 0.03;
+    } else if (variant === "mid") {
+      // Из середины: держится ближе к оси и медленно дрейфует по глубине.
+      var baseDepth = anchor && isFinite(anchor.depth) ? Number(anchor.depth) : 0.45;
+      baseDepth = Math.max(0.18, Math.min(0.72, baseDepth));
+      plan.depth = baseDepth + 0.10 * Math.sin(phase * Math.PI * 2);
+      plan.angle0 = anchor && isFinite(anchor.angle) ? Number(anchor.angle) : 0.5 + phase * 0.6;
+      plan.head = plan.depth;
+      plan.length = spec.span * (0.85 + 0.55 * grow);
+      plan.insetMax = spec.inset;
+    } else if (variant === "coil") {
+      plan.depth = 0.88 - 0.66 * phase;
+      plan.angle0 = 0.4 + phase * 1.2;
+      plan.head = plan.depth;
+      plan.length = spec.span * (0.55 + 0.45 * grow);
+      plan.turns = 1.15;
+      plan.insetMax = spec.inset * 0.8;
+    } else if (variant === "twin") {
+      plan.depth = 0.80 - 0.52 * phase;
+      plan.angle0 = 0.35 + 0.5 * Math.sin(phase * Math.PI * 1.6);
+      plan.head = plan.depth;
+      plan.length = spec.span * (0.8 + 0.5 * grow);
+      plan.insetMax = 0;
+    } else {
+      // wall — как было в рев. 20: ход вперёд-назад, местами быстрее игрока.
+      var swing = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);
+      plan.head = 0.30 + swing * 0.62;
+      plan.length = spec.span * (0.35 + 0.65 * grow);
+      plan.depth = plan.head;
+    }
+    return plan;
   }
 
-  /* bodyAt(k) — где сидит k-й сегмент тела: k=0 голова, дальше хвост назад по
-   * глубине с синусоидальным «извивом» по углу. */
+  /* Где сидит k-й сегмент тела: k=0 — голова. Возвращает глубину, угол,
+   * насколько глубоко внутрь трубы ушёл сегмент (доля радиуса) и долю вдоль
+   * тела. Раньше здесь был только «wiggle» по углу — теперь угол считается для
+   * всех видов, поэтому змейка умеет идти и вдоль, и поперёк сечения. */
   function warpSpaceAnomalyPoint(plan, k, segments, t) {
     var spec = WARP_SPACE_ANOMALIES;
     var n = Math.max(1, segments | 0);
     var s = Math.max(0, Math.min(n, Number(k) || 0));
     var along = s / n;
-    var depth = plan.head - along * plan.length;
-    if (depth < 0.05) depth = 0.05;
-    var wiggle = Math.sin(along * 7.5 + (Number(t) || 0) * 2.1) * 0.22 * (0.35 + along);
-    return { depth: depth, wiggle: wiggle, along: along };
+    var time = Number(t) || 0;
+    var out = { depth: plan.depth, angle: 0, inset: 0, along: along, wiggle: 0 };
+    if (plan.variant === "gate") {
+      // Всё сечение, кроме щели: идём «длинным путём» от одного края щели к другому.
+      var halfGap = plan.gapWidth * 0.5;
+      var from = plan.gapCenter + halfGap;
+      var to = plan.gapCenter + 1 - halfGap;
+      out.angle = from + (to - from) * along;
+      // Лёгкая «провислость»: идеально ровное кольцо читается как графика.
+      out.depth = plan.depth + Math.sin(along * Math.PI * 3 + time * 1.7) * 0.012;
+      out.inset = plan.insetMax * (0.4 + 0.6 * Math.sin(along * Math.PI));
+    } else if (plan.variant === "mid") {
+      // «Из середины»: тело тянется вдоль трубы (а не висит точкой) и сидит
+      // глубоко внутри, обвивая ближний камень.
+      out.depth = plan.depth - along * plan.length
+        + Math.sin(along * 3.4 + time * 1.9) * 0.02;
+      out.angle = plan.angle0 + Math.sin(along * 3.1 - time * 2.4) * 0.26;
+      out.inset = plan.insetMax * (0.72 + 0.28 * Math.sin(along * 4.1 + time * 1.1));
+    } else if (plan.variant === "coil") {
+      out.depth = plan.head - along * plan.length;
+      out.angle = plan.angle0 + along * plan.turns * Math.PI * 2 + time * 0.55;
+      out.inset = plan.insetMax * (1 - along * 0.85);
+    } else if (plan.variant === "twin") {
+      out.depth = plan.head - along * plan.length;
+      out.angle = plan.angle0 + Math.sin(along * 4.2 - time * 2.2) * 0.22;
+      out.inset = 0;
+    } else {
+      out.depth = Math.max(0.05, plan.head - along * plan.length);
+      out.angle = Math.sin(along * 7.5 + time * 2.1) * 0.22 * (0.35 + along);
+      out.inset = 0;
+    }
+    if (out.depth < 0.05) out.depth = 0.05;
+    out.wiggle = out.angle;
+    return out;
   }
 
-  function drawWarpSpaceAnomaly(g, point, t) {
-    var plan = warpSpaceAnomalyPlan(t);
+  /* Радиус кольца в пикселях: усредняем два противоположных зонда. Нужен,
+   * чтобы «внутрь трубы» считалось в долях радиуса, а не в пикселях — ядро
+   * не знает размеров кадра. */
+  function warpSpaceAnomalyRadius(point, depth) {
+    var a = point(depth, 0, 0);
+    var b = point(depth, Math.PI, 0);
+    if (!a || !b || !isFinite(a.x) || !isFinite(b.x)) return 0;
+    var dx = Number(a.x) - Number(b.x);
+    var dy = Number(a.y) - Number(b.y);
+    return Math.sqrt(dx * dx + dy * dy) * 0.5;
+  }
+
+  function drawWarpSpaceAnomaly(g, point, t, anchor, forced) {
+    var plan = warpSpaceAnomalyPlan(t, anchor, forced);
     if (!plan.alive) return 0;
     var spec = WARP_SPACE_ANOMALIES;
-    var segments = Math.max(6, Math.round(spec.segments * (0.45 + 0.55 * plan.phase)));
+    var base = Math.max(6, Math.round(spec.segments * (0.45 + 0.55 * plan.phase)));
+    var segments = plan.variant === "gate" ? Math.round(base * 1.5)
+      : plan.variant === "twin" ? Math.round(base * 0.6) : base;
+    var radius = warpSpaceAnomalyRadius(point, plan.depth);
     var drawn = 0;
     var started = false;
+
+    var place = function (k, angleShift) {
+      var part = warpSpaceAnomalyPoint(plan, k, segments, t);
+      var angle = part.angle + (angleShift || 0);
+      var p = point(part.depth, angle, -part.inset * radius);
+      if (!p || !isFinite(p.x) || !isFinite(p.y)) return null;
+      return p;
+    };
+
     g.save();
     g.lineCap = "round";
     g.lineJoin = "round";
-    // Тело: одна ломаная за кадр, а не 30 отдельных фигур — это дешевле
-    // любой панели стенки.
+    // Всё тело (у twin — оба куска) в ОДНОМ пути: два штриха на кадр, а не
+    // по два на каждую змейку.
     g.beginPath();
-    for (var k = 0; k <= segments; k += 1) {
-      var part = warpSpaceAnomalyPoint(plan, k, segments, t);
-      var p = point(part.depth, part.wiggle);
-      if (!p || !isFinite(p.x) || !isFinite(p.y)) continue;
-      if (!started) { g.moveTo(p.x, p.y); started = true; } else { g.lineTo(p.x, p.y); }
-      drawn += 1;
+    var bodies = plan.variant === "twin" ? [0, Math.PI] : [0];
+    for (var b = 0; b < bodies.length; b += 1) {
+      started = false;
+      for (var k = 0; k <= segments; k += 1) {
+        var p = place(k, bodies[b]);
+        if (!p) continue;
+        if (!started) { g.moveTo(p.x, p.y); started = true; } else { g.lineTo(p.x, p.y); }
+        drawn += 1;
+      }
     }
-    if (started) {
-      g.strokeStyle = "rgba(178,255,230,0.85)";
+    if (drawn > 1) {
+      g.strokeStyle = "rgba(" + plan.color + ",0.85)";
       g.lineWidth = plan.thickness;
       g.stroke();
       // Ядро линии — тоньше и ярче: на слабом экране читается, на сильном не мылит.
       g.strokeStyle = "rgba(240,255,252,0.95)";
       g.lineWidth = Math.max(0.8, plan.thickness * 0.38);
       g.stroke();
-      // Голова — точка, чтобы было видно направление движения.
-      var head = warpSpaceAnomalyPoint(plan, 0, segments, t);
-      var hp = point(head.depth, head.wiggle);
-      if (hp && isFinite(hp.x) && isFinite(hp.y)) {
+      // Голова — точка, чтобы было видно направление движения (у gate — у края щели).
+      var head = place(0, bodies[0]);
+      if (head) {
         g.beginPath();
-        g.arc(hp.x, hp.y, plan.thickness * 0.9, 0, Math.PI * 2);
+        g.arc(head.x, head.y, Math.max(1, plan.thickness * 0.9), 0, Math.PI * 2);
         g.fillStyle = "rgba(255,255,255,0.95)";
         g.fill();
-        drawn += 1;
       }
     }
     g.restore();
@@ -7852,6 +8037,10 @@
         WARP_SPACE_ANOMALIES,
         warpSpaceAnomalyPlan,
         warpSpaceAnomalyPoint,
+        warpSpaceAnomalyVariantIds,
+        warpSpaceAnomalyVariantFor,
+        warpSpaceAnomalySpec,
+        WARP_SPACE_ANOMALY_VARIANTS,
         drawWarpSpaceAnomaly,
         warpSpaceEffectLevel,
         WARP_FX_PHATOLI,
@@ -8614,7 +8803,23 @@ return axialRoll + ahead * 0.12 +
       // Ни на что не влияет — это декор, как и камни. Появляется ~8-й с,
       // потом на время «выключает существование», чтобы не грузить кадр.
       if (Number(state.warpAnomalies) > 0) {
-        warpSpace.drawWarpSpaceAnomaly(g, point, Number(state.elapsed || 0) + Number(t || 0) * 0.001);
+        // Якорь — ближний к середине трубы камень: вид «из середины»
+        // цепляется за него и идёт вместе с препятствиями.
+        let anomalyAnchor = null;
+        if (Number(state.warpAsteroids) > 0) {
+          const rockSlots = warpSpace.warpSpaceAsteroidField(
+            Number(state.warpAsteroidSeed || 0) >>> 0, warpAsteroidDensityNow());
+          let best = 9;
+          for (let ri = 0; ri < rockSlots.length; ri += 1) {
+            const rs = rockSlots[ri];
+            if (!rs || !(rs.depth > 0.22) || !(rs.depth < 0.66)) continue;
+            const dist = Math.abs(rs.depth - 0.45);
+            if (dist < best) { best = dist; anomalyAnchor = { depth: rs.depth, angle: rs.angle }; }
+          }
+        }
+        warpSpace.drawWarpSpaceAnomaly(g, point,
+          Number(state.elapsed || 0) + Number(t || 0) * 0.001,
+          anomalyAnchor, state.warpAnomalyVariant || "auto");
       }
       // Астероиды на стенке: настоящие меши, испечённые в спрайты. Рисуются
       // после панелей (стенка уже залита) и до колец, чтобы кольца и пульс
