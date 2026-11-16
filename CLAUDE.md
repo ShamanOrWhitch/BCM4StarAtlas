@@ -37,7 +37,7 @@
 
 | Что | Команда |
 |---|---|
-| Регрессия Mini-Sim **ровно как в CI** (синтаксис + 20 файлов, 190 тестов на 0.15.7; нужен `npm ci` в `mini-sim/first-planet`) | `node .claude/tools/regression.mjs` |
+| Регрессия Mini-Sim **ровно как в CI** (синтаксис + 23 файла, 209 тестов на 0.15.8; нужен `npm ci` в `mini-sim/first-planet`) | `node .claude/tools/regression.mjs` |
 | Узкий набор (6 файлов, 62 теста — не равен CI) | `npm run test:minisim` |
 | Браузерный standalone QA (Chromium) | `npm run qa:minisim:standalone` |
 | Только переходы | `npm run qa:minisim:transitions:standalone` |
@@ -47,6 +47,7 @@
 | Доказательства по коммиту (формат Fable) | `node .claude/tools/evidence.mjs <sha> --since <sha> --md` |
 | Crew Lab: все расы на реальных NFT, кадры фаз шага, замер ног | `BCM_QA_BROWSER_CHANNEL=msedge node tools/crew-lab/shoot.mjs` → `.qa-artifacts/crew-lab/` |
 | Planet Lab: First Planet на четырёх планетах (пустыня, Pearce, Ioki, Fable; `BCM_PLANETS=fable` — только одна), шаг 3D-персонажа, посадка на байк | `BCM_QA_BROWSER_CHANNEL=msedge node tools/planet-lab/shoot.mjs Human Profound` → `.qa-artifacts/planet-lab/` (нужен свежий `npm run build:wordpress`) |
+| Planet Lab, корабли: каждый корабль острова в движении (нос вперёд, BUG-015) | `BCM_QA_BROWSER_CHANNEL=msedge node tools/planet-lab/ships.mjs [id ...]` → `.qa-artifacts/planet-lab/ships/` |
 | Браузерный QA на этой машине | `BCM_QA_BROWSER_CHANNEL=msedge npm run qa:minisim:transitions:standalone` |
 
 Команды Claude Code: `/reconcile`, `/bug`, `/idea`, `/kit`, `/ci`, а для работы с Dr Fable — `/fable` (мост с чатом SYNTX), `/packet` (задание → WORK LOCK Issue), `/accept` (приёмка с доказательствами).

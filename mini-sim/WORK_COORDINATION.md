@@ -2,6 +2,25 @@
 
 Это дополнение имеет приоритет над историческими записями ниже, когда они противоречат более поздним прямым указаниям владельца.
 
+## Направления работ (секторы) — карта от 16 ноября 2026
+
+Владелец 16.11.2026: «оптимизируй производство по секторам внутри описанной системы для облегчения задач по репозиторию». Одна задача — одно направление; у направления свои файлы, свой тест и свой стенд. Writer берёт WORK LOCK на направление, а не на «всё».
+
+| Направление | Файлы | Тест (в CI) | Стенд глазами | Открыто |
+|---|---|---|---|---|
+| **Космос** (Space Labyrinth, полёт, мышь, флот) | `assets/js/mini-sim.js` | `minisim-local-qa`, `galia-fleet-and-tower-crew` | `npm run qa:minisim:transitions:standalone` | IDEA-018 флот с интеллектом |
+| **Warp и карта** | `deep-space-warp.js`, `warp-sector-*.js`, `sage-map*.js` | `warp-sector-core`, `sage-map-galia`, `asteroid-field-open-space` | тот же браузерный QA | IDEA-011, IDEA-012, IDEA-017 |
+| **Экипаж** (вырезка NFT, шаг, имена) | `crew-core.js`, `crew-rig.js`, `bcm-mini-sim.php` (скан) | `crew-core-*`, `wallet-crew-names` | `tools/crew-lab/shoot.mjs` | IDEA-016 анимации режимов |
+| **Tower** | `tower/assets/js/tower.js`, `tower/bcm-tower.php`, `planet-landing.js` | Tower top cap, `tower-planet-landing-clip` | браузерный QA переходов | IDEA-005 сцена посадки, IDEA-015 |
+| **First Planet** (остров, планеты, корабли, гонка) | `first-planet/src/**`, `assets/mesh/ships/catalog.json` | `first-planet-*`, `ship-nose`, `ship-hull-states` | `tools/planet-lab/shoot.mjs`, `ships.mjs` | IDEA-002, IDEA-006 крабы, IDEA-019 трасса |
+| **Galia** (Render) | `src/**` | `wallet-crew-names`, `tsc` | `npm run dev` | #120 Render не выкладывает; BUG-010 |
+| **Galia Desk** (WordPress, защищённая зона) | `wordpress/galia-desk/**` | — | только пакетом для владельца | #125, BUG-008 |
+| **Комплектация** (GLB, текстуры, видео) | `assets/mesh/**`, `assets/*.mp4` | проверки каталога | Planet Lab | Др Арена; ролики посадки Ioki и пустыни |
+
+- **Баг с сайта** → запись в `JOURNAL_BUGS.md` с направлением → красный тест в файле этого направления → правка → стенд направления → один выпуск на пачку.
+- **Тесты острова по клавишам:** `scripts/lib/first-planet-sim.mjs` (симуляция в node). Новый корабль: поле `nose` в каталоге, если у GLB нет именованных деталей носа и кормы.
+- **Защищённые зоны и AUDIO FREEZE** — без изменений; Desk правится только с разрешения владельца.
+
 ## Правила линии 0.15 (15 ноября 2026, WORK LOCK #118)
 
 Линия `0.15` открыта выпуском Mini-Sim `0.15.0` / Tower `0.2.83`. Всё ниже из линии `0.14` действует, если здесь не сказано иначе.

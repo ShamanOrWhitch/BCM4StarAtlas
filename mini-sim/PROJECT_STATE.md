@@ -3,6 +3,17 @@
 Рабочая память разделена. Идеи: `JOURNAL_IDEAS.md`. Баги: `JOURNAL_BUGS.md`. Комплектация мини-игр: `JOURNAL_KIT.md`.
 Проверка больше не замораживает правки. Версия игры от этого не менялась: Mini-Sim `0.14.6`, Tower `0.2.80`, HEAD на момент записи журналов `129ad52`.
 
+## Patch — Mini-Sim 0.15.8: owner's live-site bug list (16 November 2026)
+
+- **WORK LOCK:** [#128](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/128), `613385c`. Decision D-065. Tower `0.2.88`.
+- **Fixed (TESTED-CODE):** BUG-009 idle pose and eased stop (regression of 0.15.3), BUG-011 fleet ship becomes the flight ship, BUG-012 Tower takes one crew member and the Galia launch crew, BUG-013 props seated by their footprint, BUG-014 tape full-screen layer above the First Planet host, BUG-015 nose axis in the ship catalogue (Ambwe, Meditech, Feist, Arma drove sideways), BUG-016 riding hints once and rest form while hovering, BUG-017 mouse steering without pointer lock.
+- **Open:** BUG-008 (Desk ship count, protected zone), BUG-010 (Galia crew menu scroll on a small screen).
+- **Local:** regression 209/209 (13/13 syntax), `tsc` only the two old errors; standalone transitions QA in Edge PASS 24/24; Planet Lab first + Fable page errors 0; ship sheet shot before and after.
+- **Not verified yet:** CI for this SHA; in a browser with Galia: fleet ship, Tower NFT crew, tape full screen, mouse without pointer lock; live site.
+- **Work map by sector:** `WORK_COORDINATION.md`, section «Направления работ».
+
+---
+
 ## Patch — Mini-Sim 0.15.7: real Crew names and portraits (16 November 2026)
 
 - **WORK LOCK:** [#127](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/127), `d1452a7`. Decision D-064. BUG-007 fixed; BUG-008 (Desk ship count, protected zone), BUG-009 (animation after stop, not reproduced), BUG-010 (crew menu scroll) recorded; IDEA-016, IDEA-017 recorded.
