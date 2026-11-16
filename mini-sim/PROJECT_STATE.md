@@ -3,6 +3,16 @@
 Рабочая память разделена. Идеи: `JOURNAL_IDEAS.md`. Баги: `JOURNAL_BUGS.md`. Комплектация мини-игр: `JOURNAL_KIT.md`.
 Проверка больше не замораживает правки. Версия игры от этого не менялась: Mini-Sim `0.14.6`, Tower `0.2.80`, HEAD на момент записи журналов `129ad52`.
 
+## Patch — Mini-Sim 0.15.7: real Crew names and portraits (16 November 2026)
+
+- **WORK LOCK:** [#127](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/127), `d1452a7`. Decision D-064. BUG-007 fixed; BUG-008 (Desk ship count, protected zone), BUG-009 (animation after stop, not reproduced), BUG-010 (crew menu scroll) recorded; IDEA-016, IDEA-017 recorded.
+- **Owner report on the live site** (Mini-Sim `0.15.5`, Desk `0.8.19`, Tower `0.2.86`): crew numbered and with chain pictures, ship count, animation after stop, modes, camera, crew menu scroll, Galia map.
+- **Red before:** `crew is named by its chain number: "CREW #1010495"`. After 3/3. Owner's wallet read-only: 104 crew, 0 numbered, 104 Galaxy portraits.
+- **Local:** regression 190/190 (13/13 syntax).
+- **Not verified yet:** CI for this SHA (first run of `php -l`); Desk names wait for a Render deploy (#120).
+
+---
+
 ## Patch — Mini-Sim 0.15.6: planet landing clips on the Tower → planet bridge (16 November 2026)
 
 - **WORK LOCK:** [#126](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/126), `e38fba3`. Decision D-063. Tower `0.2.87`.

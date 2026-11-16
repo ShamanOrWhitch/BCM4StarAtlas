@@ -1,3 +1,11 @@
+## D-064 — Crew с кошелька называются и рисуются по каталогу Galaxy по mint (16 ноября 2026)
+
+**Status:** Реализовано в `d1452a7`, Mini-Sim `0.15.7`, WORK LOCK [#127](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/127). BUG-007.
+
+- Имя и портрет человека — только из Galaxy (`name`, `imageUrl`); на блокчейне имя — номер. Каталог без фильтра неполон (100 записей), поэтому кошелёк спрашивается по mint пачками по 40.
+- Один модуль `src/lib/galaxy-crew.ts` для сервера Render и браузера; Mini-Sim повторяет его в PHP. OCEAN каждый читатель оставляет в своей шкале, Galaxy только заполняет пропуски.
+- CI теперь проверяет синтаксис обоих PHP-файлов плагина (`php -l`): локально PHP нет, а ошибка PHP роняет весь плагин.
+
 ## D-063 — Ролик моста Tower → планета выбирается по планете посадки (16 ноября 2026)
 
 **Status:** Реализовано в `e38fba3`, Mini-Sim `0.15.6`, Tower `0.2.87`, WORK LOCK [#126](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/126). Исполнитель — Claude Code (Claude Opus 5.5).
