@@ -1,6 +1,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { nameWalletCrew } from "./galaxy-crew";
 import type { BookLevel, Candle, FleetPeek, MarketShip, MarketSnap, ProfilePeek, ResourceRow, TapePoint, TokenQuote, WalletItem, WalletScan, WalletTrait } from "./desk-types";
 
 const RPC_URL = "https://api.mainnet-beta.solana.com";
@@ -1070,6 +1071,9 @@ export async function scanWallet(ownerText: string): Promise<WalletScan> {
 
   const listed = await ownOrders(owner.toBase58(), catalog).catch(() => []);
   items.push(...listed);
+  // BUG-007: the first 100 Galaxy crew rarely hold this wallet's crew; ask Galaxy by mint.
+  const named = await nameWalletCrew(items, (url) => getJson(url, 15000)).catch(() => items);
+  items.splice(0, items.length, ...named);
   const order = { crew: 0, ship: 1, structure: 2, resource: 3, nft: 4, other: 5 };
   items.sort((a, b) => order[a.kind] - order[b.kind] || a.name.localeCompare(b.name, "en"));
 

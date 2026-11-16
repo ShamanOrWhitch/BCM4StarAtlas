@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.15.6
+ * Version: 0.15.7
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.15.6');
+define('BCM_MINI_SIM_VERSION', '0.15.7');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -439,6 +439,32 @@ function bcm_mini_sim_galaxy_crew_by_das() {
     return $index;
 }
 
+/**
+ * BUG-007: Galaxy /crew without a filter returns only the first 100 crew, so a
+ * wallet's own crew got its chain number ("CREW #1010495") and chain picture.
+ * Ask Galaxy for those mints directly, 40 per request.
+ */
+function bcm_mini_sim_galaxy_crew_for_mints($mints) {
+    $found = array();
+    $mints = array_values(array_unique(array_filter(array_map('strval', (array) $mints))));
+    foreach (array_chunk($mints, 40) as $batch) {
+        $query = array();
+        foreach ($batch as $mint) {
+            $query[] = 'dasID=' . rawurlencode($mint);
+        }
+        $rows = bcm_mini_sim_remote_json('https://galaxy.staratlas.com/crew?' . implode('&', $query), 'GET', null, 20);
+        if (!is_array($rows)) {
+            continue;
+        }
+        foreach ($rows as $row) {
+            if (is_array($row) && !empty($row['dasID'])) {
+                $found[(string) $row['dasID']] = $row;
+            }
+        }
+    }
+    return $found;
+}
+
 function bcm_mini_sim_das_wallet_scan($owner) {
     $galaxy = bcm_mini_sim_galaxy_crew_by_das();
     $crew = array();
@@ -465,6 +491,21 @@ function bcm_mini_sim_das_wallet_scan($owner) {
 
         $das_ok = true;
         $rows = isset($result['items']) && is_array($result['items']) ? $result['items'] : array();
+        // BUG-007: names and portraits of this page's crew that the first 100 Galaxy rows do not hold.
+        $missing = array();
+        foreach ($rows as $asset) {
+            if (!is_array($asset) || empty($asset['id']) || isset($galaxy[(string) $asset['id']])) {
+                continue;
+            }
+            $probe_meta = isset($asset['content']['metadata']) && is_array($asset['content']['metadata']) ? $asset['content']['metadata'] : array();
+            $probe = strtolower((isset($probe_meta['name']) ? (string) $probe_meta['name'] : '') . ' ' . (isset($probe_meta['symbol']) ? (string) $probe_meta['symbol'] : ''));
+            if (strpos($probe, 'crew') !== false) {
+                $missing[] = (string) $asset['id'];
+            }
+        }
+        if ($missing) {
+            $galaxy = $galaxy + bcm_mini_sim_galaxy_crew_for_mints($missing);
+        }
         foreach ($rows as $asset) {
             if (!is_array($asset) || empty($asset['id'])) {
                 continue;
@@ -891,7 +932,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.15.6</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.15.7</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS</div>
             <div class="bcm-mini-sim-attract-marquee" role="img" aria-label="Inspired by Star Atlas. Powered for all creatures. BCM4SA. Read-only Crew and ship console.">
                 <span class="bcm-mini-sim-attract-prefix" aria-hidden="true">BCM4SA //</span>

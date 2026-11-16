@@ -1,3 +1,4 @@
+import { nameWalletCrew } from "./galaxy-crew";
 import type { BookLevel, Candle, MarketShip, MarketSnap, ResourceRow, WalletItem, WalletScan, WalletTrait } from "./desk-types";
 
 const ATLAS = "ATLASXmbPQxBUYbxPsV97usA3fPQYEqzQBUHgiFCUsXx";
@@ -416,10 +417,12 @@ export async function directWallet(owner: string): Promise<WalletScan> {
   } catch (err) {
     warnings.push(err instanceof Error ? err.message : "Токены ключа не прочитались");
   }
+  // BUG-007: names and portraits of this wallet's crew, asked from Galaxy by mint.
+  const named = await nameWalletCrew(items, (url) => getJson(url)).catch(() => items);
   return {
     owner,
     at: Date.now(),
-    items,
+    items: named,
     skippedMeta: 0,
     profiles: [],
     rpcWarning: warnings.join(". "),
