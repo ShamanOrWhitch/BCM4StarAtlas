@@ -19,7 +19,15 @@ async function gate() {
   const m = src.match(/BCMWarpSectorSceneFrame\(\{[\s\S]*?\n\s*active: ([\s\S]*?),\n\s*paused:/);
   assert.ok(m, "field gate expression not found in mini-sim.js");
   // Evaluate the exact expression with the game's own names.
-  return new Function("running", "exteriorFlight", "ship", "getSpaceZone", "spaceSatellite", `return (${m[1]});`);
+  return new Function(
+    "running",
+    "exteriorFlight",
+    "ship",
+    "getSpaceZone",
+    "spaceSatellite",
+    "simPlace",
+    `return (${m[1]});`
+  );
 }
 const getSpaceZone = (z) => (z >= -10 ? "ROOM1" : z >= -84.5 ? "ROOM2" : "DEEP_SPACE");
 const station = { stationMesh: {} };
@@ -32,6 +40,16 @@ test("gate: the field is on at the asteroid landing (z = +150) in exterior fligh
   assert.equal(at(150, true, {}), true, "field still needs the ONICSS mesh to exist");
   assert.equal(at(-30, false), false, "field must stay off inside the ship");
   assert.equal(!!active(false, true, { position: { z: 150 } }, getSpaceZone, station), false, "field on while the game is stopped");
+  assert.equal(
+    !!active(true, false, { position: { z: 150 } }, getSpaceZone, station, { id: "asteroid" }),
+    true,
+    "asteroid arrival leaves exteriorFlight off, so the field stays off (BUG-004)"
+  );
+  assert.equal(
+    !!active(true, false, { position: { z: 2 } }, getSpaceZone, station, null),
+    false,
+    "field on in Room 1 when the place is not the asteroid"
+  );
 });
 
 async function sceneManager() {

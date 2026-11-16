@@ -241,7 +241,8 @@ export function CrewBay() {
           <Filters query={query} patch={patch} toggleArr={toggleArr} />
         </aside>
 
-        <section className="flex min-w-0 flex-1 flex-col">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="max-h-[46%] min-h-0 shrink-0 overflow-y-auto overscroll-contain">
           <HeldCrew
             onLive={(crew, items) => {
               setLive(crew);
@@ -379,6 +380,7 @@ export function CrewBay() {
                 </select>
               </label>
             </div>
+          </div>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-3 md:p-4">

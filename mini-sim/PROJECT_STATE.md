@@ -1,3 +1,12 @@
+## Patch — Mini-Sim 0.15.9: asteroid field follows the place; crew menu scrolls (16 November 2026)
+
+- **BUG-004 hole:** arrival writes `simPlace.id === "asteroid"` and does not set `exteriorFlight`. The field gate now accepts either. Density unchanged. Red before the edit: `asteroid arrival leaves exteriorFlight off, so the field stays off (BUG-004)`.
+- **BUG-010:** crew column on a short screen clipped the card list. The stack above the cards scrolls and is capped at 46% of the column. Source is `src/components/crew/bay.tsx`, not the WordPress desk. Live Galia still needs a Render deploy.
+- **Not done:** BUG-008, protected `wordpress/galia-desk`.
+- **Not verified:** this SHA's CI, a Warp arrival in a browser, the crew page on a phone.
+
+---
+
 ## Журналы с 15 ноября 2026
 
 Рабочая память разделена. Идеи: `JOURNAL_IDEAS.md`. Баги: `JOURNAL_BUGS.md`. Комплектация мини-игр: `JOURNAL_KIT.md`.
