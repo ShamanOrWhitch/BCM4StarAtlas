@@ -3,6 +3,16 @@
 Рабочая память разделена. Идеи: `JOURNAL_IDEAS.md`. Баги: `JOURNAL_BUGS.md`. Комплектация мини-игр: `JOURNAL_KIT.md`.
 Проверка больше не замораживает правки. Версия игры от этого не менялась: Mini-Sim `0.14.6`, Tower `0.2.80`, HEAD на момент записи журналов `129ad52`.
 
+## Patch — Mini-Sim 0.15.5: planet Fable has its own relief (16 November 2026)
+
+- **WORK LOCK:** [#124](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/124), `d598f72`. Decision D-062. IDEA-002 step 3. Tower `0.2.86` is a version bump only.
+- **Relief:** `terrain.ts` `setRelief("fable")` — three capes and three coves, the Crescent ridge east of the town, two-tier Table hill, six sea stacks, long mossy swells, Fable place names. Town, pad, pond, bridge and quest spots stand where they stood.
+- **Red before:** `Fable ground equals the desert island: only 0.0% of the wild nodes differ by more than 0.5 m`; `Fable still names desert places: Кристальная гряда, Дюны, Дюнный посад, …, Оазис, …`. After: 3/3 (`scripts/first-planet-fable-relief.test.mjs`, added to the CI regression).
+- **Local:** regression 183/183, `tsc` only the two old errors. Planet Lab in Edge on Fable: page errors 0, frames from the ground and from the air.
+- **Not verified yet:** CI for this SHA, live site, Warp ONI → Fable → Tower → planet in one run, frame rate on a weak device, a full walk of the Fable quests by a player. Desert cacti and rocks still stand on Fable (props are Dr Arena's work). Some of the parked ships may stand elsewhere or be skipped on Fable: their pads are chosen by slope.
+
+---
+
 ## Patch — Mini-Sim 0.15.4: planet Fable next to ONI CSS (16 November 2026)
 
 - **WORK LOCK:** [#123](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/123), `f397eb5`. Decision D-061. Tower `0.2.85` is a version bump only.
@@ -10,7 +20,8 @@
 - **SYNTX chats (all five) re-read 16.11:** no planet code there; owner wishes not yet in the journals recorded as IDEA-015. Already covered: Ring 2.5D (IDEA-004), landing cutscene (IDEA-005), desert/crabs (IDEA-006), sector graph (IDEA-011).
 - **Second look at 0.15.3:** mote/ring sprites and texture disposal fixed while building Fable; the three older planets render as before. Known and not done: Profound skirt and mantle do not follow the leg; one planet per page load; `scene.ts:946` old `prefer-const` lint error left as is.
 - **Local:** regression 180/180 (12/12 syntax), Tower suites 34/34, `tsc` no new errors. Planet Lab in Edge: 4 planets, page errors 0.
-- **Not verified yet:** CI for this SHA, live site, Warp ONI → Fable → Tower → planet in one run, frame rate with the Fable effects on a weak device.
+- **CI on `4bec042`:** regression [43775907011](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43775907011), Tower 43775906978, standalone Chromium 43775906999, UI Layer 43775906959 — success. Package `bcm-mini-sim-0.15.4-test`: [artifact](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43775906933/artifacts/14185958445).
+- **Not verified yet:** live site, Warp ONI → Fable → Tower → planet in one run, frame rate with the Fable effects on a weak device.
 
 ---
 
