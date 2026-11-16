@@ -12,6 +12,14 @@
 Рабочая память разделена. Идеи: `JOURNAL_IDEAS.md`. Баги: `JOURNAL_BUGS.md`. Комплектация мини-игр: `JOURNAL_KIT.md`.
 Проверка больше не замораживает правки. Версия игры от этого не менялась: Mini-Sim `0.14.6`, Tower `0.2.80`, HEAD на момент записи журналов `129ad52`.
 
+## Warp tube — owner uploads of 16 November 2026 (reconciled, not written by Claude Code)
+
+- **Commits:** `c3006dd`, `97b77e5` («Add files via upload», `mini-sim/assets/js/deep-space-warp.js`, +834 lines, Dr Arena's Warp work). IDEA-012 → `IMPLEMENTED`, live status unknown.
+- **Brings:** rocks on the tube wall with baked sprites inside the file, anomaly «half-enemies», gamepad vibration on a near pass, PHATOLI shimmer switch, effect level by ship class, dissolve cell cap by device tier.
+- **CI on `97b77e5`:** all five workflows success. No version bump came with the uploads: the file is still served as `?ver=0.15.9`.
+
+---
+
 ## Galia — crew menu scroll; Desk 0.8.20 test package (16 November 2026)
 
 - **WORK LOCK:** [#129](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/129). BUG-010 was fixed by another writer in `a47ee04` (Mini-Sim `0.15.9`); Claude Code's browser check passes on it at four window sizes, so the second layout change was dropped. BUG-008 only in the Desk test package `galia-desk-0.8.20-test.zip` (built outside `wordpress/galia-desk`; the folder in `main` is still `0.8.18`).
