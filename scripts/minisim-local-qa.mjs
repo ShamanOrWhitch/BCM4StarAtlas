@@ -145,7 +145,16 @@ try{
  const mapAudio=await activeAudio();report.audioOnMap=mapAudio;
  check(mapAudio.length===1&&/warp\.mp3/i.test(mapAudio[0].src),"Warp OST is audible already on the map");
  const mapTrackTime=mapAudio[0]?.time||0;
- const neighbor=page.locator('[data-warp-grid] .bcm-warp-grid-cell.is-connected').first();await neighbor.waitFor({state:"visible",timeout:15000});await neighbor.click();
+ const neighbor=page.locator('[data-warp-grid] .bcm-warp-grid-cell.is-connected').first();
+ await neighbor.waitFor({state:"visible",timeout:15000});
+ const selectedSectorId=await neighbor.getAttribute("data-sector-id");
+ await neighbor.click();
+ const routeAfterSelection=await page.evaluate(()=>window.BCMDeepSpaceWarpGetRouteState?.()||null);
+ report.warpRouteAfterSelection=routeAfterSelection;
+ check(!!selectedSectorId&&routeAfterSelection?.destination?.id===selectedSectorId,
+   "confirmed sector selection writes destination to Warp bridge");
+ check(routeAfterSelection?.currentLocation==null,
+   "selecting a sector does not mark it as an arrived location");
  await page.locator("[data-warp-start]").click();await page.locator('[data-warp-view="tube"]:not([hidden])').waitFor({state:"visible",timeout:8000});await page.waitForTimeout(700);await shot(page,"04-tube.png");
  check(true,"choosing a neighbour opens Tube");
  const during=await activeAudio();report.audioDuringTube=during;
@@ -160,8 +169,21 @@ try{
  report.afterCancel=after;await shot(page,"05-after-cancel.png");
  check(!!before&&!!after.position&&after.position.every((v,i)=>Math.abs(v-before[i])<1),"cancel restores the ship position");
  check(after.audio.length===1&&!/warp\\.mp3/i.test(after.audio[0]),"cancel stops Warp OST and restores the normal flight OST");
+ const routeAfterCancel=await page.evaluate(()=>window.BCMDeepSpaceWarpGetRouteState?.()||null);
+ report.warpRouteAfterCancel=routeAfterCancel;
+ check(routeAfterCancel?.destination==null&&routeAfterCancel?.currentLocation==null,
+   "cancelling an unarrived Tube clears the pending destination without inventing a location");
  const asteroidEntered=await page.evaluate(()=>typeof window.BCMDeepSpaceWarpEnterAsteroid==="function"&&window.BCMDeepSpaceWarpEnterAsteroid()===true);
  check(asteroidEntered,"asteroid test entry uses the existing Mini-Sim runtime");
+ const asteroidArrival=await page.evaluate(()=>({
+   route:window.BCMDeepSpaceWarpGetRouteState?.()||null,
+   place:window.BCMiniSimAPI?.getPlace?.()||null
+ }));
+ report.asteroidArrivalBridge=asteroidArrival;
+ check(asteroidArrival.route?.currentLocation?.id==="asteroid"&&asteroidArrival.place?.id==="asteroid",
+   "asteroid entry commits currentLocation through the existing BCMMiniSimAPI place contract");
+ check(asteroidArrival.route?.currentLocation?.galaxyNode?.id==="asteroid-complex",
+   "local asteroid location retains its separate two-dimensional sector anchor");
  await page.waitForFunction(()=>{
    const scene=window.BCMiniSimAPI?.getRuntime?.()?.scene;
    const decorations=scene?.getObjectByName("asteroid-wall-crystal-decorations");
@@ -246,6 +268,17 @@ try{
  report.asteroidWallCrystalPreview=crystalPreview;
  check(!!crystalPreview,"close-up inspection camera can render a mounted crystal without moving the ship");
  await shot(page,"07-asteroid-wall-crystal-closeup.png");
+ await page.evaluate(()=>window.BCMDeepSpaceWarpToggle?.());
+ await page.locator(".bcm-warp-overlay:not([hidden])").first().waitFor({state:"visible",timeout:8000});
+ const routeAfterMapReturn=await page.evaluate(()=>({
+   route:window.BCMDeepSpaceWarpGetRouteState?.()||null,
+   place:window.BCMiniSimAPI?.getPlace?.()||null
+ }));
+ report.warpRouteAfterMapReturn=routeAfterMapReturn;
+ check(routeAfterMapReturn.route?.destination==null&&
+   routeAfterMapReturn.route?.currentLocation?.id==="asteroid"&&
+   routeAfterMapReturn.place?.id==="asteroid",
+   "returning to the Warp map clears the next destination but preserves the current asteroid location");
  // Exercise the real r128 scene adapter with the repository's six asteroid GLBs.
  // A detached probe ship and a distant ONICSS origin isolate this from live gameplay.
  const warpSectorSmoke = await page.evaluate(async () => {

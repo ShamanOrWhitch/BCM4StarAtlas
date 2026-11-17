@@ -71,4 +71,10 @@ test("Asteroid maze is a separate seeded location loaded before Warp in PHP and 
   const locationTag = shell.indexOf('id="bcm-asteroid-maze-location-js"');
   const warpTag = shell.indexOf('id="bcm-deep-space-warp-js"');
   assert.ok(bridgeTag >= 0 && bridgeTag < locationTag && locationTag < warpTag);
+
+  const browserQa = await read("scripts/minisim-local-qa.mjs");
+  assert.match(browserQa, /confirmed sector selection writes destination to Warp bridge/);
+  assert.match(browserQa, /cancelling an unarrived Tube clears the pending destination/);
+  assert.match(browserQa, /asteroid entry commits currentLocation through the existing BCMMiniSimAPI place contract/);
+  assert.match(browserQa, /returning to the Warp map clears the next destination but preserves the current asteroid location/);
 });
