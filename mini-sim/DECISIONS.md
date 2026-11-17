@@ -987,7 +987,7 @@ On head `7d0bb64`, Mini-Sim regression and Tower top-cap regression passed. The 
 
 ## D-066 — Warp transit, bridge and asteroid-maze location are separate modules
 
-**Status: IMPLEMENTED; TESTED-CODE pending GitHub Actions.** Date: 17 November 2026. WORK LOCK #131.
+**Status: IMPLEMENTED; TESTED-CODE and STANDALONE-CHROMIUM PASS.** Date: 17 November 2026. WORK LOCK #131.
 
 - The Warp tube is a transit stage, not the owner of every scene after arrival. `deep-space-warp.js` retains the galaxy menu, tube visuals/flight/controls and Ring activity. `warp-bridge.js` owns the distinction between a selected SAGE destination and a committed local place. `asteroid-maze-location.js` owns the seeded maze scene and runtime.
 - A SAGE node remains `{id, name, x, y}`. The asteroid place stores its ID/label and sector X/Y; the ship's local 3D position remains with the simulation. The bridge does not translate SAGE X/Y into world XYZ.
@@ -995,3 +995,11 @@ On head `7d0bb64`, Mini-Sim regression and Tower top-cap regression passed. The 
 - The existing 7×3×7 seeded generator, wall/collision logic, GLB wall deposits/crystals, Hydrogen and Ring handoff are moved without gameplay redesign. The volume field manager and its separate sector ring are not changed.
 - Existing `mini-sim.js` BUG-004 location gate is unchanged; no absolute Z threshold is reintroduced or substituted.
 - Warp audio, OST and SFX are untouched (AUDIO FREEZE). No WordPress live QA or production deployment is included.
+
+
+### D-066 verification — 17 November 2026
+
+- Mini-Sim regression PASS 213/213 (#44038525359); Tower source-contract PASS 34/34 (#44038525312).
+- Standalone Chromium PASS (#44038525455): source assertions 65/65, Warp/asteroid smoke PASS, Tower → First Planet → same-seed ascent → return-state cycle PASS.
+- Browser bridge assertions: explicit selection writes destination; Tube cancel clears it but does not set a place; Asteroid entry writes currentLocation and keeps `BCMiniSimAPI.getPlace()` in sync; return-to-map preserves the Asteroid location while clearing the next destination.
+- Package test build PASS (#44001852425) on the same runtime/package source snapshot. The live WordPress site and physical devices were not tested or deployed.

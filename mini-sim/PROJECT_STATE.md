@@ -668,3 +668,16 @@ Issue #28 остаётся открытым только для полной г�
 - `deep-space-warp.js` keeps the menu, tube, controls, course and Ring activity and calls the location through an adapter. `BCMiniSimAPI.setPlace/getPlace` stays compatible. Existing BUG-004 place gate is unchanged.
 - Mini-Sim cache version is raised to `0.15.10` so WordPress/browser caches request the extracted modules.
 - Verification at source commit: syntax and static extraction checks performed by writer; GitHub Actions source and standalone Chromium results are recorded separately. No live WordPress deployment or physical-device verification is implied.
+
+
+## 17 November 2026 — WORK LOCK #131 verification complete, Mini-Sim 0.15.10
+
+- **Code refactor:** `2b3eee78463b1308b168ef4ba9e19f64406e60f7`. **Final QA head:** `6443827c239b231af8d1f4c83e3dd8ce79de5250`.
+- `deep-space-warp.js` is reduced from 9,371 to 8,431 lines. The Warp menu/tube remains in that controller; the seeded 7×3×7 asteroid-maze construction, GLB wall assets, collision/update, crystal/Hydrogen chart and disposal live in `asteroid-maze-location.js`. `warp-bridge.js` keeps selected SAGE destination X/Y separate from committed in-world `currentLocation`.
+- **Mini-Sim regression:** PASS, 213/213 — [Actions #44038525359](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/44038525359).
+- **Tower source-contract:** PASS, 34/34 — [Actions #44038525312](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/44038525312).
+- **Standalone Chromium:** PASS — [Actions #44038525455](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/44038525455). Source assertions 65/65; rendered Warp/asteroid smoke PASS; Tower → First Planet → same-seed ascent → return-state cycle PASS. No plugin HTTP errors, failed requests or uncaught page errors.
+- The standalone browser smoke explicitly checks: confirmed sector selection writes `destination`; cancellation before arrival clears the pending destination without inventing a place; Asteroid entry commits `currentLocation` and the existing `BCMiniSimAPI.getPlace()`; returning to the Warp map clears the next destination while preserving the Asteroid location.
+- **Package verification:** PASS in [Actions #44001852425](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/44001852425) on `2740b8aea344f82fa8ecf222644e6e4c8fc7edcb`. The runtime/PHP/package files were unchanged between that package-tested SHA and final QA head; subsequent commits only adjusted regression and browser tests.
+- **Test boundary:** the browser fixture exercises map selection, Tube entry/cancel, the real Asteroid module entry, scene assets and return-to-map state. It does not claim a successful full-duration Tube arrival; the bridge's successful `commitArrival` contract is covered by the Node unit test.
+- **Not VERIFIED-LIVE:** no production WordPress deployment, live-site browser QA, phone or physical gamepad test. The live site remains a separate owner-confirmed state; this GitHub `0.15.10` change does not silently update it.
