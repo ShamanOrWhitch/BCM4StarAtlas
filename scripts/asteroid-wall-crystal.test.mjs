@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 const read = (path) => readFile(new URL("../" + path, import.meta.url), "utf8");
 
 const [warp, php, standaloneRunner, localQa, gltfLoader, gltfLicense] = await Promise.all([
-  read("mini-sim/assets/js/deep-space-warp.js"),
+  read("mini-sim/assets/js/asteroid-maze-location.js"),
   read("mini-sim/bcm-mini-sim.php"),
   read("scripts/minisim-standalone-qa.mjs"),
   read("scripts/minisim-local-qa.mjs"),
@@ -79,6 +79,9 @@ test("GLTFLoader is lazy and its template is cached without disposing shared geo
   const dispose = warp.slice(disposeStart, disposeEnd);
   assert.match(dispose, /maze\.group\.parent\.remove\(maze\.group\)/);
   assert.doesNotMatch(dispose, /wallCrystalGroup[\s\S]{0,200}geometry\.dispose/);
+  assert.match(php, /wp_enqueue_script\('bcm-warp-bridge'[\s\S]*?warp-bridge\.js/);
+  assert.match(php, /wp_enqueue_script\('bcm-asteroid-maze-location'[\s\S]*?asteroid-maze-location\.js/);
+  assert.match(php, /'bcm-asteroid-maze-location'\)/);
 });
 
 test("standalone QA serves the GLB and exercises the actual asteroid scene with Chromium", () => {

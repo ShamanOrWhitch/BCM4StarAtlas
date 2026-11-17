@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.15.9
+ * Version: 0.15.10
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.15.9');
+define('BCM_MINI_SIM_VERSION', '0.15.10');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -843,7 +843,9 @@ function bcm_mini_sim_enqueue_assets()
     // One SAGE map with Galia (generated from Galia src/data, IDEA-014).
     wp_enqueue_script('bcm-sage-map', BCM_MINI_SIM_URL . 'assets/js/sage-map.js', array(), BCM_MINI_SIM_VERSION, true);
     wp_enqueue_script('bcm-sage-map-core', BCM_MINI_SIM_URL . 'assets/js/sage-map-core.js', array('bcm-sage-map'), BCM_MINI_SIM_VERSION, true);
-    wp_enqueue_script('bcm-deep-space-warp', BCM_MINI_SIM_URL . 'assets/js/deep-space-warp.js', array('bcm-mini-sim', 'bcm-hull-dive', 'bcm-crew-core', 'bcm-warp-sector-scene', 'bcm-sage-map-core'), BCM_MINI_SIM_VERSION, true);
+    wp_enqueue_script('bcm-warp-bridge', BCM_MINI_SIM_URL . 'assets/js/warp-bridge.js', array(), BCM_MINI_SIM_VERSION, true);
+    wp_enqueue_script('bcm-asteroid-maze-location', BCM_MINI_SIM_URL . 'assets/js/asteroid-maze-location.js', array('bcm-mini-sim', 'bcm-crew-core', 'bcm-hull-dive', 'bcm-warp-bridge'), BCM_MINI_SIM_VERSION, true);
+    wp_enqueue_script('bcm-deep-space-warp', BCM_MINI_SIM_URL . 'assets/js/deep-space-warp.js', array('bcm-mini-sim', 'bcm-hull-dive', 'bcm-crew-core', 'bcm-warp-sector-scene', 'bcm-sage-map-core', 'bcm-warp-bridge', 'bcm-asteroid-maze-location'), BCM_MINI_SIM_VERSION, true);
     wp_enqueue_script('bcm-ui-layer-audit', BCM_MINI_SIM_URL . 'assets/js/ui-layer-audit.js', array('bcm-deep-space-warp'), BCM_MINI_SIM_VERSION, true);
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
         'crewServerAjax' => admin_url('admin-ajax.php'),
@@ -932,7 +934,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.15.9</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.15.10</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS</div>
             <div class="bcm-mini-sim-attract-marquee" role="img" aria-label="Inspired by Star Atlas. Powered for all creatures. BCM4SA. Read-only Crew and ship console.">
                 <span class="bcm-mini-sim-attract-prefix" aria-hidden="true">BCM4SA //</span>

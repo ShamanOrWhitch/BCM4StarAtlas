@@ -486,3 +486,16 @@ Latest implementation head at this note: `7d0bb646a9126ba21bbf96406363aa7c20eec7
 - First Planet WordPress bundle build + package-content verification: PASS steps, run #43648574879; artifact upload pending.
 - Standalone Chromium source assertions: PASS, run #43648574823; browser smoke and transition-cycle steps pending.
 - Keep one writer at a time. Do not merge path-stale PR #105 without reworking it against `mini-sim/first-planet/`.
+
+
+## Active WORK LOCK #131 — separate Warp bridge and asteroid-maze location (17 November 2026)
+
+- **Writer:** DR GPT, single writer on `main`. **Status:** IN PROGRESS.
+- **Baseline:** `a4bf459659555b33ab5c0852f811fbd518cd36cc` (Mini-Sim `0.15.9`). **Target:** Mini-Sim `0.15.10`.
+- **Scope:** `deep-space-warp.js`, new `warp-bridge.js`, new `asteroid-maze-location.js`, Mini-Sim PHP enqueue/version, source tests, local standalone QA fixture, project records.
+- **Goal:** keep Warp as transit, transfer the selected SAGE node through an explicit bridge, and treat the seeded asteroid maze as its own location.
+- **Shared contracts:** menu hover preview is read-only; confirmation sets `destination`; successful arrival commits `currentLocation`; SAGE coordinates remain X/Y; local ship coordinates remain 3D; `BCMiniSimAPI.setPlace/getPlace` remains compatible; map-return preserves the active maze.
+- **Preserve:** existing Warp tube, controls, courses, assets/audio; existing seeded maze algorithm, collisions, wall crystals, Hydrogen and Ring entry; separate `warp-sector-core.js` / `warp-sector-scene.js` and the BUG-004 location gate.
+- **Exclude:** Tower, First Planet, Galia Desk, scanner/pricing, firewall, wallet writes, SAGE transactions, production WordPress and live-site browser tests.
+- **Acceptance:** `npm run test:minisim`, standalone Mini-Sim Chromium QA and package contents; report each result at its exact tested SHA. No live WordPress or device verification is inferred.
+- **Latest commit / CI:** pending atomic `main` commit and GitHub Actions.

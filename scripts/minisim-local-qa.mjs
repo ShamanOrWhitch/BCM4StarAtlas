@@ -6,6 +6,8 @@ import { createRequire } from "node:module";
 const HANDLE_FILES={
  "bcm-mini-sim-js":"mini-sim/assets/js/mini-sim.js",
  "bcm-deep-space-warp-js":"mini-sim/assets/js/deep-space-warp.js",
+ "bcm-warp-bridge-js":"mini-sim/assets/js/warp-bridge.js",
+ "bcm-asteroid-maze-location-js":"mini-sim/assets/js/asteroid-maze-location.js",
  "bcm-crew-wallet-js":"mini-sim/assets/js/crew-wallet.js",
  "bcm-tower-js":"mini-sim/tower/assets/js/tower.js",
  "bcm-mini-sim-css":"mini-sim/assets/css/mini-sim.css",
@@ -117,6 +119,8 @@ try{
  check(await page.locator(".bcm-mini-sim").count()>0,standalone?"Mini-Sim fixture root is present":"Mini-Sim shortcode is present");
  check(report.overrides.some(item=>item.file==="mini-sim/assets/js/mini-sim.js"),"Main Mini-Sim JavaScript is served from this GitHub commit");
  check(report.overrides.some(item=>item.file==="mini-sim/assets/js/deep-space-warp.js"),"Warp JavaScript is served from this GitHub commit");
+ check(report.overrides.some(item=>item.file==="mini-sim/assets/js/warp-bridge.js"),"Warp bridge is served from this GitHub commit");
+ check(report.overrides.some(item=>item.file==="mini-sim/assets/js/asteroid-maze-location.js"),"Asteroid maze location is served from this GitHub commit");
  check(report.overrides.some(item=>item.file==="mini-sim/assets/css/mini-sim.css"),"Mini-Sim CSS is served from this GitHub commit");
  await page.locator(".bcm-mini-sim-start").first().click({timeout:12000});
  await page.locator(".bcm-mini-sim-crew-preflight:not([hidden])").first().waitFor({state:"visible",timeout:12000});

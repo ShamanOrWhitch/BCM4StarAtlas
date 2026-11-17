@@ -11,7 +11,9 @@ test("Warp OST belongs to the whole Warp stage and loops",async()=>{
   assert.match(s,/pauseLevelOst\(\);\s*startWarpAudio\(true\);[\s\S]{0,180}state\.nav = readNavigation\(\)/);
   const tube=s.slice(s.indexOf("function showTube()"),s.indexOf("function finishTube"));
   assert.doesNotMatch(tube,/startWarpAudio/);
-  assert.match(s,/function enterAsteroidMaze\(\) \{\s*\/\/ Warp OST owns the whole Warp stage/);
+  const location = await read("mini-sim/assets/js/asteroid-maze-location.js");
+  assert.match(s,/function enterAsteroidMaze\(\) \{[\s\S]{0,140}location\.enter\(\)/);
+  assert.match(location,/function enterAsteroidMaze\(\) \{\s*\/\/ Warp OST owns the whole Warp stage/);
 });
 test("Warp uses a rolling circular wall and angular obstacle course",async()=>{
   const s=await read("mini-sim/assets/js/deep-space-warp.js");
@@ -244,19 +246,19 @@ test("Mini-Sim and Tower displayed versions match their PHP asset-cache versions
 
 
 test("Asteroid collision keeps the 0.11.2 baseline and visible core shards on a connected route", async () => {
-  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
-  const body = warp.slice(warp.indexOf("function updateMazeFrame(frame)"), warp.indexOf("function openHullInterior"));
+  const location = await read("mini-sim/assets/js/asteroid-maze-location.js");
+  const body = location.slice(location.indexOf("function updateMazeFrame(frame)"), location.indexOf("function disposeMaze"));
   assert.match(body, /for \(let pass = 0; pass < 2; pass \+= 1\)/);
   assert.match(body, /ship\.velocity\.x \*= 0\.15/);
   assert.match(body, /ship\.velocity\.y \*= 0\.15/);
   assert.match(body, /ship\.velocity\.z \*= 0\.15/);
   assert.doesNotMatch(body, /Sweep the ship's previous-to-current segment/);
-  assert.match(warp, /flyRadius: 160/);
+  assert.match(location, /flyRadius: 160/);
   assert.match(body, /ship\.velocity\.multiplyScalar\(0\.25\)/);
-  assert.match(warp, /const routeParent = new Map\(\[\[startNode, null\]\]\)/);
-  assert.match(warp, /scouted: true/);
+  assert.match(location, /const routeParent = new Map\(\[\[startNode, null\]\]\)/);
+  assert.match(location, /scouted: true/);
   assert.match(warp, /pos\.distanceTo\(crystal\.mesh\.position\) < 2\.0/);
-  assert.match(warp, /shell\.visible = false/);
+  assert.match(location, /shell\.visible = false/);
 });
 
 test("Warp travel motion increases while shimmer rate stays on its own previous clock", async () => {

@@ -983,3 +983,15 @@ Implemented on main in [`2ada830`](https://github.com/ShamanOrWhitch/BCM4StarAtl
 The path relocation is implemented on main and its test expectations are aligned to `mini-sim/first-planet/`. Shared ship catalogue references intentionally point back to `mini-sim/assets/mesh/ships/catalog.json`; this is a shared dependency, not a duplicate First Planet asset.
 
 On head `7d0bb64`, Mini-Sim regression and Tower top-cap regression passed. The First Planet WordPress bundle build and package-content checks passed; artifact upload was in progress. Standalone Chromium source assertions passed, while the real browser smoke/transition cycle was still running. No live WordPress deployment is claimed.
+
+
+## D-066 — Warp transit, bridge and asteroid-maze location are separate modules
+
+**Status: IMPLEMENTED; TESTED-CODE pending GitHub Actions.** Date: 17 November 2026. WORK LOCK #131.
+
+- The Warp tube is a transit stage, not the owner of every scene after arrival. `deep-space-warp.js` retains the galaxy menu, tube visuals/flight/controls and Ring activity. `warp-bridge.js` owns the distinction between a selected SAGE destination and a committed local place. `asteroid-maze-location.js` owns the seeded maze scene and runtime.
+- A SAGE node remains `{id, name, x, y}`. The asteroid place stores its ID/label and sector X/Y; the ship's local 3D position remains with the simulation. The bridge does not translate SAGE X/Y into world XYZ.
+- Hover/preview is read-only. The menu's explicit selection writes `destination`; only successful arrival writes `currentLocation`. Returning to the navigation map clears the next destination but preserves the asteroid scene and committed place. Returning to ONI clears the asteroid place through the existing `BCMiniSimAPI.setPlace(null)` path.
+- The existing 7×3×7 seeded generator, wall/collision logic, GLB wall deposits/crystals, Hydrogen and Ring handoff are moved without gameplay redesign. The volume field manager and its separate sector ring are not changed.
+- Existing `mini-sim.js` BUG-004 location gate is unchanged; no absolute Z threshold is reintroduced or substituted.
+- Warp audio, OST and SFX are untouched (AUDIO FREEZE). No WordPress live QA or production deployment is included.

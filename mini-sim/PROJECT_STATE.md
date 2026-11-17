@@ -657,3 +657,14 @@ Issue #28 остаётся открытым только для полной г�
 - **First Planet package:** bundle dependency install, WordPress build, JS/CSS verification and single-level package-content verification all PASS in [run #43648574879](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43648574879); artifact upload was still in progress at this note.
 - **Standalone Chromium:** source assertions PASS in [run #43648574823](https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/43648574823); real browser smoke and Tower → First Planet → Tower cycle were still in progress.
 - No WordPress production deployment or live website verification is claimed.
+
+
+## 17 November 2026 — Warp bridge and independent asteroid-maze location (WORK LOCK #131)
+
+- Baseline `main` `a4bf459659555b33ab5c0852f811fbd518cd36cc`, Mini-Sim `0.15.9`.
+- Split scope: separate Warp transit, route bridge and seeded asteroid-maze location. Preserve the tube, controls, route navigation, volume field manager (`warp-sector-core.js` / `warp-sector-scene.js`) and Ring gameplay.
+- `warp-bridge.js` maintains separate `destination` (SAGE node X/Y only) and `currentLocation` (committed local place). Menu hover is read-only; explicit selection sets destination; only successful arrival commits the asteroid place. Clearing the next destination does not clear the current asteroid location.
+- `asteroid-maze-location.js` owns the existing seeded 7×3×7 maze build/update/disposal, wall GLB assets, crystals, Hydrogen events and chart publishing. The existing generator and collision behavior are moved, not redesigned.
+- `deep-space-warp.js` keeps the menu, tube, controls, course and Ring activity and calls the location through an adapter. `BCMiniSimAPI.setPlace/getPlace` stays compatible. Existing BUG-004 place gate is unchanged.
+- Mini-Sim cache version is raised to `0.15.10` so WordPress/browser caches request the extracted modules.
+- Verification at source commit: syntax and static extraction checks performed by writer; GitHub Actions source and standalone Chromium results are recorded separately. No live WordPress deployment or physical-device verification is implied.
