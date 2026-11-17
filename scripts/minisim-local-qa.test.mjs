@@ -21,7 +21,8 @@ test("Warp uses a rolling circular wall and angular obstacle course",async()=>{
   const update=s.slice(s.indexOf("function updateTube(dt, now)"),s.indexOf("window.BCMDeepSpaceWarpToggle"));
   assert.match(s,/const WARP_DURATION = 42/);
   assert.match(body,/const twistAt = \(d\) => courseTwist\(d\)/);
-  assert.match(body,/for \(let panel = 0; panel < panelCount; panel \+= 1\)/);
+  // 17.11.2026: the tube wall panels live in warp-bridge.js now (owner upload c757459).
+  assert.match(await read("mini-sim/assets/js/warp-bridge.js"),/for \(var panel = 0; panel < panelCount; panel \+= 1\)/);
   assert.match(body,/for \(let seam = 0; seam < 12; seam \+= 1\)/);
   assert.match(body,/theta \+ \(d - 0\.92\) \* 0\.36/);
   assert.doesNotMatch(body,/for \(let ring = 0; ring < 17/);
@@ -265,8 +266,10 @@ test("Warp travel motion increases while shimmer rate stays on its own previous 
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.48/);
   assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
-  assert.match(warp, /Math\.sin\(shimmerTime \* 1\.35/);
-  assert.match(warp, /Math\.floor\(shimmerTime \* 8\)/);
+  // 17.11.2026: the wall shimmer is drawn by warp-bridge.js (owner upload c757459).
+  const bridgeSource = await read("mini-sim/assets/js/warp-bridge.js");
+  assert.match(bridgeSource, /Math\.sin\(shimmerTime \* 1\.35/);
+  assert.match(bridgeSource, /Math\.floor\(shimmerTime \* tick\)/);
   assert.match(warp, /Math\.pow\(warpCourseProgress\(elapsed\), 0\.86\)/);
   assert.match(warp, /const courseLayerCount = 24/);
 });

@@ -37,8 +37,8 @@ test("First Planet 0.12.4 faces the crew outward, rides the bike forward, and ke
   assert.match(terrain, /bulb: \{ x: 4\.6, z: 9\.4, yaw: Math\.PI/);
   assert.match(sim, /маяк · подъём в Tower/);
   assert.match(world, /renderer\.shadowMap\.enabled = false/);
-  assert.match(world, /RACE_SHIPS/);
-  assert.match(world, /raceLength/);
+  assert.match(world, /RACE_SHIP_FORMS/); // race ships have running and rest forms
+  assert.match(world, /form\.length/); // race length per ship, from RACE_SHIP_FORMS
   assert.match(world, /barrier_redwhite\.glb/);
   assert.match(towerPhp, /propBase/);
   assert.match(towerPhp, /meshLibraryBase/);

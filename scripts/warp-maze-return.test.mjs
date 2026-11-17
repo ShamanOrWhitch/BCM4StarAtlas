@@ -4,6 +4,7 @@ import test from "node:test";
 import { Script } from "node:vm";
 
 const warp = await readFile(new URL("../mini-sim/assets/js/deep-space-warp.js", import.meta.url), "utf8");
+const bridge = await readFile(new URL("../mini-sim/assets/js/warp-bridge.js", import.meta.url), "utf8"); // tube wall and shimmer since c757459
 const location = await readFile(new URL("../mini-sim/assets/js/asteroid-maze-location.js", import.meta.url), "utf8");
 const sim = await readFile(new URL("../mini-sim/assets/js/mini-sim.js", import.meta.url), "utf8");
 const hull = await readFile(new URL("../mini-sim/assets/js/hull-dive.js", import.meta.url), "utf8");
@@ -108,7 +109,8 @@ test("Warp Tube is a rolling circular cylinder with a curved / corkscrew route",
   assert.match(body, /const radiusX = \(d\) =>/);
   assert.match(body, /const radiusY = \(d\) => radiusX\(d\) \* 0\.91/);
   assert.match(body, /const point = \(d, theta, extra\)/);
-  assert.match(body, /for \(let panel = 0; panel < panelCount; panel \+= 1\)/);
+  // 17.11.2026: the tube wall panels live in warp-bridge.js (owner upload c757459).
+  assert.match(bridge, /for \(var panel = 0; panel < panelCount; panel \+= 1\)/);
   assert.match(body, /for \(let seam = 0; seam < 12; seam \+= 1\)/);
   assert.match(body, /Keep the established 12 longitudinal frame lines/);
   assert.doesNotMatch(body, /Circumferential rings and seams make the enclosing cylinder legible/);
@@ -218,7 +220,7 @@ test("Warp hazards stay varied across all 24 layers and the faster ramp remains 
   assert.match(warp, /return Math\.pow\(12, t\)/);
   assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.48/);
   assert.match(warp, /state\.tubeShimmerTime = Number\(state\.tubeShimmerTime \|\| 0\) \+ dt \* speed/);
-  assert.match(warp, /Math\.sin\(shimmerTime \* 1\.35/);
+  assert.match(bridge, /Math\.sin\(shimmerTime \* 1\.35/);
   assert.match(warp, /if \(Math\.abs\(delta\) > 1\.18\)/);
 });
 
