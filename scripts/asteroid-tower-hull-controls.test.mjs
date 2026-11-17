@@ -254,7 +254,7 @@ test("Astral Y-cells are seed-deterministic and alter movement without rebuildin
   assert.match(warp, /function nextDirectionTowardLarge\(startNode\)/);
   assert.match(warp, /routeDirection = path\.nextDirectionTowardLarge\(node\)/);
   assert.match(location, /asteroid-crystal-pickup-impact/);
-  assert.match(warp, /bcm:mission:hydrogen-shard-collected/);
+  assert.match(location, /bcm:mission:hydrogen-shard-collected/);
   assert.doesNotMatch(warp, /nextDirection = path\.nextDirectionTowardLarge\(node\) \|\|/);
   assert.match(warp, /if \(action === "floor"\)/);
   assert.match(warp, /const p1Floor = event\.code === "KeyR"/);
@@ -273,7 +273,7 @@ test("Astral Y-cells are seed-deterministic and alter movement without rebuildin
   assert.match(warp, /gravity = 14\.5;[\s\S]*?jumpVelocity = 10\.2/);
   assert.match(warp, /"ASTRAL · DRIFT", flux: "ASTRAL · GRAVITY FLUX", dense: "ASTRAL · DENSE GRAVITY"/);
   assert.match(warp, /drift: "≈", flux: "↕", dense: "◆"/);
-  // The current Ring runtime uses per-cell astral modes; no separate anomalies list is defined.
+  assert.match(location, /const anomalies = \(maze\.cells \|\| \[\]\)\.filter\(\(cell\) => cell\.y !== 1\)/);
 });
 
 
