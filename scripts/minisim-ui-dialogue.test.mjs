@@ -117,6 +117,7 @@ test("ONICSS keeps its station poster during preload, X releases camera focus, a
 });
 
 test("Hydrogen mission unlocks only after required screens really play and is anchored to the first Ring cell", () => {
+  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(mini, /window\.BCMWorldMissionAPI = \{/);
   assert.match(mini, /function registerMissionScreen\(screenId, required = true\)/);
   assert.match(mini, /function markMissionScreenActive\(screenId\)/);
@@ -124,11 +125,11 @@ test("Hydrogen mission unlocks only after required screens really play and is an
   assert.match(mini, /video\.addEventListener\("playing", \(\) => markMissionScreenActive\(item\.screenId\)\)/);
   assert.match(mini, /registerMissionScreen\(item\.screenId, !item\.towerGate\)/);
   assert.match(location, /cell: \{ x: startNode\.x, y: startNode\.y, z: startNode\.z \}/);
-  assert.match(location, /hydrogenMesh\.name = "ring-hydrogen-pickup"/);
-  assert.match(location, /hydrogenNode: start/);
-  assert.match(location, /g\.fillText\("H"/);
-  assert.match(location, /function collectHydrogenAt\(player\)/);
-  assert.match(location, /playerNode !== path\.hydrogenNode/);
+  assert.match(warp, /hydrogenMesh\.name = "ring-hydrogen-pickup"/);
+  assert.match(warp, /hydrogenNode: start/);
+  assert.match(warp, /g\.fillText\("H"/);
+  assert.match(warp, /function collectHydrogenAt\(player\)/);
+  assert.match(warp, /playerNode !== path\.hydrogenNode/);
   assert.match(location, /new CustomEvent\("bcm:mission:hydrogen-shard-collected"/);
 });
 
@@ -141,7 +142,7 @@ test("ONICSS faces the ship and keeps a companion sphere beside the planet", () 
   assert.ok(mini.includes('video.addEventListener("loadeddata", () => {'));
   assert.ok(mini.includes('if (item.towerGate && item.url)'));
   assert.ok(mini.includes('video.pause();'));
-  assert.ok(location.includes('copy.image = tex.image;'));
+  assert.ok(warp.includes('copy.image = tex.image;'));
 });
 
 test("Hydrogen requires three unique shards and switches from Panda to Medusa", () => {

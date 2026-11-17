@@ -71,7 +71,7 @@ test("returning to the sector map keeps the asteroid locale and pauses the ship"
 test("asteroid maze uses speed mode 2 and restores the previous mode", () => {
   assert.match(location, /state\.savedSpeedMode = engine\.getSpeedMode \? engine\.getSpeedMode\(\) : 1/);
   assert.match(location, /engine\.setSpeedMode\(2\)/);
-  assert.match(location, /engine\.setSpeedMode\(state\.savedSpeedMode\)/);
+  assert.match(warp, /engine\.setSpeedMode\(state\.savedSpeedMode\)/);
   assert.match(sim, /window\.BCMiniSimAPI\.getSpeedMode = \(\) => speedMode/);
   assert.match(sim, /window\.BCMiniSimAPI\.setSpeedMode = \(mode\) => setSpeedMode\(mode\)/);
 });
