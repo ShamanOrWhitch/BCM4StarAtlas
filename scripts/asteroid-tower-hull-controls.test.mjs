@@ -111,7 +111,7 @@ test("Warp Tube speed multiplier climbs from 1x to 12x with shared scene and sou
   assert.match(warp, /Math\.max\(1, Math\.min\(12,/);
   assert.match(warp, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
   assert.match(location, /const runtime = engine\.getRuntime\(\)/);
-  assert.match(warp, /if \(engine\.setSpeedMode\) engine\.setSpeedMode\(2\)/);
+  assert.match(location, /if \(engine\.setSpeedMode\) engine\.setSpeedMode\(2\)/);
 });
 
 test("Hull Dive exclusively owns key input and handles X across keyboard layouts", async () => {
@@ -194,6 +194,7 @@ test("Hull Dive uses crew-core Crew cut-outs and supplies working pilot, weapon,
 
 test("Crew facing follows the Tower convention and 3D wall materials use each cell's Ring map data", async () => {
   const core = await read("mini-sim/assets/js/crew-core.js");
+  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   const location = await read("mini-sim/assets/js/asteroid-maze-location.js");
   const tower = await read("mini-sim/tower/assets/js/tower.js");
   // One facing rule for every level (Tower convention), owned by crew-core.
@@ -204,17 +205,17 @@ test("Crew facing follows the Tower convention and 3D wall materials use each ce
   assert.match(core, /function facingFactor\(species\)/);
   assert.ok(tower.includes("if (turnInput !== 0) p.walkDirection = turnInput > 0 ? 1 : -1;"));
   assert.ok(tower.includes("p.visualFacing = crewPose.face;"));
-  assert.ok(location.includes('function addWall(x, y, z, sx, sy, sz, cell)'));
-  assert.ok(location.includes('walls.push({ x, y, z, sx, sy, sz, cell });'));
-  assert.ok(location.includes('const wallLookRng = randomFrom(hashSeed(seed + "|wall-map"));'));
-  assert.ok(location.includes('const resolved = wallVariant(wall.cell);'));
-  assert.ok(location.includes('variantTexture.rotation = turn * (Math.PI / 2);'));
-  assert.ok(location.includes('wallBatches.get(resolved.key).walls.push(wall)'));
-  assert.doesNotMatch(location, /walls\.forEach\(\(wall, index\) => wallBatches\[index % wallBatches\.length\]\.push\(wall\)\)/);
-  assert.ok(location.includes('maze.wallVariantTextures || []'));
-  assert.ok(location.includes('copy.image = loadedTexture.image;'));
-  assert.ok(location.includes('wallTextureCopiesByAsset[index].push(copy)'));
-  assert.ok(location.includes('(wallVariantsByAsset[index] || []).forEach((variant) => syncImage(variant.texture))'));
+  assert.ok(warp.includes('function addWall(x, y, z, sx, sy, sz, cell)'));
+  assert.ok(warp.includes('walls.push({ x, y, z, sx, sy, sz, cell });'));
+  assert.ok(warp.includes('const wallLookRng = randomFrom(hashSeed(seed + "|wall-map"));'));
+  assert.ok(warp.includes('const resolved = wallVariant(wall.cell);'));
+  assert.ok(warp.includes('variantTexture.rotation = turn * (Math.PI / 2);'));
+  assert.ok(warp.includes('wallBatches.get(resolved.key).walls.push(wall)'));
+  assert.doesNotMatch(warp, /walls\.forEach\(\(wall, index\) => wallBatches\[index % wallBatches\.length\]\.push\(wall\)\)/);
+  assert.ok(warp.includes('maze.wallVariantTextures || []'));
+  assert.ok(warp.includes('copy.image = loadedTexture.image;'));
+  assert.ok(warp.includes('wallTextureCopiesByAsset[index].push(copy)'));
+  assert.ok(warp.includes('(wallVariantsByAsset[index] || []).forEach((variant) => syncImage(variant.texture))'));
   assert.doesNotMatch(location, /const previousPosition = maze\.lastPosition/);
   assert.match(location, /flyRadius: 160/);
   assert.match(location, /ship\.velocity\.x \*= 0\.15/);

@@ -69,9 +69,9 @@ test("returning to the sector map keeps the asteroid locale and pauses the ship"
 });
 
 test("asteroid maze uses speed mode 2 and restores the previous mode", () => {
-  assert.match(warp, /state\.savedSpeedMode = engine\.getSpeedMode \? engine\.getSpeedMode\(\) : 1/);
-  assert.match(warp, /engine\.setSpeedMode\(2\)/);
-  assert.match(warp, /engine\.setSpeedMode\(state\.savedSpeedMode\)/);
+  assert.match(location, /state\.savedSpeedMode = engine\.getSpeedMode \? engine\.getSpeedMode\(\) : 1/);
+  assert.match(location, /engine\.setSpeedMode\(2\)/);
+  assert.match(location, /engine\.setSpeedMode\(state\.savedSpeedMode\)/);
   assert.match(sim, /window\.BCMiniSimAPI\.getSpeedMode = \(\) => speedMode/);
   assert.match(sim, /window\.BCMiniSimAPI\.setSpeedMode = \(mode\) => setSpeedMode\(mode\)/);
 });
@@ -212,8 +212,8 @@ test("Warp hazards stay varied across all 24 layers and the faster ramp remains 
   assert.match(warp, /const warpBaseSeed = Number\.isSafeInteger\(Number\(locationSeeds\.warp\)\)/);
   assert.match(warp, /const warpRunSeed = hashSeed\(warpBaseSeed \+ "\\|" \+ warpRun/);
   assert.match(warp, /localSession\.activeSeeds\.warp = warpRunSeed/);
-  assert.match(warp, /const asteroidRun = Number\(runCounters\.asteroid \|\| 0\) \+ 1/);
-  assert.match(warp, /localSession\.activeSeeds\.asteroid = seed/);
+  assert.match(location, /const asteroidRun = Number\(runCounters\.asteroid \|\| 0\) \+ 1/);
+  assert.match(location, /localSession\.activeSeeds\.asteroid = seed/);
   assert.match(warp, /Math\.pow\(warpNormalizedTime\(elapsed\), 0\.60\)/);
   assert.match(warp, /return Math\.pow\(12, t\)/);
   assert.match(warp, /state\.tubeTravel \+= dt \* speed \* 1\.48/);
@@ -266,7 +266,7 @@ test("Warp tube impacts progressively call the compartment damage contract", () 
   assert.match(warp, /state\.warpCollisionCount = Math\.min\(99, Number\(state\.warpCollisionCount \|\| 0\) \+ 1\)/);
   assert.match(warp, /const damage = Math\.min\(24, 4 \+ state\.warpCollisionCount \* 1\.6\)/);
   assert.match(warp, /repair\.triggerExternalImpact\(compartmentId, damage\)/);
-  assert.match(warp, /if \(approachDistance < 22 && approachDistance > 2\.65\)/);
+  assert.match(location, /if \(approachDistance < 22 && approachDistance > 2\.65\)/);
   assert.match(warp, /state\.ringPlatformer \|\| state\.hullOpen/);
   assert.match(warp, /findRingAudioSource\(\)/);
   assert.match(warp, /candidate === "ring\.mp3"/);
@@ -311,7 +311,7 @@ test("Ring Frontier is a continuous side-scrolling action level with three large
   assert.match(warp, /ringApproachArmed: true/);
   assert.match(warp, /state\.ringApproachArmed = false/);
   assert.match(location, /if \(ringDistance > 4\.2\) \{\s*state\.ringApproachArmed = true;\s*state\.ringEntryFailed = false;/);
-  assert.match(warp, /state\.ringApproachArmed && !state\.ringEntryFailed && !state\.ringPlatformer &&[\s\S]{0,80}!maze\.ringCompleted/);
+  assert.match(location, /state\.ringApproachArmed && !state\.ringEntryFailed && !state\.ringPlatformer &&[\s\S]{0,80}!maze\.ringCompleted/);
   assert.ok(ring.includes("function makeComicBackdrop(zone)"));
   assert.ok(ring.includes("new THREE.CanvasTexture(canvas)"));
   assert.ok(ring.includes("Each boss gets a framed arena"));
