@@ -84,6 +84,7 @@
     variant: "auto",     // вид аномалии: auto | wall | gate | mid | coil | twin
     haptics: true,       // вибрация на близком проходе камня
     dangerous: true,     // камни ОПАСНЫ: попадание бьёт по корпусу
+    flow: 0.115,         // скорость потока камней (долей глубины в секунду)
     panels: 18,          // панелей по окружности
     depthSteps: 23,      // колец по глубине
     cullScale: 1.6       // порог отсечения субпиксельных панелей
@@ -95,6 +96,7 @@
   });
 
   var lastHapticAt = 0;
+  var lastDrawAt = -1;   // время прошлого кадра: из него считается шаг dt
 
   /* Состояние опасности. Держим отдельно от настроек: это «что случилось»,
    * а не «как настроено». */
@@ -125,6 +127,9 @@
       } else if (key === "cullScale") {
         var s = Number(opts[key]);
         flightState.cullScale = isFinite(s) && s > 0 ? s : FLIGHT_DEFAULTS.cullScale;
+      } else if (key === "flow") {
+        var f = Number(opts.flow);
+        flightState.flow = isFinite(f) && f >= 0 ? Math.min(1, f) : FLIGHT_DEFAULTS.flow;
       } else if (key === "seed") {
         flightState.seed = Number(opts.seed) >>> 0;
       } else if (key === "variant") {
@@ -315,14 +320,20 @@
     var playerAngle = Number(o.playerAngle) || 0;
     var rainbow = flightState.rainbow;
     var nowMs = Number(o.t) || 0;
+    // Шаг кадра в секундах: по нему ядро ловит момент касания (пересечение
+    // глубины корабля), а не «попал в широкое окно».
+    var frameDt = lastDrawAt < 0 ? 1 / 60 : (nowMs - lastDrawAt) / 1000;
+    if (!isFinite(frameDt) || frameDt <= 0 || frameDt > 0.25) frameDt = 1 / 60;
+    lastDrawAt = nowMs;
     // Где корабль: игра передаёт его точку и размер, иначе — центр снизу.
     var ship = o.ship && isFinite(Number(o.ship.x)) && isFinite(Number(o.ship.y))
       ? {
           x: Number(o.ship.x), y: Number(o.ship.y),
           size: Math.max(8, Number(o.ship.size) || 28),
-          angle: hasNumber(o.ship.angle) ? Number(o.ship.angle) : null
+          angle: hasNumber(o.ship.angle) ? Number(o.ship.angle) : null,
+          depth: hasNumber(o.ship.depth) ? Number(o.ship.depth) : null
         }
-      : { x: w * 0.5, y: h * 0.86, size: Math.max(8, Math.min(w, h) * 0.06), angle: null };
+      : { x: w * 0.5, y: h * 0.86, size: Math.max(8, Math.min(w, h) * 0.06), angle: null, depth: null };
     stats.hits = 0;
     stats.impacts = 0;
 
@@ -407,13 +418,21 @@
     if (flightState.density > 0 && typeof api.drawWarpSpaceAsteroids === "function")
       safeStage("rocks", stats, function () {
       var res = api.drawWarpSpaceAsteroids(g, o.point, Number(o.maxRadius) || 0,
-        flightState.seed, flightState.density, o.images || null, elapsed);
+        flightState.seed, flightState.density, o.images || null, elapsed,
+        { flow: flightState.flow, shipDepth: ship.depth, dt: frameDt });
       stats.rocks = (res && res.drawn) || 0;
       stats.near = (res && res.near) || 0;
-      // ОПАСНОСТЬ: камень прошёл вплотную к кораблю — это удар, а не «мимо».
+      // ОПАСНОСТЬ: камень прошёл плоскость корабля — это удар, а не «мимо».
       var candidates = (res && res.hits) || [];
       for (var hi = 0; hi < candidates.length; hi += 1) {
         var hit = candidates[hi];
+        // Угол камня переводим в угол кольца той же функцией, что и у корабля:
+        // в кадре точка поворачивается на twist(depth), и без этого сравнение
+        // углов было смещено на весь текущий крен трубы.
+        if (typeof o.ringAngle === "function" && hasNumber(hit.depth)) {
+          var ringAngle = Number(o.ringAngle(hit.angle, hit.depth));
+          if (isFinite(ringAngle)) hit = Object.assign({}, hit, { angle: ringAngle });
+        }
         if (!rockHitsShip(hit, ship)) continue;
         var record = applyImpact(hit, ship, nowMs);
         if (record) stats.impacts += 1;
@@ -492,6 +511,7 @@
     resetImpacts: function () {
       impactState.hits = 0; impactState.damage = 0; impactState.integrity = null;
       impactState.last = null; impactState.lastAt = -1e9; impactState.flashUntil = -1e9;
+      lastDrawAt = -1;
       impactState.log.length = 0;
       return impactState.hits;
     },

@@ -6115,18 +6115,27 @@ function warpSectorPlanetCard(core, x, y, jumps) {
     large: { px: 160, minPx: 26, maxPx: 92, scale: 0.30, damage: 15 },
     medium: { px: 112, minPx: 14, maxPx: 46, scale: 0.20, damage: 8 },
     small: { px: 80, minPx: 7, maxPx: 20, scale: 0.12, damage: 3 },
-    // Поток камней НА игрока: глубина уменьшается со временем (1 — точка схода,
-    // 0 — камера), камень вылетает из глубины и проходит мимо. Владелец:
-    // «камни летят от нас» — значит направление читалось наоборот, потому что
-    // поле стояло по глубине на месте и только вращалось.
+    // Поток камней НА игрока. В геометрии трубы БОЛЬШИЙ радиус — это КАМЕРА,
+    // а малый — точка схода (radiusX растёт с глубиной, корабль висит на 0.92).
+    // Поэтому «на нас» = глубина РАСТЁТ: камень выходит из точки схода, растёт
+    // и уходит за камеру. Ревизия 24 гнала глубину вниз — визуально это «внутрь
+    // воронки», ровно то, на что указал владелец.
     flow: 0.115,     // долей глубины в секунду: весь путь ≈ 8.3 с
     spinMax: 0.35,   // радиан в секунду, верхняя граница вращения камня
-    hitFrom: 0.86,   // глубина корабля: здесь и считается столкновение
-    hitTo: 0.98
+    shipDepth: 0.92  // глубина корабля: на ней камень проходит мимо (касание)
   };
 
   var WARP_SPACE_ASTEROID_SLOTS = 30;
   var asteroidSlotCache = {};
+  /* Когда камень последний раз коснулся корабля (по слоту, в секундах).
+   * Нужно из-за дробления кадра: шаг dt приходит от игры, а фактический шаг
+   * кадров чуть другой — у самой границы 0.92 пересечение засчитывалось два
+   * кадра подряд, то есть ОДИН камень «бил» дважды. За 12 с это давало
+   * двойные касания — те самые «не корректные касания».
+   * Камень проходит плоскость корабля раз в оборот потока (~8.3 с), поэтому
+   * порог 1 с ничего настоящего не съедает. */
+  var asteroidCrossCache = { key: "", at: {} };
+  var ASTEROID_CROSS_GAP = 1.0;
 
   function warpSpaceAsteroidArt() {
     var art = typeof window !== "undefined" ? window.BCM_WARP_ASTEROID_ART : null;
@@ -6205,38 +6214,70 @@ function warpSectorPlanetCard(core, x, y, jumps) {
     var time = Number(t);
     if (!isFinite(time)) time = 0;
     var span = 0.96;
-    var moved = d - speed * time;
+    // ПЛЮС: камень идёт из точки схода к камере (см. комментарий у flow).
+    var moved = d + speed * time;
     moved = moved - Math.floor(moved / span) * span;
     return 0.04 + moved;
   }
 
-  function drawWarpSpaceAsteroids(g, point, wallRadius, seed, density, images, t) {
+  function drawWarpSpaceAsteroids(g, point, wallRadius, seed, density, images, t, opts) {
     var slots = warpSpaceAsteroidField(seed, density);
     var drawn = 0;
     var near = 0;
     var hits = [];
+    var o = opts || {};
+    var flow = o.flow == null ? WARP_SPACE_ASTEROIDS.flow : Number(o.flow);
+    if (!isFinite(flow) || flow < 0) flow = WARP_SPACE_ASTEROIDS.flow;
+    // Глубина корабля: ровно на ней камень проходит мимо игрока.
+    var shipDepth = Number(o.shipDepth);
+    if (!isFinite(shipDepth) || shipDepth <= 0 || shipDepth >= 1) shipDepth = WARP_SPACE_ASTEROIDS.shipDepth;
+    // Шаг кадра: по нему ловится ПЕРЕСЕЧЕНИЕ глубины корабля, а не «попал в окно».
+    var dt = Number(o.dt);
+    if (!isFinite(dt) || dt <= 0) dt = 1 / 60;
+    if (dt > 0.25) dt = 0.25;
     if (!slots.length) return { drawn: 0, near: 0, hits: hits };
+    var crossKey = (Number(seed) >>> 0) + "|" + slots.length;
+    if (asteroidCrossCache.key !== crossKey) {
+      asteroidCrossCache = { key: crossKey, at: {} };
+    }
+    var time = Number(t) || 0;
     for (var i = 0; i < slots.length; i += 1) {
       var slot = slots[i];
       // Глубина С УЧЁТОМ ПОТОКА: камни летят на игрока, а не стоят на месте.
-      var depthNow = warpSpaceAsteroidDepthAt(slot.depth, t);
-      // Ближние камни у самой камеры выходят за кольцо — не рисуем их.
-      // Раньше они обрывались рывком на 0.10 и в кадре это читалось как
-      // «рваный кусок», влетающий с края: теперь гаснут плавно 0.10 -> 0.04.
+      var depthNow = warpSpaceAsteroidDepthAt(slot.depth, t, flow);
+      var depthPrev = warpSpaceAsteroidDepthAt(slot.depth, (Number(t) || 0) - dt, flow);
+      // Гасим камень на обоих концах пути: на дальнем он «рождается» в точке
+      // схода, на ближнем уходит за камеру. Без этого в кадре щёлкал край.
       var edgeFade = 1;
       if (depthNow < 0.04) continue;
-      if (depthNow < 0.10) edgeFade = (depthNow - 0.04) / 0.06;
-      var radius = warpSpaceAsteroidRadius(slot.size, wallRadius);
-      if (!(radius > 0.5)) continue;
+      if (depthNow < 0.12) edgeFade = (depthNow - 0.04) / 0.08;
+      if (depthNow > 0.97) edgeFade = Math.max(0, (1 - depthNow) / 0.03);
+      if (edgeFade <= 0) continue;
+      var spec = WARP_SPACE_ASTEROIDS[slot.size] || WARP_SPACE_ASTEROIDS.medium;
       var p = point(depthNow, slot.angle);
       if (!p || !isFinite(p.x) || !isFinite(p.y)) continue;
-      var spec = WARP_SPACE_ASTEROIDS[slot.size] || WARP_SPACE_ASTEROIDS.medium;
-      // Настоящий размер камня: ближе к камере — крупнее. Без этого поле
-      // читается как плоские наклейки.
-      var zoom = 0.42 + (1 - depthNow) * 1.15;
-      var size = Math.max(spec.minPx * 0.8, Math.min(spec.maxPx * 1.2, radius * zoom));
+      // Радиус кольца на этой глубине: два зонда по противоположным углам.
+      // Нужен и для размера камня, и чтобы перевести пиксели в угловую ширину
+      // (корабль висит внутри кольца, «расстояние по экрану» не сходится).
+      var qa = point(depthNow, 0, 0);
+      var qb = point(depthNow, Math.PI, 0);
+      var ring = 0;
+      if (qa && qb && isFinite(qa.x) && isFinite(qb.x)) {
+        var qdx = qa.x - qb.x, qdy = qa.y - qb.y;
+        ring = Math.sqrt(qdx * qdx + qdy * qdy) * 0.5;
+      }
+      // Размер камня пропорционален радиусу трубы на его глубине: в точке
+      // схода мелкий, у камеры крупный. Раньше считался от «постоянного»
+      // радиуса с обратным зумом — камни уменьшались, подлетая.
+      var size;
+      if (ring > 1) {
+        size = Math.max(spec.minPx * 0.9, Math.min(spec.px * 0.85, ring * spec.scale));
+      } else {
+        var radius = warpSpaceAsteroidRadius(slot.size, wallRadius);
+        size = Math.max(spec.minPx * 0.9, Math.min(spec.px * 0.85, radius));
+      }
       var image = images && slot.id ? images[slot.id] : null;
-      var alpha = (0.55 + (1 - depthNow) * 0.45) * edgeFade;
+      var alpha = (0.45 + depthNow * 0.55) * edgeFade;
       g.save();
       g.globalAlpha = Math.max(0.12, Math.min(1, alpha));
       g.translate(p.x, p.y);
@@ -6261,24 +6302,28 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       }
       g.restore();
       drawn += 1;
-      // Камень прошёл рядом с кораблём — сигнал для вибрации геймпада.
-      if (depthNow > 0.05 && depthNow < 0.16) near += 1;
-      // ...и кандидат на столкновение: камень ровно на глубине корабля.
-      if (depthNow > WARP_SPACE_ASTEROIDS.hitFrom && depthNow < WARP_SPACE_ASTEROIDS.hitTo) {
-        // Радиус кольца на этой глубине: два зонда по противоположным углам.
-        // Нужен, чтобы перевести пиксели в угловую ширину — корабль висит
-        // внутри кольца, и «расстояние по экрану» до стенки никогда не сходится.
-        var qa = point(depthNow, 0, 0);
-        var qb = point(depthNow, Math.PI, 0);
-        var ring = 0;
-        if (qa && qb && isFinite(qa.x) && isFinite(qb.x)) {
-          var qdx = qa.x - qb.x, qdy = qa.y - qb.y;
-          ring = Math.sqrt(qdx * qdx + qdy * qdy) * 0.5;
-        }
+      // Камень прошёл мимо камеры — сигнал для вибрации геймпада.
+      if (depthNow > shipDepth && depthNow < 0.99) near += 1;
+      // КАСАНИЕ считается по ПЕРЕСЕЧЕНИЮ глубины корабля: камень ровно в этот
+      // кадр прошёл плоскость, где висит корабль. Раньше бралось широкое окно
+      // 0.86…0.98 и первый же кадр в нём объявлялся ударом — удар «прилетал»
+      // за несколько процентов глубины до касания, это и было «не корректные
+      // касания». Пересечение даёт один удар на один пролёт, в точке касания.
+      // Пересечение ловит и большой шаг кадра (просадка fps): камень «перепрыгнул»
+      // плоскость — всё равно одно касание. Широкое окно допуска не нужно: пока
+      // оно стояло, камень объявлялся ударом каждый кадр внутри окна (1729
+      // «касаний» за 12 с вместо 43) — это и были некорректные касания.
+      var crossed = depthPrev < shipDepth && depthNow >= shipDepth;
+      var hitKey = "s" + i;
+      var lastHit = asteroidCrossCache.at[hitKey];
+      var tooSoon = lastHit != null && (time - lastHit) < ASTEROID_CROSS_GAP;
+      if (crossed && ring > 0 && !tooSoon) {
+        asteroidCrossCache.at[hitKey] = time;
         hits.push({
-          id: slot.id, size: slot.size, depth: depthNow,
+          // slot — номер слота в поле: по нему видно, что один камень не бьёт дважды
+          slot: i, id: slot.id, size: slot.size, depth: depthNow,
           x: p.x, y: p.y, px: size, angle: slot.angle, ring: ring,
-          damage: spec.damage || 6
+          damage: spec.damage || 6, crossed: crossed
         });
       }
     }
@@ -8131,6 +8176,9 @@ return axialRoll + ahead * 0.12 +
           elapsed: Number(state.elapsed || 0) + Number(t || 0) * 0.001,
           shimmerTime, playerAngle,
           images: warpAsteroidImages(),
+          // Угол камня -> угол кольца: в кадре точка повёрнута на twist(d).
+          // Без этого сравнение с углом корабля смещено на крен трубы.
+          ringAngle: (theta, depth) => theta + courseTwist(depth),
           // Перелив палитры берём у варпа: у него есть и режим, и время.
           // Жёсткий mix в мосте делал стенку заметно светлее сайта.
           mix: warpSpaceLocalMix,
@@ -8287,7 +8335,10 @@ return axialRoll + ahead * 0.12 +
       const craftSize = drawWarpShipLayer(g, craftPoint.x, craftPoint.y,
         (state.steerBank || 0) * 1.4, craftThrust, craftRoll);
       // Положение корабля на кольце — вторая половина попадания камня.
-      if (state.warpShipPoint) state.warpShipPoint.angle = craftRing;
+      if (state.warpShipPoint) {
+        state.warpShipPoint.angle = craftRing;
+        state.warpShipPoint.depth = nearDepth;
+      }
       // Кольцо вокруг корабля: видно, что он маленький и летит по стенке,
       // а не «висит» на экране. Тонкое, декоративное, на столкновения не влияет.
       g.save();
