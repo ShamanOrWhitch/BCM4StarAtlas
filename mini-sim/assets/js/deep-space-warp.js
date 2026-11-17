@@ -1288,15 +1288,21 @@
       // A generated preview can continue for interaction testing, but it remains
       // explicitly test-only and never becomes live SAGE navigation.
       if (previous.localPreview || isLocalTest) {
+        const sage = typeof window !== "undefined" ? window.BCMSageMapCore : null;
+        const titled = sage && current && current.x != null && current.y != null
+          ? sage.sectorTitle(Number(current.x), Number(current.y))
+          : "";
         return {
-          current,
+          current: titled ? Object.assign({}, current, { name: titled }) : current,
           targets: makeLocalTargets(current),
           live: false,
           localPreview: true,
           adapter: null,
-          label: isManualTest
-            ? "LOCAL TEST COORDINATE · NOT A LIVE SAGE SECTOR"
-            : (previous.label || "LOCAL TEST · SAGE DATA UNAVAILABLE"),
+          label: sage
+            ? "SAGE · КАРТА GALIA · локальная симуляция"
+            : (isManualTest
+              ? "LOCAL TEST COORDINATE · NOT A LIVE SAGE SECTOR"
+              : (previous.label || "LOCAL TEST · SAGE DATA UNAVAILABLE")),
           coordsKnown: current.x != null && current.y != null
         };
       }
@@ -2201,7 +2207,7 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       sourceElement.classList.toggle("is-preview", !state.nav.live);
       footnoteElement.textContent = state.nav.live
         ? "Имена известных секторов берёт SAGE-адаптер. Сетка не режется до 4 сторон: открыты 8 соседей и следующее кольцо. Сам Warp локальный и не двигает корабль в SAGE."
-        : "ONI · NEUNO, X -40, Y 30. На карте 8 соседних клеток и следующее кольцо. Это локальный Warp, не Star Atlas.";
+        : "ONI CSS, X -40, Y 30. Планета Fable — сосед на севере, X -40, Y 31. На карте 8 соседей и следующее кольцо. Warp локальный и не двигает флот в блокчейне.";
       listSectorTargets();
       renderSectorGrid();
       renderGalaxyMap();
@@ -5155,7 +5161,9 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       sourceElement.classList.toggle("is-preview", !state.nav || !state.nav.live);
       footnoteElement.textContent = state.nav && state.nav.live
         ? "Соседние сектора показаны только если их передал SAGE-адаптер. Warp остаётся локальной симуляцией и не перемещает флот в блокчейне."
-        : "LOCAL TEST GRID · координаты и соседние клетки тестовые, не данные SAGE. Полная карта и реальные связи секторов ещё не подключены.";
+        : (window.BCMSageMapCore
+          ? "Карта Galia подключена. ONI CSS — X -40, Y 30. Планета Fable — один шаг на север: X -40, Y 31. Warp локальный и не двигает флот в блокчейне."
+          : "LOCAL TEST GRID · координаты и соседние клетки тестовые, не данные SAGE. Полная карта и реальные связи секторов ещё не подключены.");
       listSectorTargets();
       renderSectorGrid();
       selectedElement.textContent = "CURRENT SECTOR · " + sectorText(state.nav && state.nav.current) + " · SELECT NEXT DESTINATION";

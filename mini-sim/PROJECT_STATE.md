@@ -1,3 +1,29 @@
+## Patch — Mini-Sim 0.15.10: the warp menu names Fable (17 November 2026)
+
+- **There is no 0.15 line before 0.15.0 and no 0.14.9.** The line is `0.14.8` (crew facing) then `0.15.0` … `0.15.9`, this note is `0.15.10`.
+- **Where Fable is:** SAGE X **-39**, Y **31**. ONI CSS is X **-40**, Y **30**. One step north-east. Purple diamond on the warp map. Not a Galia system, so the Desk cartograph does not list it (D-061).
+- **This patch:** after a local warp the menu no longer says the SAGE coordinates are disconnected. The open and the return footnotes name Fable. Arrival on the local map keeps the Galia sector title.
+- **Commit:** `20daa59`. **Test:** `scripts/location-walk.test.mjs` 3/3. Live site not confirmed.
+- **Not this patch:** splitting `deep-space-warp.js` into a bridge file and an asteroid file; sewing the warp canvas into Galia Desk; merging to `main`.
+
+### Location line, 0.14.8 through 0.15.9 (what each step did)
+
+| Version | What it did for walking the places |
+|---|---|
+| 0.14.8 | Crew faces the way she walks. Not a new place. |
+| 0.15.0 | Crew legs, Crew Lab, the 0.15 rules line. Tower 0.2.83. |
+| 0.15.1 | Mierese faces her move. Asteroid field in open space. |
+| 0.15.2 | One SAGE map: Warp draws the Galia stars and the ONI CSS card. |
+| 0.15.3 | Sector picks the planet: MUD CSS → Pearce, Ustur CSS → Ioki, else the desert. |
+| 0.15.4 | Fable added at [-39, 31], own sky, still the desert ground. |
+| 0.15.5 | Fable gets its own relief. |
+| 0.15.6 | Tower → planet clip: Fable and Pearce have their own film, others keep onicss.mp4. |
+| 0.15.7 | Crew names and portraits from Galaxy by mint. |
+| 0.15.8 | Live-site list: idle pose, fleet ship, nose axis, tape layer, mouse without pointer lock. |
+| 0.15.9 | Asteroid field follows the asteroid place. Crew column scrolls. |
+
+---
+
 ## Patch — Galia Desk 0.8.20: fleet count is a pick, wallet count stays put (16 November 2026)
 
 - **Commit:** `3d1942a` on `fix/galia-desk-0.8.20`. Base: original `main` `a4bf459`, plugin header was `0.8.18`. Not the outside zip and not the timeout-only branch.
