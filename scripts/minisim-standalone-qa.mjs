@@ -185,7 +185,8 @@ const targetUrl = origin + "/";
 const flags = process.argv.slice(2).filter((x) => ["--headed", "--full-media"].includes(x));
 console.log("[standalone-qa] Serving current repository build at " + targetUrl);
 console.log("[standalone-qa] This fixture tests the repository browser runtime, not live WordPress integration or physical hardware.");
-const childScript = transitionsOnly ? "scripts/minisim-local-transitions-playwright.mjs" : "scripts/minisim-local-qa.mjs";
+// MINISIM_QA_CHILD: run another browser scenario against the same served build.
+const childScript = process.env.MINISIM_QA_CHILD ? process.env.MINISIM_QA_CHILD : transitionsOnly ? "scripts/minisim-local-transitions-playwright.mjs" : "scripts/minisim-local-qa.mjs";
 const child = spawn(process.execPath, [resolve(root, childScript), "--url", targetUrl, ...flags], {
   cwd: root, env: { ...process.env, MINISIM_QA_TARGET_KIND: "standalone-repository-build" }, stdio: "inherit"
 });

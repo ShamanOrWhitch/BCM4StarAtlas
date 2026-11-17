@@ -602,6 +602,9 @@
       if (typeof updateWarpTierPreviewButtons === "function") updateWarpTierPreviewButtons();
       return state.warpVisualClass;
     };
+    function qaNoDamage() {
+      try { return new URLSearchParams(window.location.search).get("bcm_qa_warp_nodamage") === "1"; } catch (e) { return false; }
+    }
     window.BCMDeepSpaceWarpGetVisualClass = () => state.warpVisualClass;
     window.BCMDeepSpaceWarpGetSpeedMode = () => api()?.getSpeedMode?.() ?? null;
     window.BCMDeepSpaceWarpGetPreviewClass = () => Number(state.warpPreviewClass) || null;
@@ -8611,6 +8614,8 @@ return axialRoll + ahead * 0.12 +
           }
         }
 
+        // QA only (browser probes cannot steer): ?bcm_qa_warp_nodamage=1 lets a jump finish.
+        if (hit && qaNoDamage()) hit = false;
         if (hit) {
           state.shields = Math.max(0, state.shields - 25);
           // Each obstacle is resolved exactly once; repeated hits progressively
