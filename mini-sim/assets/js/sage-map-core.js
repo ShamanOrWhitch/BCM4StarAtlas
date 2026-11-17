@@ -14,7 +14,10 @@
   // not SAGE systems and never go into Galia data. Planet Fable is the owner's
   // test planet, one jump north-east of ONI CSS (IDEA-002, 16.11.2026).
   const landmarks = [
-    { id: "fable", x: -39, y: 31, name: "Fable · тестовая планета", planet: "fable", color: "#b48cff" }
+    // Owner 17.11.2026: Fable moves next to us — straight north of ONI CSS.
+    { id: "fable", x: -40, y: 31, name: "Fable · тестовая планета", planet: "fable", color: "#b48cff" },
+    // Planet Opus (Claude Opus 5.5 at the owner's invitation): straight west of ONI CSS.
+    { id: "opus", x: -41, y: 30, name: "Opus · планета фокуса", planet: "opus", color: "#ffb347" }
   ];
   const landmarkByKey = new Map(landmarks.map((mark) => [mark.x + "," + mark.y, mark]));
 

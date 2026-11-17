@@ -15,7 +15,7 @@
  *
  * Pure data and logic: no DOM, no THREE, so node --test can run it.
  */
-export type PlanetId = "first" | "pearce" | "ioki" | "fable";
+export type PlanetId = "first" | "pearce" | "ioki" | "fable" | "opus";
 
 /**
  * Things only a planet with its own design draws (planet Fable). The three
@@ -95,6 +95,34 @@ export const PLANETS: Record<PlanetId, PlanetLook> = {
       seaGlow: 0x0f6f8f,
     },
   },
+  /*
+   * Planet Opus — designed by Claude Opus 5.5 at the owner's invitation
+   * (17.11.2026: "сделай и свою планету тоже ... Планета Опус Фокус").
+   * Sector [-41, 30], straight west of ONI CSS. A planet of focus: one clear
+   * light, nothing that pulls the eye. Pale amber noon over a calm slate sea,
+   * warm limestone ground, sparse dark-green moss, a small sharp white sun.
+   * Built from the existing island and effects: no new models, no new draw calls
+   * beyond the stars of the sky dome.
+   */
+  opus: {
+    id: "opus",
+    system: null,
+    kicker: "Opus · сектор [-41, 30] · посадочная",
+    title: "Opus",
+    blurb: "Планета фокуса к западу от ONI CSS. Ясный янтарный полдень, спокойное сланцевое море, светлый известняк и редкий тёмный мох — ничто не отвлекает.",
+    sky: { top: 0x2b3f63, mid: 0xd8b77a, low: 0xf4e3bd },
+    background: 0xe2c793,
+    fog: { color: 0xe8d5ab, near: 70, far: 260 },
+    hemi: { sky: 0xfff1d6, ground: 0x4a4436, intensity: 0.98 },
+    sunSprite: { color: "#ffffff", size: 26 },
+    moonSprite: { color: "#c9d6e3", size: 10 },
+    sun: { color: 0xfff4e0, intensity: 1.4 },
+    fill: 0xd9e4ee,
+    ground: { sand: 0xd9cbb0, wet: 0x8e8f86, rock: 0x6d675c, grass: 0x35523d, greenery: 0.38 },
+    sea: { color: 0x3c5566, opacity: 0.94, roughness: 0.18 },
+    exposure: 1.06,
+    extras: { stars: 120, aurora: null, motes: null, ring: null, veins: null, seaGlow: null },
+  },
   first: {
     id: "first",
     system: null,
@@ -163,6 +191,8 @@ const ALIASES: Record<string, PlanetId> = {
   ustur: "ioki",
   mars: "ioki",
   fable: "fable",
+  opus: "opus",
+  focus: "opus",
 };
 
 export function planetIdFrom(value: unknown): PlanetId | null {

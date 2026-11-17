@@ -52,7 +52,7 @@ test("the three planets really look different", () => {
   assert.ok(planetModule);
   const { PLANETS } = planetModule;
   const ids = Object.keys(PLANETS);
-  assert.deepEqual(ids.sort(), ["fable", "first", "ioki", "pearce"]);
+  assert.deepEqual(ids.sort(), ["fable", "first", "ioki", "opus", "pearce"]);
   for (const key of ["background", "fog", "sky", "ground", "sea"]) {
     const values = new Set(ids.map((id) => JSON.stringify(PLANETS[id][key])));
     assert.equal(values.size, ids.length, `${key} is the same on two planets`);

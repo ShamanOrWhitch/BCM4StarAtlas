@@ -670,7 +670,7 @@
     // the bridge plays the clip of the planet the ship lands on. The choice
     // comes from planet-landing.js, which mirrors First Planet's planet.ts, and
     // is handed to First Planet in the detail, so clip and island match.
-    const PLANET_TITLES = { first: "FIRST PLANET", pearce: "PEARCE", ioki: "IOKI", fable: "FABLE" };
+    const PLANET_TITLES = { first: "FIRST PLANET", pearce: "PEARCE", ioki: "IOKI", fable: "FABLE", opus: "OPUS" };
     let landedPlanet = null;
     function landingPlanet() {
       if (landedPlanet) return landedPlanet;

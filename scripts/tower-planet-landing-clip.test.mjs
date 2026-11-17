@@ -54,7 +54,7 @@ test("the bridge clip follows the planet the Warp sector picks", () => {
   const mud = w.BCMSageMapCore.data.css.find((c) => c.system === "mud");
   const ustur = w.BCMSageMapCore.data.css.find((c) => c.system === "ustur");
   const oni = w.BCMSageMapCore.data.css.find((c) => c.system === "oni");
-  assert.equal(at(-39, 31), CONFIG.planetTransitions.fable, "Fable sector lands with the ONI CSS clip");
+  assert.equal(at(-40, 31), CONFIG.planetTransitions.fable, "Fable sector lands with the ONI CSS clip");
   assert.equal(at(mud.x, mud.y), CONFIG.planetTransitions.pearce, "MUD CSS sector lands with the ONI CSS clip");
   assert.equal(at(ustur.x, ustur.y), CONFIG.planetTransition, "Ioki has no own clip yet and keeps the ONI CSS one");
   assert.equal(at(oni.x, oni.y), CONFIG.planetTransition);
@@ -66,7 +66,7 @@ test("the bridge clip follows the planet the Warp sector picks", () => {
   const live = page({
     location: { search: "" },
     BCMMiniSimSession: {},
-    BCMDeepSpaceWarpGetReturnSnapshot: () => ({ current: { x: -39, y: 31 } }),
+    BCMDeepSpaceWarpGetReturnSnapshot: () => ({ current: { x: -40, y: 31 } }),
   });
   assert.equal(live.BCMPlanetLanding.planetId(), "fable", "on the page the picker ignores the Warp sector");
 });

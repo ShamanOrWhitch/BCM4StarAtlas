@@ -1578,7 +1578,9 @@ var WARP_NEARBY_LANDING_ALIASES = {
   first: "first", desert: "first", akenat: "first", oni: "first",
   pearce: "pearce", mud: "pearce", earth: "pearce",
   ioki: "ioki", ustur: "ioki", mars: "ioki",
-  fable: "fable"
+  fable: "fable",
+  opus: "opus",
+  focus: "opus"
 };
 
 function warpNearbyLandingIds() {

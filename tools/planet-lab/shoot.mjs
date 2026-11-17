@@ -33,7 +33,7 @@ const speciesList = process.argv.slice(2).length ? process.argv.slice(2) : ["Hum
 const browser = await chromium.launch({ channel: process.env.BCM_QA_BROWSER_CHANNEL || undefined });
 const report = { shots: [], pageErrors: [], consoleErrors: [], planets: {} };
 try {
-  for (const planet of (process.env.BCM_PLANETS || "first,pearce,ioki,fable").split(",")) {
+  for (const planet of (process.env.BCM_PLANETS || "first,pearce,ioki,fable,opus").split(",")) {
     for (const species of speciesList) {
       const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
       page.on("pageerror", (e) => report.pageErrors.push(`${planet}/${species}: ${e.message}`));
