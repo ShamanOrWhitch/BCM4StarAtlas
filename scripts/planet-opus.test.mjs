@@ -52,3 +52,12 @@ test("Tower names the Opus landing; the Warp map knows the planet id", () => {
   assert.match(read("mini-sim/tower/assets/js/tower.js"), /opus: "OPUS"/, "Tower lands on Opus as FIRST PLANET");
   assert.match(read("mini-sim/assets/js/deep-space-warp.js"), /opus: "opus"/);
 });
+
+test("a Warp arrival in a planet sector does not build the asteroid maze", () => {
+  // Owner 18.11.2026: "у позиции Fable тот же астероид со случайным лабиринтом".
+  // Browser proof: scripts/warp-round-trip-probe.mjs (jump 5 lands on Fable, planet "fable").
+  const warp = read("mini-sim/assets/js/deep-space-warp.js");
+  const confirm = warp.slice(warp.indexOf("function confirmTubeArrival()"), warp.indexOf("function arriveAtPlanetSector("));
+  assert.match(confirm, /else if \(planetLandmarkFor\(state\.target\)\) arriveAtPlanetSector\(state\.target\);\s*else enterAsteroidMaze\(\);/,
+    "every non-ONI sector still opens the asteroid maze, planets included");
+});

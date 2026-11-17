@@ -38,7 +38,7 @@ const snap = (label) => page.evaluate((label) => {
   };
 }, label);
 
-async function jump(n, pickHome) {
+async function jump(n, pickHome, pickId) {
   await page.keyboard.press("V");
   await page.locator(".bcm-warp-overlay:not([hidden])").first().waitFor({ state: "visible", timeout: 15000 });
   await page.waitForTimeout(400);
@@ -47,6 +47,10 @@ async function jump(n, pickHome) {
   const ids = await cells.evaluateAll((list) => list.map((el) => [el.getAttribute("data-sector-id"), el.textContent.replace(/\s+/g, " ").trim().slice(0, 60)]));
   let index = 0;
   if (pickHome) index = Math.max(0, ids.findIndex(([id, text]) => /-40.*30|ONI|NEUNO/i.test(id + " " + text)));
+  if (pickId) {
+    index = ids.findIndex(([id]) => id === pickId);
+    if (index < 0) throw new Error("map has no cell " + pickId + ": " + ids.map((x) => x[0]).join(", "));
+  }
   await cells.nth(index).click();
   const before = await snap(`jump ${n}: selected ${ids[index]?.[0]} (${ids[index]?.[1]})`);
   await page.locator("[data-warp-start]").click();
@@ -72,6 +76,14 @@ try {
   await jump(1, false);
   await jump(2, true);
   await jump(3, false);
+  // Owner 18.11.2026: "у позиции Fable тот же астероид со случайным лабиринтом".
+  await jump(4, true);
+  await jump(5, false, "coord--40-31");
+  report.planetArrival = await page.evaluate(() => ({
+    place: window.BCMiniSimAPI?.getPlace?.() ?? null,
+    sector: window.BCMDeepSpaceWarpGetReturnSnapshot?.()?.current ?? null,
+    planet: window.BCMPlanetLanding?.planetId?.() ?? null,
+  }));
 } catch (error) {
   report.failure = String(error && error.message || error).split("\n")[0];
   await page.screenshot({ path: resolve(out, "failure.png") }).catch(() => {});

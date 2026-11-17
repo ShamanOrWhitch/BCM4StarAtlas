@@ -2433,10 +2433,44 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       return !!sector && Number(sector.x) === -40 && Number(sector.y) === 30;
     }
 
+    // A Mini-Sim planet (Fable, Opus …) in the target sector, or null.
+    function planetLandmarkFor(sector) {
+      const core = window.BCMSageMapCore;
+      if (!sector || !core || typeof core.landmarkAt !== "function") return null;
+      const mark = core.landmarkAt(Number(sector.x), Number(sector.y));
+      return mark && mark.planet ? mark : null;
+    }
+
     function confirmTubeArrival() {
       if (state.mode !== "result") return;
       if (isOniCssDestination(state.target)) returnToOniCss();
+      else if (planetLandmarkFor(state.target)) arriveAtPlanetSector(state.target);
       else enterAsteroidMaze();
+    }
+
+    /* Owner 18.11.2026: "у позиции Fable тот же астероид со случайным
+     * лабиринтом внутри". A planet sector is not an asteroid: the ship arrives
+     * in open space at the station gate, and the sector becomes the current
+     * one, so the Tower descent lands on that planet (planet-landing.js reads
+     * this sector). */
+    function arriveAtPlanetSector(sector) {
+      const engine = api();
+      const mark = planetLandmarkFor(sector);
+      disposeMaze();
+      rememberPlace(null);
+      state.nav = navigationAfterArrival(sector);
+      if (state.nav && state.nav.current) {
+        state.nav.current.x = Number(sector.x);
+        state.nav.current.y = Number(sector.y);
+        state.nav.current.name = mark ? mark.name : state.nav.current.name;
+      }
+      state.sectorProgressed = true;
+      closeOverlay(false);
+      if (engine && typeof engine.teleport === "function") {
+        engine.teleport({ x: 0, y: 0, z: 2, yaw: 0 }, null);
+      }
+      const status = root.querySelector(".bcm-mini-sim-status");
+      if (status) status.textContent = "ARRIVED · " + String(mark ? mark.name : "PLANET").toUpperCase() + " · ВХОД В TOWER — ПОСАДКА НА ПЛАНЕТУ";
     }
 
     function returnToOniCss() {
