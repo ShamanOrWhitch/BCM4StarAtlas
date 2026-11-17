@@ -195,6 +195,7 @@ test("Hull Dive uses crew-core Crew cut-outs and supplies working pilot, weapon,
 test("Crew facing follows the Tower convention and 3D wall materials use each cell's Ring map data", async () => {
   const core = await read("mini-sim/assets/js/crew-core.js");
   const location = await read("mini-sim/assets/js/asteroid-maze-location.js");
+  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   const tower = await read("mini-sim/tower/assets/js/tower.js");
   // One facing rule for every level (Tower convention), owned by crew-core.
   // BUG-001: the old Mierese exception in applyPlatformSprite is gone. WORK LOCK #117.
@@ -213,7 +214,7 @@ test("Crew facing follows the Tower convention and 3D wall materials use each ce
   assert.doesNotMatch(location, /walls\.forEach\(\(wall, index\) => wallBatches\[index % wallBatches\.length\]\.push\(wall\)\)/);
   assert.ok(location.includes('maze.wallVariantTextures || []'));
   assert.ok(location.includes('copy.image = loadedTexture.image;'));
-  assert.ok(location.includes('wallTextureCopiesByAsset[index].push(copy)'));
+  assert.ok(warp.includes('wallTextureCopiesByAsset[index].push(copy)'));
   assert.ok(location.includes('(wallVariantsByAsset[index] || []).forEach((variant) => syncImage(variant.texture))'));
   assert.doesNotMatch(location, /const previousPosition = maze\.lastPosition/);
   assert.match(location, /flyRadius: 160/);

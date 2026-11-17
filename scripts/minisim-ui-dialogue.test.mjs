@@ -117,7 +117,6 @@ test("ONICSS keeps its station poster during preload, X releases camera focus, a
 });
 
 test("Hydrogen mission unlocks only after required screens really play and is anchored to the first Ring cell", () => {
-  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
   assert.match(mini, /window\.BCMWorldMissionAPI = \{/);
   assert.match(mini, /function registerMissionScreen\(screenId, required = true\)/);
   assert.match(mini, /function markMissionScreenActive\(screenId\)/);
