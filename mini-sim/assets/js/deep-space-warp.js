@@ -335,6 +335,27 @@
     // Ревизия 26: список блоков файла — не искать глазами в 1 МБ.
     window.BCMDeepSpaceWarpBlocks = () => WARP_BLOCKS.map((b) => ({ id: b.id, title: b.title }));
 
+    // Порядок видов в интерфейсе (ревизия 28).
+    // Вид 1 = класс II, вид 2 = класс III, вид 3 = класс I — так попросил
+    // владелец после теста. Внутренние классы остаются своими: палитры,
+    // радуга и профили фона привязаны к ним, а не к номеру кнопки.
+    const WARP_VIEW_ORDER = [2, 3, 1];
+    const warpClassForView = (view) => {
+      const n = Math.trunc(Number(view));
+      if (!(n >= 1 && n <= WARP_VIEW_ORDER.length)) return WARP_VIEW_ORDER[0];
+      return WARP_VIEW_ORDER[n - 1];
+    };
+    const warpViewForClass = (cls) => {
+      const at = WARP_VIEW_ORDER.indexOf(Math.trunc(Number(cls)));
+      return at >= 0 ? at + 1 : 1;
+    };
+    // Хук QA: какой вид сейчас, какой класс за ним и весь порядок.
+    window.BCMDeepSpaceWarpViewOrder = () => ({
+      order: WARP_VIEW_ORDER.slice(),
+      view: warpViewForClass(activeWarpVisualClass()),
+      visualClass: activeWarpVisualClass()
+    });
+
     const state = {
       mode: "closed",
       openedAt: 0,
@@ -358,7 +379,8 @@
       tubeTravel: 0,
       tubeShimmerTime: 0,
       warpDriveSlotSize: currentWarpDriveSlotSize(),
-      warpVisualClass: warpVisualClassForSlotSize(currentWarpDriveSlotSize()),
+      // Ревизия 28: заезд стартует с вида 1 — это прежний класс II.
+      warpVisualClass: warpClassForView(1),
       warpPreviewClass: null,
       // Seed, из которого строится декоративный фон (не влияет на курс).
       tubeBackdropSeed: 0,
@@ -964,9 +986,9 @@
           '<div class="bcm-warp-kicker">SECTOR NAVIGATION</div><h2>Выберите сектор назначения</h2>' +
           '<div data-warp-tier-preview aria-label="Выбор оформления Warp" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:8px 0 12px;padding:6px;border:1px solid rgba(102,190,210,.45);border-radius:9px;background:rgba(2,12,21,.74)">' +
             '<span style="font:700 10px system-ui;color:#a9cbd7;margin-right:3px">ВАРП</span>' +
-            '<button type="button" data-warp-tier="1" aria-pressed="false" title="Class I — полосы" style="min-width:32px;height:28px;padding:0 6px;font:700 11px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">I</button>' +
+            '<button type="button" data-warp-tier="1" aria-pressed="false" title="Вид 1 — спиральные рельсы (класс II)" style="min-width:32px;height:28px;padding:0 6px;font:700 11px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">I</button>' +
             '<button type="button" data-warp-tier="2" aria-pressed="false" title="Class II — мягкое оформление" style="min-width:32px;height:28px;padding:0 6px;font:700 11px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">II</button>' +
-            '<button type="button" data-warp-tier="3" aria-pressed="false" title="Class III — фиолетовые полосы" style="min-width:32px;height:28px;padding:0 6px;font:700 11px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">III</button>' +
+            '<button type="button" data-warp-tier="3" aria-pressed="false" title="Вид 3 — полосы (класс I)" style="min-width:32px;height:28px;padding:0 6px;font:700 11px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">III</button>' +
             '<button type="button" data-warp-tier="4" aria-pressed="false" aria-disabled="true" disabled title="Class IV выключен" style="min-width:32px;height:28px;padding:0 6px;font:700 11px system-ui;border:1px solid #3a444a;border-radius:6px;background:rgba(19,25,30,.82);color:#64737b;opacity:.58;cursor:not-allowed">IV ×</button>' +
           '</div>' +
           '<p class="bcm-warp-explainer" data-warp-current></p>' +
@@ -995,9 +1017,9 @@
         '<div class="bcm-warp-tube-hud"><div class="bcm-warp-kicker">SUBSPACE TUNNEL</div><h2 data-tube-title>WARP IN PROGRESS</h2><div class="bcm-warp-tube-meta" data-tube-meta></div><div class="bcm-warp-shield"><span data-tube-shield></span></div><div class="bcm-warp-tube-help" data-tube-help>Влево и вправо двигают корабль по кольцу. Препятствие остаётся на своём кольце и не растягивается.</div></div>' +
         '<div data-warp-tier-preview aria-label="Временно посмотреть визуальный класс Warp" style="position:absolute;top:12px;right:12px;z-index:8;display:flex;align-items:center;gap:3px;padding:4px;border:1px solid rgba(102,190,210,.45);border-radius:9px;background:rgba(2,12,21,.74);pointer-events:auto;max-width:calc(100vw - 24px)">' +
           '<span style="font:700 9px system-ui,sans-serif;color:#a9cbd7;letter-spacing:.04em;margin-right:2px">ВИД</span>' +
-          '<button type="button" data-warp-tier="1" aria-pressed="false" title="Class I — полосы" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">I</button>' +
-          '<button type="button" data-warp-tier="2" aria-pressed="false" title="Class II — спиральные рельсы" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">II</button>' +
-          '<button type="button" data-warp-tier="3" aria-pressed="false" title="Class III — фиолетовые полосы" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">III</button>' +
+          '<button type="button" data-warp-tier="1" aria-pressed="false" title="Вид 1 — спиральные рельсы (класс II)" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">I</button>' +
+          '<button type="button" data-warp-tier="2" aria-pressed="false" title="Вид 2 — фиолетовые полосы (класс III)" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">II</button>' +
+          '<button type="button" data-warp-tier="3" aria-pressed="false" title="Вид 3 — полосы (класс I)" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">III</button>' +
           '<button type="button" data-warp-tier="4" aria-pressed="false" aria-disabled="true" disabled title="Class IV выключен" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #3a444a;border-radius:6px;background:rgba(19,25,30,.82);color:#64737b;opacity:.58;cursor:not-allowed">IV ×</button>' +
         '</div>' +
         '<div class="bcm-warp-touch-controls"><button type="button" data-warp-control="left" aria-label="Рулить влево">◀</button><button type="button" data-warp-control="tilt" aria-label="Включить или откалибровать управление наклоном">↻ TILT</button><button type="button" data-warp-control="right" aria-label="Рулить вправо">▶</button></div>' +
@@ -1067,8 +1089,10 @@
 
     function updateWarpTierPreviewButtons() {
       const active = activeWarpVisualClass();
+      // Кнопка показывает НОМЕР ВИДА, а класс за ним берётся из порядка.
+      const activeView = warpViewForClass(active);
       warpTierButtons.forEach((button) => {
-        const selected = Number(button.getAttribute("data-warp-tier")) === active;
+        const selected = Number(button.getAttribute("data-warp-tier")) === activeView;
         button.setAttribute("aria-pressed", selected ? "true" : "false");
         button.style.background = selected ? "rgba(28,92,113,.98)" : "rgba(16,35,45,.96)";
         button.style.borderColor = selected ? "#7be4f4" : "#426779";
@@ -1077,8 +1101,10 @@
     }
 
     function setWarpVisualPreviewClass(value) {
-      const selected = Math.trunc(Number(value));
-      if (![1, 2, 3].includes(selected)) return activeWarpVisualClass();
+      // На вход приходит номер ВИДА (data-warp-tier), а класс — из порядка.
+      const view = Math.trunc(Number(value));
+      if (![1, 2, 3].includes(view)) return activeWarpVisualClass();
+      const selected = warpClassForView(view);
       state.warpPreviewClass = selected;
       state.warpVisualClass = selected;
       warpApplyEffectLevel();
@@ -6419,7 +6445,11 @@ function warpSectorPlanetCard(core, x, y, jumps) {
     { id: "gate", weight: 3, color: "198,214,255", label: "Перекрывает проход" },
     { id: "mid", weight: 2, color: "216,198,255", label: "Из середины" },
     { id: "coil", weight: 2, color: "255,228,172", label: "Спираль" },
-    { id: "twin", weight: 1, color: "170,255,208", label: "Две змейки" }
+    { id: "twin", weight: 1, color: "170,255,208", label: "Две змейки" },
+    // Ревизия 28: «танец змеек» — две сразу, водят друг с другом и в конце
+    // сворачиваются в ЗЕРКАЛЬНЫЕ спирали по обе стороны кольца. Одна жизнь
+    // аномалии = один танец, весь номер укладывается в один варп.
+    { id: "dance", weight: 2, color: "255,206,232", label: "Танец двух змеек" }
   ];
 
   function warpSpaceAnomalyVariantIds() {
@@ -6434,6 +6464,9 @@ function warpSectorPlanetCard(core, x, y, jumps) {
     var list = WARP_SPACE_ANOMALY_VARIANTS;
     var n = Math.trunc(Number(index));
     if (!isFinite(n) || n < 0) n = 0;
+    // Первая аномалия заезда — всегда «танец»: владелец просил увидеть его
+    // сразу, а не ждать, пока выпадет из мешка.
+    if (n === 0) return "dance";
     var bag = [];
     var total = 0;
     var i, k;
@@ -6528,6 +6561,17 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       plan.head = plan.depth;
       plan.length = spec.span * (0.8 + 0.5 * grow);
       plan.insetMax = 0;
+    } else if (variant === "dance") {
+      // Танец: обе змейки идут из глубины на игрока, встречаются в середине
+      // кадра, кружат друг с другом и в конце уходят в зеркальные спирали.
+      // Фазы заданы долями жизни аномалии, поэтому номер всегда доигрывается
+      // до конца — «за один варп».
+      plan.depth = 0.86 - 0.50 * (phase * phase * (3 - 2 * phase));
+      plan.angle0 = 0;
+      plan.head = plan.depth;
+      plan.length = spec.span * (0.9 + 0.7 * grow);
+      plan.turns = 2.2;          // витков в финальной спирали
+      plan.insetMax = spec.inset * 0.55;
     } else {
       // wall — как было в рев. 20: ход вперёд-назад, местами быстрее игрока.
       var swing = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);
@@ -6542,12 +6586,14 @@ function warpSectorPlanetCard(core, x, y, jumps) {
    * насколько глубоко внутрь трубы ушёл сегмент (доля радиуса) и долю вдоль
    * тела. Раньше здесь был только «wiggle» по углу — теперь угол считается для
    * всех видов, поэтому змейка умеет идти и вдоль, и поперёк сечения. */
-  function warpSpaceAnomalyPoint(plan, k, segments, t) {
+  function warpSpaceAnomalyPoint(plan, k, segments, t, dir) {
     var spec = WARP_SPACE_ANOMALIES;
     var n = Math.max(1, segments | 0);
     var s = Math.max(0, Math.min(n, Number(k) || 0));
     var along = s / n;
     var time = Number(t) || 0;
+    // Направление нужно только танцу: +1 и -1 — две змейки, зеркальные друг другу.
+    var sign = Number(dir) < 0 ? -1 : 1;
     var out = { depth: plan.depth, angle: 0, inset: 0, along: along, wiggle: 0 };
     if (plan.variant === "gate") {
       // Всё сечение, кроме щели: идём «длинным путём» от одного края щели к другому.
@@ -6573,6 +6619,32 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       out.depth = plan.head - along * plan.length;
       out.angle = plan.angle0 + Math.sin(along * 4.2 - time * 2.2) * 0.22;
       out.inset = 0;
+    } else if (plan.variant === "dance") {
+      /* Хореография на доли жизни (plan.phase):                             *
+       *   0.00–0.32  сходятся из своих половин к центру кадра               *
+       *   0.32–0.62  водят друг с другом — идут в противофазе               *
+       *   0.62–1.00  расходятся и сворачиваются в ЗЕРКАЛЬНЫЕ спирали        *
+       * Зеркальность честная: обе спирали стоят симметрично относительно    *
+       * вертикали (углы π/2 ± 0.45) и закручены в разные стороны.           */
+      var phase = Math.max(0, Math.min(1, Number(plan.phase) || 0));
+      var smooth = function (v) {
+        var x = Math.max(0, Math.min(1, v));
+        return x * x * (3 - 2 * x);
+      };
+      var meet = smooth((phase - 0.02) / 0.30);
+      var dance = smooth((phase - 0.32) / 0.30);
+      var coil = smooth((phase - 0.62) / 0.30);
+      var side = sign > 0 ? 0 : Math.PI;                 // своя половина кольца
+      var target = Math.PI * 0.5 - sign * 0.45;          // симметрично о вертикали
+      var base = side + (target - side) * meet;
+      // В танец идут в противофазе: пока одна уходит влево, вторая вправо.
+      base += Math.sin(phase * Math.PI * 4 + (sign > 0 ? 0 : Math.PI)) * 0.42 * dance * (1 - coil);
+      base += Math.sin(along * 6.4 - time * 2.6) * 0.10 * dance * (1 - coil);
+      // Финал: тело укладывается витками вокруг своей точки — это и есть спираль.
+      base += (target - base) * coil;
+      out.angle = base + along * plan.turns * Math.PI * 2 * sign * coil;
+      out.depth = plan.head - along * plan.length * (1 - 0.35 * coil);
+      out.inset = plan.insetMax * (0.35 + 0.65 * coil) * (0.6 + 0.4 * Math.sin(along * Math.PI));
     } else {
       out.depth = Math.max(0.05, plan.head - along * plan.length);
       out.angle = Math.sin(along * 7.5 + time * 2.1) * 0.22 * (0.35 + along);
@@ -6601,14 +6673,18 @@ function warpSectorPlanetCard(core, x, y, jumps) {
     var spec = WARP_SPACE_ANOMALIES;
     var base = Math.max(6, Math.round(spec.segments * (0.45 + 0.55 * plan.phase)));
     var segments = plan.variant === "gate" ? Math.round(base * 1.5)
-      : plan.variant === "twin" ? Math.round(base * 0.6) : base;
+      : plan.variant === "twin" ? Math.round(base * 0.6)
+        : plan.variant === "dance" ? Math.round(base * 0.8) : base;
     var radius = warpSpaceAnomalyRadius(point, plan.depth);
     var drawn = 0;
     var started = false;
 
     var place = function (k, angleShift) {
-      var part = warpSpaceAnomalyPoint(plan, k, segments, t);
-      var angle = part.angle + (angleShift || 0);
+      // У танца две змейки: angleShift +0 / π и знак ±1 (зеркальные спирали).
+      // У остальных видов знак не влияет — они односторонние.
+      var dir = plan.variant === "dance" ? (angleShift > 0.5 ? -1 : 1) : 1;
+      var part = warpSpaceAnomalyPoint(plan, k, segments, t, dir);
+      var angle = part.angle + (plan.variant === "dance" ? 0 : (angleShift || 0));
       var p = point(part.depth, angle, -part.inset * radius);
       if (!p || !isFinite(p.x) || !isFinite(p.y)) return null;
       return p;
@@ -6620,7 +6696,7 @@ function warpSectorPlanetCard(core, x, y, jumps) {
     // Всё тело (у twin — оба куска) в ОДНОМ пути: два штриха на кадр, а не
     // по два на каждую змейку.
     g.beginPath();
-    var bodies = plan.variant === "twin" ? [0, Math.PI] : [0];
+    var bodies = (plan.variant === "twin" || plan.variant === "dance") ? [0, Math.PI] : [0];
     for (var b = 0; b < bodies.length; b += 1) {
       started = false;
       for (var k = 0; k <= segments; k += 1) {
