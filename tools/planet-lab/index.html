@@ -39,6 +39,7 @@
     try {
       await api.mount(document.getElementById("planet"), {
         planet: q.get("planet") || undefined,
+        startMode: q.get("mode") === "race" ? "race" : undefined,
         planetSeed: 7,
         raceSeed: 7,
         players: [{ species: q.get("species") || "Human", name: "Lab" }],

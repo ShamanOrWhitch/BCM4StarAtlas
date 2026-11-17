@@ -1,11 +1,12 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { Race } from "./sim";
-import { RACE_SHIPS, raceLength, shipUrl, shipNose } from "./ships";
+import { RACE_SHIP_FORMS, shipUrl } from "./ships";
+import { faceUp, readTrackSkin, skinnedRoad, type Rgb, type TrackSkin } from "./track-skin";
 import { createSeededRandom, seededShuffle } from "./seed";
 import { ROAD_Y, type Track } from "./track";
 import { aimNose, bake } from "./island/bake";
-import { libraryUrl } from "./mesh-url";
+import { libraryUrl, propUrl } from "./mesh-url";
 
 export type Phase = "gate" | "race" | "pause" | "finish";
 
@@ -13,6 +14,11 @@ type Kart = {
   group: THREE.Group;
   wheels: THREE.Mesh[];
   shell: THREE.MeshStandardMaterial;
+  /** Engine-on and engine-off models of a ship; absent on the stand-in kart. */
+  running?: THREE.Object3D;
+  rest?: THREE.Object3D;
+  /** Seconds the running form stays after the engine stops, so it does not flicker. */
+  engineHold?: number;
 };
 
 export type World = {
@@ -56,6 +62,8 @@ function ribbon(
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  // The strip was wound face down and could not be seen from above.
+  faceUp(pos, idx);
   geo.setIndex(idx);
   geo.computeVertexNormals();
   return geo;
@@ -239,22 +247,65 @@ export function createWorld(canvas: HTMLCanvasElement): World {
   const sand = new THREE.Color(0xe6d3a3);
   const curbCoral = new THREE.Color(0xe25b3a);
 
+  // The road takes its look from the coast track piece in assets/mesh: asphalt,
+  // kerbs and the dashed centre line, in the piece's own colours and proportions.
+  let trackSkin: TrackSkin | null = null;
+  const trackPieceUrl = propUrl("coast_straight.glb");
+  if (trackPieceUrl) {
+    void new GLTFLoader().loadAsync(trackPieceUrl).then((gltf) => {
+      let piece: THREE.Mesh | null = null;
+      gltf.scene.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!piece && mesh.isMesh && mesh.geometry?.getAttribute("color")) piece = mesh;
+      });
+      const found = piece as THREE.Mesh | null;
+      if (!found) return;
+      const position = found.geometry.getAttribute("position");
+      const tint = found.geometry.getAttribute("color");
+      const xyz = new Float32Array(position.count * 3);
+      const rgb = new Float32Array(position.count * 3);
+      let peak = 0;
+      for (let i = 0; i < position.count; i++) {
+        xyz.set([position.getX(i), position.getY(i), position.getZ(i)], i * 3);
+        rgb.set([tint.getX(i), tint.getY(i), tint.getZ(i)], i * 3);
+        peak = Math.max(peak, rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2]);
+      }
+      if (peak > 1.5) for (let i = 0; i < rgb.length; i++) rgb[i] /= 255; // bytes not normalised by the loader
+      const read = readTrackSkin(xyz, rgb, 3);
+      // The piece was painted for the screen (its preview shows dark asphalt), so
+      // its colours are sRGB; the vertex colours of the road are linear.
+      const linear = (c: Rgb): Rgb => {
+        const out = new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace);
+        return [out.r, out.g, out.b];
+      };
+      trackSkin = { ...read, surface: linear(read.surface), kerb: linear(read.kerb), line: read.line ? linear(read.line) : null };
+      trackRef.current = null; // rebuild the road in the new look
+    }).catch((err) => console.warn("BCM track piece skipped", trackPieceUrl, err));
+  }
+
   const karts: Kart[] = [];
-  const vehicleTemplates: THREE.Object3D[] = [];
+  const vehicleTemplates: Array<{ running: THREE.Object3D; rest: THREE.Object3D | null }> = [];
   let fleetReady = false;
   const vehicleLoader = new GLTFLoader();
   void (async () => {
-    for (const file of RACE_SHIPS) {
+    const shape = async (file: string, nose: string, length: number) => {
+      const gltf = await vehicleLoader.loadAsync(shipUrl(file));
+      aimNose(gltf.scene, nose);
+      const mesh = bake(gltf.scene, length, "xz");
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      return mesh;
+    };
+    for (const form of RACE_SHIP_FORMS) {
       try {
-        const gltf = await vehicleLoader.loadAsync(shipUrl(file));
-        const length = raceLength(file);
-        aimNose(gltf.scene, shipNose(file));
-        const mesh = bake(gltf.scene, length, "xz");
-        mesh.castShadow = false;
-        mesh.receiveShadow = false;
-        vehicleTemplates.push(mesh);
+        const running = await shape(form.running, form.nose, form.length);
+        // A missing rest model is not a reason to lose the ship.
+        const rest = form.rest !== form.running
+          ? await shape(form.rest, form.nose, form.length).catch(() => null)
+          : null;
+        vehicleTemplates.push({ running, rest });
       } catch (err) {
-        console.warn("BCM race ship skipped", file, err);
+        console.warn("BCM race ship skipped", form.running, err);
       }
     }
     fleetReady = vehicleTemplates.length > 0;
@@ -270,22 +321,30 @@ export function createWorld(canvas: HTMLCanvasElement): World {
       roughness: 0.45,
     });
     const group = new THREE.Group();
-    const model = template.clone();
-    model.traverse((obj) => {
-      const mesh = obj as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      const src = mesh.material as THREE.MeshStandardMaterial;
-      const tint = src.clone();
-      tint.color = new THREE.Color(0xffffff).lerp(new THREE.Color(color), 0.62);
-      tint.vertexColors = true;
-      mesh.material = tint;
-    });
-    model.position.y = 0.08;
+    const dress = (source: THREE.Object3D) => {
+      const model = source.clone();
+      model.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const src = mesh.material as THREE.MeshStandardMaterial;
+        const tint = src.clone();
+        tint.color = new THREE.Color(0xffffff).lerp(new THREE.Color(color), 0.62);
+        tint.vertexColors = true;
+        mesh.material = tint;
+      });
+      model.position.y = 0.08;
+      return model;
+    };
+    const running = dress(template.running);
+    const rest = template.rest ? dress(template.rest) : undefined;
+    // On the grid the engine is off.
+    if (rest) running.visible = false;
     const glowDisc = new THREE.Mesh(new THREE.CircleGeometry(1.15, 14), shell);
     glowDisc.rotation.x = -Math.PI / 2;
     glowDisc.position.y = 0.04;
-    group.add(model, glowDisc);
-    return { group, wheels: [], shell };
+    group.add(running, glowDisc);
+    if (rest) group.add(rest);
+    return { group, wheels: [], shell, running, rest, engineHold: 0 };
   }
   const boxMesh = new THREE.Mesh(
     new THREE.BoxGeometry(1.15, 1.15, 1.15),
@@ -314,21 +373,36 @@ export function createWorld(canvas: HTMLCanvasElement): World {
     trackRef.current = track;
     if (road) scene.remove(road);
     if (curb) scene.remove(curb);
-    road = new THREE.Mesh(
-      ribbon(track, -track.halfWidth, track.halfWidth, ROAD_Y, (s) => {
-        const nearLine = s < 5 || s > track.length - 5;
-        return nearLine && Math.floor(s * 2) % 2 === 0 ? stripe : asphalt;
-      }),
-      roadMat,
-    );
-    road.receiveShadow = true;
-    curb = new THREE.Mesh(
-      ribbon(track, track.halfWidth, track.halfWidth + 0.7, ROAD_Y + 0.05, (s) =>
-        Math.floor(s / 5) % 2 === 0 ? curbCoral : sand,
-      ),
-      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 }),
-    );
-    scene.add(road, curb);
+    curb = null;
+    const startStripe = (s: number) => {
+      const nearLine = s < 5 || s > track.length - 5;
+      return nearLine && Math.floor(s * 2) % 2 === 0;
+    };
+    if (trackSkin) {
+      const skinned = skinnedRoad(track, trackSkin, ROAD_Y, (s) => (startStripe(s) ? [stripe.r, stripe.g, stripe.b] : null));
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(skinned.position, 3));
+      geo.setAttribute("color", new THREE.BufferAttribute(skinned.color, 3));
+      geo.setIndex(skinned.index);
+      geo.computeVertexNormals();
+      road = new THREE.Mesh(geo, roadMat);
+      road.receiveShadow = true;
+      scene.add(road);
+    } else {
+      // Until the track piece is loaded (or if it is missing): the plain ribbon.
+      road = new THREE.Mesh(
+        ribbon(track, -track.halfWidth, track.halfWidth, ROAD_Y, (s) => (startStripe(s) ? stripe : asphalt)),
+        roadMat,
+      );
+      road.receiveShadow = true;
+      curb = new THREE.Mesh(
+        ribbon(track, track.halfWidth, track.halfWidth + 0.7, ROAD_Y + 0.05, (s) =>
+          Math.floor(s / 5) % 2 === 0 ? curbCoral : sand,
+        ),
+        new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 }),
+      );
+      scene.add(road, curb);
+    }
 
     const start = track.samples[0];
     const gantry = new THREE.Group();
@@ -508,6 +582,15 @@ export function createWorld(canvas: HTMLCanvasElement): World {
         kart.group.rotation.y = car.yaw;
         const spin = car.speed * dt * 3.2;
         for (const wheel of kart.wheels) wheel.rotation.x += spin;
+        // Engine on: the ship is moving or boosting. On the grid and at a
+        // standstill it shows its rest form.
+        if (kart.running && kart.rest) {
+          const engineOn = phase !== "gate" && (Math.abs(car.speed) > 1.5 || car.boost > 0);
+          kart.engineHold = engineOn ? 0.35 : Math.max(0, (kart.engineHold ?? 0) - dt);
+          const showRunning = engineOn || (kart.engineHold ?? 0) > 0;
+          kart.running.visible = showRunning;
+          kart.rest.visible = !showRunning;
+        }
         const hot = car.boost > 0 ? 0.55 : car.drifting ? 0.2 : 0;
         kart.shell.emissive.setHex(car.color);
         kart.shell.emissiveIntensity = hot;
