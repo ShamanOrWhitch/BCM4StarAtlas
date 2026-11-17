@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.8.18
+ * Version: 0.8.20
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -1180,7 +1180,7 @@ function galia_desk_shortcode() {
           var body = new URLSearchParams(extra || {});
           body.set("action", action);
           body.set("nonce", nonce);
-          return fetch(ajax, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: body });
+          return fetch(ajax, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: body, signal: AbortSignal.timeout(50000) });
         }
         function num(n) {
           if (n == null) return "—";
@@ -1294,7 +1294,8 @@ function galia_desk_shortcode() {
           fetch("https://bcm4staratlas.onrender.com/api/wallet-scan", {
             method: "POST",
             headers: { "Content-Type": "application/json", "Accept": "application/json" },
-            body: JSON.stringify({ owner: owner })
+            body: JSON.stringify({ owner: owner }),
+            signal: AbortSignal.timeout(50000)
           }).then(function (res) {
             return res.json().then(function (json) {
               if (!res.ok) throw new Error((json && json.error) || "Render wallet API HTTP " + res.status);
@@ -1408,9 +1409,11 @@ function galia_desk_shortcode() {
                   Array.isArray(ship.slots) && ship.slots.length ? ship.slots.join(", ") : ""
                 ].filter(Boolean).join(" · ");
                 html += '<label class="galia-fleet-row">' +
-                  '<input type="number" min="0" max="' + max + '" value="' + value + '" data-galia-ship-qty data-mint="' + esc(ship.mint) + '" data-crew="' + slots + '" data-name="' + esc(ship.name) + '">' +
+                  '<input type="number" min="0" max="' + max + '" value="' + value + '" data-galia-ship-qty data-mint="' + esc(ship.mint) + '" data-crew="' + slots + '" data-name="' + esc(ship.name) + '" data-owned="' + max + '">' +
                   '<span class="galia-wallet-thumb">' + (ship.image ? '<img alt="" src="' + esc(ship.image) + '" />' : '') + '</span>' +
                   '<span class="galia-fleet-main"><strong>' + esc(ship.name) + '</strong>' +
+                  '<span>на кошельке: ' + max + '</span>' +
+                  '<span data-galia-fleet-pick>во флот: ' + value + '</span>' +
                   '<span>' + esc(ship.rarity || "") + ' · ' + esc(slotText) + '</span>' +
                   '<span>' + esc(specs || "параметры корабля доступны") + '</span>' +
                   '<span class="galia-wallet-mint">' + esc(shortMint(ship.mint)) + '</span></span></label>';
@@ -1448,8 +1451,16 @@ function galia_desk_shortcode() {
               var rows = Array.from(root.querySelectorAll("[data-galia-ship-qty]"));
               var totalCapacity = 0;
               var chosenShips = [];
+              var ownedTotal = 0;
               rows.forEach(function (input) {
-                var qty = Math.max(0, Number(input.value || 0));
+                var owned = Math.max(0, Math.floor(Number(input.getAttribute("data-owned") || input.max || 0)));
+                var qty = Math.floor(Number(input.value || 0));
+                if (!isFinite(qty) || qty < 0) qty = 0;
+                if (qty > owned) qty = owned;
+                input.value = String(qty);
+                ownedTotal += owned;
+                var pick = input.parentElement ? input.parentElement.querySelector("[data-galia-fleet-pick]") : null;
+                if (pick) pick.textContent = "во флот: " + qty;
                 var crewPer = Math.max(0, Number(input.getAttribute("data-crew") || 0));
                 if (qty > 0) {
                   totalCapacity += qty * crewPer;
@@ -1461,10 +1472,11 @@ function galia_desk_shortcode() {
                   });
                 }
               });
+              var taken = chosenShips.reduce(function (sum, ship) { return sum + ship.quantity; }, 0);
               var maxPlayers = totalCapacity > 0 ? totalCapacity : 2;
               fleetSummary.innerHTML =
-                '<div class="galia-fleet-summary"><strong>Игроков доступно: ' + maxPlayers + '</strong>' +
-                '<span>кораблей: ' + chosenShips.length + ' · мест Crew: ' + totalCapacity + '</span></div>';
+                '<div class="galia-fleet-summary"><strong>во флоте: ' + taken + ' из ' + ownedTotal + ' на кошельке</strong>' +
+                '<span>игроков доступно: ' + maxPlayers + ' · мест Crew: ' + totalCapacity + '</span></div>';
 
               var options = '<option value="">— без Crew —</option>' + crews.map(function (crew) {
                 return '<option value="' + esc(crew.mint) + '">' + esc(crew.name) + ' · ' + esc(crew.spec || "раса —") + '</option>';
@@ -1502,7 +1514,7 @@ function galia_desk_shortcode() {
             window.GALIA_WALLET_SCAN = data;
             document.dispatchEvent(new CustomEvent("galia-holdings", { detail: items }));
             document.dispatchEvent(new CustomEvent("galia-wallet-scan", { detail: data }));
-          }).catch(function (err) { hold.textContent = err.message || "Кошелёк не прочитался."; });
+          }).catch(function (err) { hold.textContent = err && err.name === "TimeoutError" ? "Кошелёк не ответил за 50 секунд." : (err.message || "Кошелёк не прочитался."); });
         });
         root.querySelector("[data-galia-phantom]").addEventListener("click", function () {
           var provider = window.phantom && window.phantom.solana ? window.phantom.solana : (window.solana && window.solana.isPhantom ? window.solana : null);
