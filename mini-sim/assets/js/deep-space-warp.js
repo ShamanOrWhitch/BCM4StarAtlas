@@ -24,6 +24,10 @@
     warpAudio.setAttribute("playsinline", "");
     let warpAudioSrcLoaded = false;
 
+    // ==========================================================================
+    // БЛОК 01 · ЗВУК: OST варпа и кольца, переходное видео
+    // метка [block:audio] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
     function startWarpAudio(restartSession) {
       if (!config.warpMusicUrl) return;
       try {
@@ -295,6 +299,41 @@
       event.stopImmediatePropagation();
       openHullInterior();
     }, true);
+
+    /* ═══ КАРТА ФАЙЛА (ревизия 26) ═══════════════════════════════════════
+     * Полёт (космос, стенка, камни, аномалия, вибрация, урон камней) живёт
+     * в warp-bridge.js. Здесь остаётся всё остальное, и у каждого куска есть
+     * метка [block:<id>] — по ней ищут grep, тесты и BCMDeepSpaceWarpBlocks().
+     *
+     *   [block:audio]        ЗВУК: OST варпа и кольца, переходное видео
+     *   [block:hud]          HUD И КНОПКИ: корпус, кольцо, панели управления
+     *   [block:menu]         МЕНЮ: карта галактики, выбор цели, оверлей
+     *   [block:sector]       СЕКТОР: карточка системы, описания и цифры, «что рядом»
+     *   [block:maze]         ВХОД В ЛАБИРИНТ: передача управления asteroid-maze-location.js
+     *   [block:dissolve]     ЯДРО ПЕРЕХОДА: сетка и рассыпание между кадрами фона
+     *   [block:transition]   ПЕРЕХОДЫ: вид перехода и его сила
+     *   [block:backdrop]     ФОНОВЫЕ СЦЕНЫ: обои, пул кадров, ритм 142 BPM
+     *   [block:ship]         КОРАБЛЬ СЗАДИ: размер, крен, точка на кольце для попаданий
+     *   [block:rings]        КОЛЬЦА И ИМПУЛЬС: глубинные кольца и расходящийся импульс
+     *   [block:flight]       ПОЛЁТ, ГЕОМЕТРИЯ КАДРА: труба, завороты, делегирование в мост
+     *   [block:flightmove]   ПОЛЁТ, ДВИЖЕНИЕ: скорость, тайминг, ввод
+     * ══════════════════════════════════════════════════════════════════════ */
+    const WARP_BLOCKS = [
+      { id: "audio", title: "ЗВУК: OST варпа и кольца, переходное видео" },
+      { id: "hud", title: "HUD И КНОПКИ: корпус, кольцо, панели управления" },
+      { id: "menu", title: "МЕНЮ: карта галактики, выбор цели, оверлей" },
+      { id: "sector", title: "СЕКТОР: карточка системы, описания и цифры, «что рядом»" },
+      { id: "maze", title: "ВХОД В ЛАБИРИНТ: передача управления asteroid-maze-location.js" },
+      { id: "dissolve", title: "ЯДРО ПЕРЕХОДА: сетка и рассыпание между кадрами фона" },
+      { id: "transition", title: "ПЕРЕХОДЫ: вид перехода и его сила" },
+      { id: "backdrop", title: "ФОНОВЫЕ СЦЕНЫ: обои, пул кадров, ритм 142 BPM" },
+      { id: "ship", title: "КОРАБЛЬ СЗАДИ: размер, крен, точка на кольце для попаданий" },
+      { id: "rings", title: "КОЛЬЦА И ИМПУЛЬС: глубинные кольца и расходящийся импульс" },
+      { id: "flight", title: "ПОЛЁТ, ГЕОМЕТРИЯ КАДРА: труба, завороты, делегирование в мост" },
+      { id: "flightmove", title: "ПОЛЁТ, ДВИЖЕНИЕ: скорость, тайминг, ввод" },
+    ];
+    // Ревизия 26: список блоков файла — не искать глазами в 1 МБ.
+    window.BCMDeepSpaceWarpBlocks = () => WARP_BLOCKS.map((b) => ({ id: b.id, title: b.title }));
 
     const state = {
       mode: "closed",
@@ -768,6 +807,10 @@
     document.body.appendChild(hullEnterButton);
     hullEnterButton.addEventListener("click", () => openHullInterior());
 
+    // ==========================================================================
+    // БЛОК 02 · HUD И КНОПКИ: корпус, кольцо, панели управления
+    // метка [block:hud] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
     function syncHullButtonVisibility() {
       const towerRoot = document.querySelector(".bcm-tower");
       const towerOwnsScreen = !!(towerRoot && !towerRoot.hidden);
@@ -1371,6 +1414,10 @@
       }
     }
 
+    // ==========================================================================
+    // БЛОК 03 · МЕНЮ: карта галактики, выбор цели, оверлей
+    // метка [block:menu] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
     function renderSectorGrid() {
       gridElement.replaceChildren();
       if (!state.nav || !state.nav.current || state.nav.current.x == null || state.nav.current.y == null) {
@@ -1424,6 +1471,10 @@
 
     // The look of a station sector on the Galia map: the planet with its
     // atmosphere and the CSS station on orbit, plus the system lore.
+    // ==========================================================================
+    // БЛОК 04 · СЕКТОР: карточка системы, описания и цифры, «что рядом»
+    // метка [block:sector] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
     function buildSystemCard(system) {
       if (!document.getElementById("bcm-warp-system-card-style")) {
         const style = document.createElement("style");
@@ -2421,6 +2472,10 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       const location = getAsteroidMazeLocation();
       if (location) return location.publishChart(maze);
     }
+    // ==========================================================================
+    // БЛОК 05 · ВХОД В ЛАБИРИНТ: передача управления asteroid-maze-location.js
+    // метка [block:maze] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
     function enterAsteroidMaze() {
       const location = getAsteroidMazeLocation();
       if (!location) return false;
@@ -7059,6 +7114,10 @@ function warpSectorPlanetCard(core, x, y, jumps) {
     return r > 1 ? 1 : r;
   }
 
+    // ==========================================================================
+    // БЛОК 06 · ЯДРО ПЕРЕХОДА: сетка и рассыпание между кадрами фона
+    // метка [block:dissolve] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
   function drawSpaceDissolve(g, prevCache, nextCache, k, w, h, cells, cols, rows, quality, intensity, frame, maxDraws) {
     var t = clampUnit(k);
     var eased = t * t * (3 - 2 * t);
@@ -7545,6 +7604,10 @@ function warpSectorPlanetCard(core, x, y, jumps) {
     // ------------------------------------------------- способ смены кадра
     // Приоритет — рассыпание (по указанию владельца). Остальные виды — как
     // двери в первой комнате: каждый переход может открываться по-своему.
+    // ==========================================================================
+    // БЛОК 07 · ПЕРЕХОДЫ: вид перехода и его сила
+    // метка [block:transition] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
     function warpSpaceTransitionNow(randomKind) {
       if (state.warpTransitionAuto) {
         // Случайный ритм уже выбрал вид за нас — главнее «по кругу».
@@ -7588,6 +7651,10 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       };
     }
 
+    // ==========================================================================
+    // БЛОК 09 · КОРАБЛЬ СЗАДИ: размер, крен, точка на кольце для попаданий
+    // метка [block:ship] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
     function drawWarpShipLayer(g, x, y, bank, thrust, roll) {
       const frame = warpFrameSize();
       const size = warpSpace.warpSpaceShipSize(frame.w, frame.h) * (Number(state.warpShipScale) || 1);
@@ -7832,6 +7899,10 @@ function warpSectorPlanetCard(core, x, y, jumps) {
 
     // Декоративный фон живёт своим циклом: 3 с переход частицами, 4,5 с пауза.
     // Переход не начинается, если до прибытия он не успеет дорисоваться.
+    // ==========================================================================
+    // БЛОК 08 · ФОНОВЫЕ СЦЕНЫ: обои, пул кадров, ритм 142 BPM
+    // метка [block:backdrop] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
     function drawWarpSpaceBackdrop(g, w, h, t) {
       const remaining = Math.max(0, WARP_DURATION - Number(state.elapsed || 0));
       // Номер кадра нужен рассыпанию: при переполненной сетке оно рисует долю
@@ -7947,6 +8018,10 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       const visualClass = activeWarpVisualClass();
       // Профиль нужен до расчёта направления: под «Пульсом» стенка идёт назад.
       const spaceProfile = warpSpaceProfile();
+    // ==========================================================================
+    // БЛОК 11 · ПОЛЁТ, ГЕОМЕТРИЯ КАДРА: труба, завороты, делегирование в мост
+    // метка [block:flight] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
       // Class II reverses visible corridor motion, not just its colour pulse.
       // Course timing and obstacle collision remain on the same forward clock.
       // Профиль с reverseMotion разворачивает ход ещё раз, поэтому два
@@ -8047,13 +8122,18 @@ return axialRoll + ahead * 0.12 +
           seed: Number(state.warpAsteroidSeed || 0) >>> 0,
           anomalies: Number(state.warpAnomalies) > 0 ? 1 : 0,
           variant: state.warpAnomalyVariant || "auto",
-          haptics: !!state.warpHaptics
+          haptics: !!state.warpHaptics,
+          // Отсечение панелей — как у варпа: оно зависит от тира качества.
+          cullScale: warpSpaceCullScale()
         });
         bridgeFlight.drawArt(g, {
           point, w, h, maxRadius,
           elapsed: Number(state.elapsed || 0) + Number(t || 0) * 0.001,
           shimmerTime, playerAngle,
           images: warpAsteroidImages(),
+          // Перелив палитры берём у варпа: у него есть и режим, и время.
+          // Жёсткий mix в мосте делал стенку заметно светлее сайта.
+          mix: warpSpaceLocalMix,
           // Корабль — чтобы камни могли попасть, а не просто пролететь.
           ship: state.warpShipPoint || null,
           t: Number(state.elapsed || 0) * 1000
@@ -8064,6 +8144,10 @@ return axialRoll + ahead * 0.12 +
 
       // Глубинные кольца и (опционально) расходящийся пульс. Тонкие, одного
       // цвета, без разрывов — чтобы не читались как ворота столкновения.
+    // ==========================================================================
+    // БЛОК 10 · КОЛЬЦА И ИМПУЛЬС: глубинные кольца и расходящийся импульс
+    // метка [block:rings] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
       const seamPalette = warpSpacePalette(0.25);
       warpSpace.drawWarpSpaceRings(g, point, spaceProfile, t, warpSpace.rgbCss(seamPalette.ring));
       warpSpace.drawWarpSpacePulse(g, centerX(0.5), centerY(0.5),
@@ -8202,6 +8286,8 @@ return axialRoll + ahead * 0.12 +
       state.warpShipRollShown = craftRoll;
       const craftSize = drawWarpShipLayer(g, craftPoint.x, craftPoint.y,
         (state.steerBank || 0) * 1.4, craftThrust, craftRoll);
+      // Положение корабля на кольце — вторая половина попадания камня.
+      if (state.warpShipPoint) state.warpShipPoint.angle = craftRing;
       // Кольцо вокруг корабля: видно, что он маленький и летит по стенке,
       // а не «висит» на экране. Тонкое, декоративное, на столкновения не влияет.
       g.save();
@@ -8261,6 +8347,10 @@ return axialRoll + ahead * 0.12 +
       else state.animationRunning = false;
     }
 
+    // ==========================================================================
+    // БЛОК 12 · ПОЛЁТ, ДВИЖЕНИЕ: скорость, тайминг, ввод
+    // метка [block:flightmove] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
     function updateTube(dt, now) {
       // Сглаженный замер кадра. Понижение качества — только по устойчивому
       // ряду медленных кадров: один тяжёлый кадр не должен менять вид.

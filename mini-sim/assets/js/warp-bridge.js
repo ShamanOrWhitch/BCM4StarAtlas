@@ -148,15 +148,56 @@
     return copy;
   }
 
-  function localMix(spatialPhase) {
-    var api = core();
-    if (api && typeof api.phatoliFlow === "function") {
-      return api.phatoliFlow(0.5, spatialPhase, 0);
+  /* Локальный перелив палитры. Раньше здесь стоял жёсткий 0.5 при t = 0 —
+   * стенка получалась светлее, чем на сайте, где палитра по умолчанию
+   * статична (mix = 0, тёмно-синий). Владелец: «сильно яркий». Поэтому mix
+   * берём у варпа: он знает и режим перелива, и время. Свой расчёт остаётся
+   * только запасным вариантом, если игра функцию не передала. */
+  function localMix(spatialPhase, o, elapsed) {
+    if (o && typeof o.mix === "function") {
+      var value = Number(o.mix(spatialPhase));
+      if (isFinite(value)) return Math.max(0, Math.min(1, value));
     }
-    return 0.5;
+    // Без варпа — статичная палитра (mix 0): так выглядит сайт по умолчанию.
+    // Раньше запасной путь давал «среднюю» яркость, и стенка светлела.
+    if (o && o.paletteFlow) {
+      var api = core();
+      if (api && typeof api.phatoliFlow === "function" &&
+          typeof api.warpSpacePingPong === "function") {
+        return api.phatoliFlow(api.warpSpacePingPong(elapsed, 11), spatialPhase, elapsed);
+      }
+    }
+    return 0;
+  }
+
+  /* Один сломанный слой не должен стирать весь кадр.
+   * Владелец: «переключаюсь на второй режим — всё пропадает кроме фоновых
+   * картинок». Причина была именно такая: в радужном режиме мост звал
+   * api.warpSpaceRainbowAt, которого в ядре нет, — исключение вылетало из
+   * drawArt и уносило остаток кадра (кольца, линии, корабль, HUD). Теперь у
+   * каждого слоя свой try: ошибка видна в консоли и в stats.error, а кадр
+   * живёт дальше. */
+  var drawErrors = {};
+  function safeStage(name, stats, fn) {
+    try {
+      fn();
+    } catch (error) {
+      if (!stats.error) stats.error = name;
+      drawErrors[name] = (drawErrors[name] || 0) + 1;
+      if (drawErrors[name] === 1 && window.console && console.warn) {
+        console.warn("warp-bridge: слой «" + name + "» не нарисован — " +
+          (error && error.message ? error.message : String(error)));
+      }
+    }
   }
 
   /* Угловая разница -π..π: сравнивать углы «в лоб» нельзя, 0.02 и 6.26 — рядом. */
+  /* null и undefined — это «угла нет», а не 0. Number(null) === 0, из-за этого
+   * корабль без угла считался стоящим на нулевом угле кольца. */
+  function hasNumber(value) {
+    return value !== null && value !== undefined && value !== "" && isFinite(Number(value));
+  }
+
   function angleDelta(a, b) {
     var d = (Number(a) || 0) - (Number(b) || 0);
     while (d > Math.PI) d -= Math.PI * 2;
@@ -172,7 +213,7 @@
   function rockHitsShip(hit, ship) {
     if (!hit || !ship) return false;
     var ring = Number(hit.ring) > 1 ? Number(hit.ring) : 0;
-    if (ring && isFinite(Number(ship.angle))) {
+    if (ring && hasNumber(ship.angle)) {
       var rockHalf = (Number(hit.px) || 10) / (2 * ring);      // радианы
       var shipHalf = Math.max(0.02, (Number(ship.size) || 28) / (2 * ring));
       return Math.abs(angleDelta(hit.angle, ship.angle)) < shipHalf + rockHalf;
@@ -264,7 +305,7 @@
   function drawArt(g, opts) {
     var o = opts || {};
     var api = core();
-    var stats = { panels: 0, rocks: 0, near: 0, anomaly: 0, backdrop: 0 };
+    var stats = { panels: 0, rocks: 0, near: 0, anomaly: 0, backdrop: 0, error: "", errors: "" };
     if (!api || typeof o.point !== "function") return stats;
 
     var w = Math.max(1, Math.floor(Number(o.w) || 0));
@@ -279,7 +320,7 @@
       ? {
           x: Number(o.ship.x), y: Number(o.ship.y),
           size: Math.max(8, Number(o.ship.size) || 28),
-          angle: isFinite(Number(o.ship.angle)) ? Number(o.ship.angle) : null
+          angle: hasNumber(o.ship.angle) ? Number(o.ship.angle) : null
         }
       : { x: w * 0.5, y: h * 0.86, size: Math.max(8, Math.min(w, h) * 0.06), angle: null };
     stats.hits = 0;
@@ -290,13 +331,16 @@
 
     // 1. Космос на фоне: одна плоская заливка звёзд на кадр.
     if (api.drawWarpSpaceBackdrop && w && h) {
-      api.drawWarpSpaceBackdrop(g, w, h, elapsed);
-      stats.backdrop = 1;
+      safeStage("backdrop", stats, function () {
+        api.drawWarpSpaceBackdrop(g, w, h, elapsed);
+        stats.backdrop = 1;
+      });
     }
 
     // 2. Стенка: панели по окружности и по глубине. Отсечение — по полной
     // площади (иначе панели на 0°/180° выбрасывались и давали дыры), а соседей
     // сдвигаем на 1 px от центра, чтобы сглаживание не давало волосяных щелей.
+    safeStage("wall", stats, function () {
     var panelCount = flightState.panels;
     var depthSteps = flightState.depthSteps;
     for (var step = 0; step < depthSteps; step += 1) {
@@ -327,17 +371,23 @@
         g.lineTo(q11.x, q11.y);
         g.lineTo(q10.x, q10.y);
         g.closePath();
-        g.fillStyle = api.warpSpacePanelCss(
-          flightState.visualClass, shimmer, light, localMix(phase),
-          rainbow ? api.warpSpaceRainbowAt(phase, elapsed) : null
-        );
-        g.fill();
-        stats.panels += 1;
+        if (typeof api.warpSpacePanelCss === "function") {
+          // Радужная фаза — это сам phase (так красит база: warpSpacePanelCss
+          // модулирует светлоту того же оттенка). Отдельной warpSpaceRainbowAt
+          // в ядре нет — именно её вызов и ронял кадр на классах II/III.
+          g.fillStyle = api.warpSpacePanelCss(
+            flightState.visualClass, shimmer, light, localMix(phase, o, elapsed),
+            rainbow ? phase : null
+          );
+          g.fill();
+          stats.panels += 1;
+        }
       }
     }
+    });
 
     // 3. Аномалия-«полувраг» перед камнями (её видно сквозь них как ленту).
-    if (flightState.anomalies) {
+    if (flightState.anomalies) safeStage("anomaly", stats, function () {
       var anchor = null;
       if (flightState.density > 0 && typeof api.warpSpaceAsteroidField === "function") {
         var slots = api.warpSpaceAsteroidField(flightState.seed, flightState.density);
@@ -350,11 +400,12 @@
         }
       }
       stats.anomaly = api.drawWarpSpaceAnomaly(g, o.point, elapsed, anchor, flightState.variant);
-    }
+    });
 
     // 4. Камни: один drawImage на камень. `near` — те, что прошли рядом,
     // по ним дёргается вибрация геймпада/телефона.
-    if (flightState.density > 0 && typeof api.drawWarpSpaceAsteroids === "function") {
+    if (flightState.density > 0 && typeof api.drawWarpSpaceAsteroids === "function")
+      safeStage("rocks", stats, function () {
       var res = api.drawWarpSpaceAsteroids(g, o.point, Number(o.maxRadius) || 0,
         flightState.seed, flightState.density, o.images || null, elapsed);
       stats.rocks = (res && res.drawn) || 0;
@@ -373,13 +424,17 @@
       // Вибрацию можно дёрнуть и здесь, если кадр рисует мост целиком.
       if (stats.near > 0 && flightState.haptics && typeof window.navigator !== "undefined" &&
           typeof window.navigator.vibrate === "function") {
-        var nowMs = Number(o.t) || 0;
-        if (nowMs - lastHapticAt > 700) {
-          lastHapticAt = nowMs;
+        // ВАЖНО: имя не nowMs. Внутри колбэка var всплывает наверх и затенял бы
+        // внешний nowMs, из-за чего попадания шли без кулдауна (проверено: 35
+        // удара за 9 с вместо 11).
+        var hapticMs = Number(o.t) || 0;
+        if (hapticMs - lastHapticAt > 700) {
+          lastHapticAt = hapticMs;
           try { window.navigator.vibrate(14); } catch (error) { /* без вибрации */ }
         }
       }
-    }
+    });
+    stats.errors = Object.keys(drawErrors).join(",");
     stats.hits = impactState.hits;
     stats.damage = impactState.damage;
     stats.integrity = impactState.integrity;
@@ -441,6 +496,16 @@
       return impactState.hits;
     },
     rockHitsShip: rockHitsShip,
+    // Диагностика: какие слои кадра падали (после рев. 25 их ловит safeStage).
+    drawErrors: function () {
+      var copy = {};
+      Object.keys(drawErrors).forEach(function (key) { copy[key] = drawErrors[key]; });
+      return copy;
+    },
+    resetDrawErrors: function () {
+      Object.keys(drawErrors).forEach(function (key) { delete drawErrors[key]; });
+      return 0;
+    },
     hitShip: function (hit, ship) {
       // для тестов и QA: посчитать попадание без кадра
       return applyImpact(hit || { x: 0, y: 0, px: 10, damage: 6, depth: 0.9, size: "small" },
