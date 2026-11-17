@@ -281,7 +281,9 @@
    * Дешево: два штриха и один прямоугольник. */
   function drawImpactFlash(g, w, h, nowMs) {
     if (!(nowMs < impactState.flashUntil) || !impactState.last) return 0;
-    var left = (impactState.flashUntil - nowMs) / 240;
+    // Never more than one flash long: a stale flash must not grow the ring
+    // below zero (arc() would throw and take the ship with it).
+    var left = Math.min(1, (impactState.flashUntil - nowMs) / 240);
     if (!(left > 0)) return 0;
     var hit = impactState.last;
     g.save();
@@ -320,6 +322,14 @@
     var playerAngle = Number(o.playerAngle) || 0;
     var rainbow = flightState.rainbow;
     var nowMs = Number(o.t) || 0;
+    // A new jump restarts the tube clock at zero. Hits of the previous jump
+    // (flash, cooldown) belong to the old clock: drop them, or the first
+    // seconds of the next jump draw a flash with a negative radius and the
+    // ship is never drawn (owner, live 0.15.22: "на второй прыжок игра не
+    // показывает кораблик").
+    if (lastDrawAt >= 0 && nowMs < lastDrawAt - 500) {
+      impactState.last = null; impactState.lastAt = -1e9; impactState.flashUntil = -1e9;
+    }
     // Шаг кадра в секундах: по нему ядро ловит момент касания (пересечение
     // глубины корабля), а не «попал в широкое окно».
     var frameDt = lastDrawAt < 0 ? 1 / 60 : (nowMs - lastDrawAt) / 1000;
