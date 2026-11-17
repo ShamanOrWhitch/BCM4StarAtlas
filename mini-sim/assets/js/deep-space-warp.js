@@ -6425,9 +6425,14 @@ function warpSectorPlanetCard(core, x, y, jumps) {
    */
   var WARP_SPACE_ANOMALIES = {
     id: "snake",
-    appearAt: 8,        // с — первое появление
-    active: 9,          // с — сколько длится одна жизнь
-    rest: 4,            // с — пауза между появлениями («отключение существования»)
+    // Ревизия 29: владелец — «слишком поздно запускается, ближе к началу уровня».
+    // Ревизия 30: «пусть рисуют весь оставшийся уровень» + «движутся к уровню,
+    // как другие препятствия». Поэтому пауза почти убрана (0.6 с — только чтобы
+    // смена вида не выглядела склейкой), а глубина каждой жизни идёт от дальней
+    // стенки к камере ровно как у камней: тело летит на игрока, а не висит.
+    appearAt: 2,        // с — первое появление
+    active: 8,          // с — сколько длится одна жизнь
+    rest: 0.6,          // с — короткая склейка между рисунками
     segments: 30,       // сегментов в теле на максимуме
     growTo: 1,          // секунды роста 0..1 от длины
     span: 0.34,         // какая доля глубины трубы занята телом
@@ -6449,7 +6454,7 @@ function warpSectorPlanetCard(core, x, y, jumps) {
     // Ревизия 28: «танец змеек» — две сразу, водят друг с другом и в конце
     // сворачиваются в ЗЕРКАЛЬНЫЕ спирали по обе стороны кольца. Одна жизнь
     // аномалии = один танец, весь номер укладывается в один варп.
-    { id: "dance", weight: 2, color: "255,206,232", label: "Танец двух змеек" }
+    { id: "dance", weight: 4, color: "255,206,232", label: "Танец двух змеек" }
   ];
 
   function warpSpaceAnomalyVariantIds() {
@@ -6464,9 +6469,10 @@ function warpSectorPlanetCard(core, x, y, jumps) {
     var list = WARP_SPACE_ANOMALY_VARIANTS;
     var n = Math.trunc(Number(index));
     if (!isFinite(n) || n < 0) n = 0;
-    // Первая аномалия заезда — всегда «танец»: владелец просил увидеть его
-    // сразу, а не ждать, пока выпадет из мешка.
-    if (n === 0) return "dance";
+    // Первые ДВЕ аномалии заезда — «танец»: владелец увидел его один раз за
+    // варп и попросил чаще и ближе к началу. Дальше танец идёт из мешка с
+    // повышенным весом, чтобы не пропадал совсем.
+    if (n < 2) return "dance";
     var bag = [];
     var total = 0;
     var i, k;
@@ -6522,6 +6528,10 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       ? forcedId
       : warpSpaceAnomalyVariantFor(index);
     var vspec = warpSpaceAnomalySpec(variant);
+    // Полёт на игрока, как у камней: голова идёт от дальней стенки к камере.
+    // Ревизия 30: раньше каждый вид жил по своему закону по глубине, и «рисунки»
+    // читались висящими на месте. Теперь общий ход: 0.96 -> 0.10 за жизнь.
+    var travel = 0.96 - 0.86 * Math.max(0, Math.min(1, phase));
     var grow = Math.min(1, lifeStart / Math.max(0.2, spec.growTo));
     var thickness = spec.thickness + (spec.thicknessTo - spec.thickness) * grow;
     var plan = {
@@ -6531,8 +6541,7 @@ function warpSectorPlanetCard(core, x, y, jumps) {
     };
     if (variant === "gate") {
       // Надвигается из глубины: издалека к камере, потом уходит за неё.
-      var advance = phase < 0.5 ? phase * 2 : 1;
-      plan.depth = 0.94 - 0.80 * (advance * advance * (3 - 2 * advance));
+      plan.depth = travel;
       plan.gapWidth = spec.gap;
       // Щель уезжает вбок — проход всё время в другом месте.
       plan.gapCenter = 0.5 + 0.30 * Math.sin(phase * Math.PI * 2.6);
@@ -6545,18 +6554,20 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       baseDepth = Math.max(0.18, Math.min(0.72, baseDepth));
       plan.depth = baseDepth + 0.10 * Math.sin(phase * Math.PI * 2);
       plan.angle0 = anchor && isFinite(anchor.angle) ? Number(anchor.angle) : 0.5 + phase * 0.6;
+      // mid цепляется за камень, но всё равно едет на игрока вместе с потоком.
+      plan.depth = baseDepth + (travel - 0.45) * 0.35;
       plan.head = plan.depth;
       plan.length = spec.span * (0.85 + 0.55 * grow);
       plan.insetMax = spec.inset;
     } else if (variant === "coil") {
-      plan.depth = 0.88 - 0.66 * phase;
+      plan.depth = travel;
       plan.angle0 = 0.4 + phase * 1.2;
       plan.head = plan.depth;
       plan.length = spec.span * (0.55 + 0.45 * grow);
       plan.turns = 1.15;
       plan.insetMax = spec.inset * 0.8;
     } else if (variant === "twin") {
-      plan.depth = 0.80 - 0.52 * phase;
+      plan.depth = travel;
       plan.angle0 = 0.35 + 0.5 * Math.sin(phase * Math.PI * 1.6);
       plan.head = plan.depth;
       plan.length = spec.span * (0.8 + 0.5 * grow);
@@ -6570,12 +6581,15 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       plan.angle0 = 0;
       plan.head = plan.depth;
       plan.length = spec.span * (0.9 + 0.7 * grow);
-      plan.turns = 2.2;          // витков в финальной спирали
+      plan.turns = 2.6;          // витков в финальной спирали (рев. 29: было 2.2)
       plan.insetMax = spec.inset * 0.55;
+      plan.depth = travel;
     } else {
       // wall — как было в рев. 20: ход вперёд-назад, местами быстрее игрока.
       var swing = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);
-      plan.head = 0.30 + swing * 0.62;
+      // wall ходит туда-обратно ПО СТЕНКЕ (угол), а по глубине едет на игрока —
+      // ревизия 30: «пусть реально движутся к уровню, как другие препятствия».
+      plan.head = Math.max(0.08, Math.min(0.95, travel + swing * 0.06));
       plan.length = spec.span * (0.35 + 0.65 * grow);
       plan.depth = plan.head;
     }
@@ -6620,31 +6634,51 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       out.angle = plan.angle0 + Math.sin(along * 4.2 - time * 2.2) * 0.22;
       out.inset = 0;
     } else if (plan.variant === "dance") {
-      /* Хореография на доли жизни (plan.phase):                             *
-       *   0.00–0.32  сходятся из своих половин к центру кадра               *
-       *   0.32–0.62  водят друг с другом — идут в противофазе               *
-       *   0.62–1.00  расходятся и сворачиваются в ЗЕРКАЛЬНЫЕ спирали        *
-       * Зеркальность честная: обе спирали стоят симметрично относительно    *
-       * вертикали (углы π/2 ± 0.45) и закручены в разные стороны.           */
+      /* Хореография на доли жизни (plan.phase). Ревизия 29 — «доработай танец»:
+       * сделал три ЧИТАЕМЫХ акта и настоящую спираль в финале.
+       *   0.00–0.28  ВЫХОД: обе змейки идут из глубины камере навстречу,
+       *              каждая в своей половине кольца, тело вытянуто.
+       *   0.28–0.60  ТАНЕЦ: сходятся к центру кадра и водят друг с другом —
+       *              идут в противофазе и ПЕРЕСЕКАЮТСЯ (одна проходит над
+       *              другой по глубине, чтобы читалось «вдвоём»).
+       *   0.60–1.00  СПИРАЛИ: расходятся каждая на своё зеркальное место
+       *              (π/2 ± 0.5) и наматываются в спираль: угол крутится, а
+       *              тело уходит внутрь трубы — на экране это улитка.
+       * Зеркальность честная: точки второй змейки — отражение первой
+       * относительно вертикали кольца, закрутка в разные стороны. */
       var phase = Math.max(0, Math.min(1, Number(plan.phase) || 0));
       var smooth = function (v) {
         var x = Math.max(0, Math.min(1, v));
         return x * x * (3 - 2 * x);
       };
-      var meet = smooth((phase - 0.02) / 0.30);
-      var dance = smooth((phase - 0.32) / 0.30);
-      var coil = smooth((phase - 0.62) / 0.30);
-      var side = sign > 0 ? 0 : Math.PI;                 // своя половина кольца
-      var target = Math.PI * 0.5 - sign * 0.45;          // симметрично о вертикали
-      var base = side + (target - side) * meet;
-      // В танец идут в противофазе: пока одна уходит влево, вторая вправо.
-      base += Math.sin(phase * Math.PI * 4 + (sign > 0 ? 0 : Math.PI)) * 0.42 * dance * (1 - coil);
-      base += Math.sin(along * 6.4 - time * 2.6) * 0.10 * dance * (1 - coil);
-      // Финал: тело укладывается витками вокруг своей точки — это и есть спираль.
-      base += (target - base) * coil;
-      out.angle = base + along * plan.turns * Math.PI * 2 * sign * coil;
-      out.depth = plan.head - along * plan.length * (1 - 0.35 * coil);
-      out.inset = plan.insetMax * (0.35 + 0.65 * coil) * (0.6 + 0.4 * Math.sin(along * Math.PI));
+      var exit0 = smooth(phase / 0.28);                 // выход из глубины
+      var meet = smooth((phase - 0.22) / 0.22);         // сход к центру
+      var dance = smooth((phase - 0.28) / 0.20) * (1 - smooth((phase - 0.52) / 0.14));
+      var coil = smooth((phase - 0.60) / 0.28);         // финальные спирали
+      var u = along;                                    // 0 — голова, 1 — хвост
+      var side = sign > 0 ? 0 : Math.PI;                // своя половина кольца
+      var home = Math.PI * 0.5 - sign * 0.5;            // зеркальная пара мест
+      // Положение «центра фигуры»: от своей половины к центру кадра и обратно.
+      var base = side + (home - side) * meet;
+      // Танец: противофаза + пересечение — вторая змейка идёт по той же дуге,
+      // но с обратным знаком, поэтому на середине акта они встречаются.
+      base += Math.sin(phase * Math.PI * 5 + (sign > 0 ? 0 : Math.PI)) * 0.55 * dance;
+      // Волна вдоль тела: живая змейка, а не труба.
+      // Знак обязателен: без него волна у обеих змеек одинаковая и финальная
+      // пара перестаёт быть зеркальной (проверено: отклонение 0.33 рад).
+      base += sign * Math.sin(u * 5.2 - time * 3.1) * (0.06 + 0.16 * dance) * (1 - coil * 0.7);
+      // Финал: спираль. Угол крутится вокруг своего места, а тело уходит внутрь:
+      // u в квадрате — витки сгущаются к хвосту, как у настоящей улитки.
+      var wind = sign * u * u * plan.turns * Math.PI * 2;
+      out.angle = base + wind * coil;
+      // Глубина: выходит из глубины на камеру, в танце покачивается, при
+      // намотке немного отступает — спираль читается объёмной.
+      out.depth = plan.head - along * plan.length * (1 - 0.30 * coil)
+        + sign * Math.sin(phase * Math.PI * 3) * 0.018 * dance;
+      // Внутрь трубы уходим только в спирали: 0 -> insetMax.
+      out.inset = plan.insetMax * coil * (0.35 + 0.65 * u * u);
+      // Выход: в первые доли секунды тело ещё далеко и тонкое — его догоняет свет.
+      if (phase < 0.28) out.inset *= exit0;
     } else {
       out.depth = Math.max(0.05, plan.head - along * plan.length);
       out.angle = Math.sin(along * 7.5 + time * 2.1) * 0.22 * (0.35 + along);
@@ -6674,7 +6708,8 @@ function warpSectorPlanetCard(core, x, y, jumps) {
     var base = Math.max(6, Math.round(spec.segments * (0.45 + 0.55 * plan.phase)));
     var segments = plan.variant === "gate" ? Math.round(base * 1.5)
       : plan.variant === "twin" ? Math.round(base * 0.6)
-        : plan.variant === "dance" ? Math.round(base * 0.8) : base;
+        // у танца два тела, но спираль требует плавности — сегментов больше
+        : plan.variant === "dance" ? Math.round(base * 1.0) : base;
     var radius = warpSpaceAnomalyRadius(point, plan.depth);
     var drawn = 0;
     var started = false;
