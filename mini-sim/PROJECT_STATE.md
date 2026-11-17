@@ -1,3 +1,12 @@
+## Release — Mini-Sim 0.15.23 on the live site (18 November 2026)
+
+- **Package:** `bcm-mini-sim-0.15.23-test` from `5b4907e`, all CI green (regression 226/226, Tower, standalone Chromium, package). Replaces the Arena-built `0.15.22` on the site.
+- **USER-CONFIRMED:** owner installed it and confirmed Warp passes there and back (BUG-018).
+- **In it:** BUG-018 (ship on the second jump), Fable straight north of ONI CSS and planet Opus west (D-068), Fable's location-walk branch, Galia Desk 0.8.20 PHP (app bundle still old: `wordpress/galia-desk` write is closed), race track look from the mesh piece, Warp round-trip browser probe.
+- **Not verified on the site yet:** Opus and Fable landings through Tower, the race look.
+
+---
+
 ## Patch — Mini-Sim 0.15.10: the warp menu names Fable (17 November 2026)
 
 - **There is no 0.15 line before 0.15.0 and no 0.14.9.** The line is `0.14.8` (crew facing) then `0.15.0` … `0.15.9`, this note is `0.15.10`.
