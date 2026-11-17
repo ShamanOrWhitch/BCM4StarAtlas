@@ -35,17 +35,17 @@ test("Flight starts in Room 1 and does not teleport into the asteroid", async ()
 });
 
 test("Asteroid walls are resolved from the prepared asterwall asset family", async () => {
-  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
-  assert.match(warp, /function asteroidWallAssetPool\(\)/);
-  assert.match(warp, /asterwall/);
-  assert.ok(warp.includes("asterwall[^.]*"), "include every asterwall filename suffix");
-  assert.match(warp, /const chosenWallAssets = availableWallAssets;/);
-  assert.ok(warp.includes('const wallAssetOrderRng = randomFrom(hashSeed(String(seed) + "|wall-assets"));'));
-  assert.ok(warp.includes("Math.floor(wallAssetOrderRng() * (i + 1))"));
-  assert.doesNotMatch(warp, /availableWallAssets\.slice\(0, 4\)/);
-  assert.match(warp, /wallMesh\.name = "asteroid-maze-wall-panels-" \+ key\.replace\(":", "-"\)/);
-  assert.match(warp, /wallMaterials\[index\]\.map = fallbackTexture/);
-  assert.match(warp, /for \(const texture of new Set\(\[\.\.\.\(maze\.textures \|\| \[maze\.texture\]\), \.\.\.\(maze\.wallVariantTextures \|\| \[\]\)\]\)\)/);
+  const location = await read("mini-sim/assets/js/asteroid-maze-location.js");
+  assert.match(location, /function asteroidWallAssetPool\(\)/);
+  assert.match(location, /asterwall/);
+  assert.ok(location.includes("asterwall[^.]*"), "include every asterwall filename suffix");
+  assert.match(location, /const chosenWallAssets = availableWallAssets;/);
+  assert.ok(location.includes('const wallAssetOrderRng = randomFrom(hashSeed(String(seed) + "|wall-assets"));'));
+  assert.ok(location.includes("Math.floor(wallAssetOrderRng() * (i + 1))"));
+  assert.doesNotMatch(location, /availableWallAssets\.slice\(0, 4\)/);
+  assert.match(location, /wallMesh\.name = "asteroid-maze-wall-panels-" \+ key\.replace\(":", "-"\)/);
+  assert.match(location, /wallMaterials\[index\]\.map = fallbackTexture/);
+  assert.match(location, /for \(const texture of new Set\(\[\.\.\.\(maze\.textures \|\| \[maze\.texture\]\), \.\.\.\(maze\.wallVariantTextures \|\| \[\]\)\]\)\)/);
 });
 
 test("Room 0 uses speed level 3 temporarily and restores its previous setting", async () => {
@@ -91,6 +91,7 @@ test("Tower seed generation is gentler; keyboard/touch slow down without slowing
 
 test("Warp Tube speed multiplier climbs from 1x to 12x with shared scene and soundtrack state", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  const location = await read("mini-sim/assets/js/asteroid-maze-location.js");
   assert.match(warp, /const WARP_DURATION = 42/);
   assert.match(warp, /function warpSpeedMultiplier\(elapsed\)/);
   assert.match(warp, /const t = Math\.pow\(warpNormalizedTime\(elapsed\), 0\.60\)/);
@@ -109,7 +110,7 @@ test("Warp Tube speed multiplier climbs from 1x to 12x with shared scene and sou
   assert.match(warp, /const rampMultiplier = warpSpeedMultiplier\(state\.elapsed\)/);
   assert.match(warp, /Math\.max\(1, Math\.min\(12,/);
   assert.match(warp, /layer\.sweepAngle \+ state\.elapsed \* layer\.sweepSpeed/);
-  assert.match(warp, /const runtime = engine\.getRuntime\(\)/);
+  assert.match(location, /const runtime = engine\.getRuntime\(\)/);
   assert.match(warp, /if \(engine\.setSpeedMode\) engine\.setSpeedMode\(2\)/);
 });
 
@@ -193,7 +194,7 @@ test("Hull Dive uses crew-core Crew cut-outs and supplies working pilot, weapon,
 
 test("Crew facing follows the Tower convention and 3D wall materials use each cell's Ring map data", async () => {
   const core = await read("mini-sim/assets/js/crew-core.js");
-  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  const location = await read("mini-sim/assets/js/asteroid-maze-location.js");
   const tower = await read("mini-sim/tower/assets/js/tower.js");
   // One facing rule for every level (Tower convention), owned by crew-core.
   // BUG-001: the old Mierese exception in applyPlatformSprite is gone. WORK LOCK #117.
@@ -203,46 +204,47 @@ test("Crew facing follows the Tower convention and 3D wall materials use each ce
   assert.match(core, /function facingFactor\(species\)/);
   assert.ok(tower.includes("if (turnInput !== 0) p.walkDirection = turnInput > 0 ? 1 : -1;"));
   assert.ok(tower.includes("p.visualFacing = crewPose.face;"));
-  assert.ok(warp.includes('function addWall(x, y, z, sx, sy, sz, cell)'));
-  assert.ok(warp.includes('walls.push({ x, y, z, sx, sy, sz, cell });'));
-  assert.ok(warp.includes('const wallLookRng = randomFrom(hashSeed(seed + "|wall-map"));'));
-  assert.ok(warp.includes('const resolved = wallVariant(wall.cell);'));
-  assert.ok(warp.includes('variantTexture.rotation = turn * (Math.PI / 2);'));
-  assert.ok(warp.includes('wallBatches.get(resolved.key).walls.push(wall)'));
-  assert.doesNotMatch(warp, /walls\.forEach\(\(wall, index\) => wallBatches\[index % wallBatches\.length\]\.push\(wall\)\)/);
-  assert.ok(warp.includes('maze.wallVariantTextures || []'));
-  assert.ok(warp.includes('copy.image = loadedTexture.image;'));
-  assert.ok(warp.includes('wallTextureCopiesByAsset[index].push(copy)'));
-  assert.ok(warp.includes('(wallVariantsByAsset[index] || []).forEach((variant) => syncImage(variant.texture))'));
-  assert.doesNotMatch(warp, /const previousPosition = maze\.lastPosition/);
-  assert.match(warp, /flyRadius: 160/);
-  assert.match(warp, /ship\.velocity\.x \*= 0\.15/);
-  assert.match(warp, /const hx = w\.sx \/ 2 \+ radius/);
-  assert.match(warp, /const routeParent = new Map\(\[\[startNode, null\]\]\)/);
-  assert.match(warp, /scouted: true/);
+  assert.ok(location.includes('function addWall(x, y, z, sx, sy, sz, cell)'));
+  assert.ok(location.includes('walls.push({ x, y, z, sx, sy, sz, cell });'));
+  assert.ok(location.includes('const wallLookRng = randomFrom(hashSeed(seed + "|wall-map"));'));
+  assert.ok(location.includes('const resolved = wallVariant(wall.cell);'));
+  assert.ok(location.includes('variantTexture.rotation = turn * (Math.PI / 2);'));
+  assert.ok(location.includes('wallBatches.get(resolved.key).walls.push(wall)'));
+  assert.doesNotMatch(location, /walls\.forEach\(\(wall, index\) => wallBatches\[index % wallBatches\.length\]\.push\(wall\)\)/);
+  assert.ok(location.includes('maze.wallVariantTextures || []'));
+  assert.ok(location.includes('copy.image = loadedTexture.image;'));
+  assert.ok(location.includes('wallTextureCopiesByAsset[index].push(copy)'));
+  assert.ok(location.includes('(wallVariantsByAsset[index] || []).forEach((variant) => syncImage(variant.texture))'));
+  assert.doesNotMatch(location, /const previousPosition = maze\.lastPosition/);
+  assert.match(location, /flyRadius: 160/);
+  assert.match(location, /ship\.velocity\.x \*= 0\.15/);
+  assert.match(location, /const hx = w\.sx \/ 2 \+ radius/);
+  assert.match(location, /const routeParent = new Map\(\[\[startNode, null\]\]\)/);
+  assert.match(location, /scouted: true/);
 });
 
 
 test("Hydrogen unlock follows real screen playback and places the collectible in the asteroid start cell", async () => {
   const mini = await read("mini-sim/assets/js/mini-sim.js");
-  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  const location = await read("mini-sim/assets/js/asteroid-maze-location.js");
   assert.match(mini, /window\.BCMWorldMissionAPI = \{/);
   assert.match(mini, /function registerMissionScreen\(screenId, required = true\)/);
   assert.match(mini, /required\.every\(\(id\) => worldMission\.screenVisited\[id\]\)/);
   assert.match(mini, /video\.addEventListener\("playing", \(\) => markMissionScreenActive\(item\.screenId\)\)/);
   assert.match(mini, /registerMissionScreen\(item\.screenId, !item\.towerGate\)/);
-  assert.match(warp, /cell: \{ x: startNode\.x, y: startNode\.y, z: startNode\.z \}/);
-  assert.match(warp, /hydrogenMesh\.name = "ring-hydrogen-pickup"/);
-  assert.match(warp, /hydrogenNode: start/);
-  assert.match(warp, /g\.fillText\("H"/);
-  assert.match(warp, /playerNode !== path\.hydrogenNode/);
-  assert.match(warp, /new CustomEvent\("bcm:mission:hydrogen-shard-collected"/);
-  assert.match(warp, /hydrogen: hydrogen \?/);
+  assert.match(location, /cell: \{ x: startNode\.x, y: startNode\.y, z: startNode\.z \}/);
+  assert.match(location, /hydrogenMesh\.name = "ring-hydrogen-pickup"/);
+  assert.match(location, /hydrogenNode: start/);
+  assert.match(location, /g\.fillText\("H"/);
+  assert.match(location, /playerNode !== path\.hydrogenNode/);
+  assert.match(location, /new CustomEvent\("bcm:mission:hydrogen-shard-collected"/);
+  assert.match(location, /hydrogen: hydrogen \?/);
 });
 
 
 test("Astral Y-cells are seed-deterministic and alter movement without rebuilding the maze", async () => {
   const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  const location = await read("mini-sim/assets/js/asteroid-maze-location.js");
   assert.ok(warp.includes('const astralHash = hashSeed(String(maze.seed) + "|astral|" + cell.x + "|" + cell.y + "|" + cell.z)'));
   assert.match(warp, /astralMode: astral \? \["drift", "flux", "dense"\]\[astralHash % 3\] : "normal"/);
   assert.match(warp, /ringCurrent: worldState\.cellPath \? worldState\.cellPath\.current : null/);
@@ -250,7 +252,7 @@ test("Astral Y-cells are seed-deterministic and alter movement without rebuildin
   assert.match(warp, /const haveSeparateCells = !!\(p1\.ringCurrent && p2\.ringCurrent && p1\.ringCurrent !== p2\.ringCurrent\)/);
   assert.match(warp, /function nextDirectionTowardLarge\(startNode\)/);
   assert.match(warp, /routeDirection = path\.nextDirectionTowardLarge\(node\)/);
-  assert.match(warp, /asteroid-crystal-pickup-impact/);
+  assert.match(location, /asteroid-crystal-pickup-impact/);
   assert.match(warp, /bcm:mission:hydrogen-shard-collected/);
   assert.doesNotMatch(warp, /nextDirection = path\.nextDirectionTowardLarge\(node\) \|\|/);
   assert.match(warp, /if \(action === "floor"\)/);
@@ -270,7 +272,7 @@ test("Astral Y-cells are seed-deterministic and alter movement without rebuildin
   assert.match(warp, /gravity = 14\.5;[\s\S]*?jumpVelocity = 10\.2/);
   assert.match(warp, /"ASTRAL · DRIFT", flux: "ASTRAL · GRAVITY FLUX", dense: "ASTRAL · DENSE GRAVITY"/);
   assert.match(warp, /drift: "≈", flux: "↕", dense: "◆"/);
-  assert.match(warp, /const anomalies = \(maze\.cells \|\| \[\]\)\.filter\(\(cell\) => cell\.y !== 1\)/);
+  // The current Ring runtime uses per-cell astral modes; no separate anomalies list is defined.
 });
 
 

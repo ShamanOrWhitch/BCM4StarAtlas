@@ -257,7 +257,7 @@ test("Asteroid collision keeps the 0.11.2 baseline and visible core shards on a 
   assert.match(body, /ship\.velocity\.multiplyScalar\(0\.25\)/);
   assert.match(location, /const routeParent = new Map\(\[\[startNode, null\]\]\)/);
   assert.match(location, /scouted: true/);
-  assert.match(warp, /pos\.distanceTo\(crystal\.mesh\.position\) < 2\.0/);
+  assert.match(location, /pos\.distanceTo\(crystal\.mesh\.position\) < 2\.0/);
   assert.match(location, /shell\.visible = false/);
 });
 

@@ -4,6 +4,7 @@ import test from "node:test";
 import { Script } from "node:vm";
 
 const warp = await readFile(new URL("../mini-sim/assets/js/deep-space-warp.js", import.meta.url), "utf8");
+const location = await readFile(new URL("../mini-sim/assets/js/asteroid-maze-location.js", import.meta.url), "utf8");
 const sim = await readFile(new URL("../mini-sim/assets/js/mini-sim.js", import.meta.url), "utf8");
 const hull = await readFile(new URL("../mini-sim/assets/js/hull-dive.js", import.meta.url), "utf8");
 const tower = await readFile(new URL("../mini-sim/tower/assets/js/tower.js", import.meta.url), "utf8");
@@ -20,9 +21,9 @@ function section(source, startMarker, endMarker) {
 test("asteroid exit returns to Warp, Ring stays separate and Hull Dive is enterable in first-person", () => {
   assert.match(warp, /exitButton\.textContent = nextWarpDestinationLabel\(\)/);
   assert.match(warp, /exitButton\.addEventListener\("click", returnToWarpMap\)/);
-  assert.match(warp, /maze\.count === 3 \? "GOLD RING IS OPEN"/);
-  assert.match(warp, /if \(state\.ringApproachArmed && !state\.ringEntryFailed && !state\.ringPlatformer &&[\s\S]{0,160}ringDistance < 2\.6\)\s*\{\s*attemptOpenRingPlatformer\(maze\)/);
-  const mazeFrame = section(warp, "function updateMazeFrame(frame)", "function openHullInterior");
+  assert.match(location, /maze\.count === 3 \? "GOLD RING IS OPEN"/);
+  assert.match(location, /if \(state\.ringApproachArmed && !state\.ringEntryFailed && !state\.ringPlatformer &&[\s\S]{0,160}ringDistance < 2\.6\)\s*\{\s*attemptOpenRingPlatformer\(maze\)/);
+  const mazeFrame = section(location, "function updateMazeFrame(frame)", "function disposeMaze");
   assert.match(mazeFrame, /const ringDistance = pos\.distanceTo\(maze\.beacon\.position\)/);
   assert.match(mazeFrame, /state\.ringDistance = ringDistance/);
   assert.match(warp, /function openHullInterior\(\)/);
@@ -64,7 +65,7 @@ test("returning to the sector map keeps the asteroid locale and pauses the ship"
   assert.match(body, /state\.returnQuaternion = runtime\.ship\.quaternion\.clone\(\)/);
   assert.doesNotMatch(body, /engine\.teleport\(state\.savedPosition,\s*state\.savedQuaternion\)/);
   assert.match(warp, /CANCEL KEEPS THE ASTEROID LOCALE/);
-  assert.match(warp, /if \(state\.maze\) disposeMaze\(\)/);
+  assert.match(warp, /function disposeMaze\(\) \{[\s\S]{0,260}asteroidMazeLocation\.dispose\(\)/);
 });
 
 test("asteroid maze uses speed mode 2 and restores the previous mode", () => {
@@ -309,7 +310,7 @@ test("Ring Frontier is a continuous side-scrolling action level with three large
   assert.ok(warp.includes("maze.ringCompleted = success"));
   assert.match(warp, /ringApproachArmed: true/);
   assert.match(warp, /state\.ringApproachArmed = false/);
-  assert.match(warp, /if \(ringDistance > 4\.2\) \{\s*state\.ringApproachArmed = true;\s*state\.ringEntryFailed = false;/);
+  assert.match(location, /if \(ringDistance > 4\.2\) \{\s*state\.ringApproachArmed = true;\s*state\.ringEntryFailed = false;/);
   assert.match(warp, /state\.ringApproachArmed && !state\.ringEntryFailed && !state\.ringPlatformer &&[\s\S]{0,80}!maze\.ringCompleted/);
   assert.ok(ring.includes("function makeComicBackdrop(zone)"));
   assert.ok(ring.includes("new THREE.CanvasTexture(canvas)"));
@@ -343,14 +344,14 @@ test("Ring soundtrack asset is present in the Mini-Sim merge checkout", async ()
 
 
 test("asteroid wall contact and flight radius match the 0.11.2 baseline", () => {
-  const body = section(warp, "function updateMazeFrame(frame)", "function openHullInterior");
+  const body = section(location, "function updateMazeFrame(frame)", "function disposeMaze");
   assert.match(body, /for \(let pass = 0; pass < 2; pass \+= 1\)/);
   assert.match(body, /ship\.velocity\.x \*= 0\.15/);
   assert.match(body, /ship\.velocity\.y \*= 0\.15/);
   assert.match(body, /ship\.velocity\.z \*= 0\.15/);
   assert.doesNotMatch(body, /Sweep the ship's previous-to-current segment/);
   assert.doesNotMatch(body, /const previousPosition = maze\.lastPosition/);
-  assert.match(warp, /flyRadius: 160/);
+  assert.match(location, /flyRadius: 160/);
   const radialBoundary = section(body, "const fromCenter = pos.clone().sub(maze.center);", "// Local artificial gravity activates near the gold ring");
   assert.match(radialBoundary, /ship\.velocity\.multiplyScalar\(0\.25\)/);
   assert.doesNotMatch(radialBoundary, /boundaryNormal|outwardSpeed|addScaledVector/);
@@ -372,7 +373,7 @@ test("Ring transition hides duplicate entry UI and re-arms after a failed level 
   assert.match(entry, /state\.ringEntryFailed = true/);
   assert.match(entry, /state\.ringApproachArmed = true/);
   assert.match(entry, /RING ENTRY FAILED/);
-  assert.match(warp, /if \(ringDistance > 4\.2\) \{[\s\S]{0,120}state\.ringEntryFailed = false/);
+  assert.match(location, /if \(ringDistance > 4\.2\) \{[\s\S]{0,120}state\.ringEntryFailed = false/);
 });
 
 
@@ -381,8 +382,8 @@ test("Ring entry failures are retryable and don't disable the asteroid collision
   assert.match(entry, /state\.ringEntryFailed = true/);
   assert.match(entry, /state\.ringApproachArmed = true/);
   assert.match(entry, /RING ENTRY FAILED/);
-  assert.match(warp, /!state\.ringEntryFailed && !state\.ringPlatformer/);
-  assert.match(warp, /if \(ringDistance > 4\.2\) \{[\s\S]{0,100}state\.ringEntryFailed = false/);
+  assert.match(location, /!state\.ringEntryFailed && !state\.ringPlatformer/);
+  assert.match(location, /if \(ringDistance > 4\.2\) \{[\s\S]{0,100}state\.ringEntryFailed = false/);
   const callbacks = section(sim, "function reportDeepSpaceCallbackError(label, error)", "function toggleSettings()");
   assert.doesNotMatch(callbacks, /window\.BCMDeepSpaceWarpFrame = null/);
   assert.doesNotMatch(callbacks, /window\.BCMDeepSpaceWarpPoll = null/);
@@ -537,27 +538,27 @@ test("a backside passage needs every tile under the ship footprint fully open", 
 });
 
 test("asteroid physics restores the 0.11.2 wall-contact and flight-radius baseline", () => {
-  const body = section(warp, "function updateMazeFrame(frame)", "function openHullInterior");
+  const body = section(location, "function updateMazeFrame(frame)", "function disposeMaze");
   assert.match(body, /for \(let pass = 0; pass < 2; pass \+= 1\)/);
   assert.match(body, /ship\.velocity\.x \*= 0\.15/);
   assert.match(body, /ship\.velocity\.y \*= 0\.15/);
   assert.match(body, /ship\.velocity\.z \*= 0\.15/);
   assert.doesNotMatch(body, /Sweep the ship's previous-to-current segment/);
   assert.doesNotMatch(body, /const previousPosition = maze\.lastPosition/);
-  assert.match(warp, /flyRadius: 160/);
+  assert.match(location, /flyRadius: 160/);
   const radialBoundary = section(body, "const fromCenter = pos.clone().sub(maze.center);", "// Local artificial gravity activates near the gold ring");
   assert.match(radialBoundary, /ship\.velocity\.multiplyScalar\(0\.25\)/);
   assert.doesNotMatch(radialBoundary, /boundaryNormal|outwardSpeed|addScaledVector/);
 });
 
 test("asteroid Hydrogen pickup has an obvious H+1 effect and updates the real mission counter", () => {
-  const effect = section(warp, "function spawnCrystalPickupEffect(position, pickupLabel)", "function updateCrystalPickupEffects(dt)");
+  const effect = section(location, "function spawnCrystalPickupEffect(position, pickupLabel)", "function updateCrystalPickupEffects(dt)");
   assert.match(effect, /new THREE\.CanvasTexture\(labelCanvas\)/);
   assert.match(effect, /pickupLabel \|\| "CORE \+1"/);
   assert.match(effect, /pickupLabel === "H \+1"/);
   assert.match(effect, /labelSprite\.scale\.set/);
 
-  const collect = section(warp, "maze.crystals.forEach((crystal) => {", "updateCrystalPickupEffects(Math.min");
+  const collect = section(location, "maze.crystals.forEach((crystal) => {", "updateCrystalPickupEffects(Math.min");
   assert.match(collect, /const isHydrogenPickup = !!mission\.hydrogenUnlocked/);
   assert.match(collect, /spawnCrystalPickupEffect\(pickupPosition, isHydrogenPickup \? "H \+1" : "CORE \+1"\)/);
   assert.match(collect, /bcm:mission:hydrogen-shard-collected/);

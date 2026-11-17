@@ -3,9 +3,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL("../" + path, import.meta.url), "utf8");
-const [mini, warp, hull, css, php, qa, browserWorkflow, regressionWorkflow] = await Promise.all([
+const [mini, warp, location, hull, css, php, qa, browserWorkflow, regressionWorkflow] = await Promise.all([
   read("mini-sim/assets/js/mini-sim.js"),
   read("mini-sim/assets/js/deep-space-warp.js"),
+  read("mini-sim/assets/js/asteroid-maze-location.js"),
   read("mini-sim/assets/js/hull-dive.js"),
   read("mini-sim/assets/css/mini-sim.css"),
   read("mini-sim/bcm-mini-sim.php"),
@@ -122,13 +123,13 @@ test("Hydrogen mission unlocks only after required screens really play and is an
   assert.match(mini, /required\.every\(\(id\) => worldMission\.screenVisited\[id\]\)/);
   assert.match(mini, /video\.addEventListener\("playing", \(\) => markMissionScreenActive\(item\.screenId\)\)/);
   assert.match(mini, /registerMissionScreen\(item\.screenId, !item\.towerGate\)/);
-  assert.match(warp, /cell: \{ x: startNode\.x, y: startNode\.y, z: startNode\.z \}/);
-  assert.match(warp, /hydrogenMesh\.name = "ring-hydrogen-pickup"/);
-  assert.match(warp, /hydrogenNode: start/);
-  assert.match(warp, /g\.fillText\("H"/);
-  assert.match(warp, /function collectHydrogenAt\(player\)/);
-  assert.match(warp, /playerNode !== path\.hydrogenNode/);
-  assert.match(warp, /new CustomEvent\("bcm:mission:hydrogen-shard-collected"/);
+  assert.match(location, /cell: \{ x: startNode\.x, y: startNode\.y, z: startNode\.z \}/);
+  assert.match(location, /hydrogenMesh\.name = "ring-hydrogen-pickup"/);
+  assert.match(location, /hydrogenNode: start/);
+  assert.match(location, /g\.fillText\("H"/);
+  assert.match(location, /function collectHydrogenAt\(player\)/);
+  assert.match(location, /playerNode !== path\.hydrogenNode/);
+  assert.match(location, /new CustomEvent\("bcm:mission:hydrogen-shard-collected"/);
 });
 
 test("ONICSS faces the ship and keeps a companion sphere beside the planet", () => {
@@ -140,7 +141,7 @@ test("ONICSS faces the ship and keeps a companion sphere beside the planet", () 
   assert.ok(mini.includes('video.addEventListener("loadeddata", () => {'));
   assert.ok(mini.includes('if (item.towerGate && item.url)'));
   assert.ok(mini.includes('video.pause();'));
-  assert.ok(warp.includes('copy.image = tex.image;'));
+  assert.ok(location.includes('copy.image = tex.image;'));
 });
 
 test("Hydrogen requires three unique shards and switches from Panda to Medusa", () => {
@@ -150,7 +151,7 @@ test("Hydrogen requires three unique shards and switches from Panda to Medusa", 
   assert.match(mini, /"panda\.mp4"/);
   assert.match(mini, /"medusa\.mp4"/);
   assert.match(mini, /bcm:mission:medusa-unlocked/);
-  assert.match(warp, /asteroid-crystal-pickup-impact/);
+  assert.match(location, /asteroid-crystal-pickup-impact/);
 });
 
 test("Explicit screen focus persists until its own radius expires and mission progress stays visible", () => {
