@@ -468,6 +468,16 @@
 
     // Rebind the saved local expedition location after Space Labyrinth is rebuilt.
     // Saved preview coordinates remain preview data; they are never promoted to live SAGE data.
+    // Что видно в меню сектора: планета и окрестности (номер, прыжки).
+    window.BCMDeepSpaceWarpNearbyPlanets = (sector) => {
+      const raw = sector && typeof sector === "object" ? sector
+        : { x: state.nav?.current?.x, y: state.nav?.current?.y };
+      const card = warpSectorPlanetCard(window.BCMSageMapCore || null,
+        raw && raw.x, raw && raw.y, 2);
+      return { x: raw && raw.x, y: raw && raw.y, planet: card.planet,
+        nearby: card.nearby, planetLine: card.planetLine, lines: card.nearbyLines };
+    };
+
     window.BCMDeepSpaceWarpRestoreReturnSnapshot = (snapshot) => {
       if (!snapshot || typeof snapshot !== "object") return false;
       const savedCurrent = snapshot.current && typeof snapshot.current === "object"
@@ -1466,6 +1476,137 @@
       return base + String(path || "");
     }
 
+/* Планеты и ориентиры сектора — наш слой меню.
+ *
+ * Границы по архитектуре владельца (17.11.2026):
+ *   • ring / лабиринт астероида — `asteroid-maze-location.js` (чужая механика);
+ *   • сам полёт в варпе и маршрут «куда летим / где мы» — `warp-bridge.js`;
+ *   • меню, подгрузка экранов локаций, карточка сектора с описанием и цифрами —
+ *     `deep-space-warp.js` (этот блок).
+ *
+ * Поэтому «планета рядом» считается здесь, а не в астероидном модуле: он про
+ * кольца и кристаллы, а не про описание сектора.
+ *
+ * Данные берутся из `BCMSageMapCore` (Galia + лендмарки Mini-Sim), готовность
+ * посадки — из `BCMPlanetLanding`, если он подключён на странице (на странице
+ * Tower он есть, на странице мини-сима — нет, поэтому есть зеркало списка).
+ */
+
+/* Зеркало `planet-landing.js` (ALIASES → id). Нужно ровно в одном случае:
+ * модуля посадки нет на странице (на странице мини-сима его не подключают),
+ * а карточка сектора всё равно должна честно сказать, можно ли здесь сесть.
+ * Совпадение с настоящим модулем проверяется тестом, чтобы списки не
+ * разъехались: для каждого псевдонима сверяется `BCMPlanetLanding.idFrom`. */
+var WARP_NEARBY_LANDING_ALIASES = {
+  first: "first", desert: "first", akenat: "first", oni: "first",
+  pearce: "pearce", mud: "pearce", earth: "pearce",
+  ioki: "ioki", ustur: "ioki", mars: "ioki",
+  fable: "fable"
+};
+
+function warpNearbyLandingIds() {
+  var seen = [];
+  Object.keys(WARP_NEARBY_LANDING_ALIASES).forEach(function (alias) {
+    var id = WARP_NEARBY_LANDING_ALIASES[alias];
+    if (seen.indexOf(id) < 0) seen.push(id);
+  });
+  return seen;
+}
+
+/* Готовность посадки: "in-game" — планета есть в списке посадок (Tower умеет
+ * проиграть клип и показать остров), "needs-binding" — планета есть, механики нет. */
+function warpNearbyLandingStatus(planetId) {
+  var id = String(planetId == null ? "" : planetId).trim().toLowerCase();
+  if (!id) return "unknown";
+  var resolved = WARP_NEARBY_LANDING_ALIASES[id] || "";
+  return resolved ? "in-game" : "needs-binding";
+}
+
+/* Планета самого сектора. landmark === true — это лендмарк Mini-Sim (тестовая
+ * планета владельца), иначе система Galia, к которой привязана станция. */
+function warpPlanetForSector(core, x, y) {
+  var cx = Number(x), cy = Number(y);
+  if (!core || !isFinite(cx) || !isFinite(cy)) return null;
+  var own = null;
+  if (typeof core.planetForSector === "function") {
+    own = core.planetForSector(cx, cy);
+  } else if (typeof core.landmarkAt === "function") {
+    var mark = core.landmarkAt(cx, cy);
+    own = mark && mark.planet ? { id: mark.planet, name: mark.name, landmark: true } : null;
+  }
+  if (!own || !own.id) return null;
+  return {
+    id: String(own.id),
+    name: String(own.name || own.id),
+    landmark: !!own.landmark,
+    planet: String(own.planet || own.id),
+    x: cx,
+    y: cy,
+    landing: warpNearbyLandingStatus(own.planet || own.id)
+  };
+}
+
+/* «Что рядом»: лендмарки-планеты и станции CSS в пределах jumps прыжков.
+ * Прыжок — шахматная клетка по сетке SAGE (max(|dx|,|dy|)), как ходит карта.
+ * Возвращает список от ближнего к дальнему; сам сектор в список не попадает. */
+function warpNearbySectors(core, x, y, jumps) {
+  var cx = Number(x), cy = Number(y);
+  if (!core || !isFinite(cx) || !isFinite(cy)) return [];
+  var limit = Math.max(1, Math.min(8, Math.trunc(Number(jumps)) || 2));
+  var out = [];
+  var push = function (node, kind) {
+    if (!node) return;
+    var nx = Number(node.x), ny = Number(node.y);
+    if (!isFinite(nx) || !isFinite(ny)) return;
+    var step = Math.max(Math.abs(nx - cx), Math.abs(ny - cy));
+    if (!(step > 0) || step > limit) return;
+    var planet = String(node.planet || node.id || "");
+    out.push({
+      id: String(node.id || node.name || (nx + "," + ny)),
+      name: String(node.name || node.id || ""),
+      kind: kind,
+      x: nx,
+      y: ny,
+      jumps: step,
+      planet: planet,
+      landing: kind === "planet" ? warpNearbyLandingStatus(planet) : "n/a"
+    });
+  };
+  (core.landmarks || []).forEach(function (mark) { push(mark, "planet"); });
+  (core.css || []).forEach(function (css) {
+    push({ id: css.id || css.faction, name: css.name || css.faction, x: css.x, y: css.y }, "station");
+  });
+  out.sort(function (a, b) {
+    if (a.jumps !== b.jumps) return a.jumps - b.jumps;
+    return a.name.localeCompare(b.name);
+  });
+  return out;
+}
+
+/* Одна готовая «карточка» для меню: описание + цифры. Текст собирается здесь,
+ * чтобы и игра, и тесты видели один и тот же вид. */
+function warpSectorPlanetCard(core, x, y, jumps) {
+  var planet = warpPlanetForSector(core, x, y);
+  var nearby = warpNearbySectors(core, x, y, jumps);
+  var line = function (item) {
+    var where = "[" + item.x + ", " + item.y + "]";
+    var dist = item.jumps === 1 ? "1 прыжок" : item.jumps + " прыжка";
+    var tail = item.kind === "planet"
+      ? (item.landing === "in-game" ? "посадка в игре" : "нужна привязка")
+      : "станция";
+    return item.name + " · " + where + " · " + dist + " · " + tail;
+  };
+  return {
+    planet: planet,
+    nearby: nearby,
+    planetLine: planet
+      ? planet.name + " · [" + planet.x + ", " + planet.y + "] · " +
+        (planet.landmark ? "лендмарк Mini-Sim" : "система Galia") + " · " +
+        (planet.landing === "in-game" ? "посадка в игре" : "нужна привязка")
+      : "",
+    nearbyLines: nearby.map(line)
+  };
+}
     function renderSectorLocations(sector) {
       if (!galaxyLocalLocations || !galaxyLocalStatus) return;
       galaxyLocalLocations.replaceChildren();
@@ -1556,6 +1697,8 @@
         return { icon: "•", label: "ЛОКАЦИЯ СЕКТОРА" };
       };
       if (sageSystem) galaxyLocalLocations.appendChild(buildSystemCard(sageSystem));
+      // Планета сектора и «что рядом» (номер, прыжки, готовность посадки).
+      renderSectorPlanetExtras(x, y);
       if (locations.length) {
         locations.forEach((location) => {
           const info = kindInfo(location.kind);
@@ -1586,6 +1729,48 @@
         note.textContent = "Навигационный адаптер не передал дополнительные локальные точки для этого сектора. Астероидные комплексы, планеты / Tower и внешние Deep Space-механики остаются отдельными типами локаций, пока их привязка не задана.";
         galaxyLocalLocations.appendChild(note);
       }
+    }
+
+    // Описание сектора с цифрами: планета самого сектора и что рядом.
+    // Живёт в варпе, потому что это меню и подгрузка экрана локации, а не
+    // механика астероида (та — в asteroid-maze-location.js).
+    function renderSectorPlanetExtras(x, y) {
+      if (!galaxyLocalLocations) return null;
+      const core = window.BCMSageMapCore || null;
+      const card = warpSectorPlanetCard(core, x, y, 2);
+      state.warpSectorCard = card;
+      if (card.planetLine) {
+        galaxyLocalLocations.appendChild(warpSectorRow("\u25c9", card.planet.name,
+          card.planetLine, card.planet.landing === "in-game" ? "in-game" : "planned"));
+      }
+      card.nearbyLines.forEach((line, index) => {
+        const item = card.nearby[index];
+        galaxyLocalLocations.appendChild(warpSectorRow(
+          item.kind === "planet" ? "\u25c9" : "\u2316", item.name, line,
+          item.landing === "in-game" ? "in-game" : "reference"));
+      });
+      return card;
+    }
+
+    function warpSectorRow(icon, title, detail, status) {
+      const item = document.createElement("div");
+      item.className = "bcm-warp-local-location is-nearby" +
+        (status === "in-game" ? " is-implemented" : status === "planned" ? " is-planned" : "");
+      const symbol = document.createElement("strong");
+      symbol.className = "bcm-warp-local-icon";
+      symbol.textContent = icon;
+      const copy = document.createElement("span");
+      copy.className = "bcm-warp-local-copy";
+      const name = document.createElement("b");
+      name.textContent = title;
+      const note = document.createElement("small");
+      note.textContent = detail;
+      const stateText = document.createElement("em");
+      stateText.textContent = status === "in-game" ? "В ИГРЕ"
+        : status === "planned" ? "НУЖНА ПРИВЯЗКА" : "ОРИЕНТИР";
+      copy.append(name, note);
+      item.append(symbol, copy, stateText);
+      return item;
     }
 
     function renderGalaxyMap() {
@@ -5872,9 +6057,17 @@
    * устройстве, 5184 на обычном ПК.
    */
   var WARP_SPACE_ASTEROIDS = {
-    large: { px: 160, minPx: 26, maxPx: 92, scale: 0.30 },
-    medium: { px: 112, minPx: 14, maxPx: 46, scale: 0.20 },
-    small: { px: 80, minPx: 7, maxPx: 20, scale: 0.12 }
+    large: { px: 160, minPx: 26, maxPx: 92, scale: 0.30, damage: 15 },
+    medium: { px: 112, minPx: 14, maxPx: 46, scale: 0.20, damage: 8 },
+    small: { px: 80, minPx: 7, maxPx: 20, scale: 0.12, damage: 3 },
+    // Поток камней НА игрока: глубина уменьшается со временем (1 — точка схода,
+    // 0 — камера), камень вылетает из глубины и проходит мимо. Владелец:
+    // «камни летят от нас» — значит направление читалось наоборот, потому что
+    // поле стояло по глубине на месте и только вращалось.
+    flow: 0.115,     // долей глубины в секунду: весь путь ≈ 8.3 с
+    spinMax: 0.35,   // радиан в секунду, верхняя граница вращения камня
+    hitFrom: 0.86,   // глубина корабля: здесь и считается столкновение
+    hitTo: 0.98
   };
 
   var WARP_SPACE_ASTEROID_SLOTS = 30;
@@ -5947,34 +6140,52 @@
     return Math.max(spec.minPx, Math.min(spec.maxPx, px));
   }
 
+  /* Глубина камня в момент t: камень идёт из точки схода к камере.
+   * Чистая функция — состояния нет, любой кадр воспроизводим. */
+  function warpSpaceAsteroidDepthAt(slotDepth, t, flow) {
+    var d = Number(slotDepth);
+    if (!isFinite(d)) d = 0.5;
+    var speed = flow == null ? WARP_SPACE_ASTEROIDS.flow : Number(flow);
+    if (!isFinite(speed) || speed < 0) speed = 0;
+    var time = Number(t);
+    if (!isFinite(time)) time = 0;
+    var span = 0.96;
+    var moved = d - speed * time;
+    moved = moved - Math.floor(moved / span) * span;
+    return 0.04 + moved;
+  }
+
   function drawWarpSpaceAsteroids(g, point, wallRadius, seed, density, images, t) {
     var slots = warpSpaceAsteroidField(seed, density);
     var drawn = 0;
     var near = 0;
-    if (!slots.length) return { drawn: 0, near: 0 };
+    var hits = [];
+    if (!slots.length) return { drawn: 0, near: 0, hits: hits };
     for (var i = 0; i < slots.length; i += 1) {
       var slot = slots[i];
+      // Глубина С УЧЁТОМ ПОТОКА: камни летят на игрока, а не стоят на месте.
+      var depthNow = warpSpaceAsteroidDepthAt(slot.depth, t);
       // Ближние камни у самой камеры выходят за кольцо — не рисуем их.
       // Раньше они обрывались рывком на 0.10 и в кадре это читалось как
       // «рваный кусок», влетающий с края: теперь гаснут плавно 0.10 -> 0.04.
       var edgeFade = 1;
-      if (slot.depth < 0.04) continue;
-      if (slot.depth < 0.10) edgeFade = (slot.depth - 0.04) / 0.06;
+      if (depthNow < 0.04) continue;
+      if (depthNow < 0.10) edgeFade = (depthNow - 0.04) / 0.06;
       var radius = warpSpaceAsteroidRadius(slot.size, wallRadius);
       if (!(radius > 0.5)) continue;
-      var p = point(slot.depth, slot.angle);
+      var p = point(depthNow, slot.angle);
       if (!p || !isFinite(p.x) || !isFinite(p.y)) continue;
       var spec = WARP_SPACE_ASTEROIDS[slot.size] || WARP_SPACE_ASTEROIDS.medium;
       // Настоящий размер камня: ближе к камере — крупнее. Без этого поле
       // читается как плоские наклейки.
-      var zoom = 0.42 + (1 - slot.depth) * 1.15;
+      var zoom = 0.42 + (1 - depthNow) * 1.15;
       var size = Math.max(spec.minPx * 0.8, Math.min(spec.maxPx * 1.2, radius * zoom));
       var image = images && slot.id ? images[slot.id] : null;
-      var alpha = (0.55 + (1 - slot.depth) * 0.45) * edgeFade;
+      var alpha = (0.55 + (1 - depthNow) * 0.45) * edgeFade;
       g.save();
       g.globalAlpha = Math.max(0.12, Math.min(1, alpha));
       g.translate(p.x, p.y);
-      g.rotate(slot.angle * 1.7 + (Number(t) || 0) * slot.spin + slot.depth);
+      g.rotate(slot.angle * 1.7 + (Number(t) || 0) * Math.min(WARP_SPACE_ASTEROIDS.spinMax, slot.spin) + depthNow);
       if (image) {
         g.drawImage(image, -size * 0.5, -size * 0.5, size, size);
       } else {
@@ -5996,9 +6207,27 @@
       g.restore();
       drawn += 1;
       // Камень прошёл рядом с кораблём — сигнал для вибрации геймпада.
-      if (slot.depth > 0.05 && slot.depth < 0.16) near += 1;
+      if (depthNow > 0.05 && depthNow < 0.16) near += 1;
+      // ...и кандидат на столкновение: камень ровно на глубине корабля.
+      if (depthNow > WARP_SPACE_ASTEROIDS.hitFrom && depthNow < WARP_SPACE_ASTEROIDS.hitTo) {
+        // Радиус кольца на этой глубине: два зонда по противоположным углам.
+        // Нужен, чтобы перевести пиксели в угловую ширину — корабль висит
+        // внутри кольца, и «расстояние по экрану» до стенки никогда не сходится.
+        var qa = point(depthNow, 0, 0);
+        var qb = point(depthNow, Math.PI, 0);
+        var ring = 0;
+        if (qa && qb && isFinite(qa.x) && isFinite(qb.x)) {
+          var qdx = qa.x - qb.x, qdy = qa.y - qb.y;
+          ring = Math.sqrt(qdx * qdx + qdy * qdy) * 0.5;
+        }
+        hits.push({
+          id: slot.id, size: slot.size, depth: depthNow,
+          x: p.x, y: p.y, px: size, angle: slot.angle, ring: ring,
+          damage: spec.damage || 6
+        });
+      }
     }
-    return { drawn: drawn, near: near };
+    return { drawn: drawn, near: near, hits: hits };
   }
 
   function warpSpaceQuadArea(p00, p01, p10) {
@@ -7091,6 +7320,7 @@
         warpSpaceAsteroidSizeOf,
         warpSpaceAsteroidField,
         warpSpaceAsteroidRadius,
+        warpSpaceAsteroidDepthAt,
         drawWarpSpaceAsteroids,
         warpSpaceQuadArea,
         warpSpacePanelVisible,
@@ -7113,6 +7343,9 @@
         rgbaCss
       };
     })();
+
+    // Ядро расчётов одно на страницу: им пользуется и полёт в мосте.
+    window.BCMWarpSpace = warpSpace;
 
     let warpSpaceCache = null;
 
@@ -7358,6 +7591,9 @@
     function drawWarpShipLayer(g, x, y, bank, thrust, roll) {
       const frame = warpFrameSize();
       const size = warpSpace.warpSpaceShipSize(frame.w, frame.h) * (Number(state.warpShipScale) || 1);
+      // Точку корабля запоминаем для полёта в мосте: по ней считается
+      // попадание камня (задержка в один кадр, ~16 мс, на глаз не видно).
+      state.warpShipPoint = { x: Number(x) || 0, y: Number(y) || 0, size: size };
       warpSpace.drawWarpShip(g, x, y, size, state.warpShipSpec, bank, thrust,
         state.warpShipSprite || null, roll);
       return size;
@@ -7798,99 +8034,32 @@ return axialRoll + ahead * 0.12 +
       // Рисуется до стенки: стенка непрозрачна, значит препятствия не перекрываются.
       drawWarpSpaceBackdrop(g, w, h, t);
 
-      // Build the inside wall from circumferential panels. Seams, panel
-      // highlights, rings, and obstacles all rotate around the tunnel axis.
-      const depthSteps = warpSpaceDepthSteps();
-      // 18 панелей для всех классов: при 12 у класса III сечение читалось
-      // как гранёный «купол» — это и было видно на скриншотах.
-      const panelCount = 18;
-      for (let step = 0; step < depthSteps; step += 1) {
-        const d0 = 0.04 + (step / depthSteps) * 0.96;
-        const d1 = 0.04 + ((step + 1) / depthSteps) * 0.96;
-        for (let panel = 0; panel < panelCount; panel += 1) {
-          const a0 = panel * Math.PI * 2 / panelCount;
-          const a1 = (panel + 1) * Math.PI * 2 / panelCount;
-          const p00 = point(d0, a0, 0);
-          const p01 = point(d0, a1, 0);
-          const p11 = point(d1, a1, 0);
-          const p10 = point(d1, a0, 0);
-          // Субпиксельные панели у точки схода не видны, но каждый fill стоит
-          // вызова. Отсечение ниже порога в 1.6 px² экономит около десятой части
-          // заливок и не меняет картинку заметно.
-          // Субпиксельные панели у точки схода не видны, но каждый fill стоит
-          // вызова. Площадь — полная шнуровка (ядро: warpSpacePanelVisible).
-          // Раньше здесь стоял один член |dx1*dy2|: на 0° и 180° радиальное
-          // ребро горизонтально, произведение обнулялось, и здоровая панель
-          // выбрасывалась — это и были «дыры» в стенке на живом сайте.
-          if (!warpSpace.warpSpacePanelVisible(p00, p01, p10, warpSpaceCullScale())) continue;
-          // Перекрытие на 1 px: у соседних панелей общие рёбра, и любое
-          // сглаживание края давало волосяные щели. Расширяем от центра.
-          const cxq = (p00.x + p01.x) / 2;
-          const cyq = (p00.y + p01.y) / 2;
-          const push = (p) => {
-            const dx = p.x - cxq;
-            const dy = p.y - cyq;
-            const len = Math.sqrt(dx * dx + dy * dy) || 1;
-            return { x: p.x + (dx / len) * 1.0, y: p.y + (dy / len) * 1.0 };
-          };
-          const q00 = push(p00), q01 = push(p01), q11 = push(p11), q10 = push(p10);
-          g.beginPath();
-          g.moveTo(q00.x, q00.y);
-          g.lineTo(q01.x, q01.y);
-          g.lineTo(q11.x, q11.y);
-          g.lineTo(q10.x, q10.y);
-          g.closePath();
-          const shimmer = Math.sin(shimmerTime * 1.35 + panel * 1.72 + step * 0.77 + playerAngle) * 0.5 + 0.5;
-          const light = (((step + Math.floor(shimmerTime * 8) + panel * 3) % 5 + 5) % 5 === 0) ? 1 : 0;
-          // Цвет панели берётся из палитры класса с локальным сдвигом перелива,
-          // поэтому смена A -> B идёт волной вдоль стенки, а не разом.
-          // Цвет панели целиком из палитры (при радуге — из цветового круга).
-          // warpSpacePanelCss сам добавляет модуляцию shimmer/light: в радужном
-          // режиме она идёт по светлоте того же оттенка, чтобы огоньки не
-          // уводили красную стенку в бирюзу.
-          const panelMix = warpSpaceLocalMix(panel / panelCount + step * 0.04);
-          g.fillStyle = warpSpace.warpSpacePanelCss(
-            activeWarpVisualClass(), shimmer, light, panelMix,
-            state.warpRainbow ? (panel / panelCount + step * 0.04) : null
-          );
-          g.fill();
-          // No transverse panel outlines: they read as hoops at speed.
-          // The longitudinal strips below are the sole continuous surface lines.
-        }
-      }
-
-      // Аномалия-«полувраг»: змейка ползёт по трубе вместе с игроком.
-      // Ни на что не влияет — это декор, как и камни. Появляется ~8-й с,
-      // потом на время «выключает существование», чтобы не грузить кадр.
-      if (Number(state.warpAnomalies) > 0) {
-        // Якорь — ближний к середине трубы камень: вид «из середины»
-        // цепляется за него и идёт вместе с препятствиями.
-        let anomalyAnchor = null;
-        if (Number(state.warpAsteroids) > 0) {
-          const rockSlots = warpSpace.warpSpaceAsteroidField(
-            Number(state.warpAsteroidSeed || 0) >>> 0, warpAsteroidDensityNow());
-          let best = 9;
-          for (let ri = 0; ri < rockSlots.length; ri += 1) {
-            const rs = rockSlots[ri];
-            if (!rs || !(rs.depth > 0.22) || !(rs.depth < 0.66)) continue;
-            const dist = Math.abs(rs.depth - 0.45);
-            if (dist < best) { best = dist; anomalyAnchor = { depth: rs.depth, angle: rs.angle }; }
-          }
-        }
-        warpSpace.drawWarpSpaceAnomaly(g, point,
-          Number(state.elapsed || 0) + Number(t || 0) * 0.001,
-          anomalyAnchor, state.warpAnomalyVariant || "auto");
-      }
-      // Астероиды на стенке: настоящие меши, испечённые в спрайты. Рисуются
-      // после панелей (стенка уже залита) и до колец, чтобы кольца и пульс
-      // остались поверх — иначе поле перекрывает ориентиры глубины.
-      if (Number(state.warpAsteroids) > 0) {
-        const fieldDrawn = warpSpace.drawWarpSpaceAsteroids(g, point, maxRadius,
-          Number(state.warpAsteroidSeed || 0) >>> 0,
-          warpAsteroidDensityNow(), warpAsteroidImages(),
-          Number(state.elapsed || 0));
-        // Камень прошёл рядом — короткая вибрация (джойстик/телефон).
-        warpAsteroidHaptic(fieldDrawn && fieldDrawn.near, Number(state.elapsed || 0) * 1000);
+      // ПОЛЁТ ЖИВЁТ В warp-bridge.js (решение владельца): космос, панели
+      // стенки, завороты, камни, аномалия-«полувраг» и вибрация рисуются
+      // оттуда. Здесь остаётся только геометрия кадра и меню/HUD.
+      const bridgeFlight = window.BCMWarpBridge && window.BCMWarpBridge.flight;
+      if (bridgeFlight) {
+        bridgeFlight.configure({
+          visualClass: activeWarpVisualClass(),
+          rainbow: !!state.warpRainbow,
+          lowMode: !!state.warpLowMode,
+          density: warpAsteroidDensityNow(),
+          seed: Number(state.warpAsteroidSeed || 0) >>> 0,
+          anomalies: Number(state.warpAnomalies) > 0 ? 1 : 0,
+          variant: state.warpAnomalyVariant || "auto",
+          haptics: !!state.warpHaptics
+        });
+        bridgeFlight.drawArt(g, {
+          point, w, h, maxRadius,
+          elapsed: Number(state.elapsed || 0) + Number(t || 0) * 0.001,
+          shimmerTime, playerAngle,
+          images: warpAsteroidImages(),
+          // Корабль — чтобы камни могли попасть, а не просто пролететь.
+          ship: state.warpShipPoint || null,
+          t: Number(state.elapsed || 0) * 1000
+        });
+      } else if (window.console && console.warn) {
+        console.warn("deep-space-warp: warp-bridge.js не загружен, панели стенки не рисуются");
       }
 
       // Глубинные кольца и (опционально) расходящийся пульс. Тонкие, одного
