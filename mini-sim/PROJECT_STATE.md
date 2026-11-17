@@ -3,7 +3,7 @@
 - **There is no 0.15 line before 0.15.0 and no 0.14.9.** The line is `0.14.8` (crew facing) then `0.15.0` … `0.15.9`, this note is `0.15.10`.
 - **Where Fable is:** SAGE X **-39**, Y **31**. ONI CSS is X **-40**, Y **30**. One step north-east. Purple diamond on the warp map. Not a Galia system, so the Desk cartograph does not list it (D-061).
 - **This patch:** after a local warp the menu no longer says the SAGE coordinates are disconnected. The open and the return footnotes name Fable. Arrival on the local map keeps the Galia sector title.
-- **Test:** `scripts/location-walk.test.mjs` 3/3. Live site not confirmed.
+- **Commit:** `20daa59`. **Test:** `scripts/location-walk.test.mjs` 3/3. Live site not confirmed.
 - **Not this patch:** splitting `deep-space-warp.js` into a bridge file and an asteroid file; sewing the warp canvas into Galia Desk; merging to `main`.
 
 ### Location line, 0.14.8 through 0.15.9 (what each step did)
