@@ -133,7 +133,7 @@ function bcm_tower_get_client_config($assets = null) {
         // Own landing clip per planet; a planet without one keeps onicss.mp4.
         'planetTransitions' => array_filter(array(
             'fable' => bcm_tower_pick_asset($assets, array('landing-fable.mp4'), 'video'),
-            'pearce' => bcm_tower_pick_asset($assets, array('landing-pearce.mp4'), 'video'),
+            'opus' => bcm_tower_pick_asset($assets, array('landing-opus.mp4'), 'video'),
         )),
         'firstPlanetAudio' => bcm_tower_pick_asset($assets, array('FP.mp3'), 'audio') ?: BCM_MINI_SIM_URL . 'first-planet/audio/FP.mp3',
         'desertRaceAudio' => bcm_tower_pick_asset($assets, array('desertrace.mp3'), 'audio') ?: BCM_MINI_SIM_URL . 'first-planet/audio/desertrace.mp3',

@@ -71,9 +71,9 @@ export const PLANETS: Record<PlanetId, PlanetLook> = {
   fable: {
     id: "fable",
     system: null,
-    kicker: "Fable · сектор [-39, 31] · посадочная",
+    kicker: "Fable · ONI CSS [-40, 30] · стартовая посадочная",
     title: "Fable",
-    blurb: "Тестовая планета рядом с ONI CSS. Здесь всегда поздний вечер: луна с кольцом, сияние над островом, светящееся море и огоньки над мхом.",
+    blurb: "Стартовая планета у ONI CSS. Раз в сто лет приходит послание: планеты меняются местами в секторах. Fable пришла в эпицентр: здесь всегда поздний вечер — луна с кольцом, сияние над островом, светящееся море и огоньки над мхом.",
     sky: { top: 0x140a33, mid: 0x3a2a7a, low: 0x2fb7a6 },
     background: 0x1b1446,
     fog: { color: 0x2a2f6e, near: 42, far: 210 },
@@ -126,9 +126,9 @@ export const PLANETS: Record<PlanetId, PlanetLook> = {
   first: {
     id: "first",
     system: null,
-    kicker: "Desert Island · посадочная",
-    title: "Остров пустыни",
-    blurb: "",
+    kicker: "Twinsun · сектор [-40, 31] · посадочная",
+    title: "Twinsun · остров пустыни",
+    blurb: "Раз в сто лет приходит послание: планеты меняются местами в секторах. Пустыня двух солнц ушла с ONI CSS на север и ждёт своего часа.",
     sky: { top: 0x3d245c, mid: 0xff7a3a, low: 0xffc48a },
     background: 0xff7a3c,
     fog: { color: 0xe56a3a, near: 48, far: 200 },
@@ -182,8 +182,10 @@ export const PLANETS: Record<PlanetId, PlanetLook> = {
 const ALIASES: Record<string, PlanetId> = {
   first: "first",
   desert: "first",
-  akenat: "first",
-  oni: "first",
+  twinsun: "first",
+  // 18.11.2026: ONI CSS / Akenat is Fable's place now.
+  akenat: "fable",
+  oni: "fable",
   pearce: "pearce",
   mud: "pearce",
   earth: "pearce",
@@ -236,7 +238,7 @@ export function resolvePlanetId(inputs: PlanetInputs): PlanetId {
     const fromSector = planetIdFrom(system?.id);
     if (fromSector) return fromSector;
   }
-  return "first";
+  return "fable"; // the start lands on Fable (owner 18.11.2026)
 }
 
 export function planetLook(id: unknown): PlanetLook {

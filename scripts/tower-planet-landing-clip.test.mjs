@@ -1,7 +1,9 @@
 // Owner 16.11.2026: "2 videos landing on 2 planets — connect them as the
 // bridge to the planet, like the ONI CSS landing". The Tower → planet bridge
-// plays the clip of the planet the ship lands on: Fable → landing-fable.mp4,
-// Pearce (MUD) → landing-pearce.mp4, every other planet keeps onicss.mp4.
+// plays the clip of the planet the ship lands on. Owner 19.11.2026: the
+// hurricane Earth clip is Fable's (landing-fable.mp4, the start at ONI CSS),
+// the snowy-mountain clip is Opus's (landing-opus.mp4); every other planet,
+// Pearce included, keeps onicss.mp4.
 // The ascent back to space plays the same clip reversed, and First Planet
 // receives the same planet, so the clip and the island always match.
 import { test } from "node:test";
@@ -15,7 +17,7 @@ const has = (p) => existsSync(new URL(p, ROOT));
 
 const CONFIG = {
   planetTransition: "assets/onicss.mp4",
-  planetTransitions: { fable: "assets/landing-fable.mp4", pearce: "assets/landing-pearce.mp4" },
+  planetTransitions: { fable: "assets/landing-fable.mp4", opus: "assets/landing-opus.mp4" },
 };
 
 /** The page as Mini-Sim builds it: Galia map, map core, then the landing picker. */
@@ -34,8 +36,8 @@ test("Tower config carries a landing clip for Fable and Pearce; ONI keeps onicss
   const block = php.match(/'planetTransitions'\s*=>\s*array_filter\(array\(([\s\S]*?)\)\)/);
   assert.ok(block, "Tower has one bridge clip for every planet: only 'planetTransition' => onicss.mp4");
   assert.match(block[1], /'fable'\s*=>[^\n]*landing-fable\.mp4/);
-  assert.match(block[1], /'pearce'\s*=>[^\n]*landing-pearce\.mp4/);
-  for (const file of ["landing-fable.mp4", "landing-pearce.mp4"]) {
+  assert.match(block[1], /'opus'\s*=>[^\n]*landing-opus\.mp4/);
+  for (const file of ["landing-fable.mp4", "landing-opus.mp4"]) {
     assert.ok(has(`mini-sim/assets/${file}`), `${file} is not in the plugin assets`);
   }
   // The picker loads before Tower, on the Tower page and in the standalone QA shell.
@@ -54,11 +56,13 @@ test("the bridge clip follows the planet the Warp sector picks", () => {
   const mud = w.BCMSageMapCore.data.css.find((c) => c.system === "mud");
   const ustur = w.BCMSageMapCore.data.css.find((c) => c.system === "ustur");
   const oni = w.BCMSageMapCore.data.css.find((c) => c.system === "oni");
-  assert.equal(at(-40, 31), CONFIG.planetTransitions.fable, "Fable sector lands with the ONI CSS clip");
-  assert.equal(at(mud.x, mud.y), CONFIG.planetTransitions.pearce, "MUD CSS sector lands with the ONI CSS clip");
+  // Owner 18.11.2026 (D-069): Fable took the start at ONI CSS; the desert (Twinsun) lies north.
+  assert.equal(at(-40, 31), CONFIG.planetTransition, "Twinsun has no own clip and keeps onicss.mp4");
+  assert.equal(at(mud.x, mud.y), CONFIG.planetTransition, "Pearce has no own clip now and keeps onicss.mp4");
+  assert.equal(at(-41, 30), CONFIG.planetTransitions.opus, "Opus does not land with its snowy-mountain clip");
   assert.equal(at(ustur.x, ustur.y), CONFIG.planetTransition, "Ioki has no own clip yet and keeps the ONI CSS one");
-  assert.equal(at(oni.x, oni.y), CONFIG.planetTransition);
-  assert.equal(landing.clipFor(CONFIG, landing.planetId({})), CONFIG.planetTransition, "no Warp data keeps the ONI CSS clip");
+  assert.equal(at(oni.x, oni.y), CONFIG.planetTransitions.fable, "ONI CSS lands on Fable with Fable's clip");
+  assert.equal(landing.clipFor(CONFIG, landing.planetId({})), CONFIG.planetTransitions.fable, "the start lands on Fable with Fable's clip");
   assert.equal(landing.clipFor({ planetTransition: "x.mp4" }, "fable"), "x.mp4", "an old Tower config without planetTransitions keeps working");
   // Owner test switch, as on First Planet.
   assert.equal(landing.planetId({ search: "?bcm_planet=fable", sector: { x: oni.x, y: oni.y }, core: w.BCMSageMapCore }), "fable");
@@ -68,7 +72,7 @@ test("the bridge clip follows the planet the Warp sector picks", () => {
     BCMMiniSimSession: {},
     BCMDeepSpaceWarpGetReturnSnapshot: () => ({ current: { x: -40, y: 31 } }),
   });
-  assert.equal(live.BCMPlanetLanding.planetId(), "fable", "on the page the picker ignores the Warp sector");
+  assert.equal(live.BCMPlanetLanding.planetId(), "first", "on the page the picker ignores the Warp sector (Twinsun north of ONI)");
 });
 
 test("Tower and First Planet choose the same planet for every input", async () => {

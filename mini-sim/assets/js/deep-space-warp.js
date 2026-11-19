@@ -1584,7 +1584,7 @@
  * Совпадение с настоящим модулем проверяется тестом, чтобы списки не
  * разъехались: для каждого псевдонима сверяется `BCMPlanetLanding.idFrom`. */
 var WARP_NEARBY_LANDING_ALIASES = {
-  first: "first", desert: "first", akenat: "first", oni: "first",
+  first: "first", desert: "first", twinsun: "first", akenat: "fable", oni: "fable",
   pearce: "pearce", mud: "pearce", earth: "pearce",
   ioki: "ioki", ustur: "ioki", mars: "ioki",
   fable: "fable",
@@ -2210,7 +2210,7 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       sourceElement.classList.toggle("is-preview", !state.nav.live);
       footnoteElement.textContent = state.nav.live
         ? "Имена известных секторов берёт SAGE-адаптер. Сетка не режется до 4 сторон: открыты 8 соседей и следующее кольцо. Сам Warp локальный и не двигает корабль в SAGE."
-        : "ONI CSS, X -40, Y 30. Планета Fable — сосед на севере, X -40, Y 31. На карте 8 соседей и следующее кольцо. Warp локальный и не двигает флот в блокчейне.";
+        : "ONI CSS, X -40, Y 30. Fable теперь здесь, на ONI CSS (раз в сто лет планеты меняются местами). Пустыня Twinsun — сосед на севере, X -40, Y 31. На карте 8 соседей и следующее кольцо. Warp локальный и не двигает флот в блокчейне.";
       listSectorTargets();
       renderSectorGrid();
       renderGalaxyMap();
@@ -5199,7 +5199,7 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       footnoteElement.textContent = state.nav && state.nav.live
         ? "Соседние сектора показаны только если их передал SAGE-адаптер. Warp остаётся локальной симуляцией и не перемещает флот в блокчейне."
         : (window.BCMSageMapCore
-          ? "Карта Galia подключена. ONI CSS — X -40, Y 30. Планета Fable — один шаг на север: X -40, Y 31. Warp локальный и не двигает флот в блокчейне."
+          ? "Карта Galia подключена. ONI CSS — X -40, Y 30. Fable — на ONI CSS. Пустыня Twinsun — один шаг на север: X -40, Y 31. Warp локальный и не двигает флот в блокчейне."
           : "LOCAL TEST GRID · координаты и соседние клетки тестовые, не данные SAGE. Полная карта и реальные связи секторов ещё не подключены.");
       listSectorTargets();
       renderSectorGrid();

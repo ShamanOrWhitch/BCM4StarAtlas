@@ -31,9 +31,10 @@ test("the Warp sector chooses the planet through the Galia map", () => {
   const oni = core.data.css.find((c) => c.system === "oni");
   assert.equal(at(mud.x, mud.y), "pearce", "MUD CSS sector still lands on the desert");
   assert.equal(at(ustur.x, ustur.y), "ioki", "Ustur CSS sector still lands on the desert");
-  assert.equal(at(oni.x, oni.y), "first", "ONI keeps First Planet");
-  assert.equal(at(-39, 29), "first", "an empty sector keeps First Planet");
-  assert.equal(resolvePlanetId({}), "first", "no Warp data keeps First Planet");
+  // Owner 18.11.2026 (D-069): Fable took the start at ONI CSS; the desert (Twinsun) lies north.
+  assert.equal(at(oni.x, oni.y), "fable", "ONI CSS is Fable's place now");
+  assert.equal(at(-39, 29), "fable", "an empty sector keeps the start planet");
+  assert.equal(resolvePlanetId({}), "fable", "no Warp data lands on the start planet, Fable");
 });
 
 test("owner test switch and explicit context win over the sector", () => {
@@ -45,7 +46,7 @@ test("owner test switch and explicit context win over the sector", () => {
   assert.equal(resolvePlanetId({ search: "?bcm_planet=mud", sector: ustur, systemForSector: sys }), "pearce");
   assert.equal(resolvePlanetId({ contextPlanet: "ioki", search: "?bcm_planet=mud" }), "ioki");
   assert.equal(resolvePlanetId({ sessionPlanet: "ustur" }), "ioki");
-  assert.equal(resolvePlanetId({ search: "?bcm_planet=nonsense" }), "first");
+  assert.equal(resolvePlanetId({ search: "?bcm_planet=nonsense" }), "fable");
 });
 
 test("the three planets really look different", () => {
@@ -88,13 +89,15 @@ test("the island draws the chosen planet, and the mount resolves it from the War
 test("planet Fable sits one jump from ONI CSS and the Warp map names it", () => {
   const core = sageCore();
   const oni = core.data.css.find((c) => c.system === "oni");
-  const fable = (core.landmarks || []).find((l) => l.planet === "fable");
-  assert.ok(fable, "the map has no Fable planet sector");
+  // Owner 18.11.2026 (D-069): Fable took the start at ONI CSS; the desert (Twinsun) lies north.
+  // The landmark next to ONI CSS now holds the desert; Fable itself is at ONI CSS.
+  const fable = (core.landmarks || []).find((l) => l.planet === "first");
+  assert.ok(fable, "the map has no Twinsun planet sector");
   assert.equal(Math.max(Math.abs(fable.x - oni.x), Math.abs(fable.y - oni.y)), 1, "Fable is not a neighbour of ONI CSS");
   assert.equal(core.starAt(fable.x, fable.y), null, "Fable sits on a real SAGE star");
   assert.equal(core.cssAt(fable.x, fable.y), null, "Fable sits on a station");
-  assert.match(core.sectorTitle(fable.x, fable.y), /Fable/, "the Warp map still calls the Fable sector empty");
-  assert.equal(core.systemForSector(fable.x, fable.y), null, "Fable must not pose as a Galia system");
+  assert.match(core.sectorTitle(fable.x, fable.y), /Twinsun/, "the Warp map still calls the Twinsun sector empty");
+  assert.equal(core.systemForSector(fable.x, fable.y), null, "Twinsun must not pose as a Galia system");
   assert.ok(planetModule);
   const { resolvePlanetId } = planetModule;
   const at = (x, y) => resolvePlanetId({
@@ -102,8 +105,8 @@ test("planet Fable sits one jump from ONI CSS and the Warp map names it", () => 
     systemForSector: core.systemForSector.bind(core),
     planetForSector: core.planetForSector.bind(core),
   });
-  assert.equal(at(fable.x, fable.y), "fable", "the Fable sector still lands on the desert");
-  assert.equal(at(oni.x, oni.y), "first");
+  assert.equal(at(fable.x, fable.y), "first", "the Twinsun sector does not land on the desert");
+  assert.equal(at(oni.x, oni.y), "fable");
   assert.equal(at(0, -39), "pearce", "MUD still lands on Pearce through planetForSector");
   assert.equal(resolvePlanetId({ search: "?bcm_planet=fable" }), "fable", "owner test switch does not know Fable");
 });

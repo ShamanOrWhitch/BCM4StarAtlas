@@ -1,3 +1,13 @@
+## Patch — Mini-Sim 0.15.25: Fable at the start, Twinsun north; clips by planet (19 November 2026)
+
+- **Decision D-069.** ONI CSS lands on Fable; the desert island (Twinsun) lies at `[-40, 31]`. The hundred-year swap is told on the planet cards and in the Warp map hints.
+- **Clips (owner 19.11, matched by first frame):** hurricane Earth → Fable (`landing-fable.mp4`), snowy mountain → Opus (`landing-opus.mp4`); Pearce keeps `onicss.mp4`. Planet pictures in `mini-sim/assets/planets/`.
+- **Recorded from the owner's list:** IDEA-021 (each sector its own characters, quests, races, room0 circuit, rare cartridge artifact), IDEA-022 (B-boy mini-game), IDEA-023 (Opus is Claude Code's), BUG-020 (Brave animation glitch, needs details).
+- **Local:** regression 227/227.
+- **Not verified yet:** CI for this SHA; live site; the new approach and Tower-exit clips (`d745673d…`, `4706288d…`) are not in the repository yet.
+
+---
+
 ## Release — Mini-Sim 0.15.23 on the live site (18 November 2026)
 
 - **Package:** `bcm-mini-sim-0.15.23-test` from `5b4907e`, all CI green (regression 226/226, Tower, standalone Chromium, package). Replaces the Arena-built `0.15.22` on the site.

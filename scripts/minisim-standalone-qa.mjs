@@ -114,7 +114,7 @@ const server = createServer(async (req, res) => {
         planetTransition: pick(["onicss.mp4"], "video", allAssets),
         planetTransitions: {
           fable: pick(["landing-fable.mp4"], "video", allAssets),
-          pearce: pick(["landing-pearce.mp4"], "video", allAssets),
+          opus: pick(["landing-opus.mp4"], "video", allAssets),
         },
         transitionFallbacks: [],
         towerAudio: transitionsOnly ? "" : pick(["tower.mp3"], "audio", allAssets),

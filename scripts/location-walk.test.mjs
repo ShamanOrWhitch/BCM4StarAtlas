@@ -20,8 +20,9 @@ function sageCore() {
 const planetModule = await import("../mini-sim/first-planet/src/game/island/planet.ts").catch(() => null);
 
 const ROUTE = [
-  { name: "ONI CSS", x: -40, y: 30, planet: "first" },
-  { name: "Fable", x: -40, y: 31, planet: "fable" },
+  // Owner 18.11.2026 (D-069): Fable took the start at ONI CSS; the desert (Twinsun) lies north.
+  { name: "ONI CSS", x: -40, y: 30, planet: "fable" },
+  { name: "Twinsun", x: -40, y: 31, planet: "first" },
   { name: "Opus", x: -41, y: 30, planet: "opus" },
   { name: "MUD CSS", x: 0, y: -39, planet: "pearce" },
   { name: "Ustur CSS", x: 40, y: 30, planet: "ioki" },
@@ -41,17 +42,18 @@ test("the location walk uses one SAGE grid and lands on the named planet", () =>
   }
   const oni = ROUTE[0];
   const fable = ROUTE[1];
-  // Owner 17.11.2026 (D-068): Fable straight north of ONI CSS, no longer on the diagonal.
-  assert.equal(fable.x - oni.x, 0, "Fable is not straight north of ONI CSS");
-  assert.equal(fable.y - oni.y, 1, "Fable is not one step north of ONI CSS");
-  assert.match(core.sectorTitle(fable.x, fable.y), /Fable/);
-  assert.equal(core.systemForSector(fable.x, fable.y), null, "Fable must stay a Mini-Sim landmark, not a Galia system");
+  // The sector straight north of ONI CSS (Fable's place on 17.11) holds Twinsun now.
+  assert.equal(fable.x - oni.x, 0, "Twinsun is not straight north of ONI CSS");
+  assert.equal(fable.y - oni.y, 1, "Twinsun is not one step north of ONI CSS");
+  assert.match(core.sectorTitle(fable.x, fable.y), /Twinsun/);
+  assert.equal(core.systemForSector(fable.x, fable.y), null, "Twinsun must stay a Mini-Sim landmark, not a Galia system");
 });
 
 test("the warp menu tells the owner where Fable is when the Galia map is loaded", () => {
   const warp = read("mini-sim/assets/js/deep-space-warp.js");
-  assert.match(warp, /Планета Fable — сосед на севере, X -40, Y 31/);
-  assert.match(warp, /Планета Fable — один шаг на север: X -40, Y 31/);
+  // Owner 18.11.2026 (D-069): Fable at ONI CSS, Twinsun north.
+  assert.match(warp, /Fable теперь здесь, на ONI CSS \(раз в сто лет планеты меняются местами\)\. Пустыня Twinsun — сосед на севере, X -40, Y 31/);
+  assert.match(warp, /Fable — на ONI CSS. Пустыня Twinsun — один шаг на север: X -40, Y 31/);
   assert.match(warp, /SAGE · КАРТА GALIA · локальная симуляция/);
   assert.doesNotMatch(
     warp,

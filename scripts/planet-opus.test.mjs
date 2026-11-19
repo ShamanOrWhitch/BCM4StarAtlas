@@ -26,9 +26,11 @@ test("Fable and Opus sit in the sectors straight next to ONI CSS", () => {
   const core = w.BCMSageMapCore;
   const oni = core.data.css.find((c) => c.system === "oni");
   const at = (x, y) => w.BCMPlanetLanding.planetId({ sector: { x, y }, core });
-  assert.equal(at(oni.x, oni.y + 1), "fable", "Fable is not straight north of ONI CSS");
+  // Owner 18.11.2026 (D-069): Fable took the start at ONI CSS; the desert (Twinsun) lies north.
+  assert.equal(at(oni.x, oni.y + 1), "first", "Twinsun is not straight north of ONI CSS");
+  assert.equal(at(oni.x, oni.y), "fable", "ONI CSS does not land on Fable");
   assert.equal(at(oni.x - 1, oni.y), "opus", "there is no planet Opus straight west of ONI CSS");
-  assert.equal(at(-39, 31), "first", "the old diagonal Fable sector still lands on Fable");
+  assert.equal(at(-39, 31), "fable", "the old diagonal sector is an empty sector (start planet)");
   assert.equal(core.systemForSector(oni.x - 1, oni.y), null, "Opus must not pretend to be a SAGE system");
   assert.match(core.sectorTitle(oni.x - 1, oni.y), /Opus/);
 });
