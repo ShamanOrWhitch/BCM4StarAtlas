@@ -1,3 +1,17 @@
+## Patch — Galia Desk charts follow 15м–1м; sale price is the seller's limit (19 November 2026)
+
+- **Charts.** The top switches did not change the candles. Every chart stayed labeled 1д. Switches are now 15м, 1ч, 4ч, 1д, 1н, 1м, and each one reloads all five charts from Kraken at that step. A month is folded from daily candles. A failed step does not keep the daily picture under the new label.
+- **Price.** Today's price is the best ask in that book. A 1 USDC bid for one lot is not the price. USDC and ATLAS are no longer converted into each other. The table shows both sale columns and the bid separately.
+- **Commit:** `5d6de6b` on `fix/desk-chart-asks`, on top of `0aee578`. Not in `main`.
+- **Test:** `src/lib/market-price.test.ts` 5/5. Kraken returned hourly ATLAS candles from this machine. Live site not confirmed.
+- **Not this patch:** the warp-menu map is still not the Desk cartograph. Warp stays in `deep-space-warp.js` (D-069 records the split, it does not do it). PHP shortcode untouched.
+
+## Warp split, accepted and not started (19 November 2026)
+
+- Warp is the bridge minigame. The place it opens is not part of that file. Crew NFT cutout stays in crew-core. See D-069. No code in this step.
+
+---
+
 ## Patch — Mini-Sim 0.15.10: the warp menu names Fable (17 November 2026)
 
 - **There is no 0.15 line before 0.15.0 and no 0.14.9.** The line is `0.14.8` (crew facing) then `0.15.0` … `0.15.9`, this note is `0.15.10`.
