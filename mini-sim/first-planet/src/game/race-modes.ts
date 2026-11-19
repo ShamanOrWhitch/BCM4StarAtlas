@@ -73,7 +73,7 @@ export function raceModeFor(planet?: string, level?: number): RaceMode {
       planet,
       level: lv,
       title: "Слалом сияния",
-      map: "Ночной берег ONI",
+      map: "Тёмная гора ONI",
       kicker: "Fable · ONI CSS",
       blurb:
         "Ночью над ураганами Fable дорогу отмечают ворота сияния. Пройти надо каждые: промах — штраф ко времени. Предметов нет, только линия и дрифт.",
@@ -107,15 +107,18 @@ export function raceModeFor(planet?: string, level?: number): RaceMode {
       penalty: 0,
     };
   }
+  // Twinsun races through its desert (race-scenery.ts); Galia without a planet keeps the coast.
+  const twinsun = planet === "first";
   return {
     kind: "laps",
     planet: planet || "first",
     level: lv,
     title: "Спуск с Башни",
-    map: "Берег Цитадели",
-    kicker: "Galia · Tower exit",
-    blurb:
-      "Башня отпустила на воду. Внизу берег цитадели под двумя солнцами: три круга, предметы и дрифт.",
+    map: twinsun ? "Пески Twinsun" : "Берег Цитадели",
+    kicker: twinsun ? "Twinsun · пустыня" : "Galia · Tower exit",
+    blurb: twinsun
+      ? "Башня отпустила в пески. Дорога вьётся между пирамид и обелисков под двумя солнцами: три круга, предметы и дрифт."
+      : "Башня отпустила на воду. Внизу берег цитадели под двумя солнцами: три круга, предметы и дрифт.",
     rules: "предметы и дрифт",
     laps: 3,
     items: true,

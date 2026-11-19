@@ -1,3 +1,16 @@
+## Patch — Mini-Sim 0.15.32: race scenery per planet after the owner's sheets (19 November 2026)
+
+- **WORK LOCK:** [#135](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/135). IDEA-021 (races), decision D-073.
+- **Owner 19.11:** six concept sheets (`art/race-kits/`: coast, desert, ice, lava, jungle, sky; references outside the plugin) and «Да, делай так» on the mapping Twinsun desert / Fable lava / Opus ice / Galia coast.
+- **`first-planet/src/game/race-scenery.ts`** (new): sky, fog, light, the plane round the island, island and tower, road / kerb / line colours, weighted props, finish arch per theme; `sceneryProps` places 30+ props off the road (seeded).
+- **`world.ts`:** theme from `race.planet`; props from simple geometry (pyramids, obelisks, cacti; basalt spires, fire vents, dead trees; pines, crystals, snow; palms, rocks, buoys); finish arch with a checkered banner, fire bowls on lava; coast barrier models only on the coast. Track props live in one `race-decor-*` group — a road rebuild used to add a second set.
+- **Twinsun race texts:** «Пески Twinsun»; Fable map «Тёмная гора ONI».
+- **Red before:** `no race scenery: every planet races on the same desert coast`. After 3/3 (`scripts/first-planet-race-scenery.test.mjs`).
+- **Local:** regression 247/247. Planet Lab race in Edge, three planets: desert / lava / ice scenery, page errors 0.
+- **Not yet:** GLB props from the sheets (Dr Arena); the mini-map keeps its sand colours.
+
+---
+
 ## Patch — Mini-Sim 0.15.31: a form of the race per planet, levels 1–3 (19 November 2026)
 
 - **WORK LOCK:** [#134](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/134). IDEA-021 (races), decision D-072.
