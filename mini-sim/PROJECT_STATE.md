@@ -1,3 +1,11 @@
+## Patch — Desk prices share one USDC segment; bubbles open the book (19 November 2026)
+
+- If the USDC book has a seller, that ask is the price. If it does not, the best ATLAS ask is multiplied by the ATLAS/USDC rate. A bid is still not the price.
+- A bubble and the resource name open `https://play.staratlas.com/market/<mint>/?symbol=USDC` or `ATLAS`, the book the number came from.
+- **Commit:** `ef2187b` on `fix/desk-chart-asks`, after `5d6de6b`. Test `src/lib/market-price.test.ts` 5/5. Live site not confirmed.
+
+---
+
 ## Patch — Galia Desk charts follow 15м–1м; sale price is the seller's limit (19 November 2026)
 
 - **Charts.** The top switches did not change the candles. Every chart stayed labeled 1д. Switches are now 15м, 1ч, 4ч, 1д, 1н, 1м, and each one reloads all five charts from Kraken at that step. A month is folded from daily candles. A failed step does not keep the daily picture under the new label.
