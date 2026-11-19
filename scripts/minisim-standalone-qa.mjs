@@ -119,6 +119,8 @@ const server = createServer(async (req, res) => {
         planetAscents: {
           opus: pick(["departure-opus.mp4"], "video", allAssets),
         },
+        towerBackgrounds: Object.fromEntries([["fable", "tower-bg-fable"], ["opus", "tower-bg-opus"], ["first", "tower-bg-twinsun"]]
+          .map(([id, name]) => [id, pick([name + ".webp", name + ".jpg", name + ".png"], "image", allAssets)]).filter(([, url]) => url)),
         transitionFallbacks: [],
         towerAudio: transitionsOnly ? "" : pick(["tower.mp3"], "audio", allAssets),
         towerWallJpgPool: byBase(/^(towerwall|wall)[^/]*\.(jpg|jpeg)$/i),

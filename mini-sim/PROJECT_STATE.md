@@ -1,7 +1,7 @@
 ## Patch — Mini-Sim 0.15.27 / Tower 0.2.89: a Tower backdrop per planet (19 November 2026)
 
 - **Owner 19.11:** `76ba2f5b…` (`landing-fable.mp4`) is the descent into the Tower level of Fable, a dark mountain. «Задний фон у всех трёх башен в разных планетах свой … background в Tower — основа ощущения планеты». Three Towers: Fable — dark mountain, Opus — snowy mountain, Twinsun — the desert tower.
-- **Tower:** `towerBackgrounds` — `tower-bg-fable`, `tower-bg-opus`, `tower-bg-twinsun` (`.webp/.jpg/.png` in the plugin assets); set on entering and on the ascent; a planet without one keeps `perference bg.png`. **The three pictures do not exist yet** (art: SYNTX or Dr Arena, owner's call).
+- **Tower:** `towerBackgrounds` — `tower-bg-fable`, `tower-bg-opus`, `tower-bg-twinsun` (`.webp/.jpg/.png` in the plugin assets); set on entering and on the ascent; a planet without one keeps `perference bg.png`. **Twinsun picture in** (owner 19.11, SYNTX, 888×500 JPEG, 83 KB): `mini-sim/tower/assets/tower-bg-twinsun.jpg` — desert at sunset; given for «сектор Fable», which holds Twinsun since D-069. Fable and Opus pictures still missing. Browser check `scripts/tower-background-probe.mjs`: Twinsun shows it, Fable and Opus fall back to the menu art.
 - **Local:** regression 231/231, transitions in Edge 24/24.
 - **Not verified:** CI for this SHA, live site.
 
