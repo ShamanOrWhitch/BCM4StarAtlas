@@ -1,3 +1,15 @@
+## Patch — Mini-Sim 0.15.30: Room 0 race — harder course, rival ships, race place (19 November 2026)
+
+- **WORK LOCK:** [#133](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/133). IDEA-021 (races), decision D-071.
+- **Owner 19.11:** «в room 0 нужно более трудную систему трассы и также другие корабли, которые стараются летать по кругу».
+- **`mini-sim/assets/js/room0-race.js`** (no THREE): seeded course with 8–11 corners, height 10+ m, every third segment narrow (half-width 6.2–7.4 m), 5+ pylons each with a 4 m way through; three rivals with their own pace (slower in tight sections) dodging pylons and counting laps; race place.
+- **`mini-sim.js`:** Room 0 builds from the module (old 5-corridor loop is the fallback), draws pylons and rival ships, pylons are solid (bounce and lose speed), status shows «МЕСТО N/4».
+- **Red before:** `Room 0 has no race module: the old five-corridor loop, no rivals`. After 4/4. Browser probe `scripts/room0-race-probe.mjs` in Edge: 10 pylons, 3 rivals moving along the loop, «МЕСТО 4/4», page errors 0.
+- **Local:** regression 239/239.
+- **Not yet:** rival models are simple hulls (ship GLBs from the catalogue later); different race forms on each planet.
+
+---
+
 ## Patch — Mini-Sim 0.15.29: own residents, roles and quest kinds per planet (19 November 2026)
 
 - **WORK LOCK:** [#132](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/132). IDEA-021 step 1, decision D-070.
