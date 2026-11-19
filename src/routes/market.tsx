@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppChrome } from "@/components/app-chrome";
 import { loadMarket, watchLiveBooks, type Candle, type MarketSnap, type ResourceRow, type TapePoint } from "@/lib/desk";
+import { fetchKrakenCandles } from "@/lib/desk-direct";
+import { bidPrice, bucketByMonth, CHART_PERIODS, ratioCandles, salePrice, type ChartPeriodId, type QuoteId } from "@/lib/market-price";
 import { deltaPct, recordTape, rememberFloors } from "@/lib/price-tape";
 
 export const Route = createFileRoute("/market")({ component: MarketPage });
@@ -25,16 +27,11 @@ const FILTERS = [
   { id: "contracts", label: "контракты" },
 ];
 
-const PERIODS = [
-  { id: "15m", label: "15м", ms: 15 * 60 * 1000 },
-  { id: "4h", label: "4ч", ms: 4 * 60 * 60 * 1000 },
-  { id: "1d", label: "1д", ms: 24 * 60 * 60 * 1000 },
-  { id: "1w", label: "1н", ms: 7 * 24 * 60 * 60 * 1000 },
-  { id: "1y", label: "1г", ms: 365 * 24 * 60 * 60 * 1000 },
-  { id: "all", label: "всё", ms: Number.POSITIVE_INFINITY },
-] as const;
+type PeriodId = ChartPeriodId;
 
-type PeriodId = (typeof PERIODS)[number]["id"];
+function periodOf(id: PeriodId) {
+  return CHART_PERIODS.find((item) => item.id === id) ?? CHART_PERIODS[3];
+}
 
 function stampMs(t: number): number {
   return t > 0 && t < 1e12 ? t * 1000 : t;
@@ -51,14 +48,13 @@ function mergeTape(server: TapePoint[], local: TapePoint[]): TapePoint[] {
 }
 
 function anchorAsks(tape: TapePoint[], floors: Record<string, number>, period: PeriodId): Record<string, number> {
-  if (period === "all") return floors;
-  const span = PERIODS.find((item) => item.id === period)?.ms ?? 0;
+  const span = periodOf(period).ms;
   const cutoff = Date.now() - span;
   let hit: Record<string, number> | undefined;
   for (const point of tape) {
     if (stampMs(point.t) <= cutoff) hit = point.asks;
   }
-  return hit ?? {};
+  return hit ?? floors;
 }
 
 function fmtAtlas(n: number | null): string {
@@ -67,22 +63,18 @@ function fmtAtlas(n: number | null): string {
   return n.toLocaleString("ru-RU", { maximumFractionDigits: 6 });
 }
 
-function priced(row: ResourceRow, quote: "USDC" | "ATLAS" | "POLIS"): ResourceRow {
-  const pack = (ask: number | null | undefined, bid: number | null | undefined, unit: "USDC" | "ATLAS" | "POLIS") => ({
+function priced(row: ResourceRow, quote: QuoteId): ResourceRow {
+  return {
     ...row,
-    ask: ask ?? null,
-    bid: bid ?? null,
-    quote: unit,
-  });
-  if (quote === "ATLAS") return pack(row.atlasAsk, row.atlasBid, "ATLAS");
-  if (quote === "POLIS") return pack(row.polisAsk, row.polisBid, "POLIS");
-  if (row.usdcAsk != null || row.usdcBid != null) return pack(row.usdcAsk, row.usdcBid, "USDC");
-  return pack(row.usdcAsk, row.usdcBid, "USDC");
+    ask: salePrice(row, quote),
+    bid: bidPrice(row, quote),
+    quote,
+  };
 }
 function money(row: ResourceRow): string {
-  const n = row.ask ?? row.bid;
+  if (row.ask == null) return "нет продажи";
   const unit = row.quote === "POLIS" ? "POLIS" : row.quote === "ATLAS" ? "ATLAS" : "USDC";
-  return `${fmtAtlas(n)} ${unit}`;
+  return `${fmtAtlas(row.ask)} ${unit}`;
 }
 
 function fmtUsd(n: number | null): string {
@@ -111,8 +103,16 @@ export function MarketPage() {
   const [floors, setFloors] = useState<Record<string, number>>({});
   const [resourceMint, setResourceMint] = useState("");
   const [bookMint, setBookMint] = useState("");
-  const [quote, setQuote] = useState<"USDC" | "ATLAS" | "POLIS">("USDC");
-  const [period, setPeriod] = useState<PeriodId>("1w");
+  const [quote, setQuote] = useState<QuoteId>("USDC");
+  const [period, setPeriod] = useState<PeriodId>("1d");
+  const [charts, setCharts] = useState<{
+    atlas: Candle[];
+    polis: Candle[];
+    solPolis: Candle[];
+    atlasSol: Candle[];
+    polisAtlas: Candle[];
+  } | null>(null);
+  const [chartNote, setChartNote] = useState("");
 
   async function pull(_force: boolean) {
     setLoading(true);
@@ -122,7 +122,7 @@ export function MarketPage() {
       setSnap(data);
       const asks: Record<string, number> = {};
       for (const row of [...data.resources, ...data.ships]) {
-        const price = row.usdcAsk ?? row.ask;
+        const price = salePrice(row, "USDC");
         if (price != null) asks[row.mint] = price;
       }
       setTape(mergeTape(data.tape ?? [], recordTape(asks, data.atlas.usd)));
@@ -148,7 +148,7 @@ export function MarketPage() {
         setSnap(data);
         const asks: Record<string, number> = {};
         for (const row of [...data.resources, ...data.ships]) {
-          const price = row.usdcAsk ?? row.ask;
+          const price = salePrice(row, "USDC");
           if (price != null) asks[row.mint] = price;
         }
         setTape(recordTape(asks, data.atlas.usd));
@@ -188,6 +188,44 @@ export function MarketPage() {
     };
   }, []);
 
+  useEffect(() => {
+    const spec = periodOf(period);
+    let stop = false;
+    setChartNote("");
+    void (async () => {
+      try {
+        const [atlasRaw, polisRaw, solRaw] = await Promise.all([
+          fetchKrakenCandles("ATLASUSD", spec.kraken),
+          fetchKrakenCandles("POLISUSD", spec.kraken),
+          fetchKrakenCandles("SOLUSD", spec.kraken),
+        ]);
+        if (stop) return;
+        const atlas = spec.id === "1mo" ? bucketByMonth(atlasRaw) : atlasRaw;
+        const polis = spec.id === "1mo" ? bucketByMonth(polisRaw) : polisRaw;
+        const sol = spec.id === "1mo" ? bucketByMonth(solRaw) : solRaw;
+        if (atlas.length < 2 && polis.length < 2) {
+          setCharts(null);
+          setChartNote(`Свечи ${spec.label} не пришли. График этого срока не подменяется дневным.`);
+          return;
+        }
+        setCharts({
+          atlas,
+          polis,
+          solPolis: ratioCandles(polis, sol, spec.bucketMs),
+          atlasSol: ratioCandles(sol, atlas, spec.bucketMs),
+          polisAtlas: ratioCandles(polis, atlas, spec.bucketMs),
+        });
+      } catch (err) {
+        if (stop) return;
+        setCharts(null);
+        setChartNote(err instanceof Error ? err.message : `Свечи ${spec.label} не открылись`);
+      }
+    })();
+    return () => {
+      stop = true;
+    };
+  }, [period]);
+
   const previous = tape.length >= 2 ? tape[tape.length - 2] : undefined;
   const rows = useMemo(() => {
     if (!snap) return [];
@@ -207,7 +245,7 @@ export function MarketPage() {
       <div className="h-full overflow-y-auto">
         <div className="mx-auto flex max-w-5xl flex-col gap-4 px-3 py-4 md:px-6">
           <div className="flex flex-wrap items-center gap-2">
-            {PERIODS.map((item) => (
+            {CHART_PERIODS.map((item) => (
               <button
                 key={item.id}
                 type="button"
@@ -226,30 +264,34 @@ export function MarketPage() {
               Биржа Star Atlas
             </a>
           </div>
+          <p className="text-sm text-muted">
+            Кнопки срока меняют все свечи ниже. Цена ресурса — первая лимитка продавца в своём стакане. Ставка покупателя, даже 1 USDC за один лот, сегодняшней ценой не является.
+          </p>
+          {chartNote ? <p className="text-sm text-danger">{chartNote}</p> : null}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <PairCard name="ATLAS / USD" value={snap?.pairQuotes?.atlasUsdc ?? snap?.atlas?.usd ?? null} unit="USD" />
             <PairCard name="POLIS / USD" value={snap?.pairQuotes?.polisUsdc ?? snap?.polis?.usd ?? null} unit="USD" />
             <PairCard name="SOL за 1 POLIS" value={snap?.pairQuotes?.solPerPolis ?? null} unit="SOL" />
             <PairCard name="ATLAS за 1 SOL" value={snap?.pairQuotes?.atlasPerSol ?? null} unit="ATLAS" />
           </div>
-          <CandleChart title="ATLAS / USD" candles={snap?.candles ?? []} />
-          <CandleChart title="POLIS / USD" candles={snap?.polisUsdcCandles ?? []} />
-          <CandleChart title="SOL за 1 POLIS" candles={snap?.solPolisCandles ?? []} />
-          <CandleChart title="ATLAS за 1 SOL" candles={snap?.solAtlasCandles ?? []} />
-          <CandleChart title="ATLAS за 1 POLIS" candles={snap?.pairCandles ?? []} />
+          <CandleChart title="ATLAS / USD" spanLabel={periodOf(period).label} candles={charts?.atlas ?? []} />
+          <CandleChart title="POLIS / USD" spanLabel={periodOf(period).label} candles={charts?.polis ?? []} />
+          <CandleChart title="SOL за 1 POLIS" spanLabel={periodOf(period).label} candles={charts?.solPolis ?? []} />
+          <CandleChart title="ATLAS за 1 SOL" spanLabel={periodOf(period).label} candles={charts?.atlasSol ?? []} />
+          <CandleChart title="ATLAS за 1 POLIS" spanLabel={periodOf(period).label} candles={charts?.polisAtlas ?? []} />
           <BubbleField
             title="Ресурсы"
             rows={viewRows}
             anchor={anchor}
             floors={floors}
-            versus={period === "all" ? "floor" : "tape"}
+            versus="tape"
           />
           <BubbleField
             title="Корабли"
             rows={viewShips}
             anchor={anchor}
             floors={floors}
-            versus={period === "all" ? "floor" : "tape"}
+            versus="tape"
           />
 
           <div className="flex flex-wrap items-center gap-2">
@@ -297,8 +339,9 @@ export function MarketPage() {
                 <tr>
                   <th className="px-3 py-2 font-medium">Ресурс</th>
                   <th className="px-3 py-2 font-medium">Класс</th>
-                  <th className="px-3 py-2 font-medium">Продажа, {quote}</th>
-                  <th className="px-3 py-2 font-medium">Покупка, {quote}</th>
+                  <th className="px-3 py-2 font-medium">Продажа USDC</th>
+                  <th className="px-3 py-2 font-medium">Продажа ATLAS</th>
+                  <th className="px-3 py-2 font-medium">Ставка {quote}</th>
                   <th className="px-3 py-2 font-medium">Δ</th>
                 </tr>
               </thead>
@@ -316,8 +359,9 @@ export function MarketPage() {
                         {open ? <BookPeek row={row} quote={quote} /> : null}
                       </td>
                       <td className="px-3 py-2 text-muted">{CLASS_LABEL[row.className] ?? row.className}</td>
-                      <td className="px-3 py-2 font-mono text-fg">{fmtAtlas(row.ask)}</td>
-                      <td className="px-3 py-2 font-mono text-muted">{fmtAtlas(row.bid)}</td>
+                      <td className="px-3 py-2 font-mono text-fg">{fmtAtlas(salePrice(row, "USDC"))}</td>
+                      <td className="px-3 py-2 font-mono text-fg">{fmtAtlas(salePrice(row, "ATLAS"))}</td>
+                      <td className="px-3 py-2 font-mono text-muted">{fmtAtlas(bidPrice(row, quote))}</td>
                       <td className={`px-3 py-2 font-mono ${d == null ? "text-faint" : d > 0 ? "text-danger" : "text-ok"}`}>
                         {fmtPct(d)}
                       </td>
@@ -450,7 +494,7 @@ function BubbleField({
       <div className="flex flex-wrap items-end gap-3">
         {shown.map((row) => {
           const base = versus === "floor" ? (anchor[row.mint] ?? floors[row.mint]) : anchor[row.mint];
-          const ask = row.usdcAsk ?? row.ask;
+          const ask = row.ask;
           const change = deltaPct(ask, base);
           const weight = row.ask && row.ask > 0 ? row.ask : max * 0.15;
           const size = 108 + Math.sqrt(weight / max) * 56;
@@ -560,17 +604,16 @@ function TapeLine({ name, points }: { name: string; points: { t: number; v: numb
   );
 }
 
-function BookPeek({ row, quote }: { row: ResourceRow; quote: "USDC" | "ATLAS" | "POLIS" }) {
-  const asks = quote === "ATLAS" ? row.atlasAsks : quote === "POLIS" ? [] : row.usdcAsks?.length ? row.usdcAsks : row.atlasAsks;
-  const bids = quote === "ATLAS" ? row.atlasBids : quote === "POLIS" ? [] : row.usdcBids?.length ? row.usdcBids : row.atlasBids;
-  const unit = asks?.length ? (quote === "USDC" && row.usdcAsks?.length ? "USDC" : "ATLAS") : quote;
+function BookPeek({ row, quote }: { row: ResourceRow; quote: QuoteId }) {
+  const asks = quote === "ATLAS" ? row.atlasAsks : quote === "POLIS" ? [] : row.usdcAsks;
+  const bids = quote === "ATLAS" ? row.atlasBids : quote === "POLIS" ? [] : row.usdcBids;
   if (!asks?.length && !bids?.length) {
-    return <p className="mt-1 text-xs text-muted">Стакан в {quote} пуст. Если цена есть только в другой валюте — переключи ползунок сверху.</p>;
+    return <p className="mt-1 text-xs text-muted">В стакане {quote} нет лимиток. Другой стакан сюда не подставляется.</p>;
   }
   return (
     <div className="mt-2 grid grid-cols-2 gap-3 text-xs">
       <div>
-        <p className="text-danger">продавцы · {unit}</p>
+        <p className="text-danger">продавцы · {quote}</p>
         {(asks ?? []).map((level) => (
           <p key={`a-${level.price}`} className="font-mono">
             {fmtAtlas(level.price)} ×{level.qty}
@@ -578,7 +621,7 @@ function BookPeek({ row, quote }: { row: ResourceRow; quote: "USDC" | "ATLAS" | 
         ))}
       </div>
       <div>
-        <p className="text-ok">покупатели · {unit}</p>
+        <p className="text-ok">ставки · {quote}</p>
         {(bids ?? []).map((level) => (
           <p key={`b-${level.price}`} className="font-mono">
             {fmtAtlas(level.price)} ×{level.qty}
@@ -589,10 +632,10 @@ function BookPeek({ row, quote }: { row: ResourceRow; quote: "USDC" | "ATLAS" | 
   );
 }
 
-function CandleChart({ title, candles }: { title: string; candles: Candle[] }) {
+function CandleChart({ title, spanLabel, candles }: { title: string; spanLabel: string; candles: Candle[] }) {
   const [hover, setHover] = useState<{ x: number; y: number; index: number; price: number } | null>(null);
 
-  if (candles.length < 2) return <p className="text-sm text-muted">{title}: свечи ещё не пришли.</p>;
+  if (candles.length < 2) return <p className="text-sm text-muted">{title} · {spanLabel}: свечи ещё не пришли.</p>;
   const w = 720;
   const h = 260;
   const pad = 28;
@@ -608,7 +651,13 @@ function CandleChart({ title, candles }: { title: string; candles: Candle[] }) {
   const move = first && first.o ? ((last.c - first.o) / first.o) * 100 : null;
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((step) => min + span * step);
   const fmtTick = (n: number) => (n >= 100 ? n.toFixed(2) : n >= 1 ? n.toFixed(2) : n.toFixed(6));
-  const dateOf = (t: number) => new Date(t > 1e12 ? t : t * 1000).toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
+  const dateOf = (t: number) => {
+    const when = new Date(t > 1e12 ? t : t * 1000);
+    if (spanLabel === "15м" || spanLabel === "1ч" || spanLabel === "4ч") {
+      return when.toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+    }
+    return when.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
+  };
   const marks = candles.filter((_, index) => index % Math.ceil(candles.length / 5) === 0 || index === candles.length - 1);
 
   function onMove(event: MouseEvent<SVGSVGElement>) {
@@ -626,7 +675,7 @@ function CandleChart({ title, candles }: { title: string; candles: Candle[] }) {
   return (
     <figure className="rounded-xl border border-line bg-surface p-3">
       <figcaption className="mb-2 flex flex-wrap items-baseline justify-between gap-3">
-        <span className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{title} · 1д</span>
+        <span className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{title} · {spanLabel}</span>
         <span className="font-mono text-lg text-fg">сейчас {fmtTick(last.c)}</span>
         <span className="font-mono text-xs text-muted">
           мин {fmtTick(min)} · среднее {fmtTick(candles.reduce((sum, candle) => sum + candle.c, 0) / candles.length)} · макс {fmtTick(max)}

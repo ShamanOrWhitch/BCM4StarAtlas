@@ -171,14 +171,20 @@ async function book(currency: string, decimals: number, retries = currency === U
   return out;
 }
 
-async function candles(pair: string): Promise<Candle[]> {
-  const data = await getJson<{ result?: Record<string, unknown> }>(`https://api.kraken.com/0/public/OHLC?pair=${pair}&interval=1440`);
+export async function fetchKrakenCandles(pair: string, interval: number): Promise<Candle[]> {
+  const data = await getJson<{ result?: Record<string, unknown> }>(
+    `https://api.kraken.com/0/public/OHLC?pair=${pair}&interval=${interval}`,
+  );
   const rows = Object.values(data.result ?? {}).find((value) => Array.isArray(value)) as unknown[][] | undefined;
   if (!rows) return [];
   return rows
-    .slice(-180)
+    .slice(-240)
     .map((row) => ({ t: Number(row[0]) * 1000, o: Number(row[1]), h: Number(row[2]), l: Number(row[3]), c: Number(row[4]) }))
     .filter((row) => row.c > 0);
+}
+
+async function candles(pair: string): Promise<Candle[]> {
+  return fetchKrakenCandles(pair, 1440);
 }
 
 function ratio(base: Candle[], quote: Candle[]): Candle[] {
@@ -249,10 +255,10 @@ export async function directMarket(): Promise<MarketSnap> {
       atlasBid: atlas?.bid ?? null,
       polisAsk: polis?.ask ?? null,
       polisBid: polis?.bid ?? null,
-      ask: usdc?.ask ?? atlas?.ask ?? null,
-      bid: usdc?.bid ?? atlas?.bid ?? null,
-      askQty: usdc?.asks[0]?.qty ?? atlas?.asks[0]?.qty ?? 0,
-      quote: usdc?.ask != null || usdc?.bid != null ? "USDC" : atlas?.ask != null || atlas?.bid != null ? "ATLAS" : "USDC",
+      ask: usdc?.ask ?? null,
+      bid: usdc?.bid ?? null,
+      askQty: usdc?.asks[0]?.qty ?? 0,
+      quote: usdc?.ask != null ? "USDC" : atlas?.ask != null ? "ATLAS" : "USDC",
       msrp: item.kind === "ship" ? item.msrp : null,
       usdcAsks: (usdc?.asks ?? []).slice(0, 6),
       usdcBids: (usdc?.bids ?? []).slice(0, 6),
