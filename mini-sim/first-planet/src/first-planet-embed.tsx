@@ -156,7 +156,7 @@ function FirstPlanetApp({
   if (window.BCMMiniSimSession) window.BCMMiniSimSession.currentLocation = "first-planet";
 
   return mode === "race"
-    ? <ShoalRace seed={Number(context.raceSeed) >>> 0} onLeave={leaveRace} onStartAudio={startRaceMusic} />
+    ? <ShoalRace seed={Number(context.raceSeed) >>> 0} planet={context.planet} onLeave={leaveRace} onStartAudio={startRaceMusic} />
     : <DesertIsland
         context={context}
         live={live}

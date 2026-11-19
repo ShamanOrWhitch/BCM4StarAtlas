@@ -126,11 +126,12 @@ test("Shoal Race receives its own seed without changing the established track ro
   const track = await read("mini-sim/first-planet/src/game/track.ts");
   const component = await read("mini-sim/first-planet/src/components/shoal-race.tsx");
   const embed = await read("mini-sim/first-planet/src/first-planet-embed.tsx");
-  assert.match(race, /export function createRace\(seed = 0\)/);
+  // 19.11.2026 (race modes per planet): createRace(seed, planet, level); the seed still leads.
+  assert.match(race, /export function createRace\(seed = 0, planet\?: string, level\?: number\)/);
   assert.match(race, /layoutBoxes\(track, locationSeed\)/);
   assert.match(race, /createSeededRandom\(seed, "shoal-race-boxes"\)/);
   assert.match(track, /export function buildTrack\(seed = 0\)/);
-  assert.match(component, /createRace\(raceSeed\)/);
+  assert.match(component, /createRace\(raceSeed, planet\)/);
   assert.match(embed, /<ShoalRace seed=\{Number\(context\.raceSeed\) >>> 0\}/);
 });
 

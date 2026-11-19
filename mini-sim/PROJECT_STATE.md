@@ -1,3 +1,16 @@
+## Patch — Mini-Sim 0.15.31: a form of the race per planet, levels 1–3 (19 November 2026)
+
+- **WORK LOCK:** [#134](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/134). IDEA-021 (races), decision D-072.
+- **Owner 19.11:** «Виды гонок на планетах»; «разные игры вместо гонок»; multi-level races.
+- **`first-planet/src/game/race-modes.ts`** (new): Twinsun laps (3 laps, items, drift — as before), Fable slalom (2 laps, gates of light, miss = +3…5 s), Opus elimination (narrow mountain road, last car out after each lap). Levels 1–3 per planet: a first place opens the next (faster rivals, tighter gates).
+- **`sim.ts`:** `createRace(seed, planet, level)`; gates are judged one at a time in order; rivals steer for the gates and lift off before them; eliminated cars rank by when they went out; `reset()` keeps seed and planet (it used to rebuild the cars on the seed-0 road). Grid fix: a car before the line no longer ranks as a lap ahead.
+- **UI:** start screen, HUD (penalty / eliminated / level) and finish («Выбыл», «Открыт уровень N») from the mode; the embed passes the planet; `world.ts` draws the gates.
+- **Red before:** `no race modes: every planet runs the same three-lap Shoal Race`, `Fable has 0 slalom gates`, `the Opus road is as wide as the Twinsun coast`. After: 5/5 (`scripts/first-planet-race-modes.test.mjs`, on the real createRace).
+- **Local:** regression 244/244. Planet Lab race in Edge (`tools/planet-lab/race.mjs`, all three planets): modes laps / slalom / elimination, gates on the Fable road, page errors 0.
+- **Not yet:** the race scenery is the same desert coast on every planet; a live play-through of a full slalom and an elimination race by a person.
+
+---
+
 ## Patch — Mini-Sim 0.15.30: Room 0 race — harder course, rival ships, race place (19 November 2026)
 
 - **WORK LOCK:** [#133](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/133). IDEA-021 (races), decision D-071.

@@ -4,7 +4,7 @@ import type { Race } from "./sim";
 import { RACE_SHIP_FORMS, shipUrl } from "./ships";
 import { faceUp, readTrackSkin, skinnedRoad, type Rgb, type TrackSkin } from "./track-skin";
 import { createSeededRandom, seededShuffle } from "./seed";
-import { ROAD_Y, type Track } from "./track";
+import { ROAD_Y, sampleAt, type Track } from "./track";
 import { aimNose, bake } from "./island/bake";
 import { libraryUrl, propUrl } from "./mesh-url";
 
@@ -368,6 +368,37 @@ export function createWorld(canvas: HTMLCanvasElement): World {
   const lookS = new THREE.Vector3(0, 8, 0);
   let sized = false;
 
+  // Fable slalom: gates of light over the road (race.gates, sim.ts).
+  let gatesFor: Race["gates"] | null = null;
+  let gateGroup: THREE.Group | null = null;
+  const gatePostGeo = new THREE.CylinderGeometry(0.22, 0.3, 4.2, 8);
+  const gateMat = new THREE.MeshBasicMaterial({ color: 0x7df9ff, transparent: true, opacity: 0.85 });
+  const gateBeamMat = new THREE.MeshBasicMaterial({ color: 0xc89bff, transparent: true, opacity: 0.6 });
+  function ensureGates(race: Race) {
+    if (gatesFor === race.gates) return;
+    gatesFor = race.gates;
+    if (gateGroup) scene.remove(gateGroup);
+    gateGroup = null;
+    if (!race.gates.length) return;
+    gateGroup = new THREE.Group();
+    gateGroup.name = "race-gates";
+    for (const gate of race.gates) {
+      const p = sampleAt(race.track, gate.s);
+      const cx = p.x + p.nx * gate.lat;
+      const cz = p.z + p.nz * gate.lat;
+      for (const side of [-1, 1]) {
+        const post = new THREE.Mesh(gatePostGeo, gateMat);
+        post.position.set(cx + p.nx * gate.half * side, ROAD_Y + 2.1, cz + p.nz * gate.half * side);
+        gateGroup.add(post);
+      }
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(gate.half * 2 + 0.5, 0.18, 0.18), gateBeamMat);
+      beam.position.set(cx, ROAD_Y + 4.2, cz);
+      beam.rotation.y = Math.atan2(p.tx, p.tz) + Math.PI / 2;
+      gateGroup.add(beam);
+    }
+    scene.add(gateGroup);
+  }
+
   function ensureTrack(track: Track) {
     if (trackRef.current === track && road) return;
     trackRef.current = track;
@@ -554,6 +585,7 @@ export function createWorld(canvas: HTMLCanvasElement): World {
     update(race, phase, view, dt, elapsed) {
       if (!sized) resize();
       ensureTrack(race.track);
+      ensureGates(race);
       while (karts.length < race.cars.length) {
         const kart = makeKart(race.cars[karts.length].color);
         scene.add(kart.group);
