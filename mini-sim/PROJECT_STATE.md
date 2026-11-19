@@ -1,3 +1,15 @@
+## Patch — Mini-Sim 0.15.33: Ring cell look from the owner's tiles (19 November 2026)
+
+- **WORK LOCK:** [#136](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/136). Decision D-074, step 1 of the Ring rework.
+- **Owner 19.11:** «лабиринт в кольце на астероиде в стадии никакущей»; texture sheets in `art/tower-ring-kits/`; «Да, шаг 1».
+- **Atlas:** `mini-sim/assets/textures/ring-tiles.webp` (4×4 tiles, 47 KB) cut from `textures-grid.webp` by `tools/ring-tiles/cut.mjs` (Edge canvas).
+- **`deep-space-warp.js`:** Ring cell themes by the cell's floor — brick, ice, lava; `wallAsset` still picks the tile; walls, back wall, floor and ceiling from the tiles; doors with a grate doorway on the back wall and a hazard lintel; a cell light tinted by the theme. Fallback to the asteroid rock until the atlas loads.
+- **Red before:** `no Ring tile atlas: the cells wear the asteroid's own rock`, then `the Ring cell never loads the tile atlas`. After 2/2 (`scripts/ring-cell-look.test.mjs`).
+- **Browser:** `scripts/ring-maze-probe.mjs` in Edge (jump to an asteroid, ship onto the gold ring): cell maps `ring-tile-*`, door `ring-tile-12-door`, floor change at the hatch gives brick → lava lights; page errors 0. Transitions standalone QA PASS. Regression 249/249.
+- **Not yet (step 2):** platforms, ladders, crates and spikes inside a cell; enemies are still orange boxes.
+
+---
+
 ## Patch — Mini-Sim 0.15.32: race scenery per planet after the owner's sheets (19 November 2026)
 
 - **WORK LOCK:** [#135](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/135). IDEA-021 (races), decision D-073.

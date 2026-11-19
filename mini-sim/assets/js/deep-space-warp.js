@@ -3498,14 +3498,99 @@ function warpSectorPlanetCard(core, x, y, jumps) {
           map: textures[0], color: 0xffffff, roughness: 0.9, metalness: 0.18,
           emissive: 0x000000, emissiveIntensity: 0
         });
+        // Ring cell tiles (owner 19.11.2026, sheet art/tower-ring-kits/textures-grid.webp,
+        // atlas cut by tools/ring-tiles/cut.mjs: 4x4 tiles of 128 px). Each floor of
+        // the asteroid has its own theme; the cell's wallAsset picks the variant, so
+        // the Ring is still built from the asteroid's own cells. Until the atlas has
+        // loaded (or if it is missing) the cell keeps the asteroid rock.
+        const RING_CELL_THEMES = [
+          { id: "brick", walls: [0, 1, 2], floor: [3, 15], light: 0xffd8b0, glow: 0x000000 },
+          { id: "ice", walls: [4, 5], floor: [6, 7], light: 0xd4ecff, glow: 0x000000 },
+          { id: "lava", walls: [8, 9], floor: [10, 11], light: 0xffa060, glow: 0x3a0c02 }
+        ];
+        const RING_TILE_DOOR = 12;
+        const RING_TILE_HAZARD = 13;
+        const RING_TILE_HATCH = 14;
+        const backMaterial = new THREE.MeshStandardMaterial({
+          map: textures[0], color: 0xffffff, roughness: 0.9, metalness: 0.12,
+          emissive: 0x000000, emissiveIntensity: 0
+        });
+        const doorMaterial = new THREE.MeshStandardMaterial({ color: 0x8a96a0, roughness: 0.6, metalness: 0.45, emissive: 0x000000, emissiveIntensity: 0 });
+        const trimMaterial = new THREE.MeshStandardMaterial({ color: 0xd8b03a, roughness: 0.7, metalness: 0.2 });
+        const ringTiles = { ready: false, canvases: [], cache: new Map() };
+        ringTiles.get = (index, role) => {
+          const key = index + ":" + role;
+          if (ringTiles.cache.has(key)) return ringTiles.cache.get(key);
+          const source = ringTiles.canvases[index];
+          if (!source) return null;
+          const tex = new THREE.CanvasTexture(source);
+          tex.name = "ring-tile-" + index + "-" + role;
+          tex.wrapS = THREE.RepeatWrapping;
+          tex.wrapT = THREE.RepeatWrapping;
+          const repeat = { floor: [6, 2], wall: [2, 1.4], back: [6, 2.3], door: [1, 1.5], trim: [3, 0.5], hatch: [1, 1] }[role] || [1, 1];
+          tex.repeat.set(repeat[0], repeat[1]);
+          if (THREE.sRGBEncoding !== undefined) tex.encoding = THREE.sRGBEncoding;
+          ringTiles.cache.set(key, tex);
+          if (world.textures) world.textures.push(tex);
+          return tex;
+        };
+        (function loadRingTiles() {
+          const assets = Array.isArray(config.assets) ? config.assets : [];
+          const found = assets.find((item) => String(item && (item.name || item.url) || "")
+            .split(/[?#]/)[0].split("/").pop().toLowerCase() === "ring-tiles.webp");
+          let url = found && found.url ? String(found.url) : "";
+          if (!url) {
+            try {
+              const script = document.querySelector('script[src*="deep-space-warp"]');
+              if (script && script.src) url = String(script.src).split(/[?#]/)[0].replace(/[^/]*$/, "") + "../textures/ring-tiles.webp";
+            } catch (e) {}
+          }
+          if (!url) return;
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => {
+            for (let i = 0; i < 16; i += 1) {
+              const c = document.createElement("canvas");
+              c.width = 128;
+              c.height = 128;
+              c.getContext("2d").drawImage(img, (i % 4) * 128, Math.floor(i / 4) * 128, 128, 128, 0, 0, 128, 128);
+              ringTiles.canvases.push(c);
+            }
+            ringTiles.ready = true;
+            try { if (world.cellPath) applyRingCellLook(world); } catch (e) {}
+          };
+          img.onerror = () => { try { console.warn("Mini-Sim Ring tiles missing; the cells keep the asteroid rock.", url); } catch (e) {} };
+          img.src = url;
+        })();
         const room = new THREE.Group();
         room.name = "bcm-asteroid-cell-room";
         const floor = new THREE.Mesh(new THREE.BoxGeometry(ROOM_HALF * 2, 0.36, 3.8), floorMaterial);
         floor.position.set(RING_CELL_HOME, -0.18, 0);
         room.add(floor);
         const doorGeo = new THREE.BoxGeometry(0.28, 2.4, 0.4);
-        const doorLeft = new THREE.Mesh(doorGeo, wallMaterial);
-        const doorRight = new THREE.Mesh(doorGeo, wallMaterial);
+        const doorLeft = new THREE.Mesh(doorGeo, doorMaterial);
+        const doorRight = new THREE.Mesh(doorGeo, doorMaterial);
+        doorLeft.name = "ring-cell-door-left";
+        doorRight.name = "ring-cell-door-right";
+        // A hazard-striped lintel over each door, and the doorway itself on the back
+        // wall (the door box shows the camera only its 0.28 m edge). Children of the
+        // door, so they come and go with it.
+        const lintelGeo = new THREE.BoxGeometry(0.42, 0.34, 0.6);
+        const doorwayGeo = new THREE.PlaneGeometry(1.5, 2.3);
+        const doorwayTrimGeo = new THREE.PlaneGeometry(1.8, 0.32);
+        [doorLeft, doorRight].forEach((door, index) => {
+          const lintel = new THREE.Mesh(lintelGeo, trimMaterial);
+          lintel.position.set(0, 1.37, 0);
+          door.add(lintel);
+          const inward = index === 0 ? 1 : -1;
+          const doorway = new THREE.Mesh(doorwayGeo, doorMaterial);
+          doorway.name = "ring-cell-doorway";
+          doorway.position.set(inward * 0.95, -0.03, -1.47);
+          door.add(doorway);
+          const doorwayTrim = new THREE.Mesh(doorwayTrimGeo, trimMaterial);
+          doorwayTrim.position.set(inward * 0.95, 1.26, -1.46);
+          door.add(doorwayTrim);
+        });
         doorLeft.position.set(RING_CELL_HOME - ROOM_HALF + 0.2, 1.15, 0);
         doorRight.position.set(RING_CELL_HOME + ROOM_HALF - 0.2, 1.15, 0);
         const sealedWallGeo = new THREE.BoxGeometry(0.24, 2.55, 3.8);
@@ -3517,7 +3602,7 @@ function warpSectorPlanetCard(core, x, y, jumps) {
         sealedWallRight.position.set(RING_CELL_HOME + ROOM_HALF - 0.12, 1.15, 0);
         room.add(sealedWallLeft, sealedWallRight, doorLeft, doorRight);
         const backGeo = new THREE.PlaneGeometry(ROOM_HALF * 2.4, 5.4);
-        const backWall = new THREE.Mesh(backGeo, wallMaterial);
+        const backWall = new THREE.Mesh(backGeo, backMaterial);
         backWall.name = "ring-cell-asteroid-face";
         backWall.position.set(RING_CELL_HOME, 2.2, -1.5);
         const ceilingGeo = new THREE.BoxGeometry(ROOM_HALF * 2, 0.28, 3.6);
@@ -3525,6 +3610,11 @@ function warpSectorPlanetCard(core, x, y, jumps) {
         ceiling.name = "ring-cell-asteroid-ceiling";
         ceiling.position.set(RING_CELL_HOME, 3.65, 0);
         room.add(backWall, ceiling);
+        // The cell's own light, tinted by its theme: the asteroid light alone left it black.
+        const roomLight = new THREE.PointLight(0xffd8b0, 1.7, 24, 1.4);
+        roomLight.name = "ring-cell-light";
+        roomLight.position.set(RING_CELL_HOME, 3.1, 2.4);
+        room.add(roomLight);
         const hatch = new THREE.Mesh(
           new THREE.BoxGeometry(1.1, 0.08, 1.1),
           new THREE.MeshBasicMaterial({ color: 0x5fdbc8, emissive: 0x124b55, emissiveIntensity: 0.9 })
@@ -3564,9 +3654,9 @@ function warpSectorPlanetCard(core, x, y, jumps) {
         });
         scene.add(room);
         world.platforms.push({ minX: RING_CELL_HOME - ROOM_HALF, maxX: RING_CELL_HOME + ROOM_HALF, y: 0, cellRoom: true });
-        world.materials.push(floorMaterial, wallMaterial, hatch.material, portalMaterial, mobMat);
+        world.materials.push(floorMaterial, wallMaterial, backMaterial, doorMaterial, trimMaterial, hatch.material, portalMaterial, mobMat);
         textures.forEach((texture) => world.textures.push(texture));
-        world.specialGeometry.push(floor.geometry, doorGeo, sealedWallGeo, hatch.geometry, portalRing.geometry, mobGeo, backGeo, ceilingGeo);
+        world.specialGeometry.push(floor.geometry, doorGeo, lintelGeo, doorwayGeo, doorwayTrimGeo, sealedWallGeo, hatch.geometry, portalRing.geometry, mobGeo, backGeo, ceilingGeo);
         const start = (maze.startCell && nodes.get(keyOf(maze.startCell.x, maze.startCell.y, maze.startCell.z)))
           || nodes.values().next().value;
         const horizontalOpen = ["xp", "xn", "zp", "zn"];
@@ -3598,7 +3688,8 @@ function warpSectorPlanetCard(core, x, y, jumps) {
           nx: maze.dimensions?.nx || 7,
           ny: maze.dimensions?.ny || 3,
           nz: maze.dimensions?.nz || 7,
-          room, floorMaterial, wallMaterial, doorLeft, doorRight, sealedWallLeft, sealedWallRight,
+          room, floorMaterial, wallMaterial, backMaterial, doorMaterial, trimMaterial, roomLight, ringTiles, RING_CELL_THEMES,
+          RING_TILE_DOOR, RING_TILE_HAZARD, RING_TILE_HATCH, doorLeft, doorRight, sealedWallLeft, sealedWallRight,
           hatch, portalRing, portalMaterial, textures,
           hydrogenNode: start,
           hydrogen: hydrogenState,
@@ -3653,14 +3744,49 @@ function warpSectorPlanetCard(core, x, y, jumps) {
         if (!path || !(nodeOverride || path.current)) return;
         const node = nodeOverride || path.current;
         const heading = headingOverride || path.heading;
-        const tex = path.textures[Math.abs(node.wallAsset || 0) % path.textures.length];
-        if (tex) {
-          tex.rotation = (node.wallTurn || 0) * (Math.PI / 2);
-          tex.center.set(0.5, 0.5);
-          path.floorMaterial.map = tex;
-          path.wallMaterial.map = tex;
-          path.floorMaterial.needsUpdate = true;
-          path.wallMaterial.needsUpdate = true;
+        // Theme by the cell's floor (brick / ice / lava); the cell's wallAsset picks the tile.
+        const themeCount = (path.RING_CELL_THEMES || []).length;
+        const theme = themeCount ? path.RING_CELL_THEMES[((Number(node.y) || 0) % themeCount + themeCount) % themeCount] : null;
+        const tiles = path.ringTiles;
+        if (theme && tiles && tiles.ready) {
+          const pickTile = (list) => list[Math.abs(node.wallAsset || 0) % list.length];
+          const setMap = (material, tex) => {
+            if (!material || !tex || material.map === tex) return;
+            material.map = tex;
+            material.needsUpdate = true;
+          };
+          const wallTile = pickTile(theme.walls);
+          setMap(path.wallMaterial, tiles.get(wallTile, "wall"));
+          setMap(path.backMaterial, tiles.get(wallTile, "back"));
+          setMap(path.floorMaterial, tiles.get(pickTile(theme.floor), "floor"));
+          setMap(path.doorMaterial, tiles.get(path.RING_TILE_DOOR, "door"));
+          // The doorway stands back from the cell light: let its own tile glow a little.
+          if (path.doorMaterial && path.doorMaterial.emissiveMap !== path.doorMaterial.map) {
+            path.doorMaterial.emissiveMap = path.doorMaterial.map;
+            path.doorMaterial.emissive.setHex(0x8a8a8a);
+            path.doorMaterial.emissiveIntensity = 0.55;
+            path.doorMaterial.needsUpdate = true;
+          }
+          setMap(path.trimMaterial, tiles.get(path.RING_TILE_HAZARD, "trim"));
+          if (path.doorMaterial) path.doorMaterial.color.setHex(0xffffff);
+          if (path.trimMaterial) path.trimMaterial.color.setHex(0xffffff);
+          if (path.roomLight) path.roomLight.color.setHex(theme.light);
+          if (path.backMaterial && path.backMaterial.emissive) {
+            path.backMaterial.emissive.setHex(theme.glow);
+            path.backMaterial.emissiveIntensity = theme.glow ? 0.9 : 0;
+          }
+        } else {
+          const tex = path.textures[Math.abs(node.wallAsset || 0) % path.textures.length];
+          if (tex) {
+            tex.rotation = (node.wallTurn || 0) * (Math.PI / 2);
+            tex.center.set(0.5, 0.5);
+            path.floorMaterial.map = tex;
+            path.wallMaterial.map = tex;
+            if (path.backMaterial) path.backMaterial.map = tex;
+            path.floorMaterial.needsUpdate = true;
+            path.wallMaterial.needsUpdate = true;
+            if (path.backMaterial) path.backMaterial.needsUpdate = true;
+          }
         }
         const astralPalette = {
           drift: { floor: 0xc9b6ff, wall: 0x8d78c9 },

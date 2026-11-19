@@ -60,6 +60,11 @@ try {
   await page.waitForTimeout(1500);
   await page.locator("#bcm-ring-platformer button[aria-label*=close i], .bcm-dialogue button").first().click({ timeout: 1500 }).catch(() => {});
   await shot("03-ring-cell");
+  // The start cell has the glowing hatch: E there goes to another floor (another theme).
+  await page.keyboard.press("KeyE");
+  await page.waitForTimeout(2500);
+  await shot("03b-floor-change");
+  report.floorLight = await page.evaluate(() => window.BCMiniSimAPI.getRuntime().scene.getObjectByName("ring-cell-light")?.color?.getHexString());
   await page.keyboard.down("KeyD");
   for (let i = 0; i < 4; i++) { await page.waitForTimeout(700); await page.keyboard.press("Space"); }
   await shot("04-ring-walk");
@@ -73,6 +78,23 @@ try {
   await page.waitForTimeout(3000);
   await page.keyboard.up("KeyA");
   await shot("07-ring-back");
+  // Another floor of the asteroid: another theme.
+  for (let i = 0; i < 3; i++) { await page.keyboard.press("KeyR"); await page.waitForTimeout(1500); }
+  await shot("08-other-floor");
+  report.floors = await page.evaluate(() => window.BCMiniSimAPI.getRuntime().scene.getObjectByName("bcm-asteroid-cell-room")?.getObjectByName("ring-cell-light")?.color?.getHexString());
+  // The cell look (scripts/ring-cell-look.test.mjs): tiles from the atlas, a theme per floor, the cell light.
+  report.cell = await page.evaluate(() => {
+    const scene = window.BCMiniSimAPI.getRuntime().scene;
+    const room = scene.getObjectByName("bcm-asteroid-cell-room");
+    if (!room) return null;
+    const map = (name) => room.getObjectByName(name)?.material?.map?.name || null;
+    return {
+      back: map("ring-cell-asteroid-face"),
+      wall: map("ring-cell-sealed-wall-left") || map("ring-cell-sealed-wall-right"),
+      door: map("ring-cell-door-left") || map("ring-cell-door-right"),
+      light: room.getObjectByName("ring-cell-light")?.color?.getHexString() || null,
+    };
+  });
   report.text = await page.evaluate(() => (document.getElementById("bcm-ring-platformer")?.innerText || "").slice(0, 600));
 } catch (error) {
   report.failure = String(error && error.message || error).split("\n")[0];
