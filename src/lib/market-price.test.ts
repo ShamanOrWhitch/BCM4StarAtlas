@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bucketByMonth, CHART_PERIODS, ratioCandles, salePrice } from "./market-price.ts";
+import { bucketByMonth, CHART_PERIODS, marketHref, ratioCandles, salePrice, usdcSegment } from "./market-price.ts";
 import type { ResourceRow } from "./desk-types.ts";
 
 function row(patch: Partial<ResourceRow>): ResourceRow {
@@ -30,18 +30,6 @@ test("a 1 USDC bid is not the sale price", () => {
   assert.equal(salePrice(titan, "ATLAS"), 9000);
 });
 
-test("a converted USDC summary is not a USDC sale", () => {
-  const converted = row({
-    usdcDerived: true,
-    usdcAsk: 4.2,
-    usdcAsks: [],
-    atlasAsk: 20000,
-    atlasAsks: [{ price: 20000, qty: 3 }],
-  });
-  assert.equal(salePrice(converted, "USDC"), null);
-  assert.equal(salePrice(converted, "ATLAS"), 20000);
-});
-
 test("the first seller on the ladder is today's price", () => {
   const listed = row({
     usdcAsks: [
@@ -51,6 +39,34 @@ test("the first seller on the ladder is today's price", () => {
     usdcAsk: 1,
   });
   assert.equal(salePrice(listed, "USDC"), 120);
+});
+
+test("no USDC sellers: the ATLAS ask is shown in USDC, and a lone bid is not", () => {
+  const onlyAtlas = row({
+    usdcAsks: [],
+    usdcBids: [{ price: 1, qty: 1 }],
+    usdcBid: 1,
+    atlasAsks: [{ price: 10000, qty: 4 }],
+    atlasAsk: 10000,
+  });
+  const segment = usdcSegment(onlyAtlas, 0.0002);
+  assert.equal(segment.usd, 2);
+  assert.equal(segment.book, "ATLAS");
+  assert.equal(marketHref(onlyAtlas.mint, segment.book), "https://play.staratlas.com/market/titan/?symbol=ATLAS");
+
+  const both = row({
+    usdcAsks: [{ price: 3.5, qty: 2 }],
+    usdcAsk: 3.5,
+    atlasAsks: [{ price: 10000, qty: 4 }],
+    atlasAsk: 10000,
+  });
+  const preferred = usdcSegment(both, 0.0002);
+  assert.equal(preferred.usd, 3.5);
+  assert.equal(preferred.book, "USDC");
+  assert.equal(marketHref(both.mint, preferred.book), "https://play.staratlas.com/market/titan/?symbol=USDC");
+
+  const bidOnly = row({ usdcBids: [{ price: 1, qty: 1 }], usdcBid: 1, usdcAsks: [], atlasAsks: [] });
+  assert.equal(usdcSegment(bidOnly, 0.0002).usd, null);
 });
 
 test("chart periods are the desk switches, including 1h and 1 month", () => {

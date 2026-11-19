@@ -37,6 +37,26 @@ export function salePrice(row: ResourceRow, quote: QuoteId): number | null {
   return bookTop(row.usdcAsks, row.usdcAsk, Boolean(row.usdcDerived));
 }
 
+export type UsdcSegment = {
+  /** Best seller, in USDC. An ATLAS ask is converted. A bid is never used. */
+  usd: number | null;
+  /** Which order book the number came from. The buy link must open this book. */
+  book: "USDC" | "ATLAS" | null;
+};
+
+export function usdcSegment(row: ResourceRow, atlasUsd: number | null): UsdcSegment {
+  const direct = salePrice(row, "USDC");
+  if (direct != null) return { usd: direct, book: "USDC" };
+  const atlas = salePrice(row, "ATLAS");
+  if (atlas != null && atlasUsd != null && atlasUsd > 0) return { usd: atlas * atlasUsd, book: "ATLAS" };
+  return { usd: null, book: null };
+}
+
+export function marketHref(mint: string, book: "USDC" | "ATLAS" | null): string {
+  const symbol = book === "ATLAS" ? "ATLAS" : "USDC";
+  return `https://play.staratlas.com/market/${mint}/?symbol=${symbol}`;
+}
+
 export function bidPrice(row: ResourceRow, quote: QuoteId): number | null {
   if (quote === "ATLAS") return bookTop(row.atlasBids, row.atlasBid, false);
   if (quote === "POLIS") return bookTop(undefined, row.polisBid, false);

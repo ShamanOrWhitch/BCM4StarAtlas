@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppChrome } from "@/components/app-chrome";
 import { loadMarket, watchLiveBooks, type Candle, type MarketSnap, type ResourceRow, type TapePoint } from "@/lib/desk";
 import { fetchKrakenCandles } from "@/lib/desk-direct";
-import { bidPrice, bucketByMonth, CHART_PERIODS, ratioCandles, salePrice, type ChartPeriodId, type QuoteId } from "@/lib/market-price";
+import { bidPrice, bucketByMonth, CHART_PERIODS, marketHref, ratioCandles, usdcSegment, type ChartPeriodId, type QuoteId } from "@/lib/market-price";
 import { deltaPct, recordTape, rememberFloors } from "@/lib/price-tape";
 
 export const Route = createFileRoute("/market")({ component: MarketPage });
@@ -63,18 +63,18 @@ function fmtAtlas(n: number | null): string {
   return n.toLocaleString("ru-RU", { maximumFractionDigits: 6 });
 }
 
-function priced(row: ResourceRow, quote: QuoteId): ResourceRow {
-  return {
-    ...row,
-    ask: salePrice(row, quote),
-    bid: bidPrice(row, quote),
-    quote,
-  };
+function atlasRate(data: MarketSnap | null): number | null {
+  return data?.pairQuotes?.atlasUsdc ?? data?.atlas?.usd ?? null;
 }
-function money(row: ResourceRow): string {
-  if (row.ask == null) return "нет продажи";
-  const unit = row.quote === "POLIS" ? "POLIS" : row.quote === "ATLAS" ? "ATLAS" : "USDC";
-  return `${fmtAtlas(row.ask)} ${unit}`;
+
+function segmentBid(row: ResourceRow, atlasUsd: number | null): number | null {
+  const segment = usdcSegment(row, atlasUsd);
+  if (segment.book === "USDC") return bidPrice(row, "USDC");
+  if (segment.book === "ATLAS") {
+    const bid = bidPrice(row, "ATLAS");
+    return bid != null && atlasUsd != null && atlasUsd > 0 ? bid * atlasUsd : null;
+  }
+  return null;
 }
 
 function fmtUsd(n: number | null): string {
@@ -122,7 +122,7 @@ export function MarketPage() {
       setSnap(data);
       const asks: Record<string, number> = {};
       for (const row of [...data.resources, ...data.ships]) {
-        const price = salePrice(row, "USDC");
+        const price = usdcSegment(row, atlasRate(data)).usd;
         if (price != null) asks[row.mint] = price;
       }
       setTape(mergeTape(data.tape ?? [], recordTape(asks, data.atlas.usd)));
@@ -148,7 +148,7 @@ export function MarketPage() {
         setSnap(data);
         const asks: Record<string, number> = {};
         for (const row of [...data.resources, ...data.ships]) {
-          const price = salePrice(row, "USDC");
+          const price = usdcSegment(row, atlasRate(data)).usd;
           if (price != null) asks[row.mint] = price;
         }
         setTape(recordTape(asks, data.atlas.usd));
@@ -236,8 +236,15 @@ export function MarketPage() {
       return row.name.toLowerCase().includes(q) || row.symbol.toLowerCase().includes(q);
     });
   }, [snap, filter, query]);
-  const viewRows = useMemo(() => rows.map((row) => priced(row, quote)), [rows, quote]);
-  const viewShips = useMemo(() => (snap?.ships ?? []).map((row) => priced(row, quote)), [snap, quote]);
+  const rate = atlasRate(snap);
+  const viewRows = useMemo(() => rows.map((row) => {
+    const segment = usdcSegment(row, rate);
+    return { ...row, ask: segment.usd, book: segment.book };
+  }), [rows, rate]);
+  const viewShips = useMemo(() => (snap?.ships ?? []).map((row) => {
+    const segment = usdcSegment(row, rate);
+    return { ...row, ask: segment.usd, book: segment.book };
+  }), [snap, rate]);
   const anchor = useMemo(() => anchorAsks(tape, floors, period), [tape, floors, period]);
 
   return (
@@ -265,7 +272,7 @@ export function MarketPage() {
             </a>
           </div>
           <p className="text-sm text-muted">
-            Кнопки срока меняют все свечи ниже. Цена ресурса — первая лимитка продавца в своём стакане. Ставка покупателя, даже 1 USDC за один лот, сегодняшней ценой не является.
+            Кнопки срока меняют все свечи ниже. Цена везде в USDC: если в стакане USDC есть продавец — это его лимитка. Если продавцов в USDC нет — лучшая продажа в ATLAS умножается на курс ATLAS/USDC. Ставка покупателя ценой не является. Пузырь открывает тот стакан, откуда взята цена.
           </p>
           {chartNote ? <p className="text-sm text-danger">{chartNote}</p> : null}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -339,9 +346,9 @@ export function MarketPage() {
                 <tr>
                   <th className="px-3 py-2 font-medium">Ресурс</th>
                   <th className="px-3 py-2 font-medium">Класс</th>
-                  <th className="px-3 py-2 font-medium">Продажа USDC</th>
-                  <th className="px-3 py-2 font-medium">Продажа ATLAS</th>
-                  <th className="px-3 py-2 font-medium">Ставка {quote}</th>
+                  <th className="px-3 py-2 font-medium">Продажа, USDC</th>
+                  <th className="px-3 py-2 font-medium">Откуда</th>
+                  <th className="px-3 py-2 font-medium">Ставка, USDC</th>
                   <th className="px-3 py-2 font-medium">Δ</th>
                 </tr>
               </thead>
@@ -352,16 +359,19 @@ export function MarketPage() {
                   return (
                     <tr key={row.mint} className="border-t border-line">
                       <td className="px-3 py-2">
-                        <button type="button" className="text-left text-fg" onClick={() => setBookMint(open ? "" : row.mint)}>
+                        <a className="text-fg underline decoration-white/20" href={marketHref(row.mint, row.book)} target="_blank" rel="noreferrer">
                           {row.name}
+                        </a>
+                        <button type="button" className="ml-2 text-faint underline" onClick={() => setBookMint(open ? "" : row.mint)}>
+                          уровни
                         </button>
                         <span className="ml-2 font-mono text-faint">{row.symbol}</span>
-                        {open ? <BookPeek row={row} quote={quote} /> : null}
+                        {open ? <BookPeek row={row} quote={row.book ?? quote} /> : null}
                       </td>
                       <td className="px-3 py-2 text-muted">{CLASS_LABEL[row.className] ?? row.className}</td>
-                      <td className="px-3 py-2 font-mono text-fg">{fmtAtlas(salePrice(row, "USDC"))}</td>
-                      <td className="px-3 py-2 font-mono text-fg">{fmtAtlas(salePrice(row, "ATLAS"))}</td>
-                      <td className="px-3 py-2 font-mono text-muted">{fmtAtlas(bidPrice(row, quote))}</td>
+                      <td className="px-3 py-2 font-mono text-fg">{fmtAtlas(row.ask)}</td>
+                      <td className="px-3 py-2 text-muted">{row.book === "ATLAS" ? "стакан ATLAS × курс" : row.book === "USDC" ? "стакан USDC" : "нет продажи"}</td>
+                      <td className="px-3 py-2 font-mono text-muted">{fmtAtlas(segmentBid(row, rate))}</td>
                       <td className={`px-3 py-2 font-mono ${d == null ? "text-faint" : d > 0 ? "text-danger" : "text-ok"}`}>
                         {fmtPct(d)}
                       </td>
@@ -476,7 +486,7 @@ function BubbleField({
   versus = "tape",
 }: {
   title: string;
-  rows: ResourceRow[];
+  rows: Array<ResourceRow & { book?: "USDC" | "ATLAS" | null }>;
   anchor: Record<string, number>;
   floors?: Record<string, number>;
   versus?: "tape" | "floor";
@@ -501,21 +511,28 @@ function BubbleField({
           const up = change != null && change >= 0;
           const ring = change == null ? "rgba(232,238,242,0.45)" : up ? "#3dba7a" : "#e15b4a";
           return (
-            <div
+            <a
               key={row.mint}
+              href={marketHref(row.mint, row.book ?? null)}
+              target="_blank"
+              rel="noreferrer"
               className="relative shrink-0 overflow-hidden rounded-full border-[3px] bg-[#121820]"
               style={{ width: size, height: size, borderColor: ring }}
-              title={row.name}
+              title={`${row.name} · ${row.book === "ATLAS" ? "стакан ATLAS, цена в USDC" : "стакан USDC"}`}
             >
               {row.image ? <img src={row.image} alt="" className="absolute inset-0 h-full w-full object-cover" /> : null}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-black/10" />
               <div className="absolute inset-x-1 bottom-2 z-10 text-center text-white">
                 <p className="font-mono text-sm font-semibold leading-none" style={{ color: ring }}>
-                  {change == null ? money(row) : fmtPct(change)}
+                  {row.ask == null ? "нет продажи" : `${fmtAtlas(row.ask)} USDC`}
                 </p>
                 <p className="mt-1 line-clamp-2 font-display text-[11px] leading-tight">{row.name}</p>
+                <p className="font-mono text-[10px] leading-none text-white/70">
+                  {row.book === "ATLAS" ? "из ATLAS" : row.book === "USDC" ? "USDC" : ""}
+                  {change == null ? "" : ` ${fmtPct(change)}`}
+                </p>
               </div>
-            </div>
+            </a>
           );
         })}
       </div>
