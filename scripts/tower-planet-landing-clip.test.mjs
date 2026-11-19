@@ -139,3 +139,18 @@ test("Opus has its own departure clip, played forward; others reverse the landin
   assert.match(reverse, /const play = departure \? playForward : playReverse;/, "a departure clip is not played forward");
   assert.match(tower, /function departureClip\(\)[\s\S]{0,300}planetAscents/);
 });
+
+// Owner 19.11.2026: "задний фон у всех трёх башен в разных планетах свой ...
+// background в Tower — основа ощущения планеты". Each planet may bring its own
+// Tower backdrop (tower-bg-<planet>.*); without one the old menu background stays.
+test("Tower takes the backdrop of the planet it leads to", () => {
+  const php = read("mini-sim/tower/bcm-tower.php");
+  const block = php.match(/'towerBackgrounds'\s*=>\s*array_filter\(array\(([\s\S]*?)\)\)/);
+  assert.ok(block, "every Tower has the same backdrop: there is no per-planet Tower background");
+  for (const id of ["fable", "opus", "first"]) assert.match(block[1], new RegExp(`'${id}'\\s*=>`), `no backdrop slot for ${id}`);
+  const tower = read("mini-sim/tower/assets/js/tower.js");
+  assert.match(tower, /function applyPlanetBackground\(\)[\s\S]{0,500}towerBackgrounds[\s\S]{0,300}backgroundMenu/,
+    "Tower does not choose its backdrop by planet with the old one as fallback");
+  const enter = tower.slice(tower.indexOf("window.BCMTowerAPI.enter = "), tower.indexOf("window.BCMTowerAPI.mount"));
+  assert.ok((enter.match(/applyPlanetBackground\(\)/g) || []).length >= 2, "entering or ascending Tower does not set the planet's backdrop");
+});

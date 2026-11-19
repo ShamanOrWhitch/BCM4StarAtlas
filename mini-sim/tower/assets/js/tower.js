@@ -3,7 +3,7 @@
 
   const CONFIG = window.BCMTowerConfig || {};
   if (!Array.isArray(CONFIG.assets) && Array.isArray(window.BCMMiniSimConfig?.assets)) CONFIG.assets = window.BCMMiniSimConfig.assets;
-  const TOWER_VERSION = "0.2.88";
+  const TOWER_VERSION = "0.2.89";
   const THREE_URL = CONFIG.threeUrl || "";
 
   function loadScript(src) {
@@ -631,12 +631,18 @@
       powerPreference: "high-performance"
     });
 
-    if (CONFIG.backgroundMenu) {
-      root.style.setProperty(
-        "--bcm-tower-background-image",
-        'url("' + String(CONFIG.backgroundMenu).replace(/"/g, "\\\"") + '")'
-      );
+    // The Tower backdrop is the planet's (Fable: dark mountain, Opus: snowy
+    // mountain, Twinsun: desert tower). A planet without one keeps the menu art.
+    function applyPlanetBackground() {
+      const own = CONFIG.towerBackgrounds && CONFIG.towerBackgrounds[landingPlanet()];
+      const url = String(own || CONFIG.backgroundMenu || "");
+      if (!url) return "";
+      root.style.setProperty("--bcm-tower-background-image", 'url("' + url.replace(/"/g, "\\\"") + '")');
+      root.dataset.bcmTowerPlanet = landingPlanet();
+      return url;
     }
+    // The menu art right away; the planet is known once the landing state below exists.
+    if (CONFIG.backgroundMenu) root.style.setProperty("--bcm-tower-background-image", 'url("' + String(CONFIG.backgroundMenu).replace(/"/g, "\\\"") + '")');
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.autoClear = false;
 
@@ -3543,6 +3549,7 @@
     window.BCMTowerAPI.preloadLanding = () => primeTransitionVideo();
     window.BCMTowerAPI.enter = (options) => {
       const deferHandoff = !!(options && options.deferHandoff);
+      applyPlanetBackground();
       root.hidden = false;
       root.style.zIndex = "1000001";
       if (deferHandoff) {
@@ -3591,6 +3598,7 @@
       return window.BCMTowerAPI.enter({ deferHandoff: landingHandoffPending });
     };
     window.BCMTowerAPI.beginAscent = (options = {}) => {
+      applyPlanetBackground();
       const wantedSeed = Number(options.seed ?? window.BCMWorldMission?.towerSeed ?? seed);
       if (!Number.isSafeInteger(wantedSeed) || wantedSeed < 0 || wantedSeed > 0xffffffff) {
         status.textContent = "НЕ УДАЛОСЬ ВОССТАНОВИТЬ SEED TOWER";

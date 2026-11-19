@@ -241,8 +241,8 @@ test("Mini-Sim and Tower displayed versions match their PHP asset-cache versions
   assert.ok(miniVersion, "Mini-Sim PHP header exposes a version");
   assert.ok(miniPhp.includes(`BCM_MINI_SIM_VERSION', '${miniVersion}'`));
   assert.ok(miniPhp.includes(`SPACE LABYRINTH — ${miniVersion}`));
-  assert.ok(towerPhp.includes("BCM_TOWER_VERSION', '0.2.88'"));
-  assert.ok(tower.includes('const TOWER_VERSION = "0.2.88"'));
+  assert.ok(towerPhp.includes("BCM_TOWER_VERSION', '0.2.89'"));
+  assert.ok(tower.includes('const TOWER_VERSION = "0.2.89"'));
 });
 
 

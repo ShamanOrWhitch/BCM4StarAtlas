@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_TOWER_VERSION', '0.2.88');
+define('BCM_TOWER_VERSION', '0.2.89');
 define('BCM_TOWER_PATH', __DIR__ . '/');
 define('BCM_TOWER_URL', trailingslashit(plugin_dir_url(__FILE__)));
 
@@ -167,6 +167,13 @@ function bcm_tower_get_client_config($assets = null) {
             'backgroundmenu.webp',
             'perference bg.png'
         ), 'image'),
+        // Owner 19.11.2026: "background в Tower — основа ощущения планеты".
+        // Each planet's Tower has its own backdrop; a missing one keeps backgroundMenu.
+        'towerBackgrounds' => array_filter(array(
+            'fable' => bcm_tower_pick_asset($assets, array('tower-bg-fable.webp', 'tower-bg-fable.jpg', 'tower-bg-fable.png'), 'image'),
+            'opus' => bcm_tower_pick_asset($assets, array('tower-bg-opus.webp', 'tower-bg-opus.jpg', 'tower-bg-opus.png'), 'image'),
+            'first' => bcm_tower_pick_asset($assets, array('tower-bg-twinsun.webp', 'tower-bg-twinsun.jpg', 'tower-bg-twinsun.png'), 'image'),
+        )),
         'shipTexture' => bcm_tower_pick_asset($assets, array('ship.png', 'ship.webp', 'ship.jpg', 'ship.jpeg'), 'image'),
         'planetMaps' => array_values(array_map(
             static function ($asset) { return $asset['url']; },
