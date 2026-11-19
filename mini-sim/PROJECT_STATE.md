@@ -1,3 +1,13 @@
+## Patch — Mini-Sim 0.15.26: Opus departure film (19 November 2026)
+
+- **Owner 19.11:** `4706288d…` is the departure from Opus, `07ff607e…` the descent onto Opus as a snowy mountain (already `landing-opus.mp4`).
+- **Tower:** `planetAscents` — a planet's own departure film plays forward on the way up (Opus: `departure-opus.mp4`, label «ОТЛЁТ · OPUS»); a planet without one reverses its landing clip as before. Stall guard: duration + 3 s.
+- **0.15.25 CI:** the standalone transitions check expected `onicss.mp4` on the ascent from the start; the start is Fable now (D-069), so it plays `landing-fable.mp4`. Check updated; Edge 24/24.
+- **Local:** regression 230/230, transitions in Edge 24/24.
+- **Not verified:** the Opus ascent in a browser (the transition check rises from the start planet), live site. Approach clip `d745673d…` not placed yet.
+
+---
+
 ## Patch — Mini-Sim 0.15.25: Fable at the start, Twinsun north; clips by planet (19 November 2026)
 
 - **Decision D-069.** ONI CSS lands on Fable; the desert island (Twinsun) lies at `[-40, 31]`. The hundred-year swap is told on the planet cards and in the Warp map hints.

@@ -681,6 +681,11 @@
         return "first";
       }
     }
+    /** The planet's own departure film (Tower -> space), or "". Owner 19.11.2026: Opus. */
+    function departureClip() {
+      const id = landingPlanet();
+      return String((CONFIG.planetAscents && CONFIG.planetAscents[id]) || "");
+    }
     function landingClip() {
       const id = landingPlanet();
       const picker = window.BCMPlanetLanding;
@@ -2400,7 +2405,9 @@
       };
       finish.done = false;
 
-      const url = landingClip();
+      // A planet with its own departure film plays it forward; others reverse the landing clip.
+      const departure = departureClip();
+      const url = departure || landingClip();
       const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (!url || !transitionVideo || reduceMotion) {
         finish();
@@ -2412,7 +2419,7 @@
         transition.style.backgroundImage = "";
       }
       const label = root.querySelector(".bcm-tower-transition-label");
-      if (label) label.textContent = "ВОЗВРАТ · ONICSS";
+      if (label) label.textContent = departure ? "ОТЛЁТ · " + (PLANET_TITLES[landingPlanet()] || "") : "ВОЗВРАТ · ONICSS";
 
       transitionVideo.pause();
       transitionVideo.muted = true;
@@ -2465,9 +2472,22 @@
         requestAnimationFrame(step);
       };
 
+      const playForward = () => {
+        if (fallbackStarted || finish.done) return;
+        fallbackStarted = true;
+        showClip();
+        try { transitionVideo.playbackRate = 1; transitionVideo.currentTime = 0; } catch (e) {}
+        transitionVideo.onended = finish;
+        const result = transitionVideo.play();
+        if (result && typeof result.catch === "function") result.catch(finish);
+        // Never strand the player if the film stalls.
+        const limit = (Number(transitionVideo.duration) || 8) + 3;
+        window.setTimeout(() => { if (!finish.done) finish(); }, limit * 1000);
+      };
+      const play = departure ? playForward : playReverse;
       transitionVideo.onloadedmetadata = () => {
         showClip();
-        playReverse();
+        play();
       };
       transitionVideo.onloadeddata = showClip;
       transitionVideo.onplaying = showClip;
@@ -2476,7 +2496,7 @@
       if (!(transitionVideo.readyState >= 1 && Number(transitionVideo.duration) > 0.5)) {
         transitionVideo.load();
       } else {
-        playReverse();
+        play();
       }
     }
 

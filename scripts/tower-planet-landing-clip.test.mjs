@@ -121,3 +121,21 @@ test("Tower plays the planet clip on landing, reversed on ascent, and tells Firs
   const ascent = tower.slice(tower.indexOf("window.BCMTowerAPI.beginAscent"), tower.indexOf("window.BCMTowerAPI.mount"));
   assert.doesNotMatch(ascent, /transitionVideo\.src = CONFIG\.planetTransition/, "the ascent preloads the ONI CSS clip instead of the planet's");
 });
+
+// Owner 19.11.2026: "4706288d… — отлёт с Опуса". A planet may have its own
+// departure film; it plays forward. Planets without one keep the landing clip
+// played backwards, as before.
+test("Opus has its own departure clip, played forward; others reverse the landing clip", () => {
+  const php = read("mini-sim/tower/bcm-tower.php");
+  const block = php.match(/'planetAscents'\s*=>\s*array_filter\(array\(([\s\S]*?)\)\)/);
+  assert.ok(block, "Tower has no departure clips: leaving Opus plays its landing film backwards");
+  assert.match(block[1], /'opus'\s*=>[^\n]*departure-opus\.mp4/);
+  assert.ok(has("mini-sim/assets/departure-opus.mp4"), "departure-opus.mp4 is not in the plugin assets");
+  const qa = read("scripts/minisim-standalone-qa.mjs");
+  assert.match(qa, /planetAscents:\s*\{[\s\S]{0,120}departure-opus\.mp4/);
+  const tower = read("mini-sim/tower/assets/js/tower.js");
+  const reverse = tower.slice(tower.indexOf("function beginReverseSpaceLabyrinthReturn()"), tower.indexOf("function currentPlanetDetail("));
+  assert.match(reverse, /departureClip\(\)/, "the ascent never looks for a departure clip");
+  assert.match(reverse, /const play = departure \? playForward : playReverse;/, "a departure clip is not played forward");
+  assert.match(tower, /function departureClip\(\)[\s\S]{0,300}planetAscents/);
+});

@@ -350,10 +350,12 @@ try {
     ascent.sessionSeed === baseline.sessionSeed &&
     ascent.towerSeed === baseline.towerSeed &&
     ascent.missionTowerSeed === baseline.towerSeed);
-  check("local ONICSS reverse-transition clip is configured for ascent",
+  // Owner 18-19.11.2026 (D-069): the start at ONI CSS is planet Fable, so the
+  // ascent plays Fable's own landing clip; onicss.mp4 stays the default clip.
+  check("the ascent from the start planet plays its own landing clip (Fable), onicss.mp4 stays the default",
     /onicss\.mp4/i.test(ascent.reverseClip) &&
-    /onicss\.mp4/i.test(ascent.reverseVideoSource),
-    ascent.reverseClip || ascent.reverseVideoSource);
+    /landing-fable\.mp4/i.test(ascent.reverseVideoSource),
+    ascent.reverseClip + " | " + ascent.reverseVideoSource);
   report.stages.push("First Planet loader event bcm:planet:tower-enter → beginAscent(same seed and mode)");
   await screenshot(page, "transition-05-same-seed-tower-ascent.png");
 

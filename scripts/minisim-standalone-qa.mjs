@@ -116,6 +116,9 @@ const server = createServer(async (req, res) => {
           fable: pick(["landing-fable.mp4"], "video", allAssets),
           opus: pick(["landing-opus.mp4"], "video", allAssets),
         },
+        planetAscents: {
+          opus: pick(["departure-opus.mp4"], "video", allAssets),
+        },
         transitionFallbacks: [],
         towerAudio: transitionsOnly ? "" : pick(["tower.mp3"], "audio", allAssets),
         towerWallJpgPool: byBase(/^(towerwall|wall)[^/]*\.(jpg|jpeg)$/i),

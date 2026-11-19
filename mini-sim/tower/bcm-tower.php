@@ -135,6 +135,11 @@ function bcm_tower_get_client_config($assets = null) {
             'fable' => bcm_tower_pick_asset($assets, array('landing-fable.mp4'), 'video'),
             'opus' => bcm_tower_pick_asset($assets, array('landing-opus.mp4'), 'video'),
         )),
+        // Own departure film (Tower -> space), played forward. A planet without
+        // one reverses its landing clip.
+        'planetAscents' => array_filter(array(
+            'opus' => bcm_tower_pick_asset($assets, array('departure-opus.mp4'), 'video'),
+        )),
         'firstPlanetAudio' => bcm_tower_pick_asset($assets, array('FP.mp3'), 'audio') ?: BCM_MINI_SIM_URL . 'first-planet/audio/FP.mp3',
         'desertRaceAudio' => bcm_tower_pick_asset($assets, array('desertrace.mp3'), 'audio') ?: BCM_MINI_SIM_URL . 'first-planet/audio/desertrace.mp3',
         'towerWallJpgPool' => bcm_tower_asset_urls($assets, '/^(towerwall|wall)[^\\/]*\\.(jpg|jpeg)$/i'),
