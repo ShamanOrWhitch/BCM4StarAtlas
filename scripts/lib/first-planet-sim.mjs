@@ -38,6 +38,7 @@ if (!globalThis.localStorage) {
     getItem: (k) => (store.has(k) ? store.get(k) : null),
     setItem: (k, v) => void store.set(k, String(v)),
     removeItem: (k) => void store.delete(k),
+    clear: () => store.clear(),
   };
 }
 
@@ -46,10 +47,11 @@ const simModule = await import(SRC + "game/island/sim.ts");
 const terrain = await import(SRC + "game/island/terrain.ts");
 
 /** A fresh sim plus helpers: hold keys for a number of seconds at 60 steps a second. */
-export function playIsland(seed = 7) {
-  globalThis.localStorage.removeItem("desert-island-v1");
+/** planet: First Planet profile id (content and save are per planet). keepSave: do not wipe saves. */
+export function playIsland(seed = 7, planet = undefined, { keepSave = false } = {}) {
+  if (!keepSave) globalThis.localStorage.clear?.();
   terrain.setRelief?.("desert");
-  const sim = simModule.createSim(seed);
+  const sim = simModule.createSim(seed, planet);
   const hold = (codes, seconds, each) => {
     input.setForced(codes.length ? codes : null);
     const steps = Math.round(seconds * 60);

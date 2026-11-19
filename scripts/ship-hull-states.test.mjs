@@ -190,11 +190,13 @@ test("First Planet separates E/F/V, opens the chest after both fires, and tracks
   assert.match(sim, /const use = keys\.has\("KeyE"\);/);
   assert.match(sim, /const boardKey = keys\.has\("KeyF"\);/);
   assert.match(sim, /const ejectKey = keys\.has\("KeyV"\);/);
-  assert.match(sim, /this\.quests\.bulb !== "done" && this\.fireCount\(\) < 2/);
+  // IDEA-021: the chest follows the square resident's quest; on Twinsun that is the two braziers.
+  assert.match(sim, /this\.quests\.bulb !== "done" && !this\.ready\("bulb"\)/);
   assert.match(sim, /ejectTape\(\)/);
   assert.match(sim, /kind: "crystal" as const/);
-  assert.match(sim, /this\.quests\.sera !== "done"/);
-  assert.match(sim, /this\.key && this\.quests\.orr !== "done"/);
+  // IDEA-021: hand-ins follow the planet's collect and fetch residents.
+  assert.match(sim, /this\.quests\[this\.giverOf\("collect"\) \?\? "sera"\] !== "done"/);
+  assert.match(sim, /this\.key && this\.quests\[this\.giverOf\("fetch"\) \?\? "orr"\] !== "done"/);
   assert.match(ui, /СУМКА/);
   assert.match(ui, /hud\.inventory\.map/);
   assert.match(ui, /V · Извлечь кассету/);

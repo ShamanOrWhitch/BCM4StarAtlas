@@ -186,7 +186,8 @@ export function createIsland(
 ): IslandWorld {
   // The relief must be chosen before the sim reads the ground under the spawn.
   setRelief(planetLook(context.planet).relief);
-  const sim = createSim(Number(context.planetSeed) >>> 0);
+  // Residents, quests and progress are the planet's own (IDEA-021).
+  const sim = createSim(Number(context.planetSeed) >>> 0, planetLook(context.planet).id);
   // Sky, light, ground and sea of the planet this sector lands on (planet.ts).
   const planet = planetLook(context.planet);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false });
@@ -1077,13 +1078,13 @@ export function createIsland(
     };
 
     const sera = drop(hooded, NPC.sera.x, NPC.sera.z, NPC.sera.yaw);
-    sera.add(makeLabel(NPC.sera.name));
+    sera.add(makeLabel(sim.content.residents.sera.name));
     solidify(sera);
     const orr = drop(eye, NPC.orr.x, NPC.orr.z, NPC.orr.yaw);
-    orr.add(makeLabel(NPC.orr.name));
+    orr.add(makeLabel(sim.content.residents.orr.name));
     solidify(orr);
     const lampNpc = drop(bulb, NPC.bulb.x, NPC.bulb.z, NPC.bulb.yaw);
-    lampNpc.add(makeLabel(NPC.bulb.name));
+    lampNpc.add(makeLabel(sim.content.residents.bulb.name));
     solidify(lampNpc);
     npcPivots.push(sera, orr, lampNpc);
 

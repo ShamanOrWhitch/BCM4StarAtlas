@@ -1,3 +1,15 @@
+## Patch — Mini-Sim 0.15.29: own residents, roles and quest kinds per planet (19 November 2026)
+
+- **WORK LOCK:** [#132](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/132). IDEA-021 step 1, decision D-070.
+- **Content packs** (`first-planet/src/game/island/content.ts`): Twinsun keeps Sera Venn, Orr-1, Lamp and their lines; Fable — Vela Noktis (aurora keeper, light), Kobalt-7 (robot cartographer, relay), Mirra Olkh (spore gatherer, collect); Opus — Tesser Li (arcade master, fetch: the cartridge board, the planet's rare artifact), Non-Ai (observatory, collect), Al Varn (mountain postman, relay).
+- **Quest kinds:** collect, fetch, light and the new relay (carry an item to another resident and come back). Each planet mixes them differently. The square chest follows the square resident's quest (Twinsun: two braziers, as before); the archive follows the archive resident's.
+- **Progress per planet:** save key gets `-<planet>`; Twinsun keeps the old key.
+- **Red before:** `First Planet has no planet content: every planet has Sera, Orr and Lamp`. After: 4/4 (`scripts/planet-content.test.mjs`, relay played by keys on Opus).
+- **Local:** regression 235/235; Planet Lab Opus/Fable page errors 0.
+- **Not yet:** resident models are the same on every planet (Dr Arena); props and race per planet — next steps of IDEA-021.
+
+---
+
 ## Release — Mini-Sim 0.15.28 / Tower 0.2.90: package for the site with the three Tower backdrops (19 November 2026)
 
 - Fable start at ONI CSS (D-069), Twinsun north, Opus west; landing films by planet, Opus departure film; Tower backdrop per planet (Fable dark mountain, Opus snowy mountain, Twinsun desert). Version bump only on top of `6c9d0f8`.

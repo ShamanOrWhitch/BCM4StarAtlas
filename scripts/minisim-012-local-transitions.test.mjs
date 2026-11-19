@@ -109,11 +109,11 @@ test("First Planet is a seeded local location with a walk-up same-seed Tower gat
   const component = await read("mini-sim/first-planet/src/components/desert-island.tsx");
   const loader = await read("mini-sim/first-planet/loader.js");
   assert.match(terrain, /export const TOWER_GATE =/);
-  assert.match(island, /export function createSim\(seed = 0\)/);
-  assert.match(island, /const storageKey = locationSeed \? SAVE_KEY \+ "-"/);
+  assert.match(island, /export function createSim\(seed = 0, planet\?: string\)/); // IDEA-021: content and save per planet
+  assert.match(island, /const storageKey = \(locationSeed \? SAVE_KEY \+ "-"/);
   assert.match(island, /this\.towerEnter = true/);
   assert.match(island, /E — маяк · подъём в Tower/);
-  assert.match(scene, /createSim\(Number\(context\.planetSeed\) >>> 0\)/);
+  assert.match(scene, /createSim\(Number\(context\.planetSeed\) >>> 0, planetLook\(context\.planet\)\.id\)/);
   assert.match(scene, /МАЯК · ПОДЪЁМ/);
   assert.match(component, /next\.towerEnter/);
   assert.match(loader, /api\.unmount\(mount\)/);
