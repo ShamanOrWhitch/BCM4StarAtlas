@@ -1,3 +1,14 @@
+## Patch — Mini-Sim 0.15.34: Ring cells as comic panels from the seed (19 November 2026)
+
+- **WORK LOCK:** [#137](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/137). IDEA-024 step 1, decision D-075.
+- **`ring-panels.js`** (new): seeded panel per cell — steps, bridge over spikes, tower, gallery; every platform and both doors reachable with the Ring jump.
+- **`deep-space-warp.js`:** cell 18 × 6 m; panel platforms (`cellPanel`) replaced on each cell; spikes hurt; comic frame and caption. PHP and standalone shell load the module.
+- **Red before:** `no panel generator: every Ring cell is the same empty box`, `the cell is still 12 m wide`. After 3/3.
+- **Browser:** Ring probe in Edge — panel «СТУПЕНИ» with tiers and spikes on ice and lava floors, page errors 0. Transitions QA PASS. Regression 252/252.
+- **Not yet:** ladders, crates, enemies as characters, walk animation; the boss arena keeps the old layout.
+
+---
+
 ## Patch — Mini-Sim 0.15.33: Ring cell look from the owner's tiles (19 November 2026)
 
 - **WORK LOCK:** [#136](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/136). Decision D-074, step 1 of the Ring rework.

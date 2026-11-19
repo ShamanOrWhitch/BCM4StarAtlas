@@ -3342,7 +3342,10 @@ function warpSectorPlanetCard(core, x, y, jumps) {
 
       function attachAsteroidCellPath(world) {
         const RING_CELL_HOME = 420;
-        const ROOM_HALF = 6;
+        // Owner 19.11.2026 (IDEA-024): each cell is a comic panel with its own level,
+        // so the cell is wider and taller than the old 12 x 3.6 m corridor.
+        const ROOM_HALF = 9;
+        const CELL_HEIGHT = 6;
         const keyOf = (x, y, z) => x + "," + y + "," + z;
         const step = { xp: [1, 0, 0], xn: [-1, 0, 0], zp: [0, 0, 1], zn: [0, 0, -1], yp: [0, 1, 0], yn: [0, -1, 0] };
         const opposite = { xp: "xn", xn: "xp", zp: "zn", zn: "zp", yp: "yn", yn: "yp" };
@@ -3593,27 +3596,56 @@ function warpSectorPlanetCard(core, x, y, jumps) {
         });
         doorLeft.position.set(RING_CELL_HOME - ROOM_HALF + 0.2, 1.15, 0);
         doorRight.position.set(RING_CELL_HOME + ROOM_HALF - 0.2, 1.15, 0);
-        const sealedWallGeo = new THREE.BoxGeometry(0.24, 2.55, 3.8);
+        const sealedWallGeo = new THREE.BoxGeometry(0.24, CELL_HEIGHT + 0.2, 3.8);
         const sealedWallLeft = new THREE.Mesh(sealedWallGeo, wallMaterial);
         const sealedWallRight = new THREE.Mesh(sealedWallGeo, wallMaterial);
         sealedWallLeft.name = "ring-cell-sealed-wall-left";
         sealedWallRight.name = "ring-cell-sealed-wall-right";
-        sealedWallLeft.position.set(RING_CELL_HOME - ROOM_HALF + 0.12, 1.15, 0);
-        sealedWallRight.position.set(RING_CELL_HOME + ROOM_HALF - 0.12, 1.15, 0);
+        sealedWallLeft.position.set(RING_CELL_HOME - ROOM_HALF + 0.12, CELL_HEIGHT / 2, 0);
+        sealedWallRight.position.set(RING_CELL_HOME + ROOM_HALF - 0.12, CELL_HEIGHT / 2, 0);
+        // The wall above each door stays when the door is open.
+        const headerGeo = new THREE.BoxGeometry(0.24, CELL_HEIGHT - 2.35, 3.8);
+        [-1, 1].forEach((side) => {
+          const header = new THREE.Mesh(headerGeo, wallMaterial);
+          header.name = "ring-cell-door-header";
+          header.position.set(RING_CELL_HOME + side * (ROOM_HALF - 0.12), 2.35 + (CELL_HEIGHT - 2.35) / 2, 0);
+          room.add(header);
+        });
         room.add(sealedWallLeft, sealedWallRight, doorLeft, doorRight);
-        const backGeo = new THREE.PlaneGeometry(ROOM_HALF * 2.4, 5.4);
+        const backGeo = new THREE.PlaneGeometry(ROOM_HALF * 2.4, CELL_HEIGHT + 2.4);
         const backWall = new THREE.Mesh(backGeo, backMaterial);
         backWall.name = "ring-cell-asteroid-face";
-        backWall.position.set(RING_CELL_HOME, 2.2, -1.5);
+        backWall.position.set(RING_CELL_HOME, CELL_HEIGHT / 2, -1.5);
         const ceilingGeo = new THREE.BoxGeometry(ROOM_HALF * 2, 0.28, 3.6);
         const ceiling = new THREE.Mesh(ceilingGeo, floorMaterial);
         ceiling.name = "ring-cell-asteroid-ceiling";
-        ceiling.position.set(RING_CELL_HOME, 3.65, 0);
+        ceiling.position.set(RING_CELL_HOME, CELL_HEIGHT + 0.14, 0);
         room.add(backWall, ceiling);
         // The cell's own light, tinted by its theme: the asteroid light alone left it black.
-        const roomLight = new THREE.PointLight(0xffd8b0, 1.7, 24, 1.4);
+        const roomLight = new THREE.PointLight(0xffd8b0, 2.1, 34, 1.3);
         roomLight.name = "ring-cell-light";
-        roomLight.position.set(RING_CELL_HOME, 3.1, 2.4);
+        roomLight.position.set(RING_CELL_HOME, 4.6, 3.2);
+        // Comic panel frame: a thick black border round the cell, and a caption box.
+        const frameMat = new THREE.MeshBasicMaterial({ color: 0x07070a });
+        const frameGeoH = new THREE.BoxGeometry(ROOM_HALF * 2 + 1.0, 0.42, 0.2);
+        const frameGeoV = new THREE.BoxGeometry(0.42, CELL_HEIGHT + 1.4, 0.2);
+        [[0, -0.55, frameGeoH], [0, CELL_HEIGHT + 0.55, frameGeoH], [-(ROOM_HALF + 0.29), CELL_HEIGHT / 2, frameGeoV], [ROOM_HALF + 0.29, CELL_HEIGHT / 2, frameGeoV]]
+          .forEach(([x, y, geo]) => {
+            const bar = new THREE.Mesh(geo, frameMat);
+            bar.name = "ring-cell-comic-frame";
+            bar.position.set(RING_CELL_HOME + x, y, 1.6);
+            room.add(bar);
+          });
+        const captionCanvas = document.createElement("canvas");
+        captionCanvas.width = 512;
+        captionCanvas.height = 96;
+        const captionTexture = new THREE.CanvasTexture(captionCanvas);
+        if (THREE.sRGBEncoding !== undefined) captionTexture.encoding = THREE.sRGBEncoding;
+        const captionGeo = new THREE.PlaneGeometry(4.6, 0.86);
+        const caption = new THREE.Mesh(captionGeo, new THREE.MeshBasicMaterial({ map: captionTexture, transparent: true }));
+        caption.name = "ring-cell-caption";
+        caption.position.set(RING_CELL_HOME - ROOM_HALF + 2.6, CELL_HEIGHT - 0.55, 1.5);
+        room.add(caption);
         room.add(roomLight);
         const hatch = new THREE.Mesh(
           new THREE.BoxGeometry(1.1, 0.08, 1.1),
@@ -3688,6 +3720,8 @@ function warpSectorPlanetCard(core, x, y, jumps) {
           nx: maze.dimensions?.nx || 7,
           ny: maze.dimensions?.ny || 3,
           nz: maze.dimensions?.nz || 7,
+          panelSeed: Number(maze.seed) >>> 0, cellHeight: CELL_HEIGHT, panelGroup: null, panelNode: null, spikes: [],
+          captionCanvas, captionTexture, frameMat,
           room, floorMaterial, wallMaterial, backMaterial, doorMaterial, trimMaterial, roomLight, ringTiles, RING_CELL_THEMES,
           RING_TILE_DOOR, RING_TILE_HAZARD, RING_TILE_HATCH, doorLeft, doorRight, sealedWallLeft, sealedWallRight,
           hatch, portalRing, portalMaterial, textures,
@@ -3739,11 +3773,74 @@ function warpSectorPlanetCard(core, x, y, jumps) {
         publishAsteroidChart(maze);
       }
 
+      // The cell's comic panel (ring-panels.js): platforms, spikes and a caption,
+      // rebuilt when the pilot enters another cell. The boss arena keeps its own layout.
+      function buildCellPanel(world, path, node) {
+        if (!path || !node || path.panelNode === node) return;
+        path.panelNode = node;
+        if (path.panelGroup) {
+          path.room.remove(path.panelGroup);
+          path.panelGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+          path.panelGroup = null;
+        }
+        for (let i = world.platforms.length - 1; i >= 0; i -= 1) if (world.platforms[i].cellPanel) world.platforms.splice(i, 1);
+        path.spikes = [];
+        if (node.large || !window.BCMRingPanels) return;
+        const panel = window.BCMRingPanels.buildPanel(path.panelSeed, node, { half: path.half, height: path.cellHeight });
+        const group = new THREE.Group();
+        group.name = "ring-cell-panel-" + panel.kind;
+        panel.platforms.forEach((p) => {
+          const w = p.maxX - p.minX;
+          const slab = new THREE.Mesh(new THREE.BoxGeometry(w, 0.32, 1.8), path.floorMaterial);
+          slab.name = "ring-cell-platform";
+          slab.position.set(path.homeX + (p.minX + p.maxX) / 2, p.y - 0.16, 0);
+          const edge = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, 0.08), path.trimMaterial);
+          edge.position.set(0, 0.1, 0.92);
+          slab.add(edge);
+          group.add(slab);
+          world.platforms.push({ minX: path.homeX + p.minX, maxX: path.homeX + p.maxX, y: p.y, cellPanel: true });
+        });
+        const spikeGeo = new THREE.ConeGeometry(0.2, 0.55, 4);
+        const spikeMat = path.spikeMaterial || (path.spikeMaterial = new THREE.MeshStandardMaterial({ color: 0xb8c0c8, metalness: 0.7, roughness: 0.3, emissive: 0x3a0000, emissiveIntensity: 0.4 }));
+        panel.spikes.forEach((s) => {
+          const row = new THREE.Group();
+          row.name = "ring-cell-spikes";
+          for (let x = s.minX + 0.22; x < s.maxX - 0.1; x += 0.42) {
+            for (const z of [-0.5, 0.1, 0.7]) {
+              const spike = new THREE.Mesh(spikeGeo, spikeMat);
+              spike.position.set(path.homeX + x, 0.27, z);
+              row.add(spike);
+            }
+          }
+          group.add(row);
+          path.spikes.push({ minX: path.homeX + s.minX, maxX: path.homeX + s.maxX });
+        });
+        path.room.add(group);
+        path.panelGroup = group;
+        // Comic caption: the panel's name, like a narration box.
+        const names = { steps: "СТУПЕНИ", bridge: "МОСТ НАД ШИПАМИ", tower: "БАШНЯ", gallery: "ГАЛЕРЕЯ" };
+        const ctx = path.captionCanvas && path.captionCanvas.getContext("2d");
+        if (ctx) {
+          ctx.clearRect(0, 0, 512, 96);
+          ctx.fillStyle = "#ffe066";
+          ctx.fillRect(4, 4, 504, 88);
+          ctx.lineWidth = 8;
+          ctx.strokeStyle = "#07070a";
+          ctx.strokeRect(4, 4, 504, 88);
+          ctx.fillStyle = "#07070a";
+          ctx.font = "bold 44px Impact, 'Arial Black', sans-serif";
+          ctx.textBaseline = "middle";
+          ctx.fillText(names[panel.kind] || panel.kind.toUpperCase(), 24, 50);
+          path.captionTexture.needsUpdate = true;
+        }
+      }
+
       function applyRingCellLook(world, nodeOverride, headingOverride) {
         const path = world.cellPath;
         if (!path || !(nodeOverride || path.current)) return;
         const node = nodeOverride || path.current;
         const heading = headingOverride || path.heading;
+        buildCellPanel(world, path, node);
         // Theme by the cell's floor (brick / ice / lava); the cell's wallAsset picks the tile.
         const themeCount = (path.RING_CELL_THEMES || []).length;
         const theme = themeCount ? path.RING_CELL_THEMES[((Number(node.y) || 0) % themeCount + themeCount) % themeCount] : null;
@@ -4742,6 +4839,13 @@ function warpSectorPlanetCard(core, x, y, jumps) {
               player.worldY = landing.y; player.vy = 0; player.grounded = true; player.supportPlatform = landing;
               if (landing.y === 0) player.checkpointX = playerInLarge ? worldState.spawnX : (path ? path.homeX : (player.worldX < -2 ? -43 : (player.worldX < 36 ? 3 : 40)));
             } else player.grounded = false;
+          }
+          // Panel spikes (ring-panels.js) hurt and throw the pilot up.
+          const onSpikes = !!(path && !playerInLarge && player.grounded && player.worldY < 0.05 &&
+            (path.spikes || []).some((s) => player.worldX > s.minX && player.worldX < s.maxX));
+          if (onSpikes) {
+            damagePlayer(player, now);
+            player.vy = 7.2; player.grounded = false; player.supportPlatform = null;
           }
           if (player.worldY < -7) {
             player.worldY = 0; player.vy = 0; player.grounded = true; player.supportPlatform = null;
