@@ -1,3 +1,10 @@
+## Release — Mini-Sim 0.15.28 / Tower 0.2.90: package for the site with the three Tower backdrops (19 November 2026)
+
+- Fable start at ONI CSS (D-069), Twinsun north, Opus west; landing films by planet, Opus departure film; Tower backdrop per planet (Fable dark mountain, Opus snowy mountain, Twinsun desert). Version bump only on top of `6c9d0f8`.
+- **Local:** regression 231/231.
+
+---
+
 ## Patch — Mini-Sim 0.15.27 / Tower 0.2.89: a Tower backdrop per planet (19 November 2026)
 
 - **Owner 19.11:** `76ba2f5b…` (`landing-fable.mp4`) is the descent into the Tower level of Fable, a dark mountain. «Задний фон у всех трёх башен в разных планетах свой … background в Tower — основа ощущения планеты». Three Towers: Fable — dark mountain, Opus — snowy mountain, Twinsun — the desert tower.
