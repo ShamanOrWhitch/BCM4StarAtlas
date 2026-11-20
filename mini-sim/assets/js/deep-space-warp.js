@@ -3723,6 +3723,22 @@ function warpSectorPlanetCard(core, x, y, jumps) {
           panelSeed: Number(maze.seed) >>> 0, cellHeight: CELL_HEIGHT, panelGroup: null, panelNode: null, spikes: [],
           // Every Ring entry is a new run: the panels are rebuilt (owner 20.11: replayability).
           panelRun: (window.__bcmRingRuns = (Number(window.__bcmRingRuns) || 0) + 1), panelGrid: null,
+          // A block top the hands can reach (crew-core crewLedgeStep asks this).
+          ledgeAt(x, footY, dir) {
+            const grid = this.panelGrid;
+            if (!grid) return null;
+            const left = this.homeX - this.half;
+            const col = Math.floor(x - left);
+            const rows = grid.length;
+            if (col < 0 || col >= grid[0].length) return null;
+            const solid = (r) => r >= 0 && r < rows && "BMCR".indexOf(grid[rows - 1 - r][col]) >= 0;
+            for (let r = rows - 1; r >= 0; r -= 1) {
+              if (!solid(r) || solid(r + 1) || solid(r + 2)) continue;
+              const top = r + 1;
+              if (top >= footY + 0.9 && top <= footY + 2.2 && top + 1.8 <= rows) return { top, edgeX: left + col + (dir > 0 ? 0 : 1) };
+            }
+            return null;
+          },
           solidAt(x, y0, y1) {
             const grid = this.panelGrid;
             if (!grid) return false;
@@ -3838,8 +3854,36 @@ function warpSectorPlanetCard(core, x, y, jumps) {
             group.add(mesh);
           });
         }
+        path.crumbles = [];
+        path.timedSpikes = [];
+        const plateGeo = new THREE.BoxGeometry(0.96, 0.26, 1.6);
+        const plateMat = path.plateMaterial || (path.plateMaterial = new THREE.MeshStandardMaterial({ color: 0xb5652e, roughness: 0.8, emissive: 0x2a0c00, emissiveIntensity: 0.3 }));
         panel.platforms.forEach((p) => {
-          world.platforms.push({ minX: path.homeX + p.minX, maxX: path.homeX + p.maxX, y: p.y, cellPanel: true });
+          const platform = { minX: path.homeX + p.minX, maxX: path.homeX + p.maxX, y: p.y, cellPanel: true };
+          if (p.crumble) {
+            // Crumbling plate: shakes when stood on, falls after 0.55 s, back after 5 s.
+            platform.crumble = true;
+            platform.mesh = new THREE.Mesh(plateGeo, plateMat);
+            platform.mesh.name = "ring-cell-crumble";
+            platform.mesh.position.set((platform.minX + platform.maxX) / 2, p.y - 0.13, 0);
+            platform.baseX = platform.mesh.position.x;
+            group.add(platform.mesh);
+            path.crumbles.push(platform);
+          }
+          world.platforms.push(platform);
+        });
+        (panel.traps || []).filter((t) => t.kind === "timed").forEach((t, n) => {
+          const row = new THREE.Group();
+          row.name = "ring-cell-timed-spikes";
+          for (let x = t.minX + 0.22; x < t.maxX - 0.1; x += 0.42) {
+            for (const z of [-0.5, 0.1, 0.7]) {
+              const spike = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.55, 4), path.spikeMaterial || (path.spikeMaterial = new THREE.MeshStandardMaterial({ color: 0xb8c0c8, metalness: 0.7, roughness: 0.3, emissive: 0x3a0000, emissiveIntensity: 0.4 })));
+              spike.position.set(path.homeX + x, 0.27, z);
+              row.add(spike);
+            }
+          }
+          group.add(row);
+          path.timedSpikes.push({ minX: path.homeX + t.minX, maxX: path.homeX + t.maxX, group: row, phase: n * 0.6, active: false });
         });
         const spikeGeo = new THREE.ConeGeometry(0.2, 0.55, 4);
         const spikeMat = path.spikeMaterial || (path.spikeMaterial = new THREE.MeshStandardMaterial({ color: 0xb8c0c8, metalness: 0.7, roughness: 0.3, emissive: 0x3a0000, emissiveIntensity: 0.4 }));
@@ -4133,7 +4177,8 @@ function warpSectorPlanetCard(core, x, y, jumps) {
         if (window.BCMCrewCore) {
           window.BCMCrewCore.applyPlatformSprite(player.sprite, {
             facing: player.facing,
-            moving: moved || !player.grounded,
+            hanging: !!player.hang,
+            moving: (moved || !player.grounded) && !player.hang,
             grounded: player.grounded,
             vy: player.vy,
             crew: crewSelection[player.index],
@@ -4874,6 +4919,27 @@ function warpSectorPlanetCard(core, x, y, jumps) {
           if (astralMode === "drift") { gravity = 6.0; jumpVelocity = 7.8; }
           else if (astralMode === "flux") { gravity = 8.0 + Math.sin(now * 0.0018 + (astralNode.astralPhase || 0)) * 1.8; jumpVelocity = 8.8; }
           else if (astralMode === "dense") { gravity = 14.5; jumpVelocity = 10.2; }
+          const hangJump = input.jump && !player.wasJumpDown;
+          // Traps of the panel: plates crumble after a touch, timed spikes rise and sink.
+          if (path && !playerInLarge) {
+            (path.crumbles || []).forEach((pl) => {
+              if (!pl.crumbleAt) return;
+              const age = now - pl.crumbleAt;
+              if (!pl.gone && age > 550) {
+                pl.gone = true; pl.homeMinX = pl.minX; pl.homeMaxX = pl.maxX; pl.minX = pl.maxX = -9999;
+                if (pl.mesh) pl.mesh.visible = false;
+              } else if (!pl.gone && pl.mesh) {
+                pl.mesh.position.x = pl.baseX + Math.sin(age * 0.09) * 0.05;
+              } else if (pl.gone && age > 5500) {
+                pl.gone = false; pl.minX = pl.homeMinX; pl.maxX = pl.homeMaxX; pl.crumbleAt = 0;
+                if (pl.mesh) { pl.mesh.visible = true; pl.mesh.position.x = pl.baseX; }
+              }
+            });
+            (path.timedSpikes || []).forEach((t) => {
+              t.active = ((now / 1000 + t.phase) % 2.4) < 1.2;
+              if (t.group) t.group.position.y = t.active ? 0 : -0.5;
+            });
+          }
           const jumpPressed = input.jump && !player.wasJumpDown && player.grounded;
           if (jumpPressed) { player.vy = jumpVelocity; player.grounded = false; player.supportPlatform = null; }
           player.wasJumpDown = input.jump;
@@ -4886,12 +4952,30 @@ function warpSectorPlanetCard(core, x, y, jumps) {
             ).sort((a,b)=>b.y-a.y)[0];
             if (landing) {
               player.worldY = landing.y; player.vy = 0; player.grounded = true; player.supportPlatform = landing;
+              if (landing.crumble && !landing.crumbleAt) landing.crumbleAt = now;
               if (landing.y === 0) player.checkpointX = playerInLarge ? worldState.spawnX : (path ? path.homeX : (player.worldX < -2 ? -43 : (player.worldX < 36 ? 3 : 40)));
             } else player.grounded = false;
           }
-          // Panel spikes (ring-panels.js) hurt and throw the pilot up.
+          // Ledge grab: the motion lives in crew-core (owner 20.11.2026); the Ring
+          // only answers where a reachable block top is.
+          if (path && !playerInLarge && path.ledgeAt && window.BCMCrewCore && window.BCMCrewCore.crewLedgeStep) {
+            const step = window.BCMCrewCore.crewLedgeStep(
+              { x: player.worldX, y: player.worldY, vy: player.vy, facing: player.facing, grounded: player.grounded, hang: player.hang || null },
+              { jumpEdge: hangJump, dir: direction },
+              (x, footY, dir) => path.ledgeAt(x, footY, dir)
+            );
+            if (step) {
+              player.hang = step.hang;
+              player.worldX = step.x; player.worldY = step.y; player.vy = step.vy; player.grounded = step.grounded;
+              if (step.climbed) {
+                player.supportPlatform = worldState.platforms.find((p) => p.y === step.y && player.worldX >= p.minX && player.worldX <= p.maxX) || null;
+              }
+            }
+          } else if (player.hang) player.hang = null;
+          // Panel spikes (ring-panels.js) hurt and throw the pilot up; timed spikes only when up.
           const onSpikes = !!(path && !playerInLarge && player.grounded && player.worldY < 0.05 &&
-            (path.spikes || []).some((s) => player.worldX > s.minX && player.worldX < s.maxX));
+            ((path.spikes || []).some((s) => player.worldX > s.minX && player.worldX < s.maxX) ||
+             (path.timedSpikes || []).some((t) => t.active && player.worldX > t.minX && player.worldX < t.maxX)));
           if (onSpikes) {
             damagePlayer(player, now);
             player.vy = 7.2; player.grounded = false; player.supportPlatform = null;

@@ -1,3 +1,14 @@
+## Patch — Mini-Sim 0.15.36: ledge grab in crew-core, traps in Ring panels (20 November 2026)
+
+- **WORK LOCK:** [#139](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/139). Stage A.2, decision D-077.
+- **`crew-core.js`:** `crewLedgeStep` (grab, hang, climb, drop) and the hanging pose — owner: movement and animation live in crew core.
+- **`ring-panels.js`:** trap chunks — crumbling plates (K), timed spikes (T); crossing never relies on them.
+- **`deep-space-warp.js`:** `path.ledgeAt` for the grab, plates crumble and return, timed spikes rise and sink.
+- **Red before:** `crumbling plates in only 0/120 panels`, `no ledge grab: a block two high is a wall`, `crew-core has no ledge grab`. After 7/7.
+- **Browser:** Ring probe in Edge, page errors 0; transitions QA PASS; regression 256/256. The grab itself was not played by hand in the browser.
+
+---
+
 ## Patch — Mini-Sim 0.15.35: Ring panels as block grids with a crossing check, rebuilt every run (20 November 2026)
 
 - **WORK LOCK:** [#138](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/138). Stage A.1 of `RING_REDESIGN.md`, decision D-076.

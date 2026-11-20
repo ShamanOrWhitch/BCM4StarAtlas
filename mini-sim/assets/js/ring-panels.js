@@ -33,7 +33,12 @@
     barrels: ["......", "......", "...R..", "..RRR."],
     ledges: ["......", "BB....", "....BB", "...C.."],
     tower: ["...M..", "..BM..", ".BBM..", "CBBMS."],
-    spikes: ["......", "......", ".BB...", "CBBSS."]
+    spikes: ["......", "......", ".BB...", "CBBSS."],
+    // Traps (owner 20.11, genre of precise platformers): K crumbling plates,
+    // T floor spikes on a timer. The crossing never relies on them.
+    crumble: ["......", "..KK..", "KK..KK", "...SS."],
+    timed: ["......", "......", "......", "..TTT."],
+    gauntlet: ["......", "......", ".KKKK.", "TT..TT"]
   };
   var NAMES = Object.keys(CHUNKS);
 
@@ -75,7 +80,7 @@
     var solid = function (c, r) { return r < 0 ? true : !!SOLID[at(c, r)]; };
     var stand = function (c, h) {
       return c >= 0 && c < COLS && h >= 0 && h <= ROWS - 2 && solid(c, h - 1) &&
-        !solid(c, h) && !solid(c, h + 1) && !(h === 0 && at(c, 0) === "S");
+        !solid(c, h) && !solid(c, h + 1) && !(h === 0 && (at(c, 0) === "S" || at(c, 0) === "T"));
     };
     if (!stand(0, 0)) return false;
     var seen = { "0,0": true };
@@ -147,19 +152,36 @@
         }
       }
     }
-    var spikes = [];
-    var s0 = -1;
-    for (var x = 0; x <= COLS; x += 1) {
-      var sp = x < COLS && at(x, 0) === "S";
-      if (sp && s0 < 0) s0 = x;
-      if (!sp && s0 >= 0) { spikes.push({ minX: s0 - half, maxX: x - half }); s0 = -1; }
+    var runs = function (test) {
+      var out = [];
+      var from = -1;
+      for (var x = 0; x <= COLS; x += 1) {
+        var on = x < COLS && test(x);
+        if (on && from < 0) from = x;
+        if (!on && from >= 0) { out.push({ minX: from - half, maxX: x - half }); from = -1; }
+      }
+      return out;
+    };
+    var spikes = runs(function (x) { return at(x, 0) === "S"; });
+    var traps = runs(function (x) { return at(x, 0) === "T"; }).map(function (t) {
+      return { kind: "timed", minX: t.minX, maxX: t.maxX };
+    });
+    // Crumbling plates: each plate cell is its own platform, so one can fall alone.
+    for (var pr = 0; pr < ROWS - 1; pr += 1) {
+      for (var pc = 0; pc < COLS; pc += 1) {
+        if (at(pc, pr) !== "K") continue;
+        var plate = { minX: pc - half, maxX: pc + 1 - half, y: pr + 1, crumble: true, col: pc, row: pr };
+        platforms.push(plate);
+        traps.push({ kind: "crumble", minX: plate.minX, maxX: plate.maxX, y: plate.y, col: pc, row: pr });
+      }
     }
-    return { platforms: platforms, spikes: spikes };
+    return { platforms: platforms, spikes: spikes, traps: traps };
   }
 
   var LABEL = {
     open: "ПУСТОШЬ", crates: "ЯЩИКИ", bunker: "БУНКЕР", stairs: "ЛЕСТНИЦА", pit: "ЯМА",
-    cage: "КЛЕТКА", barrels: "БОЧКИ", ledges: "УСТУПЫ", tower: "ВЫШКА", spikes: "ШИПЫ"
+    cage: "КЛЕТКА", barrels: "БОЧКИ", ledges: "УСТУПЫ", tower: "ВЫШКА", spikes: "ШИПЫ",
+    crumble: "ОСЫПЬ", timed: "ЗУБЬЯ", gauntlet: "ПОЛОСА"
   };
 
   function buildPanel(seed, cell, opts) {
@@ -181,7 +203,7 @@
       label: built.chunks.map(function (n) { return LABEL[n] || n; }).join(" · "),
       carved: !!built.carved,
       half: half, height: Number(o.height) || ROWS,
-      platforms: surf.platforms, spikes: surf.spikes
+      platforms: surf.platforms, spikes: surf.spikes, traps: surf.traps
     };
   }
 
