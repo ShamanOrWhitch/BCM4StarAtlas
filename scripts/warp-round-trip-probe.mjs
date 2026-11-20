@@ -90,9 +90,8 @@ function expectPlanetArrival(label, snapshot, expected) {
     snapshot.route?.current != null,
     snapshot.route);
   const drawErrors = snapshot.tubeErrors;
-  check(label + ": Warp tube renderer has no draw errors",
-    !drawErrors || (Array.isArray(drawErrors) && drawErrors.length === 0),
-    drawErrors);
+  const noDrawErrors = !drawErrors || (typeof drawErrors === "object" && Object.keys(drawErrors).length === 0);
+  check(label + ": Warp tube renderer has no draw errors", noDrawErrors, drawErrors);
 }
 
 async function jump(n, expected, pickHome = false) {
