@@ -3721,6 +3721,18 @@ function warpSectorPlanetCard(core, x, y, jumps) {
           ny: maze.dimensions?.ny || 3,
           nz: maze.dimensions?.nz || 7,
           panelSeed: Number(maze.seed) >>> 0, cellHeight: CELL_HEIGHT, panelGroup: null, panelNode: null, spikes: [],
+          // Every Ring entry is a new run: the panels are rebuilt (owner 20.11: replayability).
+          panelRun: (window.__bcmRingRuns = (Number(window.__bcmRingRuns) || 0) + 1), panelGrid: null,
+          solidAt(x, y0, y1) {
+            const grid = this.panelGrid;
+            if (!grid) return false;
+            const col = Math.floor(x - (this.homeX - this.half));
+            if (col < 0 || col >= grid[0].length) return false;
+            for (let r = Math.max(0, Math.floor(y0)); r <= Math.min(grid.length - 1, Math.floor(y1)); r += 1) {
+              if ("BMCR".indexOf(grid[grid.length - 1 - r][col]) >= 0) return true;
+            }
+            return false;
+          },
           captionCanvas, captionTexture, frameMat,
           room, floorMaterial, wallMaterial, backMaterial, doorMaterial, trimMaterial, roomLight, ringTiles, RING_CELL_THEMES,
           RING_TILE_DOOR, RING_TILE_HAZARD, RING_TILE_HATCH, doorLeft, doorRight, sealedWallLeft, sealedWallRight,
@@ -3786,18 +3798,47 @@ function warpSectorPlanetCard(core, x, y, jumps) {
         for (let i = world.platforms.length - 1; i >= 0; i -= 1) if (world.platforms[i].cellPanel) world.platforms.splice(i, 1);
         path.spikes = [];
         if (node.large || !window.BCMRingPanels) return;
-        const panel = window.BCMRingPanels.buildPanel(path.panelSeed, node, { half: path.half, height: path.cellHeight });
+        const panel = window.BCMRingPanels.buildPanel(path.panelSeed, node, { half: path.half, height: path.cellHeight, run: path.panelRun });
+        path.panelGrid = panel.grid || null;
         const group = new THREE.Group();
         group.name = "ring-cell-panel-" + panel.kind;
+        // The block grid (ring-panels.js): bricks wear the theme wall, metal the steel
+        // tile, crates and barrels their own colour. One instanced mesh per kind.
+        if (panel.grid) {
+          if (!path.metalMaterial) path.metalMaterial = new THREE.MeshStandardMaterial({ color: 0x9aa4ac, roughness: 0.5, metalness: 0.55 });
+          if (!path.crateMaterial) path.crateMaterial = new THREE.MeshStandardMaterial({ color: 0x9a6a36, roughness: 0.85 });
+          if (!path.barrelMaterial) path.barrelMaterial = new THREE.MeshStandardMaterial({ color: 0xc0392b, roughness: 0.5, metalness: 0.3, emissive: 0x2a0500, emissiveIntensity: 0.4 });
+          if (path.ringTiles && path.ringTiles.ready && !path.metalMaterial.map) {
+            path.metalMaterial.map = path.ringTiles.get(15, "hatch");
+            path.metalMaterial.color.setHex(0xffffff);
+            path.metalMaterial.needsUpdate = true;
+          }
+          const kinds = {
+            B: { geo: new THREE.BoxGeometry(1, 1, 1.8), mat: path.wallMaterial },
+            M: { geo: new THREE.BoxGeometry(1, 1, 1.8), mat: path.metalMaterial },
+            C: { geo: new THREE.BoxGeometry(0.92, 0.92, 1.2), mat: path.crateMaterial },
+            R: { geo: new THREE.CylinderGeometry(0.42, 0.42, 0.96, 12), mat: path.barrelMaterial }
+          };
+          const rows = panel.grid.length;
+          const cells = { B: [], M: [], C: [], R: [] };
+          panel.grid.forEach((row, i) => {
+            for (let c = 0; c < row.length; c += 1) if (cells[row[c]]) cells[row[c]].push([c, rows - 1 - i]);
+          });
+          const dummy = new THREE.Object3D();
+          Object.keys(cells).forEach((k) => {
+            if (!cells[k].length) return;
+            const mesh = new THREE.InstancedMesh(kinds[k].geo, kinds[k].mat, cells[k].length);
+            mesh.name = "ring-cell-blocks-" + k;
+            cells[k].forEach(([c, r], n) => {
+              dummy.position.set(path.homeX - path.half + c + 0.5, r + 0.5 - (k === "C" ? 0.04 : 0), 0);
+              dummy.updateMatrix();
+              mesh.setMatrixAt(n, dummy.matrix);
+            });
+            mesh.instanceMatrix.needsUpdate = true;
+            group.add(mesh);
+          });
+        }
         panel.platforms.forEach((p) => {
-          const w = p.maxX - p.minX;
-          const slab = new THREE.Mesh(new THREE.BoxGeometry(w, 0.32, 1.8), path.floorMaterial);
-          slab.name = "ring-cell-platform";
-          slab.position.set(path.homeX + (p.minX + p.maxX) / 2, p.y - 0.16, 0);
-          const edge = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, 0.08), path.trimMaterial);
-          edge.position.set(0, 0.1, 0.92);
-          slab.add(edge);
-          group.add(slab);
           world.platforms.push({ minX: path.homeX + p.minX, maxX: path.homeX + p.maxX, y: p.y, cellPanel: true });
         });
         const spikeGeo = new THREE.ConeGeometry(0.2, 0.55, 4);
@@ -3830,7 +3871,9 @@ function warpSectorPlanetCard(core, x, y, jumps) {
           ctx.fillStyle = "#07070a";
           ctx.font = "bold 44px Impact, 'Arial Black', sans-serif";
           ctx.textBaseline = "middle";
-          ctx.fillText(names[panel.kind] || panel.kind.toUpperCase(), 24, 50);
+          const text = panel.label || names[panel.kind] || String(panel.kind).toUpperCase();
+          ctx.font = (text.length > 18 ? "bold 30px" : "bold 44px") + " Impact, 'Arial Black', sans-serif";
+          ctx.fillText(text, 24, 50);
           path.captionTexture.needsUpdate = true;
         }
       }
@@ -4780,6 +4823,12 @@ function warpSectorPlanetCard(core, x, y, jumps) {
               }
             }
             player.worldX = Math.max(path.homeX - path.half + 0.35, Math.min(path.homeX + path.half - 0.35, player.worldX));
+            // Blocks of the panel are walls from the side (they hold from above as platforms).
+            if (path.solidAt) {
+              const lead = player.worldX + (player.worldX >= previousX ? 0.32 : -0.32);
+              const stuck = path.solidAt(previousX, player.worldY + 0.12, player.worldY + 1.7);
+              if (!stuck && player.worldX !== previousX && path.solidAt(lead, player.worldY + 0.12, player.worldY + 1.7)) player.worldX = previousX;
+            }
             if (player.ringTurnQueued) {
               player.ringTurnQueued = false;
               const activeHeading = player.ringHeading || path.heading;

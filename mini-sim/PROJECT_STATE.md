@@ -1,3 +1,14 @@
+## Patch — Mini-Sim 0.15.35: Ring panels as block grids with a crossing check, rebuilt every run (20 November 2026)
+
+- **WORK LOCK:** [#138](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/138). Stage A.1 of `RING_REDESIGN.md`, decision D-076.
+- **`ring-panels.js`:** 18 × 6 grid from three 6 × 4 chunks (10 kinds, mirrored), door-to-door solver, 12 rerolls then carve, rebuild per Ring entry (`run`).
+- **`deep-space-warp.js`:** instanced blocks per kind, block tops as platforms, side walls (`path.solidAt`), caption from chunk names.
+- **Red before:** the old panel had no grid (`Cannot read properties of undefined (reading 'join')`) and `a new Ring entry does not rebuild the panels`. After 4/4.
+- **Browser:** Ring probe in Edge, panel «ПУСТОШЬ · ЯЩИКИ · УСТУПЫ», page errors 0; transitions QA PASS; regression 253/253.
+- **Not yet:** destructible blocks, ledge grab, traps, mobs aware of blocks (stage B).
+
+---
+
 ## Patch — Mini-Sim 0.15.34: Ring cells as comic panels from the seed (19 November 2026)
 
 - **WORK LOCK:** [#137](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/137). IDEA-024 step 1, decision D-075.
