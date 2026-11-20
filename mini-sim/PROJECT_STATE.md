@@ -1,3 +1,11 @@
+## Patch — Dollar tags stay visible (20 November 2026)
+
+- Resources are ATLAS books. Their dollar tag is the best ATLAS ask times the ATLAS/USDC rate, or the dollar the server already stored. It is no longer dropped because the USDC ladder is empty, and a fraction of a cent is not rounded to zero.
+- Ships prefer the USDC ask. The ship list waits for a payload that actually contains a book instead of keeping the first empty one.
+- **Commit:** `cd5c7f5`. A bid is still not the price. Live site not confirmed. Test `market-price.test.ts` 7/7.
+
+---
+
 ## Patch — Desk prices share one USDC segment; bubbles open the book (19 November 2026)
 
 - If the USDC book has a seller, that ask is the price. If it does not, the best ATLAS ask is multiplied by the ATLAS/USDC rate. A bid is still not the price.
