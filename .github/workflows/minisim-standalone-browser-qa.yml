@@ -7,6 +7,7 @@ on:
     paths:
       - "mini-sim/**"
       - "scripts/minisim-local-transitions-playwright.mjs"
+      - "scripts/warp-round-trip-probe.mjs"
       - "scripts/minisim-transition-cycle.test.mjs"
       - "scripts/minisim-standalone-qa.mjs"
       - "scripts/minisim-local-qa.mjs"
@@ -61,6 +62,8 @@ jobs:
         run: npm run qa:minisim:standalone
       - name: Run local Tower → First Planet → same-seed ascent → return-state cycle (audio disabled)
         run: npm run qa:minisim:transitions:standalone
+      - name: Run strict Warp → Opus → Fable/ONI → Twinsun → Fable arrival test (audio disabled)
+        run: node scripts/minisim-standalone-qa.mjs --warp-round-trip
       - name: Upload browser screenshots and report
         if: always()
         uses: actions/upload-artifact@v4
