@@ -6,7 +6,8 @@ import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const transitionsOnly = process.argv.includes("--transitions-only");
+const warpRoundTripOnly = process.argv.includes("--warp-round-trip");
+const transitionsOnly = process.argv.includes("--transitions-only") || warpRoundTripOnly;
 const shellPath = resolve(root, "tools/minisim-qa/standalone-shell.html");
 const allowedExt = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".webm", ".ogg", ".mp3", ".m4a", ".wav", ".glb"]);
 const mime = (file) => ({
@@ -191,7 +192,13 @@ const flags = process.argv.slice(2).filter((x) => ["--headed", "--full-media"].i
 console.log("[standalone-qa] Serving current repository build at " + targetUrl);
 console.log("[standalone-qa] This fixture tests the repository browser runtime, not live WordPress integration or physical hardware.");
 // MINISIM_QA_CHILD: run another browser scenario against the same served build.
-const childScript = process.env.MINISIM_QA_CHILD ? process.env.MINISIM_QA_CHILD : transitionsOnly ? "scripts/minisim-local-transitions-playwright.mjs" : "scripts/minisim-local-qa.mjs";
+const childScript = process.env.MINISIM_QA_CHILD
+  ? process.env.MINISIM_QA_CHILD
+  : warpRoundTripOnly
+    ? "scripts/warp-round-trip-probe.mjs"
+    : transitionsOnly
+      ? "scripts/minisim-local-transitions-playwright.mjs"
+      : "scripts/minisim-local-qa.mjs";
 const child = spawn(process.execPath, [resolve(root, childScript), "--url", targetUrl, ...flags], {
   cwd: root, env: { ...process.env, MINISIM_QA_TARGET_KIND: "standalone-repository-build" }, stdio: "inherit"
 });
@@ -200,7 +207,12 @@ const childCode = await new Promise((resolveExit) => {
   child.once("exit", (code, signal) => resolveExit(signal ? 1 : (code ?? 1)));
 });
 try {
-  const reportPath = resolve(root, transitionsOnly ? ".qa-artifacts/minisim-transition-cycle-report.json" : ".qa-artifacts/minisim-qa-report.json");
+  const reportRelativePath = warpRoundTripOnly
+    ? ".qa-artifacts/warp-round-trip/report.json"
+    : transitionsOnly
+      ? ".qa-artifacts/minisim-transition-cycle-report.json"
+      : ".qa-artifacts/minisim-qa-report.json";
+  const reportPath = resolve(root, reportRelativePath);
   const report = JSON.parse(await readFile(reportPath, "utf8"));
   report.targetType = "standalone repository build (not live WordPress integration)";
   report.wpIntegrationVerified = false;
@@ -213,7 +225,7 @@ try {
   console.log(JSON.stringify({
     targetType: report.targetType, repositoryCommit: report.repositoryCommit,
     status: report.status, checks: report.checks, screenshots: report.screenshots,
-    report: ".qa-artifacts/minisim-qa-report.json"
+    report: reportRelativePath
   }, null, 2));
 } catch (error) {
   console.error("[standalone-qa] Could not annotate the QA report:", error);
