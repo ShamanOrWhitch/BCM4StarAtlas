@@ -104,7 +104,7 @@ async function jump(n, expected, pickHome = false) {
   await cells.first().waitFor({ state: "visible", timeout: 15000 });
   const choices = await cells.evaluateAll((list) => list.map((el) => [
     el.getAttribute("data-sector-id"),
-    el.textContent.replace(/\\s+/g, " ").trim().slice(0, 80)
+    el.textContent.replace(/\s+/g, " ").trim().slice(0, 80)
   ]));
 
   let index = 0;
@@ -189,12 +189,12 @@ try {
   report.status = "PASS";
 } catch (error) {
   report.status = "FAIL";
-  report.failure = String(error && error.message || error).split("\\n")[0];
+  report.failure = String(error && error.message || error).split("\n")[0];
   await page?.screenshot({ path: resolve(out, "failure.png") }).catch(() => {});
 } finally {
   report.finishedAt = new Date().toISOString();
   await browser?.close().catch(() => {});
-  await writeFile(resolve(out, "report.json"), JSON.stringify(report, null, 2) + "\\n", "utf8");
+  await writeFile(resolve(out, "report.json"), JSON.stringify(report, null, 2) + "\n", "utf8");
 }
 
 console.log(JSON.stringify({
