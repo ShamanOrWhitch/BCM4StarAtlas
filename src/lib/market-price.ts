@@ -45,11 +45,37 @@ export type UsdcSegment = {
 };
 
 export function usdcSegment(row: ResourceRow, atlasUsd: number | null): UsdcSegment {
-  const direct = salePrice(row, "USDC");
-  if (direct != null) return { usd: direct, book: "USDC" };
-  const atlas = salePrice(row, "ATLAS");
+  return usdFromBooks(row, atlasUsd);
+}
+
+/** One USDC figure. A real USDC seller wins. Otherwise the best ATLAS ask times the ATLAS/USDC rate. A bid is never the price. */
+export function usdFromBooks(
+  row: {
+    usdcAsk?: number | null;
+    usdcAsks?: { price: number }[];
+    atlasAsk?: number | null;
+    atlasAsks?: { price: number }[];
+    usdcDerived?: boolean;
+  },
+  atlasUsd: number | null,
+): UsdcSegment {
+  const usdcLadder = positive(row.usdcAsks?.[0]?.price);
+  if (!row.usdcDerived) {
+    const usdc = usdcLadder ?? positive(row.usdcAsk);
+    if (usdc != null) return { usd: usdc, book: "USDC" };
+  }
+  const atlas = positive(row.atlasAsks?.[0]?.price) ?? positive(row.atlasAsk);
   if (atlas != null && atlasUsd != null && atlasUsd > 0) return { usd: atlas * atlasUsd, book: "ATLAS" };
+  const stored = positive(row.usdcAsk);
+  if (row.usdcDerived && stored != null) return { usd: stored, book: "ATLAS" };
   return { usd: null, book: null };
+}
+
+export function fmtUsd(n: number | null): string {
+  if (n == null || !(n > 0)) return "—";
+  if (n >= 1) return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const digits = Math.min(10, Math.max(4, Math.ceil(-Math.log10(n)) + 2));
+  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: digits })}`;
 }
 
 export function marketHref(mint: string, book: "USDC" | "ATLAS" | null): string {

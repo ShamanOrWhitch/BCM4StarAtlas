@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppChrome } from "@/components/app-chrome";
 import { loadMarket, watchLiveBooks, type Candle, type MarketSnap, type ResourceRow, type TapePoint } from "@/lib/desk";
 import { fetchKrakenCandles } from "@/lib/desk-direct";
-import { bidPrice, bucketByMonth, CHART_PERIODS, marketHref, ratioCandles, usdcSegment, type ChartPeriodId, type QuoteId } from "@/lib/market-price";
+import { bidPrice, bucketByMonth, CHART_PERIODS, fmtUsd, marketHref, ratioCandles, usdcSegment, type ChartPeriodId, type QuoteId } from "@/lib/market-price";
 import { deltaPct, recordTape, rememberFloors } from "@/lib/price-tape";
 
 export const Route = createFileRoute("/market")({ component: MarketPage });
@@ -75,11 +75,6 @@ function segmentBid(row: ResourceRow, atlasUsd: number | null): number | null {
     return bid != null && atlasUsd != null && atlasUsd > 0 ? bid * atlasUsd : null;
   }
   return null;
-}
-
-function fmtUsd(n: number | null): string {
-  if (n == null) return "—";
-  return `$${n.toLocaleString("en-US", { maximumFractionDigits: 6 })}`;
 }
 
 function fmtCompact(n: number | null): string {
@@ -369,7 +364,7 @@ export function MarketPage() {
                         {open ? <BookPeek row={row} quote={row.book ?? quote} /> : null}
                       </td>
                       <td className="px-3 py-2 text-muted">{CLASS_LABEL[row.className] ?? row.className}</td>
-                      <td className="px-3 py-2 font-mono text-fg">{fmtAtlas(row.ask)}</td>
+                      <td className="px-3 py-2 font-mono text-fg">{fmtUsd(row.ask)}</td>
                       <td className="px-3 py-2 text-muted">{row.book === "ATLAS" ? "стакан ATLAS × курс" : row.book === "USDC" ? "стакан USDC" : "нет продажи"}</td>
                       <td className="px-3 py-2 font-mono text-muted">{fmtAtlas(segmentBid(row, rate))}</td>
                       <td className={`px-3 py-2 font-mono ${d == null ? "text-faint" : d > 0 ? "text-danger" : "text-ok"}`}>
@@ -524,7 +519,7 @@ function BubbleField({
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-black/10" />
               <div className="absolute inset-x-1 bottom-2 z-10 text-center text-white">
                 <p className="font-mono text-sm font-semibold leading-none" style={{ color: ring }}>
-                  {row.ask == null ? "нет продажи" : `${fmtAtlas(row.ask)} USDC`}
+                  {row.ask == null ? "—" : fmtUsd(row.ask)}
                 </p>
                 <p className="mt-1 line-clamp-2 font-display text-[11px] leading-tight">{row.name}</p>
                 <p className="font-mono text-[10px] leading-none text-white/70">

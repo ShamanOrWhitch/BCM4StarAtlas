@@ -121,9 +121,11 @@ export async function loadMarket(): Promise<MarketSnap> {
     new Promise<MarketSnap | null>((resolve) => window.setTimeout(() => resolve(null), 1500)),
   ]);
   if (local && quick && hasBook(quick)) return withBooks(local, quick);
-  if (local) return local;
+  if (local && hasBook(local)) return local;
   const late = await remote;
+  if (late && local) return withBooks(local, late);
   if (late) return late;
+  if (local) return local;
   const viaSite = await withTimeout(post("galia_desk_market"), 8000);
   if (viaSite && Array.isArray(viaSite.resources) && viaSite.resources.length) return snapFromPhp(viaSite);
   throw new Error("Рынок не открылся");

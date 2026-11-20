@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppChrome } from "@/components/app-chrome";
 import { loadMarket, scanDeskWallet } from "@/lib/desk";
 import type { BookLevel, MarketShip } from "@/lib/desk-types";
+import { fmtUsd, marketHref, usdFromBooks } from "@/lib/market-price";
 import { addToFleet, assignSeat, dropHull, loadFleets, saveFleets, type SavedFleet } from "@/lib/fleets";
 import { walletCrew } from "@/lib/wallet-crew";
 import { displayName, type Crew } from "@/data/crew";
@@ -49,6 +50,7 @@ export function ShipsPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
+  const [atlasUsd, setAtlasUsd] = useState<number | null>(null);
 
   // Galaxy catalogue: the Render server may be waking up. Keep "loading" until
   // ships arrive, retry an empty answer a few times, then offer a manual retry.
@@ -61,10 +63,16 @@ export function ShipsPage() {
         try {
           const snap = await loadMarket();
           if (cancelled) return;
+          setAtlasUsd(snap.pairQuotes?.atlasUsdc ?? snap.atlas?.usd ?? null);
           if (snap.marketShips?.length) {
             setShips(snap.marketShips);
-            setLoading(false);
-            return;
+            const priced = snap.marketShips.some(
+              (ship) => (ship.usdcAsks[0]?.price ?? 0) > 0 || (ship.atlasAsks[0]?.price ?? 0) > 0,
+            );
+            if (priced) {
+              setLoading(false);
+              return;
+            }
           }
         } catch (err: unknown) {
           if (cancelled) return;
@@ -141,21 +149,33 @@ export function ShipsPage() {
                 ))}
               </div>
               <ul className="min-h-0 flex-1 overflow-y-auto">
-                {visible.map((ship) => (
-                  <li key={ship.mint}>
-                    <button type="button" onClick={() => setOpen(ship.mint)} className="flex w-full items-center gap-3 border-b border-line px-3 py-2 text-left hover:bg-surface">
+                {visible.map((ship) => {
+                  const price = usdFromBooks(ship, atlasUsd);
+                  return (
+                  <li key={ship.mint} className="flex items-stretch">
+                    <button type="button" onClick={() => setOpen(ship.mint)} className="flex min-w-0 flex-1 items-center gap-3 border-b border-line px-3 py-2 text-left hover:bg-surface">
                       {ship.image ? <img src={ship.image} alt="" width={56} height={56} loading="lazy" decoding="async" className="size-14 rounded-md object-cover" /> : <div className="size-14 rounded-md bg-surface-2" />}
                       <span className="min-w-0">
                         <span className="block truncate font-display text-base">{ship.name}</span>
                         <span className={`font-mono text-xs uppercase ${RARITY_COLOR[ship.rarity] ?? "text-muted"}`}>{ship.rarity}</span>
                         <span className="mt-0.5 block font-mono text-xs text-muted">
-                          USDC {money(ship.usdcAsks[0]?.price ?? null, 2)} · ATLAS {money(ship.atlasAsks[0]?.price ?? null, 2)}
+                          {fmtUsd(price.usd)}
+                          {price.book === "ATLAS" ? " · из ATLAS" : price.book === "USDC" ? " · USDC" : ""}
                           {held[ship.mint] ? ` · есть ×${held[ship.mint]}` : ""}
                         </span>
                       </span>
                     </button>
+                    <a
+                      href={marketHref(ship.mint, price.book)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex w-16 shrink-0 items-center justify-center border-b border-line font-display text-xs text-brass"
+                    >
+                      купить
+                    </a>
                   </li>
-                ))}
+                  );
+                })}
                 {!visible.length && loading ? <li className="px-3 py-8 text-sm text-muted">Загружаю каталог кораблей Galaxy…</li> : null}
                 {!visible.length && !loading && !ships.length ? (
                   <li className="px-3 py-8 text-sm text-muted">

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bucketByMonth, CHART_PERIODS, marketHref, ratioCandles, salePrice, usdcSegment } from "./market-price.ts";
+import { bucketByMonth, CHART_PERIODS, fmtUsd, marketHref, ratioCandles, salePrice, usdcSegment } from "./market-price.ts";
 import type { ResourceRow } from "./desk-types.ts";
 
 function row(patch: Partial<ResourceRow>): ResourceRow {
@@ -67,6 +67,38 @@ test("no USDC sellers: the ATLAS ask is shown in USDC, and a lone bid is not", (
 
   const bidOnly = row({ usdcBids: [{ price: 1, qty: 1 }], usdcBid: 1, usdcAsks: [], atlasAsks: [] });
   assert.equal(usdcSegment(bidOnly, 0.0002).usd, null);
+});
+
+test("a stored ATLAS conversion still shows in dollars when the client has no rate", () => {
+  const aerogel = row({
+    usdcDerived: true,
+    usdcAsk: 9.776160504773803e-7,
+    usdcAsks: [],
+    atlasAsk: 0.009988,
+    atlasAsks: [{ price: 0.009988, qty: 100 }],
+  });
+  const fresh = usdcSegment(aerogel, 0.0000978790599196416);
+  assert.equal(fresh.book, "ATLAS");
+  assert.ok(fresh.usd != null && Math.abs(fresh.usd - 0.009988 * 0.0000978790599196416) < 1e-15);
+  const stored = usdcSegment(aerogel, null);
+  assert.equal(stored.usd, aerogel.usdcAsk);
+  assert.equal(stored.book, "ATLAS");
+  assert.notEqual(fmtUsd(fresh.usd), "—");
+  assert.match(fmtUsd(fresh.usd), /^\$0\.000000/);
+});
+
+test("a ship USDC ladder is the dollar price", () => {
+  const ship = row({
+    usdcAsk: 1850,
+    usdcAsks: [{ price: 1850, qty: 1 }],
+    usdcBids: [{ price: 1, qty: 1 }],
+    atlasAsks: [],
+    usdcDerived: false,
+  });
+  const segment = usdcSegment(ship, 0.0001);
+  assert.equal(segment.usd, 1850);
+  assert.equal(segment.book, "USDC");
+  assert.equal(fmtUsd(1850), "$1,850.00");
 });
 
 test("chart periods are the desk switches, including 1h and 1 month", () => {
