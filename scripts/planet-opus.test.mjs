@@ -1,7 +1,7 @@
 // Owner 17.11.2026: "планету Фейбл надо принести на какой-то ближайший к нам
 // сектор ... сделай и свою планету тоже, начни с Tower ... Планета Опус Фокус".
-// Fable moves from the diagonal [-39, 31] to the sector straight north of
-// ONI CSS [-40, 31]; planet Opus takes the sector straight west [-41, 30].
+// Current map after D-069: Fable is ONI CSS [-40, 30], Twinsun is straight
+// north [-40, 31], and planet Opus is straight west [-41, 30].
 // The Warp map, Tower and First Planet name the same planet in each sector.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -57,9 +57,27 @@ test("Tower names the Opus landing; the Warp map knows the planet id", () => {
 
 test("a Warp arrival in a planet sector does not build the asteroid maze", () => {
   // Owner 18.11.2026: "у позиции Fable тот же астероид со случайным лабиринтом".
-  // Browser proof: scripts/warp-round-trip-probe.mjs (jump 5 lands on Fable, planet "fable").
+  // Browser proof: scripts/warp-round-trip-probe.mjs checks Opus, Fable/ONI and Twinsun arrivals.
   const warp = read("mini-sim/assets/js/deep-space-warp.js");
   const confirm = warp.slice(warp.indexOf("function confirmTubeArrival()"), warp.indexOf("function arriveAtPlanetSector("));
   assert.match(confirm, /else if \(planetLandmarkFor\(state\.target\)\) arriveAtPlanetSector\(state\.target\);\s*else enterAsteroidMaze\(\);/,
     "every non-ONI sector still opens the asteroid maze, planets included");
+});
+
+test("standalone Warp browser QA gates current planet-sector arrivals", () => {
+  const probe = read("scripts/warp-round-trip-probe.mjs");
+  const runner = read("scripts/minisim-standalone-qa.mjs");
+  const workflow = read(".github/workflows/minisim-standalone-browser-qa.yml");
+
+  assert.match(probe, /coord--41-30/, "the browser probe must target Opus at [-41, 30]");
+  assert.match(probe, /coord--40-31/, "the browser probe must target Twinsun at [-40, 31]");
+  assert.match(probe, /planet: "opus"/);
+  assert.match(probe, /planet: "fable"/);
+  assert.match(probe, /planet: "first"/);
+  assert.match(probe, /if \(report\.status !== "PASS"\) process\.exitCode = 1/,
+    "a failed browser assertion must fail the process");
+  assert.match(runner, /--warp-round-trip/,
+    "the standalone harness must expose the dedicated Warp arrival scenario");
+  assert.match(workflow, /node scripts\/minisim-standalone-qa\.mjs --warp-round-trip/,
+    "the dedicated scenario must run in CI");
 });
