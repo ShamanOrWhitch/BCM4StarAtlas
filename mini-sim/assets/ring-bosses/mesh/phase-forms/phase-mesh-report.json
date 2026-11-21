@@ -1,0 +1,116 @@
+{
+  "title": "Ring pig boss phase-form mesh library",
+  "status": "visual assets only; not wired into gameplay",
+  "phase_1": {
+    "id": "boss-1-roller",
+    "file": "mini-sim/assets/ring-bosses/mesh/boss-1-roller.glb",
+    "reuse_existing": true
+  },
+  "phase_forms": [
+    {
+      "phase": 2,
+      "id": "phase-2-walker",
+      "name": "Хряк-Паук",
+      "role": "walker",
+      "source_art": "mini-sim/assets/ring-bosses/phase-art/phase-2-walker@1024.webp",
+      "file": "mini-sim/assets/ring-bosses/mesh/phase-forms/phase-2-walker.glb",
+      "height_m": 2.4,
+      "depth_m": 0.408,
+      "triangles": 1908,
+      "vertices": 3318,
+      "animations": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "attack_style_draft": "аренный топот и перепрыгивание по этажам",
+      "bytes": 377988
+    },
+    {
+      "phase": 3,
+      "id": "phase-3-orbiter",
+      "name": "Хряк-Орбита",
+      "role": "orbiter",
+      "source_art": "mini-sim/assets/ring-bosses/phase-art/phase-3-orbiter@1024.webp",
+      "file": "mini-sim/assets/ring-bosses/mesh/phase-forms/phase-3-orbiter.glb",
+      "height_m": 2.0,
+      "depth_m": 0.34,
+      "triangles": 5524,
+      "vertices": 9534,
+      "animations": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "attack_style_draft": "разлёт вращающихся пластин и дистанционные залпы",
+      "bytes": 589976
+    },
+    {
+      "phase": 4,
+      "id": "phase-4-brawler",
+      "name": "Хряк-Кулак",
+      "role": "brawler",
+      "source_art": "mini-sim/assets/ring-bosses/phase-art/phase-4-brawler@1024.webp",
+      "file": "mini-sim/assets/ring-bosses/mesh/phase-forms/phase-4-brawler.glb",
+      "height_m": 2.8,
+      "depth_m": 0.476,
+      "triangles": 2148,
+      "vertices": 3752,
+      "animations": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "attack_style_draft": "тяжёлые ближние комбо и контрудар после замаха",
+      "bytes": 419188
+    },
+    {
+      "phase": 5,
+      "id": "phase-5-runner",
+      "name": "Хряк-Гонщик",
+      "role": "runner",
+      "source_art": "mini-sim/assets/ring-bosses/phase-art/phase-5-runner@1024.webp",
+      "file": "mini-sim/assets/ring-bosses/mesh/phase-forms/phase-5-runner.glb",
+      "height_m": 2.2,
+      "depth_m": 0.374,
+      "triangles": 1312,
+      "vertices": 2296,
+      "animations": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "attack_style_draft": "разгон по арене, выхлопные зоны и резкий разворот",
+      "bytes": 296596
+    },
+    {
+      "phase": 6,
+      "id": "phase-6-stalker",
+      "name": "Хряк-Тень",
+      "role": "stalker",
+      "source_art": "mini-sim/assets/ring-bosses/phase-art/phase-6-stalker@1024.webp",
+      "file": "mini-sim/assets/ring-bosses/mesh/phase-forms/phase-6-stalker.glb",
+      "height_m": 3.2,
+      "depth_m": 0.544,
+      "triangles": 3716,
+      "vertices": 6454,
+      "animations": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "attack_style_draft": "прыжки между ярусами и захват с телеграфом",
+      "bytes": 371524
+    }
+  ],
+  "notes": [
+    "Phases 2–6 use the newly attached concepts; existing role GLBs are untouched.",
+    "These are textured relief meshes from 2D art, not articulated 3D sculpts.",
+    "The generic transform clips are silhouette collapse/unfold; distinct attacks still need a game-side controller or supplied video/frame animation."
+  ]
+}

@@ -1,0 +1,234 @@
+{
+  "meshes": {
+    "generated_by": "tools/ring-bosses/to_mesh.py",
+    "forms": [
+      {
+        "id": "RING-BOSS-1-roller",
+        "file": "mesh/boss-1-roller.glb",
+        "height_m": 1.6,
+        "depth_m": 0.272,
+        "triangles": 1260,
+        "vertices": 2212,
+        "bounds": [
+          [
+            -0.886,
+            0.886
+          ],
+          [
+            0.0,
+            1.6
+          ],
+          [
+            -0.041,
+            0.057
+          ]
+        ],
+        "animations": [
+          "idle",
+          "hit",
+          "transform_out",
+          "transform_in"
+        ],
+        "bytes": 316392
+      },
+      {
+        "id": "RING-BOSS-2-walker",
+        "file": "mesh/boss-2-walker.glb",
+        "height_m": 2.4,
+        "depth_m": 0.408,
+        "triangles": 1916,
+        "vertices": 3332,
+        "bounds": [
+          [
+            -1.25,
+            1.25
+          ],
+          [
+            0.0,
+            2.4
+          ],
+          [
+            -0.061,
+            0.086
+          ]
+        ],
+        "animations": [
+          "idle",
+          "hit",
+          "transform_out",
+          "transform_in"
+        ],
+        "bytes": 378524
+      },
+      {
+        "id": "RING-BOSS-3-orbiter",
+        "file": "mesh/boss-3-orbiter.glb",
+        "height_m": 2.0,
+        "depth_m": 0.34,
+        "triangles": 5388,
+        "vertices": 9282,
+        "bounds": [
+          [
+            -1.257,
+            1.257
+          ],
+          [
+            0.0,
+            2.0
+          ],
+          [
+            -0.051,
+            0.071
+          ]
+        ],
+        "animations": [
+          "idle",
+          "hit",
+          "transform_out",
+          "transform_in"
+        ],
+        "bytes": 580516
+      },
+      {
+        "id": "RING-BOSS-4-brawler",
+        "file": "mesh/boss-4-brawler.glb",
+        "height_m": 2.8,
+        "depth_m": 0.476,
+        "triangles": 2148,
+        "vertices": 3752,
+        "bounds": [
+          [
+            -1.59,
+            1.59
+          ],
+          [
+            0.0,
+            2.8
+          ],
+          [
+            -0.071,
+            0.1
+          ]
+        ],
+        "animations": [
+          "idle",
+          "hit",
+          "transform_out",
+          "transform_in"
+        ],
+        "bytes": 416488
+      },
+      {
+        "id": "RING-BOSS-5-runner",
+        "file": "mesh/boss-5-runner.glb",
+        "height_m": 2.2,
+        "depth_m": 0.374,
+        "triangles": 1384,
+        "vertices": 2422,
+        "bounds": [
+          [
+            -1.494,
+            1.494
+          ],
+          [
+            0.0,
+            2.2
+          ],
+          [
+            -0.056,
+            0.079
+          ]
+        ],
+        "animations": [
+          "idle",
+          "hit",
+          "transform_out",
+          "transform_in"
+        ],
+        "bytes": 294144
+      },
+      {
+        "id": "RING-BOSS-6-stalker",
+        "file": "mesh/boss-6-stalker.glb",
+        "height_m": 3.2,
+        "depth_m": 0.544,
+        "triangles": 3716,
+        "vertices": 6454,
+        "bounds": [
+          [
+            -0.698,
+            0.698
+          ],
+          [
+            0.0,
+            3.2
+          ],
+          [
+            -0.082,
+            0.114
+          ]
+        ],
+        "animations": [
+          "idle",
+          "hit",
+          "transform_out",
+          "transform_in"
+        ],
+        "bytes": 371216
+      }
+    ]
+  },
+  "stages": [
+    {
+      "stage": 1,
+      "form": "boss-1-roller",
+      "hp": 4,
+      "arena": "СБОЙНЫЙ СТРАЖ",
+      "entry": "rolls in from the left wall",
+      "transform_to": "boss-2-walker",
+      "transform_at_hp": 0,
+      "transform_seconds": 0.5
+    },
+    {
+      "stage": 2,
+      "form": "boss-2-walker",
+      "hp": 6,
+      "arena": "СБОЙНЫЙ СТРАЖ",
+      "entry": "stands up on four legs, stomps the platform",
+      "transform_to": "boss-6-stalker",
+      "transform_at_hp": 0,
+      "transform_seconds": 0.5
+    },
+    {
+      "stage": 3,
+      "form": "boss-6-stalker",
+      "hp": 9,
+      "arena": "СБОЙНЫЙ СТРАЖ",
+      "entry": "jumps in from above, claws out",
+      "transform_to": null
+    }
+  ],
+  "variants": {
+    "arena_0": [
+      "boss-1-roller",
+      "boss-2-walker",
+      "boss-6-stalker"
+    ],
+    "arena_1": [
+      "boss-5-runner",
+      "boss-4-brawler",
+      "boss-3-orbiter"
+    ],
+    "arena_2": [
+      "boss-2-walker",
+      "boss-3-orbiter",
+      "boss-6-stalker"
+    ]
+  },
+  "rules": {
+    "pick": "hashSeed(seed + '|boss-gate') % 3 -> variant list, same as today's three arenas",
+    "swap": "stage end: play transform_out on the old form (0.5 s), then spawn the new form and play transform_in (0.5 s); the boss meter keeps its own maxHp per stage",
+    "invulnerable": "during both transform clips, no damage is taken and no damage is dealt",
+    "no_new_arena": "same three zones, same BOSSES 0/3 counter, same [data-ring-boss-meter] HUD"
+  }
+}

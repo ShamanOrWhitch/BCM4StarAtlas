@@ -1,0 +1,19 @@
+{
+  "id": "maze-shadow-minion",
+  "source_form": "phase-6-stalker",
+  "story_stage": 7,
+  "purpose": "candidate replacement for box mobs inside small Ring maze rooms",
+  "height_m": 0.9,
+  "depth_m": 0.153,
+  "triangles": 3716,
+  "vertices": 6454,
+  "animations": [
+    "idle",
+    "hit",
+    "transform_out",
+    "transform_in"
+  ],
+  "bytes": 371200,
+  "runtime_integrated": false,
+  "notes": "Scaled front relief for the maze; no skeleton/limb articulation. Keep current cube mob as fallback until WORK LOCK allows integration."
+}

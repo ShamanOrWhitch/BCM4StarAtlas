@@ -1,0 +1,121 @@
+{
+  "url": "http://127.0.0.1:35705/tools/ring-bosses/lab.html",
+  "forms": [
+    {
+      "name": "boss-1-roller",
+      "animations": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "size": [
+        1.77,
+        1.6,
+        0.1
+      ],
+      "triangles": 1260,
+      "textured": true
+    },
+    {
+      "name": "boss-2-walker",
+      "animations": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "size": [
+        2.5,
+        2.4,
+        0.15
+      ],
+      "triangles": 1916,
+      "textured": true
+    },
+    {
+      "name": "boss-4-brawler",
+      "animations": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "size": [
+        3.18,
+        2.8,
+        0.17
+      ],
+      "triangles": 2148,
+      "textured": true
+    },
+    {
+      "name": "boss-5-runner",
+      "animations": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "size": [
+        2.99,
+        2.2,
+        0.13
+      ],
+      "triangles": 1384,
+      "textured": true
+    },
+    {
+      "name": "boss-6-stalker",
+      "animations": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "size": [
+        1.4,
+        3.2,
+        0.2
+      ],
+      "triangles": 3716,
+      "textured": true
+    },
+    {
+      "name": "boss-3-orbiter",
+      "animations": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "size": [
+        2.51,
+        2,
+        0.12
+      ],
+      "triangles": 5388,
+      "textured": true
+    }
+  ],
+  "errors": [],
+  "pageErrors": [],
+  "consoleErrors": [],
+  "shots": [
+    "01-all-six.png",
+    "02-form-1-boss-1-roller.png",
+    "02-form-2-boss-2-walker.png",
+    "02-form-3-boss-4-brawler.png",
+    "02-form-4-boss-5-runner.png",
+    "02-form-5-boss-6-stalker.png",
+    "02-form-6-boss-3-orbiter.png",
+    "03-stage-1-roller.png",
+    "04-transform-out.png",
+    "05-transform-in.png",
+    "06-stage-2-walker.png",
+    "07-stage-3-stalker.png",
+    "08-all-again.png"
+  ],
+  "frames": 231,
+  "status": "PASS"
+}

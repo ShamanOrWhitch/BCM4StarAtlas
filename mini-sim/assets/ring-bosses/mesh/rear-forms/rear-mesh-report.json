@@ -1,0 +1,188 @@
+{
+  "status": "six rear-view GLB relief forms for combat stages 2–7; not integrated into gameplay. Historical file phase labels are preserved; story_stage is authoritative.",
+  "orientation": "rear texture faces chase camera; alternate rear relief, not an all-around sculpt.",
+  "forms": [
+    {
+      "phase": 1,
+      "story_stage": 2,
+      "id": "phase-2-roller-rear",
+      "name": "Каток — вид сзади",
+      "slug": "roller",
+      "source_art": "mini-sim/assets/ring-bosses/phase-art-rear/phase-2-roller-rear@1024.webp",
+      "glb": "mini-sim/assets/ring-bosses/mesh/rear-forms/phase-2-roller-rear.glb",
+      "height_m": 1.6,
+      "depth_m": 0.272,
+      "triangles": 1640,
+      "vertices": 2856,
+      "bytes": 276112,
+      "animations": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "kind": "rear-view textured relief; not a skeletal rig",
+      "art": "mini-sim/assets/ring-bosses/phase-art-rear/phase-2-roller-rear@1024.webp",
+      "source_art_in_project": "mini-sim/assets/ring-bosses/phase-art-rear/phase-2-roller-rear@1024.webp"
+    },
+    {
+      "phase": 2,
+      "slug": "walker",
+      "name": "Хряк-Паук",
+      "crop": [
+        376,
+        10,
+        1120,
+        523
+      ],
+      "height": 2.4,
+      "crop_xyxy": [
+        376,
+        10,
+        1120,
+        523
+      ],
+      "art": "mini-sim/assets/ring-bosses/phase-art-rear/phase-2-walker-rear@1024.webp",
+      "glb": "mini-sim/assets/ring-bosses/mesh/rear-forms/phase-2-walker-rear.glb",
+      "height_m": 2.4,
+      "depth_m": 0.408,
+      "triangles": 2068,
+      "vertices": 3612,
+      "bytes": 316156,
+      "animations": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "kind": "rear-view textured relief; not a skeletal rig",
+      "story_stage": 3,
+      "source_art_in_project": "mini-sim/assets/ring-bosses/phase-art-rear/phase-2-walker-rear@1024.webp"
+    },
+    {
+      "phase": 3,
+      "slug": "orbiter",
+      "name": "Хряк-Орбита",
+      "crop": [
+        399,
+        19,
+        1137,
+        559
+      ],
+      "height": 2.0,
+      "crop_xyxy": [
+        399,
+        19,
+        1137,
+        559
+      ],
+      "art": "mini-sim/assets/ring-bosses/phase-art-rear/phase-3-orbiter-rear@1024.webp",
+      "glb": "mini-sim/assets/ring-bosses/mesh/rear-forms/phase-3-orbiter-rear.glb",
+      "height_m": 2.0,
+      "depth_m": 0.34,
+      "triangles": 3680,
+      "vertices": 6328,
+      "bytes": 437764,
+      "animations": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "kind": "rear-view textured relief; not a skeletal rig",
+      "story_stage": 4,
+      "source_art_in_project": "mini-sim/assets/ring-bosses/phase-art-rear/phase-3-orbiter-rear@1024.webp"
+    },
+    {
+      "phase": 4,
+      "id": "phase-4-brawler-rear",
+      "name": "Боец в бронекостюме — вид сзади",
+      "slug": "brawler-rear",
+      "source_art": "mini-sim/assets/ring-bosses/phase-art-rear/phase-4-brawler-rear@1024.webp",
+      "glb": "mini-sim/assets/ring-bosses/mesh/rear-forms/phase-4-brawler-rear.glb",
+      "height_m": 2.8,
+      "depth_m": 0.476,
+      "triangles": 2220,
+      "vertices": 3878,
+      "bytes": 432940,
+      "animations": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "kind": "rear-view textured relief; not a skeletal rig",
+      "story_stage": 5,
+      "art": "mini-sim/assets/ring-bosses/phase-art-rear/phase-4-brawler-rear@1024.webp",
+      "source_art_in_project": "mini-sim/assets/ring-bosses/phase-art-rear/phase-4-brawler-rear@1024.webp"
+    },
+    {
+      "phase": 5,
+      "slug": "runner",
+      "name": "Свино-мобиль Гонщик",
+      "crop": [
+        11,
+        263,
+        502,
+        767
+      ],
+      "height": 2.2,
+      "crop_xyxy": [
+        11,
+        263,
+        502,
+        767
+      ],
+      "art": "mini-sim/assets/ring-bosses/phase-art-rear/phase-5-runner-rear@1024.webp",
+      "glb": "mini-sim/assets/ring-bosses/mesh/rear-forms/phase-5-runner-rear.glb",
+      "height_m": 2.2,
+      "depth_m": 0.374,
+      "triangles": 1116,
+      "vertices": 1960,
+      "bytes": 287960,
+      "animations": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "kind": "rear-view textured relief; not a skeletal rig",
+      "story_stage": 6,
+      "source_art_in_project": "mini-sim/assets/ring-bosses/phase-art-rear/phase-5-runner-rear@1024.webp"
+    },
+    {
+      "phase": 6,
+      "slug": "stalker",
+      "name": "Хряк-Тень",
+      "crop": [
+        70,
+        30,
+        466,
+        977
+      ],
+      "height": 3.2,
+      "crop_xyxy": [
+        70,
+        30,
+        466,
+        977
+      ],
+      "art": "mini-sim/assets/ring-bosses/phase-art-rear/phase-6-stalker-rear@1024.webp",
+      "glb": "mini-sim/assets/ring-bosses/mesh/rear-forms/phase-6-stalker-rear.glb",
+      "height_m": 3.2,
+      "depth_m": 0.544,
+      "triangles": 3164,
+      "vertices": 5516,
+      "bytes": 333260,
+      "animations": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "kind": "rear-view textured relief; not a skeletal rig",
+      "story_stage": 7,
+      "source_art_in_project": "mini-sim/assets/ring-bosses/phase-art-rear/phase-6-stalker-rear@1024.webp"
+    }
+  ]
+}

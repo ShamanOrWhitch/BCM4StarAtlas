@@ -1,0 +1,143 @@
+{
+  "generated_by": "tools/ring-bosses/process.py",
+  "forms": [
+    {
+      "id": "RING-BOSS-1-roller",
+      "name": "Хряк-Колобок",
+      "role": "каток",
+      "note": "rolling ball, banded hull, sleeping eyes",
+      "file": "boss-1-roller@1024.webp",
+      "size": [
+        1024,
+        929
+      ],
+      "file512": "boss-1-roller@512.png",
+      "size512": [
+        512,
+        464
+      ],
+      "canvas_fill": 0.606,
+      "ground_contact_px": 453,
+      "suggested_pivot": [
+        0.5,
+        0.976
+      ],
+      "suggested_world_height_m": 1.6
+    },
+    {
+      "id": "RING-BOSS-2-walker",
+      "name": "Хряк-Паук",
+      "role": "шагоход",
+      "note": "armoured belt, four spider legs, tusk visor",
+      "file": "boss-2-walker@1024.webp",
+      "size": [
+        1024,
+        971
+      ],
+      "file512": "boss-2-walker@512.png",
+      "size512": [
+        512,
+        485
+      ],
+      "canvas_fill": 0.554,
+      "ground_contact_px": 478,
+      "suggested_pivot": [
+        0.499,
+        0.986
+      ],
+      "suggested_world_height_m": 2.4
+    },
+    {
+      "id": "RING-BOSS-3-orbiter",
+      "name": "Хряк-Орбита",
+      "role": "орбитальный",
+      "note": "head with floating debris ring, antenna",
+      "file": "boss-3-orbiter@1024.webp",
+      "size": [
+        1024,
+        819
+      ],
+      "file512": "boss-3-orbiter@512.png",
+      "size512": [
+        512,
+        410
+      ],
+      "canvas_fill": 0.47,
+      "ground_contact_px": 400,
+      "suggested_pivot": [
+        0.501,
+        0.976
+      ],
+      "suggested_world_height_m": 2.0
+    },
+    {
+      "id": "RING-BOSS-4-brawler",
+      "name": "Хряк-Кулак",
+      "role": "кулачный",
+      "note": "fat humanoid, purple plate, power gauntlets",
+      "file": "boss-4-brawler@1024.webp",
+      "size": [
+        1024,
+        897
+      ],
+      "file512": "boss-4-brawler@512.png",
+      "size512": [
+        512,
+        448
+      ],
+      "canvas_fill": 0.545,
+      "ground_contact_px": 438,
+      "suggested_pivot": [
+        0.5,
+        0.978
+      ],
+      "suggested_world_height_m": 2.8
+    },
+    {
+      "id": "RING-BOSS-5-runner",
+      "name": "Хряк-Гонщик",
+      "role": "гонщик",
+      "note": "wheeled pig carrier, exhaust stacks",
+      "file": "boss-5-runner@1024.webp",
+      "size": [
+        1024,
+        765
+      ],
+      "file512": "boss-5-runner@512.png",
+      "size512": [
+        512,
+        383
+      ],
+      "canvas_fill": 0.587,
+      "ground_contact_px": 372,
+      "suggested_pivot": [
+        0.501,
+        0.971
+      ],
+      "suggested_world_height_m": 2.2
+    },
+    {
+      "id": "RING-BOSS-6-stalker",
+      "name": "Хряк-Тень",
+      "role": "тень",
+      "note": "long-limbed automaton, jet pack, claws",
+      "file": "boss-6-stalker@1024.webp",
+      "size": [
+        475,
+        1024
+      ],
+      "file512": "boss-6-stalker@512.png",
+      "size512": [
+        237,
+        512
+      ],
+      "canvas_fill": 0.427,
+      "ground_contact_px": 501,
+      "suggested_pivot": [
+        0.5,
+        0.979
+      ],
+      "suggested_world_height_m": 3.2
+    }
+  ]
+}
