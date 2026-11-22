@@ -1231,6 +1231,7 @@
                 moveForm: boss.moves ? boss.moves.form : null, moveState: boss.lastMoveState || null,
                 vulnerable: !!boss.vulnerable, bossX: boss.x,
                 flight: !!(boss.moves && boss.moves.flight),
+                camera: worldState.cameraView || null,
                 bubbles: (boss.bubbleMeshes || []).filter((mesh) => mesh.visible).length,
                 pilot: (() => { const p = players.find(Boolean); return p ? { x: p.worldX, y: p.worldY, jet: p.jetFuel, air: p.breathReserve,
                   flame: !!(p.jetFlame && p.jetFlame.visible), bossFlight: !!p.bossFlight } : null; })(),
@@ -3146,6 +3147,9 @@
             Math.abs(player.worldX - (item.homeX ?? item.x)) < 10.5) : null;
           const bossFlight = !!flightBoss;
           player.bossFlight = bossFlight;
+          // Camera in flight (owner 22.11.2026): ease into the whole-arena frame and back.
+          player.flightFrame = (Number(player.flightFrame) || 0) +
+            ((bossFlight ? 1 : 0) - (Number(player.flightFrame) || 0)) * Math.min(1, dt * 2.5);
           const lowGravity = astralMode === "drift" || astralMode === "flux" || bossFlight;
           if (bossFlight) { gravity = 6.0; jumpVelocity = 7.8; }
           const highGravity = astralMode === "dense";
@@ -3331,12 +3335,22 @@
         camera.far = 500;
         camera.updateProjectionMatrix();
         camera.up.set(0, 1, 0);
-        camera.position.set(center.x, center.y + 0.65, 42);
-        camera.lookAt(center.x, center.y + 0.65, 0);
+        // In the Orbiter flight the view stands on the arena floor, so the floor tells,
+        // the Orbiter and a pilot at the ceiling (8 m) all stay in the frame.
+        const followY = center.y + 0.65;
+        const arenaY = -0.6 + halfHeight;
+        const flight = Math.max(0, Math.min(1, Number(center.flight) || 0));
+        const viewY = followY + (arenaY - followY) * flight;
+        camera.position.set(center.x, viewY, 42);
+        camera.lookAt(center.x, viewY, 0);
+        // What the first view shows, in world metres (read by the QA snapshot).
+        if (worldState && camera === cameraOne) {
+          worldState.cameraView = { y: viewY, bottom: viewY - halfHeight, top: viewY + halfHeight };
+        }
       }
 
       function cameraTargetFor(player) {
-        return { x: player.worldX, y: player.worldY + 2.2, z: 0 };
+        return { x: player.worldX, y: player.worldY + 2.2, z: 0, flight: Number(player.flightFrame) || 0 };
       }
 
       function renderRingViews(frameContext) {
@@ -3374,7 +3388,8 @@
             target = {
               x: (target.x + other.x) * 0.5,
               y: (target.y + other.y) * 0.5,
-              z: 0
+              z: 0,
+              flight: Math.max(target.flight, other.flight)
             };
           }
           views = [{ x: 0, y: 0, w: viewW, h: viewH, player: players[0], camera: cameraOne, target }];

@@ -58,7 +58,7 @@ try {
     const snap = await page.evaluate(() => window.__BCM_RING_BOSS_QA__.snapshot());
     await page.keyboard.up("Space");
     report.samples.push({ y: Math.round(snap.pilot.y * 100) / 100, jet: snap.pilot.jet, air: snap.pilot.air, flame: snap.pilot.flame,
-      flight: snap.pilot.bossFlight, form: snap.moveForm, bubbles: snap.bubbles, zones: snap.zones });
+      flight: snap.pilot.bossFlight, form: snap.moveForm, camera: snap.camera, bubbles: snap.bubbles, zones: snap.zones });
     if (!shot && snap.pilot.y > 1.5) { await page.screenshot({ path: resolve(out, "orbiter-flight.png") }); shot = true; }
     await page.waitForTimeout(560);
   }
@@ -68,9 +68,14 @@ try {
   report.minJet = Math.min(...s.map((x) => x.jet));
   report.flameSeen = s.some((x) => x.flame);
   report.sparks = s.some((x) => x.zones.some((z) => z === "ring-boss-hazard-spark"));
+  // Camera in flight (owner "Камера в полёте"): high up, the floor (tells) and the
+  // Orbiter (3.4 m) stay in the frame, and so does the pilot (1.7 m tall).
+  const high = s.filter((x) => x.y > 6);
+  report.cameraHigh = high.map((x) => ({ y: x.y, bottom: Math.round(x.camera.bottom * 100) / 100, top: Math.round(x.camera.top * 100) / 100 }));
+  report.cameraFrames = high.length > 0 && high.every((x) => x.camera.bottom <= 0.1 && x.camera.top >= x.y + 1.7);
   report.status = report.before.moveForm === "orbiter" && report.before.flight && s.every((x) => x.flight) &&
     report.maxY > 2.5 && report.minJet < 100 && report.flameSeen && report.sparks &&
-    s.some((x) => x.bubbles >= 3) && report.errors.length === 0 ? "PASS" : "FAIL";
+    s.some((x) => x.bubbles >= 3) && report.cameraFrames && report.errors.length === 0 ? "PASS" : "FAIL";
 } catch (error) {
   report.failure = String(error && error.message || error).split("\n")[0];
   await page.screenshot({ path: resolve(out, "failure.png") }).catch(() => {});
@@ -78,4 +83,4 @@ try {
   await writeFile(resolve(out, "report.json"), JSON.stringify(report, null, 2));
   await browser.close();
 }
-console.log(JSON.stringify({ status: report.status, failure: report.failure, maxY: report.maxY, minJet: report.minJet, flameSeen: report.flameSeen, sparks: report.sparks, errors: report.errors, form: report.before?.moveForm, samples: report.samples.map((x) => [x.y, Math.round(x.jet), Math.round(x.air), x.flame, x.bubbles]) }, null, 1));
+console.log(JSON.stringify({ status: report.status, failure: report.failure, cameraFrames: report.cameraFrames, cameraHigh: report.cameraHigh, maxY: report.maxY, minJet: report.minJet, flameSeen: report.flameSeen, sparks: report.sparks, errors: report.errors, form: report.before?.moveForm, samples: report.samples.map((x) => [x.y, Math.round(x.jet), Math.round(x.air), x.flame, x.bubbles]) }, null, 1));

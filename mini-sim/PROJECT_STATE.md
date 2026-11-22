@@ -1,3 +1,12 @@
+## Patch — Mini-Sim 0.16.5: camera frames the Orbiter flight (22 November 2026)
+
+- **WORK LOCK:** [#150](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/150). Decision D-081.
+- **`ring-platformer.js`:** in the Orbiter flight the camera eases into a whole-arena frame standing on the floor (bottom −0.6 m, top 10.2 m in landscape) and eases back after the form; X still follows the pilot. QA snapshot reports the camera's bottom and top.
+- **Red before (browser):** at height 8 m the view bottom was 5.3 m — floor tells and the Orbiter out of frame. After: bottom −0.55, top 10.25, probe PASS in Edge. Source check added to `ring-orbiter-flight.test.mjs` (5/5). Regression 268/268.
+- **Correction:** D-080 said the camera did not follow height; it did, it only kept the pilot low in the frame.
+
+---
+
 ## Patch — Mini-Sim 0.16.4: the Orbiter phase is flown (22 November 2026)
 
 - **WORK LOCK:** [#149](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/149). Decision D-080.
@@ -5,7 +14,7 @@
 - **`ring-platformer.js`:** pilots in the Orbiter arena get purple-cell low gravity: jump = jet impulse with flame (12 jet + 12 breath), forward drift 1.2 m/s in the air, bubbles +34 to both, both full at the start of the form; clots drawn as white sparks, bubbles as spheres; QA snapshot reports flight, bubbles and the pilot's height, jet, breath, flame.
 - **Red before:** `the Orbiter is fought on foot: no flight`, `no electric clots in the Orbiter fight`, bubbles missing, `the Ring ignores the Orbiter flight: pilots stay on foot`. After 4/4 (`scripts/ring-orbiter-flight.test.mjs`, added to CI).
 - **Browser:** `scripts/ring-orbiter-flight-probe.mjs` in Edge — Orbiter with flight on, 12 jump taps about one per second: height up to the 8 m ceiling, jet and breath 100 → 4 together, flame seen, sparks and 4 bubbles drawn, page errors 0 (PASS). Regression 267/267.
-- **Not yet:** pit under the arena, the low-G route content, hand tuning, vertical camera follow.
+- **Not yet:** pit under the arena, the low-G route content, hand tuning (camera: 0.16.5).
 
 ---
 
