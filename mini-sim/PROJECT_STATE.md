@@ -1,3 +1,14 @@
+## Patch — Mini-Sim 0.16.3: Ring boss forms fight with their own moves (22 November 2026)
+
+- **WORK LOCK:** [#148](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/148). Decision D-079.
+- **`ring-boss-moves.js`** (new): Roller, Walker, Orbiter, Brawler, Runner, Stalker — each its own cycle of tell → attack → open window; the Brawler takes shots in the back.
+- **`ring-platformer.js`:** forms run the module after their transition; tells (yellow) and hazards (red / blue) drawn as zones; hazards hurt the pilot; armour checks the side of the shot. QA snapshot reports the form, move and zones. The standalone shell now loads `ring-platformer.js` (it was missing since the module split) and `ring-boss-moves.js`.
+- **Red before:** `no boss moves: every form after the Pig fires the same shockwave`, `the Ring still fires one shockwave for every form`. After 6/6 (`scripts/ring-boss-moves.test.mjs`).
+- **Browser:** `scripts/ring-boss-fight-probe.mjs` in Edge — six transitions give roller, walker, orbiter, brawler, runner, stalker in order, each with its own moves and zones, page errors 0 (PASS). Regression 263/263; UI layer PASS; Tower set 19/19; transitions QA PASS.
+- **Not yet:** tuning by hand, authored attack clips (the GLBs have proxy clips), Runner chase view and Orbiter flight loop from the spec, Pig and arena counter unchanged.
+
+---
+
 ## Patch — Mini-Sim 0.16.2: 0.16.1 reconciled with 0.15.36 (22 November 2026)
 
 - **WORK LOCK:** [#147](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/147). Decision D-078.

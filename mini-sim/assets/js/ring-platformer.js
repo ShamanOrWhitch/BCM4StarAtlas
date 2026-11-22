@@ -1194,6 +1194,8 @@
                 qaPlayer.velocityX = 0;
               }
               boss.activated = true;
+              // QA only: skip the form's own armour so the probe can advance every form.
+              boss.moves = null;
               boss.vulnerable = true;
               boss.hp = 1;
               damageBoss(boss, 1, performance.now(), 0);
@@ -1224,7 +1226,11 @@
                 ringVisible: !!boss.ring?.visible,
                 visiblePhases: boss.phaseGroups.map((group, index) => group.visible ? index + 1 : 0).filter(Boolean),
                 opacities: boss.phaseGroups.map(groupOpacity), pigVisible: !!boss.pigGroup.visible,
-                transitionDurationMs: boss.phaseUntil - (boss.phaseStartedAt || 0) };
+                transitionDurationMs: boss.phaseUntil - (boss.phaseStartedAt || 0),
+                // Boss moves (ring-boss-moves.js): form, current move, open core, drawn zones.
+                moveForm: boss.moves ? boss.moves.form : null, moveState: boss.lastMoveState || null,
+                vulnerable: !!boss.vulnerable, bossX: boss.x,
+                zones: (boss.zoneMeshes || []).filter((mesh) => mesh.visible).map((mesh) => mesh.name) };
             }
           };
         }
@@ -2393,10 +2399,16 @@
         }
       }
 
-      function damageBoss(boss, damage, now, cooldown) {
+      function damageBoss(boss, damage, now, cooldown, fromX) {
         if (!boss || !boss.alive || !boss.activated) return false;
-        if (boss.phaseIndex > 0 && !boss.vulnerable) {
-          updateHud("ЯДРО ЗАКРЫТО · ДОЖДИСЬ ОКНА УЯЗВИМОСТИ");
+        // A form with moves decides by itself (the Brawler takes shots in the back).
+        const openToShot = boss.moves && boss.phaseState === "moves"
+          ? boss.moves.canBeHit(Number.isFinite(fromX) ? fromX : boss.x)
+          : boss.vulnerable;
+        if (boss.phaseIndex > 0 && !openToShot) {
+          updateHud(boss.moves && boss.moves.form === "brawler"
+            ? "БРОНЯ СПЕРЕДИ · ЗАЙДИ СО СПИНЫ ИЛИ ЖДИ ПРОМАХА"
+            : "ЯДРО ЗАКРЫТО · ДОЖДИСЬ ОКНА УЯЗВИМОСТИ");
           return true;
         }
         if (now < boss.nextDamageAt) return false;
@@ -2429,6 +2441,8 @@
           if (boss.ring) boss.ring.visible = false;
           if (previousPhaseIndex > 0) playRingBossAnimation(boss, previousPhaseIndex - 1, "transform_out", true);
           playRingBossAnimation(boss, boss.phaseIndex - 1, "transform_in", true);
+          boss.moves = null;
+          drawBossZones(boss, null);
           boss.phaseState = "transition";
           boss.phaseStartedAt = now;
           boss.phaseUntil = now + 2400;
@@ -2497,7 +2511,7 @@
 
         if (player.weaponType === "spectrum") weaponShotIndex += 1;
         if (target && target.activated) {
-          damageBoss(target, profile.damage, now, Math.max(110, profile.cooldown * 0.7));
+          damageBoss(target, profile.damage, now, Math.max(110, profile.cooldown * 0.7), player.worldX);
         } else if (target && !target.activated) {
           updateHud("АРЕНА ЕЩЁ НЕ ОТКРЫТА");
         }
@@ -2581,7 +2595,7 @@
           updateHud("ПОДОЙДИ К АРЕНЕ И НАЖМИ АКТИВАЦИЮ");
           return false;
         }
-        return damageBoss(boss, 1, now, 620);
+        return damageBoss(boss, 1, now, 620, player.worldX);
       }
 
       function triggerAction(index, action) {
@@ -2750,6 +2764,71 @@
         });
       }
 
+      // Tells (yellow) and hazards (red) of a boss form, drawn as flat zones in
+      // front of the arena. Pooled per boss; unused zones are hidden.
+      function drawBossZones(boss, out) {
+        if (!boss.zoneMeshes) boss.zoneMeshes = [];
+        const zones = [];
+        if (out && out.tell) zones.push({ zone: out.tell, tell: true });
+        (out ? out.hazards : []).forEach((zone) => zones.push({ zone, tell: false }));
+        while (boss.zoneMeshes.length < zones.length) {
+          const mesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(1, 1),
+            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, depthWrite: false })
+          );
+          mesh.renderOrder = 6;
+          worldState.group.add(mesh);
+          boss.zoneMeshes.push(mesh);
+        }
+        const pulse = 0.55 + Math.sin(performance.now() * 0.018) * 0.25;
+        boss.zoneMeshes.forEach((mesh, index) => {
+          const item = zones[index];
+          mesh.visible = !!item;
+          if (!item) return;
+          const z = item.zone;
+          const body = z.kind === "roll" || z.kind === "chassis" || z.kind === "landing";
+          mesh.name = item.tell ? "ring-boss-tell-" + z.kind : "ring-boss-hazard-" + z.kind;
+          mesh.position.set((z.x0 + z.x1) / 2, (z.y0 + z.y1) / 2 + (item.tell ? 0.02 : 0), item.tell ? 0.86 : 0.92);
+          mesh.scale.set(Math.max(0.05, z.x1 - z.x0), Math.max(0.05, z.y1 - z.y0), 1);
+          mesh.material.color.setHex(item.tell ? 0xffcc6a : z.kind === "shard" || z.kind === "orb" ? 0x8fe8ff : 0xff4a4a);
+          mesh.material.opacity = item.tell ? 0.22 + pulse * 0.3 : body ? 0.22 : 0.62;
+        });
+      }
+
+      function runBossMoves(boss, phaseGroup, target, living, dt, now) {
+        const out = boss.moves.step(dt, { targetX: target.worldX, targetY: target.worldY });
+        boss.x = out.x;
+        boss.group.position.x = out.x;
+        boss.vulnerable = out.vulnerable;
+        boss.moveFacing = out.facing;
+        if (phaseGroup) {
+          phaseGroup.position.y = 2.1 + out.y;
+          if (out.attacking) phaseGroup.rotation.z = Math.sin(now * 0.03) * 0.14;
+        }
+        // The open core shows as the green ring over the form.
+        boss.tellMesh.visible = out.vulnerable;
+        if (out.vulnerable) {
+          boss.tellMesh.material.color.setHex(0x69ffe0);
+          boss.tellMesh.material.opacity = 0.9;
+          boss.tellMesh.position.set(0, 2.2 + out.y, 1.18);
+          boss.tellMesh.scale.set(1.65, 1.65, 1);
+          boss.tellMesh.rotation.z += dt * 1.3;
+        }
+        drawBossZones(boss, out);
+        if (out.state !== boss.lastMoveState) {
+          boss.lastMoveState = out.state;
+          const english = window.BCMDialogue?.language === "en";
+          if (out.cue) updateHud(english ? (out.form.toUpperCase() + " · " + out.state.toUpperCase()) : out.cue);
+        }
+        // A hazard hurts a pilot whose body (0.7 m wide, 1.7 m tall) overlaps it.
+        living.forEach((player) => {
+          const hit = out.hazards.some((h) =>
+            player.worldX + 0.35 > h.x0 && player.worldX - 0.35 < h.x1 &&
+            player.worldY + 1.7 > h.y0 && player.worldY < h.y1);
+          if (hit) damagePlayer(player, now);
+        });
+      }
+
       function updateBosses(dt, now) {
         const living = players.filter(Boolean);
         const phaseCues = [
@@ -2834,6 +2913,18 @@
               clearRingBossTransitionVfx(boss);
               boss.transitionFromIndex = 0;
               playRingBossAnimation(boss, phaseIndex - 1, "idle", false);
+              // Owner 22.11.2026 "Бои с боссами Ring": each form plays its own move
+              // (ring-boss-moves.js) instead of the shared shockwave loop below.
+              if (boss.homeX === undefined) boss.homeX = boss.x;
+              boss.moves = window.BCMRingBossMoves
+                ? window.BCMRingBossMoves.create(phaseIndex, { homeX: boss.homeX, seed: (Math.round(boss.homeX * 97) + phaseIndex * 7919) >>> 0 })
+                : null;
+              boss.lastMoveState = "";
+              if (boss.moves) {
+                boss.phaseState = "moves";
+                boss.tellMesh.visible = false;
+                return;
+              }
               boss.phaseState = "telegraph";
               boss.phaseUntil = now + 850;
               boss.tellMesh.visible = true;
@@ -2847,6 +2938,10 @@
               }
               updateHud(cue);
             }
+            return;
+          }
+          if (boss.phaseState === "moves" && boss.moves) {
+            runBossMoves(boss, phaseGroup, target, living, dt, now);
             return;
           }
           if (boss.phaseState === "telegraph") {
