@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_TOWER_VERSION', '0.2.90');
+define('BCM_TOWER_VERSION', '0.2.88');
 define('BCM_TOWER_PATH', __DIR__ . '/');
 define('BCM_TOWER_URL', trailingslashit(plugin_dir_url(__FILE__)));
 
@@ -133,12 +133,7 @@ function bcm_tower_get_client_config($assets = null) {
         // Own landing clip per planet; a planet without one keeps onicss.mp4.
         'planetTransitions' => array_filter(array(
             'fable' => bcm_tower_pick_asset($assets, array('landing-fable.mp4'), 'video'),
-            'opus' => bcm_tower_pick_asset($assets, array('landing-opus.mp4'), 'video'),
-        )),
-        // Own departure film (Tower -> space), played forward. A planet without
-        // one reverses its landing clip.
-        'planetAscents' => array_filter(array(
-            'opus' => bcm_tower_pick_asset($assets, array('departure-opus.mp4'), 'video'),
+            'pearce' => bcm_tower_pick_asset($assets, array('landing-pearce.mp4'), 'video'),
         )),
         'firstPlanetAudio' => bcm_tower_pick_asset($assets, array('FP.mp3'), 'audio') ?: BCM_MINI_SIM_URL . 'first-planet/audio/FP.mp3',
         'desertRaceAudio' => bcm_tower_pick_asset($assets, array('desertrace.mp3'), 'audio') ?: BCM_MINI_SIM_URL . 'first-planet/audio/desertrace.mp3',
@@ -167,13 +162,6 @@ function bcm_tower_get_client_config($assets = null) {
             'backgroundmenu.webp',
             'perference bg.png'
         ), 'image'),
-        // Owner 19.11.2026: "background в Tower — основа ощущения планеты".
-        // Each planet's Tower has its own backdrop; a missing one keeps backgroundMenu.
-        'towerBackgrounds' => array_filter(array(
-            'fable' => bcm_tower_pick_asset($assets, array('tower-bg-fable.webp', 'tower-bg-fable.jpg', 'tower-bg-fable.png'), 'image'),
-            'opus' => bcm_tower_pick_asset($assets, array('tower-bg-opus.webp', 'tower-bg-opus.jpg', 'tower-bg-opus.png'), 'image'),
-            'first' => bcm_tower_pick_asset($assets, array('tower-bg-twinsun.webp', 'tower-bg-twinsun.jpg', 'tower-bg-twinsun.png'), 'image'),
-        )),
         'shipTexture' => bcm_tower_pick_asset($assets, array('ship.png', 'ship.webp', 'ship.jpg', 'ship.jpeg'), 'image'),
         'planetMaps' => array_values(array_map(
             static function ($asset) { return $asset['url']; },
