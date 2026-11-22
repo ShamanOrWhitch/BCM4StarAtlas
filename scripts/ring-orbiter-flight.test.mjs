@@ -105,3 +105,34 @@ test("the camera frames the whole arena in the flight: floor, Orbiter and ceilin
   const arenaY = -0.6 + landscapeHalf;
   assert.ok(arenaY - landscapeHalf <= 0 && arenaY + landscapeHalf >= 8 + 1.7, "landscape frame misses the floor or a pilot at the ceiling");
 });
+
+// Owner 23.11.2026 "Пропасть в арене": the Orbiter floor goes away after a warning,
+// two ledges stay by the walls; whoever stops flying falls, loses HP and comes back on a ledge.
+test("the Orbiter floor gives way after a warning and leaves two ledges", () => {
+  const moves = api();
+  const boss = moves.create(3, { homeX: 18, seed: 5 });
+  const frames = play(boss, 12);
+  const firstPit = frames.findIndex((f) => f.pit);
+  assert.ok(firstPit > 0, "no pit in the Orbiter arena: the floor stays under the pilot");
+  const warned = frames.slice(0, firstPit).filter((f) => f.floorWarn).length / 60;
+  assert.ok(warned >= 2, `the floor goes after ${warned.toFixed(2)} s of warning`);
+  const f = frames[firstPit + 30];
+  assert.ok(f.pit.x0 <= 18 - 8 && f.pit.x1 >= 18 + 8, "the pit does not cover the arena");
+  assert.ok(f.ledges.length >= 2, "no ledges to stand on");
+  for (const l of f.ledges) assert.ok(l.x1 - l.x0 >= 2.5 && l.x0 >= 18 - 9.5 && l.x1 <= 18 + 9.5, "a ledge is too narrow or out of the arena");
+  assert.ok(f.ledges.some((l) => l.x0 < 18) && f.ledges.some((l) => l.x1 > 18), "both ledges on one side");
+  const low = f.bubbles.find((b) => b.y <= 1.6) || frames[0].bubbles.find((b) => b.y <= 1.6);
+  assert.ok(f.ledges.some((l) => low.x >= l.x0 && low.x <= l.x1), "the low bubble is not over a ledge");
+  for (let phase = 1; phase <= 6; phase += 1) {
+    if (phase === 3) continue;
+    const other = play(moves.create(phase, { homeX: 18, seed: 5 }), 6);
+    assert.ok(!other.some((x) => x.pit), `${other[0].form} opens a pit`);
+  }
+});
+
+test("the Ring drops a pilot into the Orbiter pit and puts them back on a ledge", () => {
+  const ring = read("mini-sim/assets/js/ring-platformer.js");
+  assert.match(ring, /out\.pit|moves\.pitAt\(/, "the Ring ignores the pit: pilots land on the floor");
+  assert.match(ring, /ring-boss-pit/, "the pit is never drawn");
+  assert.match(ring, /nearestLedge/, "a fallen pilot is not put back on a ledge");
+});

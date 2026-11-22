@@ -1,3 +1,13 @@
+## Patch — Mini-Sim 0.16.6: a pit in the Orbiter arena (23 November 2026)
+
+- **WORK LOCK:** [#151](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/151). Decision D-082.
+- **`ring-boss-moves.js`:** Orbiter floor warns 2.5 s, then gives way across the arena; two 3 m ledges by the walls stay; `pitAt(x)`, `nearestLedge(x)`, outputs `floorWarn`, `pit`, `ledges`.
+- **`ring-platformer.js`:** no floor landing over the open pit (raised platforms stay); a fall below −2.5 m returns the pilot to the nearest ledge, −1 HP, jet and breath at least 50; pit and ledges drawn; QA hook `placePilot(x, y)`, snapshot reports pit, ledges, homeX, pilot HP.
+- **Red before:** `no pit in the Orbiter arena: the floor stays under the pilot`, `the Ring ignores the pit: pilots land on the floor`. After 7/7. Edge probe: pilot over the pit falls, comes back on the right ledge, HP 2 → 1 (PASS). Regression 270/270.
+- **Not yet:** the pit reads weakly in the frame (dark strip at the very bottom, thin ledges).
+
+---
+
 ## Patch — Mini-Sim 0.16.5: camera frames the Orbiter flight (22 November 2026)
 
 - **WORK LOCK:** [#150](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/150). Decision D-081.

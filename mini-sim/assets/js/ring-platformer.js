@@ -1201,6 +1201,14 @@
               damageBoss(boss, 1, performance.now(), 0);
               return this.snapshot();
             },
+            // QA only: put the first pilot at a spot in the arena (the pit probe).
+            placePilot(x, y) {
+              const qaPlayer = players.find(Boolean);
+              if (!qaPlayer) return false;
+              qaPlayer.worldX = Number(x); qaPlayer.worldY = Number(y);
+              qaPlayer.vy = 0; qaPlayer.grounded = false; qaPlayer.supportPlatform = null;
+              return true;
+            },
             setRearView(enabled) {
               const boss = worldState.bosses.find((item) => item.alive);
               if (!boss || boss.phaseIndex < 1) return false;
@@ -1232,9 +1240,12 @@
                 vulnerable: !!boss.vulnerable, bossX: boss.x,
                 flight: !!(boss.moves && boss.moves.flight),
                 camera: worldState.cameraView || null,
+                homeX: boss.homeX ?? boss.x,
+                pit: (boss.pitMeshes || []).some((mesh) => mesh.visible && /^ring-boss-pit-\d/.test(mesh.name)),
+                ledges: boss.moves && boss.lastMoveOut ? boss.lastMoveOut.ledges || [] : [],
                 bubbles: (boss.bubbleMeshes || []).filter((mesh) => mesh.visible).length,
                 pilot: (() => { const p = players.find(Boolean); return p ? { x: p.worldX, y: p.worldY, jet: p.jetFuel, air: p.breathReserve,
-                  flame: !!(p.jetFlame && p.jetFlame.visible), bossFlight: !!p.bossFlight } : null; })(),
+                  flame: !!(p.jetFlame && p.jetFlame.visible), bossFlight: !!p.bossFlight, hp: p.hp } : null; })(),
                 zones: (boss.zoneMeshes || []).filter((mesh) => mesh.visible).map((mesh) => mesh.name) };
             }
           };
@@ -2818,10 +2829,44 @@
           mesh.visible = !!bubble;
           if (bubble) mesh.position.set(bubble.x, bubble.y, 0.9);
         });
+        // Orbiter pit: a dark gap over the floor off the ledges (orange while it warns),
+        // ledges as violet plates.
+        if (!boss.pitMeshes) boss.pitMeshes = [];
+        const slabs = [];
+        const ledges = out && out.ledges ? out.ledges.slice().sort((a, b) => a.x0 - b.x0) : [];
+        if (out && (out.pit || out.floorWarn) && ledges.length) {
+          const span = out.pit || { x0: ledges[0].x0 - 0.9, x1: ledges[ledges.length - 1].x1 + 0.9 };
+          let from = span.x0;
+          ledges.forEach((ledge) => { if (ledge.x0 > from) slabs.push({ kind: "gap", x0: from, x1: ledge.x0 }); from = Math.max(from, ledge.x1); });
+          if (span.x1 > from) slabs.push({ kind: "gap", x0: from, x1: span.x1 });
+          ledges.forEach((ledge) => slabs.push({ kind: "ledge", x0: ledge.x0, x1: ledge.x1 }));
+        }
+        while (boss.pitMeshes.length < slabs.length) {
+          const mesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(1, 1),
+            new THREE.MeshBasicMaterial({ color: 0x05030c, transparent: true, opacity: 0.94, depthWrite: false })
+          );
+          mesh.renderOrder = 5;
+          worldState.group.add(mesh);
+          boss.pitMeshes.push(mesh);
+        }
+        boss.pitMeshes.forEach((mesh, index) => {
+          const slab = slabs[index];
+          mesh.visible = !!slab;
+          if (!slab) return;
+          const ledge = slab.kind === "ledge";
+          const warn = !ledge && !out.pit;
+          mesh.name = ledge ? "ring-boss-ledge-" + index : warn ? "ring-boss-pit-warn-" + index : "ring-boss-pit-" + index;
+          mesh.position.set((slab.x0 + slab.x1) / 2, ledge ? -0.12 : -0.3, ledge ? 0.97 : 0.95);
+          mesh.scale.set(slab.x1 - slab.x0, ledge ? 0.34 : 0.7, 1);
+          mesh.material.color.setHex(ledge ? 0xb59cff : warn ? 0xff9a3c : 0x05030c);
+          mesh.material.opacity = ledge ? 0.9 : warn ? 0.25 + pulse * 0.35 : 0.94;
+        });
       }
 
       function runBossMoves(boss, phaseGroup, target, living, dt, now) {
         const out = boss.moves.step(dt, { targetX: target.worldX, targetY: target.worldY });
+        boss.lastMoveOut = out;
         boss.x = out.x;
         boss.group.position.x = out.x;
         boss.vulnerable = out.vulnerable;
@@ -3200,9 +3245,12 @@
             player.worldY = flightBoss.moves.ceiling; player.vy = Math.min(0, player.vy);
           }
           if (player.vy <= 0) {
+            // Orbiter pit (owner 23.11.2026): the arena floor is gone off the ledges.
+            const overPit = bossFlight && flightBoss.moves.pitAt(player.worldX);
             const landing = worldState.platforms.filter((platform) =>
               player.worldX >= platform.minX && player.worldX <= platform.maxX &&
-              previousY >= platform.y && player.worldY <= platform.y
+              previousY >= platform.y && player.worldY <= platform.y &&
+              !(overPit && platform.y <= 0.01)
             ).sort((a,b)=>b.y-a.y)[0];
             if (landing) {
               player.worldY = landing.y; player.vy = 0; player.grounded = true; player.supportPlatform = landing;
@@ -3235,9 +3283,17 @@
             damagePlayer(player, now);
             player.vy = 7.2; player.grounded = false; player.supportPlatform = null;
           }
-          if (player.worldY < -7) {
+          // In the Orbiter pit the fall ends once the pilot leaves the arena frame (−0.6 m).
+          if (player.worldY < (bossFlight ? -2.5 : -7)) {
             player.worldY = 0; player.vy = 0; player.grounded = true; player.supportPlatform = null;
-            player.worldX = player.checkpointX; damagePlayer(player, now);
+            // In the Orbiter pit the pilot comes back on the nearest ledge with some jet and air.
+            const nearestLedge = bossFlight ? flightBoss.moves.nearestLedge(player.worldX) : null;
+            player.worldX = nearestLedge !== null ? nearestLedge : player.checkpointX; damagePlayer(player, now);
+            if (nearestLedge !== null) {
+              player.jetFuel = Math.max(50, player.jetFuel);
+              player.breathReserve = Math.max(50, player.breathReserve);
+              updateHud(window.BCMDialogue?.language === "en" ? "FELL INTO THE PIT · BACK ON THE LEDGE" : "СОРВАЛСЯ В ПРОПАСТЬ · НАЗАД НА УСТУП");
+            }
           }
           if (player.grounded && player.supportPlatform && player.supportPlatform.y > 0 &&
               (player.worldX < player.supportPlatform.minX || player.worldX > player.supportPlatform.maxX)) {

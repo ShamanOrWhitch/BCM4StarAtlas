@@ -63,6 +63,27 @@ try {
     await page.waitForTimeout(560);
   }
   if (!shot) await page.screenshot({ path: resolve(out, "orbiter-flight-ground.png") });
+  // Pit (owner 23.11.2026 "Пропасть в арене"): put the pilot, jet spent, low over the
+  // middle of the arena (below its raised platforms) and let go; the pilot must fall,
+  // come back on a ledge and lose HP.
+  await page.waitForTimeout(3000); // let the hit invulnerability of the flight run out
+  const beforeFall = await page.evaluate(() => window.__BCM_RING_BOSS_QA__.snapshot());
+  await page.evaluate((x) => window.__BCM_RING_BOSS_QA__.placePilot(x, 0.4), beforeFall.homeX);
+  report.fall = { hpBefore: beforeFall.pilot.hp, pit: beforeFall.pit, ledges: beforeFall.ledges, path: [] };
+  let pitShot = false;
+  for (let i = 0; i < 24; i += 1) {
+    const snap = await page.evaluate(() => window.__BCM_RING_BOSS_QA__.snapshot());
+    report.fall.path.push({ x: Math.round(snap.pilot.x * 10) / 10, y: Math.round(snap.pilot.y * 10) / 10, hp: snap.pilot.hp, pit: snap.pit });
+    if (!pitShot && snap.pit && snap.pilot.y < -0.2) { await page.screenshot({ path: resolve(out, "orbiter-pit.png") }); pitShot = true; }
+    await page.waitForTimeout(250);
+  }
+  const fp = report.fall.path;
+  const fellAt = fp.findIndex((p) => p.y < -0.4);
+  const back = fellAt >= 0 ? fp.slice(fellAt).find((p) => p.y > -0.05 && p.y < 0.3) : null;
+  report.fall.fell = fellAt >= 0;
+  report.fall.backOnLedge = !!(back && beforeFall.ledges.some((l) => back.x >= l.x0 - 0.1 && back.x <= l.x1 + 0.1));
+  report.fall.hurt = fp.some((p) => p.hp < beforeFall.pilot.hp);
+  report.fall.pitSeen = fp.some((p) => p.pit);
   const s = report.samples;
   report.maxY = Math.max(...s.map((x) => x.y));
   report.minJet = Math.min(...s.map((x) => x.jet));
@@ -75,7 +96,8 @@ try {
   report.cameraFrames = high.length > 0 && high.every((x) => x.camera.bottom <= 0.1 && x.camera.top >= x.y + 1.7);
   report.status = report.before.moveForm === "orbiter" && report.before.flight && s.every((x) => x.flight) &&
     report.maxY > 2.5 && report.minJet < 100 && report.flameSeen && report.sparks &&
-    s.some((x) => x.bubbles >= 3) && report.cameraFrames && report.errors.length === 0 ? "PASS" : "FAIL";
+    s.some((x) => x.bubbles >= 3) && report.cameraFrames && report.fall.fell && report.fall.backOnLedge && report.fall.hurt && report.fall.pitSeen &&
+    report.errors.length === 0 ? "PASS" : "FAIL";
 } catch (error) {
   report.failure = String(error && error.message || error).split("\n")[0];
   await page.screenshot({ path: resolve(out, "failure.png") }).catch(() => {});
@@ -83,4 +105,4 @@ try {
   await writeFile(resolve(out, "report.json"), JSON.stringify(report, null, 2));
   await browser.close();
 }
-console.log(JSON.stringify({ status: report.status, failure: report.failure, cameraFrames: report.cameraFrames, cameraHigh: report.cameraHigh, maxY: report.maxY, minJet: report.minJet, flameSeen: report.flameSeen, sparks: report.sparks, errors: report.errors, form: report.before?.moveForm, samples: report.samples.map((x) => [x.y, Math.round(x.jet), Math.round(x.air), x.flame, x.bubbles]) }, null, 1));
+console.log(JSON.stringify({ status: report.status, failure: report.failure, fall: report.fall, cameraFrames: report.cameraFrames, cameraHigh: report.cameraHigh, maxY: report.maxY, minJet: report.minJet, flameSeen: report.flameSeen, sparks: report.sparks, errors: report.errors, form: report.before?.moveForm, samples: report.samples.map((x) => [x.y, Math.round(x.jet), Math.round(x.air), x.flame, x.bubbles]) }, null, 1));

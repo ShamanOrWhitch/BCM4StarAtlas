@@ -30,7 +30,7 @@
   var CUES = {
     roller: { idle: "КАТОК КРУТИТСЯ", windup: "КАТОК РАЗГОНЯЕТСЯ · ПРЫГАЙ ЧЕРЕЗ НЕГО", roll: "КАТОК КАТИТСЯ", stunned: "КАТОК В СТЕНЕ · ЯДРО ОТКРЫТО" },
     walker: { walk: "ШАГОХОД ИДЁТ", lift: "ШАГОХОД ПОДНЯЛ НОГУ · ГОТОВЬСЯ ПРЫГАТЬ", stomp: "ТОПОТ · ПРЫГАЙ ЧЕРЕЗ ВОЛНУ", planted: "НОГА УВЯЗЛА · ЯДРО ОТКРЫТО" },
-    orbiter: { orbit: "ОРБИТА · ЛЕТИ: ПРЫЖОК = ИМПУЛЬС · СОБИРАЙ ПУЗЫРИ", mark: "МЕТКА НА ПОЛУ · УЙДИ", drop: "СГУСТОК ПАДАЕТ", open: "ОБЛОМКИ РАЗЛЕТЕЛИСЬ · ЯДРО ОТКРЫТО" },
+    orbiter: { orbit: "ОРБИТА · ЛЕТИ: ПРЫЖОК = ИМПУЛЬС · ПОЛ УХОДИТ — ДЕРЖИСЬ В ВОЗДУХЕ ИЛИ НА УСТУПАХ", mark: "МЕТКА НА ПОЛУ · УЙДИ", drop: "СГУСТОК ПАДАЕТ", open: "ОБЛОМКИ РАЗЛЕТЕЛИСЬ · ЯДРО ОТКРЫТО" },
     brawler: { advance: "БОЕЦ ИДЁТ · ЗАЙДИ СО СПИНЫ", windup: "ЗАМАХ · УЙДИ ИЗ ЗОНЫ УДАРА", punch: "УДАР", stuck: "КУЛАК ЗАСТРЯЛ · ЯДРО ОТКРЫТО" },
     runner: { rev: "ГОНЩИК РЕВЁТ · ПРЫГАЙ ЧЕРЕЗ НЕГО", dash: "ГОНЩИК ЛЕТИТ", turn: "РАЗВОРОТ", overheat: "ПЕРЕГРЕВ · ЯДРО ОТКРЫТО" },
     stalker: { stalk: "ТЕНЬ КРАДЁТСЯ", mark: "ТЕНЬ МЕТИТ МЕСТО · УЙДИ ИЗ МЕТКИ", leap: "ТЕНЬ ПРЫГАЕТ", land: "ПРИЗЕМЛЕНИЕ", recover: "ТЕНЬ ОШЕЛОМЛЕНА · ЯДРО ОТКРЫТО" }
@@ -74,6 +74,12 @@
     var flight = form === "orbiter";
     var CEILING = 8;
     var BUBBLE_RESPAWN = 6;
+    // Owner 23.11.2026 "Пропасть в арене": the floor warns for FLOOR_WARN seconds,
+    // then gives way; two ledges by the walls stay (the low bubble hangs over one).
+    var FLOOR_WARN = 2.5;
+    var PIT = { x0: homeX - 9.5, x1: homeX + 9.5 };
+    var LEDGES = [{ x0: homeX - 8.6, x1: homeX - 5.6 }, { x0: homeX + 5.6, x1: homeX + 8.6 }];
+    function pitOpen() { return flight && s.clock >= FLOOR_WARN; }
     if (flight) {
       s.sparks = [
         { x: minX + 1, y: 1.2, dir: 1, speed: 2.4, r: 0.38 },
@@ -286,6 +292,9 @@
         vulnerable: s.vulnerable, attacking: s.attacking, tell: s.tell,
         hazards: hazards, cue: (CUES[form] && CUES[form][s.state]) || "",
         flight: flight, drift: flight ? 1.2 : 0, ceiling: flight ? CEILING : 0,
+        floorWarn: flight && !pitOpen(),
+        pit: pitOpen() ? { x0: PIT.x0, x1: PIT.x1 } : null,
+        ledges: flight ? LEDGES.map(function (l) { return { x0: l.x0, x1: l.x1 }; }) : [],
         bubbles: s.bubbles.filter(function (b) { return b.wait <= 0; })
           .map(function (b) { return { id: b.id, x: b.x, y: b.y + Math.sin(s.clock * 1.6 + b.id) * 0.15 }; })
       };
@@ -307,7 +316,22 @@
       return false;
     }
 
-    return { form: form, step: step, canBeHit: canBeHit, collect: collect, homeX: homeX, flight: flight, ceiling: flight ? CEILING : 0 };
+    // True where the floor is gone: in the open pit and off both ledges.
+    function pitAt(x) {
+      if (!pitOpen()) return false;
+      var px = Number(x);
+      if (px < PIT.x0 || px > PIT.x1) return false;
+      return !LEDGES.some(function (l) { return px >= l.x0 && px <= l.x1; });
+    }
+    // Middle of the ledge closest to x: where a fallen pilot comes back.
+    function nearestLedge(x) {
+      var px = Number(x) || homeX;
+      var best = LEDGES[0];
+      LEDGES.forEach(function (l) { if (Math.abs((l.x0 + l.x1) / 2 - px) < Math.abs((best.x0 + best.x1) / 2 - px)) best = l; });
+      return (best.x0 + best.x1) / 2;
+    }
+
+    return { form: form, step: step, canBeHit: canBeHit, collect: collect, pitAt: pitAt, nearestLedge: nearestLedge, homeX: homeX, flight: flight, ceiling: flight ? CEILING : 0 };
   }
 
   root.BCMRingBossMoves = { create: create, FORMS: FORMS };
