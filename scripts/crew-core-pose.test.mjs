@@ -83,7 +83,7 @@ test("levels only pass direction and dt; crew-rig loads before crew-core everywh
   assert.match(visual, /window\.BCMCrewCore\.crewSpritePose\(/);
   assert.doesNotMatch(visual, /performance\.now\(\) \* motion\.speed/, "Tower still drives the walk from the wall clock");
   assert.doesNotMatch(tower, /updatePlayerVisual\(1\);\s*\}/, "player 2 is posed twice per frame");
-  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  const warp = (await read("mini-sim/assets/js/deep-space-warp.js")) + "\n" + (await read("mini-sim/assets/js/ring-platformer.js"));
   assert.match(warp, /function updatePlayerSprite\(player, dt\)/);
   assert.match(warp, /applyPlatformSprite\(player\.sprite, \{[\s\S]{0,400}\}, dt\)/);
   const hull = await read("mini-sim/assets/js/hull-dive.js");

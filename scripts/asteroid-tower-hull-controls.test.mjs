@@ -1,11 +1,13 @@
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+// 0.16.x: the Ring runtime moved out of deep-space-warp.js into ring-platformer.js (Dr Arena); read both.
 
 const read = (path) => readFile(new URL("../" + path, import.meta.url), "utf8");
 
 test("First-person flight exposes Hull Interior with touch, U and edge-triggered R3", async () => {
-  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  const warp = (await read("mini-sim/assets/js/deep-space-warp.js")) + "\n" + (await read("mini-sim/assets/js/ring-platformer.js"));
   const mini = await read("mini-sim/assets/js/mini-sim.js");
   const hull = await read("mini-sim/assets/js/hull-dive.js");
   assert.match(warp, /hullEnterButton\.textContent = "ВНУТРЬ КОРАБЛЯ · U \/ R3"/);
@@ -90,7 +92,7 @@ test("Tower seed generation is gentler; keyboard/touch slow down without slowing
 });
 
 test("Warp Tube speed multiplier climbs from 1x to 12x with shared scene and soundtrack state", async () => {
-  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  const warp = (await read("mini-sim/assets/js/deep-space-warp.js")) + "\n" + (await read("mini-sim/assets/js/ring-platformer.js"));
   const location = await read("mini-sim/assets/js/asteroid-maze-location.js");
   assert.match(warp, /const WARP_DURATION = 42/);
   assert.match(warp, /function warpSpeedMultiplier\(elapsed\)/);
@@ -195,7 +197,7 @@ test("Hull Dive uses crew-core Crew cut-outs and supplies working pilot, weapon,
 test("Crew facing follows the Tower convention and 3D wall materials use each cell's Ring map data", async () => {
   const core = await read("mini-sim/assets/js/crew-core.js");
   const location = await read("mini-sim/assets/js/asteroid-maze-location.js");
-  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  const warp = (await read("mini-sim/assets/js/deep-space-warp.js")) + "\n" + (await read("mini-sim/assets/js/ring-platformer.js"));
   const tower = await read("mini-sim/tower/assets/js/tower.js");
   // One facing rule for every level (Tower convention), owned by crew-core.
   // BUG-001: the old Mierese exception in applyPlatformSprite is gone. WORK LOCK #117.
@@ -227,7 +229,7 @@ test("Crew facing follows the Tower convention and 3D wall materials use each ce
 
 test("Hydrogen unlock follows real screen playback and places the collectible in the asteroid start cell", async () => {
   const mini = await read("mini-sim/assets/js/mini-sim.js");
-  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  const warp = (await read("mini-sim/assets/js/deep-space-warp.js")) + "\n" + (await read("mini-sim/assets/js/ring-platformer.js"));
   const location = await read("mini-sim/assets/js/asteroid-maze-location.js");
   assert.match(mini, /window\.BCMWorldMissionAPI = \{/);
   assert.match(mini, /function registerMissionScreen\(screenId, required = true\)/);
@@ -245,10 +247,11 @@ test("Hydrogen unlock follows real screen playback and places the collectible in
 
 
 test("Astral Y-cells are seed-deterministic and alter movement without rebuilding the maze", async () => {
-  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  const warp = (await read("mini-sim/assets/js/deep-space-warp.js")) + "\n" + (await read("mini-sim/assets/js/ring-platformer.js"));
   const location = await read("mini-sim/assets/js/asteroid-maze-location.js");
   assert.ok(warp.includes('const astralHash = hashSeed(String(maze.seed) + "|astral|" + cell.x + "|" + cell.y + "|" + cell.z)'));
-  assert.match(warp, /astralMode: astral \? \["drift", "flux", "dense"\]\[astralHash % 3\] : "normal"/);
+  // 0.16.x Ring module: `const astralMode = astral ? …` (was an object field in Warp).
+  assert.match(warp, /astralMode\s*[:=]\s*astral \? \["drift", "flux", "dense"\]\[astralHash % 3\] : "normal"/);
   assert.match(warp, /ringCurrent: worldState\.cellPath \? worldState\.cellPath\.current : null/);
   assert.match(warp, /player\.ringTurnQueued = true/);
   assert.match(warp, /const haveSeparateCells = !!\(p1\.ringCurrent && p2\.ringCurrent && p1\.ringCurrent !== p2\.ringCurrent\)/);
@@ -258,8 +261,10 @@ test("Astral Y-cells are seed-deterministic and alter movement without rebuildin
   assert.match(location, /bcm:mission:hydrogen-shard-collected/);
   assert.doesNotMatch(warp, /nextDirection = path\.nextDirectionTowardLarge\(node\) \|\|/);
   assert.match(warp, /if \(action === "floor"\)/);
-  assert.match(warp, /const p1Floor = event\.code === "KeyR"/);
-  assert.match(warp, /statePad\.floor = !!button\(4\)/);
+  // 0.16.x: the key layout lives in crew-core; R changes floor for player 1.
+  assert.match(readFileSync(new URL("../mini-sim/assets/js/crew-core.js", import.meta.url), "utf8"), /KeyR: "floor"/);
+  // 0.16.x: the gamepad layout lives in crew-core; LB (button 4) changes floor.
+  assert.match(readFileSync(new URL("../mini-sim/assets/js/crew-core.js", import.meta.url), "utf8"), /\[4, "floor"\]/);
   assert.doesNotMatch(warp, /const verticalDirection = input\.down \? "yn" : "yp"/);
   assert.match(warp, /sealedWallRight\.visible = !node\.large && !rightDoor/);
   assert.match(warp, /ring-cell-vertical-portal/);
@@ -270,9 +275,12 @@ test("Astral Y-cells are seed-deterministic and alter movement without rebuildin
   assert.doesNotMatch(warp, /placeParty\(enterRingCell\(worldState, right, "left"\)\);/);
   assert.ok(warp.includes('astralPhase: ((hashSeed(String(maze.seed) + "|phase|" + cell.x + "|" + cell.y + "|" + cell.z) / 0xffffffff) * Math.PI * 2)'));
   assert.match(warp, /gravity = 6\.0;[\s\S]*?jumpVelocity = 7\.8/);
-  assert.match(warp, /gravity = 8\.0 \+ Math\.sin\(now \* 0\.0018 \+ \(astralNode\.astralPhase \|\| 0\)\) \* 1\.8/);
-  assert.match(warp, /gravity = 14\.5;[\s\S]*?jumpVelocity = 10\.2/);
-  assert.match(warp, /"ASTRAL · DRIFT", flux: "ASTRAL · GRAVITY FLUX", dense: "ASTRAL · DENSE GRAVITY"/);
+  // 0.16.x jump-feel tuning (Dr Arena, docs 25fccb4/286c885): flux lighter and
+  // softer, dense heavier with a short jump. The modes still differ by gravity.
+  assert.match(warp, /gravity = 7\.0 \+ Math\.sin\(now \* 0\.0018 \+ \(astralNode\.astralPhase \|\| 0\)\) \* 1\.2/);
+  assert.match(warp, /gravity = 27\.0;[\s\S]*?jumpVelocity = 5\.7/);
+  // 0.16.x: the HUD names the anomaly by colour and gravity, in Russian.
+  assert.match(warp, /drift: "ФИОЛЕТОВОЕ · НИЗКАЯ G", flux: "ФИОЛЕТОВОЕ · НИЗКАЯ G", dense: "СИНЕЕ · ВЫСОКАЯ G"/);
   assert.match(warp, /drift: "≈", flux: "↕", dense: "◆"/);
   assert.match(location, /const anomalies = \(maze\.cells \|\| \[\]\)\.filter\(\(cell\) => cell\.y !== 1\)/);
 });
@@ -280,7 +288,7 @@ test("Astral Y-cells are seed-deterministic and alter movement without rebuildin
 
 test("Tower handoff preserves the arrival ship snapshot and active Tower seed for later return", async () => {
   const mini = await read("mini-sim/assets/js/mini-sim.js");
-  const warp = await read("mini-sim/assets/js/deep-space-warp.js");
+  const warp = (await read("mini-sim/assets/js/deep-space-warp.js")) + "\n" + (await read("mini-sim/assets/js/ring-platformer.js"));
   const tower = await read("mini-sim/tower/assets/js/tower.js");
   const towerPhp = await read("mini-sim/tower/bcm-tower.php");
   assert.match(mini, /function captureArrivalShipSnapshot\(\)/);

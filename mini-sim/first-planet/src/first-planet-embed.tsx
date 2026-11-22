@@ -13,6 +13,8 @@ type PlanetContext = {
   /** Optional: first | pearce (MUD) | ioki (Ustur). Otherwise from the Warp sector. */
   planet?: string;
   raceSeed?: number;
+  /** Open straight into the Shoal Race (Planet Lab, a future direct entry). Default: the island. */
+  startMode?: "island" | "race";
   mode?: "single" | "multi";
   players?: Array<{ id?: string; name?: string; image?: string; species?: string }>;
   audioUrl?: string;
@@ -56,7 +58,7 @@ function FirstPlanetApp({
   onReady: () => void;
   onLoadError: (error: unknown) => void;
 }) {
-  const [mode, setMode] = useState<"island" | "race">("island");
+  const [mode, setMode] = useState<"island" | "race">(context.startMode === "race" ? "race" : "island");
   const [live, setLive] = useState(context.live !== false);
   const planetMusicRef = useRef<HTMLAudioElement | null>(null);
   const raceMusicRef = useRef<HTMLAudioElement | null>(null);
@@ -154,7 +156,7 @@ function FirstPlanetApp({
   if (window.BCMMiniSimSession) window.BCMMiniSimSession.currentLocation = "first-planet";
 
   return mode === "race"
-    ? <ShoalRace seed={Number(context.raceSeed) >>> 0} onLeave={leaveRace} onStartAudio={startRaceMusic} />
+    ? <ShoalRace seed={Number(context.raceSeed) >>> 0} planet={context.planet} onLeave={leaveRace} onStartAudio={startRaceMusic} />
     : <DesertIsland
         context={context}
         live={live}

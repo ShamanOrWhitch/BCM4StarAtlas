@@ -1,11 +1,13 @@
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+// 0.16.x: the Ring runtime moved out of deep-space-warp.js into ring-platformer.js (Dr Arena); read both.
 
 const read = (path) => readFile(new URL("../" + path, import.meta.url), "utf8");
 const [mini, warp, location, hull, css, php, qa, browserWorkflow, regressionWorkflow] = await Promise.all([
   read("mini-sim/assets/js/mini-sim.js"),
-  read("mini-sim/assets/js/deep-space-warp.js"),
+  Promise.all([read("mini-sim/assets/js/deep-space-warp.js"), read("mini-sim/assets/js/ring-platformer.js")]).then((parts) => parts.join("\n")),
   read("mini-sim/assets/js/asteroid-maze-location.js"),
   read("mini-sim/assets/js/hull-dive.js"),
   read("mini-sim/assets/css/mini-sim.css"),
@@ -80,8 +82,11 @@ test("Hull Dive is an inset cabin, leaves pilot screen space, and keeps bounded 
 
 test("Ring weapon prototypes include laser pointer, pulse and spectrum, with operator choices and test upgrades", () => {
   assert.match(warp, /data-ring-action="fire"/);
-  assert.match(warp, /statePad\.fire = !!button\(3\)/);
-  assert.match(warp, /event\.code === "KeyQ" \|\| \(mode === "multi" && event\.code === "KeyK"\)/);
+  // 0.16.x: the Ring reads the gamepad through crew-core controls; button 3 (Y) fires.
+  assert.match(readFileSync(new URL("../mini-sim/assets/js/crew-core.js", import.meta.url), "utf8"), /\[3, "fire"\]/);
+  // 0.16.x: the key layout lives in crew-core; Q fires for player 1, K for player 2.
+  assert.match(readFileSync(new URL("../mini-sim/assets/js/crew-core.js", import.meta.url), "utf8"), /KeyQ: "fire"/);
+  assert.match(readFileSync(new URL("../mini-sim/assets/js/crew-core.js", import.meta.url), "utf8"), /KeyK: "fire"/);
   assert.match(warp, /function currentWeaponProfile\(player\)/);
   assert.match(warp, /if \(type === "pulse"\)/);
   assert.match(warp, /if \(type === "spectrum"\)/);
@@ -172,7 +177,7 @@ test("SafeMode, animated faces, readable dialog timing and flight pointer-lock h
   assert.ok(mini.includes('localStorage.setItem("bcm-mini-sim-safe-mode"'));
   assert.ok(mini.includes('if (safeModeEnabled)'));
   assert.ok(mini.includes('video data-operator-avatar-video hidden muted autoplay playsinline loop preload="auto"'));
-  assert.ok(mini.includes("window.setTimeout(hideOperatorDialog, 13000)"));
+  assert.match(mini, /setTimeout\(hideOperatorDialog,[\s\S]{0,140}13000/);
   assert.ok(mini.includes("requestFlightPointerLock"));
   assert.ok(mini.includes("releaseFlightPointerLock"));
   assert.match(css, /width:min\(450px,calc\(42vw - 9px\)\)/);

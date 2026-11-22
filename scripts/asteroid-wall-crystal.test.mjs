@@ -81,7 +81,7 @@ test("GLTFLoader is lazy and its template is cached without disposing shared geo
   assert.doesNotMatch(dispose, /wallCrystalGroup[\s\S]{0,200}geometry\.dispose/);
   assert.match(php, /wp_enqueue_script\('bcm-warp-bridge'[\s\S]*?warp-bridge\.js/);
   assert.match(php, /wp_enqueue_script\('bcm-asteroid-maze-location'[\s\S]*?asteroid-maze-location\.js/);
-  assert.match(php, /'bcm-asteroid-maze-location'\)/);
+  assert.match(php, /'bcm-asteroid-maze-location'[,)]/);
 });
 
 test("standalone QA serves the GLB and exercises the actual asteroid scene with Chromium", () => {

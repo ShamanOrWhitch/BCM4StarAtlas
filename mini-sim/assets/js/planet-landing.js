@@ -9,17 +9,19 @@
  * step for every sector. Tower passes the result to First Planet, so the clip
  * and the island always show the same planet.
  *
- *   planetId(inputs?)          → "first" | "pearce" | "ioki" | "fable"
+ *   planetId(inputs?)          → "first" | "pearce" | "ioki" | "fable" | "opus"
  *   clipFor(towerConfig, id)   → planetTransitions[id] || planetTransition
  */
 (function (root) {
   "use strict";
 
   var ALIASES = {
-    first: "first", desert: "first", akenat: "first", oni: "first",
+    // 18.11.2026: ONI CSS / Akenat is Fable's place now; the desert is Twinsun.
+    first: "first", desert: "first", twinsun: "first", akenat: "fable", oni: "fable",
     pearce: "pearce", mud: "pearce", earth: "pearce",
     ioki: "ioki", ustur: "ioki", mars: "ioki",
-    fable: "fable"
+    fable: "fable",
+    opus: "opus", focus: "opus"
   };
 
   function idFrom(value) {
@@ -62,7 +64,7 @@
       var fromSector = idFrom(hit && hit.id);
       if (fromSector) return fromSector;
     }
-    return "first";
+    return "fable"; // the start lands on Fable (owner 18.11.2026)
   }
 
   function clipFor(config, id) {

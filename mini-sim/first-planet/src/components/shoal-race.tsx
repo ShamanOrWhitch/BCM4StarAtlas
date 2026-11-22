@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Flag, Gauge, Pause, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { activeKeys, bindKeyboard, held, readDrive, setForced, tiltEnabled, toggleTilt } from "@/game/input";
-import { LAPS, createRace, type Hud, type ItemKind, type Race } from "@/game/sim";
+import { createRace, type Hud, type ItemKind, type Race } from "@/game/sim";
+import { MAX_RACE_LEVEL, loadRaceLevel, raceModeFor, recordRaceWin } from "@/game/race-modes";
 import { createWorld, paintMap, type Phase } from "@/game/world";
 
 const ITEM_LABEL: Record<ItemKind, string> = {
@@ -33,10 +34,29 @@ const EMPTY: Hud = {
   wrong: false,
   rows: [],
   go: 0,
+  mode: "laps",
+  title: "",
+  map: "",
+  rules: "",
+  level: 1,
+  laps: 3,
+  penalty: 0,
+  missed: 0,
+  out: false,
+  nextGate: -1,
 };
 
-export function ShoalRace({ onLeave, onStartAudio, seed = 0 }: { onLeave?: () => void; onStartAudio?: () => void; seed?: number } = {}) {
+export function ShoalRace({
+  onLeave,
+  onStartAudio,
+  seed = 0,
+  planet,
+}: { onLeave?: () => void; onStartAudio?: () => void; seed?: number; planet?: string } = {}) {
   const raceSeed = Number(seed) >>> 0;
+  // Each planet has its own form of the race and its own level (race-modes.ts).
+  const [level, setLevel] = useState(() => loadRaceLevel(planet));
+  const [unlocked, setUnlocked] = useState(0);
+  const look = raceModeFor(planet, level);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mapRef = useRef<HTMLCanvasElement>(null);
   const phaseRef = useRef<Phase>("gate");
@@ -56,7 +76,7 @@ export function ShoalRace({ onLeave, onStartAudio, seed = 0 }: { onLeave?: () =>
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const race = createRace(raceSeed);
+    const race = createRace(raceSeed, planet);
     raceRef.current = race;
     const world = createWorld(canvas);
     const unbind = bindKeyboard(window);
@@ -117,6 +137,13 @@ export function ShoalRace({ onLeave, onStartAudio, seed = 0 }: { onLeave?: () =>
       }
 
       if (live && race.cars[0].finished) {
+        // A first place opens the next level on this planet.
+        const you = race.cars[0];
+        if (you.place === 1 && !you.out && race.level < MAX_RACE_LEVEL) {
+          const next = recordRaceWin(planet);
+          setLevel(next);
+          setUnlocked(next);
+        } else setUnlocked(0);
         phaseRef.current = "finish";
         setPhase("finish");
         setHud(race.hud());
@@ -164,7 +191,7 @@ export function ShoalRace({ onLeave, onStartAudio, seed = 0 }: { onLeave?: () =>
       void audio?.ctx.close();
       world.dispose();
     };
-  }, [raceSeed]);
+  }, [raceSeed, planet]);
 
   function setPhaseBoth(next: Phase) {
     phaseRef.current = next;
@@ -194,15 +221,15 @@ export function ShoalRace({ onLeave, onStartAudio, seed = 0 }: { onLeave?: () =>
       {phase === "gate" ? (
         <section className="absolute inset-x-0 bottom-0 z-10 max-h-96 overflow-y-auto border-t border-line bg-surface/92 p-5 backdrop-blur-md md:inset-y-0 md:left-0 md:max-h-none md:w-96 md:border-t-0 md:border-r">
           <p className="text-xs font-medium tracking-widest text-primary uppercase">
-            Galia · Tower exit
+            {look.kicker}
           </p>
-          <h1 className="font-display mt-2 text-4xl leading-none font-medium text-fg">
-            Спуск с Башни
+          <h1
+            className="font-display mt-2 text-4xl leading-none font-medium text-fg"
+            data-race-mode={look.kind}
+          >
+            {look.title}
           </h1>
-          <p className="mt-3 text-sm text-muted">
-            Башня отпустила на воду. Внизу берег цитадели под двумя солнцами — заезд того же
-            типа, что у Little Big Racing Adventure.
-          </p>
+          <p className="mt-3 text-sm text-muted">{look.blurb}</p>
           <button
             type="button"
             onClick={start}
@@ -222,15 +249,19 @@ export function ShoalRace({ onLeave, onStartAudio, seed = 0 }: { onLeave?: () =>
           <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
             <div className="rounded-xl border border-line bg-bg/50 p-3">
               <dt className="text-muted">Карта</dt>
-              <dd className="font-medium text-fg">Берег Цитадели</dd>
+              <dd className="font-medium text-fg">{look.map}</dd>
             </div>
             <div className="rounded-xl border border-line bg-bg/50 p-3">
-              <dt className="text-muted">Откуда контур</dt>
-              <dd className="font-medium text-fg">Citadel 2, LBRA</dd>
+              <dt className="text-muted">Уровень</dt>
+              <dd className="font-medium text-fg">
+                {level} из {MAX_RACE_LEVEL}
+              </dd>
             </div>
             <div className="rounded-xl border border-line bg-bg/50 p-3">
               <dt className="text-muted">Круги</dt>
-              <dd className="font-medium text-fg">{LAPS} · предметы и дрифт</dd>
+              <dd className="font-medium text-fg">
+                {look.laps} · {look.rules}
+              </dd>
             </div>
             <div className="rounded-xl border border-line bg-bg/50 p-3">
               <dt className="text-muted">Лучший круг</dt>
@@ -238,9 +269,9 @@ export function ShoalRace({ onLeave, onStartAudio, seed = 0 }: { onLeave?: () =>
             </div>
           </dl>
           <p className="mt-4 text-sm text-muted">
-            У друга в релизе 2026.10.28.2132 острова собираются из дисков LBA, в git их нет, а сеть —
-            лобби на UDP. Сюда перенесён тип гонки: городской круг острова-цитадели, своя геометрия,
-            экипаж Kestrel, Brine и Halo. A влево, D вправо, Shift дрифт, Ctrl предмет.
+            Экипаж Kestrel, Brine и Halo. Победа открывает следующий уровень: соперники быстрее
+            {look.kind === "slalom" ? ", ворота уже" : ""}. A влево, D вправо, Shift дрифт
+            {look.items ? ", Ctrl предмет" : ""}.
           </p>
         </section>
       ) : null}
@@ -249,10 +280,22 @@ export function ShoalRace({ onLeave, onStartAudio, seed = 0 }: { onLeave?: () =>
         <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-3 pb-40 md:p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="pointer-events-auto rounded-2xl border border-line bg-surface/88 px-3 py-2 backdrop-blur-md">
-              <p className="text-xs tracking-widest text-muted uppercase">Берег Цитадели</p>
-              <p className="font-display text-2xl leading-none">
-                Круг {hud.lap}/{LAPS}
+              <p className="text-xs tracking-widest text-muted uppercase">
+                {hud.map || look.map} · ур. {hud.level}
               </p>
+              <p className="font-display text-2xl leading-none">
+                Круг {hud.lap}/{hud.laps}
+              </p>
+              {hud.mode === "slalom" ? (
+                <p className="mt-1 text-sm text-fg" data-race-penalty>
+                  Штраф +{hud.penalty} с · мимо ворот {hud.missed}
+                </p>
+              ) : null}
+              {hud.mode === "elimination" ? (
+                <p className="mt-1 text-sm text-fg">
+                  Выбыли {hud.rows.filter((row) => row.out).length} · последний сходит
+                </p>
+              ) : null}
               <p className="mt-1 flex items-center gap-1 text-sm text-fg">
                 <Flag className="size-4 text-primary" aria-hidden />
                 {hud.place} / {hud.total}
@@ -321,7 +364,7 @@ export function ShoalRace({ onLeave, onStartAudio, seed = 0 }: { onLeave?: () =>
                 Лучший {best > 0 ? formatTime(best) : "—"}
               </p>
               <p className="mt-1 text-sm font-medium text-primary">
-                {hud.item ? ITEM_LABEL[hud.item] : "Пусто"}
+                {look.items ? (hud.item ? ITEM_LABEL[hud.item] : "Пусто") : "Без предметов"}
               </p>
             </div>
           </div>
@@ -362,12 +405,16 @@ export function ShoalRace({ onLeave, onStartAudio, seed = 0 }: { onLeave?: () =>
           <div className="w-full max-w-md rounded-2xl border border-line bg-surface p-5 text-fg">
             <p className="text-xs tracking-widest text-primary uppercase">Финиш</p>
             <h2 className="font-display mt-1 text-4xl leading-none">
-              {hud.place} место
+              {hud.out ? "Выбыл" : `${hud.place} место`}
             </h2>
             <p className="mt-2 text-sm text-muted">
               Время {formatTime(hud.time)} · лучший круг{" "}
               {hud.bestLap > 0 ? formatTime(hud.bestLap) : "—"}
+              {hud.mode === "slalom" ? ` · штраф +${hud.penalty} с` : ""}
             </p>
+            {unlocked ? (
+              <p className="mt-2 text-sm font-medium text-primary">Открыт уровень {unlocked}</p>
+            ) : null}
             <ol className="mt-4 space-y-2">
               {hud.rows.map((row) => (
                 <li
@@ -377,7 +424,9 @@ export function ShoalRace({ onLeave, onStartAudio, seed = 0 }: { onLeave?: () =>
                   <span className={row.you ? "font-medium text-primary" : "text-fg"}>
                     {row.place}. {row.name}
                   </span>
-                  <span className="text-muted">{row.done ? formatTime(row.time) : "на круге"}</span>
+                  <span className="text-muted">
+                    {row.out ? "выбыл" : row.done ? formatTime(row.time) : "на круге"}
+                  </span>
                 </li>
               ))}
             </ol>

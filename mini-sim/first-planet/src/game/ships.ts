@@ -85,6 +85,19 @@ export const ISLAND_SHIPS = PILOT_SHIPS.map((ship) => ship.file);
 /** Only road-safe racers are used in Shoal Race. Combat and cargo hulls stay on the island/showcase. */
 export const RACE_SHIPS = PILOT_SHIPS.filter((ship) => ship.planetRace).map((ship) => ship.flightFile);
 
+/**
+ * Owner 16.11.2026: "нету вариантов: двигатель работает или нет". A race ship
+ * has a running form (engine on) and a rest form (engine off, folded, parked).
+ * Single-model families use the same file for both.
+ */
+export const RACE_SHIP_FORMS = PILOT_SHIPS.filter((ship) => ship.planetRace).map((ship) => ({
+  id: ship.id,
+  running: ship.flightFile,
+  rest: ship.file,
+  nose: ship.nose,
+  length: ship.race,
+}));
+
 export function shipNose(file: string) {
   return [...PILOT_SHIPS, ...ASTEROID_SHOW].find((ship) => ship.flightFile === file || ship.file === file)?.nose ?? "";
 }

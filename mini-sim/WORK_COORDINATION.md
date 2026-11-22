@@ -1,3 +1,49 @@
+# Дополнение владельца — 20 ноября 2026: единый выбор гонки и движение кораблей
+
+## Shoal Race — общий выбор режима для всех планет
+
+- WORK LOCK [#143](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/143): сейчас `raceModeFor(planet, level)` автоматически назначает laps для Twinsun, slalom для Fable и elimination для Opus; игрок не выбирает режим.
+- Требование владельца: один и тот же простой selector и одна функция выбора для всех гонок на всех поддерживаемых планетах. Три существующих режима (laps / slalom / elimination) доступны везде.
+- Планета остаётся источником ландшафта, поверхности дороги, декораций и локальных численных настроек; выбранный режим отдельно задаёт правила заезда. Первоначальный режим по планете сохраняется как default, но не ограничивает выбор игрока.
+- Сохранение сложности — отдельно по паре planet + mode. Не менять race AI, геометрию и физику ради интерфейса.
+
+## Space / Fleet — первые движения неигровых кораблей
+
+- WORK LOCK [#144](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/144), уточнение IDEA-018: начать с 2–3 уже имеющихся non-player кораблей, а не оживлять весь флот сразу.
+- Первый прототип: formation/escort (держать относительное смещение от ведущего) и waypoint patrol (плавно проходить 2–4 точки). Для видимости добавить мягкий разворот/крен и небольшое вертикальное движение; обновление по dt и повторяемый seed.
+- Это локальная симуляция. Не выдавать её за положение/перелёт реального SAGE-флота, не добавлять wallet writes или on-chain commands.
+- Соперники Shoal Race уже имеют AI-управление и перемещение по трассе; их движение не дублировать. Это требование относится к неигровым кораблям Space/Fleet.
+- Интеграцию в `assets/js/mini-sim.js` начинать только после освобождения этого файла из WORK LOCK #142. Не писать в `deep-space-warp.js`, пока действует #140. Не менять физику игрока и гоночный AI.
+
+---
+
+# Дополнение владельца — 20 ноября 2026: Deep Space, планеты и Ring
+
+Это дополнение новее исторических правил ниже. Зафиксировано по последней проверке владельца.
+
+## Deep Space / геймпад и Warp
+
+- WORK LOCK [#142](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/142): навигация карты Warp должна быть пространственной, а не просто линейным перелистыванием DOM-кнопок. D-pad и левый стик перемещают заметный фокус по ближайшим доступным соседним секторам; A подтверждает выбор; физическая Back/Select возвращает из меню в текущий полёт.
+- Действия B и Back/Select меняются местами. В текущем коде B вызывает returnToStart, Back/Select — resetCurrentRoom; после изменения Back/Select возвращает, B получает прежнее действие Back/Select. Подсказки геймпада должны это отражать.
+- WORK LOCK #142 ограничен mini-sim.js и тестами. Не писать в deep-space-warp.js, пока активен #140; если потребуется менять разметку карты, согласовать последовательность после #140.
+
+## Планетные сектора — отдельная среда, а не только фон
+
+- Владелец повторно сообщил, что Opus в Deep Space выглядит как ONI CSS. Наличие отдельного planetLook(opus), ролика посадки или картинки Tower не доказывает самостоятельность сектора в Deep Space.
+- Приёмка будущей реализации должна проверять узнаваемую среду каждой локации: геометрию/ориентиры/окружение и переход на нужную планету. Простая замена одного изображения заднего фона не считается отдельной реализацией сектора.
+
+## Ring / Crew Core
+
+- WORK LOCK [#140](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/140) дополнен требованием владельца: Crew Core владеет общей раскладкой/нормализацией ввода, состояниями locomotion и анимацией Crew (idle/walk/run/jump/fall/land/hang/climb), направлением, фазой шага и позой. Уровень передаёт состояние движения и dt; геометрия, коллизии, гравитация и численные параметры прыжка остаются у уровня. Tower — эталонный потребитель; Ring подключает тот же контракт без копии кода анимации.
+- Прыжок Ring по оценке владельца слишком высокий и заторможенный. Нужна отдельная настройка физики Ring: более низкая дуга и более отзывчивый набор/возврат. Физику Tower не менять ради Ring.
+- Визуальные изменения и новые текстуры замечены владельцем, но они не заменяют проверку ходьбы, анимации и игрового отклика.
+
+## Правило приёмки Race / Tower
+
+- Когда меняется только изображение заднего фона, достаточно focused visual QA: правильный фон на каждой целевой планете, загрузка без ошибок и корректный переход туда/обратно. Полный забег Tower или гонки только ради подтверждения одной картинки не требуется.
+- Полная игровая проверка обязательна, когда меняются правила гонки, физика, столкновения, управление, модели или переходы. Для Race проверять отдельные режимы планет, если задача касается их механики, а не ограничиваться фоном.
+
+---
 # Актуальное дополнение владельца — 15 ноября 2026
 
 Это дополнение имеет приоритет над историческими записями ниже, когда они противоречат более поздним прямым указаниям владельца.
@@ -490,3 +536,27 @@ Latest implementation head at this note: `7d0bb646a9126ba21bbf96406363aa7c20eec7
 - First Planet WordPress bundle build + package-content verification: PASS steps, run #43648574879; artifact upload pending.
 - Standalone Chromium source assertions: PASS, run #43648574823; browser smoke and transition-cycle steps pending.
 - Keep one writer at a time. Do not merge path-stale PR #105 without reworking it against `mini-sim/first-planet/`.
+
+
+## Active WORK LOCK #131 — separate Warp bridge and asteroid-maze location (17 November 2026)
+
+- **Writer:** DR GPT, single writer on `main`. **Status:** COMPLETE (17 November 2026).
+- **Baseline:** `a4bf459659555b33ab5c0852f811fbd518cd36cc` (Mini-Sim `0.15.9`). **Target:** Mini-Sim `0.15.10`.
+- **Scope:** `deep-space-warp.js`, new `warp-bridge.js`, new `asteroid-maze-location.js`, Mini-Sim PHP enqueue/version, source tests, local standalone QA fixture, project records.
+- **Goal:** keep Warp as transit, transfer the selected SAGE node through an explicit bridge, and treat the seeded asteroid maze as its own location.
+- **Shared contracts:** menu hover preview is read-only; confirmation sets `destination`; successful arrival commits `currentLocation`; SAGE coordinates remain X/Y; local ship coordinates remain 3D; `BCMiniSimAPI.setPlace/getPlace` remains compatible; map-return preserves the active maze.
+- **Preserve:** existing Warp tube, controls, courses, assets/audio; existing seeded maze algorithm, collisions, wall crystals, Hydrogen and Ring entry; separate `warp-sector-core.js` / `warp-sector-scene.js` and the BUG-004 location gate.
+- **Exclude:** Tower, First Planet, Galia Desk, scanner/pricing, firewall, wallet writes, SAGE transactions, production WordPress and live-site browser tests.
+- **Acceptance:** `npm run test:minisim`, standalone Mini-Sim Chromium QA and package contents; report each result at its exact tested SHA. No live WordPress or device verification is inferred.
+- **Latest commit / CI:** pending atomic `main` commit and GitHub Actions.
+
+
+### Final verification — WORK LOCK #131
+
+- Final test head: `6443827c239b231af8d1f4c83e3dd8ce79de5250`.
+- Mini-Sim regression 213/213 PASS: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/44038525359
+- Tower top-cap/source-contract 34/34 PASS: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/44038525312
+- Standalone Chromium PASS: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/44038525455
+- Package test build PASS on the same runtime source: https://github.com/ShamanOrWhitch/BCM4StarAtlas/actions/runs/44001852425
+- The browser suite proves route selection, cancel, Asteroid module entry and return-to-map state; a full successful Tube arrival is not claimed in browser QA. The bridge commit contract is covered by its unit test.
+- No production WordPress deploy/live QA or physical-device test was performed.

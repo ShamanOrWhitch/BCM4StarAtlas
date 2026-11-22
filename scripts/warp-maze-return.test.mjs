@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
 import test from "node:test";
 import { Script } from "node:vm";
+// 0.16.x: the Ring runtime moved out of deep-space-warp.js into ring-platformer.js (Dr Arena); read both.
 
-const warp = await readFile(new URL("../mini-sim/assets/js/deep-space-warp.js", import.meta.url), "utf8");
+const warp = (await readFile(new URL("../mini-sim/assets/js/deep-space-warp.js", import.meta.url), "utf8")) + "\n/*@@ring-platformer.js@@*/\n" + (await readFile(new URL("../mini-sim/assets/js/ring-platformer.js", import.meta.url), "utf8"));
 const bridge = await readFile(new URL("../mini-sim/assets/js/warp-bridge.js", import.meta.url), "utf8"); // tube wall and shimmer since c757459
 const location = await readFile(new URL("../mini-sim/assets/js/asteroid-maze-location.js", import.meta.url), "utf8");
 const sim = await readFile(new URL("../mini-sim/assets/js/mini-sim.js", import.meta.url), "utf8");
@@ -14,7 +15,12 @@ const css = await readFile(new URL("../mini-sim/assets/css/mini-sim.css", import
 function section(source, startMarker, endMarker) {
   const start = source.indexOf(startMarker);
   assert.notEqual(start, -1, `missing source marker: ${startMarker}`);
-  const end = source.indexOf(endMarker, start + startMarker.length);
+  // Warp and ring-platformer.js are joined with a boundary: a section stays in its own file.
+  const boundary = source.indexOf("/*@@ring-platformer.js@@*/");
+  const limit = boundary > start ? boundary : source.length;
+  let end = source.indexOf(endMarker, start + startMarker.length);
+  if (end === -1 || end > limit) end = source.indexOf(endMarker) > -1 && source.indexOf(endMarker) < start ? limit : end;
+  if (end > limit) end = limit;
   assert.notEqual(end, -1, `missing source marker: ${endMarker}`);
   return source.slice(start, end);
 }
@@ -30,7 +36,8 @@ test("asteroid exit returns to Warp, Ring stays separate and Hull Dive is entera
   assert.match(warp, /function openHullInterior\(\)/);
   assert.match(warp, /hullEnterButton\.textContent = "ВНУТРЬ КОРАБЛЯ · U \/ R3"/);
   assert.match(warp, /hullEnterButton\.addEventListener\("click", \(\) => openHullInterior\(\)\)/);
-  const hull = section(warp, "function openHullInterior()", "function openRingPlatformer");
+  // 0.16.x: openRingPlatformer moved to ring-platformer.js; Hull Dive ends before setMazeStatus.
+  const hull = section(warp, "function openHullInterior()", "function setMazeStatus");
   assert.match(hull, /state\.hullOpen = true/);
   assert.doesNotMatch(hull, /engine\.pauseForWarp\(true\)/);
   assert.match(hull, /BCMHullHelmState/);

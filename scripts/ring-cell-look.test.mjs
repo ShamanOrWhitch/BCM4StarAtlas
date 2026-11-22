@@ -28,7 +28,7 @@ function webpSize(buf) {
 }
 
 const cellBlock = () => {
-  const warp = read("mini-sim/assets/js/deep-space-warp.js");
+  const warp = read("mini-sim/assets/js/deep-space-warp.js") + "\n" + read("mini-sim/assets/js/ring-platformer.js");
   const from = warp.indexOf('room.name = "bcm-asteroid-cell-room"');
   return { warp, build: warp.slice(from - 8000, from + 6000), look: warp.slice(warp.indexOf("function applyRingCellLook("), warp.indexOf("function enterRingCell(")) };
 };

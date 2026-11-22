@@ -30,7 +30,7 @@ test("only crew-core.js owns the Crew background cutout (model, matte, cache)", 
 });
 
 test("levels request the Crew from crew-core and Ring no longer needs Tower loaded", async () => {
-  const warp = await read(RUNTIME["deep-space-warp.js"]);
+  const warp = (await read(RUNTIME["deep-space-warp.js"])) + "\n" + (await read("mini-sim/assets/js/ring-platformer.js"));
   const start = warp.indexOf("function makePlayerSprite(player)");
   const ring = warp.slice(start, warp.indexOf("function playerWorldPosition", start));
   assert.ok(start > 0, "Ring makePlayerSprite not found");

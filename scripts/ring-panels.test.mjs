@@ -117,7 +117,7 @@ test("the panel surfaces and spikes follow the grid", () => {
 });
 
 test("the Ring cell builds the block grid, and blocks stop the pilot from the side", () => {
-  const warp = read("mini-sim/assets/js/deep-space-warp.js");
+  const warp = read("mini-sim/assets/js/deep-space-warp.js") + "\n" + read("mini-sim/assets/js/ring-platformer.js");
   assert.match(warp, /const ROOM_HALF = 9;/);
   assert.match(warp, /BCMRingPanels\.buildPanel\([^)]*run/, "a new Ring entry does not rebuild the panels");
   assert.match(warp, /cellPanel: true/);
@@ -142,7 +142,7 @@ test("Ring panels have traps: crumbling plates and timed spikes", () => {
 });
 
 test("the pilot grabs a ledge, hangs and climbs; plates crumble, spikes rise on a timer", () => {
-  const warp = read("mini-sim/assets/js/deep-space-warp.js");
+  const warp = read("mini-sim/assets/js/deep-space-warp.js") + "\n" + read("mini-sim/assets/js/ring-platformer.js");
   assert.match(warp, /ledgeAt\(/, "no ledge grab: a block two high is a wall");
   assert.match(warp, /player\.hang/, "the pilot never hangs on a ledge");
   assert.match(warp, /crumble/, "crumbling plates never fall");
@@ -175,6 +175,6 @@ test("crew-core owns the ledge grab: grab in the air, hang, climb with a jump, d
   assert.equal(core.crewLedgeStep({ ...air, grounded: true }, { dir: 1 }, ledgeAt), null, "a grounded pilot grabs");
   const pose = core.crewSpritePose({ facing: 1, hanging: true, grounded: false, vy: 0 }, 0.016, {});
   assert.equal(pose.hanging, true, "the sprite has no hanging pose");
-  const warp = read("mini-sim/assets/js/deep-space-warp.js");
+  const warp = read("mini-sim/assets/js/deep-space-warp.js") + "\n" + read("mini-sim/assets/js/ring-platformer.js");
   assert.match(warp, /BCMCrewCore\.crewLedgeStep\(/, "the Ring keeps its own ledge code instead of crew-core");
 });
