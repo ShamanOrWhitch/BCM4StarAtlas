@@ -1,3 +1,15 @@
+## Current checkpoint — Mini-Sim 0.16.1 (22 November 2026)
+
+- **Meaning of this marker:** 0.16.1 labels the current `main` snapshot as delivered today. This is a development checkpoint, not a claim that every module is fully integrated or every gameplay scenario is certified.
+- **Current source snapshot before version marking:** `7e000a42438d78fef826732d432725e5795c3718`, including the uploads after 0.15.36. Preserve this code/assets as the working line; do not restore 0.15.36 over it.
+- **Historical backup/reference:** Mini-Sim 0.15.36 at `7bfd923a37e96b72220afbe52680ab7ace23f2e9`. Its verified test package remains available as artifact `bcm-mini-sim-0.15.36-test` (GitHub Actions run 44660860898, artifact 14596260520). Use it to compare historical progress, not as the new runtime.
+- **Today's post-0.15.36 uploads to preserve:** `0b992bf` (journals), `c673279` (Tower regression upload), `4cf2286` (mesh retouch), `b37d6d8` (0.15.9 regression upload), `ef76e64` (Dr Arena changes and Grok regression restores), `7e000a4` (Warp background retouch).
+- **Ring delivery present in the current tree:** `ring-platformer.js`, six boss forms, phase/rear model assets, maze minion/model files, source art and probe reports. Owner confirms full versions have already shown these models on the map. This checkpoint does not re-audit or redesign their mechanics; gameplay and runtime wiring can be reviewed in later versions.
+- **Later cleanup:** do not remove or reorganize assets/workspaces in this checkpoint. Future passes can identify unused modules, duplicate files and gameplay improvements against the historical 0.15.36 reference.
+- **Unchanged:** Tower remains `0.2.90`; no audio, Galia Desk, scanner/pricing, firewall, wallet-write, SAGE-transaction or production-WordPress changes.
+
+---
+
 ## Patch — Mini-Sim 0.15.9: asteroid field follows the place; crew menu scrolls (16 November 2026)
 
 - **BUG-004 hole:** arrival writes `simPlace.id === "asteroid"` and does not set `exteriorFlight`. The field gate now accepts either. Density unchanged. Red before the edit: `asteroid arrival leaves exteriorFlight off, so the field stays off (BUG-004)`.
