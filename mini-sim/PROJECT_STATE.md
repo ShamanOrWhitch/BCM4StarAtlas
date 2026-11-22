@@ -6,7 +6,7 @@
 - **Today's post-0.15.36 uploads to preserve:** `0b992bf` (journals), `c673279` (Tower regression upload), `4cf2286` (mesh retouch), `b37d6d8` (0.15.9 regression upload), `ef76e64` (Dr Arena changes and Grok regression restores), `7e000a4` (Warp background retouch).
 - **Ring delivery present in the current tree:** `ring-platformer.js`, six boss forms, phase/rear model assets, maze minion/model files, source art and probe reports. Owner confirms full versions have already shown these models on the map. This checkpoint does not re-audit or redesign their mechanics; gameplay and runtime wiring can be reviewed in later versions.
 - **Later cleanup:** do not remove or reorganize assets/workspaces in this checkpoint. Future passes can identify unused modules, duplicate files and gameplay improvements against the historical 0.15.36 reference.
-- **Unchanged:** Tower remains `0.2.90`; no audio, Galia Desk, scanner/pricing, firewall, wallet-write, SAGE-transaction or production-WordPress changes.
+- **Unchanged:** Tower remains at the current-main value `0.2.88` (not changed in this checkpoint); no audio, Galia Desk, scanner/pricing, firewall, wallet-write, SAGE-transaction or production-WordPress changes.
 
 ---
 
