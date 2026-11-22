@@ -1,3 +1,14 @@
+## Patch — Mini-Sim 0.16.4: the Orbiter phase is flown (22 November 2026)
+
+- **WORK LOCK:** [#149](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/149). Decision D-080.
+- **`ring-boss-moves.js`:** the Orbiter is a flight form — two electric clots cross its arena (low and high, opposite ways), four air bubbles respawn after 6 s, ceiling 8 m; `collect(x, y)` takes a bubble.
+- **`ring-platformer.js`:** pilots in the Orbiter arena get purple-cell low gravity: jump = jet impulse with flame (12 jet + 12 breath), forward drift 1.2 m/s in the air, bubbles +34 to both, both full at the start of the form; clots drawn as white sparks, bubbles as spheres; QA snapshot reports flight, bubbles and the pilot's height, jet, breath, flame.
+- **Red before:** `the Orbiter is fought on foot: no flight`, `no electric clots in the Orbiter fight`, bubbles missing, `the Ring ignores the Orbiter flight: pilots stay on foot`. After 4/4 (`scripts/ring-orbiter-flight.test.mjs`, added to CI).
+- **Browser:** `scripts/ring-orbiter-flight-probe.mjs` in Edge — Orbiter with flight on, 12 jump taps about one per second: height up to the 8 m ceiling, jet and breath 100 → 4 together, flame seen, sparks and 4 bubbles drawn, page errors 0 (PASS). Regression 267/267.
+- **Not yet:** pit under the arena, the low-G route content, hand tuning, vertical camera follow.
+
+---
+
 ## Patch — Mini-Sim 0.16.3: Ring boss forms fight with their own moves (22 November 2026)
 
 - **WORK LOCK:** [#148](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/148). Decision D-079.

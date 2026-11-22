@@ -1230,6 +1230,10 @@
                 // Boss moves (ring-boss-moves.js): form, current move, open core, drawn zones.
                 moveForm: boss.moves ? boss.moves.form : null, moveState: boss.lastMoveState || null,
                 vulnerable: !!boss.vulnerable, bossX: boss.x,
+                flight: !!(boss.moves && boss.moves.flight),
+                bubbles: (boss.bubbleMeshes || []).filter((mesh) => mesh.visible).length,
+                pilot: (() => { const p = players.find(Boolean); return p ? { x: p.worldX, y: p.worldY, jet: p.jetFuel, air: p.breathReserve,
+                  flame: !!(p.jetFlame && p.jetFlame.visible), bossFlight: !!p.bossFlight } : null; })(),
                 zones: (boss.zoneMeshes || []).filter((mesh) => mesh.visible).map((mesh) => mesh.name) };
             }
           };
@@ -2241,7 +2245,7 @@
           const anomalyLabel = astralNode?.astral
             ? ({ drift: "ФИОЛЕТОВОЕ · НИЗКАЯ G", flux: "ФИОЛЕТОВОЕ · НИЗКАЯ G", dense: "СИНЕЕ · ВЫСОКАЯ G" }[astralNode.astralMode] || "ASTRAL")
             : "";
-          const flightLabel = astralNode && (astralNode.astralMode === "drift" || astralNode.astralMode === "flux")
+          const flightLabel = p1.bossFlight || astralNode && (astralNode.astralMode === "drift" || astralNode.astralMode === "flux")
             ? " · JET " + Math.ceil(p1.jetFuel) + " · O₂ " + Math.ceil(p1.breathReserve)
             : "";
           floorEl.textContent = "ЗОНА " + zone + "/3 · P1 HP " + p1.hp +
@@ -2790,8 +2794,28 @@
           mesh.name = item.tell ? "ring-boss-tell-" + z.kind : "ring-boss-hazard-" + z.kind;
           mesh.position.set((z.x0 + z.x1) / 2, (z.y0 + z.y1) / 2 + (item.tell ? 0.02 : 0), item.tell ? 0.86 : 0.92);
           mesh.scale.set(Math.max(0.05, z.x1 - z.x0), Math.max(0.05, z.y1 - z.y0), 1);
-          mesh.material.color.setHex(item.tell ? 0xffcc6a : z.kind === "shard" || z.kind === "orb" ? 0x8fe8ff : 0xff4a4a);
-          mesh.material.opacity = item.tell ? 0.22 + pulse * 0.3 : body ? 0.22 : 0.62;
+          const spark = z.kind === "spark";
+          mesh.material.color.setHex(item.tell ? 0xffcc6a : spark ? 0xe6fbff : z.kind === "shard" || z.kind === "orb" ? 0x8fe8ff : 0xff4a4a);
+          mesh.material.opacity = item.tell ? 0.22 + pulse * 0.3 : spark ? 0.55 + pulse * 0.4 : body ? 0.22 : 0.62;
+          if (spark) mesh.rotation.z = performance.now() * 0.012; else mesh.rotation.z = 0;
+        });
+        // Air bubbles of the Orbiter flight: refill jet and breath.
+        if (!boss.bubbleMeshes) boss.bubbleMeshes = [];
+        const bubbles = out && out.bubbles ? out.bubbles : [];
+        while (boss.bubbleMeshes.length < bubbles.length) {
+          const mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.3, 12, 10),
+            new THREE.MeshBasicMaterial({ color: 0x9fe7ff, transparent: true, opacity: 0.55, depthWrite: false })
+          );
+          mesh.name = "ring-boss-bubble-" + boss.bubbleMeshes.length;
+          mesh.renderOrder = 6;
+          worldState.group.add(mesh);
+          boss.bubbleMeshes.push(mesh);
+        }
+        boss.bubbleMeshes.forEach((mesh, index) => {
+          const bubble = bubbles[index];
+          mesh.visible = !!bubble;
+          if (bubble) mesh.position.set(bubble.x, bubble.y, 0.9);
         });
       }
 
@@ -2820,6 +2844,18 @@
           const english = window.BCMDialogue?.language === "en";
           if (out.cue) updateHud(english ? (out.form.toUpperCase() + " · " + out.state.toUpperCase()) : out.cue);
         }
+        // Balloon flight: an airborne pilot drifts forward and takes the bubbles it flies through.
+        if (out.flight) living.forEach((player) => {
+          if (!player.bossFlight) return;
+          if (!player.grounded) {
+            player.worldX = Math.max(boss.homeX - 9.4, Math.min(boss.homeX + 9.4, player.worldX + player.facing * out.drift * dt));
+          }
+          if (boss.moves.collect(player.worldX, player.worldY + 0.9)) {
+            player.jetFuel = Math.min(100, player.jetFuel + 34);
+            player.breathReserve = Math.min(100, player.breathReserve + 34);
+            updateHud(window.BCMDialogue?.language === "en" ? "BUBBLE · JET AND AIR REFILLED" : "ПУЗЫРЬ · ЗАПАС ПОЛЁТА И КИСЛОРОДА ВОССТАНОВЛЕН");
+          }
+        });
         // A hazard hurts a pilot whose body (0.7 m wide, 1.7 m tall) overlaps it.
         living.forEach((player) => {
           const hit = out.hazards.some((h) =>
@@ -2923,6 +2959,8 @@
               if (boss.moves) {
                 boss.phaseState = "moves";
                 boss.tellMesh.visible = false;
+                // Orbiter: the fight is flown (Balloon flight), jet and breath start full.
+                if (boss.moves.flight) players.forEach((pilot) => { pilot.jetFuel = 100; pilot.breathReserve = 100; });
                 return;
               }
               boss.phaseState = "telegraph";
@@ -3102,7 +3140,14 @@
           const astral = !!(astralNode && astralNode.astral && !playerInLarge);
           const astralMode = astral ? astralNode.astralMode : "normal";
           let gravity = 21, jumpVelocity = 8.8;
-          const lowGravity = astralMode === "drift" || astralMode === "flux";
+          // Owner 22.11.2026 "Полёт в фазе Орбиты": the Orbiter arena is flown like a purple cell.
+          const flightBoss = playerInLarge ? worldState.bosses.find((item) =>
+            item.alive && item.activated && item.phaseState === "moves" && item.moves && item.moves.flight &&
+            Math.abs(player.worldX - (item.homeX ?? item.x)) < 10.5) : null;
+          const bossFlight = !!flightBoss;
+          player.bossFlight = bossFlight;
+          const lowGravity = astralMode === "drift" || astralMode === "flux" || bossFlight;
+          if (bossFlight) { gravity = 6.0; jumpVelocity = 7.8; }
           const highGravity = astralMode === "dense";
           if (astralMode === "drift") { gravity = 6.0; jumpVelocity = 7.8; }
           else if (astralMode === "flux") { gravity = 7.0 + Math.sin(now * 0.0018 + (astralNode.astralPhase || 0)) * 1.2; jumpVelocity = 7.4; }
@@ -3147,6 +3192,9 @@
           }
           player.vy -= gravity * dt;
           player.worldY += player.vy * dt;
+          if (bossFlight && player.worldY > flightBoss.moves.ceiling) {
+            player.worldY = flightBoss.moves.ceiling; player.vy = Math.min(0, player.vy);
+          }
           if (player.vy <= 0) {
             const landing = worldState.platforms.filter((platform) =>
               player.worldX >= platform.minX && player.worldX <= platform.maxX &&

@@ -108,7 +108,7 @@
 | Локации | Непрерывный боковой уровень | — | — |
 | Мосты | Вход с астероида, не из трубы напрямую | Повтор входа после сбоя старта | — |
 | Управление | Keyboard/gamepad/touch normalised by Crew Core; Ring consumes `{moveX, moveY, jump, jumpEdge, fire, dash, activate, floor}`; vertical touch controls; shared locomotion states | Usability, split-screen/gamepad and actual animation in browser; automated tests verify contract only | Owner explicitly allowed Ring runtime work overlapping #140 for this 0.16.0 task; WORK LOCK online was not updated because GitHub write credentials unavailable |
-| Физика | Ring has distinct low-G purple and high-G blue modes, jetpack pulses/flame, resource bars and collectible/respawning air bubbles | Actual feel, fall/jump balance and route usability require browser/playtest; tune through the available Ring/model lab if runnable | Values are prototype tuning defaults to adjust from test evidence; no new Hydrogen coordinates added |
+| Физика | Ring has distinct low-G purple and high-G blue modes, jetpack pulses/flame, resource bars and collectible/respawning air bubbles; с `0.16.4` (D-080) тот же полёт в арене Орбиты — сгустки, пузыри, дрейф вперёд, потолок 8 м | Actual feel, fall/jump balance and route usability require browser/playtest; tune through the available Ring/model lab if runnable | Values are prototype tuning defaults to adjust from test evidence; no new Hydrogen coordinates added |
 
 | Интерфейс | Без угловой простыни подписей | — | — |
 | Производительность | — | — | — |

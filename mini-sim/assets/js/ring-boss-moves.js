@@ -30,7 +30,7 @@
   var CUES = {
     roller: { idle: "КАТОК КРУТИТСЯ", windup: "КАТОК РАЗГОНЯЕТСЯ · ПРЫГАЙ ЧЕРЕЗ НЕГО", roll: "КАТОК КАТИТСЯ", stunned: "КАТОК В СТЕНЕ · ЯДРО ОТКРЫТО" },
     walker: { walk: "ШАГОХОД ИДЁТ", lift: "ШАГОХОД ПОДНЯЛ НОГУ · ГОТОВЬСЯ ПРЫГАТЬ", stomp: "ТОПОТ · ПРЫГАЙ ЧЕРЕЗ ВОЛНУ", planted: "НОГА УВЯЗЛА · ЯДРО ОТКРЫТО" },
-    orbiter: { orbit: "ОРБИТА · ОБЛОМКИ ВОКРУГ", mark: "МЕТКА НА ПОЛУ · УЙДИ", drop: "СГУСТОК ПАДАЕТ", open: "ОБЛОМКИ РАЗЛЕТЕЛИСЬ · ЯДРО ОТКРЫТО" },
+    orbiter: { orbit: "ОРБИТА · ЛЕТИ: ПРЫЖОК = ИМПУЛЬС · СОБИРАЙ ПУЗЫРИ", mark: "МЕТКА НА ПОЛУ · УЙДИ", drop: "СГУСТОК ПАДАЕТ", open: "ОБЛОМКИ РАЗЛЕТЕЛИСЬ · ЯДРО ОТКРЫТО" },
     brawler: { advance: "БОЕЦ ИДЁТ · ЗАЙДИ СО СПИНЫ", windup: "ЗАМАХ · УЙДИ ИЗ ЗОНЫ УДАРА", punch: "УДАР", stuck: "КУЛАК ЗАСТРЯЛ · ЯДРО ОТКРЫТО" },
     runner: { rev: "ГОНЩИК РЕВЁТ · ПРЫГАЙ ЧЕРЕЗ НЕГО", dash: "ГОНЩИК ЛЕТИТ", turn: "РАЗВОРОТ", overheat: "ПЕРЕГРЕВ · ЯДРО ОТКРЫТО" },
     stalker: { stalk: "ТЕНЬ КРАДЁТСЯ", mark: "ТЕНЬ МЕТИТ МЕСТО · УЙДИ ИЗ МЕТКИ", leap: "ТЕНЬ ПРЫГАЕТ", land: "ПРИЗЕМЛЕНИЕ", recover: "ТЕНЬ ОШЕЛОМЛЕНА · ЯДРО ОТКРЫТО" }
@@ -65,8 +65,27 @@
       x: homeX, y: 0, facing: -1, state: "", t: 0, dur: 0, clock: 0,
       vulnerable: false, attacking: false, tell: null,
       dir: -1, passes: 0, waves: [], patches: [], lastPatchX: null,
-      mark: null, fromX: 0, orbAngle: 0, orbY: 0
+      mark: null, fromX: 0, orbAngle: 0, orbY: 0,
+      sparks: [], bubbles: []
     };
+    // Owner 22.11.2026 "Полёт в фазе Орбиты": the Orbiter is fought in Balloon flight.
+    // Two electric clots cross the arena, a low one and a high one, in opposite
+    // directions; air bubbles refill jet and breath and come back after a while.
+    var flight = form === "orbiter";
+    var CEILING = 8;
+    var BUBBLE_RESPAWN = 6;
+    if (flight) {
+      s.sparks = [
+        { x: minX + 1, y: 1.2, dir: 1, speed: 2.4, r: 0.38 },
+        { x: maxX - 1, y: 5.0, dir: -1, speed: 3.0, r: 0.38 }
+      ];
+      s.bubbles = [
+        { id: 0, x: homeX - 6.5, y: 1.3 },
+        { id: 1, x: homeX - 2.5, y: 3.0 },
+        { id: 2, x: homeX + 2.5, y: 6.4 },
+        { id: 3, x: homeX + 6.5, y: 2.4 }
+      ].map(function (b) { b.wait = 0; return b; });
+    }
     function go(state, dur) { s.state = state; s.t = 0; s.dur = dur; }
 
     // Opening state per form.
@@ -238,6 +257,16 @@
         }
       }
 
+      // Orbiter flight: clots bounce between the walls and bob a little.
+      s.sparks.forEach(function (sp, index) {
+        sp.x += sp.dir * sp.speed * d;
+        if (sp.x < minX) { sp.x = minX; sp.dir = 1; }
+        if (sp.x > maxX) { sp.x = maxX; sp.dir = -1; }
+        var cy = sp.y + Math.sin(s.clock * 1.3 + index * 2) * 0.25;
+        hazards.push(box("spark", sp.x - sp.r, sp.x + sp.r, cy - sp.r, cy + sp.r));
+      });
+      s.bubbles.forEach(function (b) { if (b.wait > 0) b.wait = Math.max(0, b.wait - d); });
+
       // Walker waves and Runner exhaust live on after their attack.
       s.waves = s.waves.filter(function (w) {
         w.x += w.dir * 9 * d;
@@ -255,7 +284,10 @@
       return {
         form: form, state: s.state, x: s.x, y: s.y, facing: s.facing,
         vulnerable: s.vulnerable, attacking: s.attacking, tell: s.tell,
-        hazards: hazards, cue: (CUES[form] && CUES[form][s.state]) || ""
+        hazards: hazards, cue: (CUES[form] && CUES[form][s.state]) || "",
+        flight: flight, drift: flight ? 1.2 : 0, ceiling: flight ? CEILING : 0,
+        bubbles: s.bubbles.filter(function (b) { return b.wait <= 0; })
+          .map(function (b) { return { id: b.id, x: b.x, y: b.y + Math.sin(s.clock * 1.6 + b.id) * 0.15 }; })
       };
     }
 
@@ -265,7 +297,17 @@
       return false;
     }
 
-    return { form: form, step: step, canBeHit: canBeHit, homeX: homeX };
+    // A pilot (centre of the body at x, y) takes a bubble it flies through.
+    function collect(x, y) {
+      for (var i = 0; i < s.bubbles.length; i += 1) {
+        var b = s.bubbles[i];
+        if (b.wait > 0) continue;
+        if (Math.abs(Number(x) - b.x) < 0.75 && Math.abs(Number(y) - b.y) < 0.95) { b.wait = BUBBLE_RESPAWN; return true; }
+      }
+      return false;
+    }
+
+    return { form: form, step: step, canBeHit: canBeHit, collect: collect, homeX: homeX, flight: flight, ceiling: flight ? CEILING : 0 };
   }
 
   root.BCMRingBossMoves = { create: create, FORMS: FORMS };
