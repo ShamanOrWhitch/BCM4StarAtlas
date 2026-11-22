@@ -44,6 +44,18 @@ Player 2 in Multi: J/L to run, P to jump, O to activate, I to dash.
 
 Gamepad: left stick/D-pad to move, A/up to jump, B to dash, X to activate a nearby weakpoint. Mobile touch controls expose direction, jump, activation and dash buttons.
 
+## Hydrogen pickups in the Ring maze — proposed
+
+Place Hydrogen collectibles at the user-marked key points in the maze map. The player should discover and collect them by navigating to those marked cells; do not guess or hard-code new coordinates until the marked key points are confirmed. The existing screenshot's green-circled map cell is the visual cue, but its exact grid row/column has not been transcribed into the project; re-mark or specify the cell before implementing coordinates. Keep these Hydrogen pickups distinct from the air bubbles used by the low-gravity jetpack route. Collection feedback/counting and any downstream use remain to be specified; no wallet or on-chain state is involved.
+
+## Proposed traversal and character animation follow-up — not implemented
+
+Use the classic Prince of Persia ledge interaction as a design reference for Ring's side-scrolling course: jumping/falling near a reachable ledge can enter a deliberate **catch → hang → shimmy → pull-up or drop** sequence. This is a ledge-grab/climb mechanic, not a grappling hook. Ring's multi-height platforms and gaps should give the player clear places to catch and routes where a hang/pull-up is useful. Exact catch radius, input mapping, stamina/resource cost and co-op behavior remain to be playtested before code is written.
+
+Character presentation needs a real rig/animation pass rather than treating the existing textured relief meshes as articulated models. Establish a reusable player rig and animation states for idle/run, takeoff/rise/fall, ledge catch, hanging, shimmy, pull-up, drop, landing and dash; then define distinct silhouette rigs and telegraphs/recovery animations for each boss form. Keep gameplay state transitions (grounded, airborne, hanging, climbing) synchronized with the visual clips so hand/foot contacts match the ledges and platforms.
+
+Reference: [videogamepreservation/princeofpersia](https://github.com/videogamepreservation/princeofpersia), the archived Apple II source archive. Use it to study classic movement and animation/state design only; do not import its source, art or frame data. It grants no rights to distribute Prince of Persia assets. This is a design proposal only; no gameplay code or rig has been added.
+
 ## Rendering and scope
 
 - Ring uses the existing Mini-Sim renderer through `window.BCMDeepSpaceWarpRender`; it does not create a second WebGL renderer.
