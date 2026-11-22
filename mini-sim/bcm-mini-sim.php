@@ -932,7 +932,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.15.9</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.16.1</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS</div>
             <div class="bcm-mini-sim-attract-marquee" role="img" aria-label="Inspired by Star Atlas. Powered for all creatures. BCM4SA. Read-only Crew and ship console.">
                 <span class="bcm-mini-sim-attract-prefix" aria-hidden="true">BCM4SA //</span>
