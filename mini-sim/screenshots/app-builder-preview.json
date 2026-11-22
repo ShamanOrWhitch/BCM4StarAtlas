@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Galia Shoal",
+      "hasCanvas": true,
+      "bodyTextLen": 513,
+      "bodyTextHash": "87cef1de01296aa07fb147757b797df1668bb879006e82318d03e31f107264f9",
+      "bodyTextPrefix": "GALIA · TOWER EXIT Спуск с Башни Башня отпустила на воду. Внизу ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Galia Shoal",
+      "hasCanvas": true,
+      "bodyTextLen": 513,
+      "bodyTextHash": "87cef1de01296aa07fb147757b797df1668bb879006e82318d03e31f107264f9",
+      "bodyTextPrefix": "GALIA · TOWER EXIT Спуск с Башни Башня отпустила на воду. Внизу ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}

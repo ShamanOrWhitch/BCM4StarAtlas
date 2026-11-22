@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Desert Island",
+      "hasCanvas": true,
+      "bodyTextLen": 515,
+      "bodyTextHash": "fc3aa278738ecacfadb3dd5340acb5c713d592c4acef13284b1dcb4dad0cd95a",
+      "bodyTextPrefix": "DESERT ISLAND · ПОСАДОЧНАЯ Остров пустыни Дюнный посад. У входа ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/island-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Desert Island",
+      "hasCanvas": true,
+      "bodyTextLen": 515,
+      "bodyTextHash": "fc3aa278738ecacfadb3dd5340acb5c713d592c4acef13284b1dcb4dad0cd95a",
+      "bodyTextPrefix": "DESERT ISLAND · ПОСАДОЧНАЯ Остров пустыни Дюнный посад. У входа ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/island-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/island-preview.json"
+}
