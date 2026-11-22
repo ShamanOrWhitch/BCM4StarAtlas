@@ -1,0 +1,843 @@
+{
+  "status": "PASS",
+  "uniqueAssets": [
+    "ring-bosses/mesh/boss-1-roller.glb",
+    "ring-bosses/mesh/phase-forms/phase-2-walker.glb",
+    "ring-bosses/mesh/phase-forms/phase-3-orbiter.glb",
+    "ring-bosses/mesh/phase-forms/phase-4-brawler.glb",
+    "ring-bosses/mesh/phase-forms/phase-5-runner.glb",
+    "ring-bosses/mesh/phase-forms/phase-6-stalker.glb"
+  ],
+  "uniqueAssetCount": 6,
+  "models": [
+    {
+      "asset": "ring-bosses/mesh/boss-1-roller.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-2-0"
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-2-walker.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-3-0"
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-3-orbiter.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-4-0"
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-4-brawler.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-5-0"
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-5-runner.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-6-0"
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-6-stalker.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-7-0"
+    },
+    {
+      "asset": "ring-bosses/mesh/boss-1-roller.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-2-1"
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-2-walker.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-3-1"
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-3-orbiter.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-4-1"
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-4-brawler.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-5-1"
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-5-runner.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-6-1"
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-6-stalker.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-7-1"
+    },
+    {
+      "asset": "ring-bosses/mesh/boss-1-roller.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-2-2"
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-2-walker.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-3-2"
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-3-orbiter.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-4-2"
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-4-brawler.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-5-2"
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-5-runner.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-6-2"
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-6-stalker.glb",
+      "clips": [
+        "idle",
+        "hit",
+        "transform_out",
+        "transform_in"
+      ],
+      "name": "ring-boss-phase-7-2"
+    }
+  ],
+  "clipRuns": [
+    {
+      "asset": "ring-bosses/mesh/boss-1-roller.glb",
+      "clip": "idle",
+      "seconds": 1.7999999523162842
+    },
+    {
+      "asset": "ring-bosses/mesh/boss-1-roller.glb",
+      "clip": "hit",
+      "seconds": 0.30000001192092896
+    },
+    {
+      "asset": "ring-bosses/mesh/boss-1-roller.glb",
+      "clip": "transform_out",
+      "seconds": 0.5
+    },
+    {
+      "asset": "ring-bosses/mesh/boss-1-roller.glb",
+      "clip": "transform_in",
+      "seconds": 0.5
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-2-walker.glb",
+      "clip": "idle",
+      "seconds": 1.7999999523162842
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-2-walker.glb",
+      "clip": "hit",
+      "seconds": 0.30000001192092896
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-2-walker.glb",
+      "clip": "transform_out",
+      "seconds": 0.5
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-2-walker.glb",
+      "clip": "transform_in",
+      "seconds": 0.5
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-3-orbiter.glb",
+      "clip": "idle",
+      "seconds": 1.7999999523162842
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-3-orbiter.glb",
+      "clip": "hit",
+      "seconds": 0.30000001192092896
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-3-orbiter.glb",
+      "clip": "transform_out",
+      "seconds": 0.5
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-3-orbiter.glb",
+      "clip": "transform_in",
+      "seconds": 0.5
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-4-brawler.glb",
+      "clip": "idle",
+      "seconds": 1.7999999523162842
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-4-brawler.glb",
+      "clip": "hit",
+      "seconds": 0.30000001192092896
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-4-brawler.glb",
+      "clip": "transform_out",
+      "seconds": 0.5
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-4-brawler.glb",
+      "clip": "transform_in",
+      "seconds": 0.5
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-5-runner.glb",
+      "clip": "idle",
+      "seconds": 1.7999999523162842
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-5-runner.glb",
+      "clip": "hit",
+      "seconds": 0.30000001192092896
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-5-runner.glb",
+      "clip": "transform_out",
+      "seconds": 0.5
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-5-runner.glb",
+      "clip": "transform_in",
+      "seconds": 0.5
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-6-stalker.glb",
+      "clip": "idle",
+      "seconds": 1.7999999523162842
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-6-stalker.glb",
+      "clip": "hit",
+      "seconds": 0.30000001192092896
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-6-stalker.glb",
+      "clip": "transform_out",
+      "seconds": 0.5
+    },
+    {
+      "asset": "ring-bosses/mesh/phase-forms/phase-6-stalker.glb",
+      "clip": "transform_in",
+      "seconds": 0.5
+    }
+  ],
+  "transitionChecks": [
+    {
+      "step": 1,
+      "start": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 1,
+        "phaseState": "transition",
+        "transitionFromIndex": 0,
+        "vfxActive": true,
+        "ringVisible": false,
+        "visiblePhases": [
+          1
+        ],
+        "opacities": [
+          0,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "pigVisible": true,
+        "transitionDurationMs": 2400
+      },
+      "middle": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 1,
+        "phaseState": "transition",
+        "transitionFromIndex": 0,
+        "vfxActive": true,
+        "ringVisible": false,
+        "visiblePhases": [
+          1
+        ],
+        "opacities": [
+          0.26925925925908667,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "pigVisible": true,
+        "transitionDurationMs": 2400
+      },
+      "end": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 1,
+        "phaseState": "attack",
+        "transitionFromIndex": 0,
+        "vfxActive": false,
+        "ringVisible": true,
+        "visiblePhases": [
+          1
+        ],
+        "opacities": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pigVisible": false,
+        "transitionDurationMs": 4410.799999999814
+      }
+    },
+    {
+      "step": 2,
+      "start": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 2,
+        "phaseState": "transition",
+        "transitionFromIndex": 1,
+        "vfxActive": true,
+        "ringVisible": false,
+        "visiblePhases": [
+          1,
+          2
+        ],
+        "opacities": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pigVisible": false,
+        "transitionDurationMs": 2400
+      },
+      "middle": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 2,
+        "phaseState": "transition",
+        "transitionFromIndex": 1,
+        "vfxActive": true,
+        "ringVisible": false,
+        "visiblePhases": [
+          1,
+          2
+        ],
+        "opacities": [
+          0.17978260869555107,
+          0.032037037037123246,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pigVisible": false,
+        "transitionDurationMs": 2400
+      },
+      "end": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 2,
+        "phaseState": "telegraph",
+        "transitionFromIndex": 0,
+        "vfxActive": false,
+        "ringVisible": true,
+        "visiblePhases": [
+          2
+        ],
+        "opacities": [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pigVisible": false,
+        "transitionDurationMs": 3297
+      }
+    },
+    {
+      "step": 3,
+      "start": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 3,
+        "phaseState": "transition",
+        "transitionFromIndex": 2,
+        "vfxActive": true,
+        "ringVisible": false,
+        "visiblePhases": [
+          2,
+          3
+        ],
+        "opacities": [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pigVisible": false,
+        "transitionDurationMs": 2400
+      },
+      "middle": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 3,
+        "phaseState": "transition",
+        "transitionFromIndex": 2,
+        "vfxActive": true,
+        "ringVisible": false,
+        "visiblePhases": [
+          2,
+          3
+        ],
+        "opacities": [
+          0,
+          0,
+          0.18592592592596907,
+          0,
+          0,
+          0
+        ],
+        "pigVisible": false,
+        "transitionDurationMs": 2400
+      },
+      "end": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 3,
+        "phaseState": "telegraph",
+        "transitionFromIndex": 0,
+        "vfxActive": false,
+        "ringVisible": true,
+        "visiblePhases": [
+          3
+        ],
+        "opacities": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        "pigVisible": false,
+        "transitionDurationMs": 3293.1999999999534
+      }
+    },
+    {
+      "step": 4,
+      "start": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 4,
+        "phaseState": "transition",
+        "transitionFromIndex": 3,
+        "vfxActive": true,
+        "ringVisible": false,
+        "visiblePhases": [
+          3,
+          4
+        ],
+        "opacities": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        "pigVisible": false,
+        "transitionDurationMs": 2400
+      },
+      "middle": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 4,
+        "phaseState": "transition",
+        "transitionFromIndex": 3,
+        "vfxActive": true,
+        "ringVisible": false,
+        "visiblePhases": [
+          3,
+          4
+        ],
+        "opacities": [
+          0,
+          0,
+          0.0974999999999494,
+          0.10212962962967276,
+          0,
+          0
+        ],
+        "pigVisible": false,
+        "transitionDurationMs": 2400
+      },
+      "end": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 4,
+        "phaseState": "telegraph",
+        "transitionFromIndex": 0,
+        "vfxActive": false,
+        "ringVisible": true,
+        "visiblePhases": [
+          4
+        ],
+        "opacities": [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "pigVisible": false,
+        "transitionDurationMs": 3556.9000000001397
+      }
+    },
+    {
+      "step": 5,
+      "start": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 5,
+        "phaseState": "transition",
+        "transitionFromIndex": 4,
+        "vfxActive": true,
+        "ringVisible": false,
+        "visiblePhases": [
+          4,
+          5
+        ],
+        "opacities": [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "pigVisible": false,
+        "transitionDurationMs": 2400
+      },
+      "middle": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 5,
+        "phaseState": "transition",
+        "transitionFromIndex": 4,
+        "vfxActive": true,
+        "ringVisible": false,
+        "visiblePhases": [
+          4,
+          5
+        ],
+        "opacities": [
+          0,
+          0,
+          0,
+          0.14467391304357946,
+          0.06194444444435826,
+          0
+        ],
+        "pigVisible": false,
+        "transitionDurationMs": 2400
+      },
+      "end": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 5,
+        "phaseState": "telegraph",
+        "transitionFromIndex": 0,
+        "vfxActive": false,
+        "ringVisible": true,
+        "visiblePhases": [
+          5
+        ],
+        "opacities": [
+          0,
+          0,
+          0,
+          0,
+          1,
+          0
+        ],
+        "pigVisible": false,
+        "transitionDurationMs": 3400.399999999907
+      }
+    },
+    {
+      "step": 6,
+      "start": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 6,
+        "phaseState": "transition",
+        "transitionFromIndex": 5,
+        "vfxActive": true,
+        "ringVisible": false,
+        "visiblePhases": [
+          5,
+          6
+        ],
+        "opacities": [
+          0,
+          0,
+          0,
+          0,
+          1,
+          0
+        ],
+        "pigVisible": false,
+        "transitionDurationMs": 2400
+      },
+      "middle": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 6,
+        "phaseState": "transition",
+        "transitionFromIndex": 5,
+        "vfxActive": true,
+        "ringVisible": false,
+        "visiblePhases": [
+          5,
+          6
+        ],
+        "opacities": [
+          0,
+          0,
+          0,
+          0,
+          0.15065217391314478,
+          0.05685185185176561
+        ],
+        "pigVisible": false,
+        "transitionDurationMs": 2400
+      },
+      "end": {
+        "alive": true,
+        "bossVisible": true,
+        "bossPosition": [
+          -16,
+          0,
+          0.1
+        ],
+        "phaseIndex": 6,
+        "phaseState": "telegraph",
+        "transitionFromIndex": 0,
+        "vfxActive": false,
+        "ringVisible": true,
+        "visiblePhases": [
+          6
+        ],
+        "opacities": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "pigVisible": false,
+        "transitionDurationMs": 3560.6999999999534
+      }
+    }
+  ],
+  "rearViewScreenshot": "ring-boss-rear-view.png",
+  "errors": [],
+  "httpErrors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:39195/wp-content/plugins/mini-sim/assets/onicss.mp4",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "fixture": "Standalone local repository build (not live WordPress); six transitions executed through the actual Ring boss damage/update loop.",
+  "failedRequestNote": "One optional ONICSS video request was aborted during navigation/teardown; zero HTTP error responses, browser page errors, or console errors."
+}

@@ -5,7 +5,7 @@
       "id": "RING-BOSS-1-roller",
       "file": "mesh/boss-1-roller.glb",
       "height_m": 1.6,
-      "depth_m": 0.272,
+      "depth_m": 0.88,
       "triangles": 1260,
       "vertices": 2212,
       "bounds": [
@@ -18,8 +18,8 @@
           1.6
         ],
         [
-          -0.041,
-          0.057
+          -0.433,
+          0.433
         ]
       ],
       "animations": [
@@ -28,13 +28,13 @@
         "transform_out",
         "transform_in"
       ],
-      "bytes": 316392
+      "bytes": 460148
     },
     {
       "id": "RING-BOSS-2-walker",
       "file": "mesh/boss-2-walker.glb",
       "height_m": 2.4,
-      "depth_m": 0.408,
+      "depth_m": 1.32,
       "triangles": 1916,
       "vertices": 3332,
       "bounds": [
@@ -47,8 +47,8 @@
           2.4
         ],
         [
-          -0.061,
-          0.086
+          -0.65,
+          0.65
         ]
       ],
       "animations": [
@@ -57,13 +57,13 @@
         "transform_out",
         "transform_in"
       ],
-      "bytes": 378524
+      "bytes": 571672
     },
     {
       "id": "RING-BOSS-3-orbiter",
       "file": "mesh/boss-3-orbiter.glb",
       "height_m": 2.0,
-      "depth_m": 0.34,
+      "depth_m": 1.1,
       "triangles": 5388,
       "vertices": 9282,
       "bounds": [
@@ -76,8 +76,8 @@
           2.0
         ],
         [
-          -0.051,
-          0.071
+          -0.542,
+          0.542
         ]
       ],
       "animations": [
@@ -86,13 +86,13 @@
         "transform_out",
         "transform_in"
       ],
-      "bytes": 580516
+      "bytes": 811840
     },
     {
       "id": "RING-BOSS-4-brawler",
       "file": "mesh/boss-4-brawler.glb",
       "height_m": 2.8,
-      "depth_m": 0.476,
+      "depth_m": 1.54,
       "triangles": 2148,
       "vertices": 3752,
       "bounds": [
@@ -105,8 +105,8 @@
           2.8
         ],
         [
-          -0.071,
-          0.1
+          -0.758,
+          0.758
         ]
       ],
       "animations": [
@@ -115,13 +115,13 @@
         "transform_out",
         "transform_in"
       ],
-      "bytes": 416488
+      "bytes": 631548
     },
     {
       "id": "RING-BOSS-5-runner",
       "file": "mesh/boss-5-runner.glb",
       "height_m": 2.2,
-      "depth_m": 0.374,
+      "depth_m": 1.21,
       "triangles": 1384,
       "vertices": 2422,
       "bounds": [
@@ -134,8 +134,8 @@
           2.2
         ],
         [
-          -0.056,
-          0.079
+          -0.596,
+          0.596
         ]
       ],
       "animations": [
@@ -144,13 +144,13 @@
         "transform_out",
         "transform_in"
       ],
-      "bytes": 294144
+      "bytes": 453824
     },
     {
       "id": "RING-BOSS-6-stalker",
       "file": "mesh/boss-6-stalker.glb",
       "height_m": 3.2,
-      "depth_m": 0.544,
+      "depth_m": 1.76,
       "triangles": 3716,
       "vertices": 6454,
       "bounds": [
@@ -163,8 +163,8 @@
           3.2
         ],
         [
-          -0.082,
-          0.114
+          -0.867,
+          0.867
         ]
       ],
       "animations": [
@@ -173,7 +173,7 @@
         "transform_out",
         "transform_in"
       ],
-      "bytes": 371216
+      "bytes": 510472
     }
   ]
 }
