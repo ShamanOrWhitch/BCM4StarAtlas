@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const source = await readFile(new URL("../mini-sim/assets/js/deep-space-warp.js", import.meta.url), "utf8");
+// 0.16.x: the Ring runtime lives in ring-platformer.js (Dr Arena), no longer in deep-space-warp.js.
+const source = await readFile(new URL("../mini-sim/assets/js/ring-platformer.js", import.meta.url), "utf8");
 const coreSource = await readFile(new URL("../mini-sim/assets/js/crew-core.js", import.meta.url), "utf8");
 const ringStart = source.indexOf("function openRingPlatformer(");
 const ringEnd = source.indexOf("function finishRingPlatformer(", ringStart);

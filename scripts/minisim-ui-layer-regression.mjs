@@ -8,7 +8,8 @@ const read = (name) => readFileSync(resolve(root, name), "utf8");
 const php = read("mini-sim/bcm-mini-sim.php");
 const flight = read("mini-sim/assets/js/mini-sim.js");
 const hull = read("mini-sim/assets/js/hull-dive.js");
-const warp = read("mini-sim/assets/js/deep-space-warp.js");
+// 0.16.x: the Ring runtime moved to ring-platformer.js (Dr Arena); its UI contracts are read with Warp.
+const warp = read("mini-sim/assets/js/deep-space-warp.js") + "\n" + read("mini-sim/assets/js/ring-platformer.js");
 const audit = read("mini-sim/assets/js/ui-layer-audit.js");
 const css = read("mini-sim/assets/css/mini-sim.css");
 
