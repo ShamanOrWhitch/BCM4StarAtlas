@@ -1,3 +1,14 @@
+## Patch — Mini-Sim 0.16.7: the Runner is fought as a rear-view chase in Opal Jetjet (23 November 2026)
+
+- **WORK LOCK:** [#152](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/152). Decision D-083.
+- **`ring-runner-chase.js`** (new, rules only): boarding 1.2 s, three lanes, low walls (hop), two-lane gates (steer), lane-marked mines from the Runner; armoured except skid (failed turn) and overheat; laser range 12 m, boost −5 m.
+- **`ring-platformer.js`:** phase 5 starts the chase instead of arena moves — a road group far below the arena in the same scene, Jetjet parked/flight and the Runner rear GLB, a perspective camera behind the Jetjet, HUD button help, single/co-op roles; beating the Runner ends the chase and the Stalker starts in the 2.5D arena. Enqueued in PHP and the standalone shell.
+- **Red before:** `no chase: the Runner is fought like every other form in the 2.5D arena`, `the Runner phase never starts the chase`. After 6/6 (`scripts/ring-runner-chase.test.mjs`, in CI).
+- **Browser:** `scripts/ring-runner-chase-probe.mjs` in Edge — boarding, camera behind, obstacles, lane steps, a skid window with 3 laser hits after a boost, then the Stalker back in the arena; page errors 0 (PASS). Regression 276/276; UI layer PASS.
+- **Not yet:** boarding film/hatch, reverse driving, hand tuning, touch layout on a phone.
+
+---
+
 ## Patch — Mini-Sim 0.16.6: a pit in the Orbiter arena (23 November 2026)
 
 - **WORK LOCK:** [#151](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/151). Decision D-082.

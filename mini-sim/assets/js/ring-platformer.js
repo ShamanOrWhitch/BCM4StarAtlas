@@ -1240,6 +1240,12 @@
                 vulnerable: !!boss.vulnerable, bossX: boss.x,
                 flight: !!(boss.moves && boss.moves.flight),
                 camera: worldState.cameraView || null,
+                chase: worldState.chase && worldState.chase.out ? {
+                  phase: worldState.chase.out.phase, gap: worldState.chase.out.gap, lane: worldState.chase.out.player.lane,
+                  y: worldState.chase.out.player.y, bossState: worldState.chase.out.boss.state, vulnerable: worldState.chase.out.boss.vulnerable,
+                  obstacles: worldState.chase.out.obstacles.length, hits: worldState.chase.hitCount, shots: worldState.chase.shotCount,
+                  landed: worldState.chase.landedCount, jetjetModel: worldState.chase.models.flight, runnerModel: worldState.chase.models.runner,
+                  cameraBehind: worldState.chase.camera.position.z > worldState.chase.jetjet.position.z } : null,
                 homeX: boss.homeX ?? boss.x,
                 pit: (boss.pitMeshes || []).some((mesh) => mesh.visible && /^ring-boss-pit-\d/.test(mesh.name)),
                 ledges: boss.moves && boss.lastMoveOut ? boss.lastMoveOut.ledges || [] : [],
@@ -2459,6 +2465,7 @@
           playRingBossAnimation(boss, boss.phaseIndex - 1, "transform_in", true);
           boss.moves = null;
           drawBossZones(boss, null);
+          endRunnerChase(boss);
           boss.phaseState = "transition";
           boss.phaseStartedAt = now;
           boss.phaseUntil = now + 2400;
@@ -2780,6 +2787,259 @@
         });
       }
 
+      // ---- Runner chase (owner 23.11.2026 "Погоня Гонщика") ----------------------
+      // Rules live in ring-runner-chase.js. Here: a road group far below the arena in
+      // the same scene, Opal Jetjet and the Runner seen from behind, and a perspective
+      // camera that replaces the 2.5D views while the chase runs (one WebGL context).
+      const RUNNER_CHASE_Y = -2000;
+      const CHASE_HELP_RU = "← → ПОЛОСА · ПРЫЖОК — ПЕРЕСКОК · ЛАЗЕР — ОГОНЬ В ОКНО · РЫВОК — ДОГНАТЬ";
+      const CHASE_HELP_EN = "← → LANE · JUMP — HOP · LASER — FIRE IN THE WINDOW · DASH — CATCH UP";
+      const CHASE_JETJET = { flight: "mesh/ships/xsmall/jetjet/jetjet_teal_flight.glb", parked: "mesh/ships/xsmall/jetjet/jetjet_teal_parked.glb" };
+      const CHASE_RUNNER_REAR = "ring-bosses/mesh/rear-forms/phase-5-runner-rear.glb";
+
+      function startRunnerChase(boss, now) {
+        endRunnerChase(boss);
+        const rules = window.BCMRingRunnerChase.create({ seed: (Math.round((boss.homeX ?? boss.x) * 97) + 5 * 7919) >>> 0 });
+        const geoms = [], mats = [];
+        const mesh = (geometry, material, name) => {
+          geoms.push(geometry); mats.push(material);
+          const m = new THREE.Mesh(geometry, material);
+          if (name) m.name = name;
+          return m;
+        };
+        const basic = (color, extra) => new THREE.MeshBasicMaterial(Object.assign({ color }, extra || {}));
+        const group = new THREE.Group();
+        group.name = "ring-chase";
+        group.position.set(0, RUNNER_CHASE_Y, 0);
+        group.add(new THREE.HemisphereLight(0xd8ecff, 0x1c1430, 1.15));
+        const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+        sun.position.set(3, 8, 6);
+        group.add(sun);
+        // Sky, road, rails.
+        const sky = mesh(new THREE.PlaneGeometry(420, 160), basic(0x0c0822), "ring-chase-sky");
+        sky.position.set(0, 30, -150);
+        group.add(sky);
+        const road = mesh(new THREE.PlaneGeometry(6.6, 150), basic(0x17132a), "ring-chase-road");
+        road.rotation.x = -Math.PI / 2;
+        road.position.set(0, 0, -62);
+        group.add(road);
+        [-3.4, 3.4].forEach((x) => {
+          const rail = mesh(new THREE.BoxGeometry(0.14, 0.16, 150), basic(0x5fe6ff), "ring-chase-rail");
+          rail.position.set(x, 0.08, -62);
+          group.add(rail);
+        });
+        const dashes = [];
+        [-0.9, 0.9].forEach((x) => {
+          for (let i = 0; i < 18; i += 1) {
+            const dash = mesh(new THREE.BoxGeometry(0.09, 0.02, 2.4), basic(0x8f86c9));
+            dash.position.set(x, 0.02, -i * 7.5);
+            dash.userData.baseZ = -i * 7.5;
+            group.add(dash);
+            dashes.push(dash);
+          }
+        });
+        // Speed streaks on both sides and above.
+        const streaks = [];
+        let streakSeed = 7;
+        const rnd = () => { streakSeed = (streakSeed * 16807) % 2147483647; return streakSeed / 2147483647; };
+        for (let i = 0; i < 40; i += 1) {
+          const streak = mesh(new THREE.BoxGeometry(0.05, 0.05, 3.2), basic(0xb7f3ff, { transparent: true, opacity: 0.55 }));
+          const side = rnd() < 0.5 ? -1 : 1;
+          streak.position.set(side * (4.2 + rnd() * 6), 0.4 + rnd() * 6, -rnd() * 120);
+          group.add(streak);
+          streaks.push(streak);
+        }
+        // The lane the Runner marks for a mine.
+        const tellStrip = mesh(new THREE.PlaneGeometry(1.6, 30), basic(0xffcc6a, { transparent: true, opacity: 0.4, depthWrite: false }), "ring-chase-tell");
+        tellStrip.rotation.x = -Math.PI / 2;
+        tellStrip.visible = false;
+        group.add(tellStrip);
+        // Opal Jetjet: a box until the GLB comes; parked while boarding, then flight.
+        const jetjet = new THREE.Group();
+        jetjet.name = "ring-chase-jetjet";
+        const jetProxy = mesh(new THREE.BoxGeometry(1.1, 0.5, 3.0), new THREE.MeshStandardMaterial({ color: 0x3fc6c0, roughness: 0.5 }));
+        jetProxy.position.y = 0.45;
+        jetjet.add(jetProxy);
+        group.add(jetjet);
+        // The Runner from behind.
+        const runner = new THREE.Group();
+        runner.name = "ring-chase-runner";
+        const runnerProxy = mesh(new THREE.BoxGeometry(1.8, 1.6, 1.4), new THREE.MeshStandardMaterial({ color: 0xff6a3a, roughness: 0.6 }));
+        runnerProxy.position.y = 0.8;
+        runner.add(runnerProxy);
+        const windowRing = mesh(new THREE.TorusGeometry(1.25, 0.08, 8, 32), basic(0x69ffe0, { transparent: true, opacity: 0.9 }), "ring-chase-window");
+        windowRing.position.y = 1.2;
+        windowRing.visible = false;
+        runner.add(windowRing);
+        group.add(runner);
+        const laser = mesh(new THREE.CylinderGeometry(0.05, 0.05, 1, 6, 1, true), basic(0xff4ad8, { transparent: true, opacity: 0.95, depthWrite: false }), "ring-chase-laser");
+        laser.rotation.x = Math.PI / 2;
+        laser.visible = false;
+        group.add(laser);
+        worldState.group.add(group);
+        const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 260);
+        const chase = {
+          boss, rules, group, geoms, mats, camera, jetjet, jetProxy, runner, runnerProxy, windowRing, tellStrip, laser,
+          dashes, streaks, obstacleMeshes: new Map(), out: null, lastCue: "", laserLife: 0,
+          shotReadyAt: [0, 0], hitCount: 0, shotCount: 0, landedCount: 0, boardedAt: now,
+          models: { flight: false, parked: false, runner: false }, parts: {}
+        };
+        worldState.chase = chase;
+        boss.phaseState = "chase";
+        boss.vulnerable = false;
+        // Models, fitted to the road: Jetjet nose (+X in the file) points away from the camera.
+        const fit = (object, length, axis) => {
+          const box = new THREE.Box3().setFromObject(object);
+          const size = box.getSize(new THREE.Vector3());
+          const scale = length / Math.max(0.001, size[axis]);
+          object.scale.setScalar(scale);
+          const box2 = new THREE.Box3().setFromObject(object);
+          const center = box2.getCenter(new THREE.Vector3());
+          object.position.x -= center.x; object.position.z -= center.z; object.position.y -= box2.min.y;
+          return object;
+        };
+        const place = (key, path, parent, proxy, build) => loadRingBossGltf(path).then((gltf) => {
+          if (worldState.chase !== chase) return;
+          const holder = new THREE.Group();
+          const model = gltf.scene.clone(true);
+          // The Jetjet GLBs carry vertex colours and no normals: lit materials draw them
+          // black, so such meshes get an unlit vertex-colour material.
+          model.traverse((node) => {
+            if (!node.isMesh || !node.geometry || node.geometry.getAttribute("normal")) return;
+            const material = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: !!node.geometry.getAttribute("color") });
+            mats.push(material);
+            node.material = material;
+          });
+          holder.add(build(model));
+          holder.name = "ring-chase-model-" + key;
+          parent.add(holder);
+          chase.parts[key] = holder;
+          chase.models[key] = true;
+          if (proxy) proxy.visible = false;
+          holder.visible = key !== "flight" || !chase.parts.parked || (chase.out && chase.out.phase === "chase");
+          if (key === "parked") holder.visible = !chase.out || chase.out.phase === "board";
+        }).catch(() => {});
+        place("flight", CHASE_JETJET.flight, jetjet, jetProxy, (model) => { model.rotation.y = Math.PI / 2; return fit(model, 3.2, "z"); });
+        place("parked", CHASE_JETJET.parked, jetjet, jetProxy, (model) => { model.rotation.y = Math.PI / 2; return fit(model, 3.2, "z"); });
+        place("runner", CHASE_RUNNER_REAR, runner, runnerProxy, (model) => fit(model, 2.4, "y"));
+        updateHud(window.BCMDialogue?.language === "en" ? "BOARDING · OPAL JETJET · " + CHASE_HELP_EN : "ПОСАДКА · OPAL JETJET · " + CHASE_HELP_RU);
+      }
+
+      function endRunnerChase(boss) {
+        const chase = worldState.chase;
+        if (!chase || (boss && chase.boss !== boss)) return;
+        chase.group.parent?.remove(chase.group);
+        chase.geoms.forEach((geometry) => geometry.dispose());
+        chase.mats.forEach((material) => material.dispose());
+        chase.obstacleMeshes.forEach((item) => { item.geometry.dispose(); item.material.dispose(); });
+        worldState.chase = null;
+      }
+
+      function updateRunnerChase(dt, now) {
+        const chase = worldState.chase;
+        const boss = chase.boss;
+        if (!boss.alive) { endRunnerChase(boss); return; }
+        // Single: P1 does everything. Co-op: P1 steers and hops, P2 fires and boosts.
+        const p1 = getInput(players[0] || { index: 0 });
+        const p2 = players[1] ? getInput(players[1]) : null;
+        const gunner = p2 || p1;
+        const steer = Math.abs(p1.moveX) > 0.5 ? Math.sign(p1.moveX) : 0;
+        const out = chase.rules.step(dt, { steer, jumpEdge: p1.jumpEdge, boost: !!gunner.dash });
+        chase.out = out;
+        boss.vulnerable = out.boss.vulnerable;
+        // Hits: the Jetjet carries the whole crew.
+        if (out.hits.length) {
+          chase.hitCount += out.hits.length;
+          players.forEach((player) => { if (player.hp > 0) damagePlayer(player, now); });
+        }
+        // Laser: only in the window and within range lands.
+        const shooter = p2 ? 1 : 0;
+        if (gunner.fire && out.phase === "chase" && now >= chase.shotReadyAt[shooter]) {
+          chase.shotReadyAt[shooter] = now + 260;
+          chase.shotCount += 1;
+          chase.laserLife = 0.1;
+          const english = window.BCMDialogue?.language === "en";
+          if (chase.rules.canBeHit()) {
+            chase.landedCount += 1;
+            damageBoss(boss, 1, now, 0);
+          } else if (out.boss.vulnerable) {
+            updateHud(english ? "TOO FAR · DASH TO CATCH UP" : "ДАЛЕКО · РЫВОК — ДОГНАТЬ");
+          } else {
+            updateHud(english ? "ARMOUR · WAIT FOR A SKID OR OVERHEAT" : "БРОНЯ · ЖДИ ЗАНОСА ИЛИ ПЕРЕГРЕВА");
+          }
+          if (!worldState.chase) return; // the shot ended the form
+        }
+        if (out.cue !== chase.lastCue) {
+          chase.lastCue = out.cue;
+          const english = window.BCMDialogue?.language === "en";
+          updateHud(english
+            ? (out.phase === "board" ? "BOARDING · OPAL JETJET" : out.boss.state.toUpperCase()) + " · " + CHASE_HELP_EN
+            : out.cue + " · " + CHASE_HELP_RU);
+        }
+        drawRunnerChase(chase, out, dt);
+      }
+
+      function drawRunnerChase(chase, out, dt) {
+        const scroll = out.distance;
+        chase.dashes.forEach((dash) => { dash.position.z = ((dash.userData.baseZ + scroll) % 135 + 135) % 135 - 127; });
+        chase.streaks.forEach((streak) => {
+          streak.position.z += out.speed * 1.8 * dt;
+          if (streak.position.z > 8) streak.position.z -= 128;
+          streak.visible = out.speed > 0;
+        });
+        chase.jetjet.position.set(out.player.x, out.player.y, 0);
+        const blink = out.player.safe && Math.floor(performance.now() / 90) % 2 === 0;
+        chase.jetjet.visible = !blink;
+        if (chase.parts.parked) chase.parts.parked.visible = out.phase === "board";
+        if (chase.parts.flight) chase.parts.flight.visible = out.phase !== "board" || !chase.parts.parked;
+        chase.runner.position.set(out.boss.x, 0, -out.gap);
+        chase.runner.rotation.z = out.boss.state === "skid" ? Math.sin(performance.now() * 0.02) * 0.25 : 0;
+        chase.windowRing.visible = out.boss.vulnerable;
+        chase.windowRing.rotation.z += dt * 2;
+        const tell = out.boss.tell && out.boss.tell.kind === "lane";
+        chase.tellStrip.visible = !!tell;
+        if (tell) {
+          chase.tellStrip.position.set((out.boss.tell.lane - 1) * 1.8, 0.03, -out.gap / 2 - 2);
+          chase.tellStrip.scale.y = Math.max(0.2, out.gap / 30);
+          chase.tellStrip.material.opacity = 0.25 + Math.abs(Math.sin(performance.now() * 0.012)) * 0.35;
+        }
+        // Obstacles: low wall, gate, mine.
+        const seen = new Set();
+        out.obstacles.forEach((ob) => {
+          seen.add(ob.id);
+          let item = chase.obstacleMeshes.get(ob.id);
+          if (!item) {
+            const geometry = ob.kind === "gate" ? new THREE.BoxGeometry(1.6, 2.4, 0.4)
+              : ob.kind === "mine" ? new THREE.SphereGeometry(0.42, 12, 10) : new THREE.BoxGeometry(1.5, 0.6, 0.5);
+            const material = new THREE.MeshBasicMaterial({ color: ob.kind === "gate" ? 0xff4a4a : ob.kind === "mine" ? 0xff3fd2 : 0xffa53c });
+            item = new THREE.Mesh(geometry, material);
+            item.name = "ring-chase-" + ob.kind;
+            chase.group.add(item);
+            chase.obstacleMeshes.set(ob.id, item);
+          }
+          item.position.set(ob.x, ob.kind === "gate" ? 1.2 : ob.kind === "mine" ? 0.45 : 0.3, -ob.z);
+        });
+        chase.obstacleMeshes.forEach((item, id) => {
+          if (seen.has(id)) return;
+          chase.group.remove(item);
+          item.geometry.dispose(); item.material.dispose();
+          chase.obstacleMeshes.delete(id);
+        });
+        // Laser from the Jetjet nose to the Runner.
+        chase.laserLife = Math.max(0, chase.laserLife - dt);
+        chase.laser.visible = chase.laserLife > 0;
+        if (chase.laser.visible) {
+          const length = Math.max(1, out.gap - 1.6);
+          chase.laser.scale.set(1, length, 1);
+          chase.laser.position.set((out.player.x + out.boss.x) / 2, 0.7 + out.player.y, -1.6 - length / 2);
+        }
+        // Camera behind and above the Jetjet; boarding starts from the side and swings behind.
+        const board = out.phase === "board" ? Math.max(0, 1 - (performance.now() - chase.boardedAt) / 1200) : 0;
+        const camX = out.player.x * 0.55 + board * 6;
+        chase.camera.position.set(camX, RUNNER_CHASE_Y + 2.5 + out.player.y * 0.4, 6.4 - board * 4);
+        chase.camera.lookAt(out.player.x * 0.3, RUNNER_CHASE_Y + 1.0, -14);
+      }
+
       // Tells (yellow) and hazards (red) of a boss form, drawn as flat zones in
       // front of the arena. Pooled per boss; unused zones are hidden.
       function drawBossZones(boss, out) {
@@ -2998,6 +3258,13 @@
               // Owner 22.11.2026 "Бои с боссами Ring": each form plays its own move
               // (ring-boss-moves.js) instead of the shared shockwave loop below.
               if (boss.homeX === undefined) boss.homeX = boss.x;
+              // Owner 23.11.2026 "Погоня Гонщика": the Runner is fought as a rear-view chase.
+              if (phaseIndex === 5 && window.BCMRingRunnerChase) {
+                boss.moves = null;
+                boss.tellMesh.visible = false;
+                startRunnerChase(boss, now);
+                return;
+              }
               boss.moves = window.BCMRingBossMoves
                 ? window.BCMRingBossMoves.create(phaseIndex, { homeX: boss.homeX, seed: (Math.round(boss.homeX * 97) + phaseIndex * 7919) >>> 0 })
                 : null;
@@ -3024,6 +3291,7 @@
             }
             return;
           }
+          if (boss.phaseState === "chase") return;
           if (boss.phaseState === "moves" && boss.moves) {
             runBossMoves(boss, phaseGroup, target, living, dt, now);
             return;
@@ -3083,6 +3351,7 @@
         }
         pollGamepads();
         const now = performance.now();
+        if (worldState.chase) { updateRunnerChase(dt, now); return; }
         for (const player of players) {
           const input = getInput(player);
           const moveX = input.moveX;
@@ -3419,6 +3688,13 @@
         const viewH = Math.max(1, (canvasEl && canvasEl.clientHeight) || root.clientHeight || 1);
         renderer.setScissorTest(false);
         renderer.setViewport(0, 0, viewW, viewH);
+        if (worldState.chase && worldState.chase.camera) {
+          const chaseCamera = worldState.chase.camera;
+          chaseCamera.aspect = viewW / viewH;
+          chaseCamera.updateProjectionMatrix();
+          renderer.render(activeScene, chaseCamera);
+          return true;
+        }
         if (!players.length) {
           configureCamera(cameraOne, { w: viewW, h: viewH }, cameraFocus);
           renderer.render(activeScene, cameraOne);

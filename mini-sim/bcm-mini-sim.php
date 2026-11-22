@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.16.6
+ * Version: 0.16.7
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.16.6');
+define('BCM_MINI_SIM_VERSION', '0.16.7');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -851,7 +851,9 @@ function bcm_mini_sim_enqueue_assets()
     wp_enqueue_script('bcm-asteroid-maze-location', BCM_MINI_SIM_URL . 'assets/js/asteroid-maze-location.js', array('bcm-mini-sim', 'bcm-crew-core', 'bcm-hull-dive', 'bcm-warp-bridge'), BCM_MINI_SIM_VERSION, true);
     // Ring boss forms: own move, tell and open window per form (owner 22.11.2026); read by ring-platformer.js.
     wp_enqueue_script('bcm-ring-boss-moves', BCM_MINI_SIM_URL . 'assets/js/ring-boss-moves.js', array(), BCM_MINI_SIM_VERSION, true);
-    wp_enqueue_script('bcm-ring-platformer', BCM_MINI_SIM_URL . 'assets/js/ring-platformer.js', array('bcm-mini-sim', 'bcm-crew-core', 'bcm-ring-boss-moves'), BCM_MINI_SIM_VERSION, true);
+    // Runner chase rules (owner 23.11.2026 "Погоня Гонщика"); read by ring-platformer.js.
+    wp_enqueue_script('bcm-ring-runner-chase', BCM_MINI_SIM_URL . 'assets/js/ring-runner-chase.js', array(), BCM_MINI_SIM_VERSION, true);
+    wp_enqueue_script('bcm-ring-platformer', BCM_MINI_SIM_URL . 'assets/js/ring-platformer.js', array('bcm-mini-sim', 'bcm-crew-core', 'bcm-ring-boss-moves', 'bcm-ring-runner-chase'), BCM_MINI_SIM_VERSION, true);
     wp_enqueue_script('bcm-deep-space-warp', BCM_MINI_SIM_URL . 'assets/js/deep-space-warp.js', array('bcm-mini-sim', 'bcm-hull-dive', 'bcm-crew-core', 'bcm-warp-sector-scene', 'bcm-sage-map-core', 'bcm-warp-bridge', 'bcm-asteroid-maze-location', 'bcm-ring-platformer'), BCM_MINI_SIM_VERSION, true);
     wp_enqueue_script('bcm-ui-layer-audit', BCM_MINI_SIM_URL . 'assets/js/ui-layer-audit.js', array('bcm-deep-space-warp'), BCM_MINI_SIM_VERSION, true);
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
@@ -941,7 +943,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.16.6</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.16.7</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS</div>
             <div class="bcm-mini-sim-attract-marquee" role="img" aria-label="Inspired by Star Atlas. Powered for all creatures. BCM4SA. Read-only Crew and ship console.">
                 <span class="bcm-mini-sim-attract-prefix" aria-hidden="true">BCM4SA //</span>
