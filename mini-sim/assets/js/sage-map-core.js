@@ -14,12 +14,7 @@
   // not SAGE systems and never go into Galia data. Planet Fable is the owner's
   // test planet, one jump north-east of ONI CSS (IDEA-002, 16.11.2026).
   const landmarks = [
-    // Owner 18.11.2026: Fable took the start at ONI CSS (newest work in the
-    // epicentre); the old desert island, Twinsun, lies straight north. Every
-    // hundred years a message comes: the planets change sectors.
-    { id: "twinsun", x: -40, y: 31, name: "Twinsun · пустыня, ушедшая с ONI", planet: "first", color: "#ff9a4a" },
-    // Planet Opus (Claude Opus 5.5 at the owner's invitation): straight west of ONI CSS.
-    { id: "opus", x: -41, y: 30, name: "Opus · планета фокуса", planet: "opus", color: "#ffb347" }
+    { id: "fable", x: -39, y: 31, name: "Fable · тестовая планета", planet: "fable", color: "#b48cff" }
   ];
   const landmarkByKey = new Map(landmarks.map((mark) => [mark.x + "," + mark.y, mark]));
 

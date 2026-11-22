@@ -200,21 +200,18 @@
     const sway = Math.sin(turn);        // one shoulder roll per stride
     const bounce = Math.sin(turn * 2);  // the body rises at each footfall
     const amp = moving ? 1 : 0.35;
-    const hanging = !!actor.hanging;
-    const falling = !hanging && actor.grounded === false && Number(actor.vy) < -0.35;
+    const falling = actor.grounded === false && Number(actor.vy) < -0.35;
     const squash = moving ? 1 + bounce * motion.squash : 1;
     const direction = actor.direction !== undefined ? actor.direction : actor.facing;
     return {
       face: crewFace(direction, profile.species),
       phase: phase,
       pose: pose,
-      bob: hanging ? 0 : bounce * motion.bob * amp + (falling ? -0.06 : 0),
-      scaleX: hanging ? 0.9 : falling ? 0.92 : squash,
-      scaleY: hanging ? 1.14 : falling ? 1.12 : 1 / Math.max(0.82, squash),
-      rotation: hanging ? 0 : sway * motion.sway * amp,
-      falling: falling,
-      // Hanging from a ledge: stretched, still, no walk sway.
-      hanging: hanging
+      bob: bounce * motion.bob * amp + (falling ? -0.06 : 0),
+      scaleX: falling ? 0.92 : squash,
+      scaleY: falling ? 1.12 : 1 / Math.max(0.82, squash),
+      rotation: sway * motion.sway * amp,
+      falling: falling
     };
   }
 
@@ -640,37 +637,7 @@
     return texture ? texture.bcmCrewReady : Promise.reject(new Error("THREE is not available"));
   }
 
-  /* Ledge grab (owner 20.11.2026: movement and animation live in crew core).
-     One step of the grab for a Crew in a side view. Pure: the level passes its
-     geometry as ledgeAt(x, footY, dir) -> { top, edgeX } | null (a block top the
-     hands can reach, with room above it) and applies what comes back.
-     actor: { x, y (feet), vy, facing, grounded, hang }
-     input: { jumpEdge (jump pressed this frame), dir (-1, 0, +1) }
-     Returns null (nothing to do) or { hang, x, y, vy, grounded, grabbed?, climbed?, dropped? }. */
-  const HANG_DROP = 1.62; // feet below the ledge top while hanging
-  function crewLedgeStep(actor, input, ledgeAt) {
-    const a = actor || {};
-    const i = input || {};
-    if (a.hang) {
-      const h = a.hang;
-      if (i.jumpEdge) {
-        return { hang: null, x: h.edgeX + h.dir * 0.45, y: h.top, vy: 0, grounded: true, climbed: true };
-      }
-      if (Number(i.dir) === -h.dir) {
-        return { hang: null, x: h.edgeX - h.dir * 0.6, y: h.top - HANG_DROP, vy: -0.5, grounded: false, dropped: true };
-      }
-      return { hang: h, x: h.edgeX - h.dir * 0.34, y: h.top - HANG_DROP, vy: 0, grounded: false };
-    }
-    if (a.grounded || Number(a.vy) > 2.5 || typeof ledgeAt !== "function") return null;
-    const dir = Number(a.facing) < 0 ? -1 : 1;
-    const ledge = ledgeAt(Number(a.x) + dir * 0.5, Number(a.y), dir);
-    if (!ledge) return null;
-    const hang = { top: ledge.top, edgeX: ledge.edgeX, dir: dir };
-    return { hang: hang, x: ledge.edgeX - dir * 0.34, y: ledge.top - HANG_DROP, vy: 0, grounded: false, grabbed: true };
-  }
-
   window.BCMCrewCore = {
-    crewLedgeStep: crewLedgeStep,
     speciesMotion: speciesMotion,
     facingFactor: facingFactor,
     readCrewProfile: readCrewProfile,
