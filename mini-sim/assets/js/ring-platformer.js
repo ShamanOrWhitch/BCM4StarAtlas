@@ -166,6 +166,111 @@
       return true;
     }
 
+    function setRingBossGroupOpacity(group, opacity) {
+      if (!group) return;
+      const alpha = Math.max(0, Math.min(1, opacity));
+      group.traverse((node) => {
+        if (!node.isMesh || !node.material) return;
+        const materials = Array.isArray(node.material) ? node.material : [node.material];
+        materials.forEach((material) => {
+          if (!material.userData) material.userData = {};
+          if (material.userData.bcmRingOriginalOpacity === undefined) {
+            material.userData.bcmRingOriginalOpacity = Number.isFinite(material.opacity) ? material.opacity : 1;
+            material.userData.bcmRingOriginalTransparent = !!material.transparent;
+            material.userData.bcmRingOriginalDepthWrite = material.depthWrite !== false;
+          }
+          const transparent = alpha < 0.999 || material.userData.bcmRingOriginalTransparent;
+          if (material.transparent !== transparent) {
+            material.transparent = transparent;
+            material.needsUpdate = true;
+          }
+          material.opacity = material.userData.bcmRingOriginalOpacity * alpha;
+          material.depthWrite = alpha >= 0.999 && material.userData.bcmRingOriginalDepthWrite;
+        });
+      });
+    }
+
+    function beginRingBossTransitionVfx(boss) {
+      const THREE = window.THREE;
+      if (!THREE || !boss || !boss.group) return;
+      clearRingBossTransitionVfx(boss);
+      const count = 720;
+      const positions = new Float32Array(count * 3);
+      const velocities = new Float32Array(count * 3);
+      const colors = new Float32Array(count * 3);
+      const cyan = new THREE.Color(0x45f4ff);
+      const violet = new THREE.Color(0xb44cff);
+      const gold = new THREE.Color(0xffce75);
+      for (let i = 0; i < count; i += 1) {
+        const a = Math.random() * Math.PI * 2;
+        const r = 0.32 + Math.random() * 1.35;
+        const y = 1.45 + Math.random() * 1.65;
+        positions[i * 3] = Math.cos(a) * r;
+        positions[i * 3 + 1] = y;
+        positions[i * 3 + 2] = Math.sin(a) * (0.18 + Math.random() * 0.65);
+        const speed = 0.7 + Math.random() * 2.8;
+        velocities[i * 3] = Math.cos(a) * speed;
+        velocities[i * 3 + 1] = (Math.random() - 0.38) * speed;
+        velocities[i * 3 + 2] = Math.sin(a) * speed * 0.55;
+        const c = Math.random() < 0.68 ? cyan : (Math.random() < 0.5 ? violet : gold);
+        colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      const material = new THREE.PointsMaterial({ size: 0.075, vertexColors: true, transparent: true,
+        opacity: 0.92, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true });
+      const particles = new THREE.Points(geometry, material);
+      particles.name = "ring-boss-phase-shift-particles";
+      particles.frustumCulled = false;
+      boss.group.add(particles);
+      const rings = [0, 1].map((index) => {
+        const ringMaterial = new THREE.MeshBasicMaterial({ color: index ? 0xb951ff : 0x53f5ff,
+          transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+          depthWrite: false });
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(index ? 0.72 : 0.46, 0.035, 8, 56), ringMaterial);
+        ring.position.set(0, 2.15, 1.25 + index * 0.04);
+        ring.scale.set(0.2, 0.2, 1);
+        ring.name = "ring-boss-phase-shift-ring-" + index;
+        boss.group.add(ring);
+        return ring;
+      });
+      boss.transitionVfx = { particles, geometry, material, rings, velocities, elapsed: 0 };
+    }
+
+    function clearRingBossTransitionVfx(boss) {
+      const fx = boss && boss.transitionVfx;
+      if (!fx) return;
+      if (boss.group) {
+        boss.group.remove(fx.particles);
+        fx.rings.forEach((ring) => boss.group.remove(ring));
+      }
+      try { fx.geometry.dispose(); fx.material.dispose(); } catch (e) {}
+      fx.rings.forEach((ring) => { try { ring.geometry.dispose(); ring.material.dispose(); } catch (e) {} });
+      boss.transitionVfx = null;
+    }
+
+    function updateRingBossTransitionVfx(boss, dt, elapsed) {
+      const fx = boss && boss.transitionVfx;
+      if (!fx) return;
+      fx.elapsed += dt;
+      const pos = fx.particles.geometry.attributes.position.array;
+      const fade = Math.max(0, 1 - elapsed / 2.35);
+      for (let i = 0; i < pos.length / 3; i += 1) {
+        pos[i * 3] += fx.velocities[i * 3] * dt;
+        pos[i * 3 + 1] += fx.velocities[i * 3 + 1] * dt;
+        pos[i * 3 + 2] += fx.velocities[i * 3 + 2] * dt;
+      }
+      fx.particles.geometry.attributes.position.needsUpdate = true;
+      fx.material.opacity = 0.92 * fade;
+      fx.rings.forEach((ring, index) => {
+        const grow = Math.min(3.8, 0.35 + elapsed * (2.3 + index * 0.4));
+        ring.scale.set(grow, grow * (index ? 0.78 : 1), 1);
+        ring.rotation.z += dt * (index ? -1.3 : 1.7);
+        ring.material.opacity = Math.max(0, (1 - elapsed / 1.7) * (index ? 0.55 : 0.82));
+      });
+    }
+
     function loadRingBossPhaseModels(world) {
       if (!world || !Array.isArray(world.bosses)) return;
       world.bosses.forEach((boss) => {
@@ -176,6 +281,11 @@
             const phaseGroup = boss.phaseGroups[phaseOffset];
             if (!phaseGroup) return;
             const model = gltf.scene.clone(true);
+            model.traverse((node) => {
+              if (!node.isMesh || !node.material) return;
+              node.material = Array.isArray(node.material)
+                ? node.material.map((material) => material.clone()) : node.material.clone();
+            });
             model.updateMatrixWorld(true);
             const bounds = new window.THREE.Box3().setFromObject(model);
             const center = bounds.getCenter(new window.THREE.Vector3());
@@ -1061,6 +1171,63 @@
             hp: boss.maxHp, alive: true, activated: false, nextAttackAt: 0, lastDamageAt: 0
           });
         });
+
+        if (new URLSearchParams(window.location.search).has("bcm_qa_ring_boss")) {
+          window.__BCM_RING_BOSS_QA__ = {
+            transition() {
+              const boss = worldState.bosses.find((item) => item.alive);
+              if (!boss) throw new Error("Ring QA: no live boss");
+              worldState.group.visible = true;
+              if (worldState.cellPath?.room) worldState.cellPath.room.visible = false;
+              scene.traverse((node) => {
+                if (node.name === "bcm-asteroid-cell-room" || node.name.startsWith("ring-cell-")) node.visible = false;
+              });
+              const qaPlayer = players.find(Boolean);
+              const arenaNode = worldState.cellPath && Array.from(worldState.cellPath.nodes.values()).find((node) => node.large);
+              if (arenaNode) {
+                worldState.cellPath.current = arenaNode;
+                if (qaPlayer) qaPlayer.ringCurrent = arenaNode;
+              }
+              if (qaPlayer) {
+                qaPlayer.worldX = boss.x - 4;
+                qaPlayer.worldY = 0;
+                qaPlayer.velocityX = 0;
+              }
+              boss.activated = true;
+              boss.vulnerable = true;
+              boss.hp = 1;
+              damageBoss(boss, 1, performance.now(), 0);
+              return this.snapshot();
+            },
+            setRearView(enabled) {
+              const boss = worldState.bosses.find((item) => item.alive);
+              if (!boss || boss.phaseIndex < 1) return false;
+              boss.phaseGroups[boss.phaseIndex - 1].rotation.y = enabled ? Math.PI : 0;
+              return true;
+            },
+            snapshot() {
+              const boss = worldState.bosses.find((item) => item.alive);
+              if (!boss) return { alive: false };
+              const groupOpacity = (group) => {
+                let found = null;
+                group?.traverse((node) => {
+                  if (found === null && node.isMesh && node.material) {
+                    const material = Array.isArray(node.material) ? node.material[0] : node.material;
+                    found = material && Number.isFinite(material.opacity) ? material.opacity : 1;
+                  }
+                });
+                return found;
+              };
+              return { alive: boss.alive, bossVisible: !!boss.group.visible,
+                bossPosition: boss.group.position.toArray(), phaseIndex: boss.phaseIndex, phaseState: boss.phaseState,
+                transitionFromIndex: boss.transitionFromIndex, vfxActive: !!boss.transitionVfx,
+                ringVisible: !!boss.ring?.visible,
+                visiblePhases: boss.phaseGroups.map((group, index) => group.visible ? index + 1 : 0).filter(Boolean),
+                opacities: boss.phaseGroups.map(groupOpacity), pigVisible: !!boss.pigGroup.visible,
+                transitionDurationMs: boss.phaseUntil - (boss.phaseStartedAt || 0) };
+            }
+          };
+        }
 
         const exitMarker = new THREE.Mesh(exitGeometry, exitMaterial);
         exitMarker.name = "ring-frontier-exit";
@@ -2251,16 +2418,21 @@
           boss.name = spec.name;
           boss.maxHp = spec.hp;
           boss.hp = spec.hp;
-          boss.pigGroup.visible = false;
+          boss.pigGroup.visible = previousPhaseIndex === 0;
+          boss.pigGroup.scale.setScalar(1);
           boss.core.visible = false;
           boss.transitionFromIndex = previousPhaseIndex;
           boss.phaseGroups.forEach((group, index) => {
             group.visible = index === boss.phaseIndex - 1 || (previousPhaseIndex > 0 && index === previousPhaseIndex - 1);
+            if (group.visible) setRingBossGroupOpacity(group, index === boss.phaseIndex - 1 ? 0 : 1);
           });
+          if (boss.ring) boss.ring.visible = false;
           if (previousPhaseIndex > 0) playRingBossAnimation(boss, previousPhaseIndex - 1, "transform_out", true);
           playRingBossAnimation(boss, boss.phaseIndex - 1, "transform_in", true);
           boss.phaseState = "transition";
-          boss.phaseUntil = now + 800;
+          boss.phaseStartedAt = now;
+          boss.phaseUntil = now + 2400;
+          beginRingBossTransitionVfx(boss);
           boss.vulnerable = false;
           boss.tellMesh.visible = false;
           updateHud("ФОРМА · " + boss.name + " · ПРИГОТОВЬСЯ");
@@ -2641,8 +2813,25 @@
           }
           if (boss.phaseState === "transition") {
             boss.vulnerable = false;
+            const elapsed = Math.max(0, (now - (boss.phaseStartedAt || now)) / 1000);
+            const oldOpacity = Math.max(0, 1 - elapsed / 0.92);
+            const newOpacity = Math.max(0, Math.min(1, (elapsed - 0.72) / 1.08));
+            if (boss.transitionFromIndex > 0) {
+              const oldGroup = boss.phaseGroups[boss.transitionFromIndex - 1];
+              setRingBossGroupOpacity(oldGroup, oldOpacity);
+            } else if (boss.pigGroup && boss.pigGroup.visible) {
+              boss.pigGroup.scale.setScalar(Math.max(0.02, 1 - elapsed / 0.62));
+            }
+            setRingBossGroupOpacity(phaseGroup, newOpacity);
+            updateRingBossTransitionVfx(boss, dt, elapsed);
             if (now >= boss.phaseUntil) {
-              boss.phaseGroups.forEach((group, index) => { group.visible = index === phaseIndex - 1; });
+              boss.phaseGroups.forEach((group, index) => {
+                group.visible = index === phaseIndex - 1;
+                setRingBossGroupOpacity(group, index === phaseIndex - 1 ? 1 : 0);
+              });
+              if (boss.pigGroup) { boss.pigGroup.visible = false; boss.pigGroup.scale.setScalar(1); }
+              if (boss.ring) boss.ring.visible = true;
+              clearRingBossTransitionVfx(boss);
               boss.transitionFromIndex = 0;
               playRingBossAnimation(boss, phaseIndex - 1, "idle", false);
               boss.phaseState = "telegraph";
