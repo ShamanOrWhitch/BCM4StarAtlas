@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.16.1",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.16.0",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -91,7 +91,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.16.1",
+      title: "SPACE LABYRINTH — 0.16.0",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -268,7 +268,7 @@
     controlsDialogTimer = 0;
   }
 
-  function showOperatorDialog(speaker, message, choices, avatarAsset) {
+  function showOperatorDialog(speaker, message, choices, avatarAsset, durationMs) {
     if (!operatorDialog) return;
     hideOperatorDialog();
     operatorSpeaker.textContent = String(speaker || textForLanguage("operator"));
@@ -294,7 +294,9 @@
       (speakerName.includes("medusa") ? "medusa.mp4" :
        (speakerName.includes("zombie") ? "zombie.mp4" : "panda.mp4"));
     prepareOperatorAvatar(faceAsset);
-    operatorDialogTimer = window.setTimeout(hideOperatorDialog, 13000);
+    const duration = Number(durationMs);
+    operatorDialogTimer = window.setTimeout(hideOperatorDialog, Number.isFinite(duration) && duration > 0
+      ? Math.max(1200, Math.min(13000, duration)) : 13000);
   }
 
   function phonePrimaryControls() {
@@ -330,8 +332,8 @@
     const normalizedLevel = String(level || "").toLowerCase();
     const levelText = {
       ring: {
-        ru: {controlsKeyboard:"Ring: A/D или ←/→ — бег; Space/W — прыжок; E — дверь; R — этаж; Q — лазер; Shift/C — рывок.",controlsTouch:"Ring: ◀ ▶ — бег; ПРЫЖОК — прыжок; ЭТАЖ — сменить этаж; ДВЕРЬ — пройти; ЛАЗЕР — выстрел; РЫВОК — ускорение.",controlsGamepad:"Ring: стик — бег; A — прыжок; X — дверь; LB — этаж; Y — лазер; B — рывок."},
-        en: {controlsKeyboard:"Ring: A/D or ←/→ move; Space/W jumps; E uses the door; R changes floor; Q fires; Shift/C dashes.",controlsTouch:"Ring: ◀ ▶ move; JUMP jumps; FLOOR changes levels; DOOR enters; LASER fires; DASH dodges.",controlsGamepad:"Ring: stick moves; A jumps; X door; LB floor; Y fire; B dash."}
+        ru: {controlsKeyboard:"Ring: A/D — бег; ↑/↓ — вертикаль в астральных полях; Space/W — прыжок и импульс в фиолетовом поле; E — дверь; R — этаж; Q — лазер; Shift/C — рывок.",controlsTouch:"Ring: ◀ ▶ — бег, ↑ ↓ — вертикаль; ПРЫЖОК — прыжок/импульс; ЭТАЖ — сменить этаж; ДВЕРЬ — пройти; ЛАЗЕР — выстрел; РЫВОК — ускорение.",controlsGamepad:"Ring: стик — бег/вертикаль; A — прыжок/импульс; X — дверь; LB — этаж; Y — лазер; B — рывок."},
+        en: {controlsKeyboard:"Ring: A/D move; Up/Down steer in astral fields; Space/W jumps and pulses the jetpack in purple fields; E uses the door; R changes floor; Q fires; Shift/C dashes.",controlsTouch:"Ring: ◀ ▶ move, ↑ ↓ steer; JUMP jumps/pulses; FLOOR changes levels; DOOR enters; LASER fires; DASH dodges.",controlsGamepad:"Ring: stick moves/steers; A jumps/pulses; X door; LB floor; Y fire; B dash."}
       },
       hull: {
         ru: {controlsKeyboard:"Кабина: мышь/палец — тащи Crew; удерживай воду для насоса, пробоину — для ремонта.",controlsTouch:"Кабина: тащи Crew; держи палец на воде для насоса и на шве для ремонта.",controlsGamepad:"Кабина: стик двигает Crew; A ремонт, B насос, LB/X — штурвал. V — Warp, не трюм."},
@@ -2380,6 +2382,10 @@
     group.visible = !!race.active;
     const useSeed = (seed == null ? (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) : seed) >>> 0;
     const rand = seedRandom(useSeed);
+    // IDEA-021 (owner 19.11.2026): a harder seeded course with pylons and rival
+    // ships, from room0-race.js. The old five-corridor loop stays as a fallback.
+    const course = window.BCMRoom0Race ? window.BCMRoom0Race.buildCourse(useSeed) : null;
+    race.course = course;
     const kind = Math.floor(rand() * 4);
     const z0 = 24;
     const point = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -2406,7 +2412,11 @@
       corners = [point(-16, 0, z0), point(-16, lift(), z0 + d * 0.4), point(10, lift() + 12, z0 + d), point(10 + w, lift(), z0 + d), point(10 + w, 6, z0 + d * 0.25), point(8, 0, z0)];
     }
     race.kindLabel = ["широкий овал", "собачья нога", "длинная петля", "зигзаг"][kind];
-    const halfW = 11 + rand() * 3;
+    if (course) {
+      corners = course.corners.map((c) => point(c.x, c.y, c.z));
+      race.kindLabel = course.corners.length + " ПОВОРОТОВ";
+    }
+    let halfW = 11 + rand() * 3;
     const halfH = 2.5;
     race.segments = [];
     race.gates = [];
@@ -2419,6 +2429,7 @@
       yaw: Math.atan2(launch.x, -launch.z)
     };
     for (let i = 0; i < corners.length; i += 1) {
+      if (course && course.segments[i]) halfW = course.segments[i].halfW;
       const a = corners[i];
       const b = corners[(i + 1) % corners.length];
       const dir = b.clone().sub(a);
@@ -2460,9 +2471,65 @@
       race.segments.push({ a, b, dir, side, len, halfW, halfH });
       race.gates.push({ point: mid.clone(), dir: dir.clone(), side: side.clone(), halfW: halfW - 0.3 });
     }
+    race.pylons = [];
+    race.rivals = [];
+    race.rivalMeshes = [];
+    if (course) {
+      const pylonMat = new THREE.MeshStandardMaterial({ color: 0xff7a3d, emissive: 0x5a1a06, roughness: 0.5, metalness: 0.3 });
+      course.pylons.forEach((p) => {
+        const pylon = new THREE.Mesh(new THREE.CylinderGeometry(p.radius, p.radius * 1.15, 8.2, 10), pylonMat);
+        pylon.position.set(p.x, p.y + 2, p.z);
+        pylon.name = "room0-pylon";
+        group.add(pylon);
+        race.pylons.push(p);
+      });
+      // Rival ships: a small hull, wings and an engine glow, each in its own colour.
+      const colours = [0x5ad1ff, 0xffd166, 0xc77dff];
+      race.rivals = window.BCMRoom0Race.createRivals(course, 3, useSeed);
+      race.rivals.forEach((rival, i) => {
+        const craft = new THREE.Group();
+        craft.name = "room0-rival";
+        const hullMat = new THREE.MeshStandardMaterial({ color: colours[i % colours.length], roughness: 0.45, metalness: 0.4 });
+        const hull = new THREE.Mesh(new THREE.ConeGeometry(0.75, 3.2, 6), hullMat);
+        hull.rotation.x = Math.PI / 2;
+        const wings = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.14, 1.1), hullMat);
+        wings.position.z = -0.6;
+        const glow = new THREE.Mesh(new THREE.SphereGeometry(0.42, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+        glow.position.z = -1.7;
+        craft.add(hull, wings, glow);
+        group.add(craft);
+        race.rivalMeshes.push(craft);
+      });
+      placeRivals();
+    }
     parent.add(group);
     race.group = group;
     room0Labyrinth.group = group;
+  }
+
+  function placeRivals() {
+    if (!race.course || !race.rivals) return;
+    race.rivals.forEach((rival, i) => {
+      const mesh = race.rivalMeshes[i];
+      if (!mesh) return;
+      const at = window.BCMRoom0Race.positionOf(race.course, rival);
+      mesh.position.set(at.x, at.y, at.z);
+      mesh.rotation.set(0, at.yaw, 0);
+    });
+  }
+
+  /** Rivals fly the loop while the race is on (IDEA-021). */
+  function updateRoom0Rivals(dt) {
+    if (!race.active || !race.course || !race.rivals || !race.rivals.length) return;
+    window.BCMRoom0Race.stepRivals(race.rivals, race.course, dt, ship.maxSpeed);
+    placeRivals();
+  }
+
+  /** The player's place among the rivals: laps first, then the way into the lap. */
+  function room0Place() {
+    if (!race.course || !race.rivals || !race.rivals.length || !ship.position) return 0;
+    const here = window.BCMRoom0Race.progressOn(race.course, ship.position);
+    return window.BCMRoom0Race.placeOf({ laps: race.laps, distance: here.distance }, race.rivals);
   }
 
   function updateRoom0Labyrinth() {
@@ -2505,6 +2572,21 @@
     const roadY = best.point.y;
     if (ship.position.y > roadY + 4.2) ship.position.y = roadY + 4.2;
     if (ship.position.y < roadY - 1.4) ship.position.y = roadY - 1.4;
+
+    // Pylons are solid: bounce off and lose speed.
+    (race.pylons || []).forEach((p) => {
+      const dx = ship.position.x - p.x;
+      const dz = ship.position.z - p.z;
+      const dist = Math.hypot(dx, dz);
+      const reach = p.radius + 0.7;
+      if (dist >= reach || Math.abs(ship.position.y - (p.y + 2)) > 4.4) return;
+      const k = reach / Math.max(0.001, dist);
+      ship.position.x = p.x + dx * k;
+      ship.position.z = p.z + dz * k;
+      const speed = ship.velocity.length();
+      ship.velocity.multiplyScalar(0.35);
+      if (speed > 1.0) triggerCollisionImpact(Math.min(0.55, speed / Math.max(1, ship.maxSpeed)));
+    });
 
     const gate = race.gates[race.nextGate];
     if (gate && race.prev) {
@@ -5325,6 +5407,7 @@
     const collisionStart = ship.position.clone();
     ship.position.addScaledVector(ship.velocity, dt);
     updateRoom0Labyrinth();
+    updateRoom0Rivals(dt);
     collide(collisionStart);
     updateSpaceSatelliteVisibility();
     updateCollisionImpact(dt);
@@ -5442,7 +5525,10 @@
     }
     if (race.active) {
       showMission("МИССИЯ: 2 КРУГА ПО ТРАССЕ, НИ РАЗУ НЕ ВЫЛЕТАЯ В КОСМОС");
-      setStatus("ТРАССА · КРУГ " + Math.min(race.needed, race.laps + 1) + "/2 · НЕ ВЫЛЕТАТЬ В КОСМОС · SPD " + ship.velocity.length().toFixed(1));
+      const place = room0Place();
+      setStatus("ТРАССА · КРУГ " + Math.min(race.needed, race.laps + 1) + "/2" +
+        (place ? " · МЕСТО " + place + "/" + (race.rivals.length + 1) : "") +
+        " · НЕ ВЫЛЕТАТЬ В КОСМОС · SPD " + ship.velocity.length().toFixed(1));
     } else {
       showMission("МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS");
       setStatus(room + " · SPD " + ship.velocity.length().toFixed(1));
@@ -6808,7 +6894,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.16.1") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.16.0") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();

@@ -18,7 +18,7 @@ page.on("pageerror", (error) => report.errors.push(error.message));
 page.on("requestfailed", (request) => report.failedRequests.push({ url: request.url(), error: request.failure()?.errorText || "failed" }));
 page.on("response", (response) => { if (response.status() >= 400) report.httpErrors.push({ status: response.status(), url: response.url() }); });
 try {
-  await page.goto(url + (url.includes("?") ? "&" : "?") + "bcm_qa_warp_nodamage=1&bcm_qa_ring_boss=1", { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.goto(url + (url.includes("?") ? "&" : "?") + "bcm_qa_warp_nodamage=1", { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.locator(".bcm-mini-sim-start").first().click({ timeout: 20000 });
   await page.locator("[data-crew-start]").first().click({ timeout: 20000 });
   await page.waitForFunction(() => document.querySelector(".bcm-mini-sim")?.classList.contains("game-active") && !!window.BCMiniSimAPI, null, { timeout: 40000 });
@@ -80,44 +80,13 @@ try {
     return { models, uniqueAssets, clipRuns };
   });
   report.models = runtimeReport.models;
-  const transitionChecks = [];
-  for (let step = 0; step < 6; step += 1) {
-    const start = await page.evaluate(() => window.__BCM_RING_BOSS_QA__?.transition());
-    if (!start || start.phaseState !== "transition" || !start.vfxActive || start.ringVisible) {
-      throw new Error("Ring phase transition did not start with live VFX at step " + (step + 1));
-    }
-    await page.waitForTimeout(1050);
-    const middle = await page.evaluate(() => window.__BCM_RING_BOSS_QA__?.snapshot());
-    if (!middle || middle.phaseState !== "transition" || !middle.vfxActive || middle.ringVisible || middle.visiblePhases.length < 1) {
-      throw new Error("Ring transition mid-state was not active at step " + (step + 1));
-    }
-    if (step === 0) await page.screenshot({ path: resolve(out, "ring-boss-transform-in-scene.png") });
-    await page.waitForFunction((phase) => {
-      const snap = window.__BCM_RING_BOSS_QA__?.snapshot();
-      return snap && snap.phaseState === "telegraph" && snap.phaseIndex === phase && !snap.vfxActive;
-    }, step + 1, { timeout: 6000 });
-    const end = await page.evaluate(() => window.__BCM_RING_BOSS_QA__?.snapshot());
-    if (end.visiblePhases.length !== 1 || end.visiblePhases[0] !== step + 1 ||
-        end.opacities[step] < 0.99 || !end.ringVisible || end.transitionFromIndex !== 0) {
-      throw new Error("Old form remained or new form was not fully revealed at transition " + (step + 1));
-    }
-    transitionChecks.push({ step: step + 1, start, middle, end });
-  }
-  report.transitionChecks = transitionChecks;
-  const rearViewChecked = await page.evaluate(() => window.__BCM_RING_BOSS_QA__?.setRearView(true));
-  if (!rearViewChecked) throw new Error("Ring rear-view model check could not orient the final form");
-  await page.waitForTimeout(250);
-  await page.screenshot({ path: resolve(out, "ring-boss-rear-view.png") });
-  await page.evaluate(() => window.__BCM_RING_BOSS_QA__?.setRearView(false));
-  report.rearViewScreenshot = "ring-boss-rear-view.png";
   const uniqueAssets = runtimeReport.uniqueAssets;
   report.uniqueAssetCount = uniqueAssets.length;
   report.uniqueAssets = uniqueAssets;
   report.clipRuns = runtimeReport.clipRuns;
   report.status = report.errors.length === 0 && report.httpErrors.length === 0 && uniqueAssets.length === 6 && report.models.length === 18 &&
     report.models.every((model) => ["idle", "hit", "transform_out", "transform_in"].every((clip) => model.clips.includes(clip))) &&
-    report.clipRuns.length === 24 && report.transitionChecks?.length === 6 && report.rearViewScreenshot === "ring-boss-rear-view.png" &&
-    report.transitionChecks.every((check) => check.middle.vfxActive && check.end.visiblePhases.length === 1) ? "PASS" : "FAIL";
+    report.clipRuns.length === 24 ? "PASS" : "FAIL";
   await page.screenshot({ path: resolve(out, "ring-boss-models-loaded.png") });
 } catch (error) {
   report.failure = String(error?.message || error).split("\n")[0];

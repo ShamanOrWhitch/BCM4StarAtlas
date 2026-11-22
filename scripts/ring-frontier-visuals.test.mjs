@@ -65,7 +65,8 @@ test("Ring cell maze exposes a route to the large boss arena and fallback transi
   assert.match(warp, /const firstStep = new Map\(\[\[startNode, null\]\]\)/);
   assert.match(warp, /path\.nextDirectionTowardLarge\(node\)/);
   assert.doesNotMatch(warp, /nextDirection = path\.nextDirectionTowardLarge\(node\) \|\|/);
-  assert.match(warp, /const verticalDirection = input\.down \? "yn" : "yp"/);
+  assert.match(warp, /player\.ringTurnQueued = true/);
+  assert.match(warp, /const openH = horizontalDirs\.filter\(\(dir\) => path\.neighbor\(node, dir\)\)/);
   assert.match(warp, /world\.group\.visible = !!node\.large/);
   assert.match(warp, /group\.name = "ring-boss-" \+ \(index \+ 1\)/);
 });
@@ -76,7 +77,10 @@ test("Ring disposes generated backdrop textures when leaving the location", () =
   assert.match(cleanup, /worldState\.specialGeometry\.forEach/);
 });
 
-test("Mini-Sim cache version is bumped for the Ring art update", () => {
-  assert.match(plugin, /Version: 0\.11\.21/);
-  assert.match(plugin, /define\('BCM_MINI_SIM_VERSION', '0\.11\.21'\)/);
+test("Mini-Sim cache version header and runtime constant stay in sync", () => {
+  const header = plugin.match(/\* Version: (\d+\.\d+\.\d+)/);
+  const constant = plugin.match(/define\('BCM_MINI_SIM_VERSION', '(\d+\.\d+\.\d+)'\)/);
+  assert.ok(header, "missing plugin version header");
+  assert.ok(constant, "missing cache-version constant");
+  assert.equal(header[1], constant[1]);
 });

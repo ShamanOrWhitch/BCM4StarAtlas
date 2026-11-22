@@ -1,6 +1,6 @@
 # Ring: Свинобосс — дуга фаз, погоня и Opal Jetjet
 
-**Статус:** сценарно-технический план; игровой код и rig-модели не подключены.
+**Статус:** design reference + 0.16.0 runtime prototype. Owner-provided GLB pack is at `mini-sim/assets/ring-bosses/mesh/`; six front forms now load after the existing Pig and use `idle`, `hit`, `transform_out`, `transform_in` clips. Procedural forms remain a graceful fallback if an asset fails. The pack README identifies these as textured reliefs with proxy clips, not skeletal rigs; rear forms are not yet used by runtime. Attack/recovery/HP/resource numbers are provisional and need gameplay tuning. Current runtime browser/live QA has not yet been run.
 
 ## Решение по началу боя
 

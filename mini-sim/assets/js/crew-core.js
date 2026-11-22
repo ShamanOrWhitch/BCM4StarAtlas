@@ -200,18 +200,35 @@
     const sway = Math.sin(turn);        // one shoulder roll per stride
     const bounce = Math.sin(turn * 2);  // the body rises at each footfall
     const amp = moving ? 1 : 0.35;
-    const falling = actor.grounded === false && Number(actor.vy) < -0.35;
+    const hanging = !!actor.hanging;
+    const grounded = actor.grounded !== false;
+    const velocityY = Number(actor.vy) || 0;
+    const rising = !grounded && !hanging && velocityY > 0.35;
+    const falling = !grounded && !hanging && velocityY < -0.35;
+    let landingRemaining = Math.max(0, Number(store.bcmLandingRemaining) || 0);
+    if (grounded && store.bcmWasGrounded === false) landingRemaining = 0.12;
+    else landingRemaining = Math.max(0, landingRemaining - Math.max(0, Number(dt) || 0));
+    store.bcmLandingRemaining = landingRemaining;
+    store.bcmWasGrounded = grounded;
+    const climbing = !!actor.climbing;
+    const motionState = hanging ? "hang" : climbing ? "climb" : rising ? "jump-rise" : falling ? "fall"
+      : landingRemaining > 0 ? "land" : moving ? (Number(actor.speed) >= 8 ? "run" : "walk") : "idle";
     const squash = moving ? 1 + bounce * motion.squash : 1;
     const direction = actor.direction !== undefined ? actor.direction : actor.facing;
     return {
       face: crewFace(direction, profile.species),
       phase: phase,
       pose: pose,
-      bob: bounce * motion.bob * amp + (falling ? -0.06 : 0),
-      scaleX: falling ? 0.92 : squash,
-      scaleY: falling ? 1.12 : 1 / Math.max(0.82, squash),
-      rotation: sway * motion.sway * amp,
-      falling: falling
+      state: motionState,
+      bob: hanging ? 0 : bounce * motion.bob * amp + (falling ? -0.06 : rising ? 0.025 : 0),
+      scaleX: hanging ? 0.9 : falling ? 0.92 : rising ? 0.96 : motionState === "land" ? 1.06 : squash,
+      scaleY: hanging ? 1.14 : falling ? 1.12 : rising ? 1.06 : motionState === "land" ? 0.92 : 1 / Math.max(0.82, squash),
+      rotation: hanging || climbing ? 0 : sway * motion.sway * amp,
+      rising: rising,
+      falling: falling,
+      landing: state === "land",
+      // Hanging from a ledge: stretched, still, no walk sway.
+      hanging: hanging
     };
   }
 
@@ -637,7 +654,141 @@
     return texture ? texture.bcmCrewReady : Promise.reject(new Error("THREE is not available"));
   }
 
+  /* Shared Mini-Sim input normalization. Levels bind physical sources through
+     this adapter and consume one action intent; they do not maintain their own
+     keyboard/gamepad/touch action tables. One-shot actions are latched until the
+     next read, so a quick tap between rendered frames is not lost. */
+  function createCrewControls(options) {
+    const opts = options || {};
+    const playerIndex = Math.max(0, Math.floor(Number(opts.playerIndex) || 0));
+    const states = { keyboard: {}, touch: {}, gamepad: {} };
+    const edges = { jump: false, dash: false, activate: false, floor: false };
+    let previousJump = false;
+    const clamp = (value) => Math.max(-1, Math.min(1, Number(value) || 0));
+    const bindings = playerIndex === 0
+      ? {
+          ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
+          ArrowUp: "up", ArrowDown: "down", Space: "jump", KeyW: "jump",
+          KeyQ: "fire", KeyE: "activate", KeyR: "floor", KeyC: "dash",
+          ShiftLeft: "dash", ShiftRight: "dash"
+        }
+      : {
+          KeyJ: "left", KeyL: "right", KeyT: "up", KeyG: "down", KeyP: "jump",
+          KeyK: "fire", KeyO: "activate", KeyI: "floor", KeyU: "dash"
+        };
+    const validActions = new Set(["left", "right", "up", "down", "jump", "fire", "dash", "activate", "floor"]);
+
+    function set(source, action, down) {
+      if (!validActions.has(action)) return false;
+      const values = states[source];
+      if (!values) return false;
+      const pressed = !!down;
+      const wasPressed = !!values[action];
+      values[action] = pressed;
+      if (pressed && !wasPressed && Object.prototype.hasOwnProperty.call(edges, action)) edges[action] = true;
+      return true;
+    }
+
+    function key(code, down, repeat) {
+      const action = bindings[String(code || "")];
+      if (!action) return null;
+      if (repeat && (action === "activate" || action === "dash" || action === "floor" || action === "jump")) return action;
+      set("keyboard", action, down);
+      return action;
+    }
+
+    function touch(action, down) {
+      const normalized = ({ up: "up", down: "down", moveUp: "up", moveDown: "down" })[action] || action;
+      return set("touch", normalized, down);
+    }
+
+    function gamepad(pad) {
+      const state = {};
+      states.gamepad.axisX = 0;
+      states.gamepad.axisY = 0;
+      if (pad && pad.connected !== false) {
+        const axis = (index) => Number(pad.axes && pad.axes[index]) || 0;
+        const button = (index) => !!(pad.buttons && pad.buttons[index] && pad.buttons[index].pressed);
+        const ax = Math.abs(axis(0)) < 0.22 ? 0 : clamp(axis(0));
+        const ay = Math.abs(axis(1)) < 0.22 ? 0 : clamp(axis(1));
+        if (button(14)) state.left = true;
+        if (button(15)) state.right = true;
+        if (button(12)) state.up = true;
+        if (button(13)) state.down = true;
+        states.gamepad.axisX = ax;
+        states.gamepad.axisY = ay;
+        for (const [index, action] of [[0, "jump"], [1, "dash"], [2, "activate"], [3, "fire"], [4, "floor"]]) {
+          if (button(index)) state[action] = true;
+        }
+      }
+      Object.keys(states.gamepad).forEach((action) => set("gamepad", action, false));
+      Object.keys(state).forEach((action) => set("gamepad", action, true));
+    }
+
+    function intent() {
+      const all = [states.keyboard, states.touch, states.gamepad];
+      const held = (action) => all.some((source) => !!source[action]);
+      const moveX = clamp((held("right") ? 1 : 0) - (held("left") ? 1 : 0) + (Number(states.gamepad.axisX) || 0));
+      const moveY = clamp((held("down") ? 1 : 0) - (held("up") ? 1 : 0) + (Number(states.gamepad.axisY) || 0));
+      const jump = held("jump");
+      const result = {
+        moveX,
+        moveY,
+        jump,
+        jumpEdge: !!edges.jump || (jump && !previousJump),
+        fire: held("fire"),
+        dash: !!edges.dash,
+        activate: !!edges.activate,
+        floor: !!edges.floor
+      };
+      previousJump = jump;
+      Object.keys(edges).forEach((action) => { edges[action] = false; });
+      return result;
+    }
+
+    function clear() {
+      Object.keys(states).forEach((source) => {
+        Object.keys(states[source]).forEach((action) => { states[source][action] = false; });
+      });
+      Object.keys(edges).forEach((action) => { edges[action] = false; });
+      previousJump = false;
+    }
+
+    return { key, touch, gamepad, intent, clear };
+  }
+
+  /* Ledge grab (owner 20.11.2026: movement and animation live in crew core).
+     One step of the grab for a Crew in a side view. Pure: the level passes its
+     geometry as ledgeAt(x, footY, dir) -> { top, edgeX } | null (a block top the
+     hands can reach, with room above it) and applies what comes back.
+     actor: { x, y (feet), vy, facing, grounded, hang }
+     input: { jumpEdge (jump pressed this frame), dir (-1, 0, +1) }
+     Returns null (nothing to do) or { hang, x, y, vy, grounded, grabbed?, climbed?, dropped? }. */
+  const HANG_DROP = 1.62; // feet below the ledge top while hanging
+  function crewLedgeStep(actor, input, ledgeAt) {
+    const a = actor || {};
+    const i = input || {};
+    if (a.hang) {
+      const h = a.hang;
+      if (i.jumpEdge) {
+        return { hang: null, x: h.edgeX + h.dir * 0.45, y: h.top, vy: 0, grounded: true, climbed: true };
+      }
+      if (Number(i.dir) === -h.dir) {
+        return { hang: null, x: h.edgeX - h.dir * 0.6, y: h.top - HANG_DROP, vy: -0.5, grounded: false, dropped: true };
+      }
+      return { hang: h, x: h.edgeX - h.dir * 0.34, y: h.top - HANG_DROP, vy: 0, grounded: false };
+    }
+    if (a.grounded || Number(a.vy) > 2.5 || typeof ledgeAt !== "function") return null;
+    const dir = Number(a.facing) < 0 ? -1 : 1;
+    const ledge = ledgeAt(Number(a.x) + dir * 0.5, Number(a.y), dir);
+    if (!ledge) return null;
+    const hang = { top: ledge.top, edgeX: ledge.edgeX, dir: dir };
+    return { hang: hang, x: ledge.edgeX - dir * 0.34, y: ledge.top - HANG_DROP, vy: 0, grounded: false, grabbed: true };
+  }
+
   window.BCMCrewCore = {
+    createCrewControls: createCrewControls,
+    crewLedgeStep: crewLedgeStep,
     speciesMotion: speciesMotion,
     facingFactor: facingFactor,
     readCrewProfile: readCrewProfile,

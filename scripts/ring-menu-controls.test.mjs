@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const source = await readFile(new URL("../mini-sim/assets/js/deep-space-warp.js", import.meta.url), "utf8");
+const coreSource = await readFile(new URL("../mini-sim/assets/js/crew-core.js", import.meta.url), "utf8");
 const ringStart = source.indexOf("function openRingPlatformer(");
 const ringEnd = source.indexOf("function finishRingPlatformer(", ringStart);
 assert.ok(ringStart >= 0 && ringEnd > ringStart, "Ring Frontier source block exists");
@@ -21,7 +22,9 @@ test("Keyboard E/Enter/Space confirm; left/right chooses SINGLE or MULTI", () =>
   assert.match(keyboard, /ArrowRight/);
   assert.match(keyboard, /focusModeMenu\(menuFocusIndex \+ 1\)/);
   assert.match(keyboard, /focusModeMenu\(menuFocusIndex - 1\)/);
-  assert.match(keyboard, /if \(p1Activate \|\| p2Activate\)/, "E must remain the in-game weakpoint activation key after start");
+  assert.match(coreSource, /KeyE: "activate"/, "Crew Core must keep E as P1 interaction");
+  assert.match(coreSource, /KeyO: "activate"/, "Crew Core must keep O as P2 interaction");
+  assert.match(keyboard, /controls\.key\(event\.code, down, event\.repeat\)/, "Ring must delegate physical key normalization to Crew Core");
 });
 
 test("Gamepad A confirms the focused menu option and D-pad/stick changes selection", () => {
@@ -41,6 +44,7 @@ test("Touch/pointer and accessible click activate either visible mode button", (
 
 test("Mode confirmation is idempotent and does not disturb gameplay controls", () => {
   assert.match(ring, /function startMode\(nextMode\)\s*\{\s*if \(done \|\| gameStarted\) return;/);
-  assert.match(ring, /statePad\.jump = !!\(button\(0\) \|\| button\(12\) \|\| axisY < -0\.68\)/);
-  assert.match(ring, /statePad\.activate = !!button\(2\)/);
+  assert.match(coreSource, /\[0, "jump"\]/, "Crew Core must normalize the standard A button as jump");
+  assert.match(coreSource, /\[2, "activate"\]/, "Crew Core must normalize the standard X button as activate");
+  assert.match(ring, /crewControls\[i\]\.gamepad\(players\[i\] \? assignment\[i\] : null\)/, "Ring must feed gamepad samples through Crew Core");
 });

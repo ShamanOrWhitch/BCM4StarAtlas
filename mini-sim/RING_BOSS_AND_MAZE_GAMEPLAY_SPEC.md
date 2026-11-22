@@ -1,6 +1,6 @@
 # Ring boss and maze gameplay — working design spec
 
-**Status:** design-ready, not connected to gameplay. This is the consolidated handoff for boss rules, attacks, animation needs and maze traversal. Numerical timings/damage are deliberately left for playtest rather than invented here.
+**Status:** working design, not connected to gameplay. Verified implementation baseline: `main` Mini-Sim `0.15.37`, commit `0e7befbfb663189fc6309db692bc7a11dd6420e7`; target `0.16.0`, forward-only. Preserve the 0.15.37 Warp and Ring work; do not roll back to 0.15.9. This is the consolidated handoff for boss rules, attacks, animation needs and maze traversal. Numerical timings/damage are deliberately left for playtest rather than invented here. Active WORK LOCK #140 covers overlapping Ring input/locomotion integration; this design spec is not authorization to edit those runtime files. Boss-asset references in this document are not verified as present in the 0.15.37 checkout.
 
 ## Non-negotiable story order
 
@@ -38,11 +38,16 @@ These are readable prototype patterns, not final timings. The current GLBs have 
 
 ## Ring maze traversal and collectibles
 
+**Input/animation integration:** use the active [WORK LOCK #140](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/140) `BCMCrewCore` contract for Ring, not the older 0.15.9 bindings or a copied Ring input table. The normalized intent is `{moveX, moveY, jump, jumpEdge, fire, dash, activate, floor}`; Crew Core owns shared key/gamepad/touch normalization and Crew locomotion/animation states. Ring continues to own its own gravity, collisions and physics. Map flight pulses and boss interaction to this contract, and agree any genuinely new action in the Issue. Boss-stage and gravity-field code is additional Ring scope, not silently assumed to be covered by #140.
+
 - At the user's marked key map locations, place **Hydrogen** pickups to find and collect. Use only user-confirmed marked points; do not infer extra coordinates. Hydrogen pickups in the maze are distinct from flight air-bubbles.
 - Add ledge traversal inspired by classic platformers (Prince of Persia as a mechanics reference, not an asset source): **catch ledge → hang → move along ledge → pull up or drop**. This is hand-to-ledge interaction, not a grappling hook. Allow a catch only within a clear reach envelope; align hands/body to the ledge; the player chooses to climb or let go. Exact controls and co-op rules need playtest.
-- The low-gravity exterior corridor is a modestly longer, moderately harder route than the current test section—not a marathon. Reuse the already-loaded asteroid textures, keep floors/platforms rare, and populate the route with readable electric clusters and bubble lines so it is not empty.
+- **Purple rings/fields mean low gravity**: use the Balloon-style flight loop here. **Blue rings/fields mean high gravity**: jumps are lower and movement feels grounded. Keep the two color-to-gravity rules consistent and visibly readable; retain the comic presentation already present in 0.15.37.
+- The low-gravity exterior corridor is a modestly longer, moderately harder route than the current 0.15.37 section—not a marathon. Reuse the already-loaded asteroid textures, keep floors/platforms rare, and populate the route with readable electric clusters and bubble lines so it is not empty.
 - Keep rightward movement as normal. Repeated flight/jump presses apply lift and a visible jet flame; each impulse consumes both jetpack fuel and breathing reserve. Air bubbles refill both. The ~62 BPM music pulse is a pacing guide, not a strict timing test; allow more frequent taps for active correction. Up/down movement remains available; without lift the astronaut falls into the void.
-- Apply the same Balloon/Balloon Kid-style flight loop as the central traversal response in the Orbiter phase. The Tower's existing second-jump flame effect is a visual/mechanical reference, not a separate flight mode for this course.
+- Apply the same Balloon/Balloon Kid-style flight loop as the central traversal response in the Orbiter phase. The Tower's existing second-jump flame effect is a visual reference to preserve, not a separate flight mode for this course.
+- Near Panda and the pigs, replace the confusing long dialogue with a short, clear objective cue, e.g. **«Мы почти у цели! Осталось победить свиней!»** Show it briefly and do not let it cover controls or repeat continuously; choose the display duration in local playtest.
+- Preserve the Warp behavior and comic/Ring mechanics already in 0.15.37. Verify them against that baseline; this task must not restore older Warp copies or revert work.
 
 ## Model/rig deliverables
 

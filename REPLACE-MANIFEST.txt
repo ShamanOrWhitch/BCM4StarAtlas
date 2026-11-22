@@ -1,0 +1,21 @@
+BCM Mini-Sim 0.16.0 — repository replacement files
+Base checkout: 27c99162364c47372fabde6389be8d972ce58ee3
+Apply: extract this ZIP at the repository root, preserving paths and overwriting files.
+Contents are changed/new tracked-source, documentation, and test files only; unchanged assets/dependencies are not duplicated.
+
+mini-sim/JOURNAL_IDEAS.md
+mini-sim/JOURNAL_KIT.md
+mini-sim/RELEASE_NOTES_0.16.0.md
+mini-sim/RING_BOSS_AND_MAZE_GAMEPLAY_SPEC.md
+mini-sim/RING_MAZE_WORK_LOCK_PACKET.md
+mini-sim/RING_PIG_BOSS_ARC.md
+mini-sim/assets/js/crew-core.js
+mini-sim/assets/js/deep-space-warp.js
+mini-sim/assets/js/mini-sim.js
+mini-sim/bcm-mini-sim.php
+scripts/crew-controls.test.mjs
+scripts/ring-boss-arc.test.mjs
+scripts/ring-boss-assets.test.mjs
+scripts/ring-boss-model-probe.mjs
+scripts/ring-frontier-visuals.test.mjs
+scripts/ring-menu-controls.test.mjs
