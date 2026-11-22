@@ -1,4 +1,10 @@
 ## Current checkpoint — Mini-Sim 0.16.1 (22 November 2026; refreshed after owner uploads)
+## Owner gameplay acceptance — 22 November 2026
+
+- **USER-CONFIRMED on Mini-Sim 0.16.1 / current `main`:** owner reports completing the gameplay test, flying the route out and back, and testing Ring. Objects and gameplay elements appeared in their expected positions; the tested behavior was as expected.
+- This is a **manual owner gameplay check**, separate from automated source assertions and CI. The report does not claim a full physical-device/gamepad matrix, live WordPress QA, or deployment verification.
+- No additional defect was reported in this test pass. Keep the historical test failures and remaining WORK LOCK records visible; this user confirmation does not retroactively turn old failed automated assertions into PASS.
+
 
 - **Purpose:** 0.16.1 is the current-main development/test checkpoint. This is a version marker and installable package baseline, not a claim that all gameplay paths are integrated or manually accepted.
 - **Source baseline before version synchronization:** `7300695702d2c592413525ed847c7844f9351716`. It is the exact latest owner-uploaded `main` snapshot, including the Dr Arena 0.16.0 patch 1.2 payload. The upload chain is `7d681590` (0.16.0 patch 1), `9703cd33` (patch 1.1), and `73006957` (patch 1.2). The previous checkpoint at `475bebc5521c4e544dbd7f064e31e6a3eac9d6c1` is superseded as the source baseline by these three later commits.
