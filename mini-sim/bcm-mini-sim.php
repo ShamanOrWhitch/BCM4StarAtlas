@@ -849,7 +849,8 @@ function bcm_mini_sim_enqueue_assets()
     wp_enqueue_script('bcm-sage-map-core', BCM_MINI_SIM_URL . 'assets/js/sage-map-core.js', array('bcm-sage-map'), BCM_MINI_SIM_VERSION, true);
     wp_enqueue_script('bcm-warp-bridge', BCM_MINI_SIM_URL . 'assets/js/warp-bridge.js', array(), BCM_MINI_SIM_VERSION, true);
     wp_enqueue_script('bcm-asteroid-maze-location', BCM_MINI_SIM_URL . 'assets/js/asteroid-maze-location.js', array('bcm-mini-sim', 'bcm-crew-core', 'bcm-hull-dive', 'bcm-warp-bridge'), BCM_MINI_SIM_VERSION, true);
-    wp_enqueue_script('bcm-deep-space-warp', BCM_MINI_SIM_URL . 'assets/js/deep-space-warp.js', array('bcm-mini-sim', 'bcm-hull-dive', 'bcm-crew-core', 'bcm-warp-sector-scene', 'bcm-sage-map-core', 'bcm-warp-bridge', 'bcm-asteroid-maze-location'), BCM_MINI_SIM_VERSION, true);
+    wp_enqueue_script('bcm-ring-platformer', BCM_MINI_SIM_URL . 'assets/js/ring-platformer.js', array('bcm-mini-sim', 'bcm-crew-core'), BCM_MINI_SIM_VERSION, true);
+    wp_enqueue_script('bcm-deep-space-warp', BCM_MINI_SIM_URL . 'assets/js/deep-space-warp.js', array('bcm-mini-sim', 'bcm-hull-dive', 'bcm-crew-core', 'bcm-warp-sector-scene', 'bcm-sage-map-core', 'bcm-warp-bridge', 'bcm-asteroid-maze-location', 'bcm-ring-platformer'), BCM_MINI_SIM_VERSION, true);
     wp_enqueue_script('bcm-ui-layer-audit', BCM_MINI_SIM_URL . 'assets/js/ui-layer-audit.js', array('bcm-deep-space-warp'), BCM_MINI_SIM_VERSION, true);
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
         'crewServerAjax' => admin_url('admin-ajax.php'),
