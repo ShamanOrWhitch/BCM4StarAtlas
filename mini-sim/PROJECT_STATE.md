@@ -6,7 +6,7 @@
 - No additional defect was reported in this test pass. Keep the historical test failures and remaining WORK LOCK records visible; this user confirmation does not retroactively turn old failed automated assertions into PASS.
 
 
-- **Purpose:** 0.16.1 is the current-main development/test checkpoint. This is a version marker and installable package baseline, not a claim that all gameplay paths are integrated or manually accepted.
+- **Purpose:** 0.16.1 is the current-main development/test checkpoint. This is a version marker and installable package baseline, not a claim that every gameplay path is fully integrated or every scenario has been certified. The limited owner-confirmed manual pass is recorded immediately above.
 - **Source baseline before version synchronization:** `7300695702d2c592413525ed847c7844f9351716`. It is the exact latest owner-uploaded `main` snapshot, including the Dr Arena 0.16.0 patch 1.2 payload. The upload chain is `7d681590` (0.16.0 patch 1), `9703cd33` (patch 1.1), and `73006957` (patch 1.2). The previous checkpoint at `475bebc5521c4e544dbd7f064e31e6a3eac9d6c1` is superseded as the source baseline by these three later commits.
 - **Version synchronization:** PHP plugin header, `BCM_MINI_SIM_VERSION`, PHP embedded title and the three runtime title/fallback strings are synchronized to `0.16.1`. Version-only commits: `3226f6c8` (PHP) and `19a2b7c2` (runtime labels). No gameplay behavior was changed by these marker edits.
 - **Tower:** current-main Tower remains `0.2.88`; this checkpoint does not change its version.
