@@ -1,5 +1,4 @@
 import { createSeededRandom } from "./seed";
-import { loadRaceLevel, raceModeFor, type RaceKind, type RaceMode } from "./race-modes";
 import {
   buildTrack,
   crossedForward,
@@ -43,18 +42,7 @@ export type Car = {
   stuck: number;
   aiOffset: number;
   aiClock: number;
-  /** Elimination: off the course; outOrder 1 = the first one out. */
-  out: boolean;
-  outOrder: number;
-  /** Slalom: seconds added for missed gates, and how many were missed. */
-  penalty: number;
-  missed: number;
-  /** Slalom: index of the gate this car meets next (-1: find it again after a respawn). */
-  gateNext: number;
 };
-
-/** A slalom gate: where along the lap, its centre across the road and its half-width. */
-export type Gate = { s: number; lat: number; half: number };
 
 export type Box = {
   s: number;
@@ -82,7 +70,6 @@ export type StandingsRow = {
   done: boolean;
   time: number;
   color: number;
-  out: boolean;
 };
 
 export type Hud = {
@@ -100,37 +87,24 @@ export type Hud = {
   wrong: boolean;
   rows: StandingsRow[];
   go: number;
-  mode: RaceKind;
-  title: string;
-  map: string;
-  rules: string;
-  level: number;
-  laps: number;
-  penalty: number;
-  missed: number;
-  out: boolean;
-  /** Slalom: the next gate is this far ahead (m), -1 when there is none. */
-  nextGate: number;
 };
 
 const BEST_KEY = "galia-shoal-v1";
 
-const bestKey = (planet?: string) => (planet && planet !== "first" ? BEST_KEY + "-" + planet : BEST_KEY);
-
-export function loadStoredBest(planet?: string) {
+export function loadStoredBest() {
   try {
-    const raw = JSON.parse(localStorage.getItem(bestKey(planet)) || "");
+    const raw = JSON.parse(localStorage.getItem(BEST_KEY) || "");
     return typeof raw.bestLap === "number" && raw.bestLap > 0 ? raw.bestLap : 0;
   } catch {
     return 0;
   }
 }
 
-export function saveStoredBest(bestLap: number, planet?: string) {
+export function saveStoredBest(bestLap: number) {
   if (!(bestLap > 0)) return;
-  const prev = loadStoredBest(planet);
+  const prev = loadStoredBest();
   if (prev > 0 && prev <= bestLap) return;
-  localStorage.setItem(bestKey(planet), JSON.stringify({ v: 1, bestLap }));
+  localStorage.setItem(BEST_KEY, JSON.stringify({ v: 1, bestLap }));
 }
 
 function makeCar(
@@ -169,11 +143,6 @@ function makeCar(
     stuck: 0,
     aiOffset: spec.offset,
     aiClock: index * 1.7,
-    out: false,
-    outOrder: 0,
-    penalty: 0,
-    missed: 0,
-    gateNext: 0,
   };
 }
 
@@ -186,12 +155,6 @@ function rollItem(nudge: number): ItemKind {
 
 export type Race = {
   seed: number;
-  planet?: string;
-  mode: RaceMode;
-  level: number;
-  laps: number;
-  gates: Gate[];
-  eliminated: number;
   track: Track;
   cars: Car[];
   boxes: Box[];
@@ -218,31 +181,6 @@ function layoutBoxes(track: Track, seed: number): Box[] {
   });
 }
 
-/** Slalom gates down the lap, alternating sides; the same gates every lap. */
-function layoutGates(track: Track, seed: number, mode: RaceMode): Gate[] {
-  if (mode.kind !== "slalom" || mode.gatesPerLap <= 0) return [];
-  const random = createSeededRandom(seed, "shoal-race-gates");
-  const half = mode.gateHalf;
-  const gates: Gate[] = [];
-  for (let i = 0; i < mode.gatesPerLap; i++) {
-    const fraction = 0.06 + (i / mode.gatesPerLap) * 0.9 + (random() - 0.5) * 0.02;
-    const side = i % 2 === 0 ? 1 : -1;
-    const reach = Math.min(track.halfWidth - half * 0.6, track.halfWidth * 0.34 + random() * 1.7);
-    gates.push({ s: fraction * track.length, lat: side * reach, half });
-  }
-  return gates;
-}
-
-/** Slalom: the gate the car meets next and how far ahead it is. */
-function nextGate(race: Race, car: Car) {
-  let best: { gate: Gate; d: number } | null = null;
-  for (const gate of race.gates) {
-    const d = forwardDelta(car.s, gate.s, race.track.length);
-    if (d >= 0 && (!best || d < best.d)) best = { gate, d };
-  }
-  return best;
-}
-
 function respawnS(car: Car, track: Track) {
   if (car.lapsDone === 0 && car.gate <= 1) return track.length - 16;
   if (car.gate === 0) return track.checkpoints[track.checkpoints.length - 1];
@@ -263,26 +201,17 @@ function respawnCar(car: Car, track: Track) {
   car.stuck = 0;
   car.drifting = false;
   car.drift = 0;
-  car.gateNext = -1;
 }
 
 function progress(car: Car, length: number) {
-  // Next checkpoint 1 with s near the end of the lap: the car is on the grid, or on
-  // the very frame it took the line. That is behind the line, not a lap more. A slalom penalty also counts on the
-  // way: about 20 m a second.
-  const s = car.gate === 1 && car.s > length * 0.5 ? car.s - length : car.s;
-  return car.lapsDone * length + s - car.penalty * 20;
+  return car.lapsDone * length + car.s;
 }
 
 function rank(cars: Car[], length: number) {
   const order = cars.map((_, i) => i);
-  // Finished first, then the ones still racing, then the ones out (last out = best of them).
-  const tier = (c: Car) => (c.out ? 2 : c.finished ? 0 : 1);
   order.sort((ia, ib) => {
     const a = cars[ia];
     const b = cars[ib];
-    if (tier(a) !== tier(b)) return tier(a) - tier(b);
-    if (a.out && b.out) return b.outOrder - a.outOrder;
     if (a.finished && b.finished) return a.finishTime - b.finishTime;
     if (a.finished) return -1;
     if (b.finished) return 1;
@@ -321,23 +250,10 @@ function applyItem(race: Race, index: number) {
 function aiDrive(car: Car, race: Race): DriveInput {
   const track = race.track;
   const look = 12 + Math.min(14, Math.max(0, car.speed) * 0.32);
-  let ahead = sampleAt(track, car.s + look);
-  // Slalom: steer straight for the centre of the next gate.
-  let line = car.aiOffset;
-  let gateClose = false;
-  if (race.gates.length) {
-    const next = nextGate(race, car);
-    if (next && next.d < 60) {
-      // Lead the gate: look a little short of it and over-aim its side, so the
-      // car is already across when it gets there.
-      line = Math.max(-track.halfWidth + 1, Math.min(track.halfWidth - 1, next.gate.lat * 1.35));
-      ahead = sampleAt(track, car.s + Math.min(look, Math.max(4, next.d - 2)));
-    }
-    gateClose = Boolean(next && next.d < 34);
-  }
+  const ahead = sampleAt(track, car.s + look);
   const desired = Math.atan2(
-    -(ahead.x + ahead.nx * line - car.x),
-    -(ahead.z + ahead.nz * line - car.z),
+    -(ahead.x + ahead.nx * car.aiOffset - car.x),
+    -(ahead.z + ahead.nz * car.aiOffset - car.z),
   );
   let err = desired - car.yaw;
   while (err > Math.PI) err -= Math.PI * 2;
@@ -345,9 +261,7 @@ function aiDrive(car: Car, race: Race): DriveInput {
   const steer = Math.min(1, Math.max(-1, err / 0.55));
   const curve = sampleAt(track, car.s + 20).curvature;
   const you = race.cars[0];
-  let target = 33.5 + race.mode.rivalPace - curve * 150;
-  // A slalom pilot lifts off before a gate to make the line.
-  if (gateClose) target = Math.min(target, 27 + race.mode.rivalPace * 0.3);
+  let target = 33.5 - curve * 150;
   const gap = progress(you, track.length) - progress(car, track.length);
   if (gap > 70) target += 4.5;
   if (gap < -90) target -= 3;
@@ -359,8 +273,7 @@ function aiDrive(car: Car, race: Race): DriveInput {
     throttle: car.speed < target ? 1 : 0.2,
     brake: car.speed > target + 7 ? 0.85 : 0,
     steer,
-    // No drift through the slalom: the slide carries the car past the gate.
-    drift: !race.gates.length && Math.abs(err) > 0.5 && car.speed > 20,
+    drift: Math.abs(err) > 0.5 && car.speed > 20,
     use,
   };
 }
@@ -434,22 +347,6 @@ function stepCar(car: Car, input: DriveInput, dt: number, race: Race) {
     const d = forwardDelta(prev, car.s, track.length);
     if (d < -0.2 && sp > 7) car.wrongT += dt;
     else car.wrongT = Math.max(0, car.wrongT - dt * 2);
-    if (!car.finished) {
-      // One gate at a time, in order: weaving across a gate line never counts twice.
-      const gates = race.gates;
-      if (gates.length && car.gateNext < 0) {
-        const ahead = gates.findIndex((g) => g.s >= car.s);
-        car.gateNext = ahead < 0 ? 0 : ahead;
-      }
-      const gate = gates[car.gateNext];
-      if (gate && crossedForward(prev, car.s, gate.s, track.length)) {
-        if (Math.abs(proj.lat - gate.lat) > gate.half) {
-          car.missed += 1;
-          car.penalty += race.mode.penalty;
-        }
-        car.gateNext = (car.gateNext + 1) % gates.length;
-      }
-    }
     const gateS = track.checkpoints[car.gate];
     if (!car.finished && crossedForward(prev, car.s, gateS, track.length)) {
       if (car.gate === 0) {
@@ -458,12 +355,12 @@ function stepCar(car: Car, input: DriveInput, dt: number, race: Race) {
         car.lapStart = race.time;
         car.lapsDone += 1;
         car.gate = 1;
-        if (car.lapsDone >= race.laps) {
+        if (car.lapsDone >= LAPS) {
           car.finished = true;
-          car.finishTime = race.time + car.penalty;
+          car.finishTime = race.time;
           if (car.you) {
-            saveStoredBest(car.bestLap, race.planet);
-            race.storedBest = loadStoredBest(race.planet);
+            saveStoredBest(car.bestLap);
+            race.storedBest = loadStoredBest();
           }
         }
       } else {
@@ -490,39 +387,14 @@ const ROSTER = [
   { name: "Halo", you: false, color: 0xd7d2c8, offset: 0.4 },
 ];
 
-/** Elimination: once the leader has done n laps, n cars are out (two reach the finish). */
-function eliminate(race: Race) {
-  if (race.mode.kind !== "elimination") return;
-  const racing = race.cars.filter((c) => !c.out && !c.finished);
-  const leadLaps = Math.max(0, ...race.cars.filter((c) => !c.out).map((c) => c.lapsDone));
-  const allowed = Math.min(leadLaps, race.cars.length - 2);
-  if (race.eliminated >= allowed || racing.length < 2) return;
-  const last = racing.reduce((a, b) => (b.place > a.place ? b : a));
-  race.eliminated += 1;
-  last.out = true;
-  last.outOrder = race.eliminated;
-  last.finished = true;
-  last.finishTime = race.time;
-  rank(race.cars, race.track.length);
-}
-
-/** planet: the First Planet the race is on (its form of the race); level: 1..3. */
-export function createRace(seed = 0, planet?: string, level?: number): Race {
+export function createRace(seed = 0): Race {
   const locationSeed = Number(seed) >>> 0;
-  const mode = raceModeFor(planet, level ?? loadRaceLevel(planet));
   const track = buildTrack(locationSeed);
-  track.halfWidth = mode.halfWidth;
   const race: Race = {
     seed: locationSeed,
-    planet,
-    mode,
-    level: mode.level,
-    laps: mode.laps,
-    gates: layoutGates(track, locationSeed, mode),
-    eliminated: 0,
     track,
     cars: ROSTER.map((spec, i) => makeCar(track, i, spec)),
-    boxes: mode.items ? layoutBoxes(track, locationSeed) : [],
+    boxes: layoutBoxes(track, locationSeed),
     slicks: [],
     time: 0,
     go: 0,
@@ -562,23 +434,11 @@ export function createRace(seed = 0, planet?: string, level?: number): Race {
         return true;
       });
       rank(this.cars, this.track.length);
-      eliminate(this);
     },
     hud() {
       const you = this.cars[0];
-      const gate = this.gates.length ? nextGate(this, you) : null;
       return {
-        mode: this.mode.kind,
-        title: this.mode.title,
-        map: this.mode.map,
-        rules: this.mode.rules,
-        level: this.level,
-        laps: this.laps,
-        penalty: you.penalty,
-        missed: you.missed,
-        out: you.out,
-        nextGate: gate ? gate.d : -1,
-        lap: Math.min(this.laps, you.lapsDone + 1),
+        lap: Math.min(LAPS, you.lapsDone + 1),
         time: this.time,
         lapTime: this.time - you.lapStart,
         bestLap: you.bestLap,
@@ -599,19 +459,12 @@ export function createRace(seed = 0, planet?: string, level?: number): Race {
             done: car.finished,
             time: car.finished ? car.finishTime : this.time,
             color: car.color,
-            out: car.out,
           })),
         go: this.go,
       };
     },
     reset() {
-      // Same seed and planet; the level may have opened up after a win.
-      const next = createRace(this.seed, this.planet);
-      this.mode = next.mode;
-      this.level = next.level;
-      this.laps = next.laps;
-      this.gates = next.gates;
-      this.eliminated = 0;
+      const next = createRace();
       this.cars = next.cars;
       this.boxes = next.boxes;
       this.slicks = [];
@@ -623,6 +476,6 @@ export function createRace(seed = 0, planet?: string, level?: number): Race {
       respawnCar(this.cars[0], this.track);
     },
   };
-  if (typeof window !== "undefined") race.storedBest = loadStoredBest(planet);
+  if (typeof window !== "undefined") race.storedBest = loadStoredBest();
   return race;
 }

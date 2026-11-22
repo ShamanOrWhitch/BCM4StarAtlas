@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { Compass, Gauge, Pause, RotateCcw } from "lucide-react";
 import { bindKeyboard, held, setForced, tiltEnabled, toggleTilt } from "@/game/input";
 import { createIsland, type IslandWorld, type Phase } from "@/game/island/scene";
-import { planetContent } from "@/game/island/content";
 import { planetLook } from "@/game/island/planet";
 import type { IslandHud } from "@/game/island/sim";
 
@@ -235,7 +234,7 @@ export function DesertIsland({
             </div>
             <div className="rounded-xl border border-line bg-bg/50 p-3">
               <dt className="text-muted">Жители</dt>
-              <dd className="font-medium">{planetContent(context.planet).people}</dd>
+              <dd className="font-medium">Сера, Орр, Ламп, Джаман</dd>
             </div>
           </dl>
           <p className="mt-4 text-sm text-muted">

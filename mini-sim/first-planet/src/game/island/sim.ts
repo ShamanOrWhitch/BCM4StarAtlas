@@ -21,7 +21,6 @@ import {
   regionName,
   type Aabb,
 } from "./terrain";
-import { planetContent, type PlanetContent, type QuestKind } from "./content";
 
 const SAVE_KEY = "desert-island-v1";
 
@@ -41,8 +40,6 @@ type Save = {
   chest: boolean;
   tapes: string[];
   selectedTape: string;
-  /** relay quests whose item was handed over (IDEA-021). */
-  relay?: Partial<Record<QuestId, boolean>>;
 };
 
 export type IslandHud = {
@@ -81,7 +78,6 @@ function loadSave(storageKey = SAVE_KEY): Save {
     chest: false,
     tapes: [],
     selectedTape: "",
-    relay: {},
   };
   try {
     const raw = localStorage.getItem(storageKey);
@@ -104,7 +100,6 @@ function loadSave(storageKey = SAVE_KEY): Save {
       tapes: [...new Set(tapes)],
       selectedTape,
       quests: { ...blank.quests, ...parsed.quests },
-      relay: { ...(parsed.relay || {}) },
     };
   } catch {
     return blank;
@@ -147,6 +142,32 @@ function collide(x: number, z: number, y: number, walls: Aabb[]) {
   return { x: px, z: pz };
 }
 
+const SERA_OFFER = [
+  "Ты с посадочной? Оранжевый байк ещё тёплый — значит, свой.",
+  "Оазис гаснет без кристаллов с западной гряды. Принеси три. Не больше: остров считает.",
+];
+const SERA_GO = ["Гряда за архивом, на западе. Три камня, и лампа у воды проживёт ночь."];
+const SERA_READY = ["Все три. Оставлю их у колодца — оазис это почувствует."];
+const SERA_DONE = [
+  "Если поднимешься выше дюн, увидишь висячий остров. Трассы туда ещё не положили, место уже наше.",
+];
+
+const ORR_OFFER = [
+  "Архив закрыт. Ключ унесло к разбитому ховеру на восточном пляже.",
+  "Принесёшь — открою створку. Внутри журнал посадки и сундук не мой, рыночный.",
+];
+const ORR_GO = ["Восток, у кромки воды. Корпус красный с синим, не перепутай с байком у входа."];
+const ORR_READY = ["Ключ тёплый. Створка твоя. Журнал на столе, дом можно читать стоя."];
+const ORR_DONE = ["Журнал на столе. Остальные двери посёлка и так без замка."];
+
+const BULB_OFFER = [
+  "Рынок спит, пока жаровни холодные. Я Ламп, я слежу за огнём.",
+  "Зажги две: одну у скамьи, вторую у моста. Тогда сундук отпустит крышку.",
+];
+const BULB_GO = ["Две жаровни. Подойди и нажми E. Я не достаю до фитиля."];
+const BULB_READY = ["Тепло пошло по площади. Сундук больше не держит."];
+const BULB_DONE = ["Северное кольцо за оазисом — это уже гонка, не прогулка. Кольцо само просит E."];
+
 const JAHMAN_LINES = [
   "Я Джаман. Ящик — видеомагнитофон. Сказка живёт на кассете, не в эфире.",
   "Найденные и добытые кассеты хранятся в инвентаре. Подойди к ящику, выбери ленту и нажми E. E ставит на паузу, G открывает на весь экран. Музыка острова возле экрана почти затихает.",
@@ -183,27 +204,30 @@ const TALES: { title: string; pages: string[] }[] = [
   },
 ];
 
-function lines(content: PlanetContent, id: QuestId, status: Quest, ready: boolean) {
-  const r = content.residents[id];
-  if (status === "done") return { pages: r.done, commit: null as Quest | null };
-  if (ready) return { pages: r.ready, commit: "done" as Quest };
-  if (status === "new") return { pages: r.offer, commit: "go" as Quest };
-  return { pages: r.go, commit: null as Quest | null };
-}
-
-function capital(text: string) {
-  return text ? text[0].toUpperCase() + text.slice(1) : text;
+function lines(id: QuestId, status: Quest, ready: boolean) {
+  if (id === "sera") {
+    if (status === "done") return { pages: SERA_DONE, commit: null as Quest | null };
+    if (ready) return { pages: SERA_READY, commit: "done" as Quest };
+    if (status === "new") return { pages: SERA_OFFER, commit: "go" as Quest };
+    return { pages: SERA_GO, commit: null };
+  }
+  if (id === "orr") {
+    if (status === "done") return { pages: ORR_DONE, commit: null };
+    if (ready) return { pages: ORR_READY, commit: "done" as Quest };
+    if (status === "new") return { pages: ORR_OFFER, commit: "go" as Quest };
+    return { pages: ORR_GO, commit: null };
+  }
+  if (status === "done") return { pages: BULB_DONE, commit: null };
+  if (ready) return { pages: BULB_READY, commit: "done" as Quest };
+  if (status === "new") return { pages: BULB_OFFER, commit: "go" as Quest };
+  return { pages: BULB_GO, commit: null };
 }
 
 export type Sim = ReturnType<typeof createSim>;
 
-export function createSim(seed = 0, planet?: string) {
+export function createSim(seed = 0) {
   const locationSeed = Number(seed) >>> 0;
-  // Each planet has its own residents and its own progress (IDEA-021). Twinsun
-  // (the desert, "first") keeps the old save key, so old saves stay.
-  const content = planetContent(planet);
-  const planetKey = planet && planet !== "first" ? "-" + planet : "";
-  const storageKey = (locationSeed ? SAVE_KEY + "-" + locationSeed.toString(16) : SAVE_KEY) + planetKey;
+  const storageKey = locationSeed ? SAVE_KEY + "-" + locationSeed.toString(16) : SAVE_KEY;
   const save = loadSave(storageKey);
   const initialTape = TAPES.find((tape) => tape.id === save.selectedTape && save.tapes.includes(tape.id));
   const sim = {
@@ -228,8 +252,6 @@ export function createSim(seed = 0, planet?: string) {
     key: save.key,
     fires: save.fires.slice(),
     quests: { ...save.quests },
-    relay: { ...(save.relay || {}) } as Partial<Record<QuestId, boolean>>,
-    content,
     coins: save.coins,
     chest: save.chest,
     tapes: save.tapes.slice(),
@@ -303,7 +325,6 @@ export function createSim(seed = 0, planet?: string) {
         chest: this.chest,
         tapes: this.tapes,
         selectedTape: this.selectedTape,
-        relay: this.relay,
       };
       try {
         localStorage.setItem(storageKey, JSON.stringify(data));
@@ -318,33 +339,13 @@ export function createSim(seed = 0, planet?: string) {
     fireCount() {
       return this.fires.filter(Boolean).length;
     },
-    /** The resident (slot) who gives the quest of this kind on this planet. */
-    giverOf(kind: QuestKind): QuestId | null {
-      const slots = Object.keys(this.content.residents) as QuestId[];
-      return slots.find((slot) => this.content.residents[slot].kind === kind) ?? null;
-    },
-    giverName(kind: QuestKind) {
-      const slot = this.giverOf(kind);
-      return slot ? this.content.residents[slot].name : "";
-    },
     ready(id: QuestId) {
-      const kind = this.content.residents[id].kind;
-      if (kind === "collect") return this.crystalCount() >= 3;
-      if (kind === "fetch") return this.key;
-      if (kind === "light") return this.fireCount() >= 2;
-      return !!this.relay[id];
+      if (id === "sera") return this.crystalCount() >= 3;
+      if (id === "orr") return this.key;
+      return this.fireCount() >= 2;
     },
     openTalk(id: QuestId, who: string) {
-      // Relay: this resident may be the receiver of another resident's item.
-      for (const giver of Object.keys(this.content.residents) as QuestId[]) {
-        const r = this.content.residents[giver];
-        if (r.kind !== "relay" || r.to !== id || this.quests[giver] !== "go" || this.relay[giver]) continue;
-        this.relay[giver] = true;
-        this.dirty = true;
-        this.dialogue = { who, pages: (r.handover || [r.item]).slice(), i: 0, commit: null, quest: null };
-        return;
-      }
-      const pack = lines(this.content, id, this.quests[id], this.ready(id));
+      const pack = lines(id, this.quests[id], this.ready(id));
       this.dialogue = { who, pages: pack.pages, i: 0, commit: pack.commit, quest: id };
     },
     advance() {
@@ -376,10 +377,9 @@ export function createSim(seed = 0, planet?: string) {
         const dz = z - pz;
         return dx * dx + dz * dz < r * r;
       };
-      const people = this.content.residents;
-      if (hit(NPC.sera.x, NPC.sera.z, 2.3)) return this.openTalk("sera", people.sera.name);
-      if (hit(NPC.orr.x, NPC.orr.z, 2.3)) return this.openTalk("orr", people.orr.name);
-      if (hit(NPC.bulb.x, NPC.bulb.z, 2.3)) return this.openTalk("bulb", people.bulb.name);
+      if (hit(NPC.sera.x, NPC.sera.z, 2.3)) return this.openTalk("sera", NPC.sera.name);
+      if (hit(NPC.orr.x, NPC.orr.z, 2.3)) return this.openTalk("orr", NPC.orr.name);
+      if (hit(NPC.bulb.x, NPC.bulb.z, 2.3)) return this.openTalk("bulb", NPC.bulb.name);
       if (hit(JAHMAN.x, JAHMAN.z, 1.45)) return this.say("Джаман", JAHMAN_LINES);
       for (const tape of TAPES) {
         if (tape.x === null || tape.z === null || this.tapes.includes(tape.id)) continue;
@@ -417,8 +417,10 @@ export function createSim(seed = 0, planet?: string) {
         if (hit(CRYSTALS[i].x, CRYSTALS[i].z, 2)) {
           this.crystals[i] = true;
           this.dirty = true;
-          this.say(capital(this.content.residents[this.giverOf("collect") ?? "sera"].item), [
-            this.content.pickup(this.crystalCount(), this.giverName("collect")),
+          this.say("Кристалл", [
+            this.crystalCount() >= 3
+              ? "Третий. Сера у своего дома — ей можно нести."
+              : `В сумке ${this.crystalCount()} из 3. Гряда ещё держит остальные.`,
           ]);
           return;
         }
@@ -426,7 +428,7 @@ export function createSim(seed = 0, planet?: string) {
       if (!this.key && hit(KEY_SPOT.x, KEY_SPOT.z, 1.8)) {
         this.key = true;
         this.dirty = true;
-        this.say(capital(this.content.residents[this.giverOf("fetch") ?? "orr"].item), [this.content.found(this.giverName("fetch"))]);
+        this.say("Ключ", ["Золото с синей головкой. Орр стоит у архива и делает вид, что не смотрит."]);
         return;
       }
       for (let i = 0; i < BRAZIERS.length; i++) {
@@ -435,16 +437,14 @@ export function createSim(seed = 0, planet?: string) {
           this.fires[i] = true;
           this.dirty = true;
           this.say("Жаровня", [
-            this.content.lit(this.fireCount(), this.giverName("light")),
+            this.fireCount() >= 2 ? "Обе горят. Ламп на площади уже слышит треск." : "Одна горит. Вторая ещё холодная.",
           ]);
           return;
         }
       }
       if (hit(CHEST.x, CHEST.z, 2.55)) {
-        // The market chest belongs to the resident on the square (slot "bulb").
-        // Open once the square resident's quest is done or ready (Twinsun: both braziers lit).
-        if (this.quests.bulb !== "done" && !this.ready("bulb")) {
-          this.say("Сундук", [this.content.chestLocked(this.content.residents.bulb.name)]);
+        if (this.quests.bulb !== "done" && this.fireCount() < 2) {
+          this.say("Сундук", ["Крышка не шевелится. Ламп говорит: сперва две жаровни."]);
           return;
         }
         if (!this.chest) {
@@ -453,7 +453,7 @@ export function createSim(seed = 0, planet?: string) {
           if (!this.tapes.includes("invaders10")) this.tapes.push("invaders10");
           this.dirty = true;
           this.persist();
-          this.say("Сундук", [this.content.chestReward]);
+          this.say("Сундук", ["Двенадцать монет посадочного сбора и кассета «Invaders 10». Лента добавлена в инвентарь — её можно выбрать у видеоящика."]);
           return;
         }
         this.say("Сундук", ["Пусто. Рынок честный ровно один раз."]);
@@ -461,10 +461,13 @@ export function createSim(seed = 0, planet?: string) {
       }
       if (hit(JOURNAL.x, JOURNAL.z, 1.8)) {
         if (this.quests.orr !== "done") {
-          this.say("Журнал", [this.content.journalLocked(this.content.residents.orr.name)]);
+          this.say("Журнал", ["Створка ещё держит. Снаружи это просто стена, изнутри — тоже, пока Орр не повернёт ключ."]);
           return;
         }
-        this.say("Журнал посадки", this.content.journal.slice());
+        this.say("Журнал посадки", [
+          "«Дюнный посад. Вход с юга, байк оставлять на плите. Дома жилые. Квесты не декорация — жители ждут.»",
+          "Ниже другим почерком: «Северное кольцо выводит на берег цитадели. Трассы висячего острова — следующим рейсом.»",
+        ]);
         return;
       }
       if (hit(SKY_NOTE.x, SKY_NOTE.z, 3) && this.y > 10) {
@@ -541,9 +544,9 @@ export function createSim(seed = 0, planet?: string) {
       const x = this.x;
       const z = this.z;
       const hit = (px: number, pz: number, r: number) => (x - px) ** 2 + (z - pz) ** 2 < r * r;
-      if (hit(NPC.sera.x, NPC.sera.z, 2.3)) this.prompt = "E — " + this.content.residents.sera.name;
-      else if (hit(NPC.orr.x, NPC.orr.z, 2.3)) this.prompt = "E — " + this.content.residents.orr.name;
-      else if (hit(NPC.bulb.x, NPC.bulb.z, 2.3)) this.prompt = "E — " + this.content.residents.bulb.name;
+      if (hit(NPC.sera.x, NPC.sera.z, 2.3)) this.prompt = "E — Сера Венн";
+      else if (hit(NPC.orr.x, NPC.orr.z, 2.3)) this.prompt = "E — Орр-1";
+      else if (hit(NPC.bulb.x, NPC.bulb.z, 2.3)) this.prompt = "E — Ламп";
       else if (hit(JAHMAN.x, JAHMAN.z, 1.45)) this.prompt = "E — Джаман";
       else if (TAPES.some((tape) => tape.x !== null && tape.z !== null && !this.tapes.includes(tape.id) && hit(tape.x, tape.z, 1.25))) this.prompt = "E — взять кассету";
       else if (hit(STORY_BOX.x, STORY_BOX.z, 1.55)) {
@@ -727,19 +730,46 @@ export function createSim(seed = 0, planet?: string) {
       }
     },
     hud(): IslandHud {
-      const quests: IslandHud["quests"] = (["sera", "orr", "bulb"] as QuestId[]).map((id) => {
-        const r = this.content.residents[id];
-        const progress =
-          r.kind === "collect" ? `${r.item} ${this.crystalCount()}/3`
-          : r.kind === "fetch" ? `${r.item}: восточный берег`
-          : r.kind === "light" ? `${r.item} ${this.fireCount()}/2`
-          : `отнести ${r.item}: ${r.to ? this.content.residents[r.to].name : ""}`;
-        const status = this.quests[id] === "done" ? r.closed
-          : this.ready(id) ? r.turnIn
-          : this.quests[id] === "go" ? progress
-          : r.wait;
-        return { id, title: r.title, status };
-      });
+      const quests: IslandHud["quests"] = [
+        {
+          id: "sera",
+          title: "Свет оазиса",
+          status:
+            this.quests.sera === "done"
+              ? "сдано"
+              : this.ready("sera")
+                ? "можно сдать"
+                : this.quests.sera === "go"
+                  ? `кристаллы ${this.crystalCount()}/3`
+                  : "Сера ждёт у дома",
+        },
+        {
+          id: "orr",
+          title: "Ключ архива",
+          status:
+            this.quests.orr === "done"
+              ? "створка открыта"
+              : this.ready("orr")
+                ? "отнести Орру"
+                : this.quests.orr === "go"
+                  ? "ключ на восточном пляже"
+                  : "Орр у архива",
+        },
+        {
+          id: "bulb",
+          title: "Ночной рынок",
+          status:
+            this.quests.bulb === "done"
+              ? this.chest
+                ? "сундук пуст"
+                : "сундук открыт"
+              : this.ready("bulb")
+                ? "сказать Лампу"
+                : this.quests.bulb === "go"
+                  ? `жаровни ${this.fireCount()}/2`
+                  : "Ламп на площади",
+        },
+      ];
       return {
         mode: this.mode,
         flightMode: this.flightMode,
@@ -752,7 +782,7 @@ export function createSim(seed = 0, planet?: string) {
           : null,
         quests,
         coins: this.coins,
-        crystals: this.quests[this.giverOf("collect") ?? "sera"] === "done" ? 0 : this.crystalCount(),
+        crystals: this.quests.sera === "done" ? 0 : this.crystalCount(),
         fires: this.fireCount(),
         x: this.x,
         z: this.z,
@@ -764,11 +794,11 @@ export function createSim(seed = 0, planet?: string) {
         tapes: TAPES.filter((tape) => this.tapes.includes(tape.id)).map((tape) => ({ id: tape.id, title: tape.title })),
         inventory: [
           ...TAPES.filter((tape) => this.tapes.includes(tape.id)).map((tape) => ({ id: tape.id, title: tape.title, kind: "tape" as const, count: 1 })),
-          ...(this.quests[this.giverOf("collect") ?? "sera"] !== "done" && this.crystalCount() > 0
-            ? [{ id: "crystals", title: capital(this.content.residents[this.giverOf("collect") ?? "sera"].item), kind: "crystal" as const, count: this.crystalCount() }]
+          ...(this.quests.sera !== "done" && this.crystalCount() > 0
+            ? [{ id: "crystals", title: "Кристаллы", kind: "crystal" as const, count: this.crystalCount() }]
             : []),
-          ...(this.key && this.quests[this.giverOf("fetch") ?? "orr"] !== "done"
-            ? [{ id: "key", title: capital(this.content.residents[this.giverOf("fetch") ?? "orr"].item), kind: "key" as const, count: 1 }]
+          ...(this.key && this.quests.orr !== "done"
+            ? [{ id: "key", title: "Ключ архива", kind: "key" as const, count: 1 }]
             : []),
         ],
         selectedTape: this.selectedTape,
