@@ -122,7 +122,7 @@ test("the Ring runs the Runner as a rear-view chase in the same WebGL context", 
   assert.doesNotMatch(ring, /new THREE\.WebGLRenderer/, "a second WebGL context for the chase");
   assert.match(ring, /jetjet_[a-z]+_flight\.glb/, "Opal Jetjet is not loaded for the chase");
   assert.match(ring, /jetjet_[a-z]+_parked\.glb/, "no parked Jetjet for boarding");
-  assert.match(ring, /phase-5-runner-rear\.glb/, "the Runner is not shown from behind");
+  assert.match(ring, /phase-forms\/phase-5-runner\.glb/, "the Runner is not shown from behind (its back cap)");
   assert.match(ring, /ПОЛОСА[\s\S]{0,80}ПРЫЖОК[\s\S]{0,80}ЛАЗЕР[\s\S]{0,80}РЫВОК/, "the HUD does not show what the buttons do in the chase");
   assert.match(read("mini-sim/bcm-mini-sim.php"), /'bcm-ring-runner-chase'[\s\S]{0,140}ring-runner-chase\.js/);
   assert.match(read("tools/minisim-qa/standalone-shell.html"), /ring-runner-chase\.js/);

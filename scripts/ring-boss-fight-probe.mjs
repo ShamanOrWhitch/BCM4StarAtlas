@@ -53,8 +53,11 @@ try {
     let shot = false;
     for (let i = 0; i < 16; i += 1) {
       const snap = await page.evaluate(() => window.__BCM_RING_BOSS_QA__.snapshot());
-      samples.push({ state: snap.moveState, vulnerable: snap.vulnerable, x: Math.round(snap.bossX * 10) / 10, zones: snap.zones, form: snap.moveForm, phase: snap.phaseIndex });
-      if (!shot && snap.zones.length) {
+      // Since 0.16.7 the Runner is a rear-view chase (ring-runner-chase.js), not arena moves.
+      const chase = snap.chase;
+      samples.push({ state: chase ? chase.bossState : snap.moveState, vulnerable: snap.vulnerable, x: Math.round(snap.bossX * 10) / 10,
+        zones: chase ? ["ring-chase-obstacles-" + chase.obstacles] : snap.zones, form: chase ? "runner" : snap.moveForm, phase: snap.phaseIndex, chase: !!chase, pilot: snap.pilot, phaseState: snap.phaseState });
+      if (!shot && (snap.zones.length || (chase && chase.obstacles))) {
         await page.screenshot({ path: resolve(out, `form-${step}-${snap.moveForm}.png`) });
         shot = true;
       }
@@ -67,12 +70,14 @@ try {
       states: [...new Set(samples.map((s) => s.state).filter(Boolean))],
       zones: [...new Set(samples.flatMap((s) => s.zones))],
       opened: samples.some((s) => s.vulnerable),
+      trace: samples.map((s) => [s.phaseState, s.state, s.x, s.pilot && Math.round(s.pilot.x * 10) / 10, s.pilot && Math.round(s.pilot.y * 10) / 10, s.pilot && s.pilot.hp].join(" ")),
+      chase: samples.some((s) => s.chase),
       travel: Math.round((Math.max(...samples.map((s) => s.x)) - Math.min(...samples.map((s) => s.x))) * 10) / 10,
     });
   }
   const forms = report.forms.map((f) => f.form);
   report.status = forms.join(",") === "roller,walker,orbiter,brawler,runner,stalker" &&
-    report.forms.every((f) => f.states.length >= 2 && f.zones.length >= 1) && report.errors.length === 0 ? "PASS" : "FAIL";
+    report.forms.every((f) => (f.chase || f.states.length >= 2) && f.zones.length >= 1) && report.forms[4].chase && report.errors.length === 0 ? "PASS" : "FAIL";
 } catch (error) {
   report.failure = String(error && error.message || error).split("\n")[0];
   await page.screenshot({ path: resolve(out, "failure.png") }).catch(() => {});

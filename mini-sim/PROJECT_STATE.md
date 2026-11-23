@@ -1,3 +1,12 @@
+## Patch — Mini-Sim 0.16.8: forms only on the last Pig, Pig shell leaves, forms lit (23 November 2026)
+
+- **WORK LOCK:** [#153](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/153). Decision D-084.
+- **`ring-platformer.js`:** `hasPhases` only on the last Pig (the first two are plain fights; their form GLBs are not loaded); `pigShell` (armour, horns, eyes, core, halo, pig) shrinks in the transition and stays hidden; the halo no longer returns over the forms; form art drives the emissive channel; the chase shows the Runner's own back cap from `phase-forms`. QA: `strike(index)`, snapshot `shellVisible`, `bosses`, `formArtLit`; QA transition picks the form-carrying Pig and refills HP.
+- **Red before:** source test 3/3 failing; Edge probe: first Pig became the Roller, 13 shell meshes and the halo over the form, art lit 0. After: `ring-boss-arc-order.test.mjs` 3/3 (in CI), `ring-boss-arc-probe.mjs` PASS; fight, Orbiter flight and chase probes PASS. Regression 279/279, UI layer PASS.
+- **Not yet:** transitions from the owner's videos (≈25 MB, decision pending), authored attack motion, hand tuning.
+
+---
+
 ## Patch — Mini-Sim 0.16.7: the Runner is fought as a rear-view chase in Opal Jetjet (23 November 2026)
 
 - **WORK LOCK:** [#152](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/152). Decision D-083.

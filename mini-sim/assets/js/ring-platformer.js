@@ -275,16 +275,27 @@
       if (!world || !Array.isArray(world.bosses)) return;
       world.bosses.forEach((boss) => {
         boss.phaseModels = new Array(ringBossModelPaths.length).fill(null);
+        if (!boss.hasPhases) return;
         ringBossModelPaths.forEach((path, phaseOffset) => {
           loadRingBossGltf(path).then((gltf) => {
             if (world.disposed || !boss.group || !world.group.parent) return;
             const phaseGroup = boss.phaseGroups[phaseOffset];
             if (!phaseGroup) return;
             const model = gltf.scene.clone(true);
+            // The painted art of a form shows as drawn (owner: the forms read too dark under
+            // the arena lights): the art map also drives the emissive channel.
+            const brighten = (source) => {
+              const material = source.clone();
+              if (material.map && "emissiveMap" in material) {
+                material.emissive = new window.THREE.Color(0xffffff);
+                material.emissiveMap = material.map;
+                material.emissiveIntensity = 0.85;
+              }
+              return material;
+            };
             model.traverse((node) => {
               if (!node.isMesh || !node.material) return;
-              node.material = Array.isArray(node.material)
-                ? node.material.map((material) => material.clone()) : node.material.clone();
+              node.material = Array.isArray(node.material) ? node.material.map(brighten) : brighten(node.material);
             });
             model.updateMatrixWorld(true);
             const bounds = new window.THREE.Box3().setFromObject(model);
@@ -1167,6 +1178,10 @@
           world.add(group);
           Object.assign(boss, {
             group, pigGroup: pig, core, phaseGroups, phaseSpecs, tellMesh, ring,
+            // Owner 23.11.2026: only the last (farthest) Pig turns into the six forms; the
+            // Pig shell (armour, horns, eyes, core, halo, pig) leaves the stage after it.
+            hasPhases: index === bosses.length - 1,
+            pigShell: group.children.filter((child) => child !== tellMesh && !phaseGroups.includes(child)),
             phaseIndex: 0, phaseState: "pig", vulnerable: true,
             hp: boss.maxHp, alive: true, activated: false, nextAttackAt: 0, lastDamageAt: 0
           });
@@ -1175,7 +1190,7 @@
         if (new URLSearchParams(window.location.search).has("bcm_qa_ring_boss")) {
           window.__BCM_RING_BOSS_QA__ = {
             transition() {
-              const boss = worldState.bosses.find((item) => item.alive);
+              const boss = worldState.bosses.find((item) => item.alive && item.hasPhases) || worldState.bosses.find((item) => item.alive);
               if (!boss) throw new Error("Ring QA: no live boss");
               worldState.group.visible = true;
               if (worldState.cellPath?.room) worldState.cellPath.room.visible = false;
@@ -1192,6 +1207,9 @@
                 qaPlayer.worldX = boss.x - 4;
                 qaPlayer.worldY = 0;
                 qaPlayer.velocityX = 0;
+                // QA only: a standing probe pilot would die to the form's attacks and be sent
+                // back to the checkpoint, far from the arena; each form starts at full HP.
+                qaPlayer.hp = qaPlayer.maxHp;
               }
               boss.activated = true;
               // QA only: skip the form's own armour so the probe can advance every form.
@@ -1200,6 +1218,14 @@
               boss.hp = 1;
               damageBoss(boss, 1, performance.now(), 0);
               return this.snapshot();
+            },
+            // QA only: beat one Pig with a single hit (the boss-arc probe).
+            strike(index) {
+              const boss = worldState.bosses[index];
+              if (!boss || !boss.alive) return false;
+              boss.activated = true; boss.moves = null; boss.vulnerable = true; boss.hp = 1; boss.nextDamageAt = 0;
+              damageBoss(boss, 1, performance.now(), 0);
+              return { alive: boss.alive, phaseIndex: boss.phaseIndex };
             },
             // QA only: put the first pilot at a spot in the arena (the pit probe).
             placePilot(x, y) {
@@ -1216,7 +1242,7 @@
               return true;
             },
             snapshot() {
-              const boss = worldState.bosses.find((item) => item.alive);
+              const boss = worldState.bosses.find((item) => item.alive && item.hasPhases) || worldState.bosses.find((item) => item.alive);
               if (!boss) return { alive: false };
               const groupOpacity = (group) => {
                 let found = null;
@@ -1240,6 +1266,14 @@
                 vulnerable: !!boss.vulnerable, bossX: boss.x,
                 flight: !!(boss.moves && boss.moves.flight),
                 camera: worldState.cameraView || null,
+                // Pig arc: what of the Pig (shell) is still drawn, and which Pigs carry forms.
+                shellVisible: (() => { let n = 0; boss.group.children.forEach((child) => {
+                  if (child === boss.tellMesh || boss.phaseGroups.includes(child) || !child.visible) return;
+                  child.traverse((node) => { if (node.isMesh && node.visible) n += 1; }); }); return n; })(),
+                bosses: worldState.bosses.map((item) => ({ alive: item.alive, phaseIndex: item.phaseIndex, hasPhases: !!item.hasPhases })),
+                formArtLit: boss.phaseIndex > 0 ? (() => { let lit = 0, all = 0; boss.phaseGroups[boss.phaseIndex - 1].traverse((node) => {
+                  if (!node.isMesh || !node.material || !node.material.map) return; all += 1; if (node.material.emissiveMap || node.material.isMeshBasicMaterial) lit += 1; });
+                  return all ? lit / all : null; })() : null,
                 chase: worldState.chase && worldState.chase.out ? {
                   phase: worldState.chase.out.phase, gap: worldState.chase.out.gap, lane: worldState.chase.out.player.lane,
                   y: worldState.chase.out.player.y, bossState: worldState.chase.out.boss.state, vulnerable: worldState.chase.out.boss.vulnerable,
@@ -2445,7 +2479,7 @@
           updateHud("ПОПАДАНИЕ · " + boss.name + " · " + boss.hp + "/" + boss.maxHp);
           return true;
         }
-        if (boss.phaseIndex < 6) {
+        if (boss.hasPhases && boss.phaseIndex < 6) {
           const previousPhaseIndex = boss.phaseIndex;
           boss.phaseIndex += 1;
           const spec = boss.phaseSpecs[boss.phaseIndex - 1];
@@ -2795,7 +2829,8 @@
       const CHASE_HELP_RU = "← → ПОЛОСА · ПРЫЖОК — ПЕРЕСКОК · ЛАЗЕР — ОГОНЬ В ОКНО · РЫВОК — ДОГНАТЬ";
       const CHASE_HELP_EN = "← → LANE · JUMP — HOP · LASER — FIRE IN THE WINDOW · DASH — CATCH UP";
       const CHASE_JETJET = { flight: "mesh/ships/xsmall/jetjet/jetjet_teal_flight.glb", parked: "mesh/ships/xsmall/jetjet/jetjet_teal_parked.glb" };
-      const CHASE_RUNNER_REAR = "ring-bosses/mesh/rear-forms/phase-5-runner-rear.glb";
+      // The phase-forms GLB carries the Runner's back art on its rear cap; turned to the camera.
+      const CHASE_RUNNER_REAR = "ring-bosses/mesh/phase-forms/phase-5-runner.glb";
 
       function startRunnerChase(boss, now) {
         endRunnerChase(boss);
@@ -2921,7 +2956,16 @@
         }).catch(() => {});
         place("flight", CHASE_JETJET.flight, jetjet, jetProxy, (model) => { model.rotation.y = Math.PI / 2; return fit(model, 3.2, "z"); });
         place("parked", CHASE_JETJET.parked, jetjet, jetProxy, (model) => { model.rotation.y = Math.PI / 2; return fit(model, 3.2, "z"); });
-        place("runner", CHASE_RUNNER_REAR, runner, runnerProxy, (model) => fit(model, 2.4, "y"));
+        place("runner", CHASE_RUNNER_REAR, runner, runnerProxy, (model) => {
+          model.rotation.y = Math.PI;
+          model.traverse((node) => {
+            if (!node.isMesh || !node.material || !node.material.map || !("emissiveMap" in node.material)) return;
+            const material = node.material.clone();
+            material.emissive = new THREE.Color(0xffffff); material.emissiveMap = material.map; material.emissiveIntensity = 0.85;
+            mats.push(material); node.material = material;
+          });
+          return fit(model, 2.4, "y");
+        });
         updateHud(window.BCMDialogue?.language === "en" ? "BOARDING · OPAL JETJET · " + CHASE_HELP_EN : "ПОСАДКА · OPAL JETJET · " + CHASE_HELP_RU);
       }
 
@@ -3240,8 +3284,12 @@
             if (boss.transitionFromIndex > 0) {
               const oldGroup = boss.phaseGroups[boss.transitionFromIndex - 1];
               setRingBossGroupOpacity(oldGroup, oldOpacity);
-            } else if (boss.pigGroup && boss.pigGroup.visible) {
-              boss.pigGroup.scale.setScalar(Math.max(0.02, 1 - elapsed / 0.62));
+            } else if (boss.pigShell) {
+              const shrink = Math.max(0.02, 1 - elapsed / 0.62);
+              boss.pigShell.forEach((part) => {
+                if (!part.userData.bcmBaseScale) part.userData.bcmBaseScale = part.scale.clone();
+                part.scale.copy(part.userData.bcmBaseScale).multiplyScalar(shrink);
+              });
             }
             setRingBossGroupOpacity(phaseGroup, newOpacity);
             updateRingBossTransitionVfx(boss, dt, elapsed);
@@ -3251,7 +3299,8 @@
                 setRingBossGroupOpacity(group, index === phaseIndex - 1 ? 1 : 0);
               });
               if (boss.pigGroup) { boss.pigGroup.visible = false; boss.pigGroup.scale.setScalar(1); }
-              if (boss.ring) boss.ring.visible = true;
+              if (boss.pigShell) boss.pigShell.forEach((part) => { part.visible = false; });
+              if (boss.pigShell) boss.pigShell.forEach((part) => { if (part.userData.bcmBaseScale) part.scale.copy(part.userData.bcmBaseScale); });
               clearRingBossTransitionVfx(boss);
               boss.transitionFromIndex = 0;
               playRingBossAnimation(boss, phaseIndex - 1, "idle", false);
