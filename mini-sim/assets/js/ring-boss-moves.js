@@ -193,7 +193,10 @@
           if (done) go("orbit", jitter(1.6));
         }
       } else if (form === "brawler") {
-        var reach = function () { return box("fist", s.x + s.facing * 0.8, s.x + s.facing * 3.4, 0, 2.2); };
+        // The Brawler is 2.2 times bigger (owner 23.11.2026): its fist reaches 1.6–5 m ahead and
+        // up to 2.6 m — the low ledge (1.4 m) is in reach, the high one (2.8 m) is not, so a
+        // pilot up there gets the cannon instead.
+        var reach = function () { return box("fist", s.x + s.facing * 1.6, s.x + s.facing * 5.0, 0, 2.6); };
         // Owner 23.11.2026: the plasma cannon (owner video). It marks a band at the tier the
         // pilot stands on (floor 0, ledges 1.4 / 2.8 m) and fires across the arena: the
         // answer is to change tier. A pilot hiding up on a ledge always gets the cannon.

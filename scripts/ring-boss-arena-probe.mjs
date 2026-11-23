@@ -71,9 +71,9 @@ try {
   // 2. Stay on the ledge: the Brawler answers with the cannon at the ledge tier.
   report.trace = [];
   let chargeShot = false, drinkShot = false;
-  for (let i = 0; i < 60; i += 1) {
+  for (let i = 0; i < 110; i += 1) { // the big Brawler's cycle is long and headless Edge frames are slow
     const s = await snap();
-    report.trace.push({ up: s.modelUp, clip: s.modelClips, state: s.moveState, open: s.vulnerable, shielded: s.shielded, bossHp: s.bossHp, comic: s.comic, zones: s.zones.filter((z) => /beam/.test(z)), y: Math.round(s.pilot.y * 10) / 10, hp: s.pilot.hp });
+    report.trace.push({ cv: s.comicVideo, up: s.modelUp, clip: s.modelClips, state: s.moveState, open: s.vulnerable, shielded: s.shielded, bossHp: s.bossHp, comic: s.comic, zones: s.zones.filter((z) => /beam/.test(z)), y: Math.round(s.pilot.y * 10) / 10, hp: s.pilot.hp });
     if (!chargeShot && s.moveState === "charge") { await page.waitForTimeout(500); await page.screenshot({ path: resolve(out, "brawler-charge.png") }); chargeShot = true; }
     if (!drinkShot && s.moveState === "drink") { await page.screenshot({ path: resolve(out, "brawler-drink.png") }); drinkShot = true; }
     if (drinkShot && i > 10 && s.moveState === "advance") break;
@@ -82,7 +82,7 @@ try {
   const t = report.trace;
   const states = [...new Set(t.map((x) => x.state))];
   report.states = states;
-  report.status = report.form === "brawler" && t.slice(1, 4).every((x) => Math.abs(x.y - 1.4) < 0.05) &&
+  report.status = report.form === "brawler" && t.slice(3, 8).every((x) => Math.abs(x.y - 1.4) < 0.05) &&
     ["charge", "fire", "taunt", "drink"].every((x) => states.includes(x)) &&
     t.some((x) => x.state === "charge" && x.comic === "brawler-attack-cannon.mp4" && x.zones.includes("ring-boss-tell-beam")) &&
     t.some((x) => x.state === "fire" && x.zones.includes("ring-boss-hazard-beam")) &&

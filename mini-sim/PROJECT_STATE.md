@@ -1,3 +1,14 @@
+## Patch — Mini-Sim 0.16.11: the way to the bosses — jetpack crossing, slicers, comic words; Brawler ×2.2 (23 November 2026)
+
+- **WORK LOCK:** [#156](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/156). Decision D-087, IDEA-027 step 1.
+- **`ring-panels.js`:** `buildFlightPanel` (pit, drifting energy gates, ceiling spikes, rest island, bubbles; additive Balloon jet g 3 / +3 m/s; air speed ≤ 3 m/s), `flightCrossable` (search proof from four entry moments; rerolls; calm fallback), slicer chunks `blades` / `mill` and `slicerClosedAt`.
+- **`ring-platformer.js`:** purple cells are flight panels (look, physics, pit fall back to the pad, gate and spike hits, bubbles); death in a flight panel respawns on a pad; slicers drawn, timed and hurting; comic sound words (ФЬЮУ! ВЖЖ! БУЛЬ! КРАК! ЧАК!); every form stands on the floor; the Brawler ×2.2 with a bigger fist (low ledge in reach, high not); Brawler clips preloaded, one video element per clip.
+- **Tests:** `ring-flight-panel.test.mjs`, `ring-traps.test.mjs`, Brawler size test — in CI. Regression 295/295; boss arc, Orbiter flight, chase, fight probes and UI layer PASS.
+- **Browser (Edge):** `ring-flight-panel-probe.mjs` PASS (walk into the pit → back on the pad −1 HP with ФЬЮУ!, a tapped flight with JET spent); `ring-boss-arena-probe.mjs` PASS (big Brawler, ledge, cannon, shielded drink, laugh window, comic clip from the first frame).
+- **Not yet:** Tower-like shafts and links between rings, parkour and the arm rig, plate-and-gate traps, the pig mobs sheet.
+
+---
+
 ## Patch — Mini-Sim 0.16.10: arena tiers behind the boss; the Brawler's cannon, laugh and drink (23 November 2026)
 
 - **WORK LOCK:** [#155](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/155). Decision D-086, BUG-022.

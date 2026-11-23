@@ -335,6 +335,9 @@
       });
     }
 
+    // Scale of each form model by phase offset (0 Roller … 5 Stalker); the Brawler is big.
+    const RING_BOSS_FORM_SCALE = { 3: 2.2 };
+
     function loadRingBossPhaseModels(world) {
       if (!world || !Array.isArray(world.bosses)) return;
       world.bosses.forEach((boss) => {
@@ -378,6 +381,14 @@
             phaseGroup.clear();
             phaseGroup.add(pivot);
             pivot.add(model);
+            // Owner 23.11.2026: the Brawler pig is 2.2 times bigger. Every form now stands on
+            // the floor: its group is raised by half its (scaled) height, not a fixed 2.1 m.
+            const formScale = RING_BOSS_FORM_SCALE[phaseOffset] || 1;
+            const size = bounds.getSize(new window.THREE.Vector3());
+            phaseGroup.scale.setScalar(formScale);
+            phaseGroup.userData.bcmGroundY = (size.y / 2) * formScale;
+            phaseGroup.userData.bcmHalfW = (size.x / 2) * formScale;
+            phaseGroup.position.y = phaseGroup.userData.bcmGroundY;
             const mixer = new window.THREE.AnimationMixer(model);
             const clips = gltf.animations || [];
             phaseGroup.userData.bcmRingBossAsset = path;
@@ -1307,6 +1318,32 @@
               damageBoss(boss, 1, performance.now(), 0);
               return { alive: boss.alive, phaseIndex: boss.phaseIndex };
             },
+            // QA only: walk the first pilot into a purple cell (a flight panel), from the left door.
+            enterFlightCell() {
+              const path = worldState.cellPath;
+              const qaPlayer = players.find(Boolean);
+              if (!path || !qaPlayer) return null;
+              const nodes = Array.from(path.nodes.values()).filter((n) => !n.large);
+              let node = nodes.find((n) => n.astral && (n.astralMode === "drift" || n.astralMode === "flux"));
+              if (!node) { node = nodes.find((n) => n !== path.current) || nodes[0]; node.astral = true; node.astralMode = "drift"; node.airBubbles = node.airBubbles || []; }
+              path.panelNode = null;
+              placeParty(enterRingCell(worldState, node, "left", qaPlayer), qaPlayer);
+              qaPlayer.worldY = 0; qaPlayer.vy = 0; qaPlayer.grounded = true; qaPlayer.hp = qaPlayer.maxHp;
+              qaPlayer.jetFuel = 100; qaPlayer.breathReserve = 100;
+              return this.flightSnapshot();
+            },
+            flightSnapshot() {
+              const path = worldState.cellPath;
+              const fl = path && path.flight;
+              const p = players.find(Boolean);
+              if (!fl || !p) return { flight: false };
+              const t = (performance.now() - fl.startedAt) / 1000;
+              return { flight: true, inPanel: !!p.flightPanel, x: p.worldX - fl.hx, y: p.worldY, vy: p.vy, hp: p.hp, jet: p.jetFuel,
+                grounded: !!p.grounded, pit: [fl.F.pit.minX, fl.F.pit.maxX], ceilingY: fl.F.ceilingY,
+                gates: fl.F.gates.map((g) => ({ x: g.x, gap: window.BCMRingPanels.flightGapAt(g, t) })),
+                bubbles: fl.bubbles.filter((b) => b.mesh.visible).length, t,
+                pops: (worldState.comicPops || []).filter((pop) => pop.sprite.visible).map((pop) => pop.text) };
+            },
             // QA only: put the first pilot at a spot in the arena (the pit probe).
             placePilot(x, y) {
               const qaPlayer = players.find(Boolean);
@@ -1348,6 +1385,8 @@
                 camera: worldState.cameraView || null,
                 comic: worldState.bossComic && worldState.bossComic.panel.style.display !== "none" ? worldState.bossComic.file : null,
                 shielded: !!(boss.shieldMesh && boss.shieldMesh.visible), bossHp: boss.hp,
+                comicVideo: worldState.bossComic && worldState.bossComic.video ? { ready: worldState.bossComic.video.readyState, t: worldState.bossComic.video.currentTime,
+                  paused: worldState.bossComic.video.paused, err: worldState.bossComic.video.error && worldState.bossComic.video.error.code } : null,
                 // Up axis of the current form model in the world (1 = upright, -1 = upside down).
                 modelUp: (() => { const record = boss.phaseIndex > 0 && boss.phaseModels && boss.phaseModels[boss.phaseIndex - 1];
                   if (!record || !record.model) return null;
@@ -1934,8 +1973,15 @@
         }
         for (let i = world.platforms.length - 1; i >= 0; i -= 1) if (world.platforms[i].cellPanel) world.platforms.splice(i, 1);
         path.spikes = [];
+        path.flight = null;
         if (node.large || !window.BCMRingPanels) return;
-        const panel = window.BCMRingPanels.buildPanel(path.panelSeed, node, { half: path.half, height: path.cellHeight, run: path.panelRun });
+        // Owner 23.11.2026: a purple (low-gravity) cell is crossed on the jet — a flight panel
+        // (ring-panels.js): pit, drifting energy gates, ceiling spikes, a rest island, bubbles.
+        const flightCell = !!(node.astral && (node.astralMode === "drift" || node.astralMode === "flux") &&
+          window.BCMRingPanels.buildFlightPanel);
+        const panel = flightCell
+          ? window.BCMRingPanels.buildFlightPanel(path.panelSeed, node, { half: path.half, height: path.cellHeight, run: path.panelRun })
+          : window.BCMRingPanels.buildPanel(path.panelSeed, node, { half: path.half, height: path.cellHeight, run: path.panelRun });
         path.panelGrid = panel.grid || null;
         const group = new THREE.Group();
         group.name = "ring-cell-panel-" + panel.kind;
@@ -1993,6 +2039,19 @@
           }
           world.platforms.push(platform);
         });
+        path.slicers = [];
+        const jawGeo = new THREE.BoxGeometry(0.9, 0.12, 1.5);
+        const jawMat = path.jawMaterial || (path.jawMaterial = new THREE.MeshStandardMaterial({ color: 0xd9dee3, metalness: 0.85, roughness: 0.25, emissive: 0x330000, emissiveIntensity: 0.35 }));
+        (panel.traps || []).filter((t) => t.kind === "slicer").forEach((t) => {
+          const jaws = new THREE.Group();
+          jaws.name = "ring-cell-slicer";
+          const low = new THREE.Mesh(jawGeo, jawMat);
+          const high = new THREE.Mesh(jawGeo, jawMat);
+          jaws.add(low, high);
+          jaws.position.set(path.homeX + (t.minX + t.maxX) / 2, 0, 0.1);
+          group.add(jaws);
+          path.slicers.push({ trap: t, low, high, x: path.homeX + (t.minX + t.maxX) / 2, wasShut: false });
+        });
         (panel.traps || []).filter((t) => t.kind === "timed").forEach((t, n) => {
           const row = new THREE.Group();
           row.name = "ring-cell-timed-spikes";
@@ -2021,6 +2080,7 @@
           group.add(row);
           path.spikes.push({ minX: path.homeX + s.minX, maxX: path.homeX + s.maxX });
         });
+        if (panel.flight) buildFlightPanelLook(path, group, panel, node);
         path.room.add(group);
         path.panelGroup = group;
         // Comic caption: the panel's name, like a narration box.
@@ -2041,6 +2101,143 @@
           ctx.fillText(text, 24, 50);
           path.captionTexture.needsUpdate = true;
         }
+      }
+
+      // Comic sound words (owner 23.11.2026: more worked-out comic moments on the way):
+      // a lettered burst at the spot — ФЬЮУ! on a fall, ВЖЖ! on a gate, БУЛЬ! on a bubble,
+      // КРАК! when a plate gives way, ЧАК! when a blade snaps. Pooled canvas sprites, 0.8 s.
+      function comicPop(text, x, y) {
+        const pops = worldState.comicPops || (worldState.comicPops = []);
+        const path = worldState.cellPath;
+        const parent = path && path.room && path.room.visible ? path.room : worldState.group;
+        let pop = pops.find((item) => !item.sprite.visible);
+        if (!pop) {
+          const canvas = document.createElement("canvas");
+          canvas.width = 256; canvas.height = 128;
+          const texture = new THREE.CanvasTexture(canvas);
+          const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false }));
+          sprite.renderOrder = 30;
+          sprite.name = "ring-comic-pop";
+          pop = { canvas, texture, sprite, text: "", age: 0 };
+          pops.push(pop);
+        }
+        if (pop.sprite.parent !== parent) parent.add(pop.sprite);
+        const ctx = pop.canvas.getContext("2d");
+        ctx.clearRect(0, 0, 256, 128);
+        // A jagged burst behind the word.
+        ctx.beginPath();
+        for (let i = 0; i < 18; i += 1) {
+          const a = (i / 18) * Math.PI * 2;
+          const r = i % 2 ? 44 : 62;
+          ctx.lineTo(128 + Math.cos(a) * r * 1.8, 64 + Math.sin(a) * r * 0.95);
+        }
+        ctx.closePath();
+        ctx.fillStyle = "#ffe066"; ctx.fill();
+        ctx.lineWidth = 6; ctx.strokeStyle = "#07070a"; ctx.stroke();
+        ctx.font = "bold 46px Impact, 'Arial Black', sans-serif";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.lineWidth = 8; ctx.strokeStyle = "#07070a"; ctx.strokeText(text, 128, 66);
+        ctx.fillStyle = "#ff3b5c"; ctx.fillText(text, 128, 66);
+        pop.texture.needsUpdate = true;
+        pop.text = text; pop.age = 0;
+        pop.sprite.position.set(x, y, 1.6);
+        pop.sprite.visible = true;
+        pop.sprite.material.opacity = 1;
+        return pop;
+      }
+
+      function updateComicPops(dt) {
+        (worldState.comicPops || []).forEach((pop) => {
+          if (!pop.sprite.visible) return;
+          pop.age += dt;
+          const k = pop.age / 0.8;
+          const s = k < 0.15 ? 0.4 + k / 0.15 * 0.9 : 1.3 - Math.min(0.2, (k - 0.15) * 0.3);
+          pop.sprite.scale.set(2.2 * s, 1.1 * s, 1);
+          pop.sprite.position.y += dt * 0.6;
+          pop.sprite.material.opacity = Math.max(0, 1 - Math.max(0, k - 0.6) / 0.4);
+          if (k >= 1) pop.sprite.visible = false;
+        });
+      }
+
+      // Flight panel look: dark abyss over the floor, two energy pillars per gate (their gap
+      // moves, ring-panels.js flightGapAt), ceiling spikes, a metal rest island, bubbles.
+      function buildFlightPanelLook(path, group, panel, node) {
+        const F = panel.flight;
+        const hx = path.homeX;
+        const mat = (key, make) => path[key] || (path[key] = make());
+        const gateMat = mat("flightGateMat", () => new THREE.MeshBasicMaterial({ color: 0x7ff6ff, transparent: true, opacity: 0.78, depthWrite: false }));
+        const abyssMat = mat("flightAbyssMat", () => new THREE.MeshBasicMaterial({ color: 0x05030c }));
+        const edgeMat = mat("flightEdgeMat", () => new THREE.MeshBasicMaterial({ color: 0xc08bff }));
+        const bubbleMat = mat("flightBubbleMat", () => new THREE.MeshBasicMaterial({ color: 0x9fe7ff, transparent: true, opacity: 0.55, depthWrite: false }));
+        const spikeMat = path.spikeMaterial || (path.spikeMaterial = new THREE.MeshStandardMaterial({ color: 0xb8c0c8, metalness: 0.7, roughness: 0.3, emissive: 0x3a0000, emissiveIntensity: 0.4 }));
+        const pitW = F.pit.maxX - F.pit.minX;
+        const abyss = new THREE.Mesh(new THREE.BoxGeometry(pitW, 0.5, 3.0), abyssMat);
+        abyss.name = "ring-flight-abyss";
+        abyss.position.set(hx + (F.pit.minX + F.pit.maxX) / 2, -0.2, 0);
+        group.add(abyss);
+        [F.pit.minX, F.pit.maxX].forEach((x) => {
+          const edge = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 3.0), edgeMat);
+          edge.position.set(hx + x, 0.02, 0);
+          group.add(edge);
+        });
+        const gates = F.gates.map((gate, i) => {
+          const lower = new THREE.Mesh(new THREE.BoxGeometry(gate.width, 1, 1.0), gateMat);
+          const upper = new THREE.Mesh(new THREE.BoxGeometry(gate.width, 1, 1.0), gateMat);
+          lower.name = "ring-flight-gate-" + i + "-low";
+          upper.name = "ring-flight-gate-" + i + "-high";
+          group.add(lower, upper);
+          return { gate, lower, upper };
+        });
+        const spikeGeo = new THREE.ConeGeometry(0.18, 0.5, 4);
+        for (let x = F.pit.minX + 0.25; x < F.pit.maxX; x += 0.5) {
+          const spike = new THREE.Mesh(spikeGeo, spikeMat);
+          spike.rotation.z = Math.PI;
+          spike.position.set(hx + x, F.ceilingY + 0.25, 0.2);
+          group.add(spike);
+        }
+        const islandGeo = new THREE.BoxGeometry(1, 0.3, 1.2);
+        F.islands.forEach((isl) => {
+          const island = new THREE.Mesh(islandGeo, path.metalMaterial || edgeMat);
+          island.name = "ring-flight-island";
+          island.scale.x = isl.maxX - isl.minX;
+          island.position.set(hx + (isl.minX + isl.maxX) / 2, isl.y - 0.15, 0);
+          group.add(island);
+        });
+        const bubbleGeo = new THREE.SphereGeometry(0.27, 12, 10);
+        const bubbles = F.bubbles.map((b) => {
+          const mesh = new THREE.Mesh(bubbleGeo, bubbleMat);
+          mesh.name = "ring-flight-bubble";
+          mesh.position.set(hx + b.x, b.y, 0.6);
+          group.add(mesh);
+          return { x: hx + b.x, y: b.y, mesh, taken: false, respawnAt: 0 };
+        });
+        // The cell's own scattered bubbles give way to the panel's.
+        (node.airBubbles || []).forEach((b) => { b.taken = true; b.respawnAt = Infinity; if (b.mesh) b.mesh.visible = false; });
+        path.flight = {
+          F, gates, bubbles, startedAt: performance.now(), hx,
+          pitMinX: hx + F.pit.minX, pitMaxX: hx + F.pit.maxX,
+          padLeft: hx - path.half + 1.2, padRight: hx + path.half - 1.2
+        };
+        updateFlightPanel(path, performance.now());
+      }
+
+      function updateFlightPanel(path, now) {
+        const fl = path && path.flight;
+        if (!fl) return;
+        const t = (now - fl.startedAt) / 1000;
+        fl.gates.forEach(({ gate, lower, upper }) => {
+          const gp = window.BCMRingPanels.flightGapAt(gate, t);
+          const x = fl.hx + gate.x;
+          lower.scale.y = Math.max(0.05, gp.y0 + 0.5);
+          lower.position.set(x, (gp.y0 - 0.5) / 2, 0.1);
+          upper.scale.y = Math.max(0.05, fl.F.ceilingY + 0.6 - gp.y1);
+          upper.position.set(x, (gp.y1 + fl.F.ceilingY + 0.6) / 2, 0.1);
+        });
+        fl.bubbles.forEach((b) => {
+          if (b.taken && now >= b.respawnAt) b.taken = false;
+          b.mesh.visible = !b.taken;
+          b.mesh.position.y = b.y + Math.sin(now * 0.003 + b.x) * 0.1;
+        });
       }
 
       function applyRingCellLook(world, nodeOverride, headingOverride) {
@@ -2876,6 +3073,13 @@
         if (player.hp <= 0) {
           player.hp = player.maxHp;
           player.worldX = player.checkpointX;
+          // In a flight panel the cell's checkpoint is over the abyss: back on a pad instead.
+          const fl = player.flightPanel && worldState.cellPath && worldState.cellPath.flight;
+          if (fl) {
+            const pad = Number.isFinite(player.flightPadX) ? player.flightPadX : fl.padLeft;
+            player.worldX = pad < fl.hx ? Math.min(pad, fl.pitMinX - 0.5) : Math.max(pad, fl.pitMaxX + 0.5);
+            player.jetFuel = 100; player.breathReserve = 100;
+          }
           player.worldY = 0;
           player.vy = 0;
           player.grounded = true;
@@ -3281,43 +3485,69 @@
         taunt: ["brawler-laugh.mp4", 0]
       };
       const BOSS_COMIC_KEEP = { charge: 1, fire: 1, recover: 1, drink: 1, taunt: 1 };
-      function showBossComic(file, startAt) {
+      // One video element per clip, made and loaded when the form appears (preloadBossComic),
+      // so switching clips never shows a black frame.
+      function bossComicPanel() {
         let comic = worldState.bossComic;
-        if (!comic) {
-          let panel = root2d.querySelector(".bcm-ring-boss-comic");
-          if (!panel) {
-            panel = document.createElement("div");
-            panel.className = "bcm-ring-boss-comic";
-            panel.style.cssText = "position:absolute;top:84px;right:16px;width:min(34vw,300px);aspect-ratio:16/9;" +
-              "border:4px solid #fff;outline:3px solid #111;box-shadow:6px 6px 0 #111;transform:rotate(-2deg);" +
-              "overflow:hidden;background:#000;z-index:6;pointer-events:none;display:none";
-            const comicVideo = document.createElement("video");
-            comicVideo.muted = true;
-            comicVideo.defaultMuted = true;
-            comicVideo.setAttribute("muted", "");
-            comicVideo.playsInline = true;
-            comicVideo.setAttribute("playsinline", "");
-            comicVideo.preload = "auto";
-            comicVideo.style.cssText = "width:100%;height:100%;object-fit:cover;display:block";
-            panel.appendChild(comicVideo);
-            root2d.appendChild(panel);
-          }
-          comic = worldState.bossComic = { panel, video: panel.querySelector("video"), file: "" };
+        if (comic) return comic;
+        let panel = root2d.querySelector(".bcm-ring-boss-comic");
+        if (!panel) {
+          panel = document.createElement("div");
+          panel.className = "bcm-ring-boss-comic";
+          panel.style.cssText = "position:absolute;top:84px;right:16px;width:min(34vw,300px);aspect-ratio:16/9;" +
+            "border:4px solid #fff;outline:3px solid #111;box-shadow:6px 6px 0 #111;transform:rotate(-2deg);" +
+            "overflow:hidden;background:#000;z-index:6;pointer-events:none;display:none";
+          root2d.appendChild(panel);
         }
+        comic = worldState.bossComic = { panel, videos: {}, video: null, file: "" };
+        return comic;
+      }
+
+      function bossComicVideo(comic, file) {
+        if (comic.videos[file]) return comic.videos[file];
+        const url = ringBossAssetUrl("ring-bosses/video/" + file);
+        if (!url) return null;
+        const comicVideo = document.createElement("video");
+        comicVideo.muted = true;
+        comicVideo.defaultMuted = true;
+        comicVideo.setAttribute("muted", "");
+        comicVideo.playsInline = true;
+        comicVideo.setAttribute("playsinline", "");
+        comicVideo.preload = "auto";
+        comicVideo.style.cssText = "width:100%;height:100%;object-fit:cover;display:none";
+        comicVideo.src = url;
+        comic.panel.appendChild(comicVideo);
+        comic.videos[file] = comicVideo;
+        return comicVideo;
+      }
+
+      function preloadBossComic(files) {
+        const comic = bossComicPanel();
+        files.forEach((file) => { const v = bossComicVideo(comic, file); if (v) try { v.load(); } catch (e) {} });
+      }
+
+      function showBossComic(file, startAt) {
+        const comic = bossComicPanel();
+        Object.keys(comic.videos).forEach((key) => {
+          const v = comic.videos[key];
+          if (key !== file) { v.style.display = "none"; try { v.pause(); } catch (e) {} }
+        });
         if (!file) {
           comic.panel.style.display = "none";
-          try { comic.video.pause(); } catch (e) {}
           comic.file = "";
+          comic.video = null;
           return;
         }
-        const url = ringBossAssetUrl("ring-bosses/video/" + file);
-        if (!url) return;
-        if (comic.file !== file) { comic.file = file; comic.video.src = url; }
+        const comicVideo = bossComicVideo(comic, file);
+        if (!comicVideo) return;
+        comic.file = file;
+        comic.video = comicVideo;
+        comicVideo.style.display = "block";
         comic.panel.style.display = "block";
         const from = Number(startAt) || 0;
-        if (comic.video.readyState >= 1) { try { comic.video.currentTime = from; } catch (e) {} }
-        else comic.video.addEventListener("loadedmetadata", () => { try { comic.video.currentTime = from; } catch (e) {} }, { once: true });
-        const played = comic.video.play();
+        if (comicVideo.readyState >= 1) { try { comicVideo.currentTime = from; } catch (e) {} }
+        else comicVideo.addEventListener("loadedmetadata", () => { try { comicVideo.currentTime = from; } catch (e) {} }, { once: true });
+        const played = comicVideo.play();
         if (played && typeof played.catch === "function") played.catch(() => {});
       }
 
@@ -3329,7 +3559,7 @@
         boss.vulnerable = out.vulnerable;
         boss.moveFacing = out.facing;
         if (phaseGroup) {
-          phaseGroup.position.y = 2.1 + out.y;
+          phaseGroup.position.y = (phaseGroup.userData.bcmGroundY || 2.1) + out.y;
           if (out.attacking) phaseGroup.rotation.z = Math.sin(now * 0.03) * 0.14;
         }
         // Shield while the Brawler drinks (owner): a bubble around it; it mends 1 HP once.
@@ -3342,8 +3572,10 @@
         }
         boss.shieldMesh.visible = !!out.shielded;
         if (out.shielded) {
-          boss.shieldMesh.position.set(0, 2.0 + out.y, 1.0);
-          boss.shieldMesh.scale.set(2.0, 1.9, 1.2);
+          const groundY = (phaseGroup && phaseGroup.userData.bcmGroundY) || 2.0;
+          const halfW = (phaseGroup && phaseGroup.userData.bcmHalfW) || 1.6;
+          boss.shieldMesh.position.set(0, groundY + out.y, 1.0 + halfW * 0.2);
+          boss.shieldMesh.scale.set(halfW * 1.25, groundY * 1.1, Math.max(1.2, halfW * 0.6));
           boss.shieldMesh.material.opacity = 0.22 + Math.abs(Math.sin(now * 0.006)) * 0.16;
           if (!boss.mendedThisDrink && boss.hp < boss.maxHp) { boss.hp += 1; boss.mendedThisDrink = true; }
         } else boss.mendedThisDrink = false;
@@ -3352,7 +3584,7 @@
         if (out.vulnerable) {
           boss.tellMesh.material.color.setHex(0x69ffe0);
           boss.tellMesh.material.opacity = 0.9;
-          boss.tellMesh.position.set(0, 2.2 + out.y, 1.18);
+          boss.tellMesh.position.set(0, ((phaseGroup && phaseGroup.userData.bcmGroundY) || 2.2) + out.y, 1.18 + ((phaseGroup && phaseGroup.userData.bcmHalfW) || 0) * 0.2);
           boss.tellMesh.scale.set(1.65, 1.65, 1);
           boss.tellMesh.rotation.z += dt * 1.3;
         }
@@ -3443,8 +3675,9 @@
           if (phaseGroup) {
             phaseGroup.rotation.z = boss.phaseState === "attack" ? Math.sin(now * 0.018) * 0.10 : Math.sin(now * 0.002) * 0.035;
             if (phaseIndex === 3) phaseGroup.rotation.y += dt * 1.1;
-            if (phaseIndex === 6 && boss.phaseState === "attack") phaseGroup.position.y = 2.1 + Math.sin(now * 0.02) * 0.8;
-            else phaseGroup.position.y = 2.1;
+            const groundY = phaseGroup.userData.bcmGroundY || 2.1;
+            if (phaseIndex === 6 && boss.phaseState === "attack") phaseGroup.position.y = groundY + Math.sin(now * 0.02) * 0.8;
+            else phaseGroup.position.y = groundY;
           }
           if (boss.phaseState === "transition") {
             boss.vulnerable = false;
@@ -3506,6 +3739,7 @@
               if (boss.moves) {
                 boss.phaseState = "moves";
                 boss.tellMesh.visible = false;
+                if (boss.moves.form === "brawler") preloadBossComic(["brawler-attack-cannon.mp4", "brawler-drink.mp4", "brawler-laugh.mp4"]);
                 // Orbiter: the fight is flown (Balloon flight), jet and breath start full.
                 if (boss.moves.flight) players.forEach((pilot) => { pilot.jetFuel = 100; pilot.breathReserve = 100; });
                 return;
@@ -3601,6 +3835,13 @@
           const path = worldState.cellPath;
           const playerNode = player.ringCurrent || path?.current;
           const playerInLarge = playerNode ? !!playerNode.large : worldState.inLargeCell;
+          const flightPanel = !!(path && path.flight && !playerInLarge && playerNode === path.panelNode);
+          // In a flight panel the air speed is the panel's (Balloon pace): 0..airSpeed.
+          if (flightPanel && !dashing && !player.grounded) {
+            const reach = path.flight.F.airSpeed * dt;
+            player.worldX = previousX + Math.max(-reach, Math.min(reach, player.worldX - previousX));
+          }
+          player.flightPanel = flightPanel;
           if (playerInLarge) {
             if (direction < 0 && previousX <= -48.15 && path && player.ringReturnNode) {
               placeParty(enterRingCell(worldState, player.ringReturnNode, "right", player), player);
@@ -3698,19 +3939,22 @@
           // Camera in flight (owner 22.11.2026): ease into the whole-arena frame and back.
           player.flightFrame = (Number(player.flightFrame) || 0) +
             ((bossFlight ? 1 : 0) - (Number(player.flightFrame) || 0)) * Math.min(1, dt * 2.5);
-          const lowGravity = astralMode === "drift" || astralMode === "flux" || bossFlight;
+          const lowGravity = astralMode === "drift" || astralMode === "flux" || bossFlight || flightPanel;
           if (bossFlight) { gravity = 6.0; jumpVelocity = 7.8; }
           const highGravity = astralMode === "dense";
           if (astralMode === "drift") { gravity = 6.0; jumpVelocity = 7.8; }
           else if (astralMode === "flux") { gravity = 7.0 + Math.sin(now * 0.0018 + (astralNode.astralPhase || 0)) * 1.2; jumpVelocity = 7.4; }
           else if (highGravity) { gravity = 27.0; jumpVelocity = 5.7; }
+          if (flightPanel) gravity = path.flight.F.gravity;
           const hangJump = input.jumpEdge;
+          if (flightPanel && player.index === 0) updateFlightPanel(path, now);
           // Traps of the panel: plates crumble after a touch, timed spikes rise and sink.
           if (path && !playerInLarge) {
             (path.crumbles || []).forEach((pl) => {
               if (!pl.crumbleAt) return;
               const age = now - pl.crumbleAt;
               if (!pl.gone && age > 550) {
+                comicPop(window.BCMDialogue?.language === "en" ? "KRAK!" : "КРАК!", (pl.minX + pl.maxX) / 2, pl.y + 0.6);
                 pl.gone = true; pl.homeMinX = pl.minX; pl.homeMaxX = pl.maxX; pl.minX = pl.maxX = -9999;
                 if (pl.mesh) pl.mesh.visible = false;
               } else if (!pl.gone && pl.mesh) {
@@ -3720,12 +3964,26 @@
                 if (pl.mesh) { pl.mesh.visible = true; pl.mesh.position.x = pl.baseX; }
               }
             });
+            (path.slicers || []).forEach((sl) => {
+              const shut = window.BCMRingPanels.slicerClosedAt(sl.trap, now / 1000);
+              // Jaws: apart (floor and 1.9 m) when open, meeting at 0.95 m when shut.
+              const p = ((now / 1000 + sl.trap.phase) % sl.trap.period);
+              const close = shut ? 1 : Math.max(0, 1 - Math.min(p - sl.trap.closed, sl.trap.period - p) / 0.25);
+              sl.low.position.y = 0.06 + close * 0.83;
+              sl.high.position.y = 1.9 - close * 0.83;
+              if (shut && !sl.wasShut && Math.abs(player.worldX - sl.x) < 4) comicPop("ЧАК!", sl.x, 2.3);
+              sl.wasShut = shut;
+              if (shut && Math.abs(player.worldX - sl.x) < 0.45 + 0.35 && player.worldY < 1.9) {
+                damagePlayer(player, now);
+                player.worldX = sl.x - Math.sign(player.worldX - previousX || player.facing || 1) * 1.0;
+              }
+            });
             (path.timedSpikes || []).forEach((t) => {
               t.active = ((now / 1000 + t.phase) % 2.4) < 1.2;
               if (t.group) t.group.position.y = t.active ? 0 : -0.5;
             });
           }
-          if (lowGravity && input.moveY) {
+          if (lowGravity && input.moveY && !flightPanel) {
             // Positive moveY is down in the shared control convention; Ring world Y is up.
             player.vy = Math.max(-4.8, Math.min(4.8, player.vy - input.moveY * 10.5 * dt));
           }
@@ -3733,7 +3991,9 @@
           if (input.jumpEdge && lowGravity && player.jetFuel >= 12 && player.breathReserve >= 12) {
             player.jetFuel -= 12;
             player.breathReserve -= 12;
-            player.vy = Math.min(6.2, Math.max(0, player.vy) + 4.1);
+            player.vy = flightPanel
+              ? Math.min(path.flight.F.maxRise, player.vy + path.flight.F.impulse)
+              : Math.min(6.2, Math.max(0, player.vy) + 4.1);
             player.grounded = false;
             player.supportPlatform = null;
             player.jetFlameRemaining = 0.21;
@@ -3743,13 +4003,16 @@
             player.supportPlatform = null;
           }
           player.vy -= gravity * dt;
+          // Below the floor line of a flight panel the abyss pulls harder: the fall reads at once.
+          if (flightPanel && player.worldY < 0) player.vy -= gravity * 2 * dt;
           player.worldY += player.vy * dt;
           if (bossFlight && player.worldY > flightBoss.moves.ceiling) {
             player.worldY = flightBoss.moves.ceiling; player.vy = Math.min(0, player.vy);
           }
           if (player.vy <= 0) {
             // Orbiter pit (owner 23.11.2026): the arena floor is gone off the ledges.
-            const overPit = bossFlight && flightBoss.moves.pitAt(player.worldX);
+            const overPit = (bossFlight && flightBoss.moves.pitAt(player.worldX)) ||
+              (flightPanel && player.worldX > path.flight.pitMinX && player.worldX < path.flight.pitMaxX);
             const landing = worldState.platforms.filter((platform) =>
               player.worldX >= platform.minX && player.worldX <= platform.maxX &&
               previousY >= platform.y && player.worldY <= platform.y &&
@@ -3787,6 +4050,19 @@
             player.vy = 7.2; player.grounded = false; player.supportPlatform = null;
           }
           // In the Orbiter pit the fall ends once the pilot leaves the arena frame (−0.6 m).
+          if (flightPanel && player.grounded && player.worldY < 0.01) player.flightPadX = player.worldX;
+          if (flightPanel && player.worldY < -1.5) {
+            player.worldY = 0; player.vy = 0; player.grounded = true; player.supportPlatform = null;
+            const fl = path.flight;
+            const pad = Number.isFinite(player.flightPadX) ? player.flightPadX
+              : (Math.abs(player.worldX - fl.padLeft) < Math.abs(player.worldX - fl.padRight) ? fl.padLeft : fl.padRight);
+            player.worldX = pad < fl.hx ? Math.min(pad, fl.pitMinX - 0.5) : Math.max(pad, fl.pitMaxX + 0.5);
+            damagePlayer(player, now);
+            player.jetFuel = Math.max(60, player.jetFuel);
+            player.breathReserve = Math.max(60, player.breathReserve);
+            updateHud(window.BCMDialogue?.language === "en" ? "INTO THE ABYSS · BACK ON THE PAD" : "СОРВАЛСЯ В ПРОПАСТЬ · НАЗАД НА ПЛОЩАДКУ");
+            comicPop(window.BCMDialogue?.language === "en" ? "WHOOSH!" : "ФЬЮУ!", player.worldX, 2.2);
+          }
           if (player.worldY < (bossFlight ? -2.5 : -7)) {
             player.worldY = 0; player.vy = 0; player.grounded = true; player.supportPlatform = null;
             // In the Orbiter pit the pilot comes back on the nearest ledge with some jet and air.
@@ -3801,6 +4077,32 @@
           if (player.grounded && player.supportPlatform && player.supportPlatform.y > 0 &&
               (player.worldX < player.supportPlatform.minX || player.worldX > player.supportPlatform.maxX)) {
             player.grounded = false; player.vy = -0.2; player.supportPlatform = null;
+          }
+          if (flightPanel) {
+            const fl = path.flight;
+            const t = (now - fl.startedAt) / 1000;
+            fl.gates.forEach(({ gate }) => {
+              const gx = fl.hx + gate.x;
+              if (Math.abs(player.worldX - gx) > (gate.width + 0.7) / 2) return;
+              const gp = window.BCMRingPanels.flightGapAt(gate, t);
+              if (player.worldY < gp.y0 || player.worldY + 1.7 > gp.y1) {
+                if (now >= player.invulnerableUntil) comicPop(window.BCMDialogue?.language === "en" ? "ZZAP!" : "ВЖЖ!", gx, player.worldY + 1.4);
+                damagePlayer(player, now);
+                player.worldX = gx - Math.sign(player.worldX - previousX || player.facing || 1) * ((gate.width + 0.7) / 2 + 0.15);
+              }
+            });
+            if (player.worldY + 1.7 > fl.F.ceilingY) {
+              damagePlayer(player, now);
+              player.worldY = fl.F.ceilingY - 1.75; player.vy = Math.min(player.vy, -1.5);
+            }
+            fl.bubbles.forEach((b) => {
+              if (!b.taken && Math.abs(player.worldX - b.x) < 0.75 && Math.abs(player.worldY + 0.9 - b.mesh.position.y) < 0.95) {
+                b.taken = true; b.respawnAt = now + 6000;
+                player.jetFuel = Math.min(100, player.jetFuel + fl.F.bubble);
+                player.breathReserve = Math.min(100, player.breathReserve + fl.F.bubble);
+                comicPop(window.BCMDialogue?.language === "en" ? "BLUB!" : "БУЛЬ!", b.x, b.y + 0.6);
+              }
+            });
           }
           if (lowGravity && playerNode?.airBubbles) {
             playerNode.airBubbles.forEach((bubble) => {
@@ -3819,6 +4121,7 @@
           if (player.sprite) player.sprite.visible = !blinking;
           updatePlayerSprite(player, dt);
         }
+        updateComicPops(dt);
         const bubblePath = worldState.cellPath;
         if (bubblePath?.nodes) bubblePath.nodes.forEach((node) => {
           (node.airBubbles || []).forEach((bubble) => {

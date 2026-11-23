@@ -117,3 +117,20 @@ test("form art is drawn upright: the GLB v axis grows upwards, so the map is fli
   assert.doesNotMatch(ring, /map\.userData\.bcmUprightArt/, "three r128 textures have no userData: the model load throws");
   assert.match(ring, /bcmUprightArt/, "the flip is not guarded: a shared map could flip twice");
 });
+
+// Owner 23.11.2026: "Боса свина Бойца сделай больше в 2.2 раза".
+test("the Brawler is 2.2 times bigger, every form stands on the floor, its fist misses the high ledge", () => {
+  assert.match(ring, /const RING_BOSS_FORM_SCALE = \{ 3: 2\.2 \};/, "the Brawler keeps its old size");
+  assert.match(ring, /phaseGroup\.userData\.bcmGroundY = \(size\.y \/ 2\) \* formScale;/, "forms hang at a fixed 2.1 m instead of standing on the floor");
+  const boss = moves().create(4, { homeX: 18, seed: 3 });
+  let fists = 0;
+  for (let i = 0; i < 60 * 30; i += 1) {
+    const out = boss.step(1 / 60, { targetX: 13, targetY: 0 });
+    for (const h of out.hazards) if (h.kind === "fist") {
+      fists += 1;
+      assert.ok(h.y1 > 1.4 + 0.3 && h.y1 <= 2.8, `fist up to ${h.y1} m: the ledges do not matter`);
+      assert.ok(Math.abs(h.x1 - h.x0) >= 3, "the big Brawler's fist is still a small one");
+    }
+  }
+  assert.ok(fists > 0, "the Brawler never punches");
+});

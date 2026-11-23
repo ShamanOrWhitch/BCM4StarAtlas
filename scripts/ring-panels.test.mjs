@@ -135,7 +135,7 @@ test("Ring panels have traps: crumbling plates and timed spikes", () => {
     const all = p.grid.join("");
     if (all.includes("K")) plates += 1;
     if (all.includes("T")) timed += 1;
-    for (const t of p.traps || []) assert.ok(["crumble", "timed"].includes(t.kind));
+    for (const t of p.traps || []) assert.ok(["crumble", "timed", "slicer"].includes(t.kind)); // slicer: 23.11.2026
   }
   assert.ok(plates >= 10, `crumbling plates in only ${plates}/120 panels`);
   assert.ok(timed >= 10, `timed spikes in only ${timed}/120 panels`);

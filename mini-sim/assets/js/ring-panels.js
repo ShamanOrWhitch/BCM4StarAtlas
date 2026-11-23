@@ -38,7 +38,11 @@
     // T floor spikes on a timer. The crossing never relies on them.
     crumble: ["......", "..KK..", "KK..KK", "...SS."],
     timed: ["......", "......", "......", "..TTT."],
-    gauntlet: ["......", "......", ".KKKK.", "TT..TT"]
+    gauntlet: ["......", "......", ".KKKK.", "TT..TT"],
+    // Slicers (owner 23.11.2026, Prince of Persia's chompers): G — jaws at floor level that
+    // snap shut on a beat; you pass between snaps.
+    blades: ["......", "......", "......", ".G..G."],
+    mill: ["......", "..BB..", "......", "G.KK.G"]
   };
   var NAMES = Object.keys(CHUNKS);
 
@@ -166,6 +170,12 @@
     var traps = runs(function (x) { return at(x, 0) === "T"; }).map(function (t) {
       return { kind: "timed", minX: t.minX, maxX: t.maxX };
     });
+    // Slicers: one per G column, a 2.0 s beat with a 0.4 s snap; neighbours are offset so
+    // two in a row are not shut together.
+    for (var gc = 0; gc < COLS; gc += 1) {
+      if (at(gc, 0) !== "G") continue;
+      traps.push({ kind: "slicer", minX: gc - half, maxX: gc + 1 - half, col: gc, period: 2.0, closed: 0.4, phase: (gc * 0.37) % 2.0 });
+    }
     // Crumbling plates: each plate cell is its own platform, so one can fall alone.
     for (var pr = 0; pr < ROWS - 1; pr += 1) {
       for (var pc = 0; pc < COLS; pc += 1) {
@@ -181,8 +191,14 @@
   var LABEL = {
     open: "ПУСТОШЬ", crates: "ЯЩИКИ", bunker: "БУНКЕР", stairs: "ЛЕСТНИЦА", pit: "ЯМА",
     cage: "КЛЕТКА", barrels: "БОЧКИ", ledges: "УСТУПЫ", tower: "ВЫШКА", spikes: "ШИПЫ",
-    crumble: "ОСЫПЬ", timed: "ЗУБЬЯ", gauntlet: "ПОЛОСА"
+    crumble: "ОСЫПЬ", timed: "ЗУБЬЯ", gauntlet: "ПОЛОСА", blades: "РУБИЛА", mill: "МЕЛЬНИЦА"
   };
+
+  /** Is a slicer shut at time t (seconds)? Shut for `closed` s at the start of each beat. */
+  function slicerClosedAt(trap, t) {
+    var p = ((Number(t) || 0) + trap.phase) % trap.period;
+    return p < trap.closed;
+  }
 
   function buildPanel(seed, cell, opts) {
     var o = opts || {};
@@ -207,5 +223,153 @@
     };
   }
 
-  root.BCMRingPanels = { buildPanel: buildPanel, cellSeed: cellSeed, crossable: crossable, CHUNKS: CHUNKS };
+  // ---- Flight panel (owner 23.11.2026) ------------------------------------------------
+  // A purple cell is crossed on the jet, Balloon / DOS Jetpack style: a pit between two
+  // door pads, energy gates whose gap drifts up and down, spikes under the ceiling, a
+  // rest island and bubbles. One press (+impulse) a second about balances gravity, so the
+  // crossing has a pulse (~62 BPM, RING_PIG_BOSS_ARC.md). x is panel-local (-half..+half).
+  // The impulse ADDS to the vertical speed (a press while falling only slows the fall), as
+  // in Balloon; the purple-cell jet (max(0, vy) + 4.1) made every press a 2 m hop.
+  var FLIGHT = { gravity: 3.0, impulse: 3.0, maxRise: 2.4, cost: 12, bubble: 34, airSpeed: 3.0 };
+
+  function makeFlight(rand, half, height, calm) {
+    var pit = { minX: -half + 2.5, maxX: half - 2.5 };
+    var ceilingY = height - 0.6;
+    var count = rand() < 0.5 ? 2 : 3;
+    var gates = [];
+    var base = 2.4 + rand() * 0.6;
+    for (var i = 0; i < count; i += 1) {
+      var span = pit.maxX - pit.minX;
+      // Gates about evenly spread, the next gap at most 0.45 m off the last one.
+      var x = pit.minX + span * (i + 1) / (count + 1) + (rand() - 0.5) * 0.3;
+      if (i > 0) base = Math.max(2.3, Math.min(3.1, base + (rand() - 0.5) * 0.9));
+      gates.push({
+        x: Math.round(x * 10) / 10, width: 0.8, gap: 3.2,
+        base: calm ? 2.7 : base, amp: calm ? 0 : 0.15 + rand() * 0.25,
+        period: 3.0 + rand() * 1.0, phase: rand() * Math.PI * 2,
+        ceilingY: ceilingY
+      });
+    }
+    // A rest island between the first two gates, a bubble over it and one on each pad.
+    var ix = (gates[0].x + gates[1].x) / 2;
+    var islands = [{ minX: ix - 0.8, maxX: ix + 0.8, y: 1.2 }];
+    var bubbles = [{ x: ix, y: 2.4 }, { x: -half + 1.4, y: 1.2 }, { x: half - 1.4, y: 1.2 }];
+    return {
+      pit: pit, gates: gates, islands: islands, bubbles: bubbles, ceilingY: ceilingY,
+      gravity: FLIGHT.gravity, impulse: FLIGHT.impulse, maxRise: FLIGHT.maxRise,
+      cost: FLIGHT.cost, bubble: FLIGHT.bubble, airSpeed: FLIGHT.airSpeed
+    };
+  }
+
+  /**
+   * Is there a clean crossing, door pad to door pad, entering at time t0? A search over
+   * what a player does every 0.25 s: press the jet or not, fly at 0 / 1.5 / 3 m/s (wait on
+   * the pad, hover, go). The body keeps 0.15 m off the gate edges and the ceiling spikes.
+   * Returns { ok, presses } (presses of the found crossing).
+   */
+  function flightCrossable(panel, t0, opts) {
+    var o = opts || {};
+    var F = panel.flight, half = panel.half;
+    var W = 0.7, H = 1.7, M = 0.15, DT = 0.25, SUB = 4, h = DT / SUB;
+    var frontier = [{ x: -half + 1, y: 0, vy: 0, fuel: o.fuel === undefined ? 100 : o.fuel, taken: 0, presses: 0 }];
+    var speeds = [0, 1.5, F.airSpeed];
+    for (var step = 0; step < 64; step += 1) {
+      var next = {};
+      for (var si = 0; si < frontier.length; si += 1) {
+        var s0 = frontier[si];
+        for (var press = 0; press < (o.noJet ? 1 : 2); press += 1) {
+          for (var sp = 0; sp < speeds.length; sp += 1) {
+            var s = { x: s0.x, y: s0.y, vy: s0.vy, fuel: s0.fuel, taken: s0.taken, presses: s0.presses };
+            if (press) {
+              if (s.fuel < F.cost) continue;
+              s.fuel -= F.cost; s.presses += 1;
+              s.vy = Math.min(F.maxRise, s.vy + F.impulse);
+            }
+            var dead = false;
+            for (var k = 0; k < SUB && !dead; k += 1) {
+              var t = (Number(t0) || 0) + step * DT + (k + 1) * h;
+              s.x += speeds[sp] * h;
+              var py = s.y;
+              s.vy -= F.gravity * h;
+              s.y += s.vy * h;
+              var inPit = s.x > F.pit.minX && s.x < F.pit.maxX;
+              if (s.y <= 0 && !inPit) { s.y = 0; if (s.vy < 0) s.vy = 0; }
+              for (var ii = 0; ii < F.islands.length; ii += 1) {
+                var isl = F.islands[ii];
+                if (s.vy <= 0 && py >= isl.y && s.y <= isl.y && s.x >= isl.minX && s.x <= isl.maxX) { s.y = isl.y; s.vy = 0; }
+              }
+              if (s.y < -0.5 || s.y + H > F.ceilingY - 0.05) { dead = true; break; }
+              for (var gi = 0; gi < F.gates.length; gi += 1) {
+                var g = F.gates[gi];
+                if (Math.abs(s.x - g.x) > (g.width + W) / 2) continue;
+                var gp = flightGapAt(g, t);
+                if (s.y < gp.y0 + M || s.y + H > gp.y1 - M) { dead = true; break; }
+              }
+              for (var bi = 0; bi < F.bubbles.length; bi += 1) {
+                var b = F.bubbles[bi];
+                if (!(s.taken & (1 << bi)) && Math.abs(s.x - b.x) < 0.75 && Math.abs(s.y + 0.9 - b.y) < 0.95) {
+                  s.taken |= 1 << bi; s.fuel = Math.min(100, s.fuel + F.bubble);
+                }
+              }
+            }
+            if (dead) continue;
+            if (s.x >= half - 1) return { ok: true, presses: s.presses };
+            var key = Math.round(s.x / 0.4) + "," + Math.round(s.y / 0.2) + "," + Math.round(s.vy / 0.4) + "," + s.taken;
+            if (!next[key] || next[key].fuel < s.fuel) next[key] = s;
+          }
+        }
+      }
+      frontier = Object.keys(next).map(function (key) { return next[key]; });
+      if (!frontier.length) return { ok: false, presses: 0 };
+      if (frontier.length > 150) {
+        frontier.sort(function (a, b) { return (b.x - a.x) || (b.fuel - a.fuel); });
+        frontier.length = 150;
+      }
+    }
+    return { ok: false, presses: 0 };
+  }
+
+  var FLIGHT_ENTRIES = [0, 1.1, 2.2, 3.3]; // entry moments checked (the gates are periodic)
+
+  function buildFlightPanel(seed, cell, opts) {
+    var o = opts || {};
+    var half = COLS / 2;
+    var height = Number(o.height) || ROWS;
+    var rand = seeded(cellSeed(seed, cell, o.run) ^ 0x2f1e33);
+    var panel = null;
+    // Like the block panels: reroll until it can be crossed from any entry moment; the
+    // last resort is a calm panel (gates that do not move).
+    for (var attempt = 0; attempt < 6 && !panel; attempt += 1) {
+      var tryIt = { half: half, flight: makeFlight(rand, half, height, attempt === 5) };
+      if (FLIGHT_ENTRIES.every(function (t0) { return flightCrossable(tryIt, t0).ok; })) panel = tryIt;
+    }
+    if (!panel) panel = { half: half, flight: makeFlight(rand, half, height, true) };
+    var F = panel.flight;
+    return {
+      cols: COLS, rows: ROWS, grid: null, chunks: ["flight"], kind: "flight",
+      label: "ПРОПАСТЬ · ТОЛЬКО ДЖЕТПАК", carved: false, half: half, height: height,
+      platforms: F.islands.map(function (s) { return { minX: s.minX, maxX: s.maxX, y: s.y, island: true }; }),
+      spikes: [], traps: [], flight: F
+    };
+  }
+
+  /** The open gap of a gate at time t (seconds): { y0, y1 }. */
+  function flightGapAt(gate, t) {
+    var c = gate.base + Math.sin((Number(t) || 0) * Math.PI * 2 / gate.period + gate.phase) * gate.amp;
+    var h = gate.gap / 2;
+    c = Math.max(0.4 + h, Math.min(gate.ceilingY - h, c));
+    return { y0: c - h, y1: c + h };
+  }
+
+  /** True where a flight panel has no floor (panel-local x). */
+  function flightPitAt(panel, x) {
+    var f = panel && panel.flight;
+    return !!f && x > f.pit.minX && x < f.pit.maxX;
+  }
+
+  root.BCMRingPanels = {
+    buildPanel: buildPanel, cellSeed: cellSeed, crossable: crossable, CHUNKS: CHUNKS,
+    slicerClosedAt: slicerClosedAt,
+    buildFlightPanel: buildFlightPanel, flightGapAt: flightGapAt, flightPitAt: flightPitAt, flightCrossable: flightCrossable, FLIGHT: FLIGHT
+  };
 })(typeof window !== "undefined" ? window : globalThis);
