@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Flag, Gauge, Pause, RotateCcw, Volume2, VolumeX } from "lucide-react";
-import { activeKeys, bindKeyboard, held, readDrive, setForced, tiltEnabled, toggleTilt } from "@/game/input";
+import { activeKeys, bindKeyboard, readDrive, setForced, tiltEnabled, toggleTilt } from "@/game/input";
 import { createRace, type Hud, type ItemKind, type Race } from "@/game/sim";
 import { MAX_RACE_LEVEL, loadRaceLevel, raceModeFor, recordRaceWin } from "@/game/race-modes";
 import { createWorld, paintMap, type Phase } from "@/game/world";
+import { TouchPad, useTouchDevice } from "./touch-pad";
 
 const ITEM_LABEL: Record<ItemKind, string> = {
   solar: "Солнце",
@@ -67,6 +68,8 @@ export function ShoalRace({
   const [hud, setHud] = useState<Hud>(EMPTY);
   const [muted, setMuted] = useState(false);
   const [tilt, setTilt] = useState(false);
+  // Touch controls are shown by the device, not by a CSS class (owner 23.11.2026).
+  const touchDevice = useTouchDevice();
   const mutedRef = useRef(false);
 
   useEffect(() => {
@@ -371,22 +374,20 @@ export function ShoalRace({
         </div>
       ) : null}
 
-      {phase === "race" ? (
-        <div className="absolute inset-x-0 bottom-24 z-20 hidden grid-cols-6 gap-2 px-3 max-md:grid [@media(pointer:coarse)]:grid">
-          <Hold code="KeyA" label="Лево" />
-          <Hold code="KeyD" label="Право" />
-          <Hold code="KeyW" label="Газ" className="col-span-2 bg-primary text-bg" />
-          <Hold code="KeyS" label="Тормоз" />
-          <Hold code="ShiftLeft" label="Дрифт" />
-          <Hold code="ControlLeft" label="Предмет" className="col-span-3" />
-          <button
-            type="button"
-            className="col-span-3 h-12 rounded-xl border border-line bg-surface/90 text-sm font-medium"
-            onClick={() => void toggleTilt().then((on) => setTilt(on || tiltEnabled()))}
-          >
-            {tilt ? "TILT вкл" : "TILT"}
-          </button>
-        </div>
+      {phase === "race" && touchDevice ? (
+        <TouchPad
+          stick={{ left: "KeyA", right: "KeyD" }}
+          buttons={[
+            { code: "KeyW", label: "Газ", primary: true },
+            { code: "KeyS", label: "Тормоз" },
+            { code: "ShiftLeft", label: "Дрифт" },
+            { code: "ControlLeft", label: "Предмет" },
+          ]}
+          tilt={tilt}
+          onTilt={() => void toggleTilt().then((on) => setTilt(on || tiltEnabled()))}
+          lift={96}
+          row
+        />
       ) : null}
 
       {phase === "pause" ? (
@@ -492,24 +493,6 @@ function Overlay({
     </section>
   );
 }
-
-function Hold({ code, label, className = "" }: { code: string; label: string; className?: string }) {
-  return (
-    <button
-      type="button"
-      className={`h-12 rounded-xl border border-line bg-surface/90 text-sm font-medium text-fg ${className}`}
-      onPointerDown={(event) => {
-        event.currentTarget.setPointerCapture(event.pointerId);
-        held.add(code);
-      }}
-      onPointerUp={() => held.delete(code)}
-      onPointerCancel={() => held.delete(code)}
-    >
-      {label}
-    </button>
-  );
-}
-
 declare global {
   interface Window {
     __controlsTest?: {

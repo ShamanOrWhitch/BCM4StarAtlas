@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.16.12",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.16.13",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -91,7 +91,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.16.12",
+      title: "SPACE LABYRINTH — 0.16.13",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -2975,6 +2975,7 @@
 
     parent.add(group);
     spaceSatellite.group = group;
+    buildSpaceTraffic(group);
 
     const starGeometry = new THREE.BufferGeometry();
     const starPoints = [];
@@ -3001,6 +3002,79 @@
     starField.visible = false;
     parent.add(starField);
     spaceSatellite.stars = starField;
+  }
+
+  // Space traffic around ONI CSS (owner 23.11.2026: "в космосе у некоторых кораблей должна
+  // быть жизнь, ну кто-то прилетает, кто-то улетает"; WORK LOCK #144). fleet-motion.js moves
+  // a few non-player ships: they arrive from the edge, hold at a berth by the station and
+  // depart. A LOCAL SIMULATION for the look of space — never a real SAGE fleet movement.
+  const spaceTraffic = { fleet: null, group: null, pivots: [] };
+  const TRAFFIC_SHIP_IDS = ["opal", "solos", "scud", "mik"];
+
+  function buildSpaceTraffic(stationGroup) {
+    if (!window.BCMFleetMotion || !stationGroup || spaceTraffic.fleet) return;
+    const trafficGroup = new THREE.Group();
+    trafficGroup.name = "space-traffic";
+    trafficGroup.userData.localSimulation = true;
+    stationGroup.add(trafficGroup);
+    const seed = (Number(window.BCMMiniSimSession && window.BCMMiniSimSession.sessionSeed) >>> 0) || 7;
+    spaceTraffic.fleet = window.BCMFleetMotion.create({ seed, count: TRAFFIC_SHIP_IDS.length, spawnRadius: 150, maxSpeed: 20 });
+    spaceTraffic.group = trafficGroup;
+    spaceTraffic.pivots = TRAFFIC_SHIP_IDS.map((id, index) => {
+      const pivot = new THREE.Group();
+      pivot.name = "space-traffic-" + id;
+      pivot.visible = false;
+      pivot.userData.loaded = false;
+      trafficGroup.add(pivot);
+      return pivot;
+    });
+    const load = (Loader) => {
+      TRAFFIC_SHIP_IDS.forEach((id, index) => {
+        const spec = FLIGHT_SHIPS.find((item) => item.id === id);
+        const url = spec && assetUrl(spec.file);
+        if (!url) return;
+        new Loader().load(url, (gltf) => {
+          const hull = gltf && (gltf.scene || (gltf.scenes && gltf.scenes[0]));
+          const pivot = spaceTraffic.pivots[index];
+          if (!hull || !pivot || spaceTraffic.group !== trafficGroup) return;
+          aimFlightNose(hull, catalogNose(spec.file));
+          hull.updateMatrixWorld(true);
+          const box = new THREE.Box3().setFromObject(hull);
+          const size = box.getSize(new THREE.Vector3());
+          hull.scale.multiplyScalar((spec.length || 12) * 0.7 / Math.max(size.x, size.z, 0.001));
+          hull.updateMatrixWorld(true);
+          const centre = new THREE.Box3().setFromObject(hull).getCenter(new THREE.Vector3());
+          hull.position.sub(centre);
+          pivot.add(hull);
+          pivot.userData.loaded = true;
+        }, undefined, () => console.warn("BCM space traffic: ship model failed", spec.file));
+      });
+    };
+    // The GLTF loader is shared with the ship yard; wait for it if it is not there yet.
+    let tries = 0;
+    const waitLoader = () => {
+      if (spaceTraffic.group !== trafficGroup) return;
+      if (window.THREE && window.THREE.GLTFLoader) { load(window.THREE.GLTFLoader); return; }
+      tries += 1;
+      if (tries < 60) window.setTimeout(waitLoader, 500);
+    };
+    waitLoader();
+  }
+
+  function updateSpaceTraffic(dt) {
+    const fleet = spaceTraffic.fleet;
+    const group = spaceTraffic.group;
+    if (!fleet || !group || !group.parent) return;
+    const local = group.worldToLocal(ship.position.clone());
+    const poses = fleet.step(dt, { avoid: { x: local.x, y: local.y, z: local.z, r: 14 } });
+    poses.forEach((pose, index) => {
+      const pivot = spaceTraffic.pivots[index];
+      if (!pivot) return;
+      pivot.visible = !!(pose.visible && pivot.userData.loaded);
+      pivot.position.set(pose.x, pose.y, pose.z);
+      pivot.rotation.set(pose.pitch, pose.yaw, pose.roll, "YXZ");
+      pivot.userData.trafficState = pose.state;
+    });
   }
 
   function updateSpaceSatelliteVisibility() {
@@ -4421,9 +4495,11 @@
 
     const pitchOffset = Math.max(-35, Math.min(35, screenVertical));
     const yawOffset = Math.max(-35, Math.min(35, screenHorizontal));
-    const dead = 4.0;
-    const response = 30.0;
-    const gain = 0.40;
+    // Owner 23.11.2026 "у андроид чуть больше чувствительности": smaller dead zone, full
+    // turn by 24° (was 30°), gain 0.55 (was 0.40) — 12° of tilt now turns about twice as much.
+    const dead = 3.0;
+    const response = 24.0;
+    const gain = 0.55;
 
     const shape = (offset) => {
       if (Math.abs(offset) <= dead) return 0;
@@ -4600,6 +4676,9 @@
     backside.group = null;
     spaceSatellite.group = null;
     spaceSatellite.stationMesh = null;
+    spaceTraffic.fleet = null;
+    spaceTraffic.group = null;
+    spaceTraffic.pivots = [];
     spaceSatellite.stars = null;
     towerPreload.landingVideo = null;
     towerPreload.fallbackVideo = null;
@@ -5410,6 +5489,7 @@
     updateRoom0Rivals(dt);
     collide(collisionStart);
     updateSpaceSatelliteVisibility();
+    updateSpaceTraffic(dt);
     updateCollisionImpact(dt);
 
     const focusedOrbit = orbitFocusedScreen(dt);
@@ -6894,7 +6974,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.16.12") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.16.13") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();

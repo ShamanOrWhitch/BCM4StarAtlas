@@ -1,3 +1,14 @@
+## Patch — Mini-Sim 0.16.13: phone controls, Twinsun's own level, space traffic at ONI CSS (23 November 2026)
+
+- **WORK LOCK:** [#158](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/158). Decision D-089.
+- **Space tilt (Android):** dead 3°, full 24°, gain 0.55.
+- **First Planet / Shoal Race:** `touch-pad.tsx` — shown on touch devices by code; stick + round buttons; race pad raised over the HUD panels. `wp-dist` rebuilt.
+- **Twinsun:** relief `twinsun` (dunes, three mesas, ragged coast), second sun, drifting sand; Pearce / Ioki unchanged.
+- **Space traffic:** `fleet-motion.js` + `space-traffic` group in the ONI station group (local simulation, #144 plan).
+- **Tests / probes:** see D-089. Regression 308/308, UI layer PASS, standalone transitions QA PASS.
+
+---
+
 ## Patch — Mini-Sim 0.16.12: the Brawler fires a volley itself; the pilot hops ledges; boss camera (23 November 2026)
 
 - **WORK LOCK:** [#157](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/157). Decision D-088.

@@ -219,6 +219,12 @@ export function createIsland(
   const rose = sunSprite(planet.moonSprite.color, planet.moonSprite.size);
   rose.position.set(-62, 30, -90);
   scene.add(gold, rose);
+  // Twinsun (owner 23.11.2026): a second sun, smaller and whiter, low over the sea.
+  if (planet.extras?.twinSun) {
+    const twin = sunSprite(planet.extras.twinSun.color, planet.extras.twinSun.size);
+    twin.position.set(...planet.extras.twinSun.at);
+    scene.add(twin);
+  }
   // Specular on the water follows these lights. They sit on the sprites,
   // otherwise the glint lands to the left of the sun you actually see.
   const sun = new THREE.DirectionalLight(planet.sun.color, planet.sun.intensity);

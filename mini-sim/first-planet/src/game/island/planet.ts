@@ -34,6 +34,8 @@ export type PlanetExtras = {
   veins: number | null;
   /** Emissive colour of the sea. */
   seaGlow: number | null;
+  /** A second sun on the sky (Twinsun): colour, size, position. */
+  twinSun?: { color: string; size: number; at: [number, number, number] };
 };
 
 export type PlanetLook = {
@@ -55,7 +57,7 @@ export type PlanetLook = {
   sea: { color: number; opacity: number; roughness: number };
   exposure: number;
   /** Island relief (terrain.ts setRelief). Absent means the desert island. */
-  relief?: "desert" | "fable";
+  relief?: "desert" | "fable" | "twinsun";
   extras?: PlanetExtras;
 };
 
@@ -140,6 +142,15 @@ export const PLANETS: Record<PlanetId, PlanetLook> = {
     ground: { sand: 0xe3924e, wet: 0xc46a45, rock: 0x8a4038, grass: 0x3f7d68, greenery: 0 },
     sea: { color: 0x6a3d78, opacity: 0.86, roughness: 0.42 },
     exposure: 1.12,
+    // Owner 23.11.2026: Twinsun is its own level (dunes, mesas, two suns), not the shared desert.
+    relief: "twinsun",
+    extras: {
+      stars: 0, aurora: null, ring: null, veins: null, seaGlow: null,
+      // Sand carried over the dunes.
+      motes: { color: 0xffd39a, count: 120 },
+      // The second sun, smaller and whiter, low over the sea.
+      twinSun: { color: "#fff6e0", size: 30, at: [52, 26, -78] },
+    },
   },
   pearce: {
     id: "pearce",

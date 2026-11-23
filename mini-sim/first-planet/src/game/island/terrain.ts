@@ -15,15 +15,17 @@ export const TERRAIN_N = 96;
  * Which island the ground functions describe. The scene sets it from the
  * planet profile before it builds the ground and the sim; everything else
  * (feet, props, houses, quests) keeps sampling groundY as before.
- *   desert — First Planet, Pearce, Ioki (unchanged since 0.15.4)
- *   fable  — planet Fable: capes and coves, the Crescent ridge, Table hill,
- *            sea stacks. Town, pad, pond and bridge stand where they stood.
+ *   desert  — Pearce, Ioki (unchanged since 0.15.4)
+ *   fable   — planet Fable: capes and coves, the Crescent ridge, Table hill,
+ *             sea stacks. Town, pad, pond and bridge stand where they stood.
+ *   twinsun — Twinsun (owner 23.11.2026: its own level, not the shared desert):
+ *             wind-laid dune crests, three flat-topped mesas, a ragged coast.
  */
-export type ReliefId = "desert" | "fable";
+export type ReliefId = "desert" | "fable" | "twinsun";
 let relief: ReliefId = "desert";
 
 export function setRelief(id: unknown) {
-  relief = id === "fable" ? "fable" : "desert";
+  relief = id === "fable" ? "fable" : id === "twinsun" ? "twinsun" : "desert";
 }
 
 export function getRelief(): ReliefId {
@@ -32,7 +34,44 @@ export function getRelief(): ReliefId {
 
 /** Island height. Sea is below about -0.5; the pad and town are flattened. */
 export function groundY(x: number, z: number) {
-  return relief === "fable" ? fableGroundY(x, z) : desertGroundY(x, z);
+  if (relief === "fable") return fableGroundY(x, z);
+  if (relief === "twinsun") return twinsunGroundY(x, z);
+  return desertGroundY(x, z);
+}
+
+/** Twinsun's mesas: centre, flat-top radius, top height. Clear of every quest spot. */
+export const TWINSUN_MESAS: Array<{ x: number; z: number; r: number; top: number }> = [
+  { x: -42, z: 24, r: 7, top: 5.4 },
+  { x: 40, z: -24, r: 6, top: 4.6 },
+  { x: 37, z: 33, r: 5.5, top: 4.9 },
+];
+
+function twinsunGroundY(x: number, z: number) {
+  const r = Math.hypot(x, z);
+  const t = Math.atan2(z, x);
+  // A ragged desert coast: two long bays and small headlands.
+  const coast = 1 + 0.07 * Math.sin(2 * t + 0.6) + 0.04 * Math.sin(7 * t + 1.1);
+  const inland = smooth(78 * coast, 56 * coast, r);
+  // Dunes laid by a wind from the south-west: long asymmetric crests, calm by the town.
+  const along = x * 0.78 - z * 0.62;
+  const across = x * 0.62 + z * 0.78;
+  const wave = Math.sin(across * 0.32 + Math.sin(along * 0.06) * 1.4);
+  const crest = Math.pow(Math.max(0, wave), 1.8) * 2.0;
+  const wild = 1 - Math.exp(-(x * x) / 380 - ((z - 14) ** 2) / 640);
+  let h = 0.7;
+  h += crest * wild;
+  h += Math.sin(x * 0.08) * Math.cos(z * 0.07) * 0.55 * wild;
+  // The crystal ridge stays where the crystals are.
+  const ridge = Math.exp(-((x + 32) ** 2) / 70 - ((z + 18) ** 2) / 150);
+  h += ridge * 6.2;
+  const oasis = Math.exp(-((x - 2.4) ** 2) / 48 - ((z + 17) ** 2) / 52);
+  h -= oasis * 2.5;
+  // Mesas: a flat top and steep walls.
+  for (const m of TWINSUN_MESAS) {
+    const d = Math.hypot(x - m.x, z - m.z);
+    h = lerp(h, Math.max(h, m.top), smooth(m.r + 2.6, m.r, d));
+  }
+  return lerp(-1.7, settle(h, x, z), inland);
 }
 
 export const FABLE_CRESCENT = { x: 34, z: -4, r: 15 };
@@ -344,6 +383,9 @@ export const NPC = {
 export function regionName(x: number, z: number, y: number) {
   if (onSky(x, z) && y > SKY.y - 1) return "Висячий остров";
   if (relief === "fable") return fableRegionName(x, z);
+  if (relief === "twinsun") {
+    for (const m of TWINSUN_MESAS) if (Math.hypot(x - m.x, z - m.z) < m.r + 3) return "Плато близнецов";
+  }
   if (Math.hypot(x - 2.4, z + 17) < 9) return "Оазис";
   if (x < -22 && z < -6) return "Кристальная гряда";
   if (z > 30 && Math.abs(x) < 14) return "Посадочная";

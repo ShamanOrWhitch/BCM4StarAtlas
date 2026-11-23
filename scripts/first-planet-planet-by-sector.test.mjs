@@ -119,7 +119,8 @@ test("planet Fable has a design of its own, not a recolour", () => {
   assert.ok(fable.extras && fable.extras.stars > 0, "Fable has no night sky");
   assert.ok(fable.extras.aurora && fable.extras.motes && fable.extras.ring, "Fable has no aurora, light motes or ringed moon");
   assert.ok(fable.extras.seaGlow, "Fable sea does not glow");
-  for (const id of ["first", "pearce", "ioki"]) assert.equal(PLANETS[id].extras, undefined, id + " must keep its 0.15.3 look");
+  // Twinsun ("first") has its own sky since 0.16.13 (two suns, drifting sand).
+  for (const id of ["pearce", "ioki"]) assert.equal(PLANETS[id].extras, undefined, id + " must keep its 0.15.3 look");
   const scene = read("mini-sim/first-planet/src/game/island/scene.ts");
   assert.match(scene, /planet.extras/, "scene does not draw the planet extras");
   const embed = read("mini-sim/first-planet/src/first-planet-embed.tsx");

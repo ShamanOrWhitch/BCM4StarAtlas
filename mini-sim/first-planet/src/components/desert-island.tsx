@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Compass, Gauge, Pause, RotateCcw } from "lucide-react";
-import { bindKeyboard, held, setForced, tiltEnabled, toggleTilt } from "@/game/input";
+import { bindKeyboard, setForced, tiltEnabled, toggleTilt } from "@/game/input";
 import { createIsland, type IslandWorld, type Phase } from "@/game/island/scene";
 import { planetContent } from "@/game/island/content";
 import { planetLook } from "@/game/island/planet";
 import type { IslandHud } from "@/game/island/sim";
+import { TouchPad, useTouchDevice } from "./touch-pad";
 
 const MOOD_NAME = {
   walk: "Пешком",
@@ -70,6 +71,8 @@ export function DesertIsland({
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [tilt, setTilt] = useState(false);
+  // Touch controls are shown by the device, not by a CSS class (owner 23.11.2026).
+  const touchDevice = useTouchDevice();
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const left = useRef(false);
   const towerEntered = useRef(false);
@@ -435,27 +438,23 @@ export function DesertIsland({
         </section>
       ) : null}
 
-      {phase === "play" && !talk ? (
-        <div className="absolute inset-x-0 bottom-3 z-20 hidden grid-cols-4 gap-2 px-3 max-md:grid [@media(pointer:coarse)]:grid">
-          <Hold code="KeyA" label="Лево" />
-          <Hold code="KeyW" label="Вперёд" className="bg-primary text-bg" />
-          <Hold code="KeyS" label="Назад" />
-          <Hold code="KeyD" label="Право" />
-          <Hold code="KeyE" label="E · взять" />
-          <Hold code="KeyF" label="F · сесть" />
-          <Hold code="KeyV" label="V · кассета" />
-          <Hold code="Space" label="Прыжок" />
-          <Hold code="KeyC" label="Настроение" />
-          <Hold code="KeyQ" label="Вниз" />
-          <button
-            type="button"
-            className="col-span-4 h-12 rounded-xl border border-line bg-surface/90 text-sm font-medium"
-            onClick={() => void toggleTilt().then((on) => setTilt(on || tiltEnabled()))}
-          >
-            {tilt ? "TILT вкл" : "TILT"}
-          </button>
-          <Hold code="ShiftLeft" label="Форсаж" className="col-span-4" />
-        </div>
+      {phase === "play" && !talk && touchDevice ? (
+        <TouchPad
+          stick={{ up: "KeyW", down: "KeyS", left: "KeyA", right: "KeyD" }}
+          buttons={[
+            { code: "Space", label: "Прыжок", primary: true },
+            { code: "KeyE", label: "Взять" },
+            { code: "KeyF", label: "Сесть" },
+            { code: "ShiftLeft", label: "Форсаж" },
+          ]}
+          extras={[
+            { code: "KeyV", label: "Кассета" },
+            { code: "KeyC", label: "Настроение" },
+            { code: "KeyQ", label: "Вниз" },
+          ]}
+          tilt={tilt}
+          onTilt={() => void toggleTilt().then((on) => setTilt(on || tiltEnabled()))}
+        />
       ) : null}
 
       {phase === "pause" ? (
@@ -484,23 +483,5 @@ export function DesertIsland({
         </section>
       ) : null}
     </main>
-  );
-}
-
-function Hold({ code, label, className = "" }: { code: string; label: string; className?: string }) {
-  return (
-    <button
-      type="button"
-      className={`h-12 rounded-xl border border-line bg-surface/90 text-sm font-medium text-fg ${className}`}
-      onPointerDown={(event) => {
-        event.currentTarget.setPointerCapture(event.pointerId);
-        held.add(code);
-      }}
-      onPointerUp={() => held.delete(code)}
-      onPointerCancel={() => held.delete(code)}
-      onLostPointerCapture={() => held.delete(code)}
-    >
-      {label}
-    </button>
   );
 }
