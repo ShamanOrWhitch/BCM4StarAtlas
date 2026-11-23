@@ -41,6 +41,7 @@ const EMPTY: IslandHud = {
   inventory: [],
   selectedTape: "",
   nearTapeDeck: false,
+  carpet: null,
 };
 
 export function DesertIsland({
@@ -258,7 +259,7 @@ export function DesertIsland({
                 {hud.region}
               </p>
               <p className="font-display text-2xl leading-none">
-                {hud.mode === "bike" ? "Байк" : moodName(hud.mood)}
+                {hud.mode === "bike" ? (hud.carpet ? "Корабль" : "Байк") : moodName(hud.mood)}
               </p>
               <p className="mt-1 flex items-center gap-1 text-sm">
                 <Gauge className="size-4 text-primary" aria-hidden />
@@ -266,6 +267,20 @@ export function DesertIsland({
                 {hud.mode === "bike" ? ` · ${Math.round(hud.alt)} м` : ""}
               </p>
               <p className="mt-1 text-xs text-muted">Монеты {hud.coins}</p>
+              {hud.carpet && hud.mode === "bike" ? (
+                <div className="mt-2 space-y-1 text-xs" data-opus-carpet>
+                  <div className="h-2 w-40 overflow-hidden rounded-full bg-bg/60">
+                    <div
+                      className={hud.carpet.hit ? "h-full bg-red-500" : "h-full bg-primary"}
+                      style={{ width: `${Math.round((hud.carpet.energy / hud.carpet.energyMax) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-muted">
+                    Энергия {Math.round(hud.carpet.energy)} · трюм {hud.carpet.hold}/{hud.carpet.holdCap} · накопитель {hud.carpet.store}
+                  </p>
+                  <p className="text-muted">Стражи на узлах: {hud.carpet.wardensUp}</p>
+                </div>
+              ) : null}
             </div>
             <div className="pointer-events-auto flex items-start gap-2">
               <canvas
@@ -283,7 +298,7 @@ export function DesertIsland({
                 >
                   СУМКА · {hud.inventory.length}
                 </button>
-                {phase === "play" && hud.mode === "bike" ? (
+                {phase === "play" && hud.mode === "bike" && !hud.carpet ? (
                   <button
                     type="button"
                     aria-label={hud.flightMode ? "Перейти в режим земли" : "Включить режим полёта"}
@@ -441,7 +456,12 @@ export function DesertIsland({
       {phase === "play" && !talk && touchDevice ? (
         <TouchPad
           stick={{ up: "KeyW", down: "KeyS", left: "KeyA", right: "KeyD" }}
-          buttons={[
+          buttons={hud.carpet && hud.mode === "bike" ? [
+            { code: "KeyX", label: "Огонь", primary: true },
+            { code: "Space", label: "Выше" },
+            { code: "KeyQ", label: "Ниже" },
+            { code: "KeyF", label: "Выйти" },
+          ] : [
             { code: "Space", label: "Прыжок", primary: true },
             { code: "KeyE", label: "Взять" },
             { code: "KeyF", label: "Сесть" },
@@ -451,6 +471,7 @@ export function DesertIsland({
             { code: "KeyV", label: "Кассета" },
             { code: "KeyC", label: "Настроение" },
             { code: "KeyQ", label: "Вниз" },
+            ...(hud.carpet && hud.mode === "bike" ? [{ code: "KeyE", label: "Купить" }, { code: "ShiftLeft", label: "Форсаж" }] : []),
           ]}
           tilt={tilt}
           onTilt={() => void toggleTilt().then((on) => setTilt(on || tiltEnabled()))}

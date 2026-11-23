@@ -1,3 +1,11 @@
+## Patch — Mini-Sim 0.16.15: Opus, the carpet planet (IDEA-026 step 1) (23 November 2026)
+
+- **WORK LOCK:** [#160](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/160). Decision D-091.
+- **First Planet / Opus:** relief `opus` (terraces, karst pillars, canyon); `island/carpet.ts` flight controller (terrain-following hover, banked turns with lag, slope pitch, auto-lift over roofs, hover stop) and loop (store at the pad, sparks taken low, energy for height, wardens, three upgrades); `island/opus-look.ts` visuals; carpet camera; HUD panel and phone buttons. `window.__BCM_ISLAND_QA__` exposes the island sim to probes. `wp-dist` rebuilt.
+- **Checks:** `first-planet-opus-carpet.test.mjs` (CI), Edge probe PASS, regression 316/316, UI layer PASS, `test:minisim` 65/65.
+
+---
+
 ## Patch — Mini-Sim 0.16.14: First Planet cache busting, planet names in the Warp menu, dead duplicates removed (23 November 2026)
 
 - **WORK LOCK:** [#159](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/159). Decision D-090, IDEA-028.

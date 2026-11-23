@@ -20,12 +20,15 @@ export const TERRAIN_N = 96;
  *             sea stacks. Town, pad, pond and bridge stand where they stood.
  *   twinsun — Twinsun (owner 23.11.2026: its own level, not the shared desert):
  *             wind-laid dune crests, three flat-topped mesas, a ragged coast.
+ *   opus    — planet Opus (owner 23.11.2026, IDEA-026 step 1): limestone terraces,
+ *             a forest of karst pillars to weave the ship between, a dry canyon in
+ *             the east. Built for flight low over the ground.
  */
-export type ReliefId = "desert" | "fable" | "twinsun";
+export type ReliefId = "desert" | "fable" | "twinsun" | "opus";
 let relief: ReliefId = "desert";
 
 export function setRelief(id: unknown) {
-  relief = id === "fable" ? "fable" : id === "twinsun" ? "twinsun" : "desert";
+  relief = id === "fable" ? "fable" : id === "twinsun" ? "twinsun" : id === "opus" ? "opus" : "desert";
 }
 
 export function getRelief(): ReliefId {
@@ -36,7 +39,65 @@ export function getRelief(): ReliefId {
 export function groundY(x: number, z: number) {
   if (relief === "fable") return fableGroundY(x, z);
   if (relief === "twinsun") return twinsunGroundY(x, z);
+  if (relief === "opus") return opusGroundY(x, z);
   return desertGroundY(x, z);
+}
+
+/**
+ * Opus karst pillars: centre, radius of the steep shaft, top height. Clear of the
+ * town, the pad, the oasis, the crystal ridge, the key, the ring and the sky deck.
+ */
+export const OPUS_PILLARS: Array<{ x: number; z: number; r: number; top: number }> = [
+  { x: -50, z: 4, r: 3.0, top: 13 },
+  { x: -44, z: -36, r: 2.6, top: 11 },
+  { x: -18, z: -52, r: 2.4, top: 10 },
+  { x: 38, z: -12, r: 2.8, top: 14 },
+  { x: 52, z: 8, r: 2.4, top: 12 },
+  { x: 44, z: -44, r: 3.0, top: 15 },
+  { x: -54, z: 30, r: 2.6, top: 11 },
+  { x: 32, z: 52, r: 2.2, top: 9.5 },
+  { x: -26, z: 46, r: 2.4, top: 10.5 },
+];
+/** The dry canyon in the east: its axis x for a given z, from z0 to z1. */
+export const OPUS_CANYON = { z0: -34, z1: 18, x: (z: number) => 24 + 7 * Math.sin(z * 0.075), half: 3.2 };
+/** The Opus base: a spark store beside the landing pad (IDEA-026 step 1). */
+export const OPUS_BASE = { x: -7, z: 40, r: 6 };
+
+function opusGroundY(x: number, z: number) {
+  const r = Math.hypot(x, z);
+  const t = Math.atan2(z, x);
+  // A rounder, wider coast than the desert: limestone does not crumble into bays.
+  const coast = 1.04 + 0.04 * Math.sin(3 * t + 2.1);
+  const inland = smooth(80 * coast, 60 * coast, r);
+  const wild = 1 - Math.exp(-(x * x) / 420 - ((z - 16) ** 2) / 700);
+  // Broad swells cut into terraces: each step a flat shelf and a short limestone wall.
+  let swell = 1.1 + 2.6 * (0.5 + 0.5 * Math.sin(x * 0.045 - 1.2) * Math.cos(z * 0.05 + 0.7))
+    + 0.8 * Math.sin((x + z) * 0.03 + 0.4);
+  swell = Math.max(0, swell);
+  const STEP = 1.3;
+  const k = Math.floor(swell / STEP);
+  const terraced = k * STEP + STEP * smooth(0.72, 1, swell / STEP - k);
+  let h = 0.7 + terraced * wild;
+  const ridge = Math.exp(-((x + 32) ** 2) / 70 - ((z + 18) ** 2) / 150);
+  h += ridge * 5.2;
+  const oasis = Math.exp(-((x - 2.4) ** 2) / 48 - ((z + 17) ** 2) / 52);
+  h -= oasis * 2.5;
+  // The canyon: a dry gully with a level floor, deeper in the middle of its run.
+  if (z > OPUS_CANYON.z0 - 8 && z < OPUS_CANYON.z1 + 8) {
+    const along = smooth(OPUS_CANYON.z0 - 8, OPUS_CANYON.z0 + 4, z) * smooth(OPUS_CANYON.z1 + 8, OPUS_CANYON.z1 - 4, z);
+    const d = Math.abs(x - OPUS_CANYON.x(z));
+    const cut = smooth(OPUS_CANYON.half + 2.2, OPUS_CANYON.half, d) * along;
+    h = lerp(h, 0.15, cut);
+  }
+  let y = lerp(-1.7, settle(h, x, z), inland);
+  for (const p of OPUS_PILLARS) {
+    const d = Math.hypot(x - p.x, z - p.z);
+    // A steep shaft with a little skirt of scree at its foot.
+    const shaft = smooth(p.r + 1.1, p.r, d);
+    const skirt = smooth(p.r + 5, p.r + 1.1, d) * 1.4;
+    y = Math.max(y, -1.7 + shaft * (p.top + 1.7) + skirt);
+  }
+  return y;
 }
 
 /** Twinsun's mesas: centre, flat-top radius, top height. Clear of every quest spot. */
@@ -383,6 +444,7 @@ export const NPC = {
 export function regionName(x: number, z: number, y: number) {
   if (onSky(x, z) && y > SKY.y - 1) return "Висячий остров";
   if (relief === "fable") return fableRegionName(x, z);
+  if (relief === "opus") return opusRegionName(x, z);
   if (relief === "twinsun") {
     for (const m of TWINSUN_MESAS) if (Math.hypot(x - m.x, z - m.z) < m.r + 3) return "Плато близнецов";
   }
@@ -393,6 +455,19 @@ export function regionName(x: number, z: number, y: number) {
   if (Math.abs(x) < 18 && z > -10 && z < 26) return "Дюнный посад";
   if (Math.hypot(x - RING.x, z - RING.z) < 8) return "Северное кольцо";
   return "Дюны";
+}
+
+function opusRegionName(x: number, z: number) {
+  for (const p of OPUS_PILLARS) if (Math.hypot(x - p.x, z - p.z) < p.r + 7) return "Карстовый лес";
+  if (Math.hypot(x - OPUS_BASE.x, z - OPUS_BASE.z) < OPUS_BASE.r + 1) return "Накопитель";
+  if (z > OPUS_CANYON.z0 && z < OPUS_CANYON.z1 && Math.abs(x - OPUS_CANYON.x(z)) < OPUS_CANYON.half + 3) return "Сухой каньон";
+  if (Math.hypot(x - 2.4, z + 17) < 9) return "Оазис";
+  if (x < -22 && z < -6) return "Кристальная гряда";
+  if (z > 30 && Math.abs(x) < 14) return "Посадочная";
+  if (Math.hypot(x - JAHMAN.x, z - JAHMAN.z) < 5) return "Дом Джамана";
+  if (Math.abs(x) < 18 && z > -10 && z < 26) return "Известняковый посад";
+  if (Math.hypot(x - RING.x, z - RING.z) < 8) return "Северное кольцо";
+  return "Известняковые террасы";
 }
 
 function fableRegionName(x: number, z: number) {

@@ -19,8 +19,10 @@ import {
   houseAabbs,
   hoverFloor,
   regionName,
+  surfaceY,
   type Aabb,
 } from "./terrain";
+import { buyUpgrade, createCarpet, nextUpgrade, stepCarpet, type CarpetState } from "./carpet";
 import { planetContent, type PlanetContent, type QuestKind } from "./content";
 
 const SAVE_KEY = "desert-island-v1";
@@ -68,6 +70,19 @@ export type IslandHud = {
   inventory: { id: string; title: string; kind: "tape" | "crystal" | "key"; count: number }[];
   selectedTape: string;
   nearTapeDeck: boolean;
+  /** Planet Opus flight loop (IDEA-026 step 1); null on other planets. */
+  carpet: null | {
+    energy: number;
+    energyMax: number;
+    hold: number;
+    holdCap: number;
+    store: number;
+    next: { title: string; cost: number } | null;
+    atBase: boolean;
+    hit: boolean;
+    wardensUp: number;
+    note: string;
+  };
 };
 
 function loadSave(storageKey = SAVE_KEY): Save {
@@ -230,6 +245,8 @@ export function createSim(seed = 0, planet?: string) {
     quests: { ...save.quests },
     relay: { ...(save.relay || {}) } as Partial<Record<QuestId, boolean>>,
     content,
+    /** Opus: the ship flies as a carpet over the ground (IDEA-026 step 1). Other planets: null. */
+    carpet: (planet === "opus" ? createCarpet(surfaceY) : null) as CarpetState | null,
     coins: save.coins,
     chest: save.chest,
     tapes: save.tapes.slice(),
@@ -506,6 +523,7 @@ export function createSim(seed = 0, planet?: string) {
     },
     toggleFlightMode() {
       if (this.mode !== "bike") return false;
+      if (this.carpet) return true; // on Opus the ship is always airborne
       this.flightMode = !this.flightMode;
       this.vy = this.flightMode ? 0 : Math.min(0, this.vy);
       this.engineForward = 0;
@@ -564,6 +582,12 @@ export function createSim(seed = 0, planet?: string) {
       else if (this.mode === "foot" && hit(this.bikeX, this.bikeZ, 3.8)) this.prompt = "F — сесть на байк";
       // Owner 16.11.2026: "быстро сказал управление и всё" — the keys are said
       // once when the ride or its mode changes, then the hint leaves the screen.
+      else if (this.mode === "bike" && this.carpet?.atBase) {
+        const next = nextUpgrade(this.carpet);
+        this.prompt = next ? `E — ${next.title} · ${next.cost} искр (в накопителе ${this.carpet.store})` : "Накопитель: всё куплено";
+      }
+      else if (this.mode === "bike" && this.carpet && this.carpet.noteFor > 0) this.prompt = this.carpet.note;
+      else if (this.mode === "bike" && this.carpet && this.rideHint > 0) this.prompt = "Space — выше · Q — ниже · X — огонь · искры берутся низко";
       else if (this.mode === "bike" && this.rideHint > 0) this.prompt = this.flightMode
         ? "Space — вверх · Q — вниз · T — земля · F — спешиться"
         : "T — полёт · F — спешиться";
@@ -588,6 +612,7 @@ export function createSim(seed = 0, planet?: string) {
       }
       this.moodPrev = this.mode === "foot" && keys.has("KeyC");
       if (use && !this.usePrev && this.mode === "foot") this.interact();
+      if (use && !this.usePrev && this.mode === "bike" && this.carpet) buyUpgrade(this.carpet);
       this.usePrev = use;
       if (boardKey && !this.boardPrev && !this.dialogue) {
         if (this.mode === "foot") this.board?.();
@@ -609,8 +634,34 @@ export function createSim(seed = 0, planet?: string) {
       if (flightToggle && !this.flightTogglePrev) this.toggleFlightMode();
       this.flightTogglePrev = flightToggle;
       this.steer = steer;
+      // Opus: boarding the ship takes it straight into the air.
+      if (this.carpet && this.mode === "bike" && !this.flightMode) {
+        this.flightMode = true;
+        this.y = Math.max(this.y, hoverFloor(this.x, this.z, this.y));
+      }
 
-      if (!this.dialogue) {
+      if (!this.dialogue && this.carpet && this.mode === "bike") {
+        const climb = (keys.has("Space") ? 1 : 0) - (keys.has("KeyQ") ? 1 : 0);
+        stepCarpet(this.carpet, this, {
+          steer,
+          throttle,
+          brake,
+          climb,
+          boost: keys.has("ShiftLeft") || keys.has("ShiftRight"),
+          fire: keys.has("KeyX"),
+        }, dt, (nx, nz, y) => collide(nx, nz, y, this.walls), (x, z) => {
+          let topY = -Infinity;
+          for (const box of this.walls) {
+            if (x > box.minX - 1 && x < box.maxX + 1 && z > box.minZ - 1 && z < box.maxZ + 1) topY = Math.max(topY, box.maxY);
+          }
+          return topY;
+        });
+        this.engineForward = Math.abs(this.speed) > 0.45 ? Math.sign(this.speed) : throttle - brake;
+        this.engineVertical = climb || (this.vy > 0.35 ? 1 : this.vy < -0.35 ? -1 : 0);
+        this.bikeX = this.x;
+        this.bikeZ = this.z;
+        this.bikeYaw = this.yaw;
+      } else if (!this.dialogue) {
         const turn = this.mode === "foot" ? 2.45 : 1.65;
         this.yaw += steer * turn * dt;
         const fx = -Math.sin(this.yaw);
@@ -773,6 +824,20 @@ export function createSim(seed = 0, planet?: string) {
         ],
         selectedTape: this.selectedTape,
         nearTapeDeck: Math.hypot(this.x - STORY_BOX.x, this.z - STORY_BOX.z) < 6.5,
+        carpet: this.carpet
+          ? {
+              energy: this.carpet.energy,
+              energyMax: this.carpet.energyMax,
+              hold: this.carpet.hold,
+              holdCap: this.carpet.holdCap,
+              store: this.carpet.store,
+              next: nextUpgrade(this.carpet),
+              atBase: this.carpet.atBase,
+              hit: this.carpet.hit > 0,
+              wardensUp: this.carpet.wardens.filter((w) => w.down <= 0).length,
+              note: this.carpet.noteFor > 0 ? this.carpet.note : "",
+            }
+          : null,
       };
     },
   };

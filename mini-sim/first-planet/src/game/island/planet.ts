@@ -57,7 +57,7 @@ export type PlanetLook = {
   sea: { color: number; opacity: number; roughness: number };
   exposure: number;
   /** Island relief (terrain.ts setRelief). Absent means the desert island. */
-  relief?: "desert" | "fable" | "twinsun";
+  relief?: "desert" | "fable" | "twinsun" | "opus";
   extras?: PlanetExtras;
 };
 
@@ -123,6 +123,8 @@ export const PLANETS: Record<PlanetId, PlanetLook> = {
     ground: { sand: 0xd9cbb0, wet: 0x8e8f86, rock: 0x6d675c, grass: 0x35523d, greenery: 0.38 },
     sea: { color: 0x3c5566, opacity: 0.94, roughness: 0.18 },
     exposure: 1.06,
+    // Owner 23.11.2026: Opus is where the Magic Carpet loop starts (IDEA-026 step 1).
+    relief: "opus",
     extras: { stars: 120, aurora: null, motes: null, ring: null, veins: null, seaGlow: null },
   },
   first: {

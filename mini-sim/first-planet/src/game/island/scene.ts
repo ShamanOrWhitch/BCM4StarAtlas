@@ -8,6 +8,7 @@ import { ASTEROID_SHOW, characterHeight, characterPath, PILOT_SHIPS, pilotShip, 
 import { libraryUrl, meshUrl, propUrl } from "../mesh-url";
 import { activeKeys } from "../input";
 import { createSim, type Sim } from "./sim";
+import { createOpusLook } from "./opus-look";
 import {
   BIKE_PARK,
   BRAZIERS,
@@ -260,6 +261,8 @@ export function createIsland(
 
   const geos = new Set<THREE.BufferGeometry>();
   const mats = new Set<THREE.Material>();
+  // Planet Opus: the spark store, sparks, wardens and bolts of the carpet loop (IDEA-026 step 1).
+  const opusLook = sim.carpet ? createOpusLook(scene, sim.carpet, surfaceY, { geos, mats }) : null;
 
   // A planet with its own design (Fable) adds a night sky, a ringed moon,
   // aurora curtains and light motes. Three draw calls for stars, motes and
@@ -1559,6 +1562,13 @@ export function createIsland(
       driveController.update(elapsed);
       bike.rotation.z = blazing ? -sim.steer * 0.14 : 0;
     }
+    // Opus: the hull banks into the turn, follows the slope and trembles a little (carpet.ts).
+    if (sim.carpet && sim.mode === "bike") {
+      bike.rotation.z = sim.carpet.roll;
+      bike.rotation.x = sim.carpet.pitch;
+      bike.position.y = sim.y + sim.carpet.bob;
+    } else bike.rotation.x = 0;
+    opusLook?.update(elapsed);
     if (bikeOff) bikeOff.visible = !boarded && (!blazing || !bikeFull);
     if (bikeFull) bikeFull.visible = !boarded && blazing;
     if (boarded) {
@@ -1618,14 +1628,27 @@ export function createIsland(
           lookAhead = long * 0.2;
         }
       }
+      const carpetCam = !!sim.carpet && sim.mode === "bike";
+      if (carpetCam) {
+        // Opus: behind and above, looking 15 m ahead along the course, so at speed you see where you go.
+        dist += 2.5;
+        height += 1.2;
+        lookAhead = 15;
+      }
       desired.set(sim.x - fx * dist, sim.y + height, sim.z - fz * dist);
-      look.set(sim.x + fx * lookAhead, sim.y + 1.05, sim.z + fz * lookAhead);
+      look.set(sim.x + fx * lookAhead, sim.y + (carpetCam ? 0.4 : 1.05), sim.z + fz * lookAhead);
       pullCam(desired);
     }
     const k = snapping ? 1 : 1 - Math.exp(-4.2 * dt);
     camera.position.lerp(desired, k);
     lookSmoothed.lerp(look, k);
+    if (sim.carpet && sim.mode === "bike" && phase === "play") {
+      // A hard floor after the smoothing, not a lerp: on a sharp rise the camera does not dip into the rock.
+      camera.position.y = Math.max(camera.position.y, surfaceY(camera.position.x, camera.position.z) + 2);
+    }
     camera.lookAt(lookSmoothed);
+    // Part of the bank reaches the camera: you feel the lean, without the sickness of a full roll.
+    if (sim.carpet && sim.mode === "bike" && phase === "play") camera.rotateZ(sim.carpet.roll * 0.35);
 
     sun.position.copy(gold.position);
     sun.target.position.set(0, -0.55, 0);
@@ -1665,6 +1688,7 @@ export function createIsland(
     ctx.beginPath();
     ctx.arc(toX(SKY.x), toY(SKY.z), 3, 0, Math.PI * 2);
     ctx.fill();
+    opusLook?.paint(ctx, toX, toY);
     const fx = -Math.sin(sim.yaw);
     const fz = -Math.cos(sim.yaw);
     ctx.strokeStyle = "#f4efe4";
@@ -1828,6 +1852,9 @@ export function createIsland(
     if (request) request.call(overlay, { navigationUI: "hide" })?.catch(() => {});
     void tapeVideo.play()?.catch(() => {});
   }
+
+  // QA handle for browser probes (read-only use: position, mode, walls, carpet state).
+  if (typeof window !== "undefined") (window as unknown as { __BCM_ISLAND_QA__?: unknown }).__BCM_ISLAND_QA__ = { sim };
 
   sim.board = () => {
     if (sim.mode !== "foot" || boarded) return false;
