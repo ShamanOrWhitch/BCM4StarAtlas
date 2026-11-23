@@ -32,7 +32,8 @@
     walker: { walk: "ШАГОХОД ИДЁТ", lift: "ШАГОХОД ПОДНЯЛ НОГУ · ГОТОВЬСЯ ПРЫГАТЬ", stomp: "ТОПОТ · ПРЫГАЙ ЧЕРЕЗ ВОЛНУ", planted: "НОГА УВЯЗЛА · ЯДРО ОТКРЫТО" },
     orbiter: { orbit: "ОРБИТА · ЛЕТИ: ПРЫЖОК = ИМПУЛЬС · ПОЛ УХОДИТ — ДЕРЖИСЬ В ВОЗДУХЕ ИЛИ НА УСТУПАХ", mark: "МЕТКА НА ПОЛУ · УЙДИ", drop: "СГУСТОК ПАДАЕТ", open: "ОБЛОМКИ РАЗЛЕТЕЛИСЬ · ЯДРО ОТКРЫТО" },
     brawler: { advance: "БОЕЦ ИДЁТ · ЗАЙДИ СО СПИНЫ", windup: "ЗАМАХ · УЙДИ ИЗ ЗОНЫ УДАРА", punch: "УДАР", stuck: "КУЛАК ЗАСТРЯЛ · ЯДРО ОТКРЫТО",
-      charge: "ПУШКА ЗАРЯЖАЕТСЯ · СМЕНИ ЯРУС", fire: "ЗАЛП", recover: "ОТДАЧА", drink: "ПЬЁТ ПОД ЩИТОМ · ЧИНИТСЯ — ЖДИ", taunt: "ХОХОЧЕТ · ЯДРО ОТКРЫТО — БЕЙ!" },
+      back: "БОЕЦ ОТХОДИТ К СТЕНЕ", charge: "ПУШКА ЗАРЯЖАЕТСЯ · ЛИНИЯ НА ТВОЁМ ЯРУСЕ — ПРЫГАЙ НА ДРУГОЙ",
+      aim: "ЦЕЛИТСЯ · СМЕНИ ЯРУС", fire: "ЗАЛП!", recover: "ОТДАЧА", drink: "ПЬЁТ ПОД ЩИТОМ · ЧИНИТСЯ — ЖДИ", taunt: "ХОХОЧЕТ · ЯДРО ОТКРЫТО — БЕЙ!" },
     runner: { rev: "ГОНЩИК РЕВЁТ · ПРЫГАЙ ЧЕРЕЗ НЕГО", dash: "ГОНЩИК ЛЕТИТ", turn: "РАЗВОРОТ", overheat: "ПЕРЕГРЕВ · ЯДРО ОТКРЫТО" },
     stalker: { stalk: "ТЕНЬ КРАДЁТСЯ", mark: "ТЕНЬ МЕТИТ МЕСТО · УЙДИ ИЗ МЕТКИ", leap: "ТЕНЬ ПРЫГАЕТ", land: "ПРИЗЕМЛЕНИЕ", recover: "ТЕНЬ ОШЕЛОМЛЕНА · ЯДРО ОТКРЫТО" }
   };
@@ -66,7 +67,7 @@
       x: homeX, y: 0, facing: -1, state: "", t: 0, dur: 0, clock: 0,
       vulnerable: false, attacking: false, tell: null,
       dir: -1, passes: 0, waves: [], patches: [], lastPatchX: null,
-      mark: null, fromX: 0, orbAngle: 0, orbY: 0, cycle: 0, band: null,
+      mark: null, fromX: 0, orbAngle: 0, orbY: 0, cycle: 0, band: null, balls: [], shotsLeft: 0,
       sparks: [], bubbles: []
     };
     // Owner 22.11.2026 "Полёт в фазе Орбиты": the Orbiter is fought in Balloon flight.
@@ -201,24 +202,57 @@
         // pilot stands on (floor 0, ledges 1.4 / 2.8 m) and fires across the arena: the
         // answer is to change tier. A pilot hiding up on a ledge always gets the cannon.
         var targetY = Number(c.targetY) || 0;
+        // Owner 23.11.2026: "это сам свин боец должен так атаковать, он большой, а игрок между
+        // платформами прыгает и убегает от выстрела". The cannon is a volley of three plasma
+        // balls from the far wall; each is aimed at the tier the pilot is on when its aim
+        // starts (floor 0, ledges 1.4 / 2.8 m) and flies across the arena at 11 m/s.
+        var tierBand = function (y) {
+          var tier = y < 0.7 ? 0 : y < 2.1 ? 1.4 : 2.8;
+          return { y0: tier + 0.45, y1: tier + 1.25 };
+        };
+        var muzzleX = function () { return s.x + s.facing * 2.4; };
+        var aimLine = function () {
+          var mx = muzzleX();
+          return box("aim", mx, s.facing < 0 ? minX - 1 : maxX + 1, s.band.y0, s.band.y1);
+        };
         if (s.state === "advance") {
           towardTarget(targetX, 1.8, d);
           if (done || Math.abs(targetX - s.x) < 3) {
             s.cycle += 1;
             if (targetY > 1 || s.cycle % 2 === 0) {
-              var tier = targetY < 0.7 ? 0 : targetY < 2.1 ? 1.4 : 2.8;
-              s.band = { y0: tier + 0.45, y1: tier + 1.25 };
-              s.facing = targetX < s.x ? -1 : 1;
-              go("charge", 2.0);
+              // Step back to the wall away from the pilot: the balls get the whole arena.
+              s.backTo = targetX < homeX ? maxX : minX;
+              go("back", 3);
             } else go("windup", jitter(0.9));
           }
-        } else if (s.state === "charge") {
-          s.tell = box("beam", minX - 1, maxX + 1, s.band.y0, s.band.y1);
-          if (done) go("fire", 0.4);
+        } else if (s.state === "back") {
+          s.facing = s.backTo > s.x ? 1 : -1;
+          s.x = clampX(s.x + Math.max(-5 * d, Math.min(5 * d, s.backTo - s.x)));
+          if (Math.abs(s.x - s.backTo) < 0.05 || done) {
+            s.facing = targetX < s.x ? -1 : 1;
+            s.band = tierBand(targetY);
+            s.shotsLeft = 3;
+            go("charge", 1.6);
+          }
+        } else if (s.state === "charge" || s.state === "aim") {
+          s.tell = aimLine();
+          if (done) {
+            s.balls.push({ x: muzzleX(), dir: s.facing, y0: s.band.y0, y1: s.band.y1 });
+            s.shotsLeft -= 1;
+            hazards.push(box("plasma", muzzleX() - 0.5, muzzleX() + 0.5, s.band.y0, s.band.y1));
+            s.launched = true;
+            go("fire", 0.25);
+            s.attacking = true;
+          }
         } else if (s.state === "fire") {
           s.attacking = true;
-          hazards.push(box("beam", minX - 1, maxX + 1, s.band.y0, s.band.y1));
-          if (done) go("recover", 0.6);
+          if (done) {
+            if (s.shotsLeft > 0) {
+              s.facing = targetX < s.x ? -1 : 1;
+              s.band = tierBand(targetY);
+              go("aim", 0.7);
+            } else go("recover", 0.6);
+          }
         } else if (s.state === "recover") {
           // Owner 23.11.2026: after the shot it sits down and drinks to recover; its shields
           // hold, shots are useless (even in the back) and it mends. Then it laughs, mouth
@@ -309,6 +343,16 @@
       s.bubbles.forEach(function (b) { if (b.wait > 0) b.wait = Math.max(0, b.wait - d); });
 
       // Walker waves and Runner exhaust live on after their attack.
+      var justLaunched = !!s.launched;
+      s.launched = false;
+      s.balls = s.balls.filter(function (b, index) {
+        // A ball launched this frame is already in the hazards; it moves from the next frame.
+        if (justLaunched && index === s.balls.length - 1) return true;
+        b.x += b.dir * 11 * d;
+        if (b.x < minX - 1 || b.x > maxX + 1) return false;
+        hazards.push(box("plasma", b.x - 0.5, b.x + 0.5, b.y0, b.y1));
+        return true;
+      });
       s.waves = s.waves.filter(function (w) {
         w.x += w.dir * 9 * d;
         if (w.x < minX - 0.8 || w.x > maxX + 0.8) return false;
@@ -327,6 +371,9 @@
         vulnerable: s.vulnerable, attacking: s.attacking, tell: s.tell,
         hazards: hazards, cue: (CUES[form] && CUES[form][s.state]) || "",
         shielded: !!s.shielded, healing: !!s.shielded,
+        charge: s.state === "charge" ? Math.min(1, s.t / s.dur) : s.state === "aim" ? 0.5 + 0.5 * Math.min(1, s.t / s.dur) : 0,
+        muzzle: form === "brawler" ? { x: s.x + s.facing * 2.4, y: s.band ? (s.band.y0 + s.band.y1) / 2 : 1.2 } : null,
+        balls: s.balls.map(function (b) { return { x: b.x, y: (b.y0 + b.y1) / 2, dir: b.dir }; }),
         flight: flight, drift: flight ? 1.2 : 0, ceiling: flight ? CEILING : 0,
         floorWarn: flight && !pitOpen(),
         pit: pitOpen() ? { x0: PIT.x0, x1: PIT.x1 } : null,

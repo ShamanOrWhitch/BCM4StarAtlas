@@ -1,3 +1,13 @@
+## Patch — Mini-Sim 0.16.12: the Brawler fires a volley itself; the pilot hops ledges; boss camera (23 November 2026)
+
+- **WORK LOCK:** [#157](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/157). Decision D-088.
+- **`ring-boss-moves.js`:** Brawler cannon = back to the far wall → charge 1.6 s → three plasma balls (11 m/s across the arena), each re-aimed at the pilot's current tier after a 0.7 s aim → recover → shielded drink → laugh window. Output: `charge`, `muzzle`, `balls`.
+- **`ring-platformer.js`:** charge glow, aim line, glowing balls with halo and tail; `brawlerPose` (lean, tremble, recoil, squat, laugh shake); no comic panel for the Brawler; boss camera (toward the middle, ×1.18 pull-back, floor-based height); boss wake range 20 m; QA snapshot: aim band, balls, camera left/right.
+- **Tests:** arena mechanics (volley, re-aim, cycle, scene, camera) in CI. Edge: `ring-boss-volley-probe.mjs` PASS. Regression 297/297; arena, fight, Orbiter flight, chase, flight panel, boss arc probes and UI layer PASS.
+- **Not yet:** a real rig for arms and cannon; the attack video cut out in the world.
+
+---
+
 ## Patch — Mini-Sim 0.16.11: the way to the bosses — jetpack crossing, slicers, comic words; Brawler ×2.2 (23 November 2026)
 
 - **WORK LOCK:** [#156](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/156). Decision D-087, IDEA-027 step 1.

@@ -1385,6 +1385,8 @@
                 camera: worldState.cameraView || null,
                 comic: worldState.bossComic && worldState.bossComic.panel.style.display !== "none" ? worldState.bossComic.file : null,
                 shielded: !!(boss.shieldMesh && boss.shieldMesh.visible), bossHp: boss.hp,
+                aimBand: boss.lastMoveOut && boss.lastMoveOut.tell && boss.lastMoveOut.tell.kind === "aim" ? boss.lastMoveOut.tell : null,
+                balls: boss.lastMoveOut && boss.lastMoveOut.balls ? boss.lastMoveOut.balls : [],
                 comicVideo: worldState.bossComic && worldState.bossComic.video ? { ready: worldState.bossComic.video.readyState, t: worldState.bossComic.video.currentTime,
                   paused: worldState.bossComic.video.paused, err: worldState.bossComic.video.error && worldState.bossComic.video.error.code } : null,
                 // Up axis of the current form model in the world (1 = upright, -1 = upside down).
@@ -2792,6 +2794,7 @@
           boss.moves = null;
           drawBossZones(boss, null);
           if (boss.shieldMesh) boss.shieldMesh.visible = false;
+          if (boss.volley) drawBrawlerVolley(boss, null, now);
           if (worldState.bossComic) showBossComic("");
           endRunnerChase(boss);
           boss.phaseState = "transition";
@@ -3396,7 +3399,7 @@
         if (!boss.zoneMeshes) boss.zoneMeshes = [];
         const zones = [];
         if (out && out.tell) zones.push({ zone: out.tell, tell: true });
-        (out ? out.hazards : []).forEach((zone) => zones.push({ zone, tell: false }));
+        (out ? out.hazards : []).forEach((zone) => { if (zone.kind !== "plasma") zones.push({ zone, tell: false }); });
         while (boss.zoneMeshes.length < zones.length) {
           const mesh = new THREE.Mesh(
             new THREE.PlaneGeometry(1, 1),
@@ -3551,6 +3554,101 @@
         if (played && typeof played.catch === "function") played.catch(() => {});
       }
 
+      // Owner 23.11.2026: the big Brawler fires its cannon itself in the arena — a glow grows at
+      // its hand, a thin aim line runs along the pilot's tier, three plasma balls fly across
+      // with a halo and a tail; the pilot jumps between the floor and the ledges.
+      function drawBrawlerVolley(boss, out, now) {
+        if (!boss.volley) {
+          const glowMat = new THREE.MeshBasicMaterial({ color: 0x8ff8ff, transparent: true, opacity: 0.85, depthWrite: false });
+          const haloMat = new THREE.MeshBasicMaterial({ color: 0x3fd8ff, transparent: true, opacity: 0.35, depthWrite: false });
+          const lineMat = new THREE.MeshBasicMaterial({ color: 0xfff1a8, transparent: true, opacity: 0.9, depthWrite: false });
+          const sphere = new THREE.SphereGeometry(1, 16, 12);
+          const charge = new THREE.Mesh(sphere, glowMat);
+          charge.name = "ring-boss-charge";
+          charge.renderOrder = 9;
+          const chargeHalo = new THREE.Mesh(sphere, haloMat);
+          chargeHalo.renderOrder = 8;
+          const aim = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), lineMat);
+          aim.name = "ring-boss-aim";
+          aim.renderOrder = 8;
+          worldState.group.add(charge, chargeHalo, aim);
+          boss.volley = { sphere, glowMat, haloMat, charge, chargeHalo, aim, balls: [] };
+        }
+        const v = boss.volley;
+        const on = !!(out && out.form === "brawler");
+        const level = on ? Number(out.charge) || 0 : 0;
+        v.charge.visible = v.chargeHalo.visible = level > 0;
+        if (level > 0 && out.muzzle) {
+          const r = 0.18 + level * 0.62 + Math.sin(now * 0.04) * 0.05;
+          v.charge.position.set(out.muzzle.x, out.muzzle.y, 1.7);
+          v.charge.scale.setScalar(r);
+          v.chargeHalo.position.copy(v.charge.position);
+          v.chargeHalo.scale.setScalar(r * (1.6 + Math.sin(now * 0.02) * 0.2));
+        }
+        const tell = on && out.tell && out.tell.kind === "aim" ? out.tell : null;
+        v.aim.visible = !!tell;
+        if (tell) {
+          v.aim.position.set((tell.x0 + tell.x1) / 2, (tell.y0 + tell.y1) / 2, 1.5);
+          v.aim.scale.set(tell.x1 - tell.x0, 0.06, 1);
+          v.aim.material.opacity = 0.45 + Math.abs(Math.sin(now * 0.02)) * 0.5;
+        }
+        const balls = on && out.balls ? out.balls : [];
+        while (v.balls.length < balls.length) {
+          const core = new THREE.Mesh(v.sphere, v.glowMat);
+          core.name = "ring-boss-plasma";
+          core.renderOrder = 9;
+          const halo = new THREE.Mesh(v.sphere, v.haloMat);
+          halo.renderOrder = 8;
+          const tail = [0, 1, 2].map(() => { const t = new THREE.Mesh(v.sphere, v.haloMat); t.renderOrder = 7; return t; });
+          worldState.group.add(core, halo, ...tail);
+          v.balls.push({ core, halo, tail });
+        }
+        v.balls.forEach((mesh, index) => {
+          const b = balls[index];
+          const show = !!b;
+          mesh.core.visible = mesh.halo.visible = show;
+          mesh.tail.forEach((t) => { t.visible = show; });
+          if (!b) return;
+          const wob = Math.sin(now * 0.05 + index) * 0.04;
+          mesh.core.position.set(b.x, b.y, 1.7);
+          mesh.core.scale.setScalar(0.42 + wob);
+          mesh.halo.position.set(b.x, b.y, 1.65);
+          mesh.halo.scale.setScalar(0.75 + wob * 2);
+          mesh.tail.forEach((t, k) => {
+            t.position.set(b.x - b.dir * (0.55 + k * 0.5), b.y, 1.6);
+            t.scale.setScalar(0.4 - k * 0.1);
+          });
+        });
+      }
+
+      // The Brawler's body acts without a rig: lean back and tremble while charging, recoil on
+      // each shot, squat to drink, shake with laughter. Applied to its form group around the
+      // base scale (2.2) and the ground height.
+      function brawlerPose(boss, phaseGroup, out, now) {
+        const base = RING_BOSS_FORM_SCALE[3] || 1;
+        const groundY = phaseGroup.userData.bcmGroundY || 2.1;
+        const f = out.facing || 1;
+        let rot = 0, sx = 1, sy = 1, dx = 0, dy = 0;
+        if (out.state === "back" || out.state === "advance") {
+          dy = Math.abs(Math.sin(now * 0.012)) * 0.18;
+        } else if (out.state === "charge" || out.state === "aim") {
+          const k = Number(out.charge) || 0;
+          rot = -f * 0.1 * k + Math.sin(now * 0.09) * 0.018 * k;
+          sx = 1 + 0.03 * k;
+        } else if (out.state === "fire") {
+          rot = -f * 0.16; dx = -f * 0.4; sx = 0.96; sy = 1.04;
+        } else if (out.state === "drink") {
+          sy = 0.86; sx = 1.05;
+        } else if (out.state === "taunt") {
+          rot = Math.sin(now * 0.028) * 0.07;
+          sy = 1 + Math.sin(now * 0.055) * 0.035;
+        }
+        phaseGroup.rotation.z = rot;
+        phaseGroup.scale.set(base * sx, base * sy, base);
+        phaseGroup.position.x = dx;
+        phaseGroup.position.y = groundY * sy + (out.y || 0) + dy;
+      }
+
       function runBossMoves(boss, phaseGroup, target, living, dt, now) {
         const out = boss.moves.step(dt, { targetX: target.worldX, targetY: target.worldY });
         boss.lastMoveOut = out;
@@ -3589,10 +3687,10 @@
           boss.tellMesh.rotation.z += dt * 1.3;
         }
         drawBossZones(boss, out);
+        drawBrawlerVolley(boss, out, now);
+        if (out.form === "brawler" && phaseGroup) brawlerPose(boss, phaseGroup, out, now);
         if (out.state !== boss.lastMoveState) {
           boss.lastMoveState = out.state;
-          if (BOSS_COMIC_BY_STATE[out.state] && out.form === "brawler") showBossComic(BOSS_COMIC_BY_STATE[out.state][0], BOSS_COMIC_BY_STATE[out.state][1]);
-          else if (!BOSS_COMIC_KEEP[out.state] && worldState.bossComic && worldState.bossComic.file) showBossComic("");
           const english = window.BCMDialogue?.language === "en";
           if (out.cue) updateHud(english ? (out.form.toUpperCase() + " · " + out.state.toUpperCase()) : out.cue);
         }
@@ -3641,7 +3739,8 @@
           if (boss.ring) boss.ring.rotation.z += dt * (boss.phaseIndex === 3 ? 1.8 : 0.8);
           const target = living.reduce((best, player) =>
             !best || Math.abs(player.worldX - boss.x) < Math.abs(best.worldX - boss.x) ? player : best, null);
-          if (!target || Math.abs(target.worldX - boss.x) > 14) return;
+          // 20 m: the big Brawler fires from the far wall of its 18 m arena (arenas are 34+ m apart).
+          if (!target || Math.abs(target.worldX - boss.x) > 20) return;
           if (!boss.activated) {
             boss.activated = true;
             boss.nextAttackAt = now + 900;
@@ -3739,7 +3838,6 @@
               if (boss.moves) {
                 boss.phaseState = "moves";
                 boss.tellMesh.visible = false;
-                if (boss.moves.form === "brawler") preloadBossComic(["brawler-attack-cannon.mp4", "brawler-drink.mp4", "brawler-laugh.mp4"]);
                 // Orbiter: the fight is flown (Balloon flight), jet and breath start full.
                 if (boss.moves.flight) players.forEach((pilot) => { pilot.jetFuel = 100; pilot.breathReserve = 100; });
                 return;
@@ -3939,6 +4037,15 @@
           // Camera in flight (owner 22.11.2026): ease into the whole-arena frame and back.
           player.flightFrame = (Number(player.flightFrame) || 0) +
             ((bossFlight ? 1 : 0) - (Number(player.flightFrame) || 0)) * Math.min(1, dt * 2.5);
+          // Boss camera (owner 23.11.2026: the big Brawler fires from the far wall): during a
+          // form fight the frame moves toward the middle between the pilot and the boss and
+          // pulls back a little, so the boss, its charge and the balls stay on screen.
+          const framedBoss = playerInLarge ? worldState.bosses.find((item) =>
+            item.alive && item.activated && item.phaseIndex > 0 && item.phaseState !== "chase" &&
+            Math.abs(player.worldX - item.x) < 20) : null;
+          player.bossFrame = (Number(player.bossFrame) || 0) +
+            ((framedBoss ? 1 : 0) - (Number(player.bossFrame) || 0)) * Math.min(1, dt * 2.0);
+          if (framedBoss) player.bossFrameX = (player.worldX + framedBoss.x) / 2;
           const lowGravity = astralMode === "drift" || astralMode === "flux" || bossFlight || flightPanel;
           if (bossFlight) { gravity = 6.0; jumpVelocity = 7.8; }
           const highGravity = astralMode === "dense";
@@ -4180,7 +4287,7 @@
 
       function configureCamera(camera, viewport, center) {
         const aspect = Math.max(0.3, viewport.w / Math.max(1, viewport.h));
-        const halfHeight = viewport.h > viewport.w ? 7.1 : 5.4;
+        const halfHeight = (viewport.h > viewport.w ? 7.1 : 5.4) * (Number(center.zoom) || 1);
         // The painted zone backgrounds drift more slowly than the action plane.
         // Apply per view so local split-screen cameras each get the same parallax illusion.
         const worldState = state.ringRenderState && state.ringRenderState.worldState;
@@ -4207,12 +4314,16 @@
         camera.lookAt(center.x, viewY, 0);
         // What the first view shows, in world metres (read by the QA snapshot).
         if (worldState && camera === cameraOne) {
-          worldState.cameraView = { y: viewY, bottom: viewY - halfHeight, top: viewY + halfHeight };
+          worldState.cameraView = { y: viewY, bottom: viewY - halfHeight, top: viewY + halfHeight,
+            left: center.x - halfHeight * aspect, right: center.x + halfHeight * aspect };
         }
       }
 
       function cameraTargetFor(player) {
-        return { x: player.worldX, y: player.worldY + 2.2, z: 0, flight: Number(player.flightFrame) || 0 };
+        const boss = Number(player.bossFrame) || 0;
+        const midX = Number.isFinite(player.bossFrameX) ? player.bossFrameX : player.worldX;
+        return { x: player.worldX + (midX - player.worldX) * boss, y: player.worldY + 2.2, z: 0,
+          flight: Math.max(Number(player.flightFrame) || 0, boss), zoom: 1 + 0.18 * boss };
       }
 
       function renderRingViews(frameContext) {
@@ -4258,7 +4369,8 @@
               x: (target.x + other.x) * 0.5,
               y: (target.y + other.y) * 0.5,
               z: 0,
-              flight: Math.max(target.flight, other.flight)
+              flight: Math.max(target.flight, other.flight),
+              zoom: Math.max(target.zoom || 1, other.zoom || 1)
             };
           }
           views = [{ x: 0, y: 0, w: viewW, h: viewH, player: players[0], camera: cameraOne, target }];

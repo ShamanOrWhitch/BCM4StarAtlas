@@ -99,7 +99,7 @@ test("the camera frames the whole arena in the flight: floor, Orbiter and ceilin
   // Before: the view centre sat 2.85 m above the pilot; at 8 m the floor tells and
   // the Orbiter (3.4 m) left the frame (probe: bottom 5.3 m at height 8).
   const ring = read("mini-sim/assets/js/ring-platformer.js");
-  assert.match(ring, /flight: Number\(player\.flightFrame\) \|\| 0/, "the camera target ignores the flight");
+  assert.match(ring, /flight: Math\.max\(Number\(player\.flightFrame\) \|\| 0, boss\)/, "the camera target ignores the flight");
   assert.match(ring, /const arenaY = -0\.6 \+ halfHeight;/, "the flight view does not stand on the arena floor");
   const landscapeHalf = 5.4;
   const arenaY = -0.6 + landscapeHalf;
