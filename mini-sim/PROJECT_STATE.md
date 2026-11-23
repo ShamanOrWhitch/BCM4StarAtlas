@@ -1,3 +1,14 @@
+## Patch — Mini-Sim 0.16.16: Opus — capture nodes, module income, raiders (IDEA-026 steps 2–3) (24 November 2026)
+
+- **WORK LOCK:** [#161](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/161). Decision D-092.
+- **`island/carpet.ts`:** `nodes` (warden / ship), `captureNode`, module income, raids (`raider`, `raidIn`). The ship's aim includes the raider.
+- **`island/opus-look.ts`:** shows our module and its bank crystals, and the raider; the warden is hidden on a captured node; minimap marks.
+- **HUD:** shows owned nodes and a raid warning.
+- **`wp-dist`:** rebuilt.
+- **Checks:** tests 8–9 (CI), Edge probe PASS, regression 318/318.
+
+---
+
 ## Patch — Mini-Sim 0.16.15: Opus, the carpet planet (IDEA-026 step 1) (23 November 2026)
 
 - **WORK LOCK:** [#160](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/160). Decision D-091.

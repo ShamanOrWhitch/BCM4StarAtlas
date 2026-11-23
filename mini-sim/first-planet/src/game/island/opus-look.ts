@@ -5,7 +5,7 @@
  * The loop itself is carpet.ts.
  */
 import * as THREE from "three";
-import { LOOP, type CarpetState } from "./carpet";
+import { LOOP, NODE, type CarpetState } from "./carpet";
 import { OPUS_BASE, OPUS_PILLARS } from "./terrain";
 
 export function createOpusLook(
@@ -104,9 +104,59 @@ export function createOpusLook(
     });
   };
   const enemyPool = pool(0xff6a3a, 16);
+
+  // Our module on a captured node: a limestone foot with an amber mast whose crystals fill with the bank.
+  const mastGeo = keep(new THREE.CylinderGeometry(0.16, 0.22, 3.2, 6));
+  const footGeo = keep(new THREE.CylinderGeometry(1.1, 1.4, 0.5, 8));
+  const amber = keep(new THREE.MeshStandardMaterial({ color: 0xffb347, emissive: 0x7a4a10, roughness: 0.5 }));
+  const modules = carpet.nodes.map((node) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(node.x, ground(node.x, node.z), node.z);
+    const foot = new THREE.Mesh(footGeo, limestone);
+    foot.position.y = 0.25;
+    const mast = new THREE.Mesh(mastGeo, amber);
+    mast.position.y = 2.1;
+    pivot.add(foot, mast);
+    const gems = Array.from({ length: NODE.bankMax }, (_, k) => {
+      const gem = new THREE.Mesh(sparkGeo, freeMat);
+      const a = (k / NODE.bankMax) * Math.PI * 2;
+      gem.position.set(Math.cos(a) * 1.1, 1.2, Math.sin(a) * 1.1);
+      gem.scale.setScalar(0.6);
+      pivot.add(gem);
+      return gem;
+    });
+    pivot.visible = false;
+    root.add(pivot);
+    return { pivot, gems };
+  });
+
+  // The raider: a dark wedge with a red belly light.
+  const raider = new THREE.Group();
+  const hull = new THREE.Mesh(keep(new THREE.ConeGeometry(0.9, 3.2, 4)), slate);
+  hull.rotation.x = Math.PI / 2;
+  const belly = new THREE.Mesh(eyeGeo, eyeOn);
+  belly.position.y = -0.5;
+  belly.scale.setScalar(1.4);
+  raider.add(hull, belly);
+  raider.visible = false;
+  root.add(raider);
   const shotPool = pool(0x7ff6ff, 12);
 
   function update(elapsed: number) {
+    carpet.nodes.forEach((node, i) => {
+      const m = modules[i];
+      m.pivot.visible = node.owner === "ship";
+      if (!m.pivot.visible) return;
+      m.pivot.rotation.y = elapsed * 0.4;
+      m.gems.forEach((gem, k) => { gem.visible = k < node.bank; });
+    });
+    const r = carpet.raider;
+    raider.visible = !!r;
+    if (r) {
+      const node = carpet.nodes[r.node];
+      raider.position.set(r.x, r.y + Math.sin(elapsed * 4) * 0.2, r.z);
+      raider.rotation.y = Math.atan2(node.x - r.x, node.z - r.z);
+    }
     carpet.sparks.forEach((spark, i) => {
       const mesh = sparks[i];
       mesh.visible = !spark.taken;
@@ -121,6 +171,7 @@ export function createOpusLook(
       look.head.rotation.z = down ? 0.6 : 0;
       look.head.position.y = down ? 0.55 : 1.1 + Math.sin(elapsed * 3 + i) * 0.04;
       look.eye.material = down ? eyeOff : eyeOn;
+      look.pivot.visible = !w.gone;
     });
     enemyPool.forEach((mesh, i) => {
       const b = carpet.enemyBolts[i];
@@ -149,7 +200,20 @@ export function createOpusLook(
       ctx.fillStyle = spark.guarded === null ? "#ffb347" : "#f4fbff";
       ctx.fillRect(toX(spark.x) - 1.5, toY(spark.z) - 1.5, 3, 3);
     }
+    for (const node of carpet.nodes) {
+      if (node.owner !== "ship") continue;
+      ctx.strokeStyle = "#ffb347";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(toX(node.x), toY(node.z), 6, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (carpet.raider) {
+      ctx.fillStyle = "#ff2a2a";
+      ctx.fillRect(toX(carpet.raider.x) - 3, toY(carpet.raider.z) - 3, 6, 6);
+    }
     for (const w of carpet.wardens) {
+      if (w.gone) continue;
       ctx.fillStyle = w.down > 0 ? "#555" : "#ff5a3a";
       ctx.beginPath();
       ctx.arc(toX(w.x), toY(w.z), 3.5, 0, Math.PI * 2);

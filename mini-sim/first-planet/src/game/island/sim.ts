@@ -22,7 +22,7 @@ import {
   surfaceY,
   type Aabb,
 } from "./terrain";
-import { buyUpgrade, createCarpet, nextUpgrade, stepCarpet, type CarpetState } from "./carpet";
+import { buyUpgrade, captureNode, createCarpet, nextUpgrade, stepCarpet, type CarpetState } from "./carpet";
 import { planetContent, type PlanetContent, type QuestKind } from "./content";
 
 const SAVE_KEY = "desert-island-v1";
@@ -82,6 +82,9 @@ export type IslandHud = {
     hit: boolean;
     wardensUp: number;
     note: string;
+    nodesOurs: number;
+    nodes: number;
+    raid: boolean;
   };
 };
 
@@ -587,7 +590,14 @@ export function createSim(seed = 0, planet?: string) {
         this.prompt = next ? `E — ${next.title} · ${next.cost} искр (в накопителе ${this.carpet.store})` : "Накопитель: всё куплено";
       }
       else if (this.mode === "bike" && this.carpet && this.carpet.noteFor > 0) this.prompt = this.carpet.note;
-      else if (this.mode === "bike" && this.carpet && this.rideHint > 0) this.prompt = "Space — выше · Q — ниже · X — огонь · искры берутся низко";
+      else if (this.mode === "bike" && this.carpet) {
+        const c = this.carpet;
+        const i = c.nodes.findIndex((n) => (n.x - x) ** 2 + (n.z - z) ** 2 < 16);
+        if (i >= 0 && c.nodes[i].owner === "warden") this.prompt = c.wardens[i].down > 0 ? "E — поставить модуль, узел станет нашим" : "Узел держит страж — X, огонь";
+        else if (i >= 0) this.prompt = `Наш модуль · искр ${c.nodes[i].bank} — пролети низко`;
+        else if (this.rideHint > 0) this.prompt = "Space — выше · Q — ниже · X — огонь · искры берутся низко";
+        else this.prompt = "";
+      }
       else if (this.mode === "bike" && this.rideHint > 0) this.prompt = this.flightMode
         ? "Space — вверх · Q — вниз · T — земля · F — спешиться"
         : "T — полёт · F — спешиться";
@@ -612,7 +622,7 @@ export function createSim(seed = 0, planet?: string) {
       }
       this.moodPrev = this.mode === "foot" && keys.has("KeyC");
       if (use && !this.usePrev && this.mode === "foot") this.interact();
-      if (use && !this.usePrev && this.mode === "bike" && this.carpet) buyUpgrade(this.carpet);
+      if (use && !this.usePrev && this.mode === "bike" && this.carpet && !captureNode(this.carpet, this)) buyUpgrade(this.carpet);
       this.usePrev = use;
       if (boardKey && !this.boardPrev && !this.dialogue) {
         if (this.mode === "foot") this.board?.();
@@ -834,7 +844,10 @@ export function createSim(seed = 0, planet?: string) {
               next: nextUpgrade(this.carpet),
               atBase: this.carpet.atBase,
               hit: this.carpet.hit > 0,
-              wardensUp: this.carpet.wardens.filter((w) => w.down <= 0).length,
+              wardensUp: this.carpet.wardens.filter((w) => w.down <= 0 && !w.gone).length,
+              nodesOurs: this.carpet.nodes.filter((n) => n.owner === "ship").length,
+              nodes: this.carpet.nodes.length,
+              raid: !!this.carpet.raider,
               note: this.carpet.noteFor > 0 ? this.carpet.note : "",
             }
           : null,

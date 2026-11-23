@@ -73,7 +73,23 @@ try {
   await hold(["KeyX"], 120);
   await page.waitForTimeout(200);
   await page.screenshot({ path: resolve(out, "05-fire.png") });
-  report.status = report.boarded && report.hud && report.qa && report.qa.speed > 3 && report.altAfterClimb > report.speedText[1] && report.errors.length === 0 ? "PASS" : "FAIL";
+  // Steps 2–3: put the warden of node 1 down, hang over the node, E — the module stands; then a raid.
+  await page.evaluate(() => {
+    const sim = window.__BCM_ISLAND_QA__.sim;
+    const n = sim.carpet.nodes[1];
+    sim.carpet.wardens[1].down = 20;
+    sim.x = n.x + 0.5; sim.z = n.z + 1; sim.yaw = 0;
+  });
+  await page.waitForTimeout(1500);
+  await hold(["KeyE"], 200);
+  await page.waitForTimeout(1500);
+  report.captured = await page.evaluate(() => window.__BCM_ISLAND_QA__.sim.carpet.nodes[1].owner);
+  await page.evaluate(() => { const c = window.__BCM_ISLAND_QA__.sim.carpet; c.nodes[1].bank = 4; c.raidIn = 0.05; });
+  await page.waitForTimeout(2500);
+  report.raid = await page.evaluate(() => !!window.__BCM_ISLAND_QA__.sim.carpet.raider);
+  report.hudRaid = /Налёт/.test(await hostText());
+  await page.screenshot({ path: resolve(out, "06-module-raid.png") });
+  report.status = report.boarded && report.hud && report.qa && report.qa.speed > 3 && report.altAfterClimb > report.speedText[1] && report.captured === "ship" && report.raid && report.errors.length === 0 ? "PASS" : "FAIL";
 } catch (error) {
   report.failure = String(error && error.message || error).split("\n")[0];
   await page.screenshot({ path: resolve(out, "failure.png") }).catch(() => {});

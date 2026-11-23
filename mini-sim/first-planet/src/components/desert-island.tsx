@@ -278,7 +278,8 @@ export function DesertIsland({
                   <p className="text-muted">
                     Энергия {Math.round(hud.carpet.energy)} · трюм {hud.carpet.hold}/{hud.carpet.holdCap} · накопитель {hud.carpet.store}
                   </p>
-                  <p className="text-muted">Стражи на узлах: {hud.carpet.wardensUp}</p>
+                  <p className="text-muted">Узлы наши: {hud.carpet.nodesOurs}/{hud.carpet.nodes} · стражи {hud.carpet.wardensUp}</p>
+                  {hud.carpet.raid ? <p className="font-semibold text-red-400">Налёт на наш узел!</p> : null}
                 </div>
               ) : null}
             </div>

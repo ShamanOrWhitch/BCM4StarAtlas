@@ -223,3 +223,55 @@ test("Opus: the ship lifts over the lighthouse and houses instead of sticking to
     assert.ok(s2.z < h.z - 4, `over house ${h.id}: z ${s2.z.toFixed(1)}`);
   }
 });
+
+test("Opus step 2–3: a downed warden's node is captured with E; the module earns sparks picked up low", () => {
+  const sim = opusSim();
+  boardShip(sim);
+  const c = sim.carpet;
+  const node = c.nodes[1];
+  assert.equal(node.owner, "warden", "nodes start held by wardens");
+  sim.x = node.x; sim.z = node.z; sim.y = terrain.surfaceY(node.x, node.z) + 3;
+  fly(sim, ["KeyE"], DT * 2);
+  assert.equal(node.owner, "warden", "a node with a live warden cannot be taken");
+  c.wardens[1].down = 20;
+  fly(sim, [], 0.1);
+  fly(sim, ["KeyE"], DT * 2);
+  assert.equal(node.owner, "ship", "E over a node whose warden is down plants our module");
+  fly(sim, [], 30);
+  assert.equal(c.wardens[1].down > 0 || c.wardens[1].gone, true, "the warden does not come back to a captured node");
+  assert.ok(node.bank >= 2, `the module earns sparks: ${node.bank}`);
+  c.hold = 0;
+  sim.x = node.x; sim.z = node.z; c.target = 1.4;
+  fly(sim, [], 1);
+  assert.ok(c.hold >= 2 && node.bank === 0, `low over the module its bank goes to the hold: hold ${c.hold}`);
+});
+
+test("Opus step 3: a raider flies at a captured node and takes it back unless shot down", () => {
+  const sim = opusSim();
+  boardShip(sim);
+  const c = sim.carpet;
+  const node = c.nodes[0];
+  node.owner = "ship";
+  c.wardens[0].gone = true;
+  sim.x = 0; sim.z = 40; // far away at the base
+  c.raidIn = 0.1;
+  fly(sim, [], 0.3);
+  assert.ok(c.raider, "a raid starts");
+  assert.equal(c.raider.node, 0);
+  fly(sim, [], 40);
+  assert.equal(node.owner, "warden", "left alone, the raider takes the node back");
+  assert.equal(c.wardens[0].gone, false, "the warden is back");
+  // Second raid: shot down on the way.
+  node.owner = "ship"; c.wardens[0].gone = true;
+  c.raidIn = 0.1;
+  fly(sim, [], 0.3);
+  const r = c.raider;
+  sim.x = r.x; sim.z = r.z + 12; sim.y = r.y; sim.yaw = 0;
+  for (let i = 0; i < 12 && c.raider; i += 1) {
+    sim.x = c.raider.x; sim.z = c.raider.z + 10; sim.y = c.raider.y; sim.yaw = 0;
+    fly(sim, ["KeyX"], DT * 2);
+    fly(sim, [], 0.3);
+  }
+  assert.equal(c.raider, null, "the raider is shot down");
+  assert.equal(node.owner, "ship", "the node stays ours");
+});

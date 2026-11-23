@@ -77,7 +77,25 @@ export const UPGRADES: Upgrade[] = [
 ];
 
 export type Spark = { x: number; z: number; taken: boolean; back: number; guarded: number | null };
-export type Warden = { x: number; z: number; y: number; hp: number; down: number; cool: number; aim: number };
+export type Warden = { x: number; z: number; y: number; hp: number; down: number; cool: number; aim: number; gone: boolean };
+/** A spark node (IDEA-026 steps 2–3): held by a warden, or by our module that earns sparks. */
+export type SparkNode = { x: number; z: number; owner: "warden" | "ship"; bank: number; tick: number };
+/** A raider flies from the edge at one of our nodes; reaching it, it gives the node back to a warden. */
+export type Raider = { node: number; x: number; y: number; z: number; hp: number };
+
+export const NODE = {
+  captureR: 4,
+  earnEvery: 12, // s per spark
+  bankMax: 6,
+  pickR: 3,
+  raidFirst: 75,
+  raidMin: 60,
+  raidMax: 90,
+  raiderSpeed: 6,
+  raiderHp: 2,
+  raiderHitR: 2.2,
+  raiderAlt: 8,
+};
 export type Bolt = { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number };
 
 export type CarpetInput = {
@@ -140,7 +158,9 @@ export function createCarpet(ground: (x: number, z: number) => number) {
     down: 0,
     cool: 1 + index * 0.6,
     aim: 0,
+    gone: false,
   }));
+  const nodes: SparkNode[] = OPUS_NODES.map((node) => ({ x: node.x, z: node.z, owner: "warden", bank: 0, tick: 0 }));
   const c = {
     ground,
     roll: 0,
@@ -157,6 +177,10 @@ export function createCarpet(ground: (x: number, z: number) => number) {
     owned: saved.owned.filter((id) => UPGRADES.some((u) => u.id === id)),
     sparks,
     wardens,
+    nodes,
+    raider: null as Raider | null,
+    raidIn: NODE.raidFirst,
+    raids: 0,
     enemyBolts: [] as Bolt[],
     shots: [] as Bolt[],
     shotCool: 0,
@@ -191,6 +215,28 @@ function persist(c: CarpetState) {
   } catch {
     /* private mode */
   }
+}
+
+/**
+ * E over a node whose warden is down: plant our module there. The warden does not come back
+ * until a raider retakes the node. Returns true when E was used on a node.
+ */
+export function captureNode(c: CarpetState, body: { x: number; z: number }) {
+  const index = c.nodes.findIndex((n) => (n.x - body.x) ** 2 + (n.z - body.z) ** 2 < NODE.captureR ** 2);
+  if (index < 0) return false;
+  const node = c.nodes[index];
+  const warden = c.wardens[index];
+  if (node.owner === "ship") return false;
+  if (warden.down <= 0 && !warden.gone) {
+    say(c, "Узел держит страж — сначала выведи его из строя");
+    return true;
+  }
+  node.owner = "ship";
+  node.bank = 0;
+  node.tick = 0;
+  warden.gone = true;
+  say(c, "Узел наш: модуль копит искры");
+  return true;
 }
 
 /** At the base: buy the next upgrade if the store has the sparks. Returns its title or null. */
@@ -337,8 +383,67 @@ export function stepCarpet(
     c.energy = c.energyMax;
   }
 
+  // 8b. Our modules earn sparks; low over a module its bank goes to the hold.
+  for (const node of c.nodes) {
+    if (node.owner !== "ship") continue;
+    node.tick += dt;
+    if (node.tick >= NODE.earnEvery) {
+      node.tick -= NODE.earnEvery;
+      node.bank = Math.min(NODE.bankMax, node.bank + 1);
+    }
+    if (node.bank > 0 && c.hold < c.holdCap && (node.x - nx) ** 2 + (node.z - nz) ** 2 < NODE.pickR ** 2
+      && body.y - carpetFloor(c, node.x, node.z) < LOOP.collectClear) {
+      const take = Math.min(node.bank, c.holdCap - c.hold);
+      node.bank -= take;
+      c.hold += take;
+      say(c, `С модуля: +${take}`);
+    }
+  }
+
+  // 8c. Raids: while we hold a node, a raider comes for one of them now and then.
+  const ours = c.nodes.map((n, i) => (n.owner === "ship" ? i : -1)).filter((i) => i >= 0);
+  if (!c.raider && ours.length) {
+    c.raidIn -= dt;
+    if (c.raidIn <= 0) {
+      c.raids += 1;
+      const index = ours[c.raids % ours.length];
+      const node = c.nodes[index];
+      const a = Math.atan2(node.z, node.x);
+      const x = Math.cos(a) * CARPET.edge;
+      const z = Math.sin(a) * CARPET.edge;
+      c.raider = { node: index, x, z, y: carpetFloor(c, x, z) + NODE.raiderAlt, hp: NODE.raiderHp };
+      c.raidIn = NODE.raidMin + ((c.raids * 37) % (NODE.raidMax - NODE.raidMin));
+      say(c, "Налёт на наш узел!");
+    }
+  }
+  if (c.raider) {
+    const r = c.raider;
+    const node = c.nodes[r.node];
+    const dx = node.x - r.x;
+    const dz = node.z - r.z;
+    const d = Math.hypot(dx, dz);
+    if (node.owner !== "ship") c.raider = null;
+    else if (d < 2) {
+      node.owner = "warden";
+      node.bank = 0;
+      const w = c.wardens[r.node];
+      w.gone = false;
+      w.down = 0;
+      w.hp = LOOP.wardenHp;
+      c.raider = null;
+      say(c, "Налётчик отбил узел");
+    } else {
+      const step = Math.min(d, NODE.raiderSpeed * dt);
+      r.x += (dx / d) * step;
+      r.z += (dz / d) * step;
+      const want = carpetFloor(c, r.x, r.z) + NODE.raiderAlt;
+      r.y += (want - r.y) * (1 - Math.exp(-3 * dt));
+    }
+  }
+
   // 9. Wardens fire at a ship close by; their bolts fly straight.
   for (const w of c.wardens) {
+    if (w.gone) continue;
     if (w.down > 0) {
       w.down -= dt;
       if (w.down <= 0) w.hp = LOOP.wardenHp;
@@ -382,8 +487,9 @@ export function stepCarpet(
     c.shotCool = LOOP.shotEvery;
     let dir = { x: fx, y: 0, z: fz };
     let best = LOOP.aimCone;
-    for (const w of c.wardens) {
-      if (w.down > 0) continue;
+    const targets = c.wardens.filter((w) => w.down <= 0 && !w.gone).map((w) => ({ x: w.x, y: w.y, z: w.z }));
+    if (c.raider) targets.push({ x: c.raider.x, y: c.raider.y, z: c.raider.z });
+    for (const w of targets) {
       const dx = w.x - nx;
       const dy = w.y - body.y;
       const dz = w.z - nz;
@@ -403,8 +509,17 @@ export function stepCarpet(
     s.y += s.vy * dt;
     s.z += s.vz * dt;
     s.life -= dt;
+    const r = c.raider;
+    if (r && s.life > 0 && (s.x - r.x) ** 2 + (s.y - r.y) ** 2 + (s.z - r.z) ** 2 < NODE.raiderHitR ** 2) {
+      s.life = 0;
+      r.hp -= 1;
+      if (r.hp <= 0) {
+        c.raider = null;
+        say(c, "Налётчик сбит — узел наш");
+      }
+    }
     for (const w of c.wardens) {
-      if (w.down > 0 || s.life <= 0) continue;
+      if (w.down > 0 || w.gone || s.life <= 0) continue;
       if ((s.x - w.x) ** 2 + (s.y - w.y) ** 2 + (s.z - w.z) ** 2 > LOOP.shotHitR ** 2) continue;
       s.life = 0;
       w.hp -= 1;
