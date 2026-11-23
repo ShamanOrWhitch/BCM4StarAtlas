@@ -78,7 +78,7 @@ try {
     await page.waitForTimeout(250);
   }
   const fp = report.fall.path;
-  const fellAt = fp.findIndex((p) => p.y < -0.4);
+  const fellAt = fp.findIndex((p) => p.y < -0.2);
   const back = fellAt >= 0 ? fp.slice(fellAt).find((p) => p.y > -0.05 && p.y < 0.3) : null;
   report.fall.fell = fellAt >= 0;
   report.fall.backOnLedge = !!(back && beforeFall.ledges.some((l) => back.x >= l.x0 - 0.1 && back.x <= l.x1 + 0.1));

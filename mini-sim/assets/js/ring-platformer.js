@@ -350,6 +350,14 @@
             // the arena lights): the art map also drives the emissive channel.
             const brighten = (source) => {
               const material = source.clone();
+              // The form GLBs carry v growing upwards while GLTFLoader keeps flipY off: the
+              // art came out upside down (owner's screenshot of the Brawler). Flip it back once.
+              // (flipY does not apply to the ImageBitmaps GLTFLoader makes, so the uv transform does it.)
+              if (material.map && !material.map.bcmUprightArt) {
+                material.map.bcmUprightArt = true;
+                material.map.repeat.set(1, -1);
+                material.map.offset.set(0, 1);
+              }
               if (material.map && "emissiveMap" in material) {
                 material.emissive = new window.THREE.Color(0xffffff);
                 material.emissiveMap = material.map;
@@ -704,12 +712,15 @@
           buckets[bucket].push({ x, y, z, sx, sy, sz, color: color || 0x28414d });
         }
         const platforms = [];
+        // Owner 23.11.2026: raised ledges stand behind the boss and the pilots (their front
+        // face at z -0.5), not as 3.8 m boxes whose front face covered the boss's eyes.
+        const LEDGE_Z = -1.3, LEDGE_DEPTH = 1.6;
         function addPlatform(x1, x2, topY, color) {
           const width = x2 - x1;
           const center = (x1 + x2) / 2;
           const floor = topY === 0;
-          addBox(floor ? "floor" : "platforms", center, topY - 0.18, 0,
-            width, 0.36, 3.8, color || (floor ? 0x182b38 : 0x486b7d));
+          addBox(floor ? "floor" : "platforms", center, topY - 0.18, floor ? 0 : LEDGE_Z,
+            width, 0.36, floor ? 3.8 : LEDGE_DEPTH, color || (floor ? 0x182b38 : 0x486b7d));
           if (floor) {
             // Broken-up floor markings read as a traversable stage, not a flat map tile.
             for (let mark = x1 + 2.5; mark < x2 - 1; mark += 7.5) {
@@ -718,23 +729,28 @@
             }
           } else {
             // A bright lip and dark support braces give the ledges a comic-panel silhouette.
-            addBox("trim", center, topY + 0.055, 0.12, width + 0.12, 0.075, 3.92,
+            addBox("trim", center, topY + 0.055, LEDGE_Z, width + 0.12, 0.075, LEDGE_DEPTH + 0.12,
               color || 0x64d9e8);
             const braceY = topY * 0.48;
             const braceHeight = Math.max(0.45, topY * 0.88);
             [x1 + 0.35, x2 - 0.35].forEach((braceX) => {
-              addBox("backdrop", braceX, braceY, -0.34, 0.20, braceHeight, 0.20, 0x07121b);
-              addBox("trim", braceX, braceY, -0.20, 0.055, braceHeight * 0.94, 0.08,
+              addBox("backdrop", braceX, braceY, LEDGE_Z - 0.2, 0.20, braceHeight, 0.20, 0x07121b);
+              addBox("trim", braceX, braceY, LEDGE_Z - 0.06, 0.055, braceHeight * 0.94, 0.08,
                 color || 0x64d9e8);
             });
           }
           platforms.push({ minX: x1, maxX: x2, y: topY });
         }
         addPlatform(-51, 84, 0, 0x142936);
+        // Two tiers a pilot can climb (jump peak 1.84 m): 1.4 m from the floor, 2.8 m from
+        // the low ledge beside it. Each boss arena (-16, 18, 58) has a pair on both sides.
         [
-          [-39, -33, 2.2], [-31, -26, 4.25], [-24, -19, 2.3], [-16, -9, 3.75],
-          [1, 6, 2.1], [8, 13, 4.1], [15, 21, 2.35], [24, 31, 4.0],
-          [39, 45, 2.15], [47, 52, 4.35], [55, 61, 2.5], [64, 71, 4.0]
+          [-40, -36, 1.4], [-37, -33, 2.8],
+          [-24, -21, 1.4], [-22.5, -19.5, 2.8], [-11, -8, 1.4], [-12.5, -9.5, 2.8],
+          [0, 4, 1.4], [3, 7, 2.8],
+          [10, 13, 1.4], [11.5, 14.5, 2.8], [23, 26, 1.4], [21.5, 24.5, 2.8],
+          [38, 42, 1.4], [41, 45, 2.8],
+          [50, 53, 1.4], [51.5, 54.5, 2.8], [63, 66, 1.4], [61.5, 64.5, 2.8]
         ].forEach((ledge, i) => addPlatform(ledge[0], ledge[1], ledge[2],
           [0x456b7b, 0x607786, 0x485f7c][i % 3]));
 
@@ -1330,11 +1346,21 @@
                 vulnerable: !!boss.vulnerable, bossX: boss.x,
                 flight: !!(boss.moves && boss.moves.flight),
                 camera: worldState.cameraView || null,
+                comic: worldState.bossComic && worldState.bossComic.panel.style.display !== "none" ? worldState.bossComic.file : null,
+                shielded: !!(boss.shieldMesh && boss.shieldMesh.visible), bossHp: boss.hp,
+                // Up axis of the current form model in the world (1 = upright, -1 = upside down).
+                modelUp: (() => { const record = boss.phaseIndex > 0 && boss.phaseModels && boss.phaseModels[boss.phaseIndex - 1];
+                  if (!record || !record.model) return null;
+                  const q = record.model.getWorldQuaternion(new THREE.Quaternion());
+                  return Math.round(new THREE.Vector3(0, 1, 0).applyQuaternion(q).y * 100) / 100; })(),
+                modelClips: (() => { const record = boss.phaseIndex > 0 && boss.phaseModels && boss.phaseModels[boss.phaseIndex - 1];
+                  return record ? record.activeClip : null; })(),
                 transformVideo: boss.transformVideo ? {
                   file: String(boss.transformVideo.url).split("/").pop().split("?")[0],
                   time: boss.transformVideo.video.currentTime, started: boss.transformVideo.started,
                   failed: boss.transformVideo.failed, opacity: boss.transformVideo.material.opacity,
                   visible: !!boss.transformVideo.mesh.visible } : null,
+                transformVideoDropped: boss.transformVideoDropped || null,
                 // Pig arc: what of the Pig (shell) is still drawn, and which Pigs carry forms.
                 shellVisible: (() => { let n = 0; boss.group.children.forEach((child) => {
                   if (child === boss.tellMesh || boss.phaseGroups.includes(child) || !child.visible) return;
@@ -2532,7 +2558,7 @@
           : boss.vulnerable;
         if (boss.phaseIndex > 0 && !openToShot) {
           updateHud(boss.moves && boss.moves.form === "brawler"
-            ? "БРОНЯ СПЕРЕДИ · ЗАЙДИ СО СПИНЫ ИЛИ ЖДИ ПРОМАХА"
+            ? (boss.shieldMesh && boss.shieldMesh.visible ? "ЩИТ · БОЕЦ ПЬЁТ И ЧИНИТСЯ — ЖДИ ХОХОТА" : "БРОНЯ СПЕРЕДИ · ЗАЙДИ СО СПИНЫ ИЛИ ЖДИ ПРОМАХА")
             : "ЯДРО ЗАКРЫТО · ДОЖДИСЬ ОКНА УЯЗВИМОСТИ");
           return true;
         }
@@ -2568,6 +2594,8 @@
           playRingBossAnimation(boss, boss.phaseIndex - 1, "transform_in", true);
           boss.moves = null;
           drawBossZones(boss, null);
+          if (boss.shieldMesh) boss.shieldMesh.visible = false;
+          if (worldState.bossComic) showBossComic("");
           endRunnerChase(boss);
           boss.phaseState = "transition";
           boss.phaseStartedAt = now;
@@ -3032,6 +3060,10 @@
             if (!node.isMesh || !node.material || !node.material.map || !("emissiveMap" in node.material)) return;
             const material = node.material.clone();
             material.emissive = new THREE.Color(0xffffff); material.emissiveMap = material.map; material.emissiveIntensity = 0.85;
+            // Same upright fix as the arena forms (v grows upwards in these GLBs).
+            if (!material.map.bcmUprightArt) {
+              material.map.bcmUprightArt = true; material.map.repeat.set(1, -1); material.map.offset.set(0, 1);
+            }
             mats.push(material); node.material = material;
           });
           return fit(model, 2.4, "y");
@@ -3181,8 +3213,9 @@
           mesh.position.set((z.x0 + z.x1) / 2, (z.y0 + z.y1) / 2 + (item.tell ? 0.02 : 0), item.tell ? 0.86 : 0.92);
           mesh.scale.set(Math.max(0.05, z.x1 - z.x0), Math.max(0.05, z.y1 - z.y0), 1);
           const spark = z.kind === "spark";
-          mesh.material.color.setHex(item.tell ? 0xffcc6a : spark ? 0xe6fbff : z.kind === "shard" || z.kind === "orb" ? 0x8fe8ff : 0xff4a4a);
-          mesh.material.opacity = item.tell ? 0.22 + pulse * 0.3 : spark ? 0.55 + pulse * 0.4 : body ? 0.22 : 0.62;
+          const beam = z.kind === "beam" && !item.tell;
+          mesh.material.color.setHex(item.tell ? 0xffcc6a : beam ? 0x9ffcff : spark ? 0xe6fbff : z.kind === "shard" || z.kind === "orb" ? 0x8fe8ff : 0xff4a4a);
+          mesh.material.opacity = item.tell ? 0.22 + pulse * 0.3 : beam ? 0.8 : spark ? 0.55 + pulse * 0.4 : body ? 0.22 : 0.62;
           if (spark) mesh.rotation.z = performance.now() * 0.012; else mesh.rotation.z = 0;
         });
         // Air bubbles of the Orbiter flight: refill jet and breath.
@@ -3238,6 +3271,56 @@
         });
       }
 
+      // The owner's Brawler videos (a room behind it, so not in the world): a tilted comic
+      // panel in the HUD while it charges the cannon and while it laughs and drinks.
+      // [file, start second]: the laugh is its own clip (owner, 23.11.2026); the drink starts
+      // where the Brawler sits down in the laugh-and-drink clip.
+      const BOSS_COMIC_BY_STATE = {
+        charge: ["brawler-attack-cannon.mp4", 0],
+        drink: ["brawler-drink.mp4", 0],
+        taunt: ["brawler-laugh.mp4", 0]
+      };
+      const BOSS_COMIC_KEEP = { charge: 1, fire: 1, recover: 1, drink: 1, taunt: 1 };
+      function showBossComic(file, startAt) {
+        let comic = worldState.bossComic;
+        if (!comic) {
+          let panel = root2d.querySelector(".bcm-ring-boss-comic");
+          if (!panel) {
+            panel = document.createElement("div");
+            panel.className = "bcm-ring-boss-comic";
+            panel.style.cssText = "position:absolute;top:84px;right:16px;width:min(34vw,300px);aspect-ratio:16/9;" +
+              "border:4px solid #fff;outline:3px solid #111;box-shadow:6px 6px 0 #111;transform:rotate(-2deg);" +
+              "overflow:hidden;background:#000;z-index:6;pointer-events:none;display:none";
+            const comicVideo = document.createElement("video");
+            comicVideo.muted = true;
+            comicVideo.defaultMuted = true;
+            comicVideo.setAttribute("muted", "");
+            comicVideo.playsInline = true;
+            comicVideo.setAttribute("playsinline", "");
+            comicVideo.preload = "auto";
+            comicVideo.style.cssText = "width:100%;height:100%;object-fit:cover;display:block";
+            panel.appendChild(comicVideo);
+            root2d.appendChild(panel);
+          }
+          comic = worldState.bossComic = { panel, video: panel.querySelector("video"), file: "" };
+        }
+        if (!file) {
+          comic.panel.style.display = "none";
+          try { comic.video.pause(); } catch (e) {}
+          comic.file = "";
+          return;
+        }
+        const url = ringBossAssetUrl("ring-bosses/video/" + file);
+        if (!url) return;
+        if (comic.file !== file) { comic.file = file; comic.video.src = url; }
+        comic.panel.style.display = "block";
+        const from = Number(startAt) || 0;
+        if (comic.video.readyState >= 1) { try { comic.video.currentTime = from; } catch (e) {} }
+        else comic.video.addEventListener("loadedmetadata", () => { try { comic.video.currentTime = from; } catch (e) {} }, { once: true });
+        const played = comic.video.play();
+        if (played && typeof played.catch === "function") played.catch(() => {});
+      }
+
       function runBossMoves(boss, phaseGroup, target, living, dt, now) {
         const out = boss.moves.step(dt, { targetX: target.worldX, targetY: target.worldY });
         boss.lastMoveOut = out;
@@ -3249,6 +3332,21 @@
           phaseGroup.position.y = 2.1 + out.y;
           if (out.attacking) phaseGroup.rotation.z = Math.sin(now * 0.03) * 0.14;
         }
+        // Shield while the Brawler drinks (owner): a bubble around it; it mends 1 HP once.
+        if (!boss.shieldMesh) {
+          boss.shieldMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14),
+            new THREE.MeshBasicMaterial({ color: 0x7fd8ff, transparent: true, opacity: 0.28, depthWrite: false }));
+          boss.shieldMesh.name = "ring-boss-shield";
+          boss.shieldMesh.renderOrder = 7;
+          boss.group.add(boss.shieldMesh);
+        }
+        boss.shieldMesh.visible = !!out.shielded;
+        if (out.shielded) {
+          boss.shieldMesh.position.set(0, 2.0 + out.y, 1.0);
+          boss.shieldMesh.scale.set(2.0, 1.9, 1.2);
+          boss.shieldMesh.material.opacity = 0.22 + Math.abs(Math.sin(now * 0.006)) * 0.16;
+          if (!boss.mendedThisDrink && boss.hp < boss.maxHp) { boss.hp += 1; boss.mendedThisDrink = true; }
+        } else boss.mendedThisDrink = false;
         // The open core shows as the green ring over the form.
         boss.tellMesh.visible = out.vulnerable;
         if (out.vulnerable) {
@@ -3261,6 +3359,8 @@
         drawBossZones(boss, out);
         if (out.state !== boss.lastMoveState) {
           boss.lastMoveState = out.state;
+          if (BOSS_COMIC_BY_STATE[out.state] && out.form === "brawler") showBossComic(BOSS_COMIC_BY_STATE[out.state][0], BOSS_COMIC_BY_STATE[out.state][1]);
+          else if (!BOSS_COMIC_KEEP[out.state] && worldState.bossComic && worldState.bossComic.file) showBossComic("");
           const english = window.BCMDialogue?.language === "en";
           if (out.cue) updateHud(english ? (out.form.toUpperCase() + " · " + out.state.toUpperCase()) : out.cue);
         }
@@ -3350,8 +3450,9 @@
             boss.vulnerable = false;
             const elapsed = Math.max(0, (now - (boss.phaseStartedAt || now)) / 1000);
             const film = boss.transformVideo;
-            // A video that fails, or has not started after 1.5 s, gives way to the old transition.
-            if (film && (film.failed || (!film.started && elapsed > 1.5))) {
+            // A video that fails, or has not started after 3 s, gives way to the old transition.
+            if (film && (film.failed || (!film.started && elapsed > 3))) {
+              boss.transformVideoDropped = film.failed ? "failed" : "slow";
               clearRingBossTransformVideo(boss);
               boss.phaseUntil = Math.min(boss.phaseUntil, now + 900);
             }

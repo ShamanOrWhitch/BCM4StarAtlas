@@ -64,7 +64,7 @@ try {
     await page.evaluate(() => window.__BCM_RING_BOSS_QA__.transition());
     await page.waitForTimeout(1800);
     const mid = await snap();
-    report.videos.push({ step, phaseState: mid.phaseState, video: mid.transformVideo });
+    report.videos.push({ step, phaseState: mid.phaseState, video: mid.transformVideo, dropped: mid.transformVideoDropped });
     await page.screenshot({ path: resolve(out, "transform-video-" + step + ".png") });
     await page.waitForFunction(() => window.__BCM_RING_BOSS_QA__.snapshot().phaseState !== "transition", null, { timeout: 20000 }); await page.waitForTimeout(400); // transformation video (up to 5 s)
     const after = await snap();

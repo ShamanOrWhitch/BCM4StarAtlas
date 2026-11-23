@@ -1,3 +1,13 @@
+## Patch — Mini-Sim 0.16.10: arena tiers behind the boss; the Brawler's cannon, laugh and drink (23 November 2026)
+
+- **WORK LOCK:** [#155](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/155). Decision D-086, BUG-022.
+- **`ring-platformer.js`:** arena ledges in two reachable tiers (1.4 / 2.8 m) set behind the boss (`LEDGE_Z`, `LEDGE_DEPTH`); form art upright (uv transform flip, once per texture); the cannon band drawn; the Brawler's videos as a comic panel in the HUD (cannon on the charge, the owner's `brawler-drink.mp4` on the shielded drink, `brawler-laugh.mp4` on the laugh); transformation video start grace 3 s; QA snapshot reports the comic, model up axis and clip.
+- **`ring-boss-moves.js`:** the Brawler's cannon at the pilot's tier (charge 2.0 s, fire, recover), then it drinks under a shield (closed even from behind, mends 1 HP), then laughs — the open window.
+- **Red before / after:** `ring-boss-arena-mechanics.test.mjs` (6, in CI); Edge `ring-boss-arena-probe.mjs` PASS; fight probe frames upright.
+- **Not yet:** the cannon attack cut out and played in the world; rig motion; tier-aware moves for the other forms.
+
+---
+
 ## Patch — Mini-Sim 0.16.9: form transformations play the owner's videos (23 November 2026)
 
 - **WORK LOCK:** [#154](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/154). Decision D-085.

@@ -113,7 +113,9 @@ test("the Brawler is armoured in front: a shot from the back always lands", () =
       assert.equal(boss.canBeHit(front), false, "the Brawler takes a shot in its armour");
       checkedFront = true;
     }
-    assert.equal(boss.canBeHit(back), true, "the Brawler's back is armoured");
+    // Owner 23.11.2026: while it drinks after the cannon, its shield covers the back too.
+    if (!out.shielded) assert.equal(boss.canBeHit(back), true, "the Brawler's back is armoured");
+    else assert.equal(boss.canBeHit(back), false, "the drinking shield lets a back shot through");
     checkedBack = true;
   }
   assert.ok(checkedFront && checkedBack);

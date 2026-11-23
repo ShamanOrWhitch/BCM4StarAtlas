@@ -31,7 +31,8 @@
     roller: { idle: "КАТОК КРУТИТСЯ", windup: "КАТОК РАЗГОНЯЕТСЯ · ПРЫГАЙ ЧЕРЕЗ НЕГО", roll: "КАТОК КАТИТСЯ", stunned: "КАТОК В СТЕНЕ · ЯДРО ОТКРЫТО" },
     walker: { walk: "ШАГОХОД ИДЁТ", lift: "ШАГОХОД ПОДНЯЛ НОГУ · ГОТОВЬСЯ ПРЫГАТЬ", stomp: "ТОПОТ · ПРЫГАЙ ЧЕРЕЗ ВОЛНУ", planted: "НОГА УВЯЗЛА · ЯДРО ОТКРЫТО" },
     orbiter: { orbit: "ОРБИТА · ЛЕТИ: ПРЫЖОК = ИМПУЛЬС · ПОЛ УХОДИТ — ДЕРЖИСЬ В ВОЗДУХЕ ИЛИ НА УСТУПАХ", mark: "МЕТКА НА ПОЛУ · УЙДИ", drop: "СГУСТОК ПАДАЕТ", open: "ОБЛОМКИ РАЗЛЕТЕЛИСЬ · ЯДРО ОТКРЫТО" },
-    brawler: { advance: "БОЕЦ ИДЁТ · ЗАЙДИ СО СПИНЫ", windup: "ЗАМАХ · УЙДИ ИЗ ЗОНЫ УДАРА", punch: "УДАР", stuck: "КУЛАК ЗАСТРЯЛ · ЯДРО ОТКРЫТО" },
+    brawler: { advance: "БОЕЦ ИДЁТ · ЗАЙДИ СО СПИНЫ", windup: "ЗАМАХ · УЙДИ ИЗ ЗОНЫ УДАРА", punch: "УДАР", stuck: "КУЛАК ЗАСТРЯЛ · ЯДРО ОТКРЫТО",
+      charge: "ПУШКА ЗАРЯЖАЕТСЯ · СМЕНИ ЯРУС", fire: "ЗАЛП", recover: "ОТДАЧА", drink: "ПЬЁТ ПОД ЩИТОМ · ЧИНИТСЯ — ЖДИ", taunt: "ХОХОЧЕТ · ЯДРО ОТКРЫТО — БЕЙ!" },
     runner: { rev: "ГОНЩИК РЕВЁТ · ПРЫГАЙ ЧЕРЕЗ НЕГО", dash: "ГОНЩИК ЛЕТИТ", turn: "РАЗВОРОТ", overheat: "ПЕРЕГРЕВ · ЯДРО ОТКРЫТО" },
     stalker: { stalk: "ТЕНЬ КРАДЁТСЯ", mark: "ТЕНЬ МЕТИТ МЕСТО · УЙДИ ИЗ МЕТКИ", leap: "ТЕНЬ ПРЫГАЕТ", land: "ПРИЗЕМЛЕНИЕ", recover: "ТЕНЬ ОШЕЛОМЛЕНА · ЯДРО ОТКРЫТО" }
   };
@@ -65,7 +66,7 @@
       x: homeX, y: 0, facing: -1, state: "", t: 0, dur: 0, clock: 0,
       vulnerable: false, attacking: false, tell: null,
       dir: -1, passes: 0, waves: [], patches: [], lastPatchX: null,
-      mark: null, fromX: 0, orbAngle: 0, orbY: 0,
+      mark: null, fromX: 0, orbAngle: 0, orbY: 0, cycle: 0, band: null,
       sparks: [], bubbles: []
     };
     // Owner 22.11.2026 "Полёт в фазе Орбиты": the Orbiter is fought in Balloon flight.
@@ -118,6 +119,7 @@
       s.tell = null;
       s.attacking = false;
       s.vulnerable = false;
+      s.shielded = false;
       var hazards = [];
       var done = s.t >= s.dur;
 
@@ -192,9 +194,39 @@
         }
       } else if (form === "brawler") {
         var reach = function () { return box("fist", s.x + s.facing * 0.8, s.x + s.facing * 3.4, 0, 2.2); };
+        // Owner 23.11.2026: the plasma cannon (owner video). It marks a band at the tier the
+        // pilot stands on (floor 0, ledges 1.4 / 2.8 m) and fires across the arena: the
+        // answer is to change tier. A pilot hiding up on a ledge always gets the cannon.
+        var targetY = Number(c.targetY) || 0;
         if (s.state === "advance") {
           towardTarget(targetX, 1.8, d);
-          if (done || Math.abs(targetX - s.x) < 3) go("windup", jitter(0.9));
+          if (done || Math.abs(targetX - s.x) < 3) {
+            s.cycle += 1;
+            if (targetY > 1 || s.cycle % 2 === 0) {
+              var tier = targetY < 0.7 ? 0 : targetY < 2.1 ? 1.4 : 2.8;
+              s.band = { y0: tier + 0.45, y1: tier + 1.25 };
+              s.facing = targetX < s.x ? -1 : 1;
+              go("charge", 2.0);
+            } else go("windup", jitter(0.9));
+          }
+        } else if (s.state === "charge") {
+          s.tell = box("beam", minX - 1, maxX + 1, s.band.y0, s.band.y1);
+          if (done) go("fire", 0.4);
+        } else if (s.state === "fire") {
+          s.attacking = true;
+          hazards.push(box("beam", minX - 1, maxX + 1, s.band.y0, s.band.y1));
+          if (done) go("recover", 0.6);
+        } else if (s.state === "recover") {
+          // Owner 23.11.2026: after the shot it sits down and drinks to recover; its shields
+          // hold, shots are useless (even in the back) and it mends. Then it laughs, mouth
+          // open — that is the window. Clip lengths: drink 2.7 s, laugh 2.1 s.
+          if (done) { go("drink", 2.7); s.shielded = true; }
+        } else if (s.state === "drink") {
+          s.shielded = true;
+          if (done) { go("taunt", 2.1); s.shielded = false; s.vulnerable = true; }
+        } else if (s.state === "taunt") {
+          s.vulnerable = true;
+          if (done) { go("advance", jitter(1.8)); s.vulnerable = false; }
         } else if (s.state === "windup") {
           s.tell = reach();
           if (done) go("punch", 0.25);
@@ -291,6 +323,7 @@
         form: form, state: s.state, x: s.x, y: s.y, facing: s.facing,
         vulnerable: s.vulnerable, attacking: s.attacking, tell: s.tell,
         hazards: hazards, cue: (CUES[form] && CUES[form][s.state]) || "",
+        shielded: !!s.shielded, healing: !!s.shielded,
         flight: flight, drift: flight ? 1.2 : 0, ceiling: flight ? CEILING : 0,
         floorWarn: flight && !pitOpen(),
         pit: pitOpen() ? { x0: PIT.x0, x1: PIT.x1 } : null,
@@ -301,6 +334,7 @@
     }
 
     function canBeHit(fromX) {
+      if (s.shielded) return false;
       if (s.vulnerable) return true;
       if (form === "brawler") return (Number(fromX) - s.x) * s.facing < 0;
       return false;
