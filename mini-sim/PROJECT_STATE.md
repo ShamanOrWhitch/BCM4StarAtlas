@@ -1,3 +1,13 @@
+## Patch — Mini-Sim 0.16.9: form transformations play the owner's videos (23 November 2026)
+
+- **WORK LOCK:** [#154](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/154). Decision D-085.
+- **Assets:** `mini-sim/assets/ring-bosses/video/` — five transformation videos (Roller→Walker … Runner→Stalker) and the Brawler's cannon attack, taunt/drink and pose sheet (≈25.9 MB).
+- **`ring-platformer.js`:** transitions into forms 2–6 play their video in place of the boss (muted VideoTexture, white keyed out in the shader), 5 s; models fade out early and in at the end; the particle transition stays for Pig→Roller and as the fallback. QA snapshot reports the playing video.
+- **Red before:** `transform-roller-walker.mp4 is missing`, `phase 2 has no transformation video`. After 2/2 (in CI). Edge: `ring-boss-arc-probe.mjs` sees the right video mid-transition and none after (PASS). Regression 281/281.
+- **Not yet:** the Brawler's own videos in its attack (comic inset), authored attacks.
+
+---
+
 ## Patch — Mini-Sim 0.16.8: forms only on the last Pig, Pig shell leaves, forms lit (23 November 2026)
 
 - **WORK LOCK:** [#153](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/153). Decision D-084.

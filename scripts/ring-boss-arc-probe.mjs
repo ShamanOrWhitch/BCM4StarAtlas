@@ -53,14 +53,22 @@ try {
   await page.waitForTimeout(600);
   // 2. The last Pig starts the forms; nothing of the Pig stays over the Roller.
   await page.evaluate(() => window.__BCM_RING_BOSS_QA__.transition());
-  await page.waitForTimeout(3500);
+  await page.waitForFunction(() => window.__BCM_RING_BOSS_QA__.snapshot().phaseState !== "transition", null, { timeout: 20000 }); await page.waitForTimeout(400); // transformation video (up to 5 s)
   const roller = await snap();
   report.roller = { phase: roller.phaseIndex, form: roller.moveForm, pigVisible: roller.pigVisible, shellVisible: roller.shellVisible,
     ringVisible: roller.ringVisible, formArtLit: roller.formArtLit, bosses: roller.bosses };
   await page.screenshot({ path: resolve(out, "roller-after-pig.png") });
+  // 3. Form to form: the owner's transformation video plays in place of the boss.
+  report.videos = [];
   for (let step = 2; step <= 3; step += 1) {
     await page.evaluate(() => window.__BCM_RING_BOSS_QA__.transition());
-    await page.waitForTimeout(3500);
+    await page.waitForTimeout(1800);
+    const mid = await snap();
+    report.videos.push({ step, phaseState: mid.phaseState, video: mid.transformVideo });
+    await page.screenshot({ path: resolve(out, "transform-video-" + step + ".png") });
+    await page.waitForFunction(() => window.__BCM_RING_BOSS_QA__.snapshot().phaseState !== "transition", null, { timeout: 20000 }); await page.waitForTimeout(400); // transformation video (up to 5 s)
+    const after = await snap();
+    report.videos[report.videos.length - 1].after = { phaseState: after.phaseState, video: after.transformVideo, form: after.moveForm };
   }
   const orbiter = await snap();
   report.orbiter = { phase: orbiter.phaseIndex, shellVisible: orbiter.shellVisible, formArtLit: orbiter.formArtLit };
@@ -70,6 +78,8 @@ try {
     report.startBosses.every((b, i) => b.hasPhases === (i === final)) &&
     report.roller.phase === 1 && !report.roller.pigVisible && report.roller.shellVisible === 0 && !report.roller.ringVisible &&
     report.roller.formArtLit === 1 && report.orbiter.shellVisible === 0 && report.orbiter.formArtLit === 1 &&
+    report.videos.map((v) => v.video && v.video.file).join(",") === "transform-roller-walker.mp4,transform-walker-orbiter.mp4" &&
+    report.videos.every((v) => v.phaseState === "transition" && v.video.started && !v.video.failed && v.video.time > 0.5 && v.video.opacity > 0.9 && !v.after.video) &&
     report.errors.length === 0 ? "PASS" : "FAIL";
 } catch (error) {
   report.failure = String(error && error.message || error).split("\n")[0];

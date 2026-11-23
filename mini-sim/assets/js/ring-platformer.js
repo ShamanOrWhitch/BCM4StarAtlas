@@ -250,6 +250,70 @@
       boss.transitionVfx = null;
     }
 
+    // Owner 23.11.2026 "красивые трансформации и переходы": each form turns into the next
+    // in the owner's video (white background, keyed out here), played muted in place of
+    // the boss. Keyed by the phase the boss turns into. Pig → Roller has no video and
+    // keeps the particle transition; so does any transition whose video fails.
+    const ringBossTransformVideos = {
+      2: "ring-bosses/video/transform-roller-walker.mp4",
+      3: "ring-bosses/video/transform-walker-orbiter.mp4",
+      4: "ring-bosses/video/transform-orbiter-brawler.mp4",
+      5: "ring-bosses/video/transform-brawler-runner.mp4",
+      6: "ring-bosses/video/transform-runner-stalker.mp4"
+    };
+    const RING_BOSS_VIDEO_MS = 5000;
+
+    function beginRingBossTransformVideo(boss, phaseIndex) {
+      clearRingBossTransformVideo(boss);
+      const THREE = window.THREE;
+      const url = ringBossAssetUrl(ringBossTransformVideos[phaseIndex] || "");
+      if (!url || !THREE || !THREE.VideoTexture || !boss || !boss.group) return false;
+      const video = document.createElement("video");
+      video.muted = true;
+      video.defaultMuted = true;
+      video.setAttribute("muted", "");
+      video.playsInline = true;
+      video.setAttribute("playsinline", "");
+      video.preload = "auto";
+      video.loop = false;
+      video.crossOrigin = "anonymous";
+      video.src = url;
+      const texture = new THREE.VideoTexture(video);
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      texture.generateMipmaps = false;
+      if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, opacity: 0 });
+      // The videos are drawn on white: near-white turns transparent, edges stay soft.
+      material.onBeforeCompile = (shader) => {
+        shader.fragmentShader = shader.fragmentShader.replace("#include <map_fragment>",
+          "#include <map_fragment>\n  float bcmWhiteKey = distance(diffuseColor.rgb, vec3(1.0));\n  diffuseColor.a *= smoothstep(0.10, 0.32, bcmWhiteKey);");
+      };
+      const geometry = new THREE.PlaneGeometry(1, 1);
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.name = "ring-boss-transform-video";
+      mesh.renderOrder = 8;
+      mesh.scale.set(4.6, 3.45, 1);
+      mesh.position.set(0, 1.62, 1.35);
+      boss.group.add(mesh);
+      const record = { url, video, texture, material, geometry, mesh, failed: false, started: false };
+      video.addEventListener("error", () => { record.failed = true; });
+      video.addEventListener("playing", () => { record.started = true; });
+      const played = video.play();
+      if (played && typeof played.catch === "function") played.catch(() => { record.failed = true; });
+      boss.transformVideo = record;
+      return true;
+    }
+
+    function clearRingBossTransformVideo(boss) {
+      const record = boss && boss.transformVideo;
+      if (!record) return;
+      boss.transformVideo = null;
+      try { record.video.pause(); record.video.removeAttribute("src"); record.video.load(); } catch (e) {}
+      if (record.mesh.parent) record.mesh.parent.remove(record.mesh);
+      try { record.texture.dispose(); record.material.dispose(); record.geometry.dispose(); } catch (e) {}
+    }
+
     function updateRingBossTransitionVfx(boss, dt, elapsed) {
       const fx = boss && boss.transitionVfx;
       if (!fx) return;
@@ -1266,6 +1330,11 @@
                 vulnerable: !!boss.vulnerable, bossX: boss.x,
                 flight: !!(boss.moves && boss.moves.flight),
                 camera: worldState.cameraView || null,
+                transformVideo: boss.transformVideo ? {
+                  file: String(boss.transformVideo.url).split("/").pop().split("?")[0],
+                  time: boss.transformVideo.video.currentTime, started: boss.transformVideo.started,
+                  failed: boss.transformVideo.failed, opacity: boss.transformVideo.material.opacity,
+                  visible: !!boss.transformVideo.mesh.visible } : null,
                 // Pig arc: what of the Pig (shell) is still drawn, and which Pigs carry forms.
                 shellVisible: (() => { let n = 0; boss.group.children.forEach((child) => {
                   if (child === boss.tellMesh || boss.phaseGroups.includes(child) || !child.visible) return;
@@ -2504,6 +2573,7 @@
           boss.phaseStartedAt = now;
           boss.phaseUntil = now + 2400;
           beginRingBossTransitionVfx(boss);
+          if (beginRingBossTransformVideo(boss, boss.phaseIndex)) boss.phaseUntil = now + RING_BOSS_VIDEO_MS;
           boss.vulnerable = false;
           boss.tellMesh.visible = false;
           updateHud("ФОРМА · " + boss.name + " · ПРИГОТОВЬСЯ");
@@ -3279,8 +3349,21 @@
           if (boss.phaseState === "transition") {
             boss.vulnerable = false;
             const elapsed = Math.max(0, (now - (boss.phaseStartedAt || now)) / 1000);
-            const oldOpacity = Math.max(0, 1 - elapsed / 0.92);
-            const newOpacity = Math.max(0, Math.min(1, (elapsed - 0.72) / 1.08));
+            const film = boss.transformVideo;
+            // A video that fails, or has not started after 1.5 s, gives way to the old transition.
+            if (film && (film.failed || (!film.started && elapsed > 1.5))) {
+              clearRingBossTransformVideo(boss);
+              boss.phaseUntil = Math.min(boss.phaseUntil, now + 900);
+            }
+            const filmOn = !!boss.transformVideo;
+            const total = Math.max(0.5, (boss.phaseUntil - (boss.phaseStartedAt || now)) / 1000);
+            const oldOpacity = filmOn ? Math.max(0, 1 - elapsed / 0.35) : Math.max(0, 1 - elapsed / 0.92);
+            const newOpacity = filmOn
+              ? Math.max(0, Math.min(1, (elapsed - (total - 0.6)) / 0.5))
+              : Math.max(0, Math.min(1, (elapsed - 0.72) / 1.08));
+            if (filmOn) {
+              boss.transformVideo.material.opacity = Math.max(0, Math.min(1, elapsed / 0.3, (total - elapsed) / 0.45));
+            }
             if (boss.transitionFromIndex > 0) {
               const oldGroup = boss.phaseGroups[boss.transitionFromIndex - 1];
               setRingBossGroupOpacity(oldGroup, oldOpacity);
@@ -3302,6 +3385,7 @@
               if (boss.pigShell) boss.pigShell.forEach((part) => { part.visible = false; });
               if (boss.pigShell) boss.pigShell.forEach((part) => { if (part.userData.bcmBaseScale) part.scale.copy(part.userData.bcmBaseScale); });
               clearRingBossTransitionVfx(boss);
+              clearRingBossTransformVideo(boss);
               boss.transitionFromIndex = 0;
               playRingBossAnimation(boss, phaseIndex - 1, "idle", false);
               // Owner 22.11.2026 "Бои с боссами Ring": each form plays its own move

@@ -48,7 +48,7 @@ try {
   await page.waitForTimeout(4000);
   for (let step = 1; step <= 3; step += 1) {
     await page.evaluate(() => window.__BCM_RING_BOSS_QA__.transition());
-    await page.waitForTimeout(2700);
+    await page.waitForFunction(() => window.__BCM_RING_BOSS_QA__.snapshot().phaseState !== "transition", null, { timeout: 20000 }); await page.waitForTimeout(400); // transformation video (up to 5 s)
   }
   report.before = await page.evaluate(() => window.__BCM_RING_BOSS_QA__.snapshot());
   let shot = false;

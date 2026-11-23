@@ -49,7 +49,7 @@ try {
   // Pig -> Roller -> Walker -> Orbiter -> Brawler -> Runner: five transitions.
   for (let step = 1; step <= 5; step += 1) {
     await page.evaluate(() => window.__BCM_RING_BOSS_QA__.transition());
-    await page.waitForTimeout(2700);
+    await page.waitForFunction(() => window.__BCM_RING_BOSS_QA__.snapshot().phaseState !== "transition", null, { timeout: 20000 }); await page.waitForTimeout(400); // transformation video (up to 5 s)
   }
   const snap = () => page.evaluate(() => window.__BCM_RING_BOSS_QA__.snapshot());
   await page.waitForFunction(() => !!window.__BCM_RING_BOSS_QA__.snapshot().chase, null, { timeout: 10000 });
@@ -76,7 +76,7 @@ try {
   }
   // Beating the Runner ends the chase: the Stalker starts back in the 2.5D arena.
   await page.evaluate(() => window.__BCM_RING_BOSS_QA__.transition());
-  await page.waitForTimeout(3200);
+  await page.waitForFunction(() => window.__BCM_RING_BOSS_QA__.snapshot().phaseState !== "transition", null, { timeout: 20000 }); await page.waitForTimeout(400); // Runner -> Stalker video
   report.end = await snap();
   await page.screenshot({ path: resolve(out, "after-chase-stalker.png") });
   report.backInArena = !report.end.chase && report.end.phaseIndex === 6 && report.end.moveForm === "stalker";
