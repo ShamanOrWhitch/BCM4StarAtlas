@@ -1,3 +1,13 @@
+## Patch — Mini-Sim 0.16.14: First Planet cache busting, planet names in the Warp menu, dead duplicates removed (23 November 2026)
+
+- **WORK LOCK:** [#159](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/159). Decision D-090, IDEA-028.
+- **`tower/bcm-tower.php`:** `bcm_tower_file_version()` — the First Planet bundle, style and loader URLs follow the Mini-Sim release and the file's time and size (they carried only Tower 0.2.90, so sites kept the old bundle).
+- **`sage-map-core.js`:** station sectors are named with their planet (Fable · ONI CSS, Pearce · MUD CSS, Ioki · Ustur CSS).
+- **Removed:** 36 dead files (WARP SPACE kit leftovers, `replace/`, `repo-drop/`, root `Wall.mp4` duplicate, old patch zips, an old QA report) — see D-090 for the list and how to restore.
+- **Checks:** regression 308/308, UI layer PASS, `test:minisim` 65/65.
+
+---
+
 ## Patch — Mini-Sim 0.16.13: phone controls, Twinsun's own level, space traffic at ONI CSS (23 November 2026)
 
 - **WORK LOCK:** [#158](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/158). Decision D-089.

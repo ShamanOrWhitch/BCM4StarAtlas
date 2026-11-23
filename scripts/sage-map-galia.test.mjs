@@ -24,7 +24,10 @@ async function sageCore() {
 
 test("sector names and system lookup come from the Galia map", async () => {
   const core = await sageCore();
-  assert.equal(core.sectorTitle(-40, 30), "ONI Central Space Station");
+  // Owner 23.11.2026: the menus name the planet that stands in a station sector (Fable at ONI).
+  assert.equal(core.sectorTitle(-40, 30), "Fable · ONI Central Space Station");
+  assert.equal(core.sectorTitle(0, -39), "Pearce · MUD Central Space Station");
+  assert.equal(core.sectorTitle(40, 30), "Ioki · Ustur Central Space Station");
   assert.match(core.sectorTitle(-38, 25), /^(White Dwarf|Red Dwarf|Solar|Hot Blue|Red Giant) \[-38, 25\]$/);
   assert.equal(core.sectorTitle(-39, 29), "[-39, 29] · пустой сектор");
   const oni = core.systemForSector(-40, 30);

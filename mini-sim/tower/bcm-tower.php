@@ -16,6 +16,22 @@ define('BCM_TOWER_VERSION', '0.2.90');
 define('BCM_TOWER_PATH', __DIR__ . '/');
 define('BCM_TOWER_URL', trailingslashit(plugin_dir_url(__FILE__)));
 
+/**
+ * Cache version of a Mini-Sim file (owner 23.11.2026: the island did not change on the site).
+ * The First Planet bundle used to carry only BCM_TOWER_VERSION, unchanged since 0.15.36, so
+ * browsers and WordPress caches kept the old bundle after every rebuild. The version now also
+ * follows the Mini-Sim release and the file's own time and size.
+ */
+function bcm_tower_file_version($relative) {
+    $base = defined('BCM_MINI_SIM_PATH') ? BCM_MINI_SIM_PATH : dirname(BCM_TOWER_PATH) . '/';
+    $path = $base . ltrim($relative, '/');
+    $version = BCM_TOWER_VERSION . (defined('BCM_MINI_SIM_VERSION') ? '-' . BCM_MINI_SIM_VERSION : '');
+    if (is_readable($path)) {
+        $version .= '-' . filemtime($path) . '-' . filesize($path);
+    }
+    return $version;
+}
+
 function bcm_tower_pick_asset($assets, $names, $type = 'image') {
     $wanted = array_map('strtolower', (array) $names);
 
@@ -234,12 +250,12 @@ function bcm_tower_enqueue_assets() {
         'bcm-first-planet-loader',
         BCM_MINI_SIM_URL . 'first-planet/loader.js',
         array('bcm-tower'),
-        BCM_TOWER_VERSION,
+        bcm_tower_file_version('first-planet/loader.js'),
         false
     );
     wp_localize_script('bcm-first-planet-loader', 'BCMFirstPlanetConfig', array(
-        'bundleUrl' => BCM_MINI_SIM_URL . 'first-planet/wp-dist/first-planet.js?ver=' . BCM_TOWER_VERSION,
-        'styleUrl' => BCM_MINI_SIM_URL . 'first-planet/wp-dist/first-planet.css?ver=' . BCM_TOWER_VERSION,
+        'bundleUrl' => BCM_MINI_SIM_URL . 'first-planet/wp-dist/first-planet.js?ver=' . rawurlencode(bcm_tower_file_version('first-planet/wp-dist/first-planet.js')),
+        'styleUrl' => BCM_MINI_SIM_URL . 'first-planet/wp-dist/first-planet.css?ver=' . rawurlencode(bcm_tower_file_version('first-planet/wp-dist/first-planet.css')),
         'meshBase' => BCM_MINI_SIM_URL . 'first-planet/mesh/',
         'meshLibraryBase' => BCM_MINI_SIM_URL . 'first-planet/mesh/library/',
         'propBase' => BCM_MINI_SIM_URL . 'assets/mesh/',

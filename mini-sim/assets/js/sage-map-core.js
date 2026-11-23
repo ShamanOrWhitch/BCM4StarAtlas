@@ -45,9 +45,14 @@
     return (1.3 + (size - 4000) / 16000 * 1.6) * (zoom >= 4 ? 1.35 : 1);
   }
 
+  // Owner 23.11.2026: menus name the planet that stands in a station sector. The planets
+  // change sectors (every hundred years); today Fable stands at ONI CSS, Pearce at MUD CSS,
+  // Ioki at Ustur CSS (the same mapping as planet-landing.js / First Planet planet.ts).
+  const CSS_PLANET = { oni: "Fable", mud: "Pearce", ustur: "Ioki" };
+
   function sectorTitle(x, y) {
     const css = cssAt(x, y);
-    if (css) return css.name;
+    if (css) return (CSS_PLANET[css.system] ? CSS_PLANET[css.system] + " · " : "") + css.name;
     const star = starAt(x, y);
     if (star) return star.name + " [" + x + ", " + y + "]";
     const mark = landmarkAt(x, y);
