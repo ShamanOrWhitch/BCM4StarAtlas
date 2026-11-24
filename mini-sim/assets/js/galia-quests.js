@@ -43,7 +43,7 @@
     ustur: {
       id: "ustur-one-consciousness", station: "ustur", stationName: "Ustur CSS",
       title: "Путь к Единому Сознанию",
-      brief: "Старейшины ищут осколки памяти тех, чьи оболочки закончились вдали от Ioki. Облети базы, где их видели.",
+      brief: "Шпиль Старейшин ищет осколки памяти тех, чьи оболочки закончились вдали от Ioki, — и следы отступника с Genesium. Облети базы, где их видели.",
       steps: [
         { sector: "azum", note: "Azum: Francor и Opal Industries" },
         { sector: "summer-sea", note: "Summer Sea: голубой гигант" },

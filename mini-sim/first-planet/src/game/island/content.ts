@@ -428,6 +428,7 @@ const IOKI: PlanetContent = {
   journal: [
     "«Ioki: жёлтая пустыня в кольце океана, храмы с глифами, подземные залы к центральному резервуару.»",
     "«Seven Steps: .bod, .iddt, .lrnr, .doer, .tchr, .soul, .eldr. Суффикс в имени говорит, как далеко Ustur прошёл.»",
+    "«Шпиль Старейшин не терпит отклонений. High Ustur Stati.Tchr охотится на роботов-отступников, что играют с Genesium и светом Photoli.»",
   ],
   journalLocked: (giver) => `Архив закрыт. ${giver} откроет, когда куб будет у старейшин.`,
   people: "Рин.lrnr, Осса.tchr, Ваэль.eldr, Джаман",
