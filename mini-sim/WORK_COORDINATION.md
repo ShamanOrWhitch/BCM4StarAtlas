@@ -1,3 +1,13 @@
+## Дополнение — 24 ноября 2026: Tower gamepad dead-zone hotfix
+
+- WORK LOCK [#170](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/170), Decision D-105.
+- В Tower один порог `0.22` теперь используется аналоговой кривой и цифровыми направлениями. Это устраняет резкий полный ход при слабом наклоне 0.16–0.22.
+- Tower asset/cache version: `0.2.91`; Mini-Sim остаётся `0.16.28`.
+- Изменения ограничены Tower, его PHP cache marker и focused test. Warp (#142), Ring/Crew Core (#140), Race (#143), local Fleet (#144) и AUDIO FREEZE остаются отдельными областями.
+- Итоговый CI/physical gamepad/live WordPress ещё не подтверждены.
+
+---
+
 # Дополнение владельца — 20 ноября 2026: единый выбор гонки и движение кораблей
 
 ## Shoal Race — общий выбор режима для всех планет
