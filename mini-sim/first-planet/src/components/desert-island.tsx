@@ -42,7 +42,7 @@ const EMPTY: IslandHud = {
   selectedTape: "",
   nearTapeDeck: false,
   carpet: null,
-  rules: { hint: "", heat: null, breath: null, overheated: false, swimming: false, lowGravity: false },
+  rules: { hint: "", heat: null, breath: null, overheated: false, swimming: false, lowGravity: false, attention: null, vines: false, spores: "" },
 };
 
 export function DesertIsland({
@@ -285,6 +285,14 @@ export function DesertIsland({
                 </div>
               ) : null}
               {hud.rules.lowGravity ? <p className="mt-1 text-xs text-muted">Низкая гравитация</p> : null}
+              {hud.rules.attention !== null ? (
+                <div className="mt-2 space-y-1 text-xs" data-planet-attention>
+                  <div className="h-2 w-40 overflow-hidden rounded-full bg-bg/60">
+                    <div className={hud.rules.vines ? "h-full bg-fuchsia-500" : "h-full bg-emerald-400"} style={{ width: `${Math.round(hud.rules.attention)}%` }} />
+                  </div>
+                  <p className="text-muted">{hud.rules.vines ? "Вьюны! Иди тише" : `Внимание планеты ${Math.round(hud.rules.attention)}`} · споры {hud.rules.spores}</p>
+                </div>
+              ) : null}
               {hud.carpet && hud.mode === "bike" ? (
                 <div className="mt-2 space-y-1 text-xs" data-opus-carpet>
                   <div className="h-2 w-40 overflow-hidden rounded-full bg-bg/60">

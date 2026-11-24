@@ -30,7 +30,7 @@ const hold = async (keys, ms) => {
 };
 
 try {
-  for (const planet of ["first", "pearce", "ioki"]) {
+  for (const planet of ["first", "pearce", "ioki", "fable"]) {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
     await page.waitForFunction(() => !!window.BCMFirstPlanetConfig, null, { timeout: 30000 });
     await page.evaluate(async (planetId) => {
@@ -49,14 +49,15 @@ try {
       if (planetId === "first") { sim.body.heat = 99.5; sim.x = 30; sim.z = 4; }
       if (planetId === "pearce") { const l = { x: -44, z: 6 }; sim.x = l.x; sim.z = l.z; }
       if (planetId === "ioki") { sim.vy = 7; }
+      if (planetId === "fable") { const sp = sim.body.spores[1]; sim.x = sp.x + 3.5; sim.z = sp.z; sim.yaw = -Math.PI / 2; sim.body.attention = 80; }
       return { rules: sim.rules };
     }, planet);
     await page.waitForTimeout(2500);
     const text = await hostText();
-    report[planet] = { rules: state.rules, heat: /Перегрев|Жара/.test(text), breath: /Дыхание/.test(text), lowG: /Низкая гравитация/.test(text) };
+    report[planet] = { rules: state.rules, heat: /Перегрев|Жара/.test(text), breath: /Дыхание/.test(text), lowG: /Низкая гравитация/.test(text), living: /Вьюны|Внимание планеты/.test(text) };
     await page.screenshot({ path: resolve(out, planet + ".png") });
   }
-  report.status = report.first.heat && report.pearce.breath && report.ioki.lowG && report.errors.length === 0 ? "PASS" : "FAIL";
+  report.status = report.first.heat && report.pearce.breath && report.ioki.lowG && report.fable.living && report.errors.length === 0 ? "PASS" : "FAIL";
 } catch (error) {
   report.failure = String(error && error.message || error).split("\n")[0];
   await page.screenshot({ path: resolve(out, "failure.png") }).catch(() => {});

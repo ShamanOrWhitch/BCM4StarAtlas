@@ -9,6 +9,7 @@ import { libraryUrl, meshUrl, propUrl } from "../mesh-url";
 import { activeKeys } from "../input";
 import { createSim, type Sim } from "./sim";
 import { createOpusLook } from "./opus-look";
+import { createFableLook } from "./fable-look";
 import {
   BIKE_PARK,
   BRAZIERS,
@@ -263,6 +264,8 @@ export function createIsland(
   const mats = new Set<THREE.Material>();
   // Planet Opus: the spark store, sparks, wardens and bolts of the carpet loop (IDEA-026 step 1).
   const opusLook = sim.carpet ? createOpusLook(scene, sim.carpet, surfaceY, { geos, mats }) : null;
+  // Fable: spore pods and the vines of the living planet (planet-rules.ts, fable-look.ts).
+  const fableLook = sim.rules.living ? createFableLook(scene, sim.body, surfaceY, { geos, mats }) : null;
 
   // A planet with its own design (Fable) adds a night sky, a ringed moon,
   // aurora curtains and light motes. Three draw calls for stars, motes and
@@ -1569,6 +1572,7 @@ export function createIsland(
       bike.position.y = sim.y + sim.carpet.bob;
     } else bike.rotation.x = 0;
     opusLook?.update(elapsed);
+    fableLook?.update(elapsed, dt, sim.x, sim.y, sim.z);
     if (bikeOff) bikeOff.visible = !boarded && (!blazing || !bikeFull);
     if (bikeFull) bikeFull.visible = !boarded && blazing;
     if (boarded) {

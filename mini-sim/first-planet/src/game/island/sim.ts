@@ -22,7 +22,7 @@ import {
   surfaceY,
   type Aabb,
 } from "./terrain";
-import { HEAT, createBody, rulesFor, shoreFor, stepHeat, stepWater, type PlanetBody } from "./planet-rules";
+import { HEAT, LIVING, createBody, placeSpores, rulesFor, shoreFor, stepHeat, stepLiving, stepWater, type PlanetBody } from "./planet-rules";
 import { buyUpgrade, captureNode, createCarpet, nextUpgrade, stepCarpet, type CarpetState } from "./carpet";
 import { planetContent, type PlanetContent, type QuestKind } from "./content";
 
@@ -73,7 +73,7 @@ export type IslandHud = {
   nearTapeDeck: boolean;
   /** Planet Opus flight loop (IDEA-026 step 1); null on other planets. */
   /** Planet rules on foot (planet-rules.ts): heat on Twinsun, breath on Pearce. */
-  rules: { hint: string; heat: number | null; breath: number | null; overheated: boolean; swimming: boolean; lowGravity: boolean };
+  rules: { hint: string; heat: number | null; breath: number | null; overheated: boolean; swimming: boolean; lowGravity: boolean; attention: number | null; vines: boolean; spores: string };
   carpet: null | {
     energy: number;
     energyMax: number;
@@ -689,7 +689,7 @@ export function createSim(seed = 0, planet?: string) {
         const pace =
           this.mood === "sport" ? 9.4 : this.mood === "stealth" ? 2.7 : this.mood === "fight" ? 6.6 : 5.6;
         // Overheated (Twinsun) or swimming (Pearce): a slower walk.
-        const footFactor = (this.body.overheated ? HEAT.slow : 1) * (this.body.swimming ? 0.5 : 1);
+        const footFactor = (this.body.overheated ? HEAT.slow : 1) * (this.body.swimming ? 0.5 : 1) * (this.body.vines ? LIVING.vineSlow : 1);
         const max = this.mode === "bike" ? (boost ? 28 : 16) : pace * footFactor;
         const accel = this.mode === "bike" ? 16 : 24;
         const target = wish * (this.mode === "foot" && brake && !throttle ? 3.2 : max);
@@ -806,6 +806,17 @@ export function createSim(seed = 0, planet?: string) {
       }
       // Twinsun: heat under two suns, on foot in the open (planet-rules.ts).
       if (this.rules.heat) stepHeat(this.body, this.x, this.z, this.mode === "foot", dt);
+      // Fable: the living planet watches the pilot (planet-rules.ts).
+      if (this.rules.living && stepLiving(this.body, this.x, this.z, this.mode === "foot", this.mood, this.speed, dt) === "push") {
+        this.x = SPAWN.x;
+        this.z = SPAWN.z;
+        this.yaw = SPAWN.yaw;
+        this.y = footY(SPAWN.x, SPAWN.z, 0);
+        this.vx = 0;
+        this.vz = 0;
+        this.vy = 0;
+        this.speed = 0;
+      }
       this.body.noteFor = Math.max(0, this.body.noteFor - dt);
       this.jumpPrev = keys.has("Space");
       this.refreshPrompt();
@@ -869,6 +880,9 @@ export function createSim(seed = 0, planet?: string) {
           overheated: this.body.overheated,
           swimming: this.body.swimming,
           lowGravity: this.rules.gravity < 1,
+          attention: this.rules.living ? this.body.attention : null,
+          vines: this.body.vines,
+          spores: this.rules.living ? `${this.body.spores.filter((s) => s.taken).length}/${this.body.spores.length}` : "",
         },
         carpet: this.carpet
           ? {
@@ -891,6 +905,7 @@ export function createSim(seed = 0, planet?: string) {
     },
   };
   sim.y = footY(sim.x, sim.z, 0);
+  if (sim.rules.living) placeSpores(sim.body);
   sim.rebuild();
   return sim;
 }

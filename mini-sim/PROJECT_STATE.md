@@ -1,3 +1,13 @@
+## Patch — Mini-Sim 0.16.25: Fable, the living planet (24 November 2026)
+
+- **WORK LOCK:** [#167](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/167). Decision D-101.
+- **`planet-rules.ts`:** new `living` rule — planet attention, vines, the immune push and spores.
+- **`fable-look.ts` (new):** spore pods and vines.
+- **HUD:** attention bar.
+- **Checks:** regression 339/339, Edge probe PASS.
+
+---
+
 ## Patch — Mini-Sim 0.16.24: planet rules on foot (24 November 2026)
 
 - **WORK LOCK:** [#166](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/166). Decision D-100.

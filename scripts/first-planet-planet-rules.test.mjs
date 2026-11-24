@@ -82,3 +82,51 @@ test("planets without these rules keep the old walk: the sea is still a wall on 
   assert.equal(s.body.breath, 100, "breath is spent on Fable");
   assert.equal(s.body.heat, 0, "heat builds on Fable");
 });
+
+// Owner 24.11.2026: "Живая планета Fable". Neuno in the Star Atlas lore is a living sentient planet with
+// an "immune system". On Fable the planet notices the pilot: running over wild ground raises its
+// attention, a quiet (stealth) step, standing still or the town lower it; at 60 vines tug at the feet;
+// at 100 the planet pushes the pilot back to the pad. Six glowing spores calm it when gathered.
+test("Fable: running in the wild raises the planet's attention, vines slow you, the immune push sends you to the pad", () => {
+  const s = sim("fable");
+  assert.ok(s.rules.living, "Fable is not a living planet");
+  s.x = -40; s.z = -30; s.y = terrain.footY(-40, -30, 0); s.yaw = 0;
+  s.mood = "sport";
+  let attention = 0, slowed = false;
+  run(s, ["KeyW"], 5, (x) => { attention = Math.max(attention, x.body.attention); if (x.body.vines) slowed = true; });
+  assert.ok(attention > 20, `running in the wild raises attention: ${attention.toFixed(0)}`);
+  s.body.attention = 70;
+  s.mood = "walk";
+  run(s, ["KeyW"], 1); // the run’s momentum fades first
+  s.body.attention = 70;
+  let top = 0;
+  run(s, ["KeyW"], 1, (x) => { top = Math.max(top, Math.abs(x.speed)); if (x.body.vines) slowed = true; });
+  assert.ok(slowed && top < 4.5, `vines tug at the feet: ${top.toFixed(1)} m/s`);
+  s.body.attention = 99.9;
+  s.mood = "sport";
+  let pushed = false;
+  run(s, ["KeyW"], 1, (x) => { if (Math.hypot(x.x - terrain.SPAWN.x, x.z - terrain.SPAWN.z) < 1) pushed = true; });
+  assert.ok(pushed, `the immune push sends the pilot to the pad: ${s.x.toFixed(1)}, ${s.z.toFixed(1)}`);
+  assert.ok(s.body.attention < 50, "after the push the planet calms down");
+});
+
+test("Fable: a stealth step calms the planet, spores calm it and are gathered; other planets do not watch", () => {
+  const s = sim("fable");
+  s.x = -40; s.z = -30; s.y = terrain.footY(-40, -30, 0);
+  s.body.attention = 50; s.mood = "stealth";
+  run(s, ["KeyW"], 3);
+  assert.ok(s.body.attention < 40, `a stealth step calms it: ${s.body.attention.toFixed(0)}`);
+  const spores = s.body.spores;
+  assert.equal(spores.length, 6, "six spores on Fable");
+  for (const sp of spores) assert.ok(terrain.footY(sp.x, sp.z, 0) > -0.3, `spore at ${sp.x},${sp.z} is in the sea`);
+  s.body.attention = 60;
+  s.x = spores[0].x; s.z = spores[0].z; s.y = terrain.footY(s.x, s.z, 0); s.mood = "walk";
+  run(s, [], 0.2);
+  assert.equal(spores[0].taken, true, "the spore was not gathered");
+  assert.ok(s.body.attention <= 30, `a spore calms the planet: ${s.body.attention.toFixed(0)}`);
+  assert.equal(s.hud().rules.spores, "1/6");
+  const t = sim("first");
+  t.mood = "sport"; t.x = 30; t.z = 4; t.y = terrain.footY(30, 4, 0);
+  run(t, ["KeyW"], 3);
+  assert.equal(t.body.attention, 0, "Twinsun watches the pilot too");
+});
