@@ -150,6 +150,8 @@ function bcm_tower_get_client_config($assets = null) {
         'planetTransitions' => array_filter(array(
             'fable' => bcm_tower_pick_asset($assets, array('landing-fable.mp4'), 'video'),
             'opus' => bcm_tower_pick_asset($assets, array('landing-opus.mp4'), 'video'),
+            // Owner 24.11.2026: Pearce stands at MUD CSS; its own landing in Galia at MUD.
+            'pearce' => bcm_tower_pick_asset($assets, array('landing-pearce.mp4'), 'video'),
         )),
         // Own departure film (Tower -> space), played forward. A planet without
         // one reverses its landing clip.

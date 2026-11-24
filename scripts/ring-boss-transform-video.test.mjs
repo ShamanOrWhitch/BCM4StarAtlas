@@ -16,7 +16,9 @@ test("the owner's transformation videos are in the plugin", () => {
   for (const name of VIDEOS) {
     const file = new URL("mini-sim/assets/ring-bosses/video/" + name + ".mp4", ROOT);
     assert.ok(existsSync(file), name + ".mp4 is missing");
-    assert.ok(statSync(file).size > 500000, name + ".mp4 is not a video");
+    // 24.11.2026: videos re-encoded lighter (D-096) — a real MP4 header, not a size threshold.
+    assert.ok(statSync(file).size > 50000, name + ".mp4 is not a video");
+    assert.equal(readFileSync(file).subarray(4, 8).toString("latin1"), "ftyp", name + ".mp4 has no MP4 header");
   }
 });
 

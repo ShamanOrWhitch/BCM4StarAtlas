@@ -116,6 +116,7 @@ const server = createServer(async (req, res) => {
         planetTransitions: {
           fable: pick(["landing-fable.mp4"], "video", allAssets),
           opus: pick(["landing-opus.mp4"], "video", allAssets),
+          pearce: pick(["landing-pearce.mp4"], "video", allAssets),
         },
         planetAscents: {
           opus: pick(["departure-opus.mp4"], "video", allAssets),

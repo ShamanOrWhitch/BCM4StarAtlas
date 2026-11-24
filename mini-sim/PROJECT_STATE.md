@@ -1,3 +1,12 @@
+## Patch — Mini-Sim 0.16.20: videos 93 → 15 MB; Pearce's own MUD landing (24 November 2026)
+
+- **WORK LOCK:** [#163](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/163). Decision D-096.
+- **Videos:** all 25 re-encoded with ffmpeg (H.264 CRF 27, 854/640 px); audio streams copied.
+- **Pearce:** `landing-pearce.mp4` (was the unused `mud planet.mp4`) is now `planetTransitions.pearce`.
+- **Checks:** regression 325/325, transitions PASS.
+
+---
+
 ## Patch — Mini-Sim 0.16.19: textures capped at 1024 px (24 November 2026)
 
 - **WORK LOCK:** [#163](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/163). Decision D-095.

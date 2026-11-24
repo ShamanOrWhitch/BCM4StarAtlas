@@ -17,7 +17,7 @@ const has = (p) => existsSync(new URL(p, ROOT));
 
 const CONFIG = {
   planetTransition: "assets/onicss.mp4",
-  planetTransitions: { fable: "assets/landing-fable.mp4", opus: "assets/landing-opus.mp4" },
+  planetTransitions: { fable: "assets/landing-fable.mp4", opus: "assets/landing-opus.mp4", pearce: "assets/landing-pearce.mp4" },
 };
 
 /** The page as Mini-Sim builds it: Galia map, map core, then the landing picker. */
@@ -37,7 +37,9 @@ test("Tower config carries a landing clip for Fable and Pearce; ONI keeps onicss
   assert.ok(block, "Tower has one bridge clip for every planet: only 'planetTransition' => onicss.mp4");
   assert.match(block[1], /'fable'\s*=>[^\n]*landing-fable\.mp4/);
   assert.match(block[1], /'opus'\s*=>[^\n]*landing-opus\.mp4/);
-  for (const file of ["landing-fable.mp4", "landing-opus.mp4"]) {
+  // Owner 24.11.2026: "вот это видео — приземление в Галии у MUD" — Pearce stands at MUD CSS.
+  assert.match(block[1], /'pearce'\s*=>[^\n]*landing-pearce\.mp4/, "Pearce lands with a copy of the ONI CSS landing");
+  for (const file of ["landing-fable.mp4", "landing-opus.mp4", "landing-pearce.mp4"]) {
     assert.ok(has(`mini-sim/assets/${file}`), `${file} is not in the plugin assets`);
   }
   // The picker loads before Tower, on the Tower page and in the standalone QA shell.
@@ -58,7 +60,7 @@ test("the bridge clip follows the planet the Warp sector picks", () => {
   const oni = w.BCMSageMapCore.data.css.find((c) => c.system === "oni");
   // Owner 18.11.2026 (D-069): Fable took the start at ONI CSS; the desert (Twinsun) lies north.
   assert.equal(at(-40, 31), CONFIG.planetTransition, "Twinsun has no own clip and keeps onicss.mp4");
-  assert.equal(at(mud.x, mud.y), CONFIG.planetTransition, "Pearce has no own clip now and keeps onicss.mp4");
+  assert.equal(at(mud.x, mud.y), CONFIG.planetTransitions.pearce, "Pearce (MUD CSS) does not land with its own MUD clip");
   assert.equal(at(-41, 30), CONFIG.planetTransitions.opus, "Opus does not land with its snowy-mountain clip");
   assert.equal(at(ustur.x, ustur.y), CONFIG.planetTransition, "Ioki has no own clip yet and keeps the ONI CSS one");
   assert.equal(at(oni.x, oni.y), CONFIG.planetTransitions.fable, "ONI CSS lands on Fable with Fable's clip");
