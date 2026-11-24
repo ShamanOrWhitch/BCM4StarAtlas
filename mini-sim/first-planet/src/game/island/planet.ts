@@ -57,7 +57,7 @@ export type PlanetLook = {
   sea: { color: number; opacity: number; roughness: number };
   exposure: number;
   /** Island relief (terrain.ts setRelief). Absent means the desert island. */
-  relief?: "desert" | "fable" | "twinsun" | "opus";
+  relief?: "desert" | "fable" | "twinsun" | "opus" | "pearce" | "ioki";
   extras?: PlanetExtras;
 };
 
@@ -171,6 +171,8 @@ export const PLANETS: Record<PlanetId, PlanetLook> = {
     ground: { sand: 0xdac89c, wet: 0x9c8c6a, rock: 0x707066, grass: 0x4c8a3a, greenery: 0.72 },
     sea: { color: 0x1f6aa6, opacity: 0.9, roughness: 0.3 },
     exposure: 1.02,
+    // Owner 24.11.2026: "планета это всегда что-то разное" — Pearce has its own lake country.
+    relief: "pearce",
   },
   ioki: {
     id: "ioki",
@@ -189,6 +191,8 @@ export const PLANETS: Record<PlanetId, PlanetLook> = {
     ground: { sand: 0xb4552f, wet: 0x7a3322, rock: 0x5a2a20, grass: 0x8a5c3c, greenery: 0 },
     sea: { color: 0x6e3424, opacity: 1, roughness: 1 },
     exposure: 1.05,
+    // Ioki: a rust crater field with a rift (24.11.2026).
+    relief: "ioki",
   },
 };
 

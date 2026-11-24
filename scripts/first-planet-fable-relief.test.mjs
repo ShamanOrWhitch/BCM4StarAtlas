@@ -78,11 +78,11 @@ function reachable() {
   return (x, z) => seen[cell(z) * size + cell(x)] === 1;
 }
 
-test("Pearce and Ioki keep the desert relief exactly", () => {
-  // Sum and weighted sum of the 97 x 97 ground nodes, measured on 0.15.4. Twinsun ("first")
-  // has its own level since 0.16.13 (owner 23.11.2026; first-planet-twinsun-level.test.mjs).
-  for (const id of ["pearce", "ioki"]) {
-    land(id);
+test("the shared desert relief itself is unchanged", () => {
+  // Sum and weighted sum of the 97 x 97 ground nodes, measured on 0.15.4. Twinsun (0.16.13),
+  // Pearce and Ioki (0.16.18, owner 24.11.2026) have their own levels; the desert stays the base.
+  for (const id of ["desert"]) {
+    terrain.setRelief(id);
     const g = grid();
     let sum = 0;
     let weighted = 0;
@@ -96,7 +96,7 @@ test("Pearce and Ioki keep the desert relief exactly", () => {
 });
 
 test("planet Fable has its own relief, shoreline and sea stacks", () => {
-  land("pearce");
+  terrain.setRelief("desert"); // the shared desert (Pearce has its own relief since 0.16.18)
   const desert = grid();
   const desertShore = shore();
   land("fable");
@@ -133,7 +133,7 @@ test("planet Fable has its own relief, shoreline and sea stacks", () => {
 });
 
 test("on Fable every quest spot, house and resident is dry, level and reachable on foot", () => {
-  land("pearce");
+  terrain.setRelief("desert"); // the shared desert (Pearce has its own relief since 0.16.18)
   const desertAt = new Map(anchors().map((a) => [a.name, terrain.groundY(a.x, a.z)]));
   land("fable");
   const canWalk = reachable();
@@ -156,7 +156,7 @@ test("on Fable every quest spot, house and resident is dry, level and reachable 
   const names = new Set();
   for (let x = -60; x <= 60; x += 4) for (let z = -60; z <= 60; z += 4) names.add(terrain.regionName(x, z, 0));
   assert.ok(![...names].some((n) => /Дюн|Оазис/.test(n)), `Fable still names desert places: ${[...names].join(", ")}`);
-  land("pearce");
+  terrain.setRelief("desert"); // the shared desert (Pearce has its own relief since 0.16.18)
   assert.equal(terrain.regionName(40, 40, 0), "Дюны", "the desert keeps its place names");
 });
 

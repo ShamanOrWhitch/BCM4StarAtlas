@@ -1,3 +1,15 @@
+## Patch — Mini-Sim 0.16.18: own space for every planet sector; Pearce and Ioki reliefs (24 November 2026)
+
+- **WORK LOCK:** [#162](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/162). Decision D-094.
+- **`sector-look.js` (new):** per-planet planet, rings, moons, light, sky tint. Outside ONI CSS the station is hidden.
+- **`deep-space-warp.js`:**
+  - `dressSector` runs on arrival, on the return to ONI and on the maze;
+  - a planet-sector arrival lands in open space at z −140, not in the start hangar.
+- **`terrain.ts`:** Pearce has the `pearce` relief (lakes, islets), Ioki has `ioki` (craters, rift).
+- **Checks:** regression 325/325, UI layer PASS, `test:minisim` 65/65, sector-look Edge probe PASS.
+
+---
+
 ## Patch — Mini-Sim 0.16.17: Ring route to the bosses, held jetpack, crew-core figure; landing before the Tower menu (24 November 2026)
 
 - Decision D-093, BUG-024.

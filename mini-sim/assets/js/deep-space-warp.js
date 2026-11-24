@@ -2296,8 +2296,12 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       state.sectorProgressed = true;
       closeOverlay(false);
       if (engine && typeof engine.teleport === "function") {
-        engine.teleport({ x: 0, y: 0, z: 2, yaw: 0 }, null);
+        // Owner 24.11.2026: arriving at (0, 0, 2) put the ship back in the start hangar, so every
+        // planet sector looked like the same room. It arrives in open space before the landing gate
+        // (z = -260), with the sector's planet ahead.
+        engine.teleport({ x: 0, y: 0, z: -140, yaw: 0 }, null);
       }
+      dressSector(mark && mark.planet);
       const status = root.querySelector(".bcm-mini-sim-status");
       if (status) status.textContent = "ARRIVED · " + String(mark ? mark.name : "PLANET").toUpperCase() + " · ВХОД В TOWER — ПОСАДКА НА ПЛАНЕТУ";
     }
@@ -2306,6 +2310,7 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       const engine = api();
       disposeMaze();
       rememberPlace(null);
+      dressSector("fable");
       const previous = state.nav || readNavigation();
       const adapter = previous && previous.adapter;
       let homeRecord = null;
@@ -2376,9 +2381,19 @@ function warpSectorPlanetCard(core, x, y, jumps) {
     // БЛОК 05 · ВХОД В ЛАБИРИНТ: передача управления asteroid-maze-location.js
     // метка [block:maze] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
     // ==========================================================================
+    // Owner 24.11.2026: each planet sector has its own space (sector-look.js).
+    function dressSector(planetId) {
+      const look = window.BCMSectorLook;
+      const engine = api();
+      if (!look || !engine || typeof engine.getRuntime !== "function") return;
+      if (planetId) look.apply(engine.getRuntime(), planetId);
+      else look.clear();
+    }
+
     function enterAsteroidMaze() {
       const location = getAsteroidMazeLocation();
       if (!location) return false;
+      dressSector(null);
       return location.enter();
     }
     function updateMazeFrame(frame) {

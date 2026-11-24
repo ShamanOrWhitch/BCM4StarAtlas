@@ -29,8 +29,8 @@ test("the Warp sector chooses the planet through the Galia map", () => {
   const mud = core.data.css.find((c) => c.system === "mud");
   const ustur = core.data.css.find((c) => c.system === "ustur");
   const oni = core.data.css.find((c) => c.system === "oni");
-  assert.equal(at(mud.x, mud.y), "pearce", "MUD CSS sector still lands on the desert");
-  assert.equal(at(ustur.x, ustur.y), "ioki", "Ustur CSS sector still lands on the desert");
+  assert.equal(at(mud.x, mud.y), "pearce", "MUD CSS sector does not land on Pearce");
+  assert.equal(at(ustur.x, ustur.y), "ioki", "Ustur CSS sector does not land on Ioki");
   // Owner 18.11.2026 (D-069): Fable took the start at ONI CSS; the desert (Twinsun) lies north.
   assert.equal(at(oni.x, oni.y), "fable", "ONI CSS is Fable's place now");
   assert.equal(at(-39, 29), "fable", "an empty sector keeps the start planet");

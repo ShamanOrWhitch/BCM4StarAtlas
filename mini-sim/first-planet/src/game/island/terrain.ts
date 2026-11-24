@@ -23,12 +23,15 @@ export const TERRAIN_N = 96;
  *   opus    — planet Opus (owner 23.11.2026, IDEA-026 step 1): limestone terraces,
  *             a forest of karst pillars to weave the ship between, a dry canyon in
  *             the east. Built for flight low over the ground.
+ *   pearce  — Pearce (MUD CSS, owner 24.11.2026 "планета это всегда что-то разное"): green
+ *             rolling hills, a lake country inland, a chain of islets off the coast.
+ *   ioki    — Ioki (Ustur CSS): a rust crater field with raised rims and a rift.
  */
-export type ReliefId = "desert" | "fable" | "twinsun" | "opus";
+export type ReliefId = "desert" | "fable" | "twinsun" | "opus" | "pearce" | "ioki";
 let relief: ReliefId = "desert";
 
 export function setRelief(id: unknown) {
-  relief = id === "fable" ? "fable" : id === "twinsun" ? "twinsun" : id === "opus" ? "opus" : "desert";
+  relief = id === "fable" || id === "twinsun" || id === "opus" || id === "pearce" || id === "ioki" ? id : "desert";
 }
 
 export function getRelief(): ReliefId {
@@ -40,7 +43,80 @@ export function groundY(x: number, z: number) {
   if (relief === "fable") return fableGroundY(x, z);
   if (relief === "twinsun") return twinsunGroundY(x, z);
   if (relief === "opus") return opusGroundY(x, z);
+  if (relief === "pearce") return pearceGroundY(x, z);
+  if (relief === "ioki") return iokiGroundY(x, z);
   return desertGroundY(x, z);
+}
+
+/** Pearce lakes (inland water) and islets (off the coast). Clear of every quest spot. */
+export const PEARCE_LAKES: Array<{ x: number; z: number; rx: number; rz: number }> = [
+  { x: -44, z: 6, rx: 8, rz: 5 },
+  { x: 38, z: -8, rx: 6, rz: 9 },
+  { x: -20, z: -46, rx: 7, rz: 4 },
+];
+export const PEARCE_ISLETS: Array<[number, number, number]> = [
+  [70, 12, 2.4], [74, -6, 1.8], [66, -22, 2.2], [-70, -10, 2.0], [-66, 26, 2.6],
+];
+
+function pearceGroundY(x: number, z: number) {
+  const r = Math.hypot(x, z);
+  const t = Math.atan2(z, x);
+  const coast = 0.98 + 0.06 * Math.sin(4 * t + 0.3) + 0.03 * Math.sin(9 * t);
+  const inland = smooth(74 * coast, 52 * coast, r);
+  const wild = 1 - Math.exp(-(x * x) / 400 - ((z - 14) ** 2) / 640);
+  // Long green swells, softer and wider than the desert, with a second gentle harmonic.
+  let h = 0.9;
+  h += (Math.sin(x * 0.06 + 0.4) * Math.sin(z * 0.05 - 0.8) * 1.9 + 0.6) * wild;
+  h += Math.sin(x * 0.13 + 1.7) * Math.cos(z * 0.11) * 0.45 * wild;
+  const ridge = Math.exp(-((x + 32) ** 2) / 70 - ((z + 18) ** 2) / 150);
+  h += ridge * 5.6;
+  const oasis = Math.exp(-((x - 2.4) ** 2) / 48 - ((z + 17) ** 2) / 52);
+  h -= oasis * 2.5;
+  for (const l of PEARCE_LAKES) {
+    const d = ((x - l.x) / l.rx) ** 2 + ((z - l.z) / l.rz) ** 2;
+    h = lerp(h, -1.2, smooth(1.6, 0.8, d));
+  }
+  let y = lerp(-1.7, settle(h, x, z), inland);
+  for (const [ix, iz, top] of PEARCE_ISLETS) {
+    y = Math.max(y, -1.7 + Math.exp(-((x - ix) ** 2 + (z - iz) ** 2) / 26) * (top + 1.7));
+  }
+  return y;
+}
+
+/** Ioki craters: centre, radius of the rim, rim height. Clear of every quest spot. */
+export const IOKI_CRATERS: Array<{ x: number; z: number; r: number; rim: number }> = [
+  { x: -44, z: 8, r: 9, rim: 2.6 },
+  { x: 40, z: -14, r: 8, rim: 2.2 },
+  { x: -20, z: -48, r: 6, rim: 1.8 },
+  { x: 34, z: 44, r: 6.5, rim: 2.0 },
+  { x: -46, z: 34, r: 5, rim: 1.6 },
+];
+
+function iokiGroundY(x: number, z: number) {
+  const r = Math.hypot(x, z);
+  const t = Math.atan2(z, x);
+  const coast = 1.02 + 0.08 * Math.sin(2 * t - 0.7);
+  const inland = smooth(78 * coast, 58 * coast, r);
+  const wild = 1 - Math.exp(-(x * x) / 380 - ((z - 14) ** 2) / 620);
+  // Flat rust plains broken by a rift from north-east to south-west.
+  let h = 1.0 + 0.35 * Math.sin(x * 0.09) * Math.cos(z * 0.08) * wild;
+  const across = (x * 0.7 + z * 0.7) / Math.SQRT2 - 8;
+  const alongRift = (x * 0.7 - z * 0.7) / Math.SQRT2;
+  const rift = Math.exp(-(across * across) / 10) * smooth(56, 30, Math.abs(alongRift)) * wild;
+  h -= rift * 1.4;
+  const ridge = Math.exp(-((x + 32) ** 2) / 70 - ((z + 18) ** 2) / 150);
+  h += ridge * 6.0;
+  const oasis = Math.exp(-((x - 2.4) ** 2) / 48 - ((z + 17) ** 2) / 52);
+  h -= oasis * 2.5;
+  for (const c of IOKI_CRATERS) {
+    const d = Math.hypot(x - c.x, z - c.z) / c.r;
+    // Raised rim, a bowl inside, an ejecta skirt outside.
+    const rim = Math.exp(-((d - 1) ** 2) / 0.03) * c.rim;
+    const bowl = smooth(1, 0.2, d) * (c.rim * 0.8);
+    const skirt = Math.exp(-((d - 1.5) ** 2) / 0.2) * 0.4;
+    h += (rim - bowl + skirt) * wild;
+  }
+  return lerp(-1.7, settle(Math.max(0.15, h), x, z), inland);
 }
 
 /**
@@ -445,6 +521,13 @@ export function regionName(x: number, z: number, y: number) {
   if (onSky(x, z) && y > SKY.y - 1) return "Висячий остров";
   if (relief === "fable") return fableRegionName(x, z);
   if (relief === "opus") return opusRegionName(x, z);
+  if (relief === "pearce") {
+    for (const l of PEARCE_LAKES) if (((x - l.x) / l.rx) ** 2 + ((z - l.z) / l.rz) ** 2 < 2.4) return "Озёрный край";
+    if (Math.hypot(x, z) > 62) return "Островная гряда";
+  }
+  if (relief === "ioki") {
+    for (const c of IOKI_CRATERS) if (Math.hypot(x - c.x, z - c.z) < c.r * 1.4) return "Кратерное поле";
+  }
   if (relief === "twinsun") {
     for (const m of TWINSUN_MESAS) if (Math.hypot(x - m.x, z - m.z) < m.r + 3) return "Плато близнецов";
   }

@@ -2,7 +2,7 @@
 // relief and sky (IDEA-002 step 3); Twinsun kept the 0.15.4 desert island it shares with
 // Pearce and Ioki. Twinsun now has its own level: wind-laid dune crests, three flat-topped
 // mesas, a ragged coast, a second sun and drifting sand. Town, pad, bridge and every quest
-// spot stay where they are, dry and reachable on foot; Pearce and Ioki keep the desert.
+// spot stay where they are, dry and reachable on foot. (Pearce and Ioki got their own levels in 0.16.18.)
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
@@ -55,8 +55,8 @@ function reachable() {
   return (x, z) => seen[cell(z) * size + cell(x)] === 1;
 }
 
-test("Twinsun has its own relief: it is not the shared desert any more, Pearce and Ioki still are", () => {
-  land("pearce");
+test("Twinsun has its own relief: it is not the shared desert any more", () => {
+  terrain.setRelief("desert");
   const desert = grid();
   const twinsun = land("first");
   assert.equal(twinsun.relief, "twinsun", "Twinsun still uses the shared desert relief");
@@ -69,9 +69,6 @@ test("Twinsun has its own relief: it is not the shared desert any more, Pearce a
     if (Math.abs(g[iz * (N + 1) + ix] - desert[iz * (N + 1) + ix]) > 0.5) changed++;
   }
   assert.ok(changed / wild > 0.3, `only ${(100 * changed / wild).toFixed(1)}% of the wild ground differs from the desert`);
-  land("ioki");
-  const ioki = grid();
-  assert.ok(ioki.every((y, i) => Math.abs(y - desert[i]) < 1e-9), "Ioki lost the shared desert relief");
 });
 
 test("Twinsun has three flat-topped mesas and dune crests away from the town", () => {
@@ -93,7 +90,7 @@ test("Twinsun has three flat-topped mesas and dune crests away from the town", (
 });
 
 test("on Twinsun every quest spot, house and resident is dry, level and reachable on foot", () => {
-  land("pearce");
+  terrain.setRelief("desert");
   const desertAt = new Map(anchors().map((a) => [a.name, terrain.groundY(a.x, a.z)]));
   land("first");
   const canWalk = reachable();
@@ -117,7 +114,6 @@ test("Twinsun's sky has two suns and drifting sand; the scene draws the second s
   const look = planets.planetLook("first");
   assert.ok(look.extras && look.extras.twinSun, "Twinsun has one sun");
   assert.ok(look.extras.motes, "no sand drifting over Twinsun");
-  for (const id of ["pearce", "ioki"]) assert.equal(planets.PLANETS[id].extras, undefined, id + " must keep its 0.15.3 look");
   const { readFileSync } = await import("node:fs");
   const scene = readFileSync(new URL("../mini-sim/first-planet/src/game/island/scene.ts", import.meta.url), "utf8");
   assert.match(scene, /extras\.twinSun/, "the scene never draws the second sun");
