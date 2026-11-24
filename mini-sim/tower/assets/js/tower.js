@@ -3339,11 +3339,15 @@
       }
     }
 
-    /** Analog stick: dead zone 0.22, squared response, sign kept (−1…1). */
+    // Keep the digital direction flags and analog curve on one dead-zone threshold.
+    // Otherwise a small 0.16–0.22 stick movement becomes a full-speed digital turn.
+    const TOWER_STICK_DEAD_ZONE = 0.22;
+
+    /** Analog stick: shared dead zone, squared response, sign kept (−1…1). */
     function towerStickCurve(v) {
       const a = Math.abs(Number(v) || 0);
-      if (a < 0.22) return 0;
-      const t = Math.min(1, (a - 0.22) / 0.78);
+      if (a <= TOWER_STICK_DEAD_ZONE) return 0;
+      const t = Math.min(1, (a - TOWER_STICK_DEAD_ZONE) / (1 - TOWER_STICK_DEAD_ZONE));
       return Math.sign(v) * t * t;
     }
 
@@ -3439,7 +3443,7 @@
 
         const lx = pad.axes?.[0] || 0;
         const ly = pad.axes?.[1] || 0;
-        const dead = 0.16;
+        const dead = TOWER_STICK_DEAD_ZONE;
 
         controls[i].left = lx < -dead;
         controls[i].right = lx > dead;
