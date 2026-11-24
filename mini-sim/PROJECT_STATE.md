@@ -1,3 +1,13 @@
+## Patch — Mini-Sim 0.16.22: seeded star bases by faction; own space for lore sectors (24 November 2026)
+
+- **WORK LOCK:** [#165](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/165). Decision D-098.
+- **`star-base.js` (new):** seeded modular bases in ONI, MUD, Ustur and MRZ styles.
+- **`sector-look.js`:** 12 lore sector looks, each with its own base.
+- **`deep-space-warp.js`:** lore sectors arrive in open space; unnamed stars keep the maze.
+- **Checks:** regression 332/332, UI layer PASS, `test:minisim` 65/65, Edge probe PASS.
+
+---
+
 ## Patch — Mini-Sim 0.16.21: Star Atlas lore sectors on the Warp map; Core lore notes (24 November 2026)
 
 - **WORK LOCK:** [#164](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/164). Decision D-097.

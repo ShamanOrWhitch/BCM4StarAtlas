@@ -2280,9 +2280,18 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       return mark && mark.planet ? mark : null;
     }
 
+    // A named sector of the Star Atlas lore (galia-lore.js) that is not a station sector, or null.
+    function loreSectorFor(sector) {
+      const lore = window.BCMGaliaLore;
+      if (!sector || !lore || typeof lore.at !== "function") return null;
+      const hit = lore.at(Number(sector.x), Number(sector.y));
+      return hit && !/CSS/.test(hit.code) ? hit : null;
+    }
+
     function confirmTubeArrival() {
       if (state.mode !== "result") return;
       if (isOniCssDestination(state.target)) returnToOniCss();
+      else if (loreSectorFor(state.target)) arriveAtLoreSector(state.target);
       else if (planetLandmarkFor(state.target)) arriveAtPlanetSector(state.target);
       else enterAsteroidMaze();
     }
@@ -2314,6 +2323,30 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       dressSector(mark && mark.planet);
       const status = root.querySelector(".bcm-mini-sim-status");
       if (status) status.textContent = "ARRIVED · " + String(mark ? mark.name : "PLANET").toUpperCase() + " · ВХОД В TOWER — ПОСАДКА НА ПЛАНЕТУ";
+    }
+
+    /* Owner 24.11.2026: "сектора со звёздными базами… прорабатывай сектора" (lore). A named lore
+     * sector is open space with its own sky and its own star base (sector-look.js + star-base.js),
+     * not the asteroid maze. Unnamed stars keep the maze. */
+    function arriveAtLoreSector(sector) {
+      const engine = api();
+      const lore = loreSectorFor(sector);
+      disposeMaze();
+      rememberPlace(null);
+      state.nav = navigationAfterArrival(sector);
+      if (state.nav && state.nav.current) {
+        state.nav.current.x = Number(sector.x);
+        state.nav.current.y = Number(sector.y);
+        state.nav.current.name = lore ? lore.name : state.nav.current.name;
+      }
+      state.sectorProgressed = true;
+      closeOverlay(false);
+      if (engine && typeof engine.teleport === "function") {
+        engine.teleport({ x: 0, y: 0, z: -140, yaw: 0 }, null);
+      }
+      dressSector(lore.id);
+      const status = root.querySelector(".bcm-mini-sim-status");
+      if (status) status.textContent = "ARRIVED · " + String(lore.name).toUpperCase() + " · " + lore.code + " · " + (lore.faction || "MRZ");
     }
 
     function returnToOniCss() {

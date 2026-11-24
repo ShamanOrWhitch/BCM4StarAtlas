@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.16.21
+ * Version: 0.16.22
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.16.21');
+define('BCM_MINI_SIM_VERSION', '0.16.22');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -834,7 +834,8 @@ function bcm_mini_sim_enqueue_assets()
     wp_enqueue_script('bcm-crew-wallet', BCM_MINI_SIM_URL . 'assets/js/crew-wallet.js', array(), BCM_MINI_SIM_VERSION, false);
     // Space traffic around ONI CSS (owner 23.11.2026, WORK LOCK #144): local simulation; read by mini-sim.js.
     wp_enqueue_script('bcm-fleet-motion', BCM_MINI_SIM_URL . 'assets/js/fleet-motion.js', array(), BCM_MINI_SIM_VERSION, false);
-    wp_enqueue_script('bcm-sector-look', BCM_MINI_SIM_URL . 'assets/js/sector-look.js', array(), BCM_MINI_SIM_VERSION, false);
+    wp_enqueue_script('bcm-star-base', BCM_MINI_SIM_URL . 'assets/js/star-base.js', array(), BCM_MINI_SIM_VERSION, false);
+    wp_enqueue_script('bcm-sector-look', BCM_MINI_SIM_URL . 'assets/js/sector-look.js', array('bcm-star-base'), BCM_MINI_SIM_VERSION, false);
     wp_enqueue_script('bcm-mini-sim', BCM_MINI_SIM_URL . 'assets/js/mini-sim.js', array('bcm-crew-wallet', 'bcm-room0-race', 'bcm-fleet-motion', 'bcm-sector-look'), BCM_MINI_SIM_VERSION, false);
     // Lightweight Warp arcade layer uses the existing r128 scene; it creates no second renderer.
     // Pure walking rig (pose math); crew-core assembles the Crew from it.
@@ -947,7 +948,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.16.21</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.16.22</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS</div>
             <div class="bcm-mini-sim-attract-marquee" role="img" aria-label="Inspired by Star Atlas. Powered for all creatures. BCM4SA. Read-only Crew and ship console.">
                 <span class="bcm-mini-sim-attract-prefix" aria-hidden="true">BCM4SA //</span>

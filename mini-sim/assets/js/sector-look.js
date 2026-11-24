@@ -65,8 +65,67 @@
     }
   };
 
+  /*
+   * Lore sectors (galia-lore.js, owner 24.11.2026 "прорабатывай сектора"): each its own sky drawn
+   * from its lore line, and its own star base planned from the sector seed (star-base.js) in its
+   * faction's style. Station sectors (CSS) keep the planet looks above.
+   */
+  var LORE_LOOKS = {
+    "segal": { surface: { kind: "embers", base: "#5a1a10", band: "#ff7a3a", accent: "#ffd27a", bands: 7 },
+      planet: { radius: 44, at: [70, 20, -340], tilt: 0.2, spin: 0.01 }, moons: [{ radius: 4, orbit: 74, speed: 0.05, color: "#c08070" }],
+      light: "#ffb07a", nebula: "#4a1810", suns: 1 },
+    "night-window": { surface: { kind: "night", base: "#05060c", band: "#1a1f3a", accent: "#5a7aff", bands: 5 },
+      planet: { radius: 48, at: [-60, 10, -330], tilt: 0.3, spin: 0.004 }, moons: [],
+      light: "#5a7aff", nebula: "#05060c", suns: 0, lightIntensity: 0.25 },
+    "evernat": { surface: { kind: "shell", base: "#d8c8a8", band: "#f0e8d8", accent: "#8a7a5a", bands: 8 },
+      planet: { radius: 46, at: [50, 30, -320], tilt: 0.15, spin: 0.008 }, moons: [{ radius: 5, orbit: 80, speed: 0.04, color: "#e8dcc8" }],
+      light: "#fff0d8", nebula: "#3a3020", suns: 1 },
+    "azum": { surface: { kind: "city", base: "#1a1410", band: "#ffd27a", accent: "#ff9a3a", bands: 0 },
+      planet: { radius: 42, at: [-40, 20, -320], tilt: 0.1, spin: 0.012 }, moons: [],
+      light: "#ffd27a", nebula: "#2a1a08", suns: 1 },
+    "verzan": { surface: { kind: "city", base: "#2a2420", band: "#ff8a5a", accent: "#ffe0a0", bands: 0 },
+      planet: { radius: 50, at: [60, -20, -350], tilt: 0.25, spin: 0.009 }, moons: [{ radius: 6, orbit: 90, speed: 0.03, color: "#f0f0ff" }],
+      light: "#ffd8c0", nebula: "#3a2a24", suns: 1 },
+    "amora": { surface: { kind: "craters", base: "#4a3a34", band: "#8a6a5a", accent: "#2a1a14", bands: 4 },
+      planet: { radius: 44, at: [-70, 0, -330], tilt: 0.35, spin: 0.007 }, moons: [],
+      light: "#ffc8b0", nebula: "#2a1a1a", suns: 1 },
+    "old-grove": { surface: { kind: "jungle", base: "#142a12", band: "#3d6b2a", accent: "#9a3a5a", bands: 0 },
+      planet: { radius: 48, at: [40, 30, -340], tilt: 0.2, spin: 0.01 }, moons: [{ radius: 3, orbit: 66, speed: 0.07, color: "#6a7a5a" }],
+      light: "#d0ffb0", nebula: "#10200e", suns: 1 },
+    "coral-nebula": { surface: { kind: "coral", base: "#2a1a3a", band: "#ff6a9a", accent: "#6affe0", bands: 0 },
+      planet: { radius: 44, at: [-50, 30, -320], tilt: 0.3, spin: 0.01 }, moons: [],
+      light: "#ffd0f0", nebula: "#5a1a4a", suns: 1 },
+    "glowhaven": { surface: { kind: "night", base: "#0a1418", band: "#123038", accent: "#7affc8", bands: 9 },
+      planet: { radius: 40, at: [70, -10, -330], tilt: 0.1, spin: 0.006 }, moons: [{ radius: 4, orbit: 70, speed: 0.05, color: "#7affc8" }],
+      light: "#7affc8", nebula: "#0a2a24", suns: 1, lightIntensity: 0.5 },
+    "summer-sea": { surface: { kind: "ocean", base: "#3a5a8a", band: "#fff0c0", accent: "#a8d0ff", bands: 6 },
+      planet: { radius: 46, at: [-40, -20, -340], tilt: 0.2, spin: 0.01 }, moons: [],
+      light: "#a8d0ff", nebula: "#1a3a6a", suns: 1, sunSize: 26 },
+    "free-harbors": { surface: { kind: "craters", base: "#4a5058", band: "#7a8088", accent: "#2a2e34", bands: 4 },
+      planet: { radius: 30, at: [-80, 30, -360], tilt: 0.4, spin: 0.008 }, moons: [{ radius: 3, orbit: 52, speed: 0.06, color: "#9aa0a8" }],
+      light: "#dfe8f0", nebula: "#1a2028", suns: 1, bases: 2 },
+    "everstorm": { surface: { kind: "storm", base: "#2a2f3a", band: "#5a6a8a", accent: "#e8f0ff", bands: 12 },
+      planet: { radius: 52, at: [50, 10, -350], tilt: 0.3, spin: 0.02 }, moons: [],
+      light: "#c8d8ff", nebula: "#1a2030", suns: 1, lightning: true }
+  };
+
+  function loreLook(id) {
+    var key = LORE_LOOKS[id];
+    var lore = root.BCMGaliaLore && root.BCMGaliaLore.sectors.find(function (s) { return s.id === id; });
+    if (!key || !lore) return null;
+    if (!key.id) {
+      key.id = id;
+      key.title = lore.name;
+      key.ring = null;
+      key.keepStation = false;
+      key.base = { faction: lore.faction, x: lore.x, y: lore.y };
+    }
+    return key;
+  }
+
   function lookFor(id) {
-    return Object.prototype.hasOwnProperty.call(LOOKS, id) ? LOOKS[id] : null;
+    if (Object.prototype.hasOwnProperty.call(LOOKS, id)) return LOOKS[id];
+    return loreLook(id);
   }
 
   // Small seeded random so a planet's surface is the same on every visit.
@@ -135,6 +194,36 @@
         ctx.stroke();
       }
     }
+    if (s.kind === "embers" || s.kind === "storm") {
+      // Embers: glowing seams; storm: wide cloud bands with bright cells.
+      for (i = 0; i < 40; i += 1) {
+        ctx.globalAlpha = s.kind === "storm" ? 0.35 : 0.55;
+        ctx.strokeStyle = i % 3 ? s.band : s.accent;
+        ctx.lineWidth = s.kind === "storm" ? 6 + rand() * 10 : 1 + rand() * 2;
+        ctx.beginPath();
+        var sy = rand() * 256;
+        ctx.moveTo(0, sy);
+        for (var sx = 0; sx <= 512; sx += 32) ctx.lineTo(sx, sy + Math.sin(sx * 0.02 + i) * (s.kind === "storm" ? 14 : 30));
+        ctx.stroke();
+      }
+    }
+    if (s.kind === "night" || s.kind === "city" || s.kind === "coral" || s.kind === "jungle" || s.kind === "shell") {
+      // Night: faint bioluminescent dots; city: grids of lights; coral: prismatic blots;
+      // jungle: dark green with mutant magenta; shell: cream plateau rims.
+      var dots = s.kind === "city" ? 900 : s.kind === "night" ? 260 : 90;
+      for (i = 0; i < dots; i += 1) {
+        var px = rand() * 512, py = 16 + rand() * 224;
+        ctx.globalAlpha = s.kind === "city" ? 0.9 : 0.7;
+        ctx.fillStyle = i % 4 ? s.band : s.accent;
+        if (s.kind === "city") ctx.fillRect(Math.round(px / 4) * 4, Math.round(py / 4) * 4, 2, 2);
+        else if (s.kind === "night") ctx.fillRect(px, py, 1.5, 1.5);
+        else {
+          ctx.beginPath();
+          ctx.ellipse(px, py, 4 + rand() * (s.kind === "shell" ? 26 : 14), 3 + rand() * 10, rand() * 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
     if (s.kind === "craters" || s.kind === "terraces") {
       var count = s.kind === "craters" ? 60 : 12;
       for (i = 0; i < count; i += 1) {
@@ -177,6 +266,7 @@
     state.planet = null;
     state.id = null;
     state.look = null;
+    state.lightning = null;
   }
 
   function apply(runtime, id) {
@@ -239,9 +329,10 @@
     light.position.set(p.at[0] + 200, p.at[1] + 120, p.at[2] + 260);
     light.target = planet;
     group.add(light);
+    if (look.lightIntensity !== undefined) light.intensity = look.lightIntensity;
     for (var k = 0; k < look.suns; k += 1) {
       var sun = new THREE.Mesh(
-        new THREE.SphereGeometry(k ? 6 : 10, 16, 12),
+        new THREE.SphereGeometry(k ? 6 : (look.sunSize || 10), 16, 12),
         new THREE.MeshBasicMaterial({ color: k ? "#fff6e0" : look.light, fog: false })
       );
       sun.name = "sector-sun-" + id + "-" + k;
@@ -257,6 +348,24 @@
     shell.name = "sector-nebula-" + id;
     shell.renderOrder = -10;
     group.add(shell);
+
+    // The sector's own star base, planned from its seed in its faction's style (star-base.js).
+    if (look.base && root.BCMStarBase) {
+      var count = look.bases || 1;
+      for (var bi = 0; bi < count; bi += 1) {
+        var seed = root.BCMStarBase.seedFor(look.base.x + bi * 97, look.base.y);
+        var base = root.BCMStarBase.build(THREE, root.BCMStarBase.plan(seed, look.base.faction));
+        base.position.set(bi ? 70 : -36, bi ? -10 : 8, bi ? -230 : -205);
+        base.rotation.y = (seed % 628) / 100;
+        base.userData.seed = seed;
+        group.add(base);
+      }
+    }
+    if (look.lightning) state.lightning = { light: new THREE.PointLight("#e8f0ff", 0, 900), next: 1 };
+    if (state.lightning && look.lightning) {
+      state.lightning.light.position.set(p.at[0], p.at[1] + p.radius, p.at[2] + p.radius);
+      group.add(state.lightning.light);
+    }
 
     runtime.scene.add(group);
     state.group = group;
@@ -290,6 +399,12 @@
       moon.position.set(c.x + Math.cos(moon.userData.phase) * o.orbit, c.y + Math.sin(moon.userData.phase) * o.orbit * 0.25, c.z + Math.sin(moon.userData.phase) * o.orbit);
     });
     state.hidden.forEach(function (obj) { if (obj.visible) obj.visible = false; });
+    if (state.lightning && state.look.lightning) {
+      var L = state.lightning;
+      L.next -= dt;
+      L.light.intensity = Math.max(0, L.light.intensity - dt * 9);
+      if (L.next <= 0) { L.light.intensity = 3; L.next = 0.6 + Math.random() * 2.4; }
+    }
   }
 
   root.BCMSectorLook = {
