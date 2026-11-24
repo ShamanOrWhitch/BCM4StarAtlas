@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.16.25",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.16.26",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -91,7 +91,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.16.25",
+      title: "SPACE LABYRINTH — 0.16.26",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -3081,6 +3081,26 @@
     });
   }
 
+  // Station contracts (galia-quests.js): how far the ship is from this sector's star base.
+  const contractBases = { id: null, list: [] };
+  function updateGaliaContracts() {
+    const quests = window.BCMGaliaQuests;
+    if (!quests || !scene || !ship.position) return;
+    const lookId = window.BCMSectorLook ? window.BCMSectorLook.current() : null;
+    if (contractBases.id !== lookId) {
+      contractBases.id = lookId;
+      contractBases.list = [];
+      if (lookId) scene.traverse((obj) => { if (obj.name === "star-base") contractBases.list.push(obj); });
+    }
+    let baseDistance = Infinity;
+    const p = new THREE.Vector3();
+    contractBases.list.forEach((base) => {
+      base.getWorldPosition(p);
+      baseDistance = Math.min(baseDistance, p.distanceTo(ship.position));
+    });
+    window.BCMGaliaQuests.tick({ sector: lookId, baseDistance });
+  }
+
   function updateSpaceSatelliteVisibility() {
     const zone = ship.position ? getSpaceZone(ship.position.z) : "ROOM1";
     const visible = zone === "ROOM2" || zone === "DEEP_SPACE";
@@ -5495,6 +5515,7 @@
     updateSpaceSatelliteVisibility();
     updateSpaceTraffic(dt);
     if (window.BCMSectorLook) window.BCMSectorLook.update(dt);
+    updateGaliaContracts();
     updateCollisionImpact(dt);
 
     const focusedOrbit = orbitFocusedScreen(dt);
@@ -6981,7 +7002,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.16.25") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.16.26") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();

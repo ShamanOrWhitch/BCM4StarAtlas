@@ -1,3 +1,15 @@
+## Patch — Mini-Sim 0.16.26: Core lore read; Pearce and Ioki quests; station contracts (24 November 2026)
+
+- **WORK LOCK:** [#168](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/168). Decision D-102.
+- **`content.ts`:** `PEARCE` and `IOKI` packs — residents, items and quests from the lore.
+- **`galia-quests.js` (new):** contracts for ONI, MUD and Ustur over the lore sectors.
+  - The ship's distance to the sector's star base comes from `mini-sim.js` every frame.
+  - A Warp arrival at a CSS takes or hands in a contract (`deep-space-warp.js`).
+- **`LORE_CORE.md`:** Act 1 page by page.
+- **Checks:** regression 342/342, Edge contract probe PASS.
+
+---
+
 ## Patch — Mini-Sim 0.16.25: Fable, the living planet (24 November 2026)
 
 - **WORK LOCK:** [#167](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/167). Decision D-101.

@@ -2290,6 +2290,10 @@ function warpSectorPlanetCard(core, x, y, jumps) {
 
     function confirmTubeArrival() {
       if (state.mode !== "result") return;
+      // Station contracts (galia-quests.js): a Warp arrival at a CSS hands in or takes a contract.
+      const contractCss = window.BCMSageMapCore && state.target
+        ? window.BCMSageMapCore.cssAt(Number(state.target.x), Number(state.target.y)) : null;
+      if (contractCss && window.BCMGaliaQuests) window.BCMGaliaQuests.arriveStation(contractCss.system);
       if (isOniCssDestination(state.target)) returnToOniCss();
       else if (loreSectorFor(state.target)) arriveAtLoreSector(state.target);
       else if (planetLandmarkFor(state.target)) arriveAtPlanetSector(state.target);

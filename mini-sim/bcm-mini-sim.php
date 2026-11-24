@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.16.25
+ * Version: 0.16.26
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.16.25');
+define('BCM_MINI_SIM_VERSION', '0.16.26');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -851,6 +851,7 @@ function bcm_mini_sim_enqueue_assets()
     // Ring comic panels (IDEA-024): the level inside each Ring cell; read by deep-space-warp.js.
     wp_enqueue_script('bcm-ring-panels', BCM_MINI_SIM_URL . 'assets/js/ring-panels.js', array(), BCM_MINI_SIM_VERSION, false);
     wp_enqueue_script('bcm-galia-lore', BCM_MINI_SIM_URL . 'assets/js/galia-lore.js', array(), BCM_MINI_SIM_VERSION, true);
+    wp_enqueue_script('bcm-galia-quests', BCM_MINI_SIM_URL . 'assets/js/galia-quests.js', array('bcm-galia-lore'), BCM_MINI_SIM_VERSION, true);
     wp_enqueue_script('bcm-sage-map-core', BCM_MINI_SIM_URL . 'assets/js/sage-map-core.js', array('bcm-sage-map', 'bcm-galia-lore'), BCM_MINI_SIM_VERSION, true);
     wp_enqueue_script('bcm-warp-bridge', BCM_MINI_SIM_URL . 'assets/js/warp-bridge.js', array(), BCM_MINI_SIM_VERSION, true);
     wp_enqueue_script('bcm-asteroid-maze-location', BCM_MINI_SIM_URL . 'assets/js/asteroid-maze-location.js', array('bcm-mini-sim', 'bcm-crew-core', 'bcm-hull-dive', 'bcm-warp-bridge'), BCM_MINI_SIM_VERSION, true);
@@ -948,7 +949,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.16.25</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.16.26</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS</div>
             <div class="bcm-mini-sim-attract-marquee" role="img" aria-label="Inspired by Star Atlas. Powered for all creatures. BCM4SA. Read-only Crew and ship console.">
                 <span class="bcm-mini-sim-attract-prefix" aria-hidden="true">BCM4SA //</span>
