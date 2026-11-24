@@ -43,6 +43,7 @@
   const params = new URLSearchParams(location.search);
   const fixedPhase = params.has("phase") ? Number(params.get("phase")) : null;
   const useLegs = params.get("legs") !== "0";
+  const falling = params.get("state") === "fall";
   if (params.get("dir") === "-1") document.getElementById("left").checked = true;
 
   const stage = document.getElementById("stage");
@@ -65,13 +66,8 @@
     sprite.center.set(0.5, 0);
     sprite.visible = false;
     scene.add(sprite);
-    const shins = [0, 1].map(() => {
-      const s = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, alphaTest: 0.035, depthWrite: false }));
-      s.center.set(0.5, 1);
-      s.visible = false;
-      scene.add(s);
-      return s;
-    });
+    // Limbs (shins, then forearms) are made and posed by crew-core, as in Tower and the Ring.
+    const shins = window.BCMCrewCore.createCrewLegs(THREE, scene, 2);
     return { crew: c, index, texture, sprite, shins, parts: null, x: -5.3 + index * 2.12, measurement: null };
   });
 
@@ -100,13 +96,10 @@
       const px = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
       a.measurement = window.BCMCrewCore.measureLegGap(px, canvas.width, canvas.height, a.crew.species);
       lab.measurements[a.crew.species] = a.measurement;
+      lab.arms = lab.arms || {};
+      lab.arms[a.crew.species] = window.BCMCrewCore.measureArmGaps(px, canvas.width, canvas.height, a.crew.species);
       // Crew assembly by the core: body + two shins when the legs are separable.
       a.parts = useLegs ? window.BCMCrewCore.crewLegParts(THREE, a.texture, a.crew.species) : null;
-      if (a.parts && a.parts.splittable) {
-        a.sprite.material.map = a.parts.bodyTexture;
-        a.sprite.material.needsUpdate = true;
-        a.shins.forEach((s, i) => { s.material.map = a.parts.shinTextures[i]; s.material.needsUpdate = true; s.visible = true; });
-      }
       a.sprite.visible = true;
     });
     lab.ready = true;
@@ -127,22 +120,19 @@
       a.sprite.scale.set(width, height, 1);
       a.sprite.userData.bcmBaseScale = { x: width, y: height };
       if (fixedPhase !== null) a.sprite.userData.bcmWalkPhase = fixedPhase;
-      const pad = Number(a.texture.userData.bcmCutoutFeetPadRatio || 0) * height;
-      window.BCMCrewCore.applyPlatformSprite(a.sprite, {
-        crew: a.crew, direction, facing: direction, moving: walking, grounded: true, vy: 0, index: a.index, y: -pad
-      }, fixedPhase !== null ? 0 : dt);
-      a.sprite.position.x = a.x;
-      const pose = a.sprite.userData.bcmLastPose;
-      const layout = window.BCMCrewCore.crewFigureLayout(a.parts, pose);
-      if (layout) {
-        layout.shins.forEach((s, i) => {
-          const shin = a.shins[i];
-          const map = shin.material.map;
-          if (map) { map.wrapS = 1000; map.repeat.x = layout.mirror < 0 ? -1 : 1; map.offset.x = layout.mirror < 0 ? 1 : 0; }
-          shin.position.set(a.x + s.x * width * pose.scaleX, a.sprite.position.y + s.top * height * pose.scaleY, 0.01);
-          shin.scale.set(s.width * width * pose.scaleX, s.height * height * pose.scaleY, 1);
-          shin.material.rotation = s.rotation;
+      const actor = {
+        crew: a.crew, direction, facing: direction, moving: walking && !falling, speed: 3,
+        grounded: !falling, vy: falling ? -4 : 0, index: a.index
+      };
+      if (useLegs) {
+        window.BCMCrewCore.applyCrewFigure(THREE, a.sprite, a.shins, actor, fixedPhase !== null ? 0 : dt, {
+          texture: a.texture, height, maxWidth: 1.9, feetY: 0,
+          place: (along, y) => ({ x: a.x + along, y, z: 0.01 })
         });
+      } else {
+        const pad = Number(a.texture.userData.bcmCutoutFeetPadRatio || 0) * height;
+        window.BCMCrewCore.applyPlatformSprite(a.sprite, Object.assign({ y: -pad }, actor), fixedPhase !== null ? 0 : dt);
+        a.sprite.position.x = a.x;
       }
     }
     renderer.render(scene, camera);

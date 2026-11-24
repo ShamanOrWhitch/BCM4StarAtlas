@@ -11,6 +11,14 @@
 
 ---
 
+## Patch — Mini-Sim 0.16.29 / Tower 0.2.92: forearm bones from the NFT cut-out (25 November 2026)
+
+- **WORK LOCK:** [#171](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/171). Decision D-106. Bug: BUG-032 (arms).
+- **Change:** crew-core cuts forearms where the art shows a gap and swings them from the elbow in Tower and the Ring.
+- **Checks:** regression 354/354; Crew Lab on real NFTs (Ustur both arms, Human and Profound Punaab one arm, the others one-piece).
+
+---
+
 ## Patch — Mini-Sim 0.16.28: gamepad via crew-core schemes; Tower analog stick; ONI CSS restored; Twinsun two suns (24 November 2026)
 
 - **WORK LOCK:** [#169](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/169). Decision D-104.

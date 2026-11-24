@@ -23,7 +23,9 @@ test("the Tower stick dead zone is shared by analog and digital movement", () =>
   assert.equal(curve(1), 1);
   assert.equal(curve(-1), -1);
 
-  assert.match(towerPhp, /define\('BCM_TOWER_VERSION', '0\.2\.91'\)/, "Tower assets must invalidate the old 0.2.90 cache");
+  // At least 0.2.91: later Tower releases keep invalidating the 0.2.90 cache.
+  const towerPatch = Number((towerPhp.match(/define\('BCM_TOWER_VERSION', '0\.2\.(\d+)'\)/) || [])[1]);
+  assert.ok(towerPatch >= 91, "Tower assets must invalidate the old 0.2.90 cache");
   assert.match(tower, /const dead = TOWER_STICK_DEAD_ZONE;/, "digital directions use a different dead zone");
   assert.match(tower, /controls\[i\]\.left = lx < -dead;\s*controls\[i\]\.right = lx > dead;\s*controls\[i\]\.up = ly < -dead;\s*controls\[i\]\.down = ly > dead;/);
   assert.doesNotMatch(tower, /const dead = 0\.16;/, "stale 0.16 digital threshold remains");

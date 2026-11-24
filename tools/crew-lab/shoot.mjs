@@ -31,7 +31,7 @@ const report = { shots: [], measurements: null, failed: [], consoleErrors: [] };
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 560 } });
   page.on("console", (m) => { if (m.type() === "error") report.consoleErrors.push(m.text()); });
-  for (const [name, query] of [["walk-right-p00", "?phase=0"], ["walk-right-p25", "?phase=0.25"], ["walk-right-p50", "?phase=0.5"], ["walk-right-p75", "?phase=0.75"], ["walk-left-p25", "?phase=0.25&dir=-1"], ["one-piece-p25", "?phase=0.25&legs=0"]]) {
+  for (const [name, query] of [["walk-right-p00", "?phase=0"], ["walk-right-p25", "?phase=0.25"], ["walk-right-p50", "?phase=0.5"], ["walk-right-p75", "?phase=0.75"], ["walk-left-p25", "?phase=0.25&dir=-1"], ["one-piece-p25", "?phase=0.25&legs=0"], ["fall-p25", "?phase=0.25&state=fall"]]) {
     await page.goto(base + query);
     try {
       await page.waitForFunction(() => window.__crewLab && window.__crewLab.ready && window.__crewLab.frames > 3, null, { timeout: 180000 });
@@ -46,6 +46,7 @@ try {
     if (!report.measurements) {
       const lab = await page.evaluate(() => window.__crewLab);
       report.measurements = lab.measurements;
+      report.arms = lab.arms;
       report.failed = lab.failed;
     }
   }
@@ -54,7 +55,9 @@ try {
   for (const [name, query, clip] of [
     ["zoom-left-p25", "?phase=0.25", { x: 40, y: 290, width: 600, height: 235 }],
     ["zoom-right-p25", "?phase=0.25", { x: 560, y: 290, width: 860, height: 235 }],
-    ["zoom-right-p75", "?phase=0.75", { x: 560, y: 290, width: 860, height: 235 }]
+    ["zoom-right-p75", "?phase=0.75", { x: 560, y: 290, width: 860, height: 235 }],
+    ["zoom-arms-p25", "?phase=0.25", { x: 1180, y: 280, width: 240, height: 240 }],
+    ["zoom-arms-p75", "?phase=0.75", { x: 1180, y: 280, width: 240, height: 240 }]
   ]) {
     await zoom.goto(base + query);
     await zoom.waitForFunction(() => window.__crewLab && window.__crewLab.ready && window.__crewLab.frames > 3, null, { timeout: 120000 });

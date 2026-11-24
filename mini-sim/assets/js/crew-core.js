@@ -89,12 +89,114 @@
     };
   }
 
+  /* Forearms (owner 25.11.2026: "кости рук", BUG-032). Front-facing NFT art lets the
+     arms hang beside the body; below the elbow a see-through gap usually opens between
+     the arm and the torso. Each side is scanned row by row from the outer edge: the arm
+     run, then the gap, then the torso. The elbow is the top of the longest stretch of
+     rows whose gaps share one clear vertical corridor; the cut line runs down that
+     corridor, so no torso pixel moves with the arm. Arms pressed to the body (no gap)
+     stay in the body. Fractions of the cut-out size. */
+  function measureArmGaps(pixels, width, height, species) {
+    const w = Math.max(1, Math.floor(Number(width) || 0));
+    const h = Math.max(1, Math.floor(Number(height) || 0));
+    if (!pixels || pixels.length < w * h * 4) return [];
+    const rig = window.BCMCrewRig;
+    const cut = rig ? rig.rigProfile(species).cut : { headBottom: 0.15, hip: 0.48, knee: 0.73 };
+    const y0 = Math.round((cut.headBottom + 0.05) * (h - 1));
+    // Hands hang about the hip; below it a gap between the thighs would pass for an arm (Mierese).
+    const y1 = Math.round(Math.min(cut.knee, cut.hip + 0.1) * (h - 1));
+    const elbowLimit = Math.round(cut.hip * (h - 1));
+    const solid = (x, y) => pixels[(y * w + x) * 4 + 3] >= 24;
+    const minRows = Math.max(4, Math.round(h * 0.05));
+    return [-1, 1].map(function (side) {
+      const rows = [];
+      for (let y = y0; y <= y1; y += 1) {
+        // Scan from the outer edge towards the middle of the figure.
+        const xs = side < 0 ? { from: 0, to: Math.floor(w / 2), step: 1 } : { from: w - 1, to: Math.ceil(w / 2), step: -1 };
+        let x = xs.from;
+        while (x !== xs.to && !solid(x, y)) x += xs.step;
+        if (x === xs.to) { rows.push(null); continue; }
+        const outer = x;
+        while (x !== xs.to && solid(x, y)) x += xs.step;
+        const inner = x - xs.step;
+        const gapStart = x;
+        while (x !== xs.to && !solid(x, y)) x += xs.step;
+        const gap = Math.abs(x - gapStart);
+        const armWidth = Math.abs(inner - outer) + 1;
+        // A torso must follow the gap, and the arm must be an arm, not half the body.
+        rows.push(x !== xs.to && gap >= 2 && armWidth <= w * 0.22 ? { outer: outer, inner: inner, torso: x } : null);
+      }
+      // Longest run of rows whose gaps keep one shared corridor.
+      let best = null;
+      for (let a = 0; a < rows.length; a += 1) {
+        // Only where a gap opens: a run that starts inside another one would take its own rows for the shoulder.
+        if (!rows[a] || (a > 0 && rows[a - 1])) continue;
+        let lo = -Infinity;
+        let hi = Infinity;
+        let b = a;
+        for (; b < rows.length && rows[b]; b += 1) {
+          const r = rows[b];
+          // Corridor in "distance from the outer edge" terms: past the arm, before the torso.
+          const armEdge = side < 0 ? r.inner : -r.inner;
+          const torsoEdge = side < 0 ? r.torso : -r.torso;
+          const nlo = Math.max(lo, armEdge);
+          const nhi = Math.min(hi, torsoEdge);
+          if (nhi - nlo < 2) break;
+          lo = nlo;
+          hi = nhi;
+        }
+        // An arm continues up into the shoulder: the row above the gap is solid across the arm.
+        // A tail or a loose strap that starts below the shoulder is not an arm (Mierese, Crew Lab 25.11).
+        let joined = a === 0;
+        if (!joined) {
+          const r = rows[a];
+          const lo2 = Math.min(r.outer, r.inner);
+          const hi2 = Math.max(r.outer, r.inner);
+          let solidAbove = 0;
+          for (let x = lo2; x <= hi2; x += 1) if (solid(x, y0 + a - 1)) solidAbove += 1;
+          joined = solidAbove >= (hi2 - lo2 + 1) * 0.5;
+        }
+        if (joined && y0 + a <= elbowLimit && b - a >= minRows && (!best || b - a > best.end - best.start)) best = { start: a, end: b, lo: lo, hi: hi };
+      }
+      if (!best) return { side: side, splittable: false };
+      // Cut line in the middle of the corridor, in pixel x.
+      const line = Math.round((best.lo + best.hi) / 2) * (side < 0 ? 1 : -1);
+      let outerX = side < 0 ? w : -1;
+      for (let i = best.start; i < best.end; i += 1) outerX = side < 0 ? Math.min(outerX, rows[i].outer) : Math.max(outerX, rows[i].outer);
+      // The hand hangs below the last clean gap row, often beside the thigh (Ustur, Crew Lab 25.11).
+      let bottom = y0 + best.end - 1;
+      const handLimit = Math.min(Math.round(cut.knee * (h - 1)), bottom + Math.round(h * 0.15));
+      for (let y = bottom + 1; y <= handLimit; y += 1) {
+        let any = false;
+        for (let x = Math.min(outerX, line); x <= Math.max(outerX, line); x += 1) if (solid(x, y)) { any = true; break; }
+        if (!any) break;
+        bottom = y;
+      }
+      // Out to the edge of the picture: the hand is often wider than the forearm above it.
+      const x0 = side < 0 ? 0 : line + 1;
+      const x1 = side < 0 ? line : w;
+      // The elbow: middle of the arm on its first free row; the forearm turns about it.
+      const top = rows[best.start];
+      const elbowX = (top.outer + top.inner + 1) / 2;
+      return {
+        side: side,
+        splittable: true,
+        elbowY: (y0 + best.start) / h,
+        bottom: (bottom + 1) / h,
+        x0: x0 / w,
+        x1: x1 / w,
+        pivotX: Math.max(0, Math.min(1, (elbowX - x0) / Math.max(1, x1 - x0)))
+      };
+    });
+  }
+
   /* Crew assembly: body + two shins cut from the finished cut-out, so the rig
      can step each leg. Thighs stay in the body; the shins hang from the knee
      line and overlap it a little to hide the seam. Returns { splittable:false }
      when the art has no gap between the legs (one-piece figure as before).
      Cached on the texture; call after bcmCutoutReady. */
   const LEG_SEAM_OVERLAP = 0.035;
+  const ARM_SEAM_OVERLAP = 0.02;
 
   function cropToCanvas(source, sx, sy, sw, sh) {
     const canvas = document.createElement("canvas");
@@ -114,43 +216,104 @@
     const h = source.height;
     const pixels = canvasContext(source).getImageData(0, 0, w, h).data;
     const measurement = measureLegGap(pixels, w, h, species);
-    let parts = { image: source, splittable: false, measurement: measurement };
-    if (measurement && measurement.splittable && THREE && THREE.CanvasTexture) {
-      const rig = window.BCMCrewRig;
-      const kneeY = rig ? rig.rigProfile(species).cut.knee : 0.73;
-      const knee = Math.round(kneeY * h);
-      const top = Math.max(0, knee - Math.round(LEG_SEAM_OVERLAP * h));
-      const split = Math.max(1, Math.min(w - 1, Math.round(measurement.gapCenter * w)));
-      const body = cropToCanvas(source, 0, 0, w, h);
-      canvasContext(body).clearRect(0, knee, w, h - knee);
-      const shinL = cropToCanvas(source, 0, top, split, h - top);
-      const shinR = cropToCanvas(source, split, top, w - split, h - top);
+    const armGaps = measureArmGaps(pixels, w, h, species);
+    let parts = { image: source, splittable: false, measurement: measurement, armMeasurement: armGaps, arms: null };
+    const legsCut = !!(measurement && measurement.splittable);
+    const armsCut = armGaps.some(function (a) { return a.splittable; });
+    if ((legsCut || armsCut) && THREE && THREE.CanvasTexture) {
       const tex = (canvas) => prepareCrewTexture(THREE, new THREE.CanvasTexture(canvas));
-      parts = {
-        image: source,
-        splittable: true,
-        measurement: measurement,
-        kneeY: kneeY,
-        shinTop: top / h,
-        bodyTexture: tex(body),
-        shinTextures: [tex(shinL), tex(shinR)],
-        // Fractions of the figure width/height.
-        shinWidths: [split / w, (w - split) / w],
-        shinCenters: [split / w / 2 - 0.5, (split + w) / w / 2 - 0.5],
-        shinHeight: (h - top) / h
-      };
+      const body = cropToCanvas(source, 0, 0, w, h);
+      if (legsCut) {
+        const rig = window.BCMCrewRig;
+        const kneeY = rig ? rig.rigProfile(species).cut.knee : 0.73;
+        const knee = Math.round(kneeY * h);
+        const top = Math.max(0, knee - Math.round(LEG_SEAM_OVERLAP * h));
+        const split = Math.max(1, Math.min(w - 1, Math.round(measurement.gapCenter * w)));
+        canvasContext(body).clearRect(0, knee, w, h - knee);
+        const shinL = cropToCanvas(source, 0, top, split, h - top);
+        const shinR = cropToCanvas(source, split, top, w - split, h - top);
+        Object.assign(parts, {
+          splittable: true,
+          kneeY: kneeY,
+          shinTop: top / h,
+          shinTextures: [tex(shinL), tex(shinR)],
+          // Fractions of the figure width/height.
+          shinWidths: [split / w, (w - split) / w],
+          shinCenters: [split / w / 2 - 0.5, (split + w) / w / 2 - 0.5],
+          shinHeight: (h - top) / h
+        });
+      }
+      if (armsCut) {
+        // The forearm overlaps the upper arm a little at the elbow, as the shin does at the knee.
+        parts.arms = armGaps.map(function (a) {
+          if (!a.splittable) return null;
+          const x0 = Math.round(a.x0 * w);
+          const x1 = Math.round(a.x1 * w);
+          const elbow = Math.round(a.elbowY * h);
+          const top = Math.max(0, elbow - Math.round(ARM_SEAM_OVERLAP * h));
+          const bottom = Math.min(h, Math.round(a.bottom * h));
+          canvasContext(body).clearRect(x0, elbow, x1 - x0, bottom - elbow);
+          return {
+            texture: tex(cropToCanvas(source, x0, top, x1 - x0, bottom - top)),
+            center: (x0 + x1) / 2 / w - 0.5,
+            width: (x1 - x0) / w,
+            top: top / h,
+            height: (bottom - top) / h,
+            pivotX: a.pivotX
+          };
+        });
+      }
+      parts.bodyTexture = tex(body);
     }
     data.bcmLegParts = parts;
     return parts;
+  }
+
+  /* How a forearm hangs this frame, radians, positive = the hand swings to screen right.
+     Walking both sway together against the stride (crew-rig's arm swing); jumping both trail;
+     falling and hanging they reach out from the body. `out` = +1 for the screen-right arm. */
+  function forearmAngle(pose, mirror, out) {
+    const p = pose.pose;
+    // Front-facing art turns in the screen plane: opposite swings would read as both hands
+    // flapping out and in. Both forearms sway together, against the stride, as a cut-out does.
+    const swing = p.armR * mirror;
+    const state = pose.state;
+    let a;
+    if (state === "hang") a = 1.55 * out;
+    else if (state === "fall") a = 0.75 * out;
+    else if (state === "jump-rise") a = -0.5 * mirror + 0.15 * out;
+    else if (state === "land") a = 0.3 * out;
+    else if (state === "climb") a = swing * 1.6 + 0.6 * out;
+    else if (state === "run") a = swing * 1.2;
+    else if (state === "walk") a = swing * 0.85;
+    else a = swing * 0.18; // idle: a breath, not a stride
+    return Math.max(-1.7, Math.min(1.7, a));
   }
 
   /* Where to draw each shin this frame, in fractions of the figure size,
      measured from the feet (y up) and the figure centre (x right on screen).
      pose: crewSpritePose(...) result. Mirroring swaps the sides. */
   function crewFigureLayout(parts, pose) {
-    if (!parts || !parts.splittable || !pose || !pose.pose) return null;
+    if (!parts || !(parts.splittable || parts.arms) || !pose || !pose.pose) return null;
     const p = pose.pose;
     const mirror = pose.face < 0 ? -1 : 1;
+    const forearm = (arm) => {
+      if (!arm) return null;
+      // The sprite turns about its anchor: put the anchor on the elbow, not the crop centre.
+      const pivot = arm.pivotX === undefined ? 0.5 : arm.pivotX;
+      const elbow = arm.center + (pivot - 0.5) * arm.width;
+      const x = elbow * mirror;
+      return {
+        x: x,
+        pivotX: mirror < 0 ? 1 - pivot : pivot,
+        top: 1 - arm.top,
+        width: arm.width,
+        height: arm.height,
+        rotation: forearmAngle(pose, mirror, x < 0 ? -1 : 1)
+      };
+    };
+    const layout = { shins: null, arms: parts.arms ? [forearm(parts.arms[0]), forearm(parts.arms[1])] : null, mirror: mirror };
+    if (!parts.splittable) return layout;
     const side = (i) => {
       const lift = i ? p.liftR : p.liftL;
       return {
@@ -162,7 +325,8 @@
         rotation: -(i ? p.hipR : p.hipL) * 0.45 * mirror
       };
     };
-    return { shins: [side(0), side(1)], mirror: mirror };
+    layout.shins = [side(0), side(1)];
+    return layout;
   }
 
   /* Which way the cut-out must be drawn. `direction` is where the Crew moves on
@@ -298,7 +462,7 @@
     const texture = o.texture || (sprite.material && sprite.material.map);
     const profile = actor.profile || readCrewProfile(actor.crew || actor);
     const parts = texture ? crewLegParts(THREE, texture, profile.species) : null;
-    const body = parts && parts.splittable ? parts.bodyTexture : texture;
+    const body = parts && parts.bodyTexture ? parts.bodyTexture : texture;
     if (sprite.material && body && sprite.material.map !== body) {
       sprite.material.map = body;
       sprite.material.needsUpdate = true;
@@ -320,19 +484,36 @@
       sprite.material.rotation = o.rotationScale === undefined ? pose.rotation : pose.rotation * pose.face * o.rotationScale;
     }
     const layout = crewFigureLayout(parts, pose);
-    (legs || []).forEach(function (shin, side) {
-      const part = layout && layout.shins[side];
-      shin.visible = !!part && sprite.visible !== false;
+    // Forearms join the figure's limb list as [2] and [3], so a level that hides or
+    // disposes "the legs" handles them too. They draw over the body.
+    if (legs && legs.length === 2 && layout && layout.arms && THREE && THREE.Sprite && THREE.SpriteMaterial) {
+      const parent = legs[0].parent || sprite.parent;
+      [0, 1].forEach(function () {
+        const arm = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false, alphaTest: 0.035 }));
+        arm.visible = false;
+        arm.center.set(0.5, 1);
+        arm.renderOrder = Math.max(Number(sprite.renderOrder) || 0, Number(legs[0].renderOrder) || 0) + 1;
+        if (parent && parent.add) parent.add(arm);
+        legs.push(arm);
+      });
+    }
+    (legs || []).forEach(function (limb, i) {
+      const isArm = i >= 2;
+      const k = i % 2;
+      const part = layout && (isArm ? layout.arms && layout.arms[k] : layout.shins && layout.shins[k]);
+      limb.visible = !!part && sprite.visible !== false;
       if (!part) return;
-      if (shin.material.map !== parts.shinTextures[side]) {
-        shin.material.map = parts.shinTextures[side];
-        shin.material.needsUpdate = true;
+      const map = isArm ? parts.arms[k].texture : parts.shinTextures[k];
+      if (limb.material.map !== map) {
+        limb.material.map = map;
+        limb.material.needsUpdate = true;
       }
-      mirrorMap(shin.material.map, layout.mirror);
+      mirrorMap(limb.material.map, layout.mirror);
       const p = place(part.x * width * pose.scaleX, feetY + part.top * height * pose.scaleY);
-      shin.position.set(p.x, p.y, p.z);
-      shin.scale.set(part.width * width * pose.scaleX, part.height * height * pose.scaleY, 1);
-      shin.material.rotation = part.rotation;
+      limb.position.set(p.x, p.y, p.z);
+      limb.scale.set(part.width * width * pose.scaleX, part.height * height * pose.scaleY, 1);
+      limb.material.rotation = part.rotation;
+      if (isArm && limb.center) limb.center.set(part.pivotX, 1);
     });
     return pose;
   }
@@ -940,6 +1121,7 @@
     crewFace: crewFace,
     crewSpritePose: crewSpritePose,
     measureLegGap: measureLegGap,
+    measureArmGaps: measureArmGaps,
     crewLegParts: crewLegParts,
     crewFigureLayout: crewFigureLayout,
     createCrewLegs: createCrewLegs,
