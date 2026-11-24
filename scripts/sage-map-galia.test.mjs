@@ -18,6 +18,8 @@ async function sageCore() {
   const context = vm.createContext({ console, Math, Number, String, Array, Object, JSON });
   context.window = context;
   vm.runInContext(await read("mini-sim/assets/js/sage-map.js"), context);
+  vm.runInContext(await read("mini-sim/assets/js/galia-lore.js"), context); // the page loads it first
+  context.Map = Map;
   vm.runInContext(await read("mini-sim/assets/js/sage-map-core.js"), context);
   return context.BCMSageMapCore;
 }
@@ -28,7 +30,9 @@ test("sector names and system lookup come from the Galia map", async () => {
   assert.equal(core.sectorTitle(-40, 30), "Fable · ONI Central Space Station");
   assert.equal(core.sectorTitle(0, -39), "Pearce · MUD Central Space Station");
   assert.equal(core.sectorTitle(40, 30), "Ioki · Ustur Central Space Station");
-  assert.match(core.sectorTitle(-38, 25), /^(White Dwarf|Red Dwarf|Solar|Hot Blue|Red Giant) \[-38, 25\]$/);
+  // 24.11.2026: lore sectors carry their Star Atlas names; other stars keep their class.
+  assert.equal(core.sectorTitle(-38, 25), "Segal · ONI-4 [-38, 25]");
+  assert.match(core.sectorTitle(-36, -7), /^(White Dwarf|Red Dwarf|Solar|Hot Blue|Red Giant) \[-36, -7\]$/);
   assert.equal(core.sectorTitle(-39, 29), "[-39, 29] · пустой сектор");
   const oni = core.systemForSector(-40, 30);
   assert.equal(oni.id, "oni");

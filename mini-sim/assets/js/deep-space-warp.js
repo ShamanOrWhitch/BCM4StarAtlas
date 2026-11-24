@@ -1791,7 +1791,17 @@ function warpSectorPlanetCard(core, x, y, jumps) {
           g.globalAlpha = 0.9;
           g.beginPath(); g.arc(p.x, p.y, sageCore.starRadius(star, zoom), 0, Math.PI * 2); g.fill();
           g.globalAlpha = 1;
-          if (zoom >= 4) {
+          // Owner 24.11.2026: the Star Atlas lore sectors are named on the map at every zoom
+          // (galia-lore.js); a station keeps its own label below.
+          const lore = typeof sageCore.loreAt === "function" && !sageCore.cssAt(star.x, star.y)
+            ? sageCore.loreAt(star.x, star.y) : null;
+          if (lore) {
+            g.fillStyle = lore.faction ? sageCore.factionTone(lore.faction) : "rgba(210,232,240,0.9)";
+            g.font = (zoom >= 4 ? "600 9px" : "600 8px") + " system-ui,sans-serif";
+            g.textAlign = star.x > 25 ? "right" : "left"; g.textBaseline = "middle";
+            g.fillText(zoom >= 4 ? lore.name + " · " + (lore.place || lore.code) : lore.name,
+              p.x + (star.x > 25 ? -5 : 5), p.y);
+          } else if (zoom >= 4) {
             g.fillStyle = "rgba(230,226,214,0.78)"; g.font = "8px system-ui,sans-serif";
             g.textAlign = "left"; g.textBaseline = "middle";
             g.fillText(star.name, p.x + 5, p.y);

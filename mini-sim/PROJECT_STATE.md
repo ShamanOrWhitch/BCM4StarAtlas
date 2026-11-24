@@ -1,3 +1,14 @@
+## Patch — Mini-Sim 0.16.21: Star Atlas lore sectors on the Warp map; Core lore notes (24 November 2026)
+
+- **WORK LOCK:** [#164](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/164). Decision D-097.
+- **`galia-lore.js` (new):** 15 lore sectors whose coordinates match our Galia stars.
+- **Map core:** `loreAt` in `sage-map-core.js`; `sectorTitle` uses the lore names.
+- **Warp map canvas:** draws the lore names at every zoom.
+- **`LORE_CORE.md`:** crew, Act 1–2 turns, races, sectors, sources.
+- **Checks:** regression 328/328, Warp lore Edge probe PASS.
+
+---
+
 ## Patch — Mini-Sim 0.16.20: videos 93 → 15 MB; Pearce's own MUD landing (24 November 2026)
 
 - **WORK LOCK:** [#163](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/163). Decision D-096.

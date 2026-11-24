@@ -50,9 +50,18 @@
   // Ioki at Ustur CSS (the same mapping as planet-landing.js / First Planet planet.ts).
   const CSS_PLANET = { oni: "Fable", mud: "Pearce", ustur: "Ioki" };
 
+  /** The Star Atlas lore sector at a cell (galia-lore.js), or null. */
+  function loreAt(x, y) {
+    const lore = window.BCMGaliaLore;
+    return lore && typeof lore.at === "function" ? lore.at(x, y) : null;
+  }
+
   function sectorTitle(x, y) {
     const css = cssAt(x, y);
     if (css) return (CSS_PLANET[css.system] ? CSS_PLANET[css.system] + " · " : "") + css.name;
+    // Owner 24.11.2026: lore sectors on the real map by their Star Atlas names (galia-lore.js).
+    const lore = loreAt(x, y);
+    if (lore) return lore.name + " · " + (lore.place || lore.code) + " [" + x + ", " + y + "]";
     const star = starAt(x, y);
     if (star) return star.name + " [" + x + ", " + y + "]";
     const mark = landmarkAt(x, y);
@@ -84,6 +93,7 @@
     starColor: starColor,
     starRadius: starRadius,
     sectorTitle: sectorTitle,
+    loreAt: loreAt,
     systemForSector: systemForSector,
     landmarks: landmarks,
     landmarkAt: landmarkAt,
