@@ -1,3 +1,20 @@
+## Patch — Mini-Sim 0.16.17: Ring route to the bosses, held jetpack, crew-core figure; landing before the Tower menu (24 November 2026)
+
+- Decision D-093, BUG-024.
+- **ring-platformer.js:**
+  - the route leads to the boss arena while a boss lives;
+  - the jet thrusts while held and burns fuel per second;
+  - the pilot is drawn by `BCMCrewCore.applyCrewFigure`.
+- **ring-panels.js:** `FLIGHT.thrust` / `burn`; `flightCrossable` searches held-jet steps.
+- **crew-core.js:** `createCrewLegs`, `applyCrewFigure` (Tower and Ring).
+- **tower.js:**
+  - the entry plays the planet's own landing film;
+  - the handoff plays no film and keeps a cover until First Planet is live;
+  - `loader.js` drops the cover on a failed load.
+- **Checks:** regression 320/320, UI layer PASS, `test:minisim` 65/65, Edge Ring flight probe PASS, transitions PASS.
+
+---
+
 ## Patch — Mini-Sim 0.16.16: Opus — capture nodes, module income, raiders (IDEA-026 steps 2–3) (24 November 2026)
 
 - **WORK LOCK:** [#161](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/161). Decision D-092.

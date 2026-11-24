@@ -261,6 +261,83 @@
   }
 
   /* ---------------------------------------------------------------------------
+     The figure (owner 24.11.2026: "перебросить центральным управлением всё по rig и
+     анимациям в crew-core"). One assembler for every level: the body without its shins,
+     two shin sprites that step under it with the walking rig, the mirror, the bob and the
+     roll. A level only says where the feet are and how to place a point beside them.
+     ------------------------------------------------------------------------- */
+  function createCrewLegs(THREE, parent, renderOrder) {
+    THREE = THREE || window.THREE;
+    return [0, 1].map(function () {
+      const shin = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false, alphaTest: 0.035 }));
+      shin.visible = false;
+      shin.center.set(0.5, 1);
+      shin.renderOrder = renderOrder || 9;
+      if (parent) parent.add(shin);
+      return shin;
+    });
+  }
+
+  function mirrorMap(map, face) {
+    if (!map) return;
+    map.wrapS = 1000; // THREE.RepeatWrapping
+    map.repeat.x = face < 0 ? -1 : 1;
+    map.offset.x = face < 0 ? 1 : 0;
+  }
+
+  /* opts: { texture (the full cutout), height (m), feetY (world y of the soles),
+     place(along, y) → {x, y, z} (along = metres to the screen right of the figure centre),
+     pose (an already computed crewSpritePose, so a level does not step twice),
+     rotationScale (Tower rolls less), minWidth, maxWidth }. Returns the pose. */
+  function applyCrewFigure(THREE, sprite, legs, actor, dt, opts) {
+    if (!sprite || !actor) return null;
+    const o = opts || {};
+    const data = sprite.userData || (sprite.userData = {});
+    const pose = o.pose || crewSpritePose(actor, dt, data);
+    data.bcmLastPose = pose;
+    const texture = o.texture || (sprite.material && sprite.material.map);
+    const profile = actor.profile || readCrewProfile(actor.crew || actor);
+    const parts = texture ? crewLegParts(THREE, texture, profile.species) : null;
+    const body = parts && parts.splittable ? parts.bodyTexture : texture;
+    if (sprite.material && body && sprite.material.map !== body) {
+      sprite.material.map = body;
+      sprite.material.needsUpdate = true;
+    }
+    mirrorMap(sprite.material && sprite.material.map, pose.face);
+    const height = Number(o.height) || 1.8;
+    const image = texture && texture.image;
+    const aspect = image ? Number(image.width || 1) / Math.max(1, Number(image.height || 1)) : 0.6;
+    const width = Math.max(o.minWidth || 0.55, Math.min(o.maxWidth || 1.75, height * aspect));
+    const pad = Number(texture && texture.userData && texture.userData.bcmCutoutFeetPadRatio || 0);
+    const feetY = (Number(o.feetY) || 0) - pad * height + pose.bob;
+    const place = typeof o.place === "function" ? o.place : function (along, y) { return { x: along, y: y, z: 0 }; };
+    sprite.center.set(0.5, 0);
+    const at = place(0, feetY);
+    sprite.position.set(at.x, at.y, at.z);
+    sprite.scale.set(width * pose.scaleX, height * pose.scaleY, 1);
+    // Side views roll with the pose; Tower passes a smaller roll that follows the mirror.
+    if (sprite.material) {
+      sprite.material.rotation = o.rotationScale === undefined ? pose.rotation : pose.rotation * pose.face * o.rotationScale;
+    }
+    const layout = crewFigureLayout(parts, pose);
+    (legs || []).forEach(function (shin, side) {
+      const part = layout && layout.shins[side];
+      shin.visible = !!part && sprite.visible !== false;
+      if (!part) return;
+      if (shin.material.map !== parts.shinTextures[side]) {
+        shin.material.map = parts.shinTextures[side];
+        shin.material.needsUpdate = true;
+      }
+      mirrorMap(shin.material.map, layout.mirror);
+      const p = place(part.x * width * pose.scaleX, feetY + part.top * height * pose.scaleY);
+      shin.position.set(p.x, p.y, p.z);
+      shin.scale.set(part.width * width * pose.scaleX, part.height * height * pose.scaleY, 1);
+      shin.material.rotation = part.rotation;
+    });
+    return pose;
+  }
+
+  /* ---------------------------------------------------------------------------
      Crew cutout — the only place that removes the NFT card background.
      Levels (Tower, Ring, Hull Dive) ask for a texture and only display it.
      Order: browser cache → image (official alpha PNG first) → ISNet matte →
@@ -798,6 +875,8 @@
     measureLegGap: measureLegGap,
     crewLegParts: crewLegParts,
     crewFigureLayout: crewFigureLayout,
+    createCrewLegs: createCrewLegs,
+    applyCrewFigure: applyCrewFigure,
     officialCrewCutoutUrl: officialCrewCutoutUrl,
     crewCutout: crewCutout,
     requestCrewTexture: requestCrewTexture,

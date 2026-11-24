@@ -1606,6 +1606,12 @@
           return { id, cell, taken: !!routeMission.hydrogenCollectedIds?.[id], scouted: false };
         });
         function objectiveNode(fromNode) {
+          // Owner 24.11.2026: "не дошёл даже до боссов, в какой-то момент меня повело обратно".
+          // Entering the large cell set visitedLarge and a pending Hydrogen shard pulled the
+          // route aside, so the arrows turned home with the bosses still alive. While a boss
+          // lives, the route leads to the boss arena first; shards and home come after.
+          const bossArena = [...nodes.values()].find((candidate) => candidate.large);
+          if (Number(world.defeatedBosses || 0) < 3 && bossArena && bossArena !== fromNode) return bossArena;
           const mission = window.BCMWorldMission || {};
           const hydrogenRouteActive = !!mission.hydrogenUnlocked &&
             Number(mission.hydrogenCount || 0) < 3 && routeCrystals.length > 0;
@@ -2475,6 +2481,10 @@
         scene.add(sprite);
         player.sprite = sprite;
         player.spriteMaterial = material;
+        // The full cutout stays here; crew-core draws the body without shins and two shins.
+        player.crewTexture = texture;
+        player.legs = window.BCMCrewCore && window.BCMCrewCore.createCrewLegs
+          ? window.BCMCrewCore.createCrewLegs(THREE, scene, 9) : null;
         const flameGeometry = new THREE.ConeGeometry(0.15, 0.55, 8);
         const flameMaterial = new THREE.MeshBasicMaterial({
           color: 0x73eaff, transparent: true, opacity: 0.92, depthWrite: false
@@ -2493,7 +2503,8 @@
         if (imageUrl && window.BCMCrewCore?.requestCrewTexture) {
           const pending = window.BCMCrewCore.requestCrewTexture(THREE, imageUrl);
           if (pending) pending.bcmCrewReady.then((cut) => {
-            if (!cut || !player.spriteMaterial || player.spriteMaterial.map === cut) return;
+            if (!cut || !player.spriteMaterial || player.crewTexture === cut) return;
+            player.crewTexture = cut;
             player.spriteMaterial.map = cut;
             player.spriteMaterial.needsUpdate = true;
           }).catch(() => {});
@@ -2510,27 +2521,33 @@
         const speed = dt > 0 ? Math.abs(deltaX) / dt : 0;
         player._prevX = player.worldX;
         player.climbRemaining = Math.max(0, (Number(player.climbRemaining) || 0) - dt);
-        if (window.BCMCrewCore) {
-          window.BCMCrewCore.applyPlatformSprite(player.sprite, {
+        if (window.BCMCrewCore && window.BCMCrewCore.applyCrewFigure) {
+          // Owner 24.11.2026: the Ring draws the Crew as Tower does — body and stepping shins,
+          // assembled by crew-core (one place for rig and animation).
+          window.BCMCrewCore.applyCrewFigure(THREE, player.sprite, player.legs, {
             facing: player.facing,
             hanging: !!player.hang,
             climbing: player.climbRemaining > 0,
-            moving: (moved || !player.grounded) && !player.hang,
+            moving: moved && player.grounded && !player.hang,
             speed,
             grounded: player.grounded,
             vy: player.vy,
             crew: crewSelection[player.index],
-            index: player.index,
-            y: player.worldY + 0.98
-          }, dt);
-          player.sprite.position.x = player.worldX;
-          player.sprite.position.z = 0.45;
+            index: player.index
+          }, dt, {
+            texture: player.crewTexture,
+            height: 1.78,
+            maxWidth: 1.3,
+            feetY: player.worldY,
+            place: (along, y) => ({ x: player.worldX + along, y, z: 0.45 })
+          });
         } else {
           const p = playerWorldPosition(player);
           player.sprite.position.set(p.x, p.y, p.z);
           player.sprite.scale.x = player.facing < 0 ? -1.45 : 1.45;
         }
         player.sprite.visible = true;
+        if (player.legs) player.legs.forEach((shin) => { if (!player.sprite.visible) shin.visible = false; });
         if (player.jetFlame) {
           const flameOn = Number(player.jetFlameRemaining) > 0;
           player.jetFlameRemaining = Math.max(0, (Number(player.jetFlameRemaining) || 0) - dt);
@@ -4095,15 +4112,23 @@
             player.vy = Math.max(-4.8, Math.min(4.8, player.vy - input.moveY * 10.5 * dt));
           }
           const jumpPressed = input.jumpEdge && player.grounded;
-          if (input.jumpEdge && lowGravity && player.jetFuel >= 12 && player.breathReserve >= 12) {
-            player.jetFuel -= 12;
-            player.breathReserve -= 12;
-            player.vy = flightPanel
-              ? Math.min(path.flight.F.maxRise, player.vy + path.flight.F.impulse)
-              : Math.min(6.2, Math.max(0, player.vy) + 4.1);
+          // Owner 24.11.2026: the jet is held — it thrusts while the jump is down and burns fuel
+          // (and breath) per second; no fixed number of hops. A grounded tap still jumps.
+          if (jumpPressed && !flightPanel) {
+            player.vy = jumpVelocity;
             player.grounded = false;
             player.supportPlatform = null;
-            player.jetFlameRemaining = 0.21;
+          } else if (input.jump && lowGravity && player.jetFuel > 0 && player.breathReserve > 0) {
+            const F = flightPanel ? path.flight.F : null;
+            const thrust = F ? F.thrust : 13.0;
+            const burn = F ? F.burn : 22;
+            const maxRise = F ? F.maxRise : 6.2;
+            player.vy = Math.min(maxRise, player.vy + thrust * dt);
+            player.jetFuel = Math.max(0, player.jetFuel - burn * dt);
+            player.breathReserve = Math.max(0, player.breathReserve - burn * 0.5 * dt);
+            player.grounded = false;
+            player.supportPlatform = null;
+            player.jetFlameRemaining = 0.08;
           } else if (jumpPressed) {
             player.vy = jumpVelocity;
             player.grounded = false;

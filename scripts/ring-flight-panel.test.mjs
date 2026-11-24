@@ -40,10 +40,15 @@ test("a purple cell is a flight panel: a pit between two door pads, gates, ceili
   }
 });
 
-test("about one press a second holds the altitude (Balloon rhythm, ~62 BPM)", () => {
+// Owner 24.11.2026: "с прыжками на перелётных частях не должно быть ограничения в 2 прыжка — чем
+// дольше жмёшь прыжок, тем больше он тратится, но в это время персонаж летит". The jet thrusts
+// while the button is held and burns fuel per second; a full tank is seconds of flight, not presses.
+test("the jet thrusts while held and burns fuel per second: holding about half the time hovers", () => {
   const F = panels().buildFlightPanel(7, { x: 2, y: 1, z: 3 }, { run: 1 }).flight;
-  const loss = F.gravity * 1.0; // speed lost in one second
-  assert.ok(Math.abs(loss - F.impulse) <= 0.6, `one press (+${F.impulse} m/s) a second does not balance gravity ${F.gravity}`);
+  assert.ok(F.thrust > F.gravity * 1.5, `thrust ${F.thrust} m/s² must clearly beat gravity ${F.gravity}`);
+  assert.ok(Math.abs(F.thrust / 2 - F.gravity) <= 0.6, "about half the time on the jet holds the altitude");
+  const seconds = 100 / F.burn;
+  assert.ok(seconds >= 4 && seconds <= 7, `a full tank is ${seconds.toFixed(1)} s of thrust`);
   assert.ok(F.airSpeed >= 2.4 && F.airSpeed <= 4, `air speed ${F.airSpeed} m/s: the crossing is not a rhythm`);
 });
 
@@ -66,7 +71,9 @@ test("the Ring builds purple cells as flight panels and drops a pilot into their
   const ring = read("mini-sim/assets/js/ring-platformer.js");
   assert.match(ring, /BCMRingPanels\.buildFlightPanel\(/, "the Ring never builds a flight panel");
   assert.match(ring, /flightPanel && player\.worldX > path\.flight\.pitMinX && player\.worldX < path\.flight\.pitMaxX/, "the pit of a flight panel still has a floor");
-  assert.match(ring, /Math\.min\(path\.flight\.F\.maxRise, player\.vy \+ path\.flight\.F\.impulse\)/, "the panel jet does not add to the fall speed (Balloon)");
+  assert.match(ring, /input\.jump && lowGravity && player\.jetFuel > 0/, "the jet does not thrust while the jump is held");
+  assert.match(ring, /player\.jetFuel = Math\.max\(0, player\.jetFuel - burn \* dt\)/, "the jet does not burn fuel per second");
+  assert.doesNotMatch(ring, /input\.jumpEdge && lowGravity && player\.jetFuel >= 12/, "the jet is still a fixed hop per press");
   assert.match(ring, /function comicPop\(/, "no comic sound words on the way");
   assert.match(ring, /flightGapAt\(/, "the gates are not drawn or do not hurt");
   assert.match(ring, /ring-flight-gate/, "the gates are not drawn");

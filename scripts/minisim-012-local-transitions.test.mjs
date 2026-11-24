@@ -93,7 +93,7 @@ test("Tower reverse ONICSS transition reuses the existing landing clip and has a
   const loader = await read("mini-sim/first-planet/loader.js");
   assert.match(tower, /function beginReverseSpaceLabyrinthReturn\(\)/);
   // 0.15.6: the clip is the landed planet's own (planet-landing.js); onicss.mp4 stays the default.
-  assert.match(tower, /const url = landingClip\(\);/);
+  assert.match(tower, /const url = departure \|\| landingClip\(\);/); // 24.11.2026: only the ascent plays the landing film
   assert.match(tower, /CONFIG\.planetTransition \|\| ""/);
   assert.match(tower, /transitionVideo\.playbackRate = -1/);
   assert.match(tower, /duration - elapsed \* 2/);

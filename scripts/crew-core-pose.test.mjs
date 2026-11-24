@@ -85,7 +85,8 @@ test("levels only pass direction and dt; crew-rig loads before crew-core everywh
   assert.doesNotMatch(tower, /updatePlayerVisual\(1\);\s*\}/, "player 2 is posed twice per frame");
   const warp = (await read("mini-sim/assets/js/deep-space-warp.js")) + "\n" + (await read("mini-sim/assets/js/ring-platformer.js"));
   assert.match(warp, /function updatePlayerSprite\(player, dt\)/);
-  assert.match(warp, /applyPlatformSprite\(player\.sprite, \{[\s\S]{0,400}\}, dt\)/);
+  // 24.11.2026: the Ring draws through crew-core.applyCrewFigure (body + stepping shins).
+  assert.match(warp, /applyCrewFigure\(THREE, player\.sprite, player\.legs, \{[\s\S]{0,400}\}, dt, \{/);
   const hull = await read("mini-sim/assets/js/hull-dive.js");
   assert.match(hull, /applyPlatformSprite\(player\.sprite, \{[\s\S]{0,400}\}, dt\)/);
   const core = await read("mini-sim/assets/js/crew-core.js");
@@ -152,8 +153,8 @@ test("crewFigureLayout: shins step in opposite phases, swing from the knee and s
 test("Tower shows two crew-core shins instead of a hidden leg slot (BUG-003)", async () => {
   const tower = await read("mini-sim/tower/assets/js/tower.js");
   assert.match(tower, /const legs = \[0, 1\]\.map\(\(\) => \{/);
-  assert.match(tower, /window\.BCMCrewCore\.crewLegParts\(THREE, texture, playerCrewProfiles\[index\]\?\.species\)/);
-  assert.match(tower, /window\.BCMCrewCore\.crewFigureLayout\(legParts, crewPose\)/);
+  // 24.11.2026: crew-core assembles the figure (crewLegParts + crewFigureLayout inside applyCrewFigure).
+  assert.match(tower, /window\.BCMCrewCore\.applyCrewFigure\(THREE, sprite, playerLegSprites\[index\]/);
   assert.doesNotMatch(tower, /if \(legs\) legs\.visible = false;/, "legs are still hidden every frame");
   assert.doesNotMatch(tower, /splitCrewLegs/, "the empty Tower leg stub is still there");
 });

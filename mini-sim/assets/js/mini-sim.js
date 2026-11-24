@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.16.16",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.16.17",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -91,7 +91,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.16.16",
+      title: "SPACE LABYRINTH — 0.16.17",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -332,7 +332,7 @@
     const normalizedLevel = String(level || "").toLowerCase();
     const levelText = {
       ring: {
-        ru: {controlsKeyboard:"Ring: A/D — бег; ↑/↓ — вертикаль в астральных полях; Space/W — прыжок и импульс в фиолетовом поле; E — дверь; R — этаж; Q — лазер; Shift/C — рывок.",controlsTouch:"Ring: ◀ ▶ — бег, ↑ ↓ — вертикаль; ПРЫЖОК — прыжок/импульс; ЭТАЖ — сменить этаж; ДВЕРЬ — пройти; ЛАЗЕР — выстрел; РЫВОК — ускорение.",controlsGamepad:"Ring: стик — бег/вертикаль; A — прыжок/импульс; X — дверь; LB — этаж; Y — лазер; B — рывок."},
+        ru: {controlsKeyboard:"Ring: A/D — бег; ↑/↓ — вертикаль в астральных полях; Space/W — прыжок; в фиолетовом поле держи — джетпак летит, пока жмёшь, и тратит топливо; E — дверь; R — этаж; Q — лазер; Shift/C — рывок.",controlsTouch:"Ring: ◀ ▶ — бег, ↑ ↓ — вертикаль; ПРЫЖОК — прыжок, держи — джетпак; ЭТАЖ — сменить этаж; ДВЕРЬ — пройти; ЛАЗЕР — выстрел; РЫВОК — ускорение.",controlsGamepad:"Ring: стик — бег/вертикаль; A — прыжок, держи — джетпак; X — дверь; LB — этаж; Y — лазер; B — рывок."},
         en: {controlsKeyboard:"Ring: A/D move; Up/Down steer in astral fields; Space/W jumps and pulses the jetpack in purple fields; E uses the door; R changes floor; Q fires; Shift/C dashes.",controlsTouch:"Ring: ◀ ▶ move, ↑ ↓ steer; JUMP jumps/pulses; FLOOR changes levels; DOOR enters; LASER fires; DASH dodges.",controlsGamepad:"Ring: stick moves/steers; A jumps/pulses; X door; LB floor; Y fire; B dash."}
       },
       hull: {
@@ -6974,7 +6974,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.16.16") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.16.17") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();

@@ -63,14 +63,16 @@ try {
   await page.waitForTimeout(1200);
   const back = await fsnap();
   report.fall = { padHp: pad.hp, fell: !!fell, backX: back.x, backY: back.y, hp: back.hp, pops: back.pops };
-  // 2. Fly: hold right and tap the jet about once a second; record height and gates.
+  // 2. Fly: hold right and hold the jet in pulses; record height and gates.
   await page.waitForTimeout(1200);
   const before = await fsnap();
   report.flight = { start: before, samples: [] };
   await page.keyboard.down("ArrowRight");
   let shot = false;
   for (let i = 0; i < 24; i += 1) {
-    if (i % 3 === 0) await page.keyboard.press("Space");
+    // 24.11.2026: the jet is held — hold it two thirds of each second, let go for one third.
+    if (i % 3 === 0) await page.keyboard.down("Space");
+    if (i % 3 === 2) await page.keyboard.up("Space");
     await page.waitForTimeout(330);
     const s = await fsnap();
     report.flight.samples.push({ x: Math.round(s.x * 10) / 10, y: Math.round(s.y * 100) / 100, vy: Math.round(s.vy * 100) / 100, jet: s.jet, hp: s.hp, inPanel: s.inPanel });

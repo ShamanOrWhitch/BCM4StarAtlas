@@ -98,6 +98,9 @@
       if (!ok) {
         host.hidden = true;
         host.classList.remove("is-preloading");
+        // Tower kept its landing cover up for the load; take it down to show the error.
+        const cover = root.querySelector(".bcm-tower-transition");
+        if (cover) cover.hidden = true;
         const towerStatus = root.querySelector(".bcm-tower-status");
         if (towerStatus) towerStatus.textContent = status.textContent;
         const restart = root.querySelector(".bcm-tower-restart");

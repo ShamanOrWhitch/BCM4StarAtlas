@@ -230,7 +230,9 @@
   // crossing has a pulse (~62 BPM, RING_PIG_BOSS_ARC.md). x is panel-local (-half..+half).
   // The impulse ADDS to the vertical speed (a press while falling only slows the fall), as
   // in Balloon; the purple-cell jet (max(0, vy) + 4.1) made every press a 2 m hop.
-  var FLIGHT = { gravity: 3.0, impulse: 3.0, maxRise: 2.4, cost: 12, bubble: 34, airSpeed: 3.0 };
+  // Owner 24.11.2026: the jet is held, not tapped — thrust while the button is down, fuel burns
+  // per second (a full tank ≈ 5 s of thrust). Holding about half the time hovers.
+  var FLIGHT = { gravity: 3.0, thrust: 6.2, burn: 20, maxRise: 2.4, impulse: 3.0, cost: 12, bubble: 34, airSpeed: 3.0 };
 
   function makeFlight(rand, half, height, calm) {
     var pit = { minX: -half + 2.5, maxX: half - 2.5 };
@@ -256,7 +258,7 @@
     var bubbles = [{ x: ix, y: 2.4 }, { x: -half + 1.4, y: 1.2 }, { x: half - 1.4, y: 1.2 }];
     return {
       pit: pit, gates: gates, islands: islands, bubbles: bubbles, ceilingY: ceilingY,
-      gravity: FLIGHT.gravity, impulse: FLIGHT.impulse, maxRise: FLIGHT.maxRise,
+      gravity: FLIGHT.gravity, thrust: FLIGHT.thrust, burn: FLIGHT.burn, impulse: FLIGHT.impulse, maxRise: FLIGHT.maxRise,
       cost: FLIGHT.cost, bubble: FLIGHT.bubble, airSpeed: FLIGHT.airSpeed
     };
   }
@@ -280,16 +282,20 @@
         for (var press = 0; press < (o.noJet ? 1 : 2); press += 1) {
           for (var sp = 0; sp < speeds.length; sp += 1) {
             var s = { x: s0.x, y: s0.y, vy: s0.vy, fuel: s0.fuel, taken: s0.taken, presses: s0.presses };
+            // press = the jet held through this 0.25 s step (thrust and burn per substep).
             if (press) {
-              if (s.fuel < F.cost) continue;
-              s.fuel -= F.cost; s.presses += 1;
-              s.vy = Math.min(F.maxRise, s.vy + F.impulse);
+              if (s.fuel <= 0) continue;
+              s.presses += 1;
             }
             var dead = false;
             for (var k = 0; k < SUB && !dead; k += 1) {
               var t = (Number(t0) || 0) + step * DT + (k + 1) * h;
               s.x += speeds[sp] * h;
               var py = s.y;
+              if (press && s.fuel > 0) {
+                s.vy = Math.min(F.maxRise, s.vy + F.thrust * h);
+                s.fuel = Math.max(0, s.fuel - F.burn * h);
+              }
               s.vy -= F.gravity * h;
               s.y += s.vy * h;
               var inPit = s.x > F.pit.minX && s.x < F.pit.maxX;

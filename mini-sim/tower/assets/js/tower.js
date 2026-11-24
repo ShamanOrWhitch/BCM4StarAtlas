@@ -2278,66 +2278,24 @@
         halo.visible = !!sprite && (shieldOn || shieldBlink);
       }
 
-      sprite.center.set(0.5, 0);
-      // crew-core assembles the figure: when the legs are separable the body
-      // loses its shins and two shin sprites step under it.
-      const legParts = window.BCMCrewCore && window.BCMCrewCore.crewLegParts
-        ? window.BCMCrewCore.crewLegParts(THREE, texture, playerCrewProfiles[index]?.species)
-        : null;
-      const wantedBody = legParts && legParts.splittable ? legParts.bodyTexture : texture;
-      if (sprite.material && wantedBody && sprite.material.map !== wantedBody) {
-        sprite.material.map = wantedBody;
-        sprite.material.needsUpdate = true;
-      }
-      const map = sprite.material && sprite.material.map;
-      const face = p.visualFacing || 1;
-      if (map) {
-        map.wrapS = THREE.RepeatWrapping;
-        map.repeat.x = face < 0 ? -1 : 1;
-        map.offset.x = face < 0 ? 1 : 0;
-      }
-
-      // p.y is maintained above the floor by the physics solver. Anchor the
-      // image at the platform rather than adding another positive vertical offset.
-      const spriteHeight = 2.15;
-      const imageWidth = Number(map?.image?.width || 1);
-      const imageHeight = Number(map?.image?.height || 1);
-      const aspect = imageWidth / Math.max(1, imageHeight);
-      const spriteWidth = clamp(spriteHeight * aspect, 0.55, 1.75);
-      // Align the bottom of the full-body cutout to the visible platform top.
-      const transparentFootPad = Number(texture?.userData?.bcmCutoutFeetPadRatio || 0);
-      const feetY = p.y - feetOffset + footLift - transparentFootPad * spriteHeight + bob;
-      sprite.position.set(x, feetY, z);
-      sprite.scale.set(spriteWidth * crewPose.scaleX, spriteHeight * crewPose.scaleY, 1);
-      // Tower shows a smaller roll than the side-view levels; the sign follows the mirror.
-      if (sprite.material) sprite.material.rotation = crewPose.rotation * face * 0.35;
-      const legs = playerLegSprites[index];
-      const layout = window.BCMCrewCore && window.BCMCrewCore.crewFigureLayout
-        ? window.BCMCrewCore.crewFigureLayout(legParts, crewPose)
-        : null;
-      if (legs) {
-        legs.forEach((shin, side) => {
-          const part = layout && layout.shins[side];
-          shin.visible = !!part && sprite.visible;
-          if (!part) return;
-          if (shin.material.map !== legParts.shinTextures[side]) {
-            shin.material.map = legParts.shinTextures[side];
-            shin.material.needsUpdate = true;
-          }
-          const shinMap = shin.material.map;
-          shinMap.wrapS = THREE.RepeatWrapping;
-          shinMap.repeat.x = layout.mirror < 0 ? -1 : 1;
-          shinMap.offset.x = layout.mirror < 0 ? 1 : 0;
-          // Screen-right on the Tower wall is the direction of growing angle.
-          const along = part.x * spriteWidth * crewPose.scaleX;
-          shin.position.set(
-            x + Math.cos(a) * along,
-            feetY + part.top * spriteHeight * crewPose.scaleY,
-            z - Math.sin(a) * along
-          );
-          shin.scale.set(part.width * spriteWidth * crewPose.scaleX, part.height * spriteHeight * crewPose.scaleY, 1);
-          shin.material.rotation = part.rotation;
+      // crew-core assembles the figure (owner 24.11.2026: one place for rig and animation):
+      // body without shins and two stepping shins. Tower says where the feet are on the wall;
+      // screen-right on the wall is the direction of growing angle.
+      const feetBase = p.y - feetOffset + footLift;
+      if (window.BCMCrewCore && window.BCMCrewCore.applyCrewFigure) {
+        window.BCMCrewCore.applyCrewFigure(THREE, sprite, playerLegSprites[index], {
+          crew: playerCrewProfiles[index], profile: playerCrewProfiles[index], index
+        }, dt, {
+          texture,
+          pose: crewPose,
+          height: 2.15,
+          feetY: feetBase,
+          rotationScale: 0.35,
+          place: (along, y) => ({ x: x + Math.cos(a) * along, y, z: z - Math.sin(a) * along })
         });
+      } else {
+        sprite.center.set(0.5, 0);
+        sprite.position.set(x, feetBase + bob, z);
       }
     }
     function updateCamera(index, viewport) {
@@ -2578,57 +2536,22 @@
           transitionVideo.load();
           transitionVideo.style.opacity = "0";
         }
-        if (transition) {
-          transition.hidden = true;
-          transition.style.backgroundImage = "";
-        }
+        // The cover stays: First Planet hides the whole Tower root once it is live (loader.js).
         if (status) status.textContent = "ПОДГОТОВКА FIRST PLANET…";
         root.dispatchEvent(new CustomEvent("bcm:tower:planet-ready", { detail }));
       };
 
-      const url = landingClip();
-      const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      if (!url || !transitionVideo || reduceMotion) {
-        finish();
-        return;
-      }
-
+      // Owner 24.11.2026: the landing film belongs to the Tower entry (before the single / multi
+      // menu); after the descent we are already on the planet, coming down the mountain. No film
+      // here: a cover with the planet's name stays up until First Planet is live, so the pilot is
+      // never seen stuck at the bottom while the island loads.
       if (transition) {
         transition.hidden = false;
         transition.style.backgroundImage = "";
       }
       const label = root.querySelector(".bcm-tower-transition-label");
-      if (label) label.textContent = "ПОСАДКА · " + (PLANET_TITLES[landingPlanet()] || "FIRST PLANET");
-
-      transitionVideo.pause();
-      transitionVideo.muted = true;
-      transitionVideo.defaultMuted = true;
-      transitionVideo.setAttribute("muted", "");
-      transitionVideo.setAttribute("playsinline", "");
-      transitionVideo.setAttribute("webkit-playsinline", "");
-      transitionVideo.playsInline = true;
-      transitionVideo.preload = "auto";
-      transitionVideo.style.opacity = "0";
-
-      let playbackRequested = false;
-      const requestPlayback = () => {
-        if (playbackRequested || completed || transitionVideo.readyState < 2) return;
-        playbackRequested = true;
-        try { transitionVideo.currentTime = 0; } catch (e) {}
-        const result = transitionVideo.play();
-        if (result && typeof result.catch === "function") result.catch(finish);
-      };
-
-      transitionVideo.onplaying = () => {
-        if (!completed) transitionVideo.style.opacity = "1";
-      };
-      transitionVideo.onloadeddata = requestPlayback;
-      transitionVideo.oncanplay = requestPlayback;
-      transitionVideo.onended = finish;
-      transitionVideo.onerror = finish;
-      transitionVideo.src = url;
-      transitionVideo.load();
-      if (transitionVideo.readyState >= 2) requestPlayback();
+      if (label) label.textContent = "СПУСК НА ПОВЕРХНОСТЬ · " + (PLANET_TITLES[landingPlanet()] || "FIRST PLANET");
+      window.setTimeout(finish, 350);
     }
 
     function updateHud() {
@@ -2886,9 +2809,12 @@
     }
 
     function transitionUrl() {
-      // Tower entry uses tower.mp4 itself; this is deliberately not a fallback
-      // to one of the Mini-Sim portal clips.
-      return CONFIG.transition || "";
+      // Owner 24.11.2026: the landing plays at the Tower entry, before the menu. ONI CSS (Fable,
+      // the start) lands with tower.mp4 as before; a planet with its own landing film (Opus) plays
+      // it here instead of a copy of the ONI CSS landing. Never a Mini-Sim portal clip.
+      const id = landingPlanet();
+      const own = id !== "fable" && CONFIG.planetTransitions ? CONFIG.planetTransitions[id] : "";
+      return String(own || CONFIG.transition || "");
     }
 
     function primeTransitionVideo() {

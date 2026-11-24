@@ -110,8 +110,16 @@ test("Tower plays the planet clip on landing, reversed on ascent, and tells Firs
   const tower = read("mini-sim/tower/assets/js/tower.js");
   const handoff = tower.slice(tower.indexOf("function beginFirstPlanetHandoff()"), tower.indexOf("function updateHud()"));
   assert.ok(handoff.length > 100);
-  assert.doesNotMatch(handoff, /String\(CONFIG\.planetTransition \|\| ""\)/, "the landing still plays onicss.mp4 on every planet");
-  assert.match(handoff, /landingClip\(/);
+  // Owner 24.11.2026: "анимация приземления запускается не перед меню single или multi перед башней,
+  // а уже после — это неправильно … на деле на планете мы уже в Tower, просто спускаемся с горы".
+  // The landing film plays at the Tower entry (before the menu); after the descent there is no
+  // film, only a cover that stays up until the planet is live (no pilot stuck at the bottom).
+  assert.doesNotMatch(handoff, /landingClip\(\)/, "the landing film still plays after the Tower descent");
+  assert.match(handoff, /СПУСК НА ПОВЕРХНОСТЬ/, "no cover while the planet loads: the pilot hangs at the bottom");
+  const entry = tower.slice(tower.indexOf("function transitionUrl()"), tower.indexOf("function primeTransitionVideo()"));
+  assert.match(entry, /CONFIG\.planetTransitions/, "the Tower entry plays tower.mp4 (ONI CSS) on every planet");
+  const loader = read("mini-sim/first-planet/loader.js");
+  assert.match(loader, /bcm-tower-transition/, "a failed planet load leaves the cover over the Tower");
   const reverse = tower.slice(tower.indexOf("function beginReverseSpaceLabyrinthReturn()"), tower.indexOf("function currentPlanetDetail("));
   assert.ok(reverse.length > 100);
   assert.doesNotMatch(reverse, /String\(CONFIG\.planetTransition \|\| ""\)/, "the ascent still plays onicss.mp4 reversed on every planet");
