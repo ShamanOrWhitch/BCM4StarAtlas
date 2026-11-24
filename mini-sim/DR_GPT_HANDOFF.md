@@ -1,10 +1,11 @@
 # DR.GPT — инженерная передача BCM4StarAtlas
 
-Дата сверки: 15 ноября 2026  
+Дата последней сверки: 24 ноября 2026  
 Репозиторий: https://github.com/ShamanOrWhitch/BCM4StarAtlas  
-Рабочая ветка по прямому указанию владельца: main  
-Последний проверенный runtime/QA HEAD Mini-Sim 0.14.6: 73c540c161b9ec1a1c8a7dd0d9c251f9eb9bff9c  
-Текущие версии из исходников: Mini-Sim 0.14.6; Tower 0.2.80.
+Рабочая ветка по прямому указанию владельца: main (без feature-веток и PR)  
+Текущий исходный HEAD после Tower hotfix и документации: см. последний commit в main; runtime hotfix: [f5fa4f4](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/f5fa4f471ca43b314cd922082c46abeda0c83c3a), Tower cache: [23d7cda](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/23d7cda2ed5741243fade968a557476018c45e62).  
+Текущие версии из исходников: Mini-Sim 0.16.28; Tower 0.2.91.  
+**Важно:** hotfix D-105 / WORK LOCK [#170](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/170) внесён в main, но итоговый CI, реальный геймпад и production WordPress ещё не подтверждены. Ниже разделы 0.14.6 и старше — историческая база, не текущий runtime baseline.
 
 Этот документ — долговременная передача контекста для GPT, SYNTX, Grok и других AI-агентов проекта. Он не заменяет сверку актуального кода, Git-коммитов, Issues и PR перед каждой задачей. При расхождении этого документа с более свежим прямым указанием владельца приоритет имеет указание владельца; при расхождении с текущим кодом приоритет имеет код и Git-история.
 
@@ -12,7 +13,7 @@
 
 ---
 
-## Финальный статус Mini-Sim 0.14.6 (15 ноября 2026)
+## Исторический финальный статус Mini-Sim 0.14.6 (15 ноября 2026)
 
 - Проверенный runtime/QA HEAD: [73c540c](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/73c540c161b9ec1a1c8a7dd0d9c251f9eb9bff9c). Основная реализация: [bfe7486](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/bfe7486b9b2e02beaf700a70c3956e2e37922b86); collision broadphase fix [7d2bdfc](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/7d2bdfc79c2ad86c39a2f3fbe57b535faa432e15); browser GLB probe [7431360](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/74313602ee3368857f800187c5276541d60fbe3a); standalone shell modules [73c540c](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/73c540c161b9ec1a1c8a7dd0d9c251f9eb9bff9c).
 - The 0.14.5 odometer and exact eight-slot ring/hysteresis remain intact; the window is 3 trailing/current/4 leading. Eight volumetric deterministic cluster instances per sector; component spheres reconstructed from disconnected GLB triangle islands; CPU broadphase + swept 3D collisions; shared templates survive slot eviction. Existing r128 runtime renders the scene.
