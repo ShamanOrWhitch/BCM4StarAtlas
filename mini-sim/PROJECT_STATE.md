@@ -1,3 +1,16 @@
+## Hotfix — Tower 0.2.91: общая мёртвая зона геймпада (24 ноября 2026)
+
+- **WORK LOCK:** [#170](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/170). **Decision:** D-105.
+- **Baseline:** Mini-Sim 0.16.28 / Tower 0.2.90.
+- **Причина:** аналоговая кривая Tower обнуляла наклон до 0.22, но цифровые направления включались от 0.16. В диапазоне 0.16–0.22 игрок получал полный цифровой поворот вместо нуля.
+- **Исправление:** `tower.js` использует один `TOWER_STICK_DEAD_ZONE = 0.22` для кривой и цифровых флагов; focused test проверяет 0.16 / 0.21 / 0.22 и сам стык с polling.
+- **Кеш:** `bcm-tower.php` поднят до Tower 0.2.91: WordPress enqueue для Tower JS/CSS использует `BCM_TOWER_VERSION`, не filemtime.
+- **Main:** [75b0506](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/75b05060bf2a60a596536724320ccc67b041808c) (runtime [f5fa4f4](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/f5fa4f471ca43b314cd922082c46abeda0c83c3a), cache [23d7cda](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/23d7cda2ed5741243fade968a557476018c45e62)).
+- **Проверка:** тест усилен; итоговый CI после hotfix ещё не подтверждён. Физический геймпад и production WordPress не проверялись.
+- Mini-Sim остаётся 0.16.28; Ring, Warp, Race, Crew Core и AUDIO FREEZE не менялись.
+
+---
+
 ## Patch — Mini-Sim 0.16.28: gamepad via crew-core schemes; Tower analog stick; ONI CSS restored; Twinsun two suns (24 November 2026)
 
 - **WORK LOCK:** [#169](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/169). Decision D-104.
