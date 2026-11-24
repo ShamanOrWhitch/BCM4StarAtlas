@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const tower = readFileSync(new URL("../mini-sim/tower/assets/js/tower.js", import.meta.url), "utf8");
+const towerPhp = readFileSync(new URL("../mini-sim/tower/bcm-tower.php", import.meta.url), "utf8");
 
 test("the Tower stick dead zone is shared by analog and digital movement", () => {
   const start = tower.indexOf("const TOWER_STICK_DEAD_ZONE");
@@ -22,6 +23,7 @@ test("the Tower stick dead zone is shared by analog and digital movement", () =>
   assert.equal(curve(1), 1);
   assert.equal(curve(-1), -1);
 
+  assert.match(towerPhp, /define\('BCM_TOWER_VERSION', '0\.2\.91'\)/, "Tower assets must invalidate the old 0.2.90 cache");
   assert.match(tower, /const dead = TOWER_STICK_DEAD_ZONE;/, "digital directions use a different dead zone");
   assert.match(tower, /controls\[i\]\.left = lx < -dead;\s*controls\[i\]\.right = lx > dead;\s*controls\[i\]\.up = ly < -dead;\s*controls\[i\]\.down = ly > dead;/);
   assert.doesNotMatch(tower, /const dead = 0\.16;/, "stale 0.16 digital threshold remains");
