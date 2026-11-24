@@ -34,7 +34,7 @@
       surface: { kind: "dunes", base: "#b8551e", band: "#ffb35a", accent: "#7a2e14", bands: 14 },
       ring: null,
       moons: [],
-      light: "#ffb15a", nebula: "#9a3a1a", stars: "#ffd9a8", keepStation: false, suns: 2
+      light: "#ffb15a", nebula: "#9a3a1a", stars: "#ffd9a8", keepStation: false, suns: 2, landing: true
     },
     // Opus: a pale amber limestone world with a thin white ring and one grey moon. Calm.
     opus: {
@@ -43,7 +43,7 @@
       surface: { kind: "terraces", base: "#d9c09a", band: "#f4e3bd", accent: "#4a6a52", bands: 6 },
       ring: { inner: 1.35, outer: 1.95, color: "#fff4e0", opacity: 0.55 },
       moons: [{ radius: 5, orbit: 88, speed: 0.03, color: "#c9d6e3" }],
-      light: "#fff1d6", nebula: "#2b3f63", stars: "#fff4e0", keepStation: false, suns: 1
+      light: "#fff1d6", nebula: "#2b3f63", stars: "#fff4e0", keepStation: false, suns: 1, landing: true
     },
     // Pearce (MUD CSS): a blue-green ocean world with white cloud swirls.
     pearce: {
@@ -118,6 +118,7 @@
       key.title = lore.name;
       key.ring = null;
       key.keepStation = false;
+      key.landing = false; // no landing planet of its own yet: no gate (it would land on Fable)
       key.base = { faction: lore.faction, x: lore.x, y: lore.y };
     }
     return key;
@@ -246,7 +247,7 @@
     return canvas;
   }
 
-  var state = { id: null, group: null, hidden: [], runtime: null, moons: [], planet: null, look: null };
+  var state = { id: null, group: null, hidden: [], runtime: null, moons: [], planet: null, look: null, gate: null, beacon: null };
 
   function clear() {
     if (state.group && state.group.parent) state.group.parent.remove(state.group);
@@ -261,6 +262,13 @@
     }
     state.hidden.forEach(function (obj) { obj.visible = true; obj.userData.bcmSectorHidden = false; });
     state.hidden = [];
+    // The ONI landing screen goes back where it stood.
+    if (state.gate) {
+      state.gate.mesh.position.copy(state.gate.home);
+      state.gate.mesh.visible = true;
+      state.gate = null;
+    }
+    state.beacon = null;
     state.group = null;
     state.moons = [];
     state.planet = null;
@@ -373,6 +381,37 @@
     state.look = look;
     state.runtime = runtime;
 
+    // Owner 24.11.2026: "зачем ты планету onicss подставляешь в каждый сектор". The landing gate is the
+    // ONI CSS video screen (the only mesh that turns to face the ship). Outside ONI CSS its picture is
+    // hidden. A planet sector puts its own beacon on the gate's spot (the trigger stays there); a lore
+    // sector with no landing planet moves the trigger far away, so nobody lands on Fable from there.
+    if (!look.keepStation) {
+      var gateMesh = null;
+      runtime.scene.traverse(function (obj) { if (!gateMesh && obj.userData && obj.userData.facePlayer) gateMesh = obj; });
+      if (gateMesh) {
+        state.gate = { mesh: gateMesh, home: gateMesh.position.clone() };
+        gateMesh.visible = false;
+        state.hidden.push(gateMesh);
+        if (look.landing) {
+          var beacon = new THREE.Group();
+          beacon.name = "sector-landing-beacon";
+          var ringMesh = new THREE.Mesh(
+            new THREE.TorusGeometry(6, 0.35, 8, 40),
+            new THREE.MeshBasicMaterial({ color: look.light, fog: false })
+          );
+          var core = new THREE.Mesh(
+            new THREE.SphereGeometry(1.4, 16, 12),
+            new THREE.MeshBasicMaterial({ color: look.light, fog: false })
+          );
+          beacon.add(ringMesh, core);
+          beacon.position.copy(state.gate.home);
+          group.add(beacon);
+          state.beacon = beacon;
+        } else {
+          gateMesh.position.set(state.gate.home.x, state.gate.home.y + 20000, state.gate.home.z);
+        }
+      }
+    }
     // Outside ONI CSS the ONI station (satellite, its traffic, the station sphere) is not in this sky.
     if (!look.keepStation) {
       runtime.scene.traverse(function (obj) {
@@ -399,6 +438,10 @@
       moon.position.set(c.x + Math.cos(moon.userData.phase) * o.orbit, c.y + Math.sin(moon.userData.phase) * o.orbit * 0.25, c.z + Math.sin(moon.userData.phase) * o.orbit);
     });
     state.hidden.forEach(function (obj) { if (obj.visible) obj.visible = false; });
+    if (state.beacon) {
+      state.beacon.rotation.y += dt * 0.8;
+      state.beacon.children[0].rotation.x = Math.PI / 2 + Math.sin(state.beacon.rotation.y) * 0.3;
+    }
     if (state.lightning && state.look.lightning) {
       var L = state.lightning;
       L.next -= dt;
@@ -413,6 +456,10 @@
     apply: apply,
     clear: clear,
     update: update,
-    current: function () { return state.id; }
+    current: function () { return state.id; },
+    /** What the approach to the landing gate is called here: the planet, or ONI CSS at home. */
+    landingLabel: function () {
+      return state.look && state.look.landing ? String(state.look.title).split(" · ")[0].toUpperCase() : "";
+    }
   };
 })(typeof window !== "undefined" ? window : globalThis);

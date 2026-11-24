@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.16.22",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.16.23",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -91,7 +91,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.16.22",
+      title: "SPACE LABYRINTH — 0.16.23",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -5563,7 +5563,9 @@
 
     if (interaction) {
       if (gate && gateDistance <= gateUiRadius) {
-        interaction.textContent = "ONICSS · " +
+        // Outside ONI CSS the gate is the sector planet's own landing (sector-look.js).
+        const landingName = (window.BCMSectorLook && window.BCMSectorLook.landingLabel()) || "ONICSS";
+        interaction.textContent = landingName + " · " +
           Math.max(0, Math.round(100 - (gateDistance / Math.max(1, gate.radius)) * 100)) + "%";
       } else {
         const portalUiThreshold = Number(config.towerApproach?.portalCoverageThreshold) || 0.60;
@@ -6979,7 +6981,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.16.22") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.16.23") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();

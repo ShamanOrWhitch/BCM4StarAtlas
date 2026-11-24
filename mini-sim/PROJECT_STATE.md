@@ -1,3 +1,11 @@
+## Patch — Mini-Sim 0.16.23: no ONI CSS screen outside ONI CSS (24 November 2026)
+
+- **Decision:** D-099.
+- **Gate:** the ONI landing screen is hidden outside ONI CSS. Twinsun and Opus get their own landing beacon and approach label; lore sectors have no gate.
+- **Checks:** regression 333/333, Edge probes PASS.
+
+---
+
 ## Patch — Mini-Sim 0.16.22: seeded star bases by faction; own space for lore sectors (24 November 2026)
 
 - **WORK LOCK:** [#165](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/165). Decision D-098.

@@ -42,3 +42,24 @@ test("the Warp dresses the sector on arrival, ONI CSS dresses Fable, the maze cl
   assert.match(php, /'bcm-sector-look', BCM_MINI_SIM_URL \. 'assets\/js\/sector-look\.js'/);
   assert.match(read("tools/minisim-qa/standalone-shell.html"), /sector-look\.js/);
 });
+
+// Owner 24.11.2026: "зачем ты планету onicss подставляешь в каждый сектор". The landing gate was the
+// ONI CSS video (onicss.mp4) in every sector. Outside ONI CSS the gate's ONI picture is hidden: a planet
+// sector gets its own landing beacon and label; a lore sector without a landing planet gets no gate.
+test("outside ONI CSS the ONI landing screen is gone: own beacon on planet sectors, no gate in lore sectors", () => {
+  const ctx = vm.createContext({ Math, Object, Array, Number, String, Map });
+  ctx.window = ctx;
+  vm.runInContext(read("mini-sim/assets/js/galia-lore.js"), ctx);
+  vm.runInContext(read("mini-sim/assets/js/sector-look.js"), ctx);
+  const S = ctx.BCMSectorLook;
+  assert.equal(S.lookFor("opus").landing, true, "Opus has no landing of its own");
+  assert.equal(S.lookFor("first").landing, true, "Twinsun has no landing of its own");
+  assert.equal(S.lookFor("fable").landing, undefined, "ONI CSS keeps its own screen");
+  assert.equal(S.lookFor("segal").landing, false, "a lore sector without a planet lands on Fable");
+  const src = read("mini-sim/assets/js/sector-look.js");
+  assert.match(src, /userData\.facePlayer/, "the ONI landing screen is not found");
+  assert.match(src, /sector-landing-beacon/, "no own landing beacon");
+  assert.equal(typeof S.landingLabel, "function");
+  const sim = read("mini-sim/assets/js/mini-sim.js");
+  assert.match(sim, /BCMSectorLook\.landingLabel\(\)/, "the approach still says ONICSS in every sector");
+});
