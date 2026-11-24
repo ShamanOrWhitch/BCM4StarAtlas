@@ -1,3 +1,16 @@
+## D-105 — Tower: единая мёртвая зона геймпада и cache version (24 ноября 2026)
+
+**Status:** Реализация в `main`; проверка итогового CI и физического контроллера ожидается. WORK LOCK [#170](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/170).
+
+- **Baseline:** Mini-Sim 0.16.28 / Tower 0.2.90, после D-104.
+- **Причина:** `towerStickCurve()` игнорировала ось до 0.22, но `pollGamepads()` ставил `left/right/up/down` уже от 0.16. В промежутке 0.16–0.22 `updatePlayer()` выбирал цифровое значение ±1, то есть резкий полный поворот.
+- **Решение:** один `TOWER_STICK_DEAD_ZONE = 0.22` управляет и аналоговой кривой, и цифровыми флагами. Тест теперь отдельно проверяет границы 0.16, 0.21, 0.22, плавный отклик 0.4 и полный ход ±1, а также общий порог в polling.
+- **Cache:** Tower JS подключается с `BCM_TOWER_VERSION`, не filemtime. Поэтому `mini-sim/tower/bcm-tower.php` обновлён до **0.2.91**; Mini-Sim остаётся **0.16.28**.
+- **Commits:** runtime [f5fa4f4](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/f5fa4f471ca43b314cd922082c46abeda0c83c3a), cache [23d7cda](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/23d7cda2ed5741243fade968a557476018c45e62), tests [75b0506](https://github.com/ShamanOrWhitch/BCM4StarAtlas/commit/75b05060bf2a60a596536724320ccc67b041808c).
+- **Не проверено:** Actions после hotfix, физический геймпад, живой WordPress. Не закрывать lock и не писать USER-CONFIRMED до приёмки.
+
+---
+
 ## D-104 — Геймпад по схемам crew-core; Tower стик; ONI CSS без вида Fable; Twinsun два солнца; HUD Warp (24 ноября 2026)
 
 **Status:** Реализовано, Mini-Sim `0.16.28`, WORK LOCK [#169](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/169). Lock открыт после начала правок — ошибка процесса.
