@@ -33,11 +33,12 @@ test("the Warp dresses the sector on arrival, ONI CSS dresses Fable, the maze cl
   const z = Number((arrive.match(/engine\.teleport\(\{ x: 0, y: 0, z: (-?[\d.]+)/) || [])[1]);
   assert.ok(z < -84.5, `a planet sector arrival puts the ship back in the start hangar (z ${z})`);
   const home = warp.slice(warp.indexOf("function returnToOniCss("), warp.indexOf("function returnToOniCss(") + 400);
-  assert.match(home, /dressSector\("fable"\)/);
+  // 24.11.2026 (owner): ONI CSS keeps its own station and planet — the return clears the sector dress.
+  assert.match(home, /dressSector\(null\)/);
   assert.match(warp, /function enterAsteroidMaze\(\) \{[\s\S]{0,200}dressSector\(null\)/);
   const sim = read("mini-sim/assets/js/mini-sim.js");
   assert.match(sim, /BCMSectorLook\.update\(dt\)/);
-  assert.match(sim, /BCMSectorLook\.apply\(\{ scene, THREE: window\.THREE \}, "fable"\)/);
+  assert.doesNotMatch(sim, /BCMSectorLook\.apply\(\{ scene, THREE: window\.THREE \}, "fable"\)/, "ONI CSS is dressed as Fable again");
   const php = read("mini-sim/bcm-mini-sim.php");
   assert.match(php, /'bcm-sector-look', BCM_MINI_SIM_URL \. 'assets\/js\/sector-look\.js'/);
   assert.match(read("tools/minisim-qa/standalone-shell.html"), /sector-look\.js/);

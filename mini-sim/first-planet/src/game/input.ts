@@ -2,8 +2,15 @@ export const held = new Set<string>();
 
 let forced: Set<string> | null = null;
 
+/** Keys pressed on the gamepad (gamepad.ts); they add to the keyboard. */
+export const padKeysHeld = new Set<string>();
+
 export function activeKeys() {
-  return forced ?? held;
+  if (forced) return forced;
+  if (!padKeysHeld.size) return held;
+  const both = new Set(held);
+  padKeysHeld.forEach((k) => both.add(k));
+  return both;
 }
 
 export function setForced(codes: string[] | null) {

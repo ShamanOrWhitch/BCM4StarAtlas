@@ -220,7 +220,9 @@ export function createIsland(
   gold.position.set(78, 42, -40);
   const rose = sunSprite(planet.moonSprite.color, planet.moonSprite.size);
   rose.position.set(-62, 30, -90);
-  scene.add(gold, rose);
+  // Twinsun (owner 24.11.2026: "на Twinsun теперь 3 солнца"): the second sun replaces the moon sprite.
+  scene.add(gold);
+  if (!planet.extras?.twinSun) scene.add(rose);
   // Twinsun (owner 23.11.2026): a second sun, smaller and whiter, low over the sea.
   if (planet.extras?.twinSun) {
     const twin = sunSprite(planet.extras.twinSun.color, planet.extras.twinSun.size);

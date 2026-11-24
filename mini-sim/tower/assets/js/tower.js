@@ -2015,13 +2015,15 @@
       p.vy -= gravity * dt;
 
       let turn = (c.right ? 1 : 0) - (c.left ? 1 : 0);
+      if (c.gamepad && Number.isFinite(c.stickX) && (c.stickX !== 0 || turn === 0)) turn = c.stickX;
       if (index === 0) {
         const tiltTurn = towerTiltTurn();
         if (Math.abs(tiltTurn) > Math.abs(turn)) turn = tiltTurn;
       }
       let trim = (c.up ? 1 : 0) - (c.down ? 1 : 0);
-      // Keep gamepad response unchanged; keyboard and touch are less twitchy.
-      const manualInputScale = c.gamepad ? 1 : 0.84;
+      if (c.gamepad && Number.isFinite(c.stickY) && (c.stickY !== 0 || trim === 0)) trim = c.stickY;
+      // Gamepad: the analog curve above already softens it; keyboard and touch are less twitchy.
+      const manualInputScale = c.gamepad ? 0.78 : 0.84;
       turn *= manualInputScale;
       trim *= manualInputScale;
 
@@ -3321,16 +3323,38 @@
       } else {
         gamepadLine = "Управление · левый стик — поворот/высота · A — прыжок · X — действие · Y — новый спуск";
       }
-      if (gamepadHelp) gamepadHelp.textContent = gamepadLine;
+      if (gamepadHelp) {
+        gamepadHelp.textContent = gamepadLine;
+        flashControlHelp(gamepadHelp);
+      }
 
       if (menuGamepadHelp) {
         menuGamepadHelp.textContent = "Геймпад: левый стик — поворот/высота · A — прыжок · X — действие · Y — новый спуск. В MULTI: один геймпад — P2, два — P1/P2.";
       }
       if (touchHelp) {
+        flashControlHelp(touchHelp);
         touchHelp.textContent = mode === "multi"
           ? "Управление · P1: наклон + ПРЫЖОК · P2: ◀ / ▶ + JET. Кто первым спустится вниз?"
           : "Управление · наклон телефона — поворот башни · ПРЫЖОК — джетпак";
       }
+    }
+
+    /** Analog stick: dead zone 0.22, squared response, sign kept (−1…1). */
+    function towerStickCurve(v) {
+      const a = Math.abs(Number(v) || 0);
+      if (a < 0.22) return 0;
+      const t = Math.min(1, (a - 0.22) / 0.78);
+      return Math.sign(v) * t * t;
+    }
+
+    // Owner 24.11.2026: "информация по управлению, буквы забивают экран; достаточно дать время рассказать
+    // по управлению, не надо постоянно". The control line shows for a few seconds, then fades.
+    function flashControlHelp(el) {
+      if (!el) return;
+      el.style.transition = "opacity .6s ease";
+      el.style.opacity = "1";
+      window.clearTimeout(el.__bcmHelpTimer);
+      el.__bcmHelpTimer = window.setTimeout(() => { el.style.opacity = "0"; }, 6000);
     }
 
     function pollGamepads() {
@@ -3421,6 +3445,10 @@
         controls[i].right = lx > dead;
         controls[i].up = ly < -dead;
         controls[i].down = ly > dead;
+        // Owner 24.11.2026: "чувствительность в Tower на gamepad зашкаливает". The stick is analog now:
+        // a wider dead zone and a squared curve, so a light push turns slowly and a full push turns fast.
+        controls[i].stickX = towerStickCurve(lx);
+        controls[i].stickY = towerStickCurve(-ly);
 
         const jumpPressed = !!pad.buttons?.[0]?.pressed;
         const interactPressed = !!pad.buttons?.[2]?.pressed;

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Compass, Gauge, Pause, RotateCcw } from "lucide-react";
 import { bindKeyboard, setForced, tiltEnabled, toggleTilt } from "@/game/input";
+import { bindGamepad } from "@/game/gamepad";
 import { createIsland, type IslandWorld, type Phase } from "@/game/island/scene";
 import { planetContent } from "@/game/island/content";
 import { planetLook } from "@/game/island/planet";
@@ -157,7 +158,9 @@ export function DesertIsland({
       }
     };
     frame = requestAnimationFrame(loop);
-    const unbind = bindKeyboard(window);
+    const unbindKeys = bindKeyboard(window);
+    const unbindPad = bindGamepad(window, "island");
+    const unbind = () => { unbindKeys(); unbindPad(); };
     const onKey = (event: KeyboardEvent) => {
       if (event.code !== "Escape" || event.repeat) return;
       if (phaseRef.current === "play") {
@@ -203,7 +206,7 @@ export function DesertIsland({
       ) : null}
 
       {phase === "gate" ? (
-        <section className="absolute inset-x-0 bottom-0 z-10 max-h-[70dvh] overflow-y-auto border-t border-line bg-surface/92 p-5 backdrop-blur-md md:inset-y-0 md:left-0 md:max-h-none md:w-96 md:border-t-0 md:border-r">
+        <section data-gamepad-menu className="absolute inset-x-0 bottom-0 z-10 max-h-[70dvh] overflow-y-auto border-t border-line bg-surface/92 p-5 backdrop-blur-md md:inset-y-0 md:left-0 md:max-h-none md:w-96 md:border-t-0 md:border-r">
           <p className="text-xs font-medium tracking-widest text-primary uppercase">
             {look.kicker}
           </p>
@@ -467,7 +470,7 @@ export function DesertIsland({
       ) : null}
 
       {talk && phase === "play" ? (
-        <section className="absolute inset-x-3 bottom-3 z-30 rounded-2xl border border-line bg-surface/95 p-4 md:inset-x-auto md:bottom-6 md:left-1/2 md:w-[28rem] md:-translate-x-1/2">
+        <section data-gamepad-menu className="absolute inset-x-3 bottom-3 z-30 rounded-2xl border border-line bg-surface/95 p-4 md:inset-x-auto md:bottom-6 md:left-1/2 md:w-[28rem] md:-translate-x-1/2">
           <p className="text-xs tracking-widest text-primary uppercase">{talk.who}</p>
           <p className="mt-2 text-sm text-fg">{talk.pages[talk.i]}</p>
           <button
@@ -506,7 +509,7 @@ export function DesertIsland({
       ) : null}
 
       {phase === "pause" ? (
-        <section className="absolute inset-0 z-30 grid place-items-center bg-bg/55 p-4">
+        <section data-gamepad-menu className="absolute inset-0 z-30 grid place-items-center bg-bg/55 p-4">
           <div className="w-full max-w-sm rounded-2xl border border-line bg-surface p-5">
             <h2 className="font-display text-4xl leading-none">Пауза</h2>
             <p className="mt-2 text-sm text-muted">

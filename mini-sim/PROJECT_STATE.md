@@ -1,3 +1,11 @@
+## Patch — Mini-Sim 0.16.28: gamepad via crew-core schemes; Tower analog stick; ONI CSS restored; Twinsun two suns (24 November 2026)
+
+- **WORK LOCK:** [#169](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/169). Decision D-104.
+- **Bugs:** BUG-025…033 logged.
+- **Checks:** regression 349/349, UI layer PASS.
+
+---
+
 ## Patch — Mini-Sim 0.16.26: Core lore read; Pearce and Ioki quests; station contracts (24 November 2026)
 
 - **WORK LOCK:** [#168](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/168). Decision D-102.

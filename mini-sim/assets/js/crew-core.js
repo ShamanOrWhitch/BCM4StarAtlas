@@ -735,6 +735,73 @@
      this adapter and consume one action intent; they do not maintain their own
      keyboard/gamepad/touch action tables. One-shot actions are latched until the
      next read, so a quick tap between rendered frames is not lost. */
+  /* ---------------------------------------------------------------------------
+     Control schemes by game form (owner 24.11.2026: "управление должно быть прописано не для каждой
+     планеты отдельно, а для разных игр в crew-core и подгружено нужное по форме уровня").
+     One table per kind of game; a level asks for its form and gets the gamepad → key mapping.
+       island — walking and riding on a planet (First Planet, any planet; Opus fire on B)
+       race   — Shoal Race: RT throttle, LT brake, A drift, X item
+     Stick and d-pad give W A S D in every form; Start is always Escape (pause).
+     ------------------------------------------------------------------------- */
+  const CONTROL_SCHEMES = {
+    island: {
+      title: "Остров",
+      buttons: [[0, "Space"], [2, "KeyE"], [3, "KeyF"], [1, "KeyX"], [5, "ShiftLeft"], [4, "KeyQ"], [8, "KeyC"], [11, "KeyT"], [7, "KeyW"], [6, "KeyS"]],
+      hint: "Стик — ходьба · A — прыжок/вверх · X — говорить · Y — сесть · RB — форсаж · Start — пауза"
+    },
+    race: {
+      title: "Гонка",
+      buttons: [[7, "KeyW"], [6, "KeyS"], [0, "Space"], [2, "KeyE"], [5, "ShiftLeft"], [3, "KeyV"]],
+      hint: "Стик — руль · RT — газ · LT — тормоз · A — дрифт · X — предмет · Start — пауза"
+    }
+  };
+  const PAD_DEAD = 0.35;
+  const PAD_TRIGGER = 0.3;
+
+  function controlScheme(form) {
+    return CONTROL_SCHEMES[form] || CONTROL_SCHEMES.island;
+  }
+
+  function padButtonDown(pad, i) {
+    const b = pad && pad.buttons && pad.buttons[i];
+    return !!b && (b.pressed || Number(b.value) > PAD_TRIGGER);
+  }
+
+  /** Keys the pad presses in this game form (the same codes the keyboard sends). */
+  function padKeysFor(form, pad) {
+    const keys = new Set();
+    if (!pad) return keys;
+    const x = Number(pad.axes && pad.axes[0]) || 0;
+    const y = Number(pad.axes && pad.axes[1]) || 0;
+    if (x < -PAD_DEAD || padButtonDown(pad, 14)) keys.add("KeyA");
+    if (x > PAD_DEAD || padButtonDown(pad, 15)) keys.add("KeyD");
+    if (y < -PAD_DEAD || padButtonDown(pad, 12)) keys.add("KeyW");
+    if (y > PAD_DEAD || padButtonDown(pad, 13)) keys.add("KeyS");
+    controlScheme(form).buttons.forEach(function (pair) { if (padButtonDown(pad, pair[0])) keys.add(pair[1]); });
+    return keys;
+  }
+
+  /** Menus: index of the nearest button rect in the pushed direction (stays put when none). */
+  function nextMenuFocus(rects, from, dir) {
+    const a = rects[from];
+    if (!a) return 0;
+    const ax = a.x + a.w / 2;
+    const ay = a.y + a.h / 2;
+    let best = from;
+    let bestScore = Infinity;
+    rects.forEach(function (r, i) {
+      if (i === from) return;
+      const dx = r.x + r.w / 2 - ax;
+      const dy = r.y + r.h / 2 - ay;
+      const along = dir === "up" ? -dy : dir === "down" ? dy : dir === "left" ? -dx : dx;
+      const across = dir === "up" || dir === "down" ? Math.abs(dx) : Math.abs(dy);
+      if (along <= 4) return;
+      const score = along + across * 2;
+      if (score < bestScore) { bestScore = score; best = i; }
+    });
+    return best;
+  }
+
   function createCrewControls(options) {
     const opts = options || {};
     const playerIndex = Math.max(0, Math.floor(Number(opts.playerIndex) || 0));
@@ -876,6 +943,10 @@
     crewLegParts: crewLegParts,
     crewFigureLayout: crewFigureLayout,
     createCrewLegs: createCrewLegs,
+    controlScheme: controlScheme,
+    padKeysFor: padKeysFor,
+    padButtonDown: padButtonDown,
+    nextMenuFocus: nextMenuFocus,
     applyCrewFigure: applyCrewFigure,
     officialCrewCutoutUrl: officialCrewCutoutUrl,
     crewCutout: crewCutout,

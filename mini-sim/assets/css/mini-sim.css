@@ -1161,6 +1161,13 @@
   pointer-events: none;
 }
 .bcm-mini-sim .bcm-warp-tube-hud h2 { font-size: 20px; }
+/* Owner 24.11.2026: "warp in progress засоряет обзор". The tunnel card is compact and see-through;
+   the kicker and the help line say their piece and fade out after a few seconds. */
+.bcm-mini-sim .bcm-warp-tube-hud { width: min(300px, calc(100% - 36px)); padding: 8px 10px; background: rgba(4, 10, 17, .42); border-color: rgba(123, 180, 207, .16); }
+.bcm-mini-sim .bcm-warp-tube-hud h2 { font-size: 14px; letter-spacing: .08em; opacity: .85; }
+.bcm-mini-sim .bcm-warp-tube-hud .bcm-warp-kicker,
+.bcm-mini-sim .bcm-warp-tube-hud .bcm-warp-tube-help { animation: bcmWarpHudFade .6s ease 5s forwards; }
+@keyframes bcmWarpHudFade { to { opacity: 0; height: 0; margin: 0; overflow: hidden; } }
 .bcm-mini-sim .bcm-warp-tube-meta {
   color: #9abacb;
   font: 10px/1.5 "IBM Plex Mono", Consolas, monospace;

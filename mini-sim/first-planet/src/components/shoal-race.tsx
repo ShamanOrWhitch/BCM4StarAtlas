@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Flag, Gauge, Pause, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { activeKeys, bindKeyboard, readDrive, setForced, tiltEnabled, toggleTilt } from "@/game/input";
+import { bindGamepad } from "@/game/gamepad";
 import { createRace, type Hud, type ItemKind, type Race } from "@/game/sim";
 import { MAX_RACE_LEVEL, loadRaceLevel, raceModeFor, recordRaceWin } from "@/game/race-modes";
 import { createWorld, paintMap, type Phase } from "@/game/world";
@@ -82,7 +83,9 @@ export function ShoalRace({
     const race = createRace(raceSeed, planet);
     raceRef.current = race;
     const world = createWorld(canvas);
-    const unbind = bindKeyboard(window);
+    const unbindKeys = bindKeyboard(window);
+    const unbindPad = bindGamepad(window, "race");
+    const unbind = () => { unbindKeys(); unbindPad(); };
     let audio: { ctx: AudioContext; osc: OscillatorNode; gain: GainNode } | null = null;
 
     const probe = {
@@ -222,7 +225,7 @@ export function ShoalRace({
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
 
       {phase === "gate" ? (
-        <section className="absolute inset-x-0 bottom-0 z-10 max-h-96 overflow-y-auto border-t border-line bg-surface/92 p-5 backdrop-blur-md md:inset-y-0 md:left-0 md:max-h-none md:w-96 md:border-t-0 md:border-r">
+        <section data-gamepad-menu className="absolute inset-x-0 bottom-0 z-10 max-h-96 overflow-y-auto border-t border-line bg-surface/92 p-5 backdrop-blur-md md:inset-y-0 md:left-0 md:max-h-none md:w-96 md:border-t-0 md:border-r">
           <p className="text-xs font-medium tracking-widest text-primary uppercase">
             {look.kicker}
           </p>
@@ -402,7 +405,7 @@ export function ShoalRace({
       ) : null}
 
       {phase === "finish" ? (
-        <section className="absolute inset-0 z-20 grid place-items-center bg-bg/55 p-4">
+        <section data-gamepad-menu className="absolute inset-0 z-20 grid place-items-center bg-bg/55 p-4">
           <div className="w-full max-w-md rounded-2xl border border-line bg-surface p-5 text-fg">
             <p className="text-xs tracking-widest text-primary uppercase">Финиш</p>
             <h2 className="font-display mt-1 text-4xl leading-none">
@@ -471,7 +474,7 @@ function Overlay({
   onSecondary: () => void;
 }) {
   return (
-    <section className="absolute inset-0 z-20 grid place-items-center bg-bg/55 p-4">
+    <section data-gamepad-menu className="absolute inset-0 z-20 grid place-items-center bg-bg/55 p-4">
       <div className="w-full max-w-sm rounded-2xl border border-line bg-surface p-5">
         <h2 className="font-display text-4xl leading-none">{title}</h2>
         <p className="mt-2 text-sm text-muted">{text}</p>

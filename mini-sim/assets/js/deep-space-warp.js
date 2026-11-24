@@ -2357,7 +2357,8 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       const engine = api();
       disposeMaze();
       rememberPlace(null);
-      dressSector("fable");
+      // Owner 24.11.2026: ONI CSS stays as it was — its own station and planet, no sector dress.
+      dressSector(null);
       const previous = state.nav || readNavigation();
       const adapter = previous && previous.adapter;
       let homeRecord = null;

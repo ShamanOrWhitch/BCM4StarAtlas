@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.16.27",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.16.28",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -91,7 +91,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.16.27",
+      title: "SPACE LABYRINTH — 0.16.28",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -2976,10 +2976,8 @@
     parent.add(group);
     spaceSatellite.group = group;
     buildSpaceTraffic(group);
-    // The start is at ONI CSS, where Fable stands: dress the sector at once (sector-look.js).
-    if (window.BCMSectorLook && !window.BCMSectorLook.current()) {
-      window.BCMSectorLook.apply({ scene, THREE: window.THREE }, "fable");
-    }
+    // Owner 24.11.2026: "у ONI CSS опять кто-то испортил спутник текстурой фиолетовой планеты… ONI CSS как
+    // планета со станцией была самодостаточна" — the start sector keeps its own look (no sector dress).
 
     const starGeometry = new THREE.BufferGeometry();
     const starPoints = [];
@@ -7002,7 +7000,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.16.27") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.16.28") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();

@@ -71,7 +71,8 @@ test("Tower seed generation is gentler; keyboard/touch slow down without slowing
   assert.match(tower, /temperament < 0\.28 \? 0\.87 : 0\.78/);
   assert.match(tower, /const sideCount = 1 \+ Math\.floor\(rand\(\) \* 2\)/);
   assert.match(tower, /objectRoll < 0\.22/);
-  assert.match(tower, /const manualInputScale = c\.gamepad \? 1 : 0\.84/);
+  // 24.11.2026 (owner: "чувствительность в Tower на gamepad зашкаливает"): the pad is analog and softer.
+  assert.match(tower, /const manualInputScale = c\.gamepad \? 0\.78 : 0\.84/);
   assert.match(tower, /const count = 38;/);
   assert.match(tower, /const platformWidth = 3\.23;/);
   assert.match(tower, /const footContactReach = 0\.32;/);
