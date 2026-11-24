@@ -1,3 +1,12 @@
+## Patch — Mini-Sim 0.16.19: textures capped at 1024 px (24 November 2026)
+
+- **WORK LOCK:** [#163](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/163). Decision D-095.
+- **Change:** 80 images downscaled; same names and formats; 120 MB → 81 MB.
+- **Pending:** videos and audio — need ffmpeg (download needs owner OK); audio edit deny in settings.
+- **Checks:** regression 325/325, transitions PASS.
+
+---
+
 ## Patch — Mini-Sim 0.16.18: own space for every planet sector; Pearce and Ioki reliefs (24 November 2026)
 
 - **WORK LOCK:** [#162](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/162). Decision D-094.
