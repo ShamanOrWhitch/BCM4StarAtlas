@@ -1,3 +1,17 @@
+## Patch — Mini-Sim 0.16.24: planet rules on foot (24 November 2026)
+
+- **WORK LOCK:** [#166](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/166). Decision D-100.
+- **`island/planet-rules.ts` (new):**
+  - Twinsun: heat and shade;
+  - Ioki: low gravity;
+  - Pearce: swimming on a breath meter.
+- **Sim and HUD:** `sim.ts` and the HUD are wired to the rules; `wp-dist` is rebuilt.
+- **Checks:**
+  - regression 337/337;
+  - Edge probe PASS.
+
+---
+
 ## Patch — Mini-Sim 0.16.23: no ONI CSS screen outside ONI CSS (24 November 2026)
 
 - **Decision:** D-099.

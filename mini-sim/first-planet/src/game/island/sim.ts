@@ -22,6 +22,7 @@ import {
   surfaceY,
   type Aabb,
 } from "./terrain";
+import { HEAT, createBody, rulesFor, shoreFor, stepHeat, stepWater, type PlanetBody } from "./planet-rules";
 import { buyUpgrade, captureNode, createCarpet, nextUpgrade, stepCarpet, type CarpetState } from "./carpet";
 import { planetContent, type PlanetContent, type QuestKind } from "./content";
 
@@ -71,6 +72,8 @@ export type IslandHud = {
   selectedTape: string;
   nearTapeDeck: boolean;
   /** Planet Opus flight loop (IDEA-026 step 1); null on other planets. */
+  /** Planet rules on foot (planet-rules.ts): heat on Twinsun, breath on Pearce. */
+  rules: { hint: string; heat: number | null; breath: number | null; overheated: boolean; swimming: boolean; lowGravity: boolean };
   carpet: null | {
     energy: number;
     energyMax: number;
@@ -250,6 +253,9 @@ export function createSim(seed = 0, planet?: string) {
     content,
     /** Opus: the ship flies as a carpet over the ground (IDEA-026 step 1). Other planets: null. */
     carpet: (planet === "opus" ? createCarpet(surfaceY) : null) as CarpetState | null,
+    /** Owner 24.11.2026: each planet plays differently on foot (planet-rules.ts). */
+    rules: rulesFor(planet),
+    body: createBody(SPAWN.x, SPAWN.z) as PlanetBody,
     coins: save.coins,
     chest: save.chest,
     tapes: save.tapes.slice(),
@@ -583,6 +589,7 @@ export function createSim(seed = 0, planet?: string) {
       else if (hit(TOWER_GATE.x, TOWER_GATE.z, TOWER_GATE.radius)) this.prompt = "E — маяк · подъём в Tower";
       else if (hit(RING.x, RING.z, 3.4)) this.prompt = "E — берег цитадели, гонка";
       else if (this.mode === "foot" && hit(this.bikeX, this.bikeZ, 3.8)) this.prompt = "F — сесть на байк";
+      else if (this.mode === "foot" && this.body && this.body.noteFor > 0) this.prompt = this.body.note;
       // Owner 16.11.2026: "быстро сказал управление и всё" — the keys are said
       // once when the ride or its mode changes, then the hint leaves the screen.
       else if (this.mode === "bike" && this.carpet?.atBase) {
@@ -681,7 +688,9 @@ export function createSim(seed = 0, planet?: string) {
         const boost = keys.has("ShiftLeft") || keys.has("ShiftRight");
         const pace =
           this.mood === "sport" ? 9.4 : this.mood === "stealth" ? 2.7 : this.mood === "fight" ? 6.6 : 5.6;
-        const max = this.mode === "bike" ? (boost ? 28 : 16) : pace;
+        // Overheated (Twinsun) or swimming (Pearce): a slower walk.
+        const footFactor = (this.body.overheated ? HEAT.slow : 1) * (this.body.swimming ? 0.5 : 1);
+        const max = this.mode === "bike" ? (boost ? 28 : 16) : pace * footFactor;
         const accel = this.mode === "bike" ? 16 : 24;
         const target = wish * (this.mode === "foot" && brake && !throttle ? 3.2 : max);
         const signedTarget = throttle ? target : brake ? - (this.mode === "foot" ? 3.2 : 7) : 0;
@@ -702,7 +711,8 @@ export function createSim(seed = 0, planet?: string) {
 
         let nx = this.x + this.vx * dt;
         let nz = this.z + this.vz * dt;
-        if (this.mode === "foot" || (this.mode === "bike" && !this.flightMode)) {
+        // Pearce: on foot the water is not a wall — the pilot swims (planet-rules.ts).
+        if ((this.mode === "foot" && !this.rules.swim) || (this.mode === "bike" && !this.flightMode)) {
           const nextH = footY(nx, nz, this.y);
           const hereH = footY(this.x, this.z, this.y);
           if (nextH < -0.48 && nextH < hereH - 0.02) {
@@ -724,12 +734,27 @@ export function createSim(seed = 0, planet?: string) {
               this.dash = 0.22;
               this.vy = 3.4;
             } else {
-              this.vy = this.mood === "sport" ? 8.6 : 6.4;
+              this.vy = (this.mood === "sport" ? 8.6 : 6.4) * this.rules.jump;
             }
           }
-          this.vy -= 24 * dt;
+          // Ioki: low gravity and a slow fall (planet-rules.ts).
+          this.vy = Math.max(-this.rules.fallCap, this.vy - 24 * this.rules.gravity * dt);
           let ny = this.y + this.vy * dt;
-          const landed = footY(this.x, this.z, ny);
+          let landed = footY(this.x, this.z, ny);
+          if (this.rules.swim) {
+            const water = stepWater(this.body, this.x, this.z, landed, dt);
+            if (water.rescued) {
+              const shore = shoreFor(this.body);
+              this.x = shore.x;
+              this.z = shore.z;
+              this.vx = 0;
+              this.vz = 0;
+              landed = footY(this.x, this.z, ny);
+              ny = landed;
+            } else if (water.floatY !== null) {
+              landed = Math.max(landed, water.floatY);
+            }
+          }
           if (ny <= landed) {
             ny = landed;
             if (this.vy < 0) this.vy = 0;
@@ -779,6 +804,9 @@ export function createSim(seed = 0, planet?: string) {
         this.speed = 0;
         this.steer = 0;
       }
+      // Twinsun: heat under two suns, on foot in the open (planet-rules.ts).
+      if (this.rules.heat) stepHeat(this.body, this.x, this.z, this.mode === "foot", dt);
+      this.body.noteFor = Math.max(0, this.body.noteFor - dt);
       this.jumpPrev = keys.has("Space");
       this.refreshPrompt();
       this.saveAt += dt;
@@ -834,6 +862,14 @@ export function createSim(seed = 0, planet?: string) {
         ],
         selectedTape: this.selectedTape,
         nearTapeDeck: Math.hypot(this.x - STORY_BOX.x, this.z - STORY_BOX.z) < 6.5,
+        rules: {
+          hint: this.rules.hint,
+          heat: this.rules.heat ? this.body.heat : null,
+          breath: this.rules.swim ? this.body.breath : null,
+          overheated: this.body.overheated,
+          swimming: this.body.swimming,
+          lowGravity: this.rules.gravity < 1,
+        },
         carpet: this.carpet
           ? {
               energy: this.carpet.energy,

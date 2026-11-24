@@ -42,6 +42,7 @@ const EMPTY: IslandHud = {
   selectedTape: "",
   nearTapeDeck: false,
   carpet: null,
+  rules: { hint: "", heat: null, breath: null, overheated: false, swimming: false, lowGravity: false },
 };
 
 export function DesertIsland({
@@ -267,6 +268,23 @@ export function DesertIsland({
                 {hud.mode === "bike" ? ` · ${Math.round(hud.alt)} м` : ""}
               </p>
               <p className="mt-1 text-xs text-muted">Монеты {hud.coins}</p>
+              {hud.rules.heat !== null ? (
+                <div className="mt-2 space-y-1 text-xs" data-planet-heat>
+                  <div className="h-2 w-40 overflow-hidden rounded-full bg-bg/60">
+                    <div className={hud.rules.overheated ? "h-full bg-red-500" : "h-full bg-orange-400"} style={{ width: `${Math.round(hud.rules.heat)}%` }} />
+                  </div>
+                  <p className="text-muted">{hud.rules.overheated ? "Перегрев — в тень!" : `Жара ${Math.round(hud.rules.heat)}`}</p>
+                </div>
+              ) : null}
+              {hud.rules.breath !== null && hud.rules.swimming ? (
+                <div className="mt-2 space-y-1 text-xs" data-planet-breath>
+                  <div className="h-2 w-40 overflow-hidden rounded-full bg-bg/60">
+                    <div className="h-full bg-sky-400" style={{ width: `${Math.round(hud.rules.breath)}%` }} />
+                  </div>
+                  <p className="text-muted">Дыхание {Math.round(hud.rules.breath)}</p>
+                </div>
+              ) : null}
+              {hud.rules.lowGravity ? <p className="mt-1 text-xs text-muted">Низкая гравитация</p> : null}
               {hud.carpet && hud.mode === "bike" ? (
                 <div className="mt-2 space-y-1 text-xs" data-opus-carpet>
                   <div className="h-2 w-40 overflow-hidden rounded-full bg-bg/60">
