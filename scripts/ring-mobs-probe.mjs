@@ -90,6 +90,33 @@ try {
     await page.waitForTimeout(900);
     await page.screenshot({ path: resolve(out, "mobs-" + n + ".png") });
   }
+  // The attacks (owner 25.11.2026 "Атаки мобов"): a toxic pig's puddle and a tank's shell in the cell.
+  report.attacks = { puddle: 0, shell: 0 };
+  for (let n = 0; n < Math.max(14, cellCount) && !(report.attacks.puddle && report.attacks.shell); n += 1) {
+    await page.evaluate((k) => window.__BCM_RING_BOSS_QA__.enterCell(k), n);
+    await page.waitForTimeout(300);
+    const seen = await look();
+    seen.forEach((m) => { if (m.kind === "toxic") report.attacks.toxic = true; if (m.kind === "tank") report.attacks.tank = true; });
+    if (!seen.some((m) => /toxic|tank/.test(m.kind))) continue;
+    const middle = seen.reduce((sum, m) => sum + m.x, 0) / seen.length;
+    await page.evaluate((x) => window.__BCM_RING_BOSS_QA__.placePilot(x, 0), middle - 3.2);
+    for (let k = 0; k < 16; k += 1) {
+      const counts = await page.evaluate(() => {
+        const c = { puddle: 0, shell: 0 };
+        window.BCMiniSimAPI.getRuntime().scene.traverse((o) => {
+          if (!o.visible) return;
+          if (o.name === "ring-mob-puddle") c.puddle += 1;
+          if (o.name === "ring-mob-shell") c.shell += 1;
+        });
+        return c;
+      });
+      report.attacks.puddle = Math.max(report.attacks.puddle, counts.puddle);
+      if (counts.shell && !report.attacks.shell) await page.screenshot({ path: resolve(out, "attack-shell.png") });
+      if (counts.puddle && !report.attacks.puddleShot) { report.attacks.puddleShot = true; await page.screenshot({ path: resolve(out, "attack-puddle.png") }); }
+      report.attacks.shell = Math.max(report.attacks.shell, counts.shell);
+      await page.waitForTimeout(220);
+    }
+  }
   // The laser: a floor mob in line goes down after as many shots as its kind takes.
   report.laser = null;
   for (let n = 0; n < 14 && !report.laser; n += 1) {
@@ -123,7 +150,9 @@ try {
     list.some((m) => m.rise > 0.3 || m.highest > 1.5) && gaits.size >= 3 &&
     // Walkers stay on the floor (or float under 1 m in a purple cell); only the angel and spider go up.
     list.filter((m) => !/angel|spider/.test(m.kind)).every((m) => m.highest < 1.0) &&
-    !!(report.laser && report.laser.down) ? "PASS" : "FAIL";
+    !!(report.laser && report.laser.down) && // The kinds come from the maze seed: an attack is required when its mob is in the maze.
+    (report.attacks.puddle > 0 || !report.attacks.toxic) && (report.attacks.shell > 0 || !report.attacks.tank) &&
+    !!(report.attacks.toxic || report.attacks.tank) ? "PASS" : "FAIL";
 } catch (error) {
   report.failure = String(error?.message || error).split("\n")[0];
   await page.screenshot({ path: resolve(out, "failure.png") }).catch(() => {});
@@ -131,5 +160,5 @@ try {
   await writeFile(resolve(out, "report.json"), JSON.stringify(report, null, 2) + "\n");
   await browser.close();
 }
-console.log(JSON.stringify({ status: report.status, failure: report.failure, summary: report.summary, laser: report.laser }, null, 1));
+console.log(JSON.stringify({ status: report.status, failure: report.failure, summary: report.summary, laser: report.laser, attacks: report.attacks }, null, 1));
 process.exitCode = report.status === "PASS" ? 0 : 1;

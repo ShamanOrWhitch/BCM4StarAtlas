@@ -9,7 +9,14 @@
  *   const mob = BCMRingMobs.create(kind, { offset, dir, limit, astral });
  *   const out = mob.step(dt, { targetOffset, targetY, near });   // offsets from the cell centre, metres
  *   out = { kind, state, offset, y, facing, flash, hurts, box: { x0, x1, y0, y1 } }  (y from the floor)
- *   mob.hit() — one laser hit; true when the mob is down.
+ *   out.hazards = [{ kind: "puddle" | "shell", x0, x1, y0, y1 }] — what hurts besides the body.
+ *   mob.hit(fromOffset) — one laser hit from that side; true when the mob is down.
+ *
+ * Attacks (owner 25.11.2026 "Атаки мобов"), each after a tell, in a bounded zone, with an answer:
+ *   toxic  — leaves poison puddles (ankle high, about a metre; they dry up): jump over them.
+ *   tank   — stops and aims 0.6 s, then a shell flies along the floor: jump it.
+ *   spiky  — the back is all spikes: a shot from behind glances off; shoot it in the face.
+ *   angel  — hovers 0.5 s over a pilot below, swoops to the floor, climbs back: step aside.
  *
  * Kinds, in the order of the sheet (row by row):
  *   base     — walks.                          spiky    — walks slowly, two hits.
@@ -64,7 +71,8 @@
     var s = {
       kind: kind, hp: spec.hp, state: kind === "spider" ? "hang" : kind === "angel" ? "fly" : "walk",
       offset: Number(o.offset) || 0, dir: Number(o.dir) < 0 ? -1 : 1, v: 0,
-      y: kind === "spider" ? spec.hang : 0, t: 0, clock: 0, flash: 0, phase: (Number(o.phase) || 0)
+      y: kind === "spider" ? spec.hang : 0, t: 0, clock: 0, flash: 0, phase: (Number(o.phase) || 0),
+      puddles: [], shells: [], nextPuddle: 1.0, cooldown: 1.0, glance: 0
     };
     var height = spec.height;
     var width = height * ASPECT[KINDS.indexOf(kind)];
@@ -85,6 +93,8 @@
       s.t += d;
       s.clock += d;
       s.flash = Math.max(0, s.flash - d);
+      s.glance = Math.max(0, s.glance - d);
+      s.cooldown = Math.max(0, s.cooldown - d);
       var hurts = true;
       if (kind === "ice") {
         // Slides: speeds up and glides a little past the turn.
@@ -126,8 +136,46 @@
           if (s.y >= top) go("hang");
         }
       } else if (kind === "angel") {
-        patrol(spec.speed, d, limit + 1.2);
-        s.y = 1.25 + Math.sin(s.clock * 1.7 + s.phase) * 0.9;
+        var wave = 1.25 + Math.sin(s.clock * 1.7 + s.phase) * 0.9;
+        if (s.state === "fly") {
+          patrol(spec.speed, d, limit + 1.2);
+          s.y = wave;
+          if (near && !s.cooldown && Math.abs(tx - s.offset) < 1.2 && ty < 1) go("swoop-tell");
+        } else if (s.state === "swoop-tell") {
+          // The tell: it stops over the pilot and hangs there half a second.
+          if (s.t >= 0.5) go("swoop");
+        } else if (s.state === "swoop") {
+          s.y = Math.max(0.2, s.y - 6 * d);
+          if (s.y <= 0.2 && s.t > 0.1) go("rise");
+        } else if (s.state === "rise") {
+          s.y += 2.4 * d;
+          if (s.y >= wave) { s.y = wave; s.cooldown = 3; go("fly"); }
+        }
+      } else if (kind === "toxic") {
+        patrol(spec.speed, d, limit);
+        s.y = 0;
+        s.nextPuddle -= d;
+        if (s.nextPuddle <= 0) {
+          s.nextPuddle = 1.6;
+          s.puddles.push({ x: s.offset, age: 0 });
+          if (s.puddles.length > 3) s.puddles.shift();
+        }
+      } else if (kind === "tank") {
+        s.y = 0;
+        if (s.state === "walk") {
+          patrol(spec.speed, d, limit);
+          var ahead2 = (tx - s.offset) * (tx < s.offset ? -1 : 1);
+          if (near && !s.cooldown && ahead2 > 1 && ahead2 < 7.5 && Math.abs(ty) < 1.2) { s.dir = tx < s.offset ? -1 : 1; go("aim"); }
+        } else if (s.state === "aim") {
+          // The tell: it stops, turret on the pilot, for 0.6 s.
+          if (s.t >= 0.6) {
+            s.shells.push({ x: s.offset + s.dir * width * 0.5, dir: s.dir });
+            s.cooldown = 2.6;
+            go("recoil");
+          }
+        } else if (s.state === "recoil") {
+          if (s.t >= 0.3) go("walk");
+        }
       } else {
         patrol(spec.speed, d, limit);
         s.y = 0;
@@ -140,14 +188,25 @@
       // A small step hop while it walks on the floor; nothing in the air.
       var bob = moving && s.y < 0.05 && kind !== "ice" && kind !== "tank" ? Math.abs(Math.sin(s.clock * spec.speed * 4)) * 0.05 : 0;
       var half = width * 0.4;
+      var hazards = [];
+      s.puddles = s.puddles.filter(function (p) { p.age += d; return p.age < 3.2; });
+      s.puddles.forEach(function (p) { hazards.push({ kind: "puddle", x0: p.x - 0.5, x1: p.x + 0.5, y0: 0, y1: 0.3, age: p.age }); });
+      s.shells = s.shells.filter(function (sh) { sh.x += sh.dir * 5.5 * d; return Math.abs(sh.x) < chargeLimit + 1.5; });
+      s.shells.forEach(function (sh) { hazards.push({ kind: "shell", x0: sh.x - 0.25, x1: sh.x + 0.25, y0: lift + 0.15, y1: lift + 0.7, dir: sh.dir }); });
       return {
+        hazards: hazards, glance: s.glance,
         kind: kind, state: s.state, offset: s.offset, y: s.y + lift + bob, facing: facing, flash: s.flash, hp: s.hp,
         width: width, height: height, hurts: hurts,
         box: { x0: s.offset - half, x1: s.offset + half, y0: s.y + lift, y1: s.y + lift + height * 0.85 }
       };
     }
 
-    function hit() {
+    function hit(fromOffset) {
+      // The spiky pig's back is all spikes: a shot from behind glances off.
+      if (kind === "spiky" && Number.isFinite(fromOffset) && (fromOffset - s.offset) * s.dir < 0) {
+        s.glance = 0.3;
+        return false;
+      }
       s.hp -= 1;
       s.flash = 0.16;
       if (kind === "spider" && s.state === "hang") go("drop");

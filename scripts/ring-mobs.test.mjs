@@ -92,7 +92,7 @@ test("the Ring draws the mobs from the atlas, not boxes, and the beam and contac
   assert.doesNotMatch(src, /const mobGeo = new THREE\.BoxGeometry\(0\.7, 0\.9, 0\.5\)/, "the mobs are still boxes");
   assert.match(src, /ringBossAssetUrl\("ring-bosses\/mobs\.webp"\)/);
   assert.match(src, /window\.BCMRingMobs\.create\(mob\.kind,/);
-  assert.match(src, /if \(mob\.ai && !mob\.ai\.hit\(\)\) return;/, "one beam still downs every kind");
+  assert.match(src, /if \(mob\.ai && !mob\.ai\.hit\(player\.worldX - worldState\.cellPath\.homeX\)\) return;/, "one beam still downs every kind");
   assert.match(src, /mobArt\.byKind\[key\]\.image = loaded\.image;/, "the kinds made before the atlas arrived stay without a picture");
   const php = read("mini-sim/bcm-mini-sim.php");
   assert.match(php, /wp_enqueue_script\('bcm-ring-mobs'/);

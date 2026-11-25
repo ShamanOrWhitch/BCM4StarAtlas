@@ -11,6 +11,13 @@
 
 ---
 
+## Patch — Mini-Sim 0.16.35: Ring mob attacks — toxic puddles, tank shells, the spiky back, the angel swoop (25 November 2026)
+
+- **WORK LOCK:** [#177](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/177). Decision D-112, BUG-028.
+- **Checks:** regression 372/372; browser probe `ring-mobs-probe.mjs` PASS; standalone QA PASS (Edge).
+
+---
+
 ## Patch — Mini-Sim 0.16.34: the owner's pig mobs replace the Ring cell boxes, each kind with its own gait (25 November 2026)
 
 - **WORK LOCK:** [#176](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/176). Decision D-111, BUG-028.

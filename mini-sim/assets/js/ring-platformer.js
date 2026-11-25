@@ -2450,6 +2450,7 @@
             if (!mob.mesh) return;
             mob.mesh.visible = other === node && mob.alive && !node.large;
             if (mob.thread && other !== node) mob.thread.visible = false;
+            if (other !== node) hideMobHazards(mob);
           });
         });
         if (!nodeOverride) world.inLargeCell = !!node.large;
@@ -2968,11 +2969,13 @@
             const box = mob.out && mob.out.box;
             if (box && (start.y < box.y0 - 0.45 || start.y > box.y1 + 0.45)) return;
             // Tough kinds take more than one hit; each hit flashes the mob.
-            if (mob.ai && !mob.ai.hit()) return;
+            // The spiky pig takes a shot from behind on its spikes: the mob is told where it came from.
+            if (mob.ai && !mob.ai.hit(player.worldX - worldState.cellPath.homeX)) return;
             mob.alive = false;
             mob.mesh.visible = false;
             if (mob.thread) mob.thread.visible = false;
             mob.respawnAt = now + worldState.cellPath.respawnMs;
+            hideMobHazards(mob);
           });
         }
         for (const boss of worldState.bosses) {
@@ -3239,6 +3242,55 @@
         }
       }
 
+      // Puddles are low green ovals that fade as they dry; a shell is a hot orange ball.
+      const mobHazardLook = {};
+      function mobHazardMesh(kind, parent) {
+        if (!mobHazardLook[kind]) {
+          mobHazardLook[kind] = kind === "puddle"
+            ? { geometry: new THREE.CircleGeometry(0.5, 20), material: new THREE.MeshBasicMaterial({ color: 0x8dff3a, transparent: true, opacity: 0.8, depthWrite: false }) }
+            : { geometry: new THREE.SphereGeometry(0.22, 12, 10), material: new THREE.MeshBasicMaterial({ color: 0xffa040 }) };
+          worldState.specialGeometry.push(mobHazardLook[kind].geometry);
+          worldState.materials.push(mobHazardLook[kind].material);
+        }
+        const look = mobHazardLook[kind];
+        const mesh = new THREE.Mesh(look.geometry, kind === "puddle" ? look.material.clone() : look.material);
+        // The camera looks from the side: a puddle flat on the floor would be a line. It is a low
+        // oval facing the camera, ankle high, as wide as its zone.
+        if (kind === "puddle") { mesh.scale.set(1, 0.3, 1); worldState.materials.push(mesh.material); }
+        mesh.name = kind === "puddle" ? "ring-mob-puddle" : "ring-mob-shell";
+        mesh.renderOrder = 5;
+        parent.add(mesh);
+        return mesh;
+      }
+      function drawMobHazards(mob, out, path, now) {
+        const list = (out && out.hazards) || [];
+        mob.hazardMeshes = mob.hazardMeshes || [];
+        list.forEach((z, i) => {
+          let mesh = mob.hazardMeshes[i];
+          if (!mesh || mesh.name !== (z.kind === "puddle" ? "ring-mob-puddle" : "ring-mob-shell")) {
+            if (mesh) mesh.parent?.remove(mesh);
+            mesh = mob.hazardMeshes[i] = mobHazardMesh(z.kind, mob.mesh.parent || worldState.group);
+          }
+          const cx = path.homeX + (z.x0 + z.x1) / 2;
+          if (z.kind === "puddle") {
+            mesh.position.set(cx, 0.12, 0.7);
+            mesh.material.opacity = 0.8 * Math.min(1, (3.2 - (z.age || 0)) / 0.8);
+          } else {
+            mesh.position.set(cx, (z.y0 + z.y1) / 2, 0.62);
+            mesh.rotation.z -= 0.2 * (z.dir || 1);
+          }
+          mesh.visible = true;
+        });
+        for (let i = list.length; i < mob.hazardMeshes.length; i += 1) mob.hazardMeshes[i].visible = false;
+        if (out && out.glance > 0.28 && !mob.glancePopped) {
+          mob.glancePopped = true;
+          comicPop(window.BCMDialogue?.language === "en" ? "CLANG!" : "ДЗЫНЬ!", path.homeX + out.offset, out.y + 1.4);
+        } else if (out && !out.glance) mob.glancePopped = false;
+      }
+      function hideMobHazards(mob) {
+        (mob.hazardMeshes || []).forEach((mesh) => { mesh.visible = false; });
+      }
+
       function updateCellMobs(dt, now) {
         const path = worldState.cellPath;
         if (!path) return;
@@ -3255,6 +3307,7 @@
             if (!mob.alive) {
               mob.mesh.visible = false;
               if (mob.thread) mob.thread.visible = false;
+              hideMobHazards(mob);
               if (node.gate) return;
               if (now >= mob.respawnAt) { mob.alive = true; mob.ai = null; }
               else return;
@@ -3284,10 +3337,13 @@
               mob.thread.scale.y = Math.max(0.01, top - from);
               mob.thread.position.set(path.homeX + out.offset, (top + from) / 2, 0.44);
             }
+            // The mob's attacks (owner 25.11.2026 "Атаки мобов"): poison puddles and tank shells.
+            drawMobHazards(mob, out, path, now);
+            const touches = (z) => here.find((player) => player.worldX + 0.35 > path.homeX + z.x0 && player.worldX - 0.35 < path.homeX + z.x1 &&
+              player.worldY + 1.7 > z.y0 && player.worldY < z.y1);
+            (out.hazards || []).forEach((z) => { const victim = touches(z); if (victim) damagePlayer(victim, now); });
             if (!out.hurts) return;
-            const b = out.box;
-            const hit = here.find((player) => player.worldX + 0.35 > path.homeX + b.x0 && player.worldX - 0.35 < path.homeX + b.x1 &&
-              player.worldY + 1.7 > b.y0 && player.worldY < b.y1);
+            const hit = touches(out.box);
             if (hit) damagePlayer(hit, now);
           });
           if (node.gate && !(node.mobs || []).some((mob) => mob.alive)) node.gateCleared = true;
