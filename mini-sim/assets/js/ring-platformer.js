@@ -262,6 +262,48 @@
       6: "ring-bosses/video/transform-runner-stalker.mp4"
     };
     const RING_BOSS_VIDEO_MS = 5000;
+    // Owner 24.11.2026 (BUG-028): "меш оказался меньше видео перехода… размер следующего босса
+    // не совпал с переходом". Where the figure stands in the first and last frame of each clip
+    // (tools/ring-bosses/video-bounds.mjs): frame fractions [x0, y0, x1, y1], y from the top.
+    // The clip plane starts on the old form and ends on the new one, by height, floor and centre.
+    const RING_BOSS_VIDEO_FIGURE = {
+      2: { first: [0.092, 0.027, 0.873, 0.96], last: [0.106, 0.013, 0.87, 0.985] },
+      3: { first: [0.113, 0.014, 0.865, 0.986], last: [0.046, 0.017, 0.896, 0.933] },
+      4: { first: [0.046, 0.019, 0.896, 0.933], last: [0.088, 0.014, 0.906, 0.981] },
+      5: { first: [0.09, 0.014, 0.902, 0.981], last: [0.05, 0.028, 0.981, 0.956] },
+      6: { first: [0.05, 0.028, 0.981, 0.953], last: [0.225, 0, 0.754, 1] }
+    };
+    const RING_BOSS_VIDEO_ASPECT = 4 / 3;
+    // The clip plane that puts the figure box `box` on a form standing at { bottom, height, x }.
+    function ringBossVideoFit(box, form, aspect) {
+      const height = form.height / Math.max(0.05, box[3] - box[1]);
+      const width = height * aspect;
+      return { width, height, x: form.x - width * ((box[0] + box[2]) / 2 - 0.5), y: form.bottom + height * (box[3] - 0.5) };
+    }
+    // Where a form of the boss stands, in the boss group: its floor, full height and centre.
+    function ringBossFormFrame(boss, phaseIndex, bottom, x) {
+      const group = boss.phaseGroups[phaseIndex - 1];
+      const half = (group && group.userData.bcmGroundY) || 1.6;
+      return { bottom, height: half * 2, x };
+    }
+    // Where the new form will begin its own move: it appears there, not on the old form's spot.
+    function ringBossRevealPose(boss, phaseIndex) {
+      const api = window.BCMRingBossMoves;
+      if ((phaseIndex === 5 && window.BCMRingRunnerChase) || !api) return { x: boss.x, y: 0 };
+      const out = api.create(phaseIndex, { homeX: boss.homeX, seed: 1 }).step(0, { targetX: boss.x, targetY: 0 });
+      return { x: Number.isFinite(out.x) ? out.x : boss.x, y: Number(out.y) || 0 };
+    }
+    function placeRingBossTransformVideo(boss, k) {
+      const film = boss.transformVideo;
+      const figure = RING_BOSS_VIDEO_FIGURE[boss.phaseIndex];
+      if (!film || !figure) return;
+      const to = ringBossFormFrame(boss, boss.phaseIndex, boss.revealY || 0, 0);
+      const a = ringBossVideoFit(figure.first, boss.transitionFromFrame || to, RING_BOSS_VIDEO_ASPECT);
+      const b = ringBossVideoFit(figure.last, to, RING_BOSS_VIDEO_ASPECT);
+      const mix = (p, q) => p + (q - p) * k;
+      film.mesh.scale.set(mix(a.width, b.width), mix(a.height, b.height), 1);
+      film.mesh.position.set(mix(a.x, b.x), mix(a.y, b.y), 1.35);
+    }
 
     function beginRingBossTransformVideo(boss, phaseIndex) {
       clearRingBossTransformVideo(boss);
@@ -293,8 +335,7 @@
       const mesh = new THREE.Mesh(geometry, material);
       mesh.name = "ring-boss-transform-video";
       mesh.renderOrder = 8;
-      mesh.scale.set(4.6, 3.45, 1);
-      mesh.position.set(0, 1.62, 1.35);
+      mesh.position.z = 1.35; // size and place: placeRingBossTransformVideo, from the form
       boss.group.add(mesh);
       const record = { url, video, texture, material, geometry, mesh, failed: false, started: false };
       video.addEventListener("error", () => { record.failed = true; });
@@ -2819,6 +2860,17 @@
           boss.phaseUntil = now + 2400;
           beginRingBossTransitionVfx(boss);
           if (beginRingBossTransformVideo(boss, boss.phaseIndex)) boss.phaseUntil = now + RING_BOSS_VIDEO_MS;
+          // BUG-028: the clip starts on the old form and ends where the new form begins its move.
+          if (boss.homeX === undefined) boss.homeX = boss.x;
+          const oldForm = previousPhaseIndex > 0 ? boss.phaseGroups[previousPhaseIndex - 1] : null;
+          boss.transitionFromFrame = oldForm
+            ? ringBossFormFrame(boss, previousPhaseIndex, oldForm.position.y - (oldForm.userData.bcmGroundY || 1.6), oldForm.position.x)
+            : null;
+          const reveal = ringBossRevealPose(boss, boss.phaseIndex);
+          boss.transitionStartX = boss.x;
+          boss.revealX = reveal.x;
+          boss.revealY = reveal.y;
+          placeRingBossTransformVideo(boss, 0);
           boss.vulnerable = false;
           boss.tellMesh.visible = false;
           updateHud("ФОРМА · " + boss.name + " · ПРИГОТОВЬСЯ");
@@ -3800,12 +3852,37 @@
             const elapsed = Math.max(0, (now - (boss.phaseStartedAt || now)) / 1000);
             const film = boss.transformVideo;
             // A video that fails, or has not started after 3 s, gives way to the old transition.
-            if (film && (film.failed || (!film.started && elapsed > 3))) {
-              boss.transformVideoDropped = film.failed ? "failed" : "slow";
+            if (film && (film.failed || (!film.started && elapsed > 3) || elapsed > 12)) {
+              boss.transformVideoDropped = film.failed ? "failed" : (film.started ? "stalled" : "slow");
               clearRingBossTransformVideo(boss);
               boss.phaseUntil = Math.min(boss.phaseUntil, now + 900);
             }
             const filmOn = !!boss.transformVideo;
+            // BUG-028: the clip starts about a second late, and a fixed 5 s cut it at 3.3-3.7 s of
+            // 5.04: the player never saw its last frame. The transition now lasts until the clip ends.
+            let progress = Math.min(1, elapsed / Math.max(0.5, (boss.phaseUntil - (boss.phaseStartedAt || now)) / 1000));
+            if (filmOn) {
+              const clip = boss.transformVideo.video;
+              if (boss.transformVideo.started && clip.duration > 0) {
+                boss.phaseUntil = now + Math.max(0, clip.duration - clip.currentTime) * 1000;
+                progress = clip.ended ? 1 : Math.min(1, clip.currentTime / clip.duration);
+              } else {
+                boss.phaseUntil = Math.max(boss.phaseUntil, now + RING_BOSS_VIDEO_MS);
+                progress = 0;
+              }
+              placeRingBossTransformVideo(boss, progress);
+            }
+            // The boss walks to where its new form begins its move while the clip plays, and the
+            // new form stands at the height of that move (the Orbiter hovers), not on the old spot.
+            const glide = progress * progress * (3 - 2 * progress);
+            if (Number.isFinite(boss.revealX) && Number.isFinite(boss.transitionStartX)) {
+              boss.x = boss.transitionStartX + (boss.revealX - boss.transitionStartX) * glide;
+              boss.group.position.x = boss.x;
+            }
+            if (phaseGroup) {
+              phaseGroup.position.x = 0;
+              phaseGroup.position.y = (phaseGroup.userData.bcmGroundY || 2.1) + (boss.revealY || 0);
+            }
             const total = Math.max(0.5, (boss.phaseUntil - (boss.phaseStartedAt || now)) / 1000);
             const oldOpacity = filmOn ? Math.max(0, 1 - elapsed / 0.35) : Math.max(0, 1 - elapsed / 0.92);
             const newOpacity = filmOn
@@ -3836,6 +3913,7 @@
               if (boss.pigShell) boss.pigShell.forEach((part) => { if (part.userData.bcmBaseScale) part.scale.copy(part.userData.bcmBaseScale); });
               clearRingBossTransitionVfx(boss);
               clearRingBossTransformVideo(boss);
+              if (Number.isFinite(boss.revealX)) { boss.x = boss.revealX; boss.group.position.x = boss.x; }
               boss.transitionFromIndex = 0;
               playRingBossAnimation(boss, phaseIndex - 1, "idle", false);
               // Owner 22.11.2026 "Бои с боссами Ring": each form plays its own move

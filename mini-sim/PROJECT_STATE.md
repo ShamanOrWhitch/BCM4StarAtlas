@@ -11,6 +11,13 @@
 
 ---
 
+## Patch — Mini-Sim 0.16.32: Ring transform clips play to the end and match the forms (25 November 2026)
+
+- **WORK LOCK:** [#174](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/174). Decision D-109, BUG-028.
+- **Checks:** regression 360/360; browser probes `ring-boss-video-fit-probe.mjs` and `ring-boss-feet-probe.mjs` PASS (Edge, standalone).
+
+---
+
 ## Patch — Mini-Sim 0.16.31: the Ring Stalker creeps on the floor (25 November 2026)
 
 - **WORK LOCK:** [#173](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/173). Decision D-108, BUG-028.
