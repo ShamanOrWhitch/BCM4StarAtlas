@@ -46,7 +46,19 @@ try {
   await page.waitForTimeout(1000);
   await page.locator("#bcm-ring-platformer [data-ring-single]").click({ timeout: 10000 });
   await page.waitForTimeout(4000);
-  const snap = () => page.evaluate(() => window.__BCM_RING_BOSS_QA__.snapshot());
+  // BUG-028: read the arena itself — is the Brawler model shown and shaken, does a clip play in the world.
+  const snap = () => page.evaluate(() => {
+    const s = window.__BCM_RING_BOSS_QA__.snapshot();
+    let model = null, film = null;
+    window.BCMiniSimAPI.getRuntime().scene.traverse((o) => {
+      if (/^ring-boss-phase-5-[0-9]+$/.test(o.name) && o.parent && o.parent.visible) model = o;
+      if (o.name === "ring-boss-brawler-film") film = o;
+    });
+    s.arena = { modelShown: !!(model && model.visible), shake: model ? Math.abs(model.rotation.z) + Math.abs(model.scale.y - model.scale.z) : 0,
+      filmInWorld: !!(film && film.visible && film.material && film.material.map && film.material.map.image && !film.material.map.image.error),
+      filmFile: film && film.visible && film.material.map ? String(film.material.map.image.currentSrc || film.material.map.image.src).split("/").pop().split("?")[0] : "" };
+    return s;
+  });
   const WAIT_FORM = () => page.waitForFunction(() => window.__BCM_RING_BOSS_QA__.snapshot().phaseState !== "transition", null, { timeout: 20000 });
   // Pig -> Roller -> Walker -> Orbiter -> Brawler.
   for (let step = 1; step <= 4; step += 1) {
@@ -73,9 +85,10 @@ try {
   let chargeShot = false, drinkShot = false;
   for (let i = 0; i < 110; i += 1) { // the big Brawler's cycle is long and headless Edge frames are slow
     const s = await snap();
-    report.trace.push({ cv: s.comicVideo, up: s.modelUp, clip: s.modelClips, state: s.moveState, open: s.vulnerable, shielded: s.shielded, bossHp: s.bossHp, comic: s.comic, zones: s.zones.filter((z) => /beam|aim/.test(z)), y: Math.round(s.pilot.y * 10) / 10, hp: s.pilot.hp });
+    report.trace.push({ arena: s.arena, cv: s.comicVideo, up: s.modelUp, clip: s.modelClips, state: s.moveState, open: s.vulnerable, shielded: s.shielded, bossHp: s.bossHp, comic: s.comic, zones: s.zones.filter((z) => /beam|aim/.test(z)), y: Math.round(s.pilot.y * 10) / 10, hp: s.pilot.hp });
     if (!chargeShot && s.moveState === "charge") { await page.waitForTimeout(500); await page.screenshot({ path: resolve(out, "brawler-charge.png") }); chargeShot = true; }
     if (!drinkShot && s.moveState === "drink") { await page.screenshot({ path: resolve(out, "brawler-drink.png") }); drinkShot = true; }
+    if (!report.laughShot && s.moveState === "taunt") { await page.waitForTimeout(400); await page.screenshot({ path: resolve(out, "brawler-laugh.png") }); report.laughShot = true; }
     if (drinkShot && i > 10 && s.moveState === "advance") break;
     await page.waitForTimeout(250);
   }
@@ -84,12 +97,18 @@ try {
   report.states = states;
   report.status = report.form === "brawler" && t.slice(3, 8).every((x) => Math.abs(x.y - 1.4) < 0.05) &&
     ["charge", "fire", "taunt", "drink"].every((x) => states.includes(x)) &&
-    // 0.16.12: the Brawler fires itself in the arena (aim line, plasma balls), no comic panel.
-    t.some((x) => x.state === "charge" && x.zones.includes("ring-boss-tell-aim") && !x.comic) &&
+    // 0.16.12: the Brawler fires itself in the arena (aim line, plasma balls). Since 0.16.33 its
+    // clip plays in the arena too (`comic` names that clip); there is no panel in the HUD.
+    t.some((x) => x.state === "charge" && x.zones.includes("ring-boss-tell-aim")) &&
     t.some((x) => x.state === "fire") &&
     // Drink under the shield, then the laugh is the window.
     t.some((x) => x.state === "drink" && x.shielded && !x.open) &&
     t.some((x) => x.state === "taunt" && x.open) &&
+    // BUG-028 (owner 24.11.2026: "смех и выстрел заменены дешёвой потряской текстуры"): the owner's
+    // clips play in the arena on the Brawler's spot while the model hides; the model never shakes.
+    t.some((x) => x.state === "charge" && x.arena.filmInWorld && /attack-cannon/.test(x.arena.filmFile) && !x.arena.modelShown) &&
+    t.some((x) => x.state === "taunt" && x.arena.filmInWorld && /laugh/.test(x.arena.filmFile) && !x.arena.modelShown) &&
+    t.every((x) => x.arena.shake < 0.01) &&
     report.errors.length === 0 ? "PASS" : "FAIL";
 } catch (error) {
   report.failure = String(error && error.message || error).split("\n")[0];
@@ -98,4 +117,6 @@ try {
   await writeFile(resolve(out, "report.json"), JSON.stringify(report, null, 2));
   await browser.close();
 }
+const seen = (state) => (report.trace || []).filter((x) => x.state === state).map((x) => (x.arena.modelShown ? "model" : "-") + "/" + (x.arena.filmInWorld ? x.arena.filmFile : "noclip") + "/shake " + x.arena.shake.toFixed(3));
+console.log(JSON.stringify({ charge: [...new Set(seen("charge"))].slice(0, 4), taunt: [...new Set(seen("taunt"))].slice(0, 4) }));
 console.log(JSON.stringify({ status: report.status, failure: report.failure, errors: report.errors, form: report.form, climb: report.climb, states: report.states }));

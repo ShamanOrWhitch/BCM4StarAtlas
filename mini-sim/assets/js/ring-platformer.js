@@ -1424,12 +1424,17 @@
                 vulnerable: !!boss.vulnerable, bossX: boss.x,
                 flight: !!(boss.moves && boss.moves.flight),
                 camera: worldState.cameraView || null,
-                comic: worldState.bossComic && worldState.bossComic.panel.style.display !== "none" ? worldState.bossComic.file : null,
+                // The Brawler's clip in the arena (BUG-028): which one plays, and whether the model gave way to it.
+                comic: boss.brawlerFilm && boss.brawlerFilm.mesh.visible ? BRAWLER_FILMS[boss.brawlerFilm.key].file : null,
+                film: boss.brawlerFilm ? { key: boss.brawlerFilm.key, visible: !!boss.brawlerFilm.mesh.visible,
+                  inWorld: boss.brawlerFilm.mesh.parent === boss.group, height: Math.abs(boss.brawlerFilm.mesh.scale.y),
+                  mirror: boss.brawlerFilm.mesh.scale.x < 0, modelVisible: !!boss.phaseGroups[3].visible,
+                  shake: Math.abs(boss.phaseGroups[3].rotation.z) } : null,
                 shielded: !!(boss.shieldMesh && boss.shieldMesh.visible), bossHp: boss.hp,
                 aimBand: boss.lastMoveOut && boss.lastMoveOut.tell && boss.lastMoveOut.tell.kind === "aim" ? boss.lastMoveOut.tell : null,
                 balls: boss.lastMoveOut && boss.lastMoveOut.balls ? boss.lastMoveOut.balls : [],
-                comicVideo: worldState.bossComic && worldState.bossComic.video ? { ready: worldState.bossComic.video.readyState, t: worldState.bossComic.video.currentTime,
-                  paused: worldState.bossComic.video.paused, err: worldState.bossComic.video.error && worldState.bossComic.video.error.code } : null,
+                comicVideo: boss.brawlerFilm && boss.brawlerFilm.video ? { ready: boss.brawlerFilm.video.readyState, t: boss.brawlerFilm.video.currentTime,
+                  paused: boss.brawlerFilm.video.paused, err: boss.brawlerFilm.video.error && boss.brawlerFilm.video.error.code } : null,
                 // Up axis of the current form model in the world (1 = upright, -1 = upside down).
                 modelUp: (() => { const record = boss.phaseIndex > 0 && boss.phaseModels && boss.phaseModels[boss.phaseIndex - 1];
                   if (!record || !record.model) return null;
@@ -2853,7 +2858,8 @@
           drawBossZones(boss, null);
           if (boss.shieldMesh) boss.shieldMesh.visible = false;
           if (boss.volley) drawBrawlerVolley(boss, null, now);
-          if (worldState.bossComic) showBossComic("");
+          hideBrawlerFilm(boss);
+          if (boss.phaseIndex === 4) preloadBrawlerFilms(boss);
           endRunnerChase(boss);
           boss.phaseState = "transition";
           boss.phaseStartedAt = now;
@@ -3547,80 +3553,115 @@
         });
       }
 
-      // The owner's Brawler videos (a room behind it, so not in the world): a tilted comic
-      // panel in the HUD while it charges the cannon and while it laughs and drinks.
-      // [file, start second]: the laugh is its own clip (owner, 23.11.2026); the drink starts
-      // where the Brawler sits down in the laugh-and-drink clip.
-      const BOSS_COMIC_BY_STATE = {
-        charge: ["brawler-attack-cannon.mp4", 0],
-        drink: ["brawler-drink.mp4", 0],
-        taunt: ["brawler-laugh.mp4", 0]
+      // Owner 24.11.2026 (BUG-028): "смех и выстрел заменены дешёвой потряской текстуры". The owner's
+      // Brawler clips (a studio or a room behind it, so they cannot be keyed like the transform clips)
+      // play in the arena itself, on the Brawler's spot and at its size, in a soft oval frame; the
+      // model hides while its clip plays (owner's choice 25.11.2026: "рамка на месте Бойца").
+      // Per clip, frame fractions with y from the top: feet = where the feet stand, stand = the height
+      // a standing Brawler takes in this frame (the drink is sat down), oval = [cx, cy, rx, ry].
+      const BRAWLER_FILMS = {
+        cannon: { file: "brawler-attack-cannon.mp4", feet: 0.97, stand: 0.93, cx: 0.47, oval: [0.47, 0.5, 0.47, 0.53] },
+        drink: { file: "brawler-drink.mp4", feet: 1.0, stand: 1.2, cx: 0.55, oval: [0.55, 0.56, 0.43, 0.5] },
+        laugh: { file: "brawler-laugh.mp4", feet: 0.95, stand: 0.88, cx: 0.53, oval: [0.53, 0.5, 0.33, 0.53] }
       };
-      const BOSS_COMIC_KEEP = { charge: 1, fire: 1, recover: 1, drink: 1, taunt: 1 };
-      // One video element per clip, made and loaded when the form appears (preloadBossComic),
-      // so switching clips never shows a black frame.
-      function bossComicPanel() {
-        let comic = worldState.bossComic;
-        if (comic) return comic;
-        let panel = root2d.querySelector(".bcm-ring-boss-comic");
-        if (!panel) {
-          panel = document.createElement("div");
-          panel.className = "bcm-ring-boss-comic";
-          panel.style.cssText = "position:absolute;top:84px;right:16px;width:min(34vw,300px);aspect-ratio:16/9;" +
-            "border:4px solid #fff;outline:3px solid #111;box-shadow:6px 6px 0 #111;transform:rotate(-2deg);" +
-            "overflow:hidden;background:#000;z-index:6;pointer-events:none;display:none";
-          root2d.appendChild(panel);
-        }
-        comic = worldState.bossComic = { panel, videos: {}, video: null, file: "" };
-        return comic;
-      }
+      // The cannon clip runs from the charge through the whole volley and holds its last frame.
+      const BRAWLER_FILM_BY_STATE = { charge: "cannon", aim: "cannon", fire: "cannon", recover: "cannon", drink: "drink", taunt: "laugh" };
+      const BRAWLER_FILM_ASPECT = 16 / 9;
 
-      function bossComicVideo(comic, file) {
-        if (comic.videos[file]) return comic.videos[file];
-        const url = ringBossAssetUrl("ring-bosses/video/" + file);
+      function brawlerFilmVideo(film, key) {
+        if (film.videos[key]) return film.videos[key];
+        const url = ringBossAssetUrl("ring-bosses/video/" + BRAWLER_FILMS[key].file);
         if (!url) return null;
-        const comicVideo = document.createElement("video");
-        comicVideo.muted = true;
-        comicVideo.defaultMuted = true;
-        comicVideo.setAttribute("muted", "");
-        comicVideo.playsInline = true;
-        comicVideo.setAttribute("playsinline", "");
-        comicVideo.preload = "auto";
-        comicVideo.style.cssText = "width:100%;height:100%;object-fit:cover;display:none";
-        comicVideo.src = url;
-        comic.panel.appendChild(comicVideo);
-        comic.videos[file] = comicVideo;
-        return comicVideo;
+        const video = document.createElement("video");
+        video.muted = true;
+        video.defaultMuted = true;
+        video.setAttribute("muted", "");
+        video.playsInline = true;
+        video.setAttribute("playsinline", "");
+        video.preload = "auto";
+        video.loop = false;
+        video.crossOrigin = "anonymous";
+        video.src = url;
+        const texture = new THREE.VideoTexture(video);
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.generateMipmaps = false;
+        if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
+        const entry = { video, texture, ready: false, failed: false };
+        // Once a clip has shown a frame it stays on screen while it seeks back to its start.
+        video.addEventListener("loadeddata", () => { entry.ready = true; });
+        video.addEventListener("error", () => { entry.failed = true; });
+        film.videos[key] = entry;
+        return entry;
       }
 
-      function preloadBossComic(files) {
-        const comic = bossComicPanel();
-        files.forEach((file) => { const v = bossComicVideo(comic, file); if (v) try { v.load(); } catch (e) {} });
+      function brawlerFilm(boss) {
+        if (boss.brawlerFilm) return boss.brawlerFilm;
+        const oval = { value: new THREE.Vector4(0.5, 0.5, 0.5, 0.5) };
+        const material = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, opacity: 0 });
+        // A soft oval: the Brawler is drawn whole, the room around it fades out.
+        material.onBeforeCompile = (shader) => {
+          shader.uniforms.bcmOval = oval;
+          shader.fragmentShader = "uniform vec4 bcmOval;\n" + shader.fragmentShader.replace("#include <map_fragment>",
+            "#include <map_fragment>\n  float bcmOvalR = length((vUv - bcmOval.xy) / bcmOval.zw);\n  diffuseColor.a *= 1.0 - smoothstep(0.7, 1.0, bcmOvalR);");
+        };
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+        mesh.name = "ring-boss-brawler-film";
+        mesh.renderOrder = 8;
+        mesh.visible = false;
+        boss.group.add(mesh);
+        boss.brawlerFilm = { mesh, material, oval, videos: {}, key: "", video: null };
+        return boss.brawlerFilm;
       }
 
-      function showBossComic(file, startAt) {
-        const comic = bossComicPanel();
-        Object.keys(comic.videos).forEach((key) => {
-          const v = comic.videos[key];
-          if (key !== file) { v.style.display = "none"; try { v.pause(); } catch (e) {} }
-        });
-        if (!file) {
-          comic.panel.style.display = "none";
-          comic.file = "";
-          comic.video = null;
-          return;
+      // Load the three clips while the form turns into the Brawler, so none starts on a black frame.
+      function preloadBrawlerFilms(boss) {
+        const film = brawlerFilm(boss);
+        Object.keys(BRAWLER_FILMS).forEach((key) => { const v = brawlerFilmVideo(film, key); if (v) try { v.video.load(); } catch (e) {} });
+      }
+
+      function hideBrawlerFilm(boss) {
+        const film = boss && boss.brawlerFilm;
+        if (!film) return;
+        Object.keys(film.videos).forEach((key) => { try { film.videos[key].video.pause(); } catch (e) {} });
+        film.mesh.visible = false;
+        film.key = "";
+        film.video = null;
+      }
+
+      // Returns true while a clip stands in for the model.
+      function playBrawlerFilm(boss, phaseGroup, out) {
+        const key = out.form === "brawler" ? BRAWLER_FILM_BY_STATE[out.state] || "" : "";
+        const film = key || boss.brawlerFilm ? brawlerFilm(boss) : null;
+        if (!film) return false;
+        if (!key) { if (film.key) hideBrawlerFilm(boss); return false; }
+        const entry = brawlerFilmVideo(film, key);
+        if (!entry) return false;
+        if (film.key !== key) {
+          Object.keys(film.videos).forEach((other) => { if (other !== key) try { film.videos[other].video.pause(); } catch (e) {} });
+          film.key = key;
+          film.video = entry.video;
+          film.material.map = entry.texture;
+          film.material.needsUpdate = true;
+          try { entry.video.currentTime = 0; } catch (e) {}
+          const played = entry.video.play();
+          if (played && typeof played.catch === "function") played.catch(() => {});
         }
-        const comicVideo = bossComicVideo(comic, file);
-        if (!comicVideo) return;
-        comic.file = file;
-        comic.video = comicVideo;
-        comicVideo.style.display = "block";
-        comic.panel.style.display = "block";
-        const from = Number(startAt) || 0;
-        if (comicVideo.readyState >= 1) { try { comicVideo.currentTime = from; } catch (e) {} }
-        else comicVideo.addEventListener("loadedmetadata", () => { try { comicVideo.currentTime = from; } catch (e) {} }, { once: true });
-        const played = comicVideo.play();
-        if (played && typeof played.catch === "function") played.catch(() => {});
+        // Until the clip has a frame the model stays: no black square in the arena. A clip that
+        // fails to load leaves the model too.
+        if (entry.failed || !(entry.ready || entry.video.readyState >= 2)) { film.mesh.visible = false; return false; }
+        const clip = BRAWLER_FILMS[key];
+        const half = (phaseGroup && phaseGroup.userData.bcmGroundY) || 3.08;
+        const height = (half * 2) / clip.stand;
+        const width = height * BRAWLER_FILM_ASPECT;
+        // The cannon arm is on the left of the clip: it turns to the pilot.
+        const mirror = (out.facing || -1) > 0 ? -1 : 1;
+        film.mesh.scale.set(width * mirror, height, 1);
+        film.mesh.position.set(-(clip.cx - 0.5) * width * mirror, (out.y || 0) + height * (clip.feet - 0.5), 1.3);
+        film.oval.value.set(clip.oval[0], 1 - clip.oval[1], clip.oval[2], clip.oval[3]);
+        film.material.opacity = 1;
+        film.mesh.visible = true;
+        return true;
       }
 
       // Owner 23.11.2026: the big Brawler fires its cannon itself in the arena — a glow grows at
@@ -3690,28 +3731,18 @@
         });
       }
 
-      // The Brawler's body acts without a rig: lean back and tremble while charging, recoil on
-      // each shot, squat to drink, shake with laughter. Applied to its form group around the
-      // base scale (2.2) and the ground height.
+      // The Brawler's body without a rig: a step bob while it walks. Applied to its form group
+      // around the base scale (2.2) and the ground height.
       function brawlerPose(boss, phaseGroup, out, now) {
         const base = RING_BOSS_FORM_SCALE[3] || 1;
         const groundY = phaseGroup.userData.bcmGroundY || 2.1;
-        const f = out.facing || 1;
-        let rot = 0, sx = 1, sy = 1, dx = 0, dy = 0;
+        const rot = 0, sx = 1, sy = 1, dx = 0;
+        let dy = 0;
         if (out.state === "back" || out.state === "advance") {
           dy = Math.abs(Math.sin(now * 0.012)) * 0.18;
-        } else if (out.state === "charge" || out.state === "aim") {
-          const k = Number(out.charge) || 0;
-          rot = -f * 0.1 * k + Math.sin(now * 0.09) * 0.018 * k;
-          sx = 1 + 0.03 * k;
-        } else if (out.state === "fire") {
-          rot = -f * 0.16; dx = -f * 0.4; sx = 0.96; sy = 1.04;
-        } else if (out.state === "drink") {
-          sy = 0.86; sx = 1.05;
-        } else if (out.state === "taunt") {
-          rot = Math.sin(now * 0.028) * 0.07;
-          sy = 1 + Math.sin(now * 0.055) * 0.035;
         }
+        // Charge, volley, drink and laugh are the owner's clips in the arena (playBrawlerFilm), not a
+        // shaken model (BUG-028): the model stands still under them.
         phaseGroup.rotation.z = rot;
         phaseGroup.scale.set(base * sx, base * sy, base);
         phaseGroup.position.x = dx;
@@ -3757,7 +3788,10 @@
         }
         drawBossZones(boss, out);
         drawBrawlerVolley(boss, out, now);
-        if (out.form === "brawler" && phaseGroup) brawlerPose(boss, phaseGroup, out, now);
+        if (out.form === "brawler" && phaseGroup) {
+          phaseGroup.visible = !playBrawlerFilm(boss, phaseGroup, out);
+          brawlerPose(boss, phaseGroup, out, now);
+        }
         if (out.state !== boss.lastMoveState) {
           boss.lastMoveState = out.state;
           const english = window.BCMDialogue?.language === "en";

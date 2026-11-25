@@ -11,6 +11,13 @@
 
 ---
 
+## Patch — Mini-Sim 0.16.33: the Brawler's laugh, cannon and drink clips play in the arena on its spot (25 November 2026)
+
+- **WORK LOCK:** [#175](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/175). Decision D-110, BUG-028.
+- **Checks:** regression 362/362; browser probes `ring-boss-arena-probe.mjs` and `ring-boss-video-fit-probe.mjs` PASS; standalone QA PASS (Edge).
+
+---
+
 ## Patch — Mini-Sim 0.16.32: Ring transform clips play to the end and match the forms (25 November 2026)
 
 - **WORK LOCK:** [#174](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/174). Decision D-109, BUG-028.

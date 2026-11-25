@@ -133,7 +133,7 @@ test("the Ring plays the volley in the arena itself: charge glow, aim line, flyi
   assert.match(ring, /ring-boss-charge/, "no charge glow at the Brawler's hand");
   assert.match(ring, /ring-boss-aim/, "no aim line along the tier");
   assert.match(ring, /ring-boss-plasma/, "the plasma balls are not drawn");
-  assert.match(ring, /function brawlerPose\(/, "the Brawler does not move its body for charge, recoil, drink and laugh");
+  assert.match(ring, /function brawlerPose\(/, "the Brawler has no body pose function");
   assert.match(ring, /ring-boss-shield/, "the drinking shield is not drawn");
   assert.doesNotMatch(ring, /BOSS_COMIC_BY_STATE\[out\.state\]/, "the Brawler's attack still plays in a comic panel");
 });

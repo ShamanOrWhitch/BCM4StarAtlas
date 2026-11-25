@@ -170,8 +170,22 @@ const server = createServer(async (req, res) => {
       const baseDir = resolve(root, "mini-sim");
       const file = resolve(baseDir, relative);
       if (file.startsWith(baseDir + sep) && (await stat(file)).isFile()) {
-        res.writeHead(200, { "content-type": mime(file), "cache-control": "no-store" });
-        res.end(await readFile(file));
+        const body = await readFile(file);
+        // Byte ranges, as a WordPress host serves them: a video that seeks back (a clip replayed)
+        // otherwise ends in a network error here and nowhere on the site.
+        const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ""));
+        if (range && (range[1] || range[2])) {
+          const size = body.length;
+          const from = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
+          const to = range[1] && range[2] ? Math.min(size - 1, Number(range[2])) : size - 1;
+          if (from >= size || from > to) { res.writeHead(416, { "content-range": "bytes */" + size }); res.end(); return; }
+          res.writeHead(206, { "content-type": mime(file), "cache-control": "no-store", "accept-ranges": "bytes",
+            "content-range": "bytes " + from + "-" + to + "/" + size, "content-length": to - from + 1 });
+          res.end(body.subarray(from, to + 1));
+          return;
+        }
+        res.writeHead(200, { "content-type": mime(file), "cache-control": "no-store", "accept-ranges": "bytes", "content-length": body.length });
+        res.end(body);
         return;
       }
     }
