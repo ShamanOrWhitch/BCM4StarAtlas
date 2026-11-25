@@ -11,6 +11,43 @@ import { raceSceneryFor, sceneryProps, type RaceScenery, type SceneryProp } from
 
 export type Phase = "gate" | "race" | "pause" | "finish";
 
+/**
+ * The two suns of the race sky (BUG-029, owner 24.11.2026: "отблеск солнца на воде смещён").
+ * `light` is where each directional light shines from towards the centre. The sprites used to stand
+ * there, 170-200 m away, so following the car the visible sun slid off its own glint on the water.
+ * Now each sprite rides the sky dome with the camera, exactly along its light: the glint lies under it.
+ */
+export const RACE_SUNS = {
+  gold: { light: [150, 78, -40] as const, size: 52 },
+  rose: { light: [-120, 54, -150] as const, size: 32 },
+};
+const SKY_SUN_DISTANCE = 470;
+type SunKey = keyof typeof RACE_SUNS;
+type Xyz = { x: number; y: number; z: number };
+
+/** Where a sun is drawn for this camera: on the sky dome, along the direction its light comes from. */
+export function skySunAt(camera: Xyz, key: SunKey) {
+  const [lx, ly, lz] = RACE_SUNS[key].light;
+  const dx = lx, dy = ly - 0.2, dz = lz; // the light aims at (0, 0.2, 0)
+  const n = Math.hypot(dx, dy, dz) || 1;
+  return new THREE.Vector3(
+    camera.x + (dx / n) * SKY_SUN_DISTANCE,
+    camera.y + (dy / n) * SKY_SUN_DISTANCE,
+    camera.z + (dz / n) * SKY_SUN_DISTANCE,
+  );
+}
+
+/** Same apparent size as the old sprite seen from the centre, now that it hangs on the dome. */
+function skySunScale(key: SunKey) {
+  const [lx, ly, lz] = RACE_SUNS[key].light;
+  return RACE_SUNS[key].size * (SKY_SUN_DISTANCE / Math.hypot(lx, ly, lz));
+}
+
+/** The checkered banner hangs under the beam, across the road: its width runs along the start normal. */
+export function archBannerYaw(start: { tx: number; tz: number }) {
+  return Math.atan2(start.tx, start.tz);
+}
+
 type Kart = {
   group: THREE.Group;
   wheels: THREE.Mesh[];
@@ -140,20 +177,20 @@ export function createWorld(canvas: HTMLCanvasElement): World {
   const goldSun = new THREE.Sprite(
     new THREE.SpriteMaterial({ map: glow("#ffe08a"), transparent: true, depthWrite: false, fog: false }),
   );
-  goldSun.position.set(150, 78, -40);
-  goldSun.scale.set(52, 52, 1);
+  goldSun.position.copy(skySunAt(camera.position, "gold"));
+  goldSun.scale.setScalar(skySunScale("gold"));
   const roseSun = new THREE.Sprite(
     new THREE.SpriteMaterial({ map: glow("#ff6a4a"), transparent: true, depthWrite: false, fog: false }),
   );
-  roseSun.position.set(-120, 54, -150);
-  roseSun.scale.set(32, 32, 1);
+  roseSun.position.copy(skySunAt(camera.position, "rose"));
+  roseSun.scale.setScalar(skySunScale("rose"));
   scene.add(goldSun, roseSun);
   const sun = new THREE.DirectionalLight(0xffb15a, 1.45);
-  sun.position.copy(goldSun.position);
+  sun.position.set(...RACE_SUNS.gold.light);
   sun.target.position.set(0, 0.2, 0);
   sun.castShadow = false;
   const coral = new THREE.DirectionalLight(0xffb089, 0.34);
-  coral.position.copy(roseSun.position);
+  coral.position.set(...RACE_SUNS.rose.light);
   coral.target.position.set(0, 0.2, 0);
   scene.add(hemi, sun, sun.target, coral, coral.target);
 
@@ -652,7 +689,7 @@ export function createWorld(canvas: HTMLCanvasElement): World {
         new THREE.MeshBasicMaterial({ map: checker, side: THREE.DoubleSide }),
       );
       banner.position.set(start.x, ROAD_Y + 4.05, start.z);
-      banner.rotation.y = Math.atan2(start.tx, start.tz) + Math.PI / 2;
+      banner.rotation.y = archBannerYaw(start);
       gantry.add(banner);
     }
     here.add(gantry);
@@ -846,6 +883,9 @@ export function createWorld(canvas: HTMLCanvasElement): World {
         camera.fov += (nextFov - camera.fov) * Math.min(1, dt * 4);
         camera.updateProjectionMatrix();
       }
+      // The suns ride the sky with the camera, so each stays over its glint.
+      goldSun.position.copy(skySunAt(camera.position, "gold"));
+      roseSun.position.copy(skySunAt(camera.position, "rose"));
       renderer.render(scene, camera);
     },
   };

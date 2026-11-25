@@ -11,6 +11,13 @@
 
 ---
 
+## Patch — Mini-Sim 0.16.30: race finish banner across the road; race suns ride the sky along their light (25 November 2026)
+
+- **WORK LOCK:** [#172](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/172). Decision D-107, BUG-029.
+- **Checks:** regression 356/356; Planet Lab race shots on Twinsun, Fable and Opus.
+
+---
+
 ## Patch — Mini-Sim 0.16.29 / Tower 0.2.92: forearm bones from the NFT cut-out (25 November 2026)
 
 - **WORK LOCK:** [#171](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/171). Decision D-106. Bug: BUG-032 (arms).
