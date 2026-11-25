@@ -1360,6 +1360,21 @@
               return { alive: boss.alive, phaseIndex: boss.phaseIndex };
             },
             // QA only: walk the first pilot into a purple cell (a flight panel), from the left door.
+            // QA only: walk the first pilot into the n-th small cell with mobs (the mob probe); the
+            // pilot is untouchable for a minute so the mobs are watched, not fought.
+            enterCell(n) {
+              const path = worldState.cellPath;
+              const qaPlayer = players.find(Boolean);
+              if (!path || !qaPlayer) return null;
+              const nodes = Array.from(path.nodes.values()).filter((node) => !node.large && (node.mobs || []).length);
+              const node = nodes[Math.abs(Number(n) || 0) % Math.max(1, nodes.length)];
+              if (!node) return null;
+              path.panelNode = null;
+              placeParty(enterRingCell(worldState, node, "left", qaPlayer), qaPlayer);
+              qaPlayer.worldY = 0; qaPlayer.vy = 0; qaPlayer.grounded = true; qaPlayer.hp = qaPlayer.maxHp;
+              qaPlayer.invulnerableUntil = performance.now() + 60000;
+              return { cells: nodes.length, astral: !!node.astral, mobs: node.mobs.length };
+            },
             enterFlightCell() {
               const path = worldState.cellPath;
               const qaPlayer = players.find(Boolean);
@@ -1875,34 +1890,82 @@
         portalRing.name = "ring-cell-vertical-portal";
         portalRing.position.set(RING_CELL_HOME, 1.42, 0.62);
         room.add(portalRing);
-        const mobMat = new THREE.MeshStandardMaterial({ color: 0xd27a4a, emissive: 0x3a1408, roughness: 0.45, metalness: 0.2 });
-        const mobGeo = new THREE.BoxGeometry(0.7, 0.9, 0.5);
+        // Owner 24.11.2026 (BUG-028): "мобы не проработаны". The cells held 0.7 x 0.9 m boxes that all
+        // walked alike; now the owner's pig mobs (ring-mobs.js; art: assets/ring-bosses/mobs.webp),
+        // each kind with its own gait and toughness, drawn flat and unlit like the art.
+        const mobGeo = new THREE.PlaneGeometry(1, 1);
+        const mobArt = { texture: null, byKind: {} };
+        (function loadMobArt() {
+          const url = ringBossAssetUrl("ring-bosses/mobs.webp");
+          if (!url || !THREE.TextureLoader) return;
+          // Each kind is a copy of the atlas with its own window; a copy made before the atlas
+          // arrived has no picture, so the picture is handed to every copy once it loads.
+          mobArt.texture = new THREE.TextureLoader().load(url, (loaded) => {
+            Object.keys(mobArt.byKind).forEach((key) => { mobArt.byKind[key].image = loaded.image; mobArt.byKind[key].needsUpdate = true; });
+          });
+          world.textures.push(mobArt.texture);
+        })();
+        const mobTexture = (kindIndex) => {
+          if (!mobArt.texture) return null;
+          if (mobArt.byKind[kindIndex]) return mobArt.byKind[kindIndex];
+          const r = window.BCMRingMobs.ART[kindIndex];
+          const tex = mobArt.texture.clone();
+          tex.repeat.set(r[2] - r[0], r[3] - r[1]);
+          tex.offset.set(r[0], 1 - r[3]);
+          tex.needsUpdate = true;
+          mobArt.byKind[kindIndex] = tex;
+          world.textures.push(tex);
+          return tex;
+        };
+        const mobThreadGeo = new THREE.BoxGeometry(0.03, 1, 0.03);
+        const mobThreadMat = new THREE.MeshBasicMaterial({ color: 0xc8d2e0, transparent: true, opacity: 0.7 });
+        world.materials.push(mobThreadMat);
         nodes.forEach((node) => {
           if (node.large) return;
           const sides = ["xn", "xp", "zn", "zp", "yn", "yp"].filter((dir) => node.open && node.open[dir]);
           const count = Math.min(2, sides.length);
           for (let i = 0; i < count; i += 1) {
             const side = sides[i];
-            const mesh = new THREE.Mesh(mobGeo, mobMat);
+            const kindIndex = hashSeed(String(maze.seed) + "|mob|" + node.x + "|" + node.y + "|" + node.z + "|" + i) % 9;
+            const kind = window.BCMRingMobs ? window.BCMRingMobs.KINDS[kindIndex] : "base";
+            const material = new THREE.MeshBasicMaterial({
+              map: window.BCMRingMobs ? mobTexture(kindIndex) : null, color: 0xffffff,
+              transparent: true, alphaTest: 0.35, side: THREE.DoubleSide
+            });
+            world.materials.push(material);
+            const mesh = new THREE.Mesh(mobGeo, material);
             mesh.visible = false;
             mesh.name = "ring-cell-mob";
+            mesh.userData.bcmMobKind = kind;
+            mesh.renderOrder = 4;
             room.add(mesh);
+            let thread = null;
+            if (kind === "spider") {
+              thread = new THREE.Mesh(mobThreadGeo, mobThreadMat);
+              thread.name = "ring-cell-mob-thread";
+              thread.visible = false;
+              room.add(thread);
+            }
             const fromLeft = side === "xn" || side === "zn" || side === "yn";
             node.mobs.push({
               side,
+              kind,
               offset: fromLeft ? -4.2 : 4.2,
               dir: fromLeft ? 1 : -1,
+              phase: i * 2.1 + (kindIndex % 3),
               alive: true,
               respawnAt: 0,
-              mesh
+              mesh,
+              thread,
+              ai: null
             });
           }
         });
         scene.add(room);
         world.platforms.push({ minX: RING_CELL_HOME - ROOM_HALF, maxX: RING_CELL_HOME + ROOM_HALF, y: 0, cellRoom: true });
-        world.materials.push(floorMaterial, wallMaterial, backMaterial, doorMaterial, trimMaterial, hatch.material, portalMaterial, mobMat);
+        world.materials.push(floorMaterial, wallMaterial, backMaterial, doorMaterial, trimMaterial, hatch.material, portalMaterial);
         textures.forEach((texture) => world.textures.push(texture));
-        world.specialGeometry.push(floor.geometry, doorGeo, lintelGeo, doorwayGeo, doorwayTrimGeo, sealedWallGeo, hatch.geometry, portalRing.geometry, mobGeo, backGeo, ceilingGeo);
+        world.specialGeometry.push(floor.geometry, doorGeo, lintelGeo, doorwayGeo, doorwayTrimGeo, sealedWallGeo, hatch.geometry, portalRing.geometry, mobGeo, mobThreadGeo, backGeo, ceilingGeo);
         const start = (maze.startCell && nodes.get(keyOf(maze.startCell.x, maze.startCell.y, maze.startCell.z)))
           || nodes.values().next().value;
         const horizontalOpen = ["xp", "xn", "zp", "zn"];
@@ -1934,7 +1997,7 @@
           nx: maze.dimensions?.nx || 7,
           ny: maze.dimensions?.ny || 3,
           nz: maze.dimensions?.nz || 7,
-          panelSeed: Number(maze.seed) >>> 0, cellHeight: CELL_HEIGHT, panelGroup: null, panelNode: null, spikes: [],
+          panelSeed: Number(maze.seed) >>> 0, cellHeight: CELL_HEIGHT, roomHalf: ROOM_HALF, panelGroup: null, panelNode: null, spikes: [],
           // Every Ring entry is a new run: the panels are rebuilt (owner 20.11: replayability).
           panelRun: (window.__bcmRingRuns = (Number(window.__bcmRingRuns) || 0) + 1), panelGrid: null,
           // A block top the hands can reach (crew-core crewLedgeStep asks this).
@@ -2386,6 +2449,7 @@
           (other.mobs || []).forEach((mob) => {
             if (!mob.mesh) return;
             mob.mesh.visible = other === node && mob.alive && !node.large;
+            if (mob.thread && other !== node) mob.thread.visible = false;
           });
         });
         if (!nodeOverride) world.inLargeCell = !!node.large;
@@ -2900,8 +2964,14 @@
             if (!mob.alive || !mob.mesh) return;
             const forwardDistance = (mob.mesh.position.x - player.worldX) * player.facing;
             if (forwardDistance <= 0.2 || forwardDistance > profile.range) return;
+            // The beam runs at chest height: a flying angel or a hanging spider is out of line.
+            const box = mob.out && mob.out.box;
+            if (box && (start.y < box.y0 - 0.45 || start.y > box.y1 + 0.45)) return;
+            // Tough kinds take more than one hit; each hit flashes the mob.
+            if (mob.ai && !mob.ai.hit()) return;
             mob.alive = false;
             mob.mesh.visible = false;
+            if (mob.thread) mob.thread.visible = false;
             mob.respawnAt = now + worldState.cellPath.respawnMs;
           });
         }
@@ -3179,22 +3249,45 @@
             const tex = path.textures[Math.abs(node.wallAsset || 0) % path.textures.length];
             if (tex) tex.rotation = (node.wallTurn || 0) * (Math.PI / 2) + now * 0.0004;
           }
+          const here = players.filter((player) => player && (player.ringCurrent || path.current) === node);
           (node.mobs || []).forEach((mob) => {
             if (!mob.mesh) return;
             if (!mob.alive) {
               mob.mesh.visible = false;
+              if (mob.thread) mob.thread.visible = false;
               if (node.gate) return;
-              if (now >= mob.respawnAt) mob.alive = true;
+              if (now >= mob.respawnAt) { mob.alive = true; mob.ai = null; }
               else return;
             }
-            const limit = node.gate ? 3.05 : 2.15;
-            mob.offset += mob.dir * (node.astral ? 2.4 : 1.7) * dt;
-            if (mob.offset > limit || mob.offset < -limit) mob.dir *= -1;
-            mob.offset = Math.max(-limit, Math.min(limit, mob.offset));
-            mob.mesh.position.set(path.homeX + mob.offset, node.astral ? 1.2 : 0.55, 0.45);
+            if (!mob.ai) {
+              const limit = node.gate ? 3.05 : 2.15;
+              mob.ai = window.BCMRingMobs
+                ? window.BCMRingMobs.create(mob.kind, { offset: mob.offset, dir: mob.dir, limit, chargeLimit: path.roomHalf - 2.5, astral: node.astral, phase: mob.phase })
+                : null;
+              if (!mob.ai) return;
+            }
+            const target = here.reduce((best, player) => !best || Math.abs(player.worldX - path.homeX - mob.offset) <
+              Math.abs(best.worldX - path.homeX - mob.offset) ? player : best, null);
+            const out = mob.ai.step(dt, target
+              ? { near: true, targetOffset: target.worldX - path.homeX, targetY: target.worldY }
+              : { near: false });
+            mob.offset = out.offset;
+            mob.out = out;
+            // The art faces left: it turns to where it goes. A hit flashes it, it does not shake.
+            mob.mesh.scale.set(out.width * (out.facing > 0 ? -1 : 1), out.height, 1);
+            mob.mesh.position.set(path.homeX + out.offset, out.y + out.height / 2, 0.45);
+            mob.mesh.material.color.setScalar(out.flash > 0 ? 3 : 1);
             mob.mesh.visible = true;
-            const hit = players.find((player) => (player.ringCurrent || path.current) === node &&
-              Math.abs(player.worldX - mob.mesh.position.x) < 0.62 && player.worldY < 1.35);
+            if (mob.thread) {
+              const top = path.cellHeight - 0.1, from = out.y + out.height * 0.8;
+              mob.thread.visible = top - from > 0.1;
+              mob.thread.scale.y = Math.max(0.01, top - from);
+              mob.thread.position.set(path.homeX + out.offset, (top + from) / 2, 0.44);
+            }
+            if (!out.hurts) return;
+            const b = out.box;
+            const hit = here.find((player) => player.worldX + 0.35 > path.homeX + b.x0 && player.worldX - 0.35 < path.homeX + b.x1 &&
+              player.worldY + 1.7 > b.y0 && player.worldY < b.y1);
             if (hit) damagePlayer(hit, now);
           });
           if (node.gate && !(node.mobs || []).some((mob) => mob.alive)) node.gateCleared = true;

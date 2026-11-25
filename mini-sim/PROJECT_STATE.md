@@ -11,6 +11,13 @@
 
 ---
 
+## Patch — Mini-Sim 0.16.34: the owner's pig mobs replace the Ring cell boxes, each kind with its own gait (25 November 2026)
+
+- **WORK LOCK:** [#176](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/176). Decision D-111, BUG-028.
+- **Checks:** regression 367/367; browser probes `ring-mobs-probe.mjs` and `ring-boss-arena-probe.mjs` PASS; standalone QA PASS (Edge).
+
+---
+
 ## Patch — Mini-Sim 0.16.33: the Brawler's laugh, cannon and drink clips play in the arena on its spot (25 November 2026)
 
 - **WORK LOCK:** [#175](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/175). Decision D-110, BUG-028.
