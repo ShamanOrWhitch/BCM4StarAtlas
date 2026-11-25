@@ -11,6 +11,13 @@
 
 ---
 
+## Patch — Mini-Sim 0.16.31: the Ring Stalker creeps on the floor (25 November 2026)
+
+- **WORK LOCK:** [#173](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/173). Decision D-108, BUG-028.
+- **Checks:** regression 358/358; browser probe `ring-boss-feet-probe.mjs` PASS (Edge, standalone).
+
+---
+
 ## Patch — Mini-Sim 0.16.30: race finish banner across the road; race suns ride the sky along their light (25 November 2026)
 
 - **WORK LOCK:** [#172](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/172). Decision D-107, BUG-029.

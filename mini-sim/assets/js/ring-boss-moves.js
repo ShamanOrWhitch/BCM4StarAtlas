@@ -102,7 +102,7 @@
     else if (form === "orbiter") { s.y = 3.4; go("orbit", 1.6); }
     else if (form === "brawler") go("advance", 1.8);
     else if (form === "runner") { s.x = maxX; s.dir = -1; go("rev", 0.7); }
-    else { s.y = 2.6; go("stalk", 1.2); }
+    else go("stalk", 1.2);
 
     function towardTarget(targetX, speed, dt) {
       var dx = targetX - s.x;
@@ -304,7 +304,7 @@
       } else {
         // stalker
         if (s.state === "stalk") {
-          s.y = 2.6;
+          s.y = 0;
           towardTarget(targetX, 1.2, d);
           if (done) {
             var lx = clampX(targetX);
@@ -320,7 +320,9 @@
           var to = (s.mark.x0 + s.mark.x1) / 2;
           s.x = s.fromX + (to - s.fromX) * k2;
           s.facing = to < s.fromX ? -1 : 1;
-          s.y = 2.6 + Math.sin(k2 * Math.PI) * 2.4 - 2.6 * k2;
+          // Owner 24.11.2026 (BUG-028): it crept 2.6 m up in the air. It stalks on the floor
+          // and leaves it only for the leap.
+          s.y = Math.sin(k2 * Math.PI) * 2.4;
           if (done) { s.x = to; s.y = 0; go("land", 0.2); }
         } else if (s.state === "land") {
           s.attacking = true;
