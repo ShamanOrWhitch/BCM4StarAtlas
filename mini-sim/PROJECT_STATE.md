@@ -11,6 +11,13 @@
 
 ---
 
+## Patch — Mini-Sim 0.16.36: Ring boss forms turn like drawn art, never showing their bare side (25 November 2026)
+
+- **WORK LOCK:** [#178](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/178). Decision D-113, BUG-028.
+- **Checks:** regression 375/375; browser probes `ring-boss-turn-probe.mjs`, `ring-boss-video-fit-probe.mjs`, `ring-boss-arena-probe.mjs` PASS (Edge).
+
+---
+
 ## Patch — Mini-Sim 0.16.35: Ring mob attacks — toxic puddles, tank shells, the spiky back, the angel swoop (25 November 2026)
 
 - **WORK LOCK:** [#177](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/177). Decision D-112, BUG-028.

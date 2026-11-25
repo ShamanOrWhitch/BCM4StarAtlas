@@ -378,6 +378,25 @@
 
     // Scale of each form model by phase offset (0 Roller … 5 Stalker); the Brawler is big.
     const RING_BOSS_FORM_SCALE = { 3: 2.2 };
+    // Owner 24.11.2026 (BUG-028): "разворот выглядит уродски". The forms are extruded silhouettes
+    // (art on the front and back caps, a bare wall on the sides): turned about the vertical they show
+    // that wall. Where the snout points in each form as drawn in the arena (checked on screen),
+    // by phase index: -1 left, +1 right, 0 front (the Brawler does not turn).
+    const RING_BOSS_ART_FACING = { 1: -1, 2: -1, 3: -1, 4: 0, 5: -1, 6: -1 };
+    // A form turns to where it goes like drawn art: a quick flip through a thin edge (0.2 s), the
+    // mirror image after it — never a turn about the vertical.
+    function turnRingBossForm(boss, phaseGroup, phaseIndex, facing, dt) {
+      if (!phaseGroup) return;
+      const art = RING_BOSS_ART_FACING[phaseIndex] || 0;
+      if (art && (facing === 1 || facing === -1)) boss.formFlipTarget = facing === art ? 1 : -1;
+      const target = art ? (boss.formFlipTarget || 1) : 1;
+      const flip = Number.isFinite(boss.formFlip) ? boss.formFlip : target;
+      const step = Math.min(Math.abs(target - flip), Math.max(0, dt) * 10);
+      boss.formFlip = flip + Math.sign(target - flip) * step;
+      const shown = (boss.formFlip < 0 ? -1 : 1) * Math.max(0.12, Math.abs(boss.formFlip));
+      const base = phaseGroup.userData.bcmBaseScale || RING_BOSS_FORM_SCALE[phaseIndex - 1] || 1;
+      phaseGroup.scale.x = base * shown;
+    }
 
     function loadRingBossPhaseModels(world) {
       if (!world || !Array.isArray(world.bosses)) return;
@@ -428,6 +447,7 @@
             const size = bounds.getSize(new window.THREE.Vector3());
             phaseGroup.scale.setScalar(formScale);
             phaseGroup.userData.bcmGroundY = (size.y / 2) * formScale;
+            phaseGroup.userData.bcmBaseScale = formScale;
             phaseGroup.userData.bcmHalfW = (size.x / 2) * formScale;
             phaseGroup.position.y = phaseGroup.userData.bcmGroundY;
             const mixer = new window.THREE.AnimationMixer(model);
@@ -2939,6 +2959,9 @@
             : null;
           const reveal = ringBossRevealPose(boss, boss.phaseIndex);
           boss.transitionStartX = boss.x;
+          boss.formFlip = 1;
+          boss.formFlipTarget = 1;
+          boss.formPrevX = NaN;
           boss.revealX = reveal.x;
           boss.revealY = reveal.y;
           placeRingBossTransformVideo(boss, 0);
@@ -3941,6 +3964,12 @@
           phaseGroup.visible = !playBrawlerFilm(boss, phaseGroup, out);
           brawlerPose(boss, phaseGroup, out, now);
         }
+        // A form looks where it really goes (the Orbiter keeps one facing in its moves); standing,
+        // it looks at the pilot.
+        const moved = Number.isFinite(boss.formPrevX) && dt > 0 ? (out.x - boss.formPrevX) / dt : 0;
+        boss.formPrevX = out.x;
+        const look = Math.abs(moved) > 0.4 ? Math.sign(moved) : (target ? Math.sign(target.worldX - out.x) || out.facing : out.facing);
+        turnRingBossForm(boss, phaseGroup, boss.phaseIndex, look, dt);
         if (out.state !== boss.lastMoveState) {
           boss.lastMoveState = out.state;
           const english = window.BCMDialogue?.language === "en";
@@ -4025,7 +4054,8 @@
           const phaseGroup = boss.phaseGroups[phaseIndex - 1];
           if (phaseGroup) {
             phaseGroup.rotation.z = boss.phaseState === "attack" ? Math.sin(now * 0.018) * 0.10 : Math.sin(now * 0.002) * 0.035;
-            if (phaseIndex === 3) phaseGroup.rotation.y += dt * 1.1;
+            // The Orbiter sways a little instead of spinning: a spin showed its bare side and back.
+            if (phaseIndex === 3) phaseGroup.rotation.y = Math.sin(now * 0.0016) * 0.28;
             const groundY = phaseGroup.userData.bcmGroundY || 2.1;
             if (phaseIndex === 6 && boss.phaseState === "attack") phaseGroup.position.y = groundY + Math.sin(now * 0.02) * 0.8;
             else phaseGroup.position.y = groundY;
