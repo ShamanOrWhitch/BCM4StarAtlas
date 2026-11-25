@@ -67,7 +67,7 @@ test("lore sectors have their own sky and base; stations keep theirs; the Warp a
   const warp = read("mini-sim/assets/js/deep-space-warp.js");
   const confirm = warp.slice(warp.indexOf("function confirmTubeArrival()"), warp.indexOf("function arriveAtPlanetSector("));
   assert.match(confirm, /else if \(loreSectorFor\(state\.target\)\) arriveAtLoreSector\(state\.target\);/, "a lore sector still opens the asteroid maze");
-  assert.match(warp, /function arriveAtLoreSector\([\s\S]{0,1200}dressSector\(lore\.id\)/);
+  assert.match(warp, /function arriveAtLoreSector\([\s\S]{0,1200}dressSector\(lore\.id, sector\)/);
   const php = read("mini-sim/bcm-mini-sim.php");
   assert.match(php, /'bcm-star-base', BCM_MINI_SIM_URL \. 'assets\/js\/star-base\.js'/);
   assert.match(read("tools/minisim-qa/standalone-shell.html"), /star-base\.js/);

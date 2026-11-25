@@ -12,7 +12,7 @@ test("Warp OST belongs to the whole Warp stage and loops",async()=>{
   const tube=s.slice(s.indexOf("function showTube()"),s.indexOf("function finishTube"));
   assert.doesNotMatch(tube,/startWarpAudio/);
   const location = await read("mini-sim/assets/js/asteroid-maze-location.js");
-  assert.match(s,/function enterAsteroidMaze\(\) \{[\s\S]{0,140}location\.enter\(\)/);
+  assert.match(s,/function enterAsteroidMaze\(\) \{[\s\S]{0,200}location\.enter\(\)/);
   assert.match(location,/function enterAsteroidMaze\(\) \{\s*\/\/ Warp OST owns the whole Warp stage/);
 });
 test("Warp uses a rolling circular wall and angular obstacle course",async()=>{

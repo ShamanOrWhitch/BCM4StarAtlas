@@ -11,6 +11,13 @@
 
 ---
 
+## Patch — Mini-Sim 0.16.37: every Warp sector shows its real neighbours; an asteroid sector no longer looks like ONI CSS (26 November 2026)
+
+- **WORK LOCK:** [#179](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/179). Decision D-114.
+- **Checks:** regression 378/378; browser probe `warp-neighbours-probe.mjs` PASS; standalone QA PASS (Edge).
+
+---
+
 ## Patch — Mini-Sim 0.16.36: Ring boss forms turn like drawn art, never showing their bare side (25 November 2026)
 
 - **WORK LOCK:** [#178](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/178). Decision D-113, BUG-028.

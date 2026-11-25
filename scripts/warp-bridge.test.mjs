@@ -59,7 +59,7 @@ test("Asteroid maze is a separate seeded location loaded before Warp in PHP and 
   assert.match(php, /bcm-asteroid-maze-location[\s\S]{0,180}bcm-warp-bridge/);
   assert.match(warp, /window\.BCMWarpBridge\.create/);
   assert.match(warp, /function selectTarget\(sector\)[\s\S]{0,120}setWarpDestination\(sector\)/);
-  assert.match(warp, /function enterAsteroidMaze\(\) \{[\s\S]{0,140}location\.enter\(\)/);
+  assert.match(warp, /function enterAsteroidMaze\(\) \{[\s\S]{0,200}location\.enter\(\)/);
   assert.doesNotMatch(warp, /const NX = 7, NY = 3, NZ = 7/);
   assert.match(location, /const NX = 7, NY = 3, NZ = 7/);
   assert.match(location, /Seeded depth-first carve guarantees a connected route/);

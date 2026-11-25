@@ -2324,7 +2324,7 @@ function warpSectorPlanetCard(core, x, y, jumps) {
         // (z = -260), with the sector's planet ahead.
         engine.teleport({ x: 0, y: 0, z: -140, yaw: 0 }, null);
       }
-      dressSector(mark && mark.planet);
+      dressSector(mark && mark.planet, sector);
       const status = root.querySelector(".bcm-mini-sim-status");
       if (status) status.textContent = "ARRIVED · " + String(mark ? mark.name : "PLANET").toUpperCase() + " · ВХОД В TOWER — ПОСАДКА НА ПЛАНЕТУ";
     }
@@ -2348,7 +2348,7 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       if (engine && typeof engine.teleport === "function") {
         engine.teleport({ x: 0, y: 0, z: -140, yaw: 0 }, null);
       }
-      dressSector(lore.id);
+      dressSector(lore.id, sector);
       const status = root.querySelector(".bcm-mini-sim-status");
       if (status) status.textContent = "ARRIVED · " + String(lore.name).toUpperCase() + " · " + lore.code + " · " + (lore.faction || "MRZ");
     }
@@ -2357,8 +2357,9 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       const engine = api();
       disposeMaze();
       rememberPlace(null);
-      // Owner 24.11.2026: ONI CSS stays as it was — its own station and planet, no sector dress.
-      dressSector(null);
+      // Owner 24.11.2026: ONI CSS stays as it was — its own station and planet, no sector dress;
+      // its neighbours (Twinsun north, Opus west …) stand in its sky.
+      dressSector(null, { x: -40, y: 30 });
       const previous = state.nav || readNavigation();
       const adapter = previous && previous.adapter;
       let homeRecord = null;
@@ -2430,18 +2431,26 @@ function warpSectorPlanetCard(core, x, y, jumps) {
     // метка [block:maze] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
     // ==========================================================================
     // Owner 24.11.2026: each planet sector has its own space (sector-look.js).
-    function dressSector(planetId) {
+    // Owner 26.11.2026: "перемещение в warp между секторами должно реально отображаться соседние
+    // локации, как сейчас из asteroid секторов видно как будто мы рядом с oni css". Every arrival
+    // dresses its own sector and puts the neighbouring sectors of the Warp map in its sky.
+    function dressSector(planetId, sector) {
       const look = window.BCMSectorLook;
       const engine = api();
       if (!look || !engine || typeof engine.getRuntime !== "function") return;
-      if (planetId) look.apply(engine.getRuntime(), planetId);
+      const runtime = engine.getRuntime();
+      if (planetId) look.apply(runtime, planetId);
       else look.clear();
+      if (typeof look.showNeighbours === "function" && sector && Number.isFinite(Number(sector.x)) && Number.isFinite(Number(sector.y))) {
+        look.showNeighbours(runtime, Number(sector.x), Number(sector.y));
+      } else if (typeof look.clearNeighbours === "function") look.clearNeighbours();
     }
 
+    // An asteroid sector is not ONI CSS: no landing screen, no station; its neighbours around it.
     function enterAsteroidMaze() {
       const location = getAsteroidMazeLocation();
       if (!location) return false;
-      dressSector(null);
+      dressSector("asteroid", state.target);
       return location.enter();
     }
     function updateMazeFrame(frame) {

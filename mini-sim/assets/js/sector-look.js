@@ -27,6 +27,13 @@
       moons: [{ radius: 4, orbit: 70, speed: 0.05, color: "#d9ccff" }],
       light: "#b48cff", nebula: "#5a2d9c", stars: "#e2d6ff", keepStation: true, suns: 1
     },
+    // Owner 26.11.2026: "из asteroid секторов видно как будто мы рядом с oni css". An asteroid sector
+    // has no planet and no station of its own: the ONI CSS landing screen and the station are hidden,
+    // and no landing is offered. What stands around it are its neighbours (showNeighbors).
+    asteroid: {
+      id: "asteroid", title: "Астероидный сектор", planet: null, surface: null, ring: null, moons: [],
+      light: "#a9b8c8", nebula: "#3a4656", stars: "#d6e2ee", keepStation: false, suns: 0
+    },
     // Twinsun: an orange dune world under two suns, a dusty haze, no station nearby.
     first: {
       id: "first", title: "Twinsun",
@@ -288,8 +295,9 @@
     group.name = "sector-look-" + id;
     group.userData.planet = id;
 
-    var map = doc ? new THREE.CanvasTexture(paintSurface(doc, look)) : null;
     var p = look.planet;
+    if (p) {
+    var map = doc ? new THREE.CanvasTexture(paintSurface(doc, look)) : null;
     var planet = new THREE.Mesh(
       new THREE.SphereGeometry(p.radius, 48, 32),
       new THREE.MeshStandardMaterial({ map: map, color: map ? 0xffffff : look.surface.base, roughness: 0.9, metalness: 0,
@@ -348,6 +356,8 @@
       group.add(sun);
     }
 
+    }
+
     // A tinted nebula shell far around the scene: each sector has its own sky colour.
     var shell = new THREE.Mesh(
       new THREE.SphereGeometry(900, 24, 16),
@@ -369,7 +379,7 @@
         group.add(base);
       }
     }
-    if (look.lightning) state.lightning = { light: new THREE.PointLight("#e8f0ff", 0, 900), next: 1 };
+    if (look.lightning && p) state.lightning = { light: new THREE.PointLight("#e8f0ff", 0, 900), next: 1 };
     if (state.lightning && look.lightning) {
       state.lightning.light.position.set(p.at[0], p.at[1] + p.radius, p.at[2] + p.radius);
       group.add(state.lightning.light);
@@ -428,7 +438,134 @@
   }
 
   /** Per frame: the planet turns, the moons orbit, hidden station parts stay hidden. */
+  // ---------------------------------------------------------------------------------------------
+  // Neighbours. Owner 26.11.2026: "перемещение в warp между секторами должно реально отображаться
+  // соседние локации". Around every sector the sectors one and two Warp jumps away that hold
+  // something (a station and its planet, a Mini-Sim planet, a lore star base, a SAGE star) stand in
+  // their direction on the Warp map — east is +x, north is ahead (-z) — far off in the sky, smaller
+  // and dimmer two jumps out, with no names on them (owner). The camera sees 400 m, so
+  // the markers ride a sphere of NEIGHBOUR_DISTANCE around the camera, like a sky.
+  var NEIGHBOUR_DISTANCE = 330;
+  var NEIGHBOUR_SPAN = 2;
+  var CSS_PLANET_LOOK = { oni: "fable", mud: "pearce", ustur: "ioki" };
+
+  /** What stands in the sectors around (x, y), from the Galia map (pure; tested in node). */
+  function neighboursOf(x, y) {
+    var core = root.BCMSageMapCore;
+    var out = [];
+    if (!core || !Number.isFinite(Number(x)) || !Number.isFinite(Number(y))) return out;
+    x = Number(x); y = Number(y);
+    for (var dy = NEIGHBOUR_SPAN; dy >= -NEIGHBOUR_SPAN; dy -= 1) {
+      for (var dx = -NEIGHBOUR_SPAN; dx <= NEIGHBOUR_SPAN; dx += 1) {
+        if (!dx && !dy) continue;
+        var cx = x + dx, cy = y + dy;
+        var ring = Math.max(Math.abs(dx), Math.abs(dy));
+        var css = core.cssAt ? core.cssAt(cx, cy) : null;
+        var mark = core.landmarkAt ? core.landmarkAt(cx, cy) : null;
+        var lore = core.loreAt ? core.loreAt(cx, cy) : null;
+        var star = core.starAt ? core.starAt(cx, cy) : null;
+        var item = null;
+        if (css) {
+          var pl = lookFor(CSS_PLANET_LOOK[css.system]);
+          item = { kind: "station", name: core.sectorTitle(cx, cy), color: pl && pl.surface ? pl.surface.base : "#8fd0ff", glow: pl ? pl.light : "#8fd0ff" };
+        } else if (mark) {
+          var ml = lookFor(mark.planet);
+          item = { kind: "planet", name: mark.name, color: ml && ml.surface ? ml.surface.base : mark.color, glow: mark.color || "#ffd28a" };
+        } else if (lore) {
+          item = { kind: "base", name: lore.name + (lore.place ? " · " + lore.place : ""), color: "#7fe7ff", glow: "#7fe7ff" };
+        } else if (star) {
+          var sc = core.starColor ? core.starColor(star) : "#e6c15a";
+          item = { kind: "star", name: star.name, color: sc, glow: sc };
+        }
+        if (!item) continue;
+        item.dx = dx; item.dy = dy; item.ring = ring; item.x = cx; item.y = cy;
+        item.jumps = ring;
+        out.push(item);
+      }
+    }
+    return out;
+  }
+
+  /** The direction of a neighbour from the ship: east +x, north ahead (-z), a little above the horizon. */
+  function neighbourDirection(dx, dy, ring) {
+    var vx = dx, vz = -dy, vy = 0.12 + 0.06 * ring;
+    var len = Math.hypot(vx, vy, vz) || 1;
+    return { x: vx / len, y: vy / len, z: vz / len };
+  }
+
+  var neighbours = { group: null, runtime: null, at: null };
+
+  function clearNeighbours() {
+    if (neighbours.group && neighbours.group.parent) neighbours.group.parent.remove(neighbours.group);
+    if (neighbours.group) {
+      neighbours.group.traverse(function (obj) {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) { if (obj.material.map) obj.material.map.dispose(); obj.material.dispose(); }
+      });
+    }
+    neighbours.group = null;
+    neighbours.at = null;
+  }
+
+  /** Put the neighbours of sector (x, y) in the sky of the live scene. */
+  function showNeighbours(runtime, x, y) {
+    clearNeighbours();
+    if (!runtime || !runtime.scene || !runtime.THREE) return null;
+    var THREE = runtime.THREE;
+    var list = neighboursOf(x, y);
+    var group = new THREE.Group();
+    group.name = "sector-neighbours";
+    group.userData.at = [Number(x), Number(y)];
+    list.forEach(function (n) {
+      var dir = neighbourDirection(n.dx, n.dy, n.ring);
+      var far = n.ring > 1;
+      var marker = new THREE.Group();
+      marker.name = "sector-neighbour-" + n.kind + "-" + n.x + "-" + n.y;
+      marker.userData.neighbour = { kind: n.kind, name: n.name, jumps: n.jumps, dx: n.dx, dy: n.dy };
+      marker.position.set(dir.x * NEIGHBOUR_DISTANCE, dir.y * NEIGHBOUR_DISTANCE, dir.z * NEIGHBOUR_DISTANCE);
+      // Seen from 330 m: a planet one jump off is about 7 degrees across, two jumps off about 5.
+      var size = (n.kind === "star" ? 9 : n.kind === "base" ? 8 : 20) * (far ? 0.65 : 1);
+      if (n.kind === "star" || n.kind === "base") {
+        var core = new THREE.Mesh(new THREE.SphereGeometry(size * 0.45, 12, 10),
+          new THREE.MeshBasicMaterial({ color: n.color, fog: false }));
+        marker.add(core);
+      } else {
+        var body = new THREE.Mesh(new THREE.SphereGeometry(size, 24, 16),
+          new THREE.MeshBasicMaterial({ color: n.color, fog: false }));
+        marker.add(body);
+        if (n.kind === "station") {
+          var st = new THREE.Mesh(new THREE.TorusGeometry(size * 1.5, size * 0.08, 6, 32),
+            new THREE.MeshBasicMaterial({ color: "#cfe9ff", fog: false }));
+          st.rotation.x = Math.PI / 2 - 0.35;
+          marker.add(st);
+        }
+      }
+      var glow = new THREE.Mesh(new THREE.SphereGeometry(size * (n.kind === "star" ? 1.9 : 1.25), 16, 12),
+        new THREE.MeshBasicMaterial({ color: n.glow, transparent: true, opacity: far ? 0.14 : 0.24, depthWrite: false, side: THREE.BackSide, fog: false }));
+      marker.add(glow);
+      // Owner 26.11.2026: "только не надо нам подписи оставлять у планет" — no names in the sky.
+      group.add(marker);
+    });
+    runtime.scene.add(group);
+    neighbours.group = group;
+    neighbours.runtime = runtime;
+    neighbours.at = [Number(x), Number(y)];
+    followCamera();
+    return group;
+  }
+
+  function followCamera() {
+    var cam = neighbours.runtime && neighbours.runtime.camera;
+    if (neighbours.group && cam && cam.getWorldPosition) {
+      var THREE = neighbours.runtime.THREE;
+      var v = new THREE.Vector3();
+      cam.getWorldPosition(v);
+      neighbours.group.position.copy(v);
+    }
+  }
+
   function update(dt) {
+    followCamera();
     if (!state.group || !state.look) return;
     if (state.planet) state.planet.rotation.y += state.look.planet.spin * dt;
     state.moons.forEach(function (moon) {
@@ -457,6 +594,11 @@
     clear: clear,
     update: update,
     current: function () { return state.id; },
+    neighboursOf: neighboursOf,
+    neighbourDirection: neighbourDirection,
+    showNeighbours: showNeighbours,
+    clearNeighbours: clearNeighbours,
+    neighboursAt: function () { return neighbours.at; },
     /** What the approach to the landing gate is called here: the planet, or ONI CSS at home. */
     landingLabel: function () {
       return state.look && state.look.landing ? String(state.look.title).split(" · ")[0].toUpperCase() : "";

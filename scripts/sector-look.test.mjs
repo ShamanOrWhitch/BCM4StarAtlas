@@ -29,13 +29,14 @@ test("every planet has its own sector look, and no two looks are the same", () =
 test("the Warp dresses the sector on arrival, ONI CSS dresses Fable, the maze clears it; the page loads the module", () => {
   const warp = read("mini-sim/assets/js/deep-space-warp.js");
   const arrive = warp.slice(warp.indexOf("function arriveAtPlanetSector("), warp.indexOf("function returnToOniCss("));
-  assert.match(arrive, /dressSector\(mark && mark\.planet\)/, "a planet sector arrival keeps the ONI CSS scene");
+  assert.match(arrive, /dressSector\(mark && mark\.planet, sector\)/, "a planet sector arrival keeps the ONI CSS scene");
   const z = Number((arrive.match(/engine\.teleport\(\{ x: 0, y: 0, z: (-?[\d.]+)/) || [])[1]);
   assert.ok(z < -84.5, `a planet sector arrival puts the ship back in the start hangar (z ${z})`);
   const home = warp.slice(warp.indexOf("function returnToOniCss("), warp.indexOf("function returnToOniCss(") + 400);
   // 24.11.2026 (owner): ONI CSS keeps its own station and planet — the return clears the sector dress.
-  assert.match(home, /dressSector\(null\)/);
-  assert.match(warp, /function enterAsteroidMaze\(\) \{[\s\S]{0,200}dressSector\(null\)/);
+  assert.match(home, /dressSector\(null, \{ x: -40, y: 30 \}\)/);
+  // 26.11.2026: an asteroid sector has its own look (warp-neighbours.test.mjs), not the ONI CSS sky.
+  assert.match(warp, /function enterAsteroidMaze\(\) \{[\s\S]{0,200}dressSector\("asteroid", state\.target\)/);
   const sim = read("mini-sim/assets/js/mini-sim.js");
   assert.match(sim, /BCMSectorLook\.update\(dt\)/);
   assert.doesNotMatch(sim, /BCMSectorLook\.apply\(\{ scene, THREE: window\.THREE \}, "fable"\)/, "ONI CSS is dressed as Fable again");
