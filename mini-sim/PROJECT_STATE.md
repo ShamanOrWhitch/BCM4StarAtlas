@@ -11,6 +11,19 @@
 
 ---
 
+## Patch — Mini-Sim 0.16.38: the heavy-gravity Ring cells jump over a one-tile barrel; owner's live check of 26.11 recorded (26 November 2026)
+
+- **WORK LOCK:** [#180](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/180). BUG-028.
+- **Change:** in the «ВЫСОКАЯ G» cells (red brick walls) the jump speed is 8.2 instead of 5.7 at the same gravity 27. The jump rises 1.25 m instead of 0.60 m — enough for a 1 m tile; the normal jump is 1.84 m.
+- **Journal:** the owner's live check of 26.11 is in `JOURNAL_BUGS.md`:
+  - BUG-028: Crew hangs above the floor in Ring; the mobs are liked;
+  - BUG-031: planets share one layout; no special mechanics on Opus;
+  - BUG-032: the arm should help climb;
+  - BUG-025: the gamepad differs on the planet and in space.
+- **Checks:** `ring-gravity-jump.test.mjs`, red before the change: «heavy: the jump rises 0.60 m». Regression 380/380. Not checked in the browser — the machine was busy with other sessions.
+
+---
+
 ## Patch — Mini-Sim 0.16.37: every Warp sector shows its real neighbours; an asteroid sector no longer looks like ONI CSS (26 November 2026)
 
 - **WORK LOCK:** [#179](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/179). Decision D-114.

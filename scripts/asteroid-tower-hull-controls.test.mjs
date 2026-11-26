@@ -279,7 +279,8 @@ test("Astral Y-cells are seed-deterministic and alter movement without rebuildin
   // 0.16.x jump-feel tuning (Dr Arena, docs 25fccb4/286c885): flux lighter and
   // softer, dense heavier with a short jump. The modes still differ by gravity.
   assert.match(warp, /gravity = 7\.0 \+ Math\.sin\(now \* 0\.0018 \+ \(astralNode\.astralPhase \|\| 0\)\) \* 1\.2/);
-  assert.match(warp, /gravity = 27\.0;[\s\S]*?jumpVelocity = 5\.7/);
+  // 26.11.2026: the heavy jump still clears a 1 m barrel (ring-gravity-jump.test.mjs).
+  assert.match(warp, /gravity = 27\.0;[\s\S]*?jumpVelocity = 8\.2/);
   // 0.16.x: the HUD names the anomaly by colour and gravity, in Russian.
   assert.match(warp, /drift: "ФИОЛЕТОВОЕ · НИЗКАЯ G", flux: "ФИОЛЕТОВОЕ · НИЗКАЯ G", dense: "СИНЕЕ · ВЫСОКАЯ G"/);
   assert.match(warp, /drift: "≈", flux: "↕", dense: "◆"/);

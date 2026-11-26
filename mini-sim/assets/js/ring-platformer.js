@@ -4359,7 +4359,9 @@
           const highGravity = astralMode === "dense";
           if (astralMode === "drift") { gravity = 6.0; jumpVelocity = 7.8; }
           else if (astralMode === "flux") { gravity = 7.0 + Math.sin(now * 0.0018 + (astralNode.astralPhase || 0)) * 1.2; jumpVelocity = 7.4; }
-          else if (highGravity) { gravity = 27.0; jumpVelocity = 5.7; }
+          // Owner 26.11.2026: "нельзя даже бочки перепрыгнуть". Heavy gravity: a short fast jump that
+          // still clears a one-tile (1 m) barrel — 8.2 m/s rises 1.25 m (normal 1.84 m; 5.7 rose 0.60 m).
+          else if (highGravity) { gravity = 27.0; jumpVelocity = 8.2; }
           if (flightPanel) gravity = path.flight.F.gravity;
           const hangJump = input.jumpEdge;
           if (flightPanel && player.index === 0) updateFlightPanel(path, now);
