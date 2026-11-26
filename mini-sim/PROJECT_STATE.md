@@ -11,6 +11,13 @@
 
 ---
 
+## Patch — Mini-Sim 0.16.41: Orbis on the repository's GLB ships and Crew; Calico Evac first in the crew menu with a hull picture beside the list; the IMP family is mining (26 November 2026)
+
+- **Decision:** D-117. Ideas recorded: IDEA-034, IDEA-035, IDEA-036, IDEA-037.
+- **Checks:** regression 395/395; standalone QA PASS (on the second run); menu and Orbis shots in Edge.
+
+---
+
 ## Patch — Mini-Sim 0.16.40: ship-core (one flight model for every ship) and Orbis, a sphere planet to fly over with loot and a castle (26 November 2026)
 
 - **WORK LOCK:** [#182](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/182). Decision D-116; IDEA-031, IDEA-033.

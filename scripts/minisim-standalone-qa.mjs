@@ -77,6 +77,8 @@ const server = createServer(async (req, res) => {
       const backsideTextures = miniAssets.filter((a) => a.type === "image" && /^back.*\.png$/i.test(a.name.split("/").pop())).map((a) => a.url);
 
       const miniConfig = {
+        // The ship catalogue, as bcm-mini-sim.php passes it (the crew menu and its previews).
+        shipCatalog: JSON.parse(await readFile(resolve(root, "mini-sim/assets/mesh/ships/catalog.json"), "utf8")).families,
         crewServerAjax: origin + "/wp-admin/admin-ajax.php",
         crewServerNonce: "standalone-qa-no-wallet",
         threeUrl: assetUrl("assets/js/three.min.js"),

@@ -1,0 +1,54 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Ship previews</title>
+<body style="margin:0;background:#0b121b">
+<canvas id="c" width="384" height="216"></canvas>
+<script src="/mini-sim/assets/js/three.min.js"></script>
+<script src="/mini-sim/assets/js/GLTFLoader.js"></script>
+<script>
+// Renders one 3/4 preview per ship family of the catalogue (tools/ship-previews/render.mjs drives it).
+// The nose: the catalogue axis, else the part names (front/nose vs rear/tail/exhaust), else the long side.
+window.renderShip = async function (url, nose) {
+  const canvas = document.getElementById("c");
+  const renderer = window.__r || (window.__r = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true, alpha: true }));
+  renderer.setClearColor(0x000000, 1);
+  if (THREE.sRGBEncoding !== undefined) renderer.outputEncoding = THREE.sRGBEncoding;
+  const scene = new THREE.Scene();
+  // A soft blue-grey studio behind the hull, so dark hulls read as well as light ones.
+  const bg = document.createElement("canvas"); bg.width = 4; bg.height = 64;
+  const g = bg.getContext("2d"); const grad = g.createLinearGradient(0, 0, 0, 64);
+  grad.addColorStop(0, "#5b6f86"); grad.addColorStop(1, "#1c2633"); g.fillStyle = grad; g.fillRect(0, 0, 4, 64);
+  scene.background = new THREE.CanvasTexture(bg);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.5));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(4, 6, 5); scene.add(sun);
+  const rim = new THREE.DirectionalLight(0x9fd8ff, 0.9); rim.position.set(-5, 3, -4); scene.add(rim);
+  const gltf = await new Promise((ok, fail) => new THREE.GLTFLoader().load(url, ok, undefined, fail));
+  const model = gltf.scene;
+  model.updateMatrixWorld(true);
+  const axes = { "+x": [1, 0], "-x": [-1, 0], "+z": [0, 1], "-z": [0, -1] };
+  let dir = axes[nose];
+  if (!dir) {
+    const named = (re) => { const acc = new THREE.Vector3(); let n = 0; model.traverse((o) => { if (re.test(o.name || "")) { acc.add(o.getWorldPosition(new THREE.Vector3())); n += 1; } }); return n ? acc.multiplyScalar(1 / n) : null; };
+    const box = new THREE.Box3().setFromObject(model); const c = box.getCenter(new THREE.Vector3()); const s = box.getSize(new THREE.Vector3());
+    const f = named(/front|nose|grille|hood|fork|headlamp|needle/i), r = named(/rear|tail|aft|exhaust|flame/i);
+    if (f && r) dir = [f.x - r.x, f.z - r.z]; else if (f) dir = [f.x - c.x, f.z - c.z]; else if (r) dir = [c.x - r.x, c.z - r.z];
+    else dir = s.z > s.x * 1.2 ? [0, 1] : [1, 0];
+  }
+  // Nose to +X (to the right of the frame), then a 3/4 view from the front-left above.
+  model.rotation.y = -Math.atan2(dir[1], dir[0]);
+  model.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3()); const centre = box.getCenter(new THREE.Vector3());
+  model.position.sub(centre);
+  scene.add(model);
+  const span = Math.max(size.x, size.y * 1.4, size.z * 0.9);
+  const camera = new THREE.PerspectiveCamera(32, 384 / 216, span * 0.01, span * 20);
+  camera.position.set(span * 0.62, span * 0.42, span * 0.95);
+  camera.lookAt(0, 0, 0);
+  renderer.render(scene, camera);
+  const data = canvas.toDataURL("image/webp", 0.85);
+  scene.remove(model);
+  model.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m.map) m.map.dispose(); m.dispose(); }); });
+  return data;
+};
+</script>

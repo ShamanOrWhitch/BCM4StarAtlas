@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.16.40",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.16.41",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -91,7 +91,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.16.40",
+      title: "SPACE LABYRINTH — 0.16.41",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -6280,6 +6280,8 @@
     : legacyFlightShips;
   let chosenFlight = FLIGHT_SHIPS.find((ship) => ship.id ===
       (window.BCMMiniCrewSelection && window.BCMMiniCrewSelection.shipId))
+    // Owner 26.11.2026: "По Умолчанию дай нам Calico Evac" — the default ship of the flight and Warp.
+    || FLIGHT_SHIPS.find((ship) => ship.id === "calico-evac")
     || FLIGHT_SHIPS.find((ship) => ship.id === "opal")
     || FLIGHT_SHIPS[0];
   // A fleet chosen in Galia Desk before Mini-Sim booted.
@@ -6847,8 +6849,32 @@
       groups.get(category).appendChild(option);
     });
     select.value = chosenFlight.id;
+    // Owner 26.11.2026: "к выбору нужно справа бы ещё модельку отобразить". A 3/4 picture of the
+    // chosen hull beside the list (tools/ship-previews/render.mjs; no second WebGL context).
+    const preview = document.createElement("figure");
+    preview.setAttribute("data-flight-ship-preview", "");
+    preview.style.cssText = "margin:0;flex:0 0 192px;width:192px;height:108px;border-radius:9px;overflow:hidden;" +
+      "border:1px solid rgba(228,163,34,.35);background:#1c2633;display:flex;align-items:center;justify-content:center;" +
+      "color:#9fb0c2;font:12px/1.3 sans-serif;text-align:center";
+    const showPreview = () => {
+      const url = assetUrl("mesh/ships/previews/" + chosenFlight.id + ".webp");
+      preview.innerHTML = "";
+      if (url) {
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = chosenFlight.name;
+        img.width = 192;
+        img.height = 108;
+        img.style.cssText = "display:block;width:192px;height:108px;object-fit:cover";
+        preview.appendChild(img);
+      } else {
+        preview.textContent = chosenFlight.name + " · нет превью";
+      }
+    };
+    showPreview();
     select.addEventListener("change", () => {
       chosenFlight = FLIGHT_SHIPS.find((ship) => ship.id === select.value) || chosenFlight;
+      showPreview();
       if (window.BCMMiniCrewSelection) {
         window.BCMMiniCrewSelection.shipId = chosenFlight.id;
         window.BCMMiniCrewSelection.shipFile = chosenFlight.file;
@@ -6860,7 +6886,12 @@
     const hint = document.createElement("p");
     hint.textContent = "На стоянке используется отдельная idle/off-модель, при пересадке — полётная. Для одиночных GLB форма остаётся общей.";
     hint.style.cssText = "font-size:12px;opacity:.72;margin:6px 0 0";
-    box.appendChild(select);
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;gap:10px;align-items:center;flex-wrap:wrap";
+    select.style.flex = "1 1 220px";
+    select.style.width = "auto";
+    row.append(select, preview);
+    box.appendChild(row);
     box.appendChild(hint);
   }
 
@@ -7000,7 +7031,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.16.40") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.16.41") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();

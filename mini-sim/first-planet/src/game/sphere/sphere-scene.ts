@@ -2,10 +2,21 @@
  * The scene of Orbis (orbis.ts): a sphere planet with rolling hills, the home base and the captain's
  * ships on the north pole, the castle tiers, six pirate towers, two villages, the shielded fortress on
  * the south pole, the loot on the ground and the bolts. The camera follows the ship over the curve of
- * the sphere. Simple shapes only: no heavy assets, one WebGL context.
+ * the sphere. One WebGL context.
+ *
+ * Owner 26.11.2026: "мы разработали кучу моделек, а ты генеришь простейшие модели … старайся
+ * использовать готовые решения по glb в репозитории". The ships are the catalogue's own GLBs
+ * (game/ships.ts), the captain a Crew model, the crate the island's chest; a simple shape stands in
+ * only while a model loads (or where the repository has none yet: boards, barrels, backpacks).
  */
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { meshUrl, propUrl } from "@/game/mesh-url";
+import { pilotShip, shipUrl } from "@/game/ships";
+import { aimNose } from "@/game/island/bake";
 import {
+  CAPTAIN_MODEL,
+  PIRATE_MODEL,
   CASTLE_TIERS,
   FLEET,
   FORTRESS,
@@ -80,6 +91,43 @@ export function createOrbisScene(canvas: HTMLCanvasElement, game: Orbis) {
     return mesh;
   };
 
+  // Ready GLBs from the repository. A model is fitted to a length (ships) or a height (people) and
+  // turned so its nose looks along +Z, the way the ship group flies.
+  const loader = new GLTFLoader();
+  let alive = true;
+  function dressWith(holder: THREE.Group, url: string, fit: { length?: number; height?: number }, nose = "") {
+    if (!url) return;
+    loader.load(url, (gltf) => {
+      if (!alive) return;
+      const model = gltf.scene;
+      // A hull's nose is found as the island finds it (bake.ts aimNose: the catalogue axis, else the
+      // part names) and then turned to +Z, the way the Orbis ship flies.
+      if (fit.length) { aimNose(model, nose); model.rotation.y += Math.PI; }
+      model.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const k = fit.height ? fit.height / Math.max(0.01, size.y) : (fit.length ?? 6) / Math.max(0.01, Math.max(size.x, size.z));
+      const pivot = new THREE.Group();
+      const centre = box.getCenter(new THREE.Vector3());
+      model.position.sub(new THREE.Vector3(centre.x, fit.height ? box.min.y : centre.y, centre.z));
+      pivot.add(model);
+      pivot.scale.setScalar(k);
+      model.traverse((node) => {
+        const mesh = node as THREE.Mesh;
+        if (mesh.isMesh) { geos.push(mesh.geometry); (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach((m) => mats.push(m)); }
+      });
+      holder.clear();
+      holder.add(pivot);
+    }, undefined, () => { /* keep the stand-in shape */ });
+  }
+  const shipModel = (id: string, length: number) => {
+    const ship = pilotShip(id);
+    const holder = new THREE.Group();
+    holder.add(makeShip(0x9aa4b2));
+    dressWith(holder, shipUrl(ship.flightFile), { length }, ship.nose);
+    return holder;
+  };
+
   // Home base: a stone apron, the captain, three parked ships, and the castle that grows.
   const stone = mat(0xd9ccb0);
   const dark = mat(0x8c8070);
@@ -88,6 +136,7 @@ export function createOrbisScene(canvas: HTMLCanvasElement, game: Orbis) {
   const captain = new THREE.Group();
   captain.add(part(cyl, mat(0x2d4a7a), 0, 0.9, 0, 0.7, 1.8, 0.7), part(ball, mat(0xe7c7a5), 0, 2.1, 0, 0.6, 0.6, 0.6));
   captain.position.set(4, 0.3, 6);
+  dressWith(captain, propUrl(CAPTAIN_MODEL), { height: 1.85 });
   home.add(captain);
   const fleetColors: Record<string, number> = { skiff: 0x3fb4ff, barge: 0xc7903a, lancer: 0xd84a4a };
   const makeShip = (color: number) => {
@@ -97,11 +146,14 @@ export function createOrbisScene(canvas: HTMLCanvasElement, game: Orbis) {
     g.add(part(cone, mat(0xffd27a, { emissive: 0x553300 }), 0, 0, 2.1, 0.5, 0.9, 0.5).rotateX(Math.PI / 2));
     return g;
   };
+  const parked: THREE.Group[] = [];
   FLEET.forEach((make, i) => {
-    const s = makeShip(fleetColors[make.id] ?? 0xffffff);
-    s.position.set(-6 + i * 6, 0.9, 9);
+    const s = shipModel(make.model, make.length);
+    s.position.set(-9 + i * 9, 1.4, 10);
     home.add(s);
+    parked.push(s);
   });
+  void fleetColors;
   const castle = new THREE.Group();
   castle.position.set(-6, 0.3, -6);
   const H = 3.6;
@@ -140,6 +192,9 @@ export function createOrbisScene(canvas: HTMLCanvasElement, game: Orbis) {
     const g = new THREE.Group();
     const up = new THREE.Group();
     up.add(part(cyl, towerMat, 0, 4, 0, 2.2, 8, 2.2), part(cone, crownMat, 0, 9, 0, 3, 2.4, 3));
+    const gunship = shipModel(PIRATE_MODEL, 6);
+    gunship.position.y = 12.5;
+    up.add(gunship);
     const rubble = new THREE.Group();
     for (let k = 0; k < 6; k += 1) rubble.add(part(box, towerMat, (k % 3) - 1, 0.4, Math.floor(k / 3) - 0.5, 1.2, 0.8, 1.1));
     rubble.visible = false;
@@ -165,15 +220,16 @@ export function createOrbisScene(canvas: HTMLCanvasElement, game: Orbis) {
   // Loot on the ground: boards, crates, barrels, backpacks.
   const lootLook: Record<LootKind, () => THREE.Object3D> = {
     board: () => { const g = new THREE.Group(); [0, 0.22, 0.44].forEach((y) => g.add(part(box, mat(0xa0703c), 0, y, 0, 2.4, 0.18, 0.5))); return g; },
-    crate: () => part(box, mat(0xc69a52), 0, 0.5, 0, 1.1, 1.1, 1.1),
+    crate: () => { const g = new THREE.Group(); g.add(part(box, mat(0xc69a52), 0, 0.5, 0, 1.1, 1.1, 1.1)); dressWith(g, meshUrl("chest.glb"), { height: 1.1 }); return g; },
     barrel: () => part(cyl, mat(0x6b4a2e), 0, 0.65, 0, 1, 1.3, 1),
     backpack: () => part(box, mat(0x5f7d3a), 0, 0.45, 0, 0.9, 1, 0.6),
   };
   const dropMeshes: THREE.Object3D[] = [];
 
-  // The player's ship and the bolts.
-  const shipMesh = makeShip(0xffffff);
+  // The player's ship (the model of the ship the captain lent) and the bolts.
+  const shipMesh = new THREE.Group();
   scene.add(shipMesh);
+  let shipMeshFor = "";
   const boltGeo = keepG(new THREE.SphereGeometry(0.35, 8, 6));
   const ours = keepM(new THREE.MeshBasicMaterial({ color: 0x8ff8ff }));
   const theirs = keepM(new THREE.MeshBasicMaterial({ color: 0xff5a3a }));
@@ -219,6 +275,14 @@ export function createOrbisScene(canvas: HTMLCanvasElement, game: Orbis) {
     });
 
     const ship = s.ship;
+    if (ship && s.fleetId !== shipMeshFor) {
+      shipMeshFor = s.fleetId ?? "";
+      const make = FLEET.find((m) => m.id === s.fleetId) ?? FLEET[0];
+      shipMesh.clear();
+      shipMesh.add(shipModel(make.model, make.length));
+      // The ship taken leaves its berth.
+      parked.forEach((p, i) => { p.visible = FLEET[i].id !== s.fleetId; });
+    }
     if (ship) {
       shipMesh.visible = true;
       const f = new THREE.Vector3(ship.forward.x, ship.forward.y, ship.forward.z);
@@ -229,7 +293,7 @@ export function createOrbisScene(canvas: HTMLCanvasElement, game: Orbis) {
       shipMesh.rotateZ(ship.bank);
       shipMesh.position.set(ship.position.x, ship.position.y, ship.position.z);
       const p = new THREE.Vector3(ship.position.x, ship.position.y, ship.position.z);
-      camera.position.copy(p).addScaledVector(f, -10).addScaledVector(u, 4.2);
+      camera.position.copy(p).addScaledVector(f, -15).addScaledVector(u, 6);
       camera.up.copy(u);
       camera.lookAt(p.clone().addScaledVector(f, 8));
     } else {
@@ -244,6 +308,7 @@ export function createOrbisScene(canvas: HTMLCanvasElement, game: Orbis) {
   }
 
   function dispose() {
+    alive = false;
     geos.forEach((g) => g.dispose());
     mats.forEach((m) => m.dispose());
     renderer.dispose();

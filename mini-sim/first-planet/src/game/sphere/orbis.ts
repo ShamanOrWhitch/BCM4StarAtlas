@@ -52,11 +52,16 @@ export const LOOT_NAMES: Record<LootKind, string> = { board: "доски", crate
 export const ORBIS = { radius: 140, homeRange: 14, pickRange: 4, pickClear: 5.5, towerRange: 48, boltSpeed: 46, boltLife: 1.3 };
 
 /** The ships the captain keeps by the home base. */
+/** The ships the captain keeps by the home base; model = a family of the ship catalogue (GLB). */
 export const FLEET = [
-  { id: "skiff", name: "Скиф", note: "быстрый, трюм на 4", speed: 1.3, hp: 4, cap: 4, fireEvery: 0.32 },
-  { id: "barge", name: "Баржа", note: "медленная, крепкая, трюм на 8", speed: 0.85, hp: 8, cap: 8, fireEvery: 0.4 },
-  { id: "lancer", name: "Копьё", note: "боевой, частый огонь, трюм на 5", speed: 1.05, hp: 5, cap: 5, fireEvery: 0.16 },
+  { id: "skiff", name: "Скиф", note: "быстрый, трюм на 4", speed: 1.3, hp: 4, cap: 4, fireEvery: 0.32, model: "jetjet", length: 6 },
+  { id: "barge", name: "Баржа", note: "медленная, крепкая, трюм на 8", speed: 0.85, hp: 8, cap: 8, fireEvery: 0.4, model: "packlite", length: 11 },
+  { id: "lancer", name: "Копьё", note: "боевой, частый огонь, трюм на 5", speed: 1.05, hp: 5, cap: 5, fireEvery: 0.16, model: "mamba", length: 9 },
 ] as const;
+/** The pirates' gunship over each tower, from the ship catalogue. */
+export const PIRATE_MODEL = "maxhog";
+/** The captain: a human Crew model from mini-sim/assets/mesh/characters 3d. */
+export const CAPTAIN_MODEL = "characters 3d/human/ja_victorn_prototype.glb";
 export type FleetId = (typeof FLEET)[number]["id"];
 
 /** The castle: what each next tier needs, in delivered materials. */

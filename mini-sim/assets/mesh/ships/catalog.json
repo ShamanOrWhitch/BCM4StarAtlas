@@ -815,7 +815,7 @@
     {
       "id": "imp-tip",
       "name": "Imp Tip Wings",
-      "category": "Fighter",
+      "category": "Mining / light",
       "seatLength": 14,
       "yardLength": 11,
       "planetDrive": true,
@@ -1293,7 +1293,7 @@
     {
       "id": "imp-tap",
       "name": "Imp Tap",
-      "category": "Combat / utility",
+      "category": "Mining",
       "seatLength": 28,
       "yardLength": 26,
       "planetDrive": false,
@@ -1371,7 +1371,7 @@
     {
       "id": "armstrong",
       "name": "Armstrong Imp",
-      "category": "Heavy combat",
+      "category": "Mining",
       "seatLength": 42,
       "yardLength": 40,
       "planetDrive": false,
