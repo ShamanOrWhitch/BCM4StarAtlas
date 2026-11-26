@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { DesertIsland } from "@/components/desert-island";
 import { ShoalRace } from "@/components/shoal-race";
+import { SphereWorld } from "@/components/sphere-world";
 import { resolvePlanetId } from "@/game/island/planet";
 import "./styles.css";
 
@@ -154,6 +155,11 @@ function FirstPlanetApp({
   };
 
   if (window.BCMMiniSimSession) window.BCMMiniSimSession.currentLocation = "first-planet";
+
+  // Owner 26.11.2026 (IDEA-033): Orbis is a whole sphere planet to fly over, not an island.
+  if (context.planet === "orbis") {
+    return <SphereWorld live={live} onReady={onReady} onLoadError={onLoadError} onStartAudio={startPlanetMusic} />;
+  }
 
   return mode === "race"
     ? <ShoalRace seed={Number(context.raceSeed) >>> 0} planet={context.planet} onLeave={leaveRace} onStartAudio={startRaceMusic} />

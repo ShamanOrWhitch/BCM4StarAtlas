@@ -15,7 +15,7 @@
  *
  * Pure data and logic: no DOM, no THREE, so node --test can run it.
  */
-export type PlanetId = "first" | "pearce" | "ioki" | "fable" | "opus";
+export type PlanetId = "first" | "pearce" | "ioki" | "fable" | "opus" | "orbis";
 
 /**
  * Things only a planet with its own design draws (planet Fable). The three
@@ -127,6 +127,26 @@ export const PLANETS: Record<PlanetId, PlanetLook> = {
     relief: "opus",
     extras: { stars: 120, aurora: null, motes: null, ring: null, veins: null, seaGlow: null },
   },
+  // Owner 26.11.2026 (IDEA-033): a whole sphere planet to fly over. First Planet shows the sphere
+  // level (components/sphere-world.tsx) for it, not the island; this look names it in the menus.
+  orbis: {
+    id: "orbis",
+    system: null,
+    kicker: "Орбис · сектор [-39, 29] · база на северном полюсе",
+    title: "Орбис",
+    blurb: "Целая планета-шар: облетаешь её по кругу. Пираты держат шесть башен и крепость на южном полюсе. Капитан даёт корабль, добыча строит замок.",
+    sky: { top: 0x101a33, mid: 0x2a3d6a, low: 0x6e86b8 },
+    background: 0x1b2440,
+    fog: { color: 0x1b2440, near: 120, far: 420 },
+    hemi: { sky: 0xcfe6ff, ground: 0x3a2c1e, intensity: 0.9 },
+    sunSprite: { color: "#fff3d6", size: 24 },
+    moonSprite: { color: "#c9d6e3", size: 10 },
+    sun: { color: 0xfff0d8, intensity: 1.25 },
+    fill: 0xc8d8ee,
+    ground: { sand: 0x6d8c45, wet: 0x3f7a4a, rock: 0x9a958a, grass: 0x3f7a4a, greenery: 0.5 },
+    sea: { color: 0x2a4a66, opacity: 0.9, roughness: 0.3 },
+    exposure: 1,
+  },
   first: {
     id: "first",
     system: null,
@@ -212,6 +232,8 @@ const ALIASES: Record<string, PlanetId> = {
   fable: "fable",
   opus: "opus",
   focus: "opus",
+  orbis: "orbis",
+  sphere: "orbis",
 };
 
 export function planetIdFrom(value: unknown): PlanetId | null {

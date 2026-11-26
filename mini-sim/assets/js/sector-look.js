@@ -52,6 +52,16 @@
       moons: [{ radius: 5, orbit: 88, speed: 0.03, color: "#c9d6e3" }],
       light: "#fff1d6", nebula: "#2b3f63", stars: "#fff4e0", keepStation: false, suns: 1, landing: true
     },
+    // Orbis (IDEA-033): a green hilled sphere with a pirate-red crown on its south pole; you fly
+    // right round it. The landing beacon leads down to the sphere level.
+    orbis: {
+      id: "orbis", title: "Орбис",
+      planet: { radius: 44, at: [30, 20, -310], tilt: 0.3, spin: 0.01 },
+      surface: { kind: "jungle", base: "#3f7a4a", band: "#6d8c45", accent: "#ff4a3a", bands: 8 },
+      ring: null,
+      moons: [{ radius: 3.5, orbit: 76, speed: 0.04, color: "#cfd8e6" }],
+      light: "#cfe6ff", nebula: "#1b2440", stars: "#e6eeff", keepStation: false, suns: 1, landing: true
+    },
     // Pearce (MUD CSS): a blue-green ocean world with white cloud swirls.
     pearce: {
       id: "pearce", title: "Pearce",

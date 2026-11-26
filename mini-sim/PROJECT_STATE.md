@@ -11,6 +11,13 @@
 
 ---
 
+## Patch — Mini-Sim 0.16.40: ship-core (one flight model for every ship) and Orbis, a sphere planet to fly over with loot and a castle (26 November 2026)
+
+- **WORK LOCK:** [#182](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/182). Decision D-116; IDEA-031, IDEA-033.
+- **Checks:** regression 392/392; Planet Lab `orbis.mjs` (Edge).
+
+---
+
 ## Patch — Mini-Sim 0.16.39: each planet has its own layout; Opus is an observatory on the terraces with its own residents, quests and a growing castle (26 November 2026)
 
 - **WORK LOCK:** [#181](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/181). Decision D-115, BUG-031.

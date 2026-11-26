@@ -33,7 +33,8 @@ test("sector names and system lookup come from the Galia map", async () => {
   // 24.11.2026: lore sectors carry their Star Atlas names; other stars keep their class.
   assert.equal(core.sectorTitle(-38, 25), "Segal · ONI-4 [-38, 25]");
   assert.match(core.sectorTitle(-36, -7), /^(White Dwarf|Red Dwarf|Solar|Hot Blue|Red Giant) \[-36, -7\]$/);
-  assert.equal(core.sectorTitle(-39, 29), "[-39, 29] · пустой сектор");
+  // [-39, 29] holds Orbis since 26.11.2026 (IDEA-033); [-38, 30] is still empty.
+  assert.equal(core.sectorTitle(-38, 30), "[-38, 30] · пустой сектор");
   const oni = core.systemForSector(-40, 30);
   assert.equal(oni.id, "oni");
   assert.match(oni.planet, /Akenat/);

@@ -9,7 +9,7 @@
  * step for every sector. Tower passes the result to First Planet, so the clip
  * and the island always show the same planet.
  *
- *   planetId(inputs?)          → "first" | "pearce" | "ioki" | "fable" | "opus"
+ *   planetId(inputs?)          → "first" | "pearce" | "ioki" | "fable" | "opus" | "orbis"
  *   clipFor(towerConfig, id)   → planetTransitions[id] || planetTransition
  */
 (function (root) {
@@ -21,7 +21,9 @@
     pearce: "pearce", mud: "pearce", earth: "pearce",
     ioki: "ioki", ustur: "ioki", mars: "ioki",
     fable: "fable",
-    opus: "opus", focus: "opus"
+    opus: "opus", focus: "opus",
+    // 26.11.2026 (IDEA-033): Orbis, the sphere planet; First Planet shows the sphere level for it.
+    orbis: "orbis", sphere: "orbis"
   };
 
   function idFrom(value) {

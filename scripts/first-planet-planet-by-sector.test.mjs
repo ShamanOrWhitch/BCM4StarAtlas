@@ -53,7 +53,8 @@ test("the three planets really look different", () => {
   assert.ok(planetModule);
   const { PLANETS } = planetModule;
   const ids = Object.keys(PLANETS);
-  assert.deepEqual(ids.sort(), ["fable", "first", "ioki", "opus", "pearce"]);
+  // 26.11.2026: Orbis (the sphere level, IDEA-033) joins the planets.
+  assert.deepEqual(ids.sort(), ["fable", "first", "ioki", "opus", "orbis", "pearce"]);
   for (const key of ["background", "fog", "sky", "ground", "sea"]) {
     const values = new Set(ids.map((id) => JSON.stringify(PLANETS[id][key])));
     assert.equal(values.size, ids.length, `${key} is the same on two planets`);

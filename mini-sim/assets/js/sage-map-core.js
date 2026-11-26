@@ -19,7 +19,9 @@
     // hundred years a message comes: the planets change sectors.
     { id: "twinsun", x: -40, y: 31, name: "Twinsun · пустыня, ушедшая с ONI", planet: "first", color: "#ff9a4a" },
     // Planet Opus (Claude Opus 5.5 at the owner's invitation): straight west of ONI CSS.
-    { id: "opus", x: -41, y: 30, name: "Opus · планета фокуса", planet: "opus", color: "#ffb347" }
+    { id: "opus", x: -41, y: 30, name: "Opus · планета фокуса", planet: "opus", color: "#ffb347" },
+    // Owner 26.11.2026 (IDEA-033): Orbis, a whole sphere planet to fly over, one jump south-east of ONI CSS.
+    { id: "orbis", x: -39, y: 29, name: "Орбис · планета-шар", planet: "orbis", color: "#6fc3ff" }
   ];
   const landmarkByKey = new Map(landmarks.map((mark) => [mark.x + "," + mark.y, mark]));
 
