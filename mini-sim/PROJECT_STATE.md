@@ -11,6 +11,15 @@
 
 ---
 
+## Patch — Mini-Sim 0.16.39: each planet has its own layout; Opus is an observatory on the terraces with its own residents, quests and a growing castle (26 November 2026)
+
+- **WORK LOCK:** [#181](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/181). Decision D-115, BUG-031.
+- **Checks:**
+  - regression 385/385;
+  - Planet Lab `places.mjs opus` (Edge).
+
+---
+
 ## Patch — Mini-Sim 0.16.38: the heavy-gravity Ring cells jump over a one-tile barrel; owner's live check of 26.11 recorded (26 November 2026)
 
 - **WORK LOCK:** [#180](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/180). BUG-028.

@@ -9,6 +9,7 @@ import { libraryUrl, meshUrl, propUrl } from "../mesh-url";
 import { activeKeys } from "../input";
 import { createSim, type Sim } from "./sim";
 import { createOpusLook } from "./opus-look";
+import { applyLayout, currentLayout } from "./layout";
 import { createFableLook } from "./fable-look";
 import {
   BIKE_PARK,
@@ -37,6 +38,9 @@ import {
   houseAabbs,
   onSky,
   surfaceY,
+  TOWN,
+  TOWN_PATH,
+  onBridge,
   type House,
 } from "./terrain";
 
@@ -186,8 +190,10 @@ export function createIsland(
   onLoadError?: (error: unknown) => void,
   context: { planetSeed?: number; players?: Array<{ species?: string; name?: string }>; shipId?: string; planet?: string } = {},
 ): IslandWorld {
-  // The relief must be chosen before the sim reads the ground under the spawn.
+  // The relief must be chosen before the sim reads the ground under the spawn; then the planet's
+  // own layout moves the houses, residents and quest places (layout.ts).
   setRelief(planetLook(context.planet).relief);
+  applyLayout(context.planet);
   // Residents, quests and progress are the planet's own (IDEA-021).
   const sim = createSim(Number(context.planetSeed) >>> 0, planetLook(context.planet).id);
   // Sky, light, ground and sea of the planet this sector lands on (planet.ts).
@@ -444,15 +450,17 @@ export function createIsland(
     else mats.add(mat);
   };
 
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0xe0c7a2, roughness: 0.92 });
+  // Each planet's houses wear its own stone (layout.ts style); the classic town is unchanged.
+  const houseStyle = currentLayout().style;
+  const wallMat = new THREE.MeshStandardMaterial({ color: houseStyle.wall, roughness: 0.92 });
   const roofMat = new THREE.MeshStandardMaterial({
-    color: 0x8d5340,
+    color: houseStyle.roof,
     roughness: 0.86,
     polygonOffset: true,
     polygonOffsetFactor: -1,
     polygonOffsetUnits: -1,
   });
-  const floorMat = new THREE.MeshStandardMaterial({ color: 0xc9ae84, roughness: 0.95 });
+  const floorMat = new THREE.MeshStandardMaterial({ color: houseStyle.floor, roughness: 0.95 });
   const stoneMat = new THREE.MeshStandardMaterial({ color: 0xb7aea0, roughness: 0.8 });
   const pathMat = new THREE.MeshStandardMaterial({
     color: 0xd2b48c,
@@ -628,9 +636,9 @@ export function createIsland(
   towerPortalLight.position.set(TOWER_GATE.x, towerGateY + 7.1, TOWER_GATE.z);
   scene.add(towerPortalLight);
 
-  for (let z = 30; z >= -6; z -= 4) {
-    const y = groundY(0, z);
-    addBox(0, y + 0.05, z, 3.1, 0.06, 3.6, pathMat);
+  for (const [px, pz] of TOWN_PATH) {
+    const y = groundY(px, pz);
+    addBox(px, y + 0.05, pz, 3.1, 0.06, 3.6, pathMat);
   }
 
   const archiveDoor = { mesh: null as THREE.Mesh | null };
@@ -658,6 +666,19 @@ export function createIsland(
       const slab = doorSlab(house, y0);
       archiveDoor.mesh = slab;
     }
+    if (houseStyle.dome === house.id) {
+      const radius = Math.min(house.w, house.d) * 0.42;
+      const dome = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+        new THREE.MeshStandardMaterial({ color: 0xf4f1ea, roughness: 0.55, metalness: 0.15 }),
+      );
+      dome.position.set(house.x, y0 + house.h + 0.28, house.z);
+      dome.name = "house-dome-" + house.id;
+      scene.add(dome);
+      track(dome);
+      // The slot of the telescope, a dark band across the dome.
+      addBox(house.x, y0 + house.h + 0.28 + radius * 0.55, house.z, radius * 2.04, radius * 0.9, 0.45, woodMat);
+    }
   }
 
   function dressDoor(house: House, y0: number) {
@@ -681,9 +702,16 @@ export function createIsland(
     return addBox(x, y0 + 1.15, house.z, 0.16, 2.25, 1.58, woodMat);
   }
 
-  addBox(-12.6, groundY(-12.6, 17) + 0.45, 16.2, 1.1, 0.7, 0.6, woodMat);
-  addBox(12.2, groundY(12.2, 15) + 0.4, 14.2, 0.9, 0.55, 0.55, woodMat);
-  addBox(-14.2, groundY(-14.2, -1.2) + 0.55, -2.4, 0.8, 0.9, 0.5, woodMat);
+  const crate = (id: string, dx: number, dz: number, w: number, h: number, d: number) => {
+    const house = HOUSES.find((item) => item.id === id);
+    if (!house) return;
+    const x = house.x + dx;
+    const z = house.z + dz;
+    addBox(x, groundY(x, z) + h / 2 + 0.1, z, w, h, d, woodMat);
+  };
+  crate("sera", -1.6, -0.8, 1.1, 0.7, 0.6);
+  crate("home", 1.2, -0.8, 0.9, 0.55, 0.55);
+  crate("archive", -2.0, -1.2, 0.8, 0.9, 0.5);
 
   const ring = new THREE.Mesh(new THREE.TorusGeometry(2.5, 0.11, 10, 36), goldMat);
   ring.rotation.x = Math.PI / 2;
@@ -1274,13 +1302,17 @@ export function createIsland(
       [-4.2, 8],
       [4.4, -2],
     ];
-    lamps.forEach(([x, z]) => drop(lamp, x, z, 0));
-    drop(bench, 2.4, 6.4, 0.2);
-    drop(bench, -2.2, 5.2, 2.6);
-    block(2.4, 6.4, 0.7, 0.9);
-    block(-2.2, 5.2, 0.7, 0.9);
+    // The lamps and benches of the valley square; a planet without a town (Opus) has none.
+    if (TOWN.on) {
+      lamps.forEach(([x, z]) => drop(lamp, x, z, 0));
+      drop(bench, 2.4, 6.4, 0.2);
+      drop(bench, -2.2, 5.2, 2.6);
+      block(2.4, 6.4, 0.7, 0.9);
+      block(-2.2, 5.2, 0.7, 0.9);
+    }
     BRAZIERS.forEach((spot, i) => {
-      const y = i === 1 ? BRIDGE.deck : groundY(spot.x, spot.z);
+      // A lamp on the bridge stands on its deck (the classic second brazier); others on the ground.
+      const y = onBridge(spot.x, spot.z) ? BRIDGE.deck : groundY(spot.x, spot.z);
       const stand = drop(brazier, spot.x, spot.z, i, y);
       const flame = fireSprite();
       flame.position.set(spot.x, y + 1.15, spot.z);
@@ -1860,7 +1892,8 @@ export function createIsland(
   }
 
   // QA handle for browser probes (read-only use: position, mode, walls, carpet state).
-  if (typeof window !== "undefined") (window as unknown as { __BCM_ISLAND_QA__?: unknown }).__BCM_ISLAND_QA__ = { sim };
+  // QA only: the sim and the planet layout (tools/planet-lab/places.mjs looks at each place).
+  if (typeof window !== "undefined") (window as unknown as { __BCM_ISLAND_QA__?: unknown }).__BCM_ISLAND_QA__ = { sim, layout: currentLayout() };
 
   sim.board = () => {
     if (sim.mode !== "foot" || boarded) return false;

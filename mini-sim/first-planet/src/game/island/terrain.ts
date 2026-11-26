@@ -268,21 +268,49 @@ function desertGroundY(x: number, z: number) {
   return lerp(-1.7, settle(h, x, z), inland);
 }
 
-/** Built places: the pad, the town, four house plots and the bridge heads. */
+export type House = {
+  id: string;
+  x: number;
+  z: number;
+  w: number;
+  d: number;
+  h: number;
+  door: "n" | "s" | "e" | "w";
+  /** Height the plot is levelled at; the classic valley plots use 0.74. */
+  level?: number;
+};
+
+/** The planet's houses (layout.ts replaces them per planet; the classic town by default). */
+export const HOUSES: House[] = [
+  { id: "sera", x: -11, z: 17, w: 8, d: 7, h: 3.45, door: "e" },
+  { id: "home", x: 11, z: 15, w: 7.4, d: 6.6, h: 3.2, door: "w" },
+  { id: "archive", x: -12.2, z: -1.2, w: 9, d: 7, h: 3.7, door: "e" },
+  { id: "keeper", x: 13, z: -5.5, w: 7.2, d: 6.4, h: 3.15, door: "w" },
+];
+const HOUSE_PLOTS = HOUSES;
+
+/**
+ * The valley town the planet levels, or none (Opus builds on its terraces). layout.ts sets it
+ * per planet; the classic town is the low square around (0, 8).
+ */
+export const TOWN = { on: true, x: 0, z: 8, level: 0.58 };
+/** Stepping stones of the town path, [x, z]; layout.ts sets them per planet. */
+export const TOWN_PATH: Array<[number, number]> = [];
+for (let z = 30; z >= -6; z -= 4) TOWN_PATH.push([0, z]);
+
+/** Built places: the pad, the town, the house plots of the planet and the bridge heads. */
 function settle(h: number, x: number, z: number) {
   const pad = Math.exp(-(x * x) / 55 - ((z - 38) ** 2) / 42);
   h = lerp(h, 0.48, Math.min(1, pad * 1.05));
-  const town = Math.exp(-(x * x) / 280 - ((z - 8) ** 2) / 360);
-  h = lerp(h, 0.58, Math.min(1, town * 0.8));
-  const plots: Array<[number, number]> = [
-    [-11, 17],
-    [11, 15],
-    [-12.2, -1.2],
-    [13, -5.5],
-  ];
-  for (const [px, pz] of plots) {
-    const disk = Math.exp(-((x - px) ** 2) / 26 - ((z - pz) ** 2) / 20);
-    h = lerp(h, 0.74, Math.min(1, disk * 1.4));
+  if (TOWN.on) {
+    const town = Math.exp(-((x - TOWN.x) ** 2) / 280 - ((z - TOWN.z) ** 2) / 360);
+    h = lerp(h, TOWN.level, Math.min(1, town * 0.8));
+  }
+  // Each house plot is levelled at its own height: the classic valley plots at 0.74,
+  // an Opus house at the height of its terrace (layout.ts gives the level).
+  for (const house of HOUSE_PLOTS) {
+    const disk = Math.exp(-((x - house.x) ** 2) / 26 - ((z - house.z) ** 2) / 20);
+    h = lerp(h, house.level ?? 0.74, Math.min(1, disk * 1.4));
   }
   if (Math.abs(x - 2.2) < 2.4 && z <= -8.4 && z >= -10.4) h = Math.max(h, 0.42);
   if (Math.abs(x - 2.2) < 2.4 && z <= -23.2 && z >= -26.2) h = Math.max(h, 0.42);
@@ -397,22 +425,6 @@ export function hoverFloor(x: number, z: number, currentY: number) {
   return y;
 }
 
-export type House = {
-  id: string;
-  x: number;
-  z: number;
-  w: number;
-  d: number;
-  h: number;
-  door: "n" | "s" | "e" | "w";
-};
-
-export const HOUSES: House[] = [
-  { id: "sera", x: -11, z: 17, w: 8, d: 7, h: 3.45, door: "e" },
-  { id: "home", x: 11, z: 15, w: 7.4, d: 6.6, h: 3.2, door: "w" },
-  { id: "archive", x: -12.2, z: -1.2, w: 9, d: 7, h: 3.7, door: "e" },
-  { id: "keeper", x: 13, z: -5.5, w: 7.2, d: 6.4, h: 3.15, door: "w" },
-];
 
 export type Aabb = {
   minX: number;
@@ -541,6 +553,15 @@ export function regionName(x: number, z: number, y: number) {
 }
 
 function opusRegionName(x: number, z: number) {
+  // The places of the Opus monastery (layout.ts): the observatory, the lens workshop, the cells.
+  const near = (id: string, r: number) => {
+    const house = HOUSES.find((h) => h.id === id);
+    return !!house && Math.hypot(x - house.x, z - house.z) < r;
+  };
+  if (near("archive", 9)) return "Обсерватория";
+  if (near("sera", 8)) return "Мастерская линз";
+  if (near("keeper", 7)) return "Кельи";
+  if (Math.hypot(x - (OPUS_BASE.x - 10), z - (OPUS_BASE.z + 3)) < 6) return "Замок";
   for (const p of OPUS_PILLARS) if (Math.hypot(x - p.x, z - p.z) < p.r + 7) return "Карстовый лес";
   if (Math.hypot(x - OPUS_BASE.x, z - OPUS_BASE.z) < OPUS_BASE.r + 1) return "Накопитель";
   if (z > OPUS_CANYON.z0 && z < OPUS_CANYON.z1 && Math.abs(x - OPUS_CANYON.x(z)) < OPUS_CANYON.half + 3) return "Сухой каньон";

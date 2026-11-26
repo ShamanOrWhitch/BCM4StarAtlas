@@ -41,6 +41,55 @@ export function createOpusLook(
   plinth.position.set(OPUS_BASE.x, baseY + 0.45, OPUS_BASE.z);
   root.add(ringMesh, column, plinth);
 
+  // Owner 26.11.2026: "особых механик как в magic carpet, где надо свою базу (замок) отстраивать".
+  // The castle beside the base grows with each upgrade bought there: a foundation from the start,
+  // then the walls, the corner towers, and the keep with its flag.
+  const CASTLE = { x: OPUS_BASE.x - 10, z: OPUS_BASE.z + 3, half: 3.6 };
+  const castleY = ground(CASTLE.x, CASTLE.z);
+  const stone = keep(new THREE.MeshStandardMaterial({ color: 0xe2d5bb, roughness: 0.9 }));
+  const darkStone = keep(new THREE.MeshStandardMaterial({ color: 0xa89a80, roughness: 0.95 }));
+  const flagMat = keep(new THREE.MeshStandardMaterial({ color: 0xffb347, roughness: 0.6, side: THREE.DoubleSide }));
+  const box = keep(new THREE.BoxGeometry(1, 1, 1));
+  const castle = new THREE.Group();
+  castle.name = "opus-castle";
+  castle.position.set(CASTLE.x, castleY, CASTLE.z);
+  root.add(castle);
+  const piece = (mat: THREE.Material, x: number, y: number, z: number, sx: number, sy: number, sz: number) => {
+    const m = new THREE.Mesh(box, mat);
+    m.position.set(x, y + sy / 2, z);
+    m.scale.set(sx, sy, sz);
+    return m;
+  };
+  const H = CASTLE.half;
+  // Tier 0: the foundation and the corner stones — the plot is claimed from the first landing.
+  const tier0 = new THREE.Group();
+  tier0.add(piece(darkStone, 0, -0.2, 0, H * 2 + 0.6, 0.5, H * 2 + 0.6));
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => tier0.add(piece(stone, sx * H, 0.3, sz * H, 0.9, 0.7, 0.9)));
+  // Tier 1: the walls, with a gate towards the pad.
+  const tier1 = new THREE.Group();
+  tier1.add(piece(stone, 0, 0.3, -H, H * 2, 2.2, 0.45));
+  tier1.add(piece(stone, -H, 0.3, 0, 0.45, 2.2, H * 2));
+  tier1.add(piece(stone, 0, 0.3, H, H * 2, 2.2, 0.45));
+  tier1.add(piece(stone, H, 0.3, -H * 0.55, 0.45, 2.2, H * 0.9));
+  tier1.add(piece(stone, H, 0.3, H * 0.55, 0.45, 2.2, H * 0.9));
+  // Tier 2: four corner towers with crenellations.
+  const tier2 = new THREE.Group();
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+    tier2.add(piece(stone, sx * H, 0.3, sz * H, 1.4, 3.6, 1.4));
+    [[-0.45, -0.45], [0.45, -0.45], [-0.45, 0.45], [0.45, 0.45]].forEach(([cx, cz]) =>
+      tier2.add(piece(darkStone, sx * H + cx, 3.9, sz * H + cz, 0.35, 0.45, 0.35)));
+  });
+  // Tier 3: the keep and its flag.
+  const tier3 = new THREE.Group();
+  tier3.add(piece(stone, 0, 0.3, 0, 2.6, 5.2, 2.6));
+  tier3.add(piece(darkStone, 0, 5.5, 0, 3.0, 0.4, 3.0));
+  tier3.add(piece(darkStone, 0, 5.9, 0, 0.12, 2.4, 0.12));
+  const flag = new THREE.Mesh(keep(new THREE.PlaneGeometry(1.4, 0.8)), flagMat);
+  flag.position.set(0.72, 7.8, 0);
+  tier3.add(flag);
+  const castleTiers = [tier0, tier1, tier2, tier3];
+  castle.add(...castleTiers);
+
   // Karst pillars: a crisp limestone shaft over the coarse ground mesh, so a pillar reads as rock.
   const pillarGeo = keep(new THREE.CylinderGeometry(0.82, 1.06, 1, 9));
   const limestone = keep(new THREE.MeshStandardMaterial({ color: 0xd9cbb0, roughness: 0.92 }));
@@ -143,6 +192,10 @@ export function createOpusLook(
   const shotPool = pool(0x7ff6ff, 12);
 
   function update(elapsed: number) {
+    // The castle shows one more tier for each upgrade bought at the base.
+    const built = carpet.owned.length;
+    castleTiers.forEach((tier, i) => { tier.visible = i <= built; });
+    flag.rotation.y = Math.sin(elapsed * 1.3) * 0.25;
     carpet.nodes.forEach((node, i) => {
       const m = modules[i];
       m.pivot.visible = node.owner === "ship";

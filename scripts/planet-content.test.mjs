@@ -49,10 +49,12 @@ test("quest kinds are mixed differently on each planet, and the relay kind exist
   for (const k of ["collect", "fetch", "light", "relay"]) assert.ok(kinds.has(k), `no planet uses the quest kind ${k}`);
 });
 
-test("on Opus the relay quest is played by keys: offer, hand over to the other resident, turn in", () => {
+// 26.11.2026: Opus has its own residents and quests (layout.ts, D-115) and no relay quest any more;
+// the relay is played on Fable, and Opus plays its beacon quest at its own places.
+test("the relay quest is played by keys: offer, hand over to the other resident, turn in", () => {
   const { planetContent } = content;
-  const { sim, hold, tap } = playIsland(7, "opus");
-  const residents = planetContent("opus").residents;
+  const { sim, hold, tap } = playIsland(7, "fable");
+  const residents = planetContent("fable").residents;
   const [slot, giver] = Object.entries(residents).find(([, r]) => r.kind === "relay");
   const target = residents[giver.to];
   assert.ok(target, "the relay quest has no receiver");
@@ -63,15 +65,36 @@ test("on Opus the relay quest is played by keys: offer, hand over to the other r
   assert.equal(sim.ready(slot), false);
   at(sim, spot(giver.to));
   tap("KeyE");
-  assert.match(sim.dialogue?.pages.join(" ") || "", new RegExp(giver.item, "i"), `${target.name} does not take the ${giver.item}`);
+  // The receiver names the thing in any case (карту / карта): match its stem.
+  assert.match(sim.dialogue?.pages.join(" ") || "", new RegExp(giver.item.slice(0, 4), "i"), `${target.name} does not take the ${giver.item}`);
   talkThrough(sim, hold, tap);
   assert.equal(sim.ready(slot), true, "after the hand-over the relay quest is not ready to turn in");
   at(sim, spot(slot));
   talkThrough(sim, hold, tap);
   assert.equal(sim.quests[slot], "done");
-  // The HUD names Opus's own quest, not a Twinsun one.
   const hud = sim.hud();
   assert.ok(hud.quests.some((q) => q.title === giver.title), "the HUD lists another planet's quests");
+});
+
+test("on Opus the castle steward's beacons are lit by keys at Opus's own places, then the castle chest opens", () => {
+  const { planetContent } = content;
+  const { sim, hold, tap } = playIsland(7, "opus");
+  const steward = planetContent("opus").residents.bulb;
+  assert.equal(steward.kind, "light");
+  at(sim, terrain.NPC.bulb);
+  talkThrough(sim, hold, tap);
+  assert.equal(sim.quests.bulb, "go", "talking to the steward does not start the beacons");
+  // The beacons stand on the ridge path and the eastern plateau, far from the classic square.
+  assert.ok(terrain.BRAZIERS.every((b) => Math.hypot(b.x, b.z - 8) > 12), "an Opus beacon stands on the classic square");
+  terrain.BRAZIERS.forEach((b) => { at(sim, b); tap("KeyE"); talkThrough(sim, hold, tap); });
+  assert.equal(sim.ready("bulb"), true, "two lit beacons do not finish the steward's quest");
+  at(sim, terrain.NPC.bulb);
+  talkThrough(sim, hold, tap);
+  assert.equal(sim.quests.bulb, "done");
+  at(sim, terrain.CHEST);
+  tap("KeyE");
+  assert.match(sim.dialogue?.pages.join(" ") || "", /замков/i, "the castle chest does not open");
+  assert.ok(sim.hud().quests.some((q) => q.title === steward.title));
 });
 
 test("progress is kept per planet", () => {

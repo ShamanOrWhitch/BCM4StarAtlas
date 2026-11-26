@@ -24,6 +24,7 @@ import {
 } from "./terrain";
 import { HEAT, LIVING, createBody, placeSpores, rulesFor, shoreFor, stepHeat, stepLiving, stepWater, type PlanetBody } from "./planet-rules";
 import { buyUpgrade, captureNode, createCarpet, nextUpgrade, stepCarpet, type CarpetState } from "./carpet";
+import { applyLayout } from "./layout";
 import { planetContent, type PlanetContent, type QuestKind } from "./content";
 
 const SAVE_KEY = "desert-island-v1";
@@ -220,6 +221,8 @@ export type Sim = ReturnType<typeof createSim>;
 
 export function createSim(seed = 0, planet?: string) {
   const locationSeed = Number(seed) >>> 0;
+  // Each planet stands its residents and quest things in its own places (layout.ts).
+  applyLayout(planet);
   // Each planet has its own residents and its own progress (IDEA-021). Twinsun
   // (the desert, "first") keeps the old save key, so old saves stay.
   const content = planetContent(planet);
