@@ -24,6 +24,10 @@
     warpAudio.setAttribute("playsinline", "");
     let warpAudioSrcLoaded = false;
 
+    // ==========================================================================
+    // БЛОК 01 · ЗВУК: OST варпа и кольца, переходное видео
+    // метка [block:audio] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
     function startWarpAudio(restartSession) {
       if (!config.warpMusicUrl) return;
       try {
@@ -53,197 +57,26 @@
       } catch (e) {}
     }
 
-    let ringAudio = null;
-    let ringAudioSource = "";
-    function findRingAudioSource() {
-      if (String(config.ringMusicUrl || "").trim()) return String(config.ringMusicUrl).trim();
-      const assets = Array.isArray(config.assets) ? config.assets : [];
-      const item = assets.find((asset) => {
-        const candidate = String(asset && (asset.name || asset.filename || asset.path || asset.url) || "")
-          .split(/[?#]/)[0].split("/").pop().toLowerCase();
-        return candidate === "ring.mp3";
+    let ringPlatformerInstance = null;
+    function getRingPlatformer() {
+      if (ringPlatformerInstance) return ringPlatformerInstance;
+      const module = window.BCMRingPlatformer;
+      if (!module || typeof module.create !== "function") {
+        console.error("Mini-Sim Ring platformer module is unavailable.");
+        return null;
+      }
+      ringPlatformerInstance = module.create({
+        state, api, config, root, hullEnterButton, ringEnterButton,
+        startWarpAudio, warpAudio, setMazeStatus, syncHullButtonVisibility,
+        syncRingButtonVisibility, attemptOpenRingPlatformer, hashSeed,
+        publishAsteroidChart
       });
-      return String(item && (item.url || item.src || item.path) || "");
+      return ringPlatformerInstance;
     }
-
-    // Warm the soundtrack while the transition clip is loading, but do not play
-    // it until the clip's first frame is actually presented.
-    function prepareRingAudio() {
-      const source = findRingAudioSource();
-      if (!source) return false;
-      if (!ringAudio) {
-        ringAudio = document.createElement("audio");
-        ringAudio.preload = "auto";
-        ringAudio.loop = true;
-        ringAudio.volume = 0.68;
-        ringAudio.setAttribute("playsinline", "");
-        ringAudioSource = source;
-        ringAudio.src = source;
-        ringAudio.load();
-        if (window.BCMGameAudio?.register) window.BCMGameAudio.register(ringAudio, "ring");
-      } else if (ringAudioSource !== source) {
-        try { ringAudio.pause(); } catch (e) {}
-        ringAudioSource = source;
-        ringAudio.preload = "auto";
-        ringAudio.src = source;
-        ringAudio.load();
-      }
-      ringAudio.muted = !!window.BCMGameAudio?.isMuted?.();
-      return true;
+    function stopRingAudio(resumeWarp) { return getRingPlatformer()?.stopAudio(resumeWarp) || false; }
+    function setRingAudioMuted(muted) {
+      if (ringPlatformerInstance) ringPlatformerInstance.setMuted(muted);
     }
-
-    function startRingAudio() {
-      if (!prepareRingAudio()) return false;
-      ringAudio.muted = !!window.BCMGameAudio?.isMuted?.();
-      if (!ringAudio.paused && !ringAudio.ended) return true;
-      const playing = window.BCMGameAudio?.playExclusive
-        ? window.BCMGameAudio.playExclusive(ringAudio, "ring")
-        : ringAudio.play();
-      if (playing && typeof playing.catch === "function") playing.catch(() => {});
-      return true;
-    }
-
-    function stopRingAudio(resumeWarp) {
-      if (ringAudio) {
-        try { ringAudio.pause(); ringAudio.currentTime = 0; } catch (e) {}
-      }
-      if (resumeWarp && state.mode === "maze" && !state.ringPlatformer && !state.ringTransitionActive) {
-        warpAudio.muted = !!window.BCMGameAudio?.isMuted?.();
-        startWarpAudio(false);
-      }
-    }
-
-    function findRingTransitionVideoSource() {
-      if (String(config.ringTransitionVideoUrl || "").trim()) return String(config.ringTransitionVideoUrl).trim();
-      const assets = Array.isArray(config.assets) ? config.assets : [];
-      const fileName = (asset) => String(asset && (asset.name || asset.filename || asset.path || asset.url) || "")
-        .split(/[?#]/)[0].split("/").pop().toLowerCase();
-      const preferred = assets.find((asset) => fileName(asset) === "ringgummy.mp4");
-      const item = preferred || assets.find((asset) => /^ring[^/]*\.mp4$/i.test(fileName(asset)));
-      return String(item && (item.url || item.src || item.path) || "");
-    }
-
-    function playRingTransition(maze, source, engine) {
-      if (state.ringTransitionActive || state.ringPlatformer) return false;
-      state.ringTransitionActive = true;
-      state.ringPlatformer = true;
-      hullEnterButton.hidden = true;
-      ringEnterButton.hidden = true;
-      if (engine && engine.pauseForWarp) engine.pauseForWarp(true);
-
-      const audioPrepared = prepareRingAudio();
-      let audioReady = !audioPrepared || !ringAudio || ringAudio.readyState >= 3;
-      let videoReady = false;
-      let playbackRequested = false;
-      let finished = false;
-      let firstFrameCallback = 0;
-
-      const overlay = document.createElement("div");
-      overlay.id = "bcm-ring-transition";
-      overlay.setAttribute("aria-label", "Ring transition");
-      overlay.style.cssText = "position:fixed;inset:0;z-index:1001400;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;touch-action:manipulation;pointer-events:auto";
-      const video = document.createElement("video");
-      video.preload = "auto";
-      video.autoplay = true;
-      video.loop = false;
-      video.muted = true;
-      video.controls = false;
-      video.playsInline = true;
-      video.setAttribute("playsinline", "");
-      video.setAttribute("webkit-playsinline", "");
-      video.disablePictureInPicture = true;
-      video.style.cssText = "display:block;width:100%;height:100%;object-fit:contain;background:#000";
-      overlay.appendChild(video);
-      const skip = document.createElement("button");
-      skip.type = "button";
-      const english = window.BCMDialogue?.language === "en";
-      skip.textContent = english ? "ENTER THE RING" : "ВОЙТИ В RING";
-      skip.setAttribute("aria-label", "Start the Ring level");
-      skip.style.cssText = "position:absolute;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:8;min-height:48px;min-width:180px;padding:10px 18px;border:1px solid #69d7ea;border-radius:12px;background:#123c48;color:#e8fbff;font:800 14px system-ui;letter-spacing:.06em;cursor:pointer;pointer-events:auto";
-      skip.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        enterLevel();
-      });
-      overlay.appendChild(skip);
-      // Do not skip the landing clip on any tap of the picture. It plays through,
-      // then the Ring menu opens. The button is the only early entrance.
-      try { window.BCMDialogue?.hideOperator?.(); } catch (e) {}
-      document.body.appendChild(overlay);
-
-      function enterLevel() {
-        if (finished) return;
-        finished = true;
-        try {
-          if (firstFrameCallback && typeof video.cancelVideoFrameCallback === "function") {
-            video.cancelVideoFrameCallback(firstFrameCallback);
-          }
-        } catch (e) {}
-        try { video.pause(); video.removeAttribute("src"); video.load(); } catch (e) {}
-        overlay.remove();
-        state.ringTransitionActive = false;
-        state.ringPlatformer = false;
-        if (!attemptOpenRingPlatformer(maze, true)) {
-          state.ringPlatformer = false;
-          // Keep a manual retry available, but don't retrigger the same failing
-          // transition every frame. Clear this latch once the ship leaves the beacon.
-          state.ringApproachArmed = true;
-          state.ringEntryFailed = true;
-          if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
-          stopRingAudio(true);
-          setMazeStatus("RING ENTRY FAILED · ASTEROID RESTORED · PRESS RING BUTTON TO RETRY");
-          try { console.error("Mini-Sim Ring transition ended, but the level did not initialize."); } catch (e) {}
-          syncHullButtonVisibility();
-          syncRingButtonVisibility();
-        }
-      }
-
-      function maybeStartVideo() {
-        if (finished || playbackRequested || !videoReady || !audioReady) return;
-        playbackRequested = true;
-        const playing = video.play();
-        if (playing && typeof playing.catch === "function") playing.catch(() => enterLevel());
-      }
-
-      video.addEventListener("loadeddata", () => {
-        videoReady = true;
-        maybeStartVideo();
-      }, { once: true });
-      video.addEventListener("ended", enterLevel, { once: true });
-      video.addEventListener("error", enterLevel, { once: true });
-
-      if (audioPrepared && ringAudio && !audioReady) {
-        ringAudio.addEventListener("canplay", () => {
-          audioReady = true;
-          maybeStartVideo();
-        }, { once: true });
-        ringAudio.addEventListener("error", () => {
-          audioReady = true;
-          maybeStartVideo();
-        }, { once: true });
-      }
-
-      const startSoundOnFirstFrame = () => {
-        if (!finished) startRingAudio();
-      };
-      if (typeof video.requestVideoFrameCallback === "function") {
-        try { firstFrameCallback = video.requestVideoFrameCallback(startSoundOnFirstFrame); }
-        catch (e) { video.addEventListener("loadeddata", startSoundOnFirstFrame, { once: true }); }
-      } else {
-        // Older Safari/WebViews expose the decoded first frame via loadeddata.
-        video.addEventListener("loadeddata", startSoundOnFirstFrame, { once: true });
-      }
-
-      video.src = source;
-      video.load();
-      maybeStartVideo();
-      // The clip plays out or the pilot taps ENTER THE RING. Do not abort it
-      // on a short timer: that dumped the ship back to the asteroid with no level.
-      return true;
-    }
-
-    // Mutually exclusive soundtrack rule: one OST at a time.
-    // Preserve the regular level OST's playback position while the map/Tube is active.
     function pauseLevelOst() {
       levelAudioWasPlaying = !!(levelAudio && !levelAudio.paused && !levelAudio.ended);
       if (levelAudioWasPlaying) {
@@ -282,7 +115,7 @@
 
     window.addEventListener("bcm:game-music-mute", (event) => {
       warpAudio.muted = !!event.detail?.muted;
-      if (ringAudio) ringAudio.muted = !!event.detail?.muted;
+      setRingAudioMuted(!!event.detail?.muted);
     });
     window.addEventListener("keydown", (event) => {
       if (event.code !== "KeyU" || event.repeat ||
@@ -296,11 +129,69 @@
       openHullInterior();
     }, true);
 
+    /* ═══ КАРТА ФАЙЛА (ревизия 26) ═══════════════════════════════════════
+     * Полёт (космос, стенка, камни, аномалия, вибрация, урон камней) живёт
+     * в warp-bridge.js. Здесь остаётся всё остальное, и у каждого куска есть
+     * метка [block:<id>] — по ней ищут grep, тесты и BCMDeepSpaceWarpBlocks().
+     *
+     *   [block:audio]        ЗВУК: OST варпа и кольца, переходное видео
+     *   [block:hud]          HUD И КНОПКИ: корпус, кольцо, панели управления
+     *   [block:menu]         МЕНЮ: карта галактики, выбор цели, оверлей
+     *   [block:sector]       СЕКТОР: карточка системы, описания и цифры, «что рядом»
+     *   [block:maze]         ВХОД В ЛАБИРИНТ: передача управления asteroid-maze-location.js
+     *   [block:dissolve]     ЯДРО ПЕРЕХОДА: сетка и рассыпание между кадрами фона
+     *   [block:transition]   ПЕРЕХОДЫ: вид перехода и его сила
+     *   [block:backdrop]     ФОНОВЫЕ СЦЕНЫ: обои, пул кадров, ритм 142 BPM
+     *   [block:ship]         КОРАБЛЬ СЗАДИ: размер, крен, точка на кольце для попаданий
+     *   [block:rings]        КОЛЬЦА И ИМПУЛЬС: глубинные кольца и расходящийся импульс
+     *   [block:flight]       ПОЛЁТ, ГЕОМЕТРИЯ КАДРА: труба, завороты, делегирование в мост
+     *   [block:flightmove]   ПОЛЁТ, ДВИЖЕНИЕ: скорость, тайминг, ввод
+     * ══════════════════════════════════════════════════════════════════════ */
+    const WARP_BLOCKS = [
+      { id: "audio", title: "ЗВУК: OST варпа и кольца, переходное видео" },
+      { id: "hud", title: "HUD И КНОПКИ: корпус, кольцо, панели управления" },
+      { id: "menu", title: "МЕНЮ: карта галактики, выбор цели, оверлей" },
+      { id: "sector", title: "СЕКТОР: карточка системы, описания и цифры, «что рядом»" },
+      { id: "maze", title: "ВХОД В ЛАБИРИНТ: передача управления asteroid-maze-location.js" },
+      { id: "dissolve", title: "ЯДРО ПЕРЕХОДА: сетка и рассыпание между кадрами фона" },
+      { id: "transition", title: "ПЕРЕХОДЫ: вид перехода и его сила" },
+      { id: "backdrop", title: "ФОНОВЫЕ СЦЕНЫ: обои, пул кадров, ритм 142 BPM" },
+      { id: "ship", title: "КОРАБЛЬ СЗАДИ: размер, крен, точка на кольце для попаданий" },
+      { id: "rings", title: "КОЛЬЦА И ИМПУЛЬС: глубинные кольца и расходящийся импульс" },
+      { id: "flight", title: "ПОЛЁТ, ГЕОМЕТРИЯ КАДРА: труба, завороты, делегирование в мост" },
+      { id: "flightmove", title: "ПОЛЁТ, ДВИЖЕНИЕ: скорость, тайминг, ввод" },
+    ];
+    // Ревизия 26: список блоков файла — не искать глазами в 1 МБ.
+    window.BCMDeepSpaceWarpBlocks = () => WARP_BLOCKS.map((b) => ({ id: b.id, title: b.title }));
+
+    // Порядок видов в интерфейсе (ревизия 28).
+    // Вид 1 = класс II, вид 2 = класс III, вид 3 = класс I — так попросил
+    // владелец после теста. Внутренние классы остаются своими: палитры,
+    // радуга и профили фона привязаны к ним, а не к номеру кнопки.
+    const WARP_VIEW_ORDER = [2, 3, 1];
+    const warpClassForView = (view) => {
+      const n = Math.trunc(Number(view));
+      if (!(n >= 1 && n <= WARP_VIEW_ORDER.length)) return WARP_VIEW_ORDER[0];
+      return WARP_VIEW_ORDER[n - 1];
+    };
+    const warpViewForClass = (cls) => {
+      const at = WARP_VIEW_ORDER.indexOf(Math.trunc(Number(cls)));
+      return at >= 0 ? at + 1 : 1;
+    };
+    // Хук QA: какой вид сейчас, какой класс за ним и весь порядок.
+    window.BCMDeepSpaceWarpViewOrder = () => ({
+      order: WARP_VIEW_ORDER.slice(),
+      view: warpViewForClass(activeWarpVisualClass()),
+      visualClass: activeWarpVisualClass()
+    });
+
     const state = {
       mode: "closed",
       openedAt: 0,
       nav: null,
       target: null,
+      destination: null,
+      currentLocation: null,
       savedPosition: null,
       savedQuaternion: null,
       // Launch pose is immutable during a trip. A returned asteroid-run pose
@@ -317,7 +208,8 @@
       tubeTravel: 0,
       tubeShimmerTime: 0,
       warpDriveSlotSize: currentWarpDriveSlotSize(),
-      warpVisualClass: warpVisualClassForSlotSize(currentWarpDriveSlotSize()),
+      // Ревизия 28: заезд стартует с вида 1 — это прежний класс II.
+      warpVisualClass: warpClassForView(1),
       warpPreviewClass: null,
       // Seed, из которого строится декоративный фон (не влияет на курс).
       tubeBackdropSeed: 0,
@@ -404,6 +296,17 @@
       tilt: { enabled: false, bound: false, permissionGranted: false, available: false, filterReady: false, filtered: 0, neutral: 0, calibrating: false, samples: 0, sum: 0, value: 0 }
     };
 
+    const warpBridge = window.BCMWarpBridge && typeof window.BCMWarpBridge.create === "function"
+      ? window.BCMWarpBridge.create({
+          onCurrentLocationChange(place) {
+            state.currentLocation = place;
+            state.place = place;
+            const engine = api();
+            if (engine && typeof engine.setPlace === "function") engine.setPlace(place);
+          }
+        })
+      : null;
+
     window.addEventListener("bcm:mission:hydrogen-unlocked", () => {
       const maze = state.maze;
       if (!maze || !maze.active) return;
@@ -455,6 +358,16 @@
 
     // Rebind the saved local expedition location after Space Labyrinth is rebuilt.
     // Saved preview coordinates remain preview data; they are never promoted to live SAGE data.
+    // Что видно в меню сектора: планета и окрестности (номер, прыжки).
+    window.BCMDeepSpaceWarpNearbyPlanets = (sector) => {
+      const raw = sector && typeof sector === "object" ? sector
+        : { x: state.nav?.current?.x, y: state.nav?.current?.y };
+      const card = warpSectorPlanetCard(window.BCMSageMapCore || null,
+        raw && raw.x, raw && raw.y, 2);
+      return { x: raw && raw.x, y: raw && raw.y, planet: card.planet,
+        nearby: card.nearby, planetLine: card.planetLine, lines: card.nearbyLines };
+    };
+
     window.BCMDeepSpaceWarpRestoreReturnSnapshot = (snapshot) => {
       if (!snapshot || typeof snapshot !== "object") return false;
       const savedCurrent = snapshot.current && typeof snapshot.current === "object"
@@ -501,11 +414,11 @@
           : "SAVED EXPEDITION")),
         coordsKnown: current.x != null && current.y != null
       };
-      state.target = null;
+      clearWarpDestination();
+      rememberPlace(null);
       state.sectorProgressed = !!snapshot.sectorProgressed;
       state.launchSectorProgressed = !!snapshot.launchSectorProgressed;
       state.mode = "closed";
-      state.place = null;
       return true;
     };
 
@@ -518,6 +431,9 @@
       if (typeof updateWarpTierPreviewButtons === "function") updateWarpTierPreviewButtons();
       return state.warpVisualClass;
     };
+    function qaNoDamage() {
+      try { return new URLSearchParams(window.location.search).get("bcm_qa_warp_nodamage") === "1"; } catch (e) { return false; }
+    }
     window.BCMDeepSpaceWarpGetVisualClass = () => state.warpVisualClass;
     window.BCMDeepSpaceWarpGetSpeedMode = () => api()?.getSpeedMode?.() ?? null;
     window.BCMDeepSpaceWarpGetPreviewClass = () => Number(state.warpPreviewClass) || null;
@@ -745,6 +661,10 @@
     document.body.appendChild(hullEnterButton);
     hullEnterButton.addEventListener("click", () => openHullInterior());
 
+    // ==========================================================================
+    // БЛОК 02 · HUD И КНОПКИ: корпус, кольцо, панели управления
+    // метка [block:hud] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
     function syncHullButtonVisibility() {
       const towerRoot = document.querySelector(".bcm-tower");
       const towerOwnsScreen = !!(towerRoot && !towerRoot.hidden);
@@ -831,7 +751,7 @@
       }
 
       try {
-        const opened = openRingPlatformer(maze, afterTransition);
+        const opened = getRingPlatformer()?.open(maze, afterTransition) || false;
         if (!opened && !state.ringPlatformer && !state.ringTransitionActive) {
           restoreEntrySnapshot();
         }
@@ -898,9 +818,9 @@
           '<div class="bcm-warp-kicker">SECTOR NAVIGATION</div><h2>Выберите сектор назначения</h2>' +
           '<div data-warp-tier-preview aria-label="Выбор оформления Warp" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:8px 0 12px;padding:6px;border:1px solid rgba(102,190,210,.45);border-radius:9px;background:rgba(2,12,21,.74)">' +
             '<span style="font:700 10px system-ui;color:#a9cbd7;margin-right:3px">ВАРП</span>' +
-            '<button type="button" data-warp-tier="1" aria-pressed="false" title="Class I — полосы" style="min-width:32px;height:28px;padding:0 6px;font:700 11px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">I</button>' +
+            '<button type="button" data-warp-tier="1" aria-pressed="false" title="Вид 1 — спиральные рельсы (класс II)" style="min-width:32px;height:28px;padding:0 6px;font:700 11px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">I</button>' +
             '<button type="button" data-warp-tier="2" aria-pressed="false" title="Class II — мягкое оформление" style="min-width:32px;height:28px;padding:0 6px;font:700 11px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">II</button>' +
-            '<button type="button" data-warp-tier="3" aria-pressed="false" title="Class III — фиолетовые полосы" style="min-width:32px;height:28px;padding:0 6px;font:700 11px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">III</button>' +
+            '<button type="button" data-warp-tier="3" aria-pressed="false" title="Вид 3 — полосы (класс I)" style="min-width:32px;height:28px;padding:0 6px;font:700 11px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">III</button>' +
             '<button type="button" data-warp-tier="4" aria-pressed="false" aria-disabled="true" disabled title="Class IV выключен" style="min-width:32px;height:28px;padding:0 6px;font:700 11px system-ui;border:1px solid #3a444a;border-radius:6px;background:rgba(19,25,30,.82);color:#64737b;opacity:.58;cursor:not-allowed">IV ×</button>' +
           '</div>' +
           '<p class="bcm-warp-explainer" data-warp-current></p>' +
@@ -929,9 +849,9 @@
         '<div class="bcm-warp-tube-hud"><div class="bcm-warp-kicker">SUBSPACE TUNNEL</div><h2 data-tube-title>WARP IN PROGRESS</h2><div class="bcm-warp-tube-meta" data-tube-meta></div><div class="bcm-warp-shield"><span data-tube-shield></span></div><div class="bcm-warp-tube-help" data-tube-help>Влево и вправо двигают корабль по кольцу. Препятствие остаётся на своём кольце и не растягивается.</div></div>' +
         '<div data-warp-tier-preview aria-label="Временно посмотреть визуальный класс Warp" style="position:absolute;top:12px;right:12px;z-index:8;display:flex;align-items:center;gap:3px;padding:4px;border:1px solid rgba(102,190,210,.45);border-radius:9px;background:rgba(2,12,21,.74);pointer-events:auto;max-width:calc(100vw - 24px)">' +
           '<span style="font:700 9px system-ui,sans-serif;color:#a9cbd7;letter-spacing:.04em;margin-right:2px">ВИД</span>' +
-          '<button type="button" data-warp-tier="1" aria-pressed="false" title="Class I — полосы" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">I</button>' +
-          '<button type="button" data-warp-tier="2" aria-pressed="false" title="Class II — спиральные рельсы" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">II</button>' +
-          '<button type="button" data-warp-tier="3" aria-pressed="false" title="Class III — фиолетовые полосы" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">III</button>' +
+          '<button type="button" data-warp-tier="1" aria-pressed="false" title="Вид 1 — спиральные рельсы (класс II)" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">I</button>' +
+          '<button type="button" data-warp-tier="2" aria-pressed="false" title="Вид 2 — фиолетовые полосы (класс III)" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">II</button>' +
+          '<button type="button" data-warp-tier="3" aria-pressed="false" title="Вид 3 — полосы (класс I)" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #426779;border-radius:6px;background:rgba(16,35,45,.96);color:#e8fbff">III</button>' +
           '<button type="button" data-warp-tier="4" aria-pressed="false" aria-disabled="true" disabled title="Class IV выключен" style="min-width:25px;height:26px;padding:0 5px;font:700 10px system-ui;border:1px solid #3a444a;border-radius:6px;background:rgba(19,25,30,.82);color:#64737b;opacity:.58;cursor:not-allowed">IV ×</button>' +
         '</div>' +
         '<div class="bcm-warp-touch-controls"><button type="button" data-warp-control="left" aria-label="Рулить влево">◀</button><button type="button" data-warp-control="tilt" aria-label="Включить или откалибровать управление наклоном">↻ TILT</button><button type="button" data-warp-control="right" aria-label="Рулить вправо">▶</button></div>' +
@@ -1001,8 +921,10 @@
 
     function updateWarpTierPreviewButtons() {
       const active = activeWarpVisualClass();
+      // Кнопка показывает НОМЕР ВИДА, а класс за ним берётся из порядка.
+      const activeView = warpViewForClass(active);
       warpTierButtons.forEach((button) => {
-        const selected = Number(button.getAttribute("data-warp-tier")) === active;
+        const selected = Number(button.getAttribute("data-warp-tier")) === activeView;
         button.setAttribute("aria-pressed", selected ? "true" : "false");
         button.style.background = selected ? "rgba(28,92,113,.98)" : "rgba(16,35,45,.96)";
         button.style.borderColor = selected ? "#7be4f4" : "#426779";
@@ -1011,8 +933,10 @@
     }
 
     function setWarpVisualPreviewClass(value) {
-      const selected = Math.trunc(Number(value));
-      if (![1, 2, 3].includes(selected)) return activeWarpVisualClass();
+      // На вход приходит номер ВИДА (data-warp-tier), а класс — из порядка.
+      const view = Math.trunc(Number(value));
+      if (![1, 2, 3].includes(view)) return activeWarpVisualClass();
+      const selected = warpClassForView(view);
       state.warpPreviewClass = selected;
       state.warpVisualClass = selected;
       warpApplyEffectLevel();
@@ -1045,154 +969,6 @@
         t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
       };
-    }
-
-    // The GLTF loader and crystal scene are lazy, shared page-level resources.
-    // They are requested only when an asteroid maze is actually constructed.
-    let asteroidGltfLoaderPromise = null;
-    let asteroidWallRockTemplatePromise = null;
-    const asteroidWallCrystalPartPromises = new Map();
-    const asteroidWallCrystalTemplatePromises = new Map();
-    const asteroidWallCrystalColors = ["cyan", "violet", "amber", "green"];
-    const asteroidWallCrystalAssetRoot = "mesh/twinsun_pack01/twinsun_pack01/parts/";
-
-    function ensureAsteroidGltfLoader(THREE) {
-      if (THREE && THREE.GLTFLoader) return Promise.resolve(THREE.GLTFLoader);
-      if (asteroidGltfLoaderPromise) return asteroidGltfLoaderPromise;
-      const loaderUrl = String(config.gltfLoaderUrl || "").trim();
-      if (!loaderUrl) return Promise.reject(new Error("Local GLTFLoader URL is not configured"));
-
-      asteroidGltfLoaderPromise = new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = loaderUrl;
-        script.async = true;
-        script.dataset.bcmR128GltfLoader = "1";
-        script.onload = () => {
-          if (THREE && THREE.GLTFLoader) resolve(THREE.GLTFLoader);
-          else reject(new Error("Local GLTFLoader loaded without registering THREE.GLTFLoader"));
-        };
-        script.onerror = () => reject(new Error("Local GLTFLoader request failed"));
-        document.head.appendChild(script);
-      }).catch((error) => {
-        asteroidGltfLoaderPromise = null;
-        throw error;
-      });
-      return asteroidGltfLoaderPromise;
-    }
-
-    function loadAsteroidWallAssetTemplate(THREE, assetName, cache, cacheKey) {
-      if (cache.has(cacheKey)) return cache.get(cacheKey);
-      const assets = Array.isArray(config.assets) ? config.assets : [];
-      const wanted = String(assetName || "").toLowerCase();
-      const asset = assets.find((item) =>
-        item && item.type === "model" &&
-        String(item.name || "").toLowerCase() === wanted &&
-        typeof item.url === "string" && item.url
-      );
-      if (!asset) return Promise.reject(new Error("Missing local GLB model asset: " + assetName));
-
-      const promise = ensureAsteroidGltfLoader(THREE)
-        .then(() => new Promise((resolve, reject) => {
-          const loader = new THREE.GLTFLoader();
-          loader.load(asset.url, (gltf) => {
-            const root = gltf && (gltf.scene || (Array.isArray(gltf.scenes) ? gltf.scenes[0] : null));
-            let meshes = 0;
-            if (root && typeof root.traverse === "function") {
-              root.traverse((node) => {
-                if (!node || !node.isMesh) return;
-                meshes += 1;
-                node.castShadow = false;
-                node.receiveShadow = false;
-              });
-            }
-            if (!root || meshes === 0) {
-              reject(new Error("GLB contains no renderable meshes: " + assetName));
-              return;
-            }
-            resolve(root);
-          }, undefined, reject);
-        }))
-        .catch((error) => {
-          cache.delete(cacheKey);
-          throw error;
-        });
-      cache.set(cacheKey, promise);
-      return promise;
-    }
-
-    function loadAsteroidWallRockTemplate(THREE) {
-      if (asteroidWallRockTemplatePromise) return asteroidWallRockTemplatePromise;
-      const assetName = asteroidWallCrystalAssetRoot + "rock_cluster.glb";
-      asteroidWallRockTemplatePromise = loadAsteroidWallAssetTemplate(
-        THREE, assetName, new Map(), "wall-rock"
-      ).catch((error) => {
-        asteroidWallRockTemplatePromise = null;
-        throw error;
-      });
-      return asteroidWallRockTemplatePromise;
-    }
-
-    function loadAsteroidWallCrystalTemplate(THREE, color) {
-      const selectedColor = asteroidWallCrystalColors.includes(String(color).toLowerCase())
-        ? String(color).toLowerCase()
-        : "cyan";
-      if (asteroidWallCrystalTemplatePromises.has(selectedColor)) {
-        return asteroidWallCrystalTemplatePromises.get(selectedColor);
-      }
-
-      const getPart = (part) => {
-        const assetName = asteroidWallCrystalAssetRoot + "crystal_" + part + "_" + selectedColor + ".glb";
-        const cacheKey = selectedColor + ":" + part;
-        return loadAsteroidWallAssetTemplate(THREE, assetName, asteroidWallCrystalPartPromises, cacheKey);
-      };
-
-      const promise = Promise.all([
-        loadAsteroidWallRockTemplate(THREE),
-        getPart("main"),
-        getPart("side"),
-        getPart("small")
-      ]).then(([rock, main, side, small]) => {
-        // The four GLBs deliberately retain one shared authoring coordinate
-        // system. Keep the stone and all three crystals as separate child nodes.
-        const deposit = new THREE.Group();
-        deposit.name = "twinsun-crystal-deposit-" + selectedColor;
-        const crystalGlow = {
-          cyan: 0x22cbd4,
-          violet: 0xa45be5,
-          amber: 0xe38a25,
-          green: 0x61c83e
-        }[selectedColor] || 0x22cbd4;
-        [rock, main, side, small].forEach((part) => {
-          const child = part.clone(true);
-          child.userData = child.userData || {};
-          child.userData.bcmDepositPart = part === rock ? "rock" : part === main ? "crystal-main" :
-            part === side ? "crystal-side" : "crystal-small";
-          if (part !== rock) {
-            // Subtle per-colour emission keeps the crystals readable against dark
-            // asteroid textures without adding lights or affecting the rock base.
-            child.traverse((node) => {
-              if (!node || !node.isMesh || !node.material) return;
-              const brighten = (material) => {
-                const copy = material.clone();
-                if (copy.emissive) copy.emissive.setHex(crystalGlow);
-                copy.emissiveIntensity = 0.42;
-                copy.needsUpdate = true;
-                return copy;
-              };
-              node.material = Array.isArray(node.material)
-                ? node.material.map(brighten)
-                : brighten(node.material);
-            });
-          }
-          deposit.add(child);
-        });
-        return deposit;
-      }).catch((error) => {
-        asteroidWallCrystalTemplatePromises.delete(selectedColor);
-        throw error;
-      });
-      asteroidWallCrystalTemplatePromises.set(selectedColor, promise);
-      return promise;
     }
 
     function parseCoords(value) {
@@ -1442,11 +1218,43 @@
       };
     }
 
-    function rememberPlace(place) {
-      state.place = place && place.id ? place : null;
+    function clearWarpDestination() {
+      state.target = null;
+      state.destination = null;
+      if (warpBridge) warpBridge.clearDestination();
+    }
+    function setWarpDestination(sector) {
+      state.target = sector || null;
+      state.destination = warpBridge ? warpBridge.selectDestination(sector) :
+        (sector ? { id: String(sector.id || ""), name: String(sector.name || sector.id || ""),
+          x: sector.x == null ? null : Number(sector.x), y: sector.y == null ? null : Number(sector.y) } : null);
+      return state.destination;
+    }
+    function rememberPlace(place, sector) {
+      if (warpBridge) return warpBridge.setCurrentLocation(
+        place, sector || state.destination || state.target || (state.nav && state.nav.current)
+      );
+      state.currentLocation = state.place = place && place.id ? place : null;
       const engine = api();
       if (engine && typeof engine.setPlace === "function") engine.setPlace(state.place);
+      return state.currentLocation;
     }
+    function commitAsteroidArrival(place, sector) {
+      if (warpBridge) return warpBridge.commitArrival(place, sector || state.destination || state.target);
+      return rememberPlace(place, sector);
+    }
+    function previewWarpDestination(sector) {
+      if (!sector) return null;
+      if (warpBridge) return warpBridge.previewDestination(sector);
+      return { id: String(sector.id || ""), name: String(sector.name || sector.id || ""),
+        x: sector.x == null ? null : Number(sector.x), y: sector.y == null ? null : Number(sector.y) };
+    }
+    window.BCMDeepSpaceWarpPreviewDestination = previewWarpDestination;
+    window.BCMDeepSpaceWarpGetRouteState = function () {
+      return warpBridge ? warpBridge.snapshot() : {
+        destination: state.destination || null, currentLocation: state.currentLocation || null
+      };
+    };
 
     function listSectorTargets() {
       listElement.replaceChildren();
@@ -1470,6 +1278,10 @@
       }
     }
 
+    // ==========================================================================
+    // БЛОК 03 · МЕНЮ: карта галактики, выбор цели, оверлей
+    // метка [block:menu] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
     function renderSectorGrid() {
       gridElement.replaceChildren();
       if (!state.nav || !state.nav.current || state.nav.current.x == null || state.nav.current.y == null) {
@@ -1523,6 +1335,10 @@
 
     // The look of a station sector on the Galia map: the planet with its
     // atmosphere and the CSS station on orbit, plus the system lore.
+    // ==========================================================================
+    // БЛОК 04 · СЕКТОР: карточка системы, описания и цифры, «что рядом»
+    // метка [block:sector] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
     function buildSystemCard(system) {
       if (!document.getElementById("bcm-warp-system-card-style")) {
         const style = document.createElement("style");
@@ -1575,6 +1391,139 @@
       return base + String(path || "");
     }
 
+/* Планеты и ориентиры сектора — наш слой меню.
+ *
+ * Границы по архитектуре владельца (17.11.2026):
+ *   • ring / лабиринт астероида — `asteroid-maze-location.js` (чужая механика);
+ *   • сам полёт в варпе и маршрут «куда летим / где мы» — `warp-bridge.js`;
+ *   • меню, подгрузка экранов локаций, карточка сектора с описанием и цифрами —
+ *     `deep-space-warp.js` (этот блок).
+ *
+ * Поэтому «планета рядом» считается здесь, а не в астероидном модуле: он про
+ * кольца и кристаллы, а не про описание сектора.
+ *
+ * Данные берутся из `BCMSageMapCore` (Galia + лендмарки Mini-Sim), готовность
+ * посадки — из `BCMPlanetLanding`, если он подключён на странице (на странице
+ * Tower он есть, на странице мини-сима — нет, поэтому есть зеркало списка).
+ */
+
+/* Зеркало `planet-landing.js` (ALIASES → id). Нужно ровно в одном случае:
+ * модуля посадки нет на странице (на странице мини-сима его не подключают),
+ * а карточка сектора всё равно должна честно сказать, можно ли здесь сесть.
+ * Совпадение с настоящим модулем проверяется тестом, чтобы списки не
+ * разъехались: для каждого псевдонима сверяется `BCMPlanetLanding.idFrom`. */
+var WARP_NEARBY_LANDING_ALIASES = {
+  first: "first", desert: "first", twinsun: "first", akenat: "fable", oni: "fable",
+  pearce: "pearce", mud: "pearce", earth: "pearce",
+  ioki: "ioki", ustur: "ioki", mars: "ioki",
+  fable: "fable",
+  opus: "opus",
+  focus: "opus"
+};
+
+function warpNearbyLandingIds() {
+  var seen = [];
+  Object.keys(WARP_NEARBY_LANDING_ALIASES).forEach(function (alias) {
+    var id = WARP_NEARBY_LANDING_ALIASES[alias];
+    if (seen.indexOf(id) < 0) seen.push(id);
+  });
+  return seen;
+}
+
+/* Готовность посадки: "in-game" — планета есть в списке посадок (Tower умеет
+ * проиграть клип и показать остров), "needs-binding" — планета есть, механики нет. */
+function warpNearbyLandingStatus(planetId) {
+  var id = String(planetId == null ? "" : planetId).trim().toLowerCase();
+  if (!id) return "unknown";
+  var resolved = WARP_NEARBY_LANDING_ALIASES[id] || "";
+  return resolved ? "in-game" : "needs-binding";
+}
+
+/* Планета самого сектора. landmark === true — это лендмарк Mini-Sim (тестовая
+ * планета владельца), иначе система Galia, к которой привязана станция. */
+function warpPlanetForSector(core, x, y) {
+  var cx = Number(x), cy = Number(y);
+  if (!core || !isFinite(cx) || !isFinite(cy)) return null;
+  var own = null;
+  if (typeof core.planetForSector === "function") {
+    own = core.planetForSector(cx, cy);
+  } else if (typeof core.landmarkAt === "function") {
+    var mark = core.landmarkAt(cx, cy);
+    own = mark && mark.planet ? { id: mark.planet, name: mark.name, landmark: true } : null;
+  }
+  if (!own || !own.id) return null;
+  return {
+    id: String(own.id),
+    name: String(own.name || own.id),
+    landmark: !!own.landmark,
+    planet: String(own.planet || own.id),
+    x: cx,
+    y: cy,
+    landing: warpNearbyLandingStatus(own.planet || own.id)
+  };
+}
+
+/* «Что рядом»: лендмарки-планеты и станции CSS в пределах jumps прыжков.
+ * Прыжок — шахматная клетка по сетке SAGE (max(|dx|,|dy|)), как ходит карта.
+ * Возвращает список от ближнего к дальнему; сам сектор в список не попадает. */
+function warpNearbySectors(core, x, y, jumps) {
+  var cx = Number(x), cy = Number(y);
+  if (!core || !isFinite(cx) || !isFinite(cy)) return [];
+  var limit = Math.max(1, Math.min(8, Math.trunc(Number(jumps)) || 2));
+  var out = [];
+  var push = function (node, kind) {
+    if (!node) return;
+    var nx = Number(node.x), ny = Number(node.y);
+    if (!isFinite(nx) || !isFinite(ny)) return;
+    var step = Math.max(Math.abs(nx - cx), Math.abs(ny - cy));
+    if (!(step > 0) || step > limit) return;
+    var planet = String(node.planet || node.id || "");
+    out.push({
+      id: String(node.id || node.name || (nx + "," + ny)),
+      name: String(node.name || node.id || ""),
+      kind: kind,
+      x: nx,
+      y: ny,
+      jumps: step,
+      planet: planet,
+      landing: kind === "planet" ? warpNearbyLandingStatus(planet) : "n/a"
+    });
+  };
+  (core.landmarks || []).forEach(function (mark) { push(mark, "planet"); });
+  (core.css || []).forEach(function (css) {
+    push({ id: css.id || css.faction, name: css.name || css.faction, x: css.x, y: css.y }, "station");
+  });
+  out.sort(function (a, b) {
+    if (a.jumps !== b.jumps) return a.jumps - b.jumps;
+    return a.name.localeCompare(b.name);
+  });
+  return out;
+}
+
+/* Одна готовая «карточка» для меню: описание + цифры. Текст собирается здесь,
+ * чтобы и игра, и тесты видели один и тот же вид. */
+function warpSectorPlanetCard(core, x, y, jumps) {
+  var planet = warpPlanetForSector(core, x, y);
+  var nearby = warpNearbySectors(core, x, y, jumps);
+  var line = function (item) {
+    var where = "[" + item.x + ", " + item.y + "]";
+    var dist = item.jumps === 1 ? "1 прыжок" : item.jumps + " прыжка";
+    var tail = item.kind === "planet"
+      ? (item.landing === "in-game" ? "посадка в игре" : "нужна привязка")
+      : "станция";
+    return item.name + " · " + where + " · " + dist + " · " + tail;
+  };
+  return {
+    planet: planet,
+    nearby: nearby,
+    planetLine: planet
+      ? planet.name + " · [" + planet.x + ", " + planet.y + "] · " +
+        (planet.landmark ? "лендмарк Mini-Sim" : "система Galia") + " · " +
+        (planet.landing === "in-game" ? "посадка в игре" : "нужна привязка")
+      : "",
+    nearbyLines: nearby.map(line)
+  };
+}
     function renderSectorLocations(sector) {
       if (!galaxyLocalLocations || !galaxyLocalStatus) return;
       galaxyLocalLocations.replaceChildren();
@@ -1665,6 +1614,8 @@
         return { icon: "•", label: "ЛОКАЦИЯ СЕКТОРА" };
       };
       if (sageSystem) galaxyLocalLocations.appendChild(buildSystemCard(sageSystem));
+      // Планета сектора и «что рядом» (номер, прыжки, готовность посадки).
+      renderSectorPlanetExtras(x, y);
       if (locations.length) {
         locations.forEach((location) => {
           const info = kindInfo(location.kind);
@@ -1695,6 +1646,48 @@
         note.textContent = "Навигационный адаптер не передал дополнительные локальные точки для этого сектора. Астероидные комплексы, планеты / Tower и внешние Deep Space-механики остаются отдельными типами локаций, пока их привязка не задана.";
         galaxyLocalLocations.appendChild(note);
       }
+    }
+
+    // Описание сектора с цифрами: планета самого сектора и что рядом.
+    // Живёт в варпе, потому что это меню и подгрузка экрана локации, а не
+    // механика астероида (та — в asteroid-maze-location.js).
+    function renderSectorPlanetExtras(x, y) {
+      if (!galaxyLocalLocations) return null;
+      const core = window.BCMSageMapCore || null;
+      const card = warpSectorPlanetCard(core, x, y, 2);
+      state.warpSectorCard = card;
+      if (card.planetLine) {
+        galaxyLocalLocations.appendChild(warpSectorRow("\u25c9", card.planet.name,
+          card.planetLine, card.planet.landing === "in-game" ? "in-game" : "planned"));
+      }
+      card.nearbyLines.forEach((line, index) => {
+        const item = card.nearby[index];
+        galaxyLocalLocations.appendChild(warpSectorRow(
+          item.kind === "planet" ? "\u25c9" : "\u2316", item.name, line,
+          item.landing === "in-game" ? "in-game" : "reference"));
+      });
+      return card;
+    }
+
+    function warpSectorRow(icon, title, detail, status) {
+      const item = document.createElement("div");
+      item.className = "bcm-warp-local-location is-nearby" +
+        (status === "in-game" ? " is-implemented" : status === "planned" ? " is-planned" : "");
+      const symbol = document.createElement("strong");
+      symbol.className = "bcm-warp-local-icon";
+      symbol.textContent = icon;
+      const copy = document.createElement("span");
+      copy.className = "bcm-warp-local-copy";
+      const name = document.createElement("b");
+      name.textContent = title;
+      const note = document.createElement("small");
+      note.textContent = detail;
+      const stateText = document.createElement("em");
+      stateText.textContent = status === "in-game" ? "В ИГРЕ"
+        : status === "planned" ? "НУЖНА ПРИВЯЗКА" : "ОРИЕНТИР";
+      copy.append(name, note);
+      item.append(symbol, copy, stateText);
+      return item;
     }
 
     function renderGalaxyMap() {
@@ -1798,7 +1791,17 @@
           g.globalAlpha = 0.9;
           g.beginPath(); g.arc(p.x, p.y, sageCore.starRadius(star, zoom), 0, Math.PI * 2); g.fill();
           g.globalAlpha = 1;
-          if (zoom >= 4) {
+          // Owner 24.11.2026: the Star Atlas lore sectors are named on the map at every zoom
+          // (galia-lore.js); a station keeps its own label below.
+          const lore = typeof sageCore.loreAt === "function" && !sageCore.cssAt(star.x, star.y)
+            ? sageCore.loreAt(star.x, star.y) : null;
+          if (lore) {
+            g.fillStyle = lore.faction ? sageCore.factionTone(lore.faction) : "rgba(210,232,240,0.9)";
+            g.font = (zoom >= 4 ? "600 9px" : "600 8px") + " system-ui,sans-serif";
+            g.textAlign = star.x > 25 ? "right" : "left"; g.textBaseline = "middle";
+            g.fillText(zoom >= 4 ? lore.name + " · " + (lore.place || lore.code) : lore.name,
+              p.x + (star.x > 25 ? -5 : 5), p.y);
+          } else if (zoom >= 4) {
             g.fillStyle = "rgba(230,226,214,0.78)"; g.font = "8px system-ui,sans-serif";
             g.textAlign = "left"; g.textBaseline = "middle";
             g.fillText(star.name, p.x + 5, p.y);
@@ -1940,6 +1943,37 @@
       if (nearest && best <= 15 && targetCanBePicked) selectTarget(nearest.sector);
       else galaxyMap.focus({ preventScroll: true });
     });
+    let previewedSectorId = "";
+    function previewMenuDestination(sector) {
+      const preview = previewWarpDestination(sector);
+      if (!preview || previewedSectorId === preview.id) return;
+      previewedSectorId = preview.id;
+      renderSectorLocations(sector);
+    }
+    function clearMenuDestinationPreview() {
+      previewedSectorId = "";
+      renderSectorLocations(state.target || (state.nav && state.nav.current));
+    }
+    galaxyMap?.addEventListener("pointermove", (event) => {
+      const rect = galaxyMap.getBoundingClientRect();
+      const x = event.clientX - rect.left, y = event.clientY - rect.top;
+      let nearest = null, best = Infinity;
+      galaxyMapPoints.forEach((point) => {
+        const distance = Math.hypot(point.x - x, point.y - y);
+        if (distance < best) { best = distance; nearest = point; }
+      });
+      if (nearest && best <= 15) previewMenuDestination(nearest.sector);
+      else if (previewedSectorId) clearMenuDestinationPreview();
+    });
+    galaxyMap?.addEventListener("pointerleave", clearMenuDestinationPreview);
+    listElement?.addEventListener("pointerover", (event) => {
+      const button = event.target && event.target.closest ? event.target.closest(".bcm-warp-sector") : null;
+      if (!button) return;
+      const sector = (state.nav && state.nav.targets || []).find((item) => item.id === button.dataset.sectorId);
+      if (sector) previewMenuDestination(sector);
+    });
+    listElement?.addEventListener("pointerleave", clearMenuDestinationPreview);
+
     galaxyMap?.addEventListener("keydown", (event) => {
       if ((event.code === "Enter" || event.code === "Space") && state.target) {
         event.preventDefault();
@@ -1948,7 +1982,8 @@
     });
 
     function selectTarget(sector) {
-      state.target = sector;
+      setWarpDestination(sector);
+      previewedSectorId = "";
       listElement.querySelectorAll(".bcm-warp-sector").forEach((button) => {
         button.classList.toggle("is-selected", button.dataset.sectorId === sector.id);
       });
@@ -1998,7 +2033,8 @@
       if (engine.releaseFlightPointerLock) engine.releaseFlightPointerLock();
       if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
       state.nav = readNavigation();
-      state.target = null;
+      clearWarpDestination();
+      previewedSectorId = "";
       state.mode = "map";
       window.BCMDialogue?.showControls("warp");
       state.openedAt = performance.now();
@@ -2013,7 +2049,7 @@
       sourceElement.classList.toggle("is-preview", !state.nav.live);
       footnoteElement.textContent = state.nav.live
         ? "Имена известных секторов берёт SAGE-адаптер. Сетка не режется до 4 сторон: открыты 8 соседей и следующее кольцо. Сам Warp локальный и не двигает корабль в SAGE."
-        : "ONI CSS, X -40, Y 30. Планета Fable — сосед на северо-востоке, X -39, Y 31. На карте 8 соседей и следующее кольцо. Warp локальный и не двигает флот в блокчейне.";
+        : "ONI CSS, X -40, Y 30. Fable теперь здесь, на ONI CSS (раз в сто лет планеты меняются местами). Пустыня Twinsun — сосед на севере, X -40, Y 31. На карте 8 соседей и следующее кольцо. Warp локальный и не двигает флот в блокчейне.";
       listSectorTargets();
       renderSectorGrid();
       renderGalaxyMap();
@@ -2062,6 +2098,7 @@
           engine.setExternalHUD(placeLabel, "EXPEDITION · CORE SHARDS " + (state.maze.count || 0) + "/3 · ASTEROID COMPLEX");
           engine.pauseForWarp(false);
         }
+        clearWarpDestination();
         state.returnPosition = null;
         state.returnQuaternion = null;
         return;
@@ -2069,7 +2106,7 @@
       state.mode = "closed";
       resumeLevelOst();
       state.layers = [];
-      state.target = null;
+      clearWarpDestination();
       window.BCMDeepSpaceWarpFrame = null;
       const engine = api();
       if (engine) {
@@ -2235,16 +2272,94 @@
       return !!sector && Number(sector.x) === -40 && Number(sector.y) === 30;
     }
 
+    // A Mini-Sim planet (Fable, Opus …) in the target sector, or null.
+    function planetLandmarkFor(sector) {
+      const core = window.BCMSageMapCore;
+      if (!sector || !core || typeof core.landmarkAt !== "function") return null;
+      const mark = core.landmarkAt(Number(sector.x), Number(sector.y));
+      return mark && mark.planet ? mark : null;
+    }
+
+    // A named sector of the Star Atlas lore (galia-lore.js) that is not a station sector, or null.
+    function loreSectorFor(sector) {
+      const lore = window.BCMGaliaLore;
+      if (!sector || !lore || typeof lore.at !== "function") return null;
+      const hit = lore.at(Number(sector.x), Number(sector.y));
+      return hit && !/CSS/.test(hit.code) ? hit : null;
+    }
+
     function confirmTubeArrival() {
       if (state.mode !== "result") return;
+      // Station contracts (galia-quests.js): a Warp arrival at a CSS hands in or takes a contract.
+      const contractCss = window.BCMSageMapCore && state.target
+        ? window.BCMSageMapCore.cssAt(Number(state.target.x), Number(state.target.y)) : null;
+      if (contractCss && window.BCMGaliaQuests) window.BCMGaliaQuests.arriveStation(contractCss.system);
       if (isOniCssDestination(state.target)) returnToOniCss();
+      else if (loreSectorFor(state.target)) arriveAtLoreSector(state.target);
+      else if (planetLandmarkFor(state.target)) arriveAtPlanetSector(state.target);
       else enterAsteroidMaze();
+    }
+
+    /* Owner 18.11.2026: "у позиции Fable тот же астероид со случайным
+     * лабиринтом внутри". A planet sector is not an asteroid: the ship arrives
+     * in open space at the station gate, and the sector becomes the current
+     * one, so the Tower descent lands on that planet (planet-landing.js reads
+     * this sector). */
+    function arriveAtPlanetSector(sector) {
+      const engine = api();
+      const mark = planetLandmarkFor(sector);
+      disposeMaze();
+      rememberPlace(null);
+      state.nav = navigationAfterArrival(sector);
+      if (state.nav && state.nav.current) {
+        state.nav.current.x = Number(sector.x);
+        state.nav.current.y = Number(sector.y);
+        state.nav.current.name = mark ? mark.name : state.nav.current.name;
+      }
+      state.sectorProgressed = true;
+      closeOverlay(false);
+      if (engine && typeof engine.teleport === "function") {
+        // Owner 24.11.2026: arriving at (0, 0, 2) put the ship back in the start hangar, so every
+        // planet sector looked like the same room. It arrives in open space before the landing gate
+        // (z = -260), with the sector's planet ahead.
+        engine.teleport({ x: 0, y: 0, z: -140, yaw: 0 }, null);
+      }
+      dressSector(mark && mark.planet, sector);
+      const status = root.querySelector(".bcm-mini-sim-status");
+      if (status) status.textContent = "ARRIVED · " + String(mark ? mark.name : "PLANET").toUpperCase() + " · ВХОД В TOWER — ПОСАДКА НА ПЛАНЕТУ";
+    }
+
+    /* Owner 24.11.2026: "сектора со звёздными базами… прорабатывай сектора" (lore). A named lore
+     * sector is open space with its own sky and its own star base (sector-look.js + star-base.js),
+     * not the asteroid maze. Unnamed stars keep the maze. */
+    function arriveAtLoreSector(sector) {
+      const engine = api();
+      const lore = loreSectorFor(sector);
+      disposeMaze();
+      rememberPlace(null);
+      state.nav = navigationAfterArrival(sector);
+      if (state.nav && state.nav.current) {
+        state.nav.current.x = Number(sector.x);
+        state.nav.current.y = Number(sector.y);
+        state.nav.current.name = lore ? lore.name : state.nav.current.name;
+      }
+      state.sectorProgressed = true;
+      closeOverlay(false);
+      if (engine && typeof engine.teleport === "function") {
+        engine.teleport({ x: 0, y: 0, z: -140, yaw: 0 }, null);
+      }
+      dressSector(lore.id, sector);
+      const status = root.querySelector(".bcm-mini-sim-status");
+      if (status) status.textContent = "ARRIVED · " + String(lore.name).toUpperCase() + " · " + lore.code + " · " + (lore.faction || "MRZ");
     }
 
     function returnToOniCss() {
       const engine = api();
       disposeMaze();
       rememberPlace(null);
+      // Owner 24.11.2026: ONI CSS stays as it was — its own station and planet, no sector dress;
+      // its neighbours (Twinsun north, Opus west …) stand in its sky.
+      dressSector(null, { x: -40, y: 30 });
       const previous = state.nav || readNavigation();
       const adapter = previous && previous.adapter;
       let homeRecord = null;
@@ -2291,892 +2406,56 @@
       if (status) status.textContent = "ARRIVED · ONI / NEUNO · LOCAL SIMULATION";
     }
 
-    function makeMazeTexture(THREE) {
-      const c = document.createElement("canvas");
-      c.width = 64;
-      c.height = 64;
-      const g = c.getContext("2d");
-      g.fillStyle = "#18232d";
-      g.fillRect(0, 0, 64, 64);
-      g.strokeStyle = "#344b5b";
-      g.lineWidth = 2;
-      g.strokeRect(3, 3, 58, 58);
-      g.strokeStyle = "#263b49";
-      g.lineWidth = 1;
-      g.beginPath();
-      g.moveTo(32, 4); g.lineTo(32, 60);
-      g.moveTo(4, 32); g.lineTo(60, 32);
-      g.stroke();
-      g.fillStyle = "#5a8396";
-      g.fillRect(7, 7, 4, 4);
-      g.fillRect(53, 53, 4, 4);
-      g.fillStyle = "#1a99ad";
-      g.fillRect(28, 28, 8, 2);
-      g.fillRect(31, 25, 2, 8);
-      const texture = new THREE.CanvasTexture(c);
-      texture.generateMipmaps = false;
-      texture.minFilter = THREE.LinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-      if (THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
-      else if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
-      return texture;
+    let asteroidMazeLocation = null;
+    function getAsteroidMazeLocation() {
+      if (asteroidMazeLocation) return asteroidMazeLocation;
+      const module = window.BCMAsteroidMazeLocation;
+      if (!module || typeof module.create !== "function") {
+        console.error("Mini-Sim asteroid-maze location module is unavailable.");
+        return null;
+      }
+      asteroidMazeLocation = module.create({
+        state, api, config, root, overlay, exitButton, launchButton,
+        hashSeed, randomFrom, commitArrival: commitAsteroidArrival,
+        setMazeStatus, syncHullButtonVisibility, syncRingButtonVisibility,
+        attemptOpenRingPlatformer, asteroidPlace, nextWarpDestinationLabel
+      });
+      return asteroidMazeLocation;
     }
-
-    function asteroidWallAssetPool() {
-      return (Array.isArray(config.assets) ? config.assets : [])
-        .filter((asset) => {
-          if (!asset || typeof asset.url !== "string" || !asset.url) return false;
-          if (asset.type && asset.type !== "image") return false;
-          const base = String(asset.name || "").split(/[\\/]/).pop();
-          return /^asterwall[^.]*\.(?:png|jpe?g|webp)$/i.test(base);
-        })
-        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
-    }
-
     function publishAsteroidChart(maze) {
-      if (!maze) return;
-      const marks = (maze.crystals || []).filter((crystal) => crystal.scouted || crystal.taken).map((crystal) => ({
-        x: crystal.cell.x, y: crystal.cell.y, z: crystal.cell.z, taken: !!crystal.taken
-      }));
-      const anomalies = (maze.cells || []).filter((cell) => cell.y !== 1).map((cell) => ({
-        x: cell.x, y: cell.y, z: cell.z,
-        mode: ["drift", "flux", "dense"][hashSeed(String(maze.seed) + "|astral|" + cell.x + "|" + cell.y + "|" + cell.z) % 3]
-      }));
-      const hydrogen = maze.hydrogen || null;
-      window.BCMAsteroidChart = {
-        seed: maze.seed,
-        dimensions: maze.dimensions,
-        marks,
-        anomalies,
-        hydrogen: hydrogen ? {
-          x: hydrogen.cell.x, y: hydrogen.cell.y, z: hydrogen.cell.z,
-          unlocked: !!hydrogen.unlocked,
-          taken: !!hydrogen.taken
-        } : null
-      };
+      const location = getAsteroidMazeLocation();
+      if (location) return location.publishChart(maze);
     }
-
-    function enterAsteroidMaze() {
-      // Warp OST owns the whole Warp stage, including the asteroid maze.
-      // A committed arrival replaces the previous rock. Opening the map must
-      // not dispose it; only this handoff and a return to ONI CSS do.
-      if (state.maze) disposeMaze();
+    // ==========================================================================
+    // БЛОК 05 · ВХОД В ЛАБИРИНТ: передача управления asteroid-maze-location.js
+    // метка [block:maze] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
+    // Owner 24.11.2026: each planet sector has its own space (sector-look.js).
+    // Owner 26.11.2026: "перемещение в warp между секторами должно реально отображаться соседние
+    // локации, как сейчас из asteroid секторов видно как будто мы рядом с oni css". Every arrival
+    // dresses its own sector and puts the neighbouring sectors of the Warp map in its sky.
+    function dressSector(planetId, sector) {
+      const look = window.BCMSectorLook;
       const engine = api();
-      if (!engine || !engine.getRuntime) return;
+      if (!look || !engine || typeof engine.getRuntime !== "function") return;
       const runtime = engine.getRuntime();
-      const THREE = runtime.THREE;
-      const scene = runtime.scene;
-      if (!THREE || !scene || !runtime.ship) return;
-
-      // The asteroid is already built. Starting here must not depend on
-      // flying to the Ring or climbing into the hold first.
-      if (!state.nav || !state.nav.current) {
-        state.nav = {
-          current: { id: "asteroid-berth", name: "ASTEROID COMPLEX", x: -40, y: 30, raw: null },
-          targets: [],
-          live: false,
-          localPreview: true,
-          label: "ASTEROID COMPLEX",
-          coordsKnown: true,
-          adapter: null
-        };
-      }
-      if (!state.target) {
-        state.target = { id: "asteroid-complex", name: "ASTEROID COMPLEX", x: -39, y: 30, raw: null };
-      }
-
-      const NX = 7, NY = 3, NZ = 7, CELL = 6.8, WALL = 0.46;
-      // Keep the test maze off-axis and away from the old negative-Z texture-preload trigger.
-      const center = new THREE.Vector3(230, 0, 150);
-      const localSession = window.BCMMiniSimSession || null;
-      const locationSeeds = localSession && localSession.locationSeeds
-        ? localSession.locationSeeds
-        : {};
-      const runCounters = localSession
-        ? (localSession.runCounters || (localSession.runCounters = {}))
-        : {};
-      const asteroidRun = Number(runCounters.asteroid || 0) + 1;
-      runCounters.asteroid = asteroidRun;
-      const asteroidBaseSeed = Number.isSafeInteger(Number(locationSeeds.asteroid))
-        ? Number(locationSeeds.asteroid) >>> 0
-        : hashSeed(String(state.nav.current.id) + "|asteroid");
-      const seed = hashSeed(asteroidBaseSeed + "|" + asteroidRun + "|" +
-        state.nav.current.id + "->" + state.target.id + ":" + state.target.x + ":" + state.target.y);
-      if (localSession) {
-        localSession.activeSeeds = localSession.activeSeeds || {};
-        localSession.activeSeeds.asteroid = seed;
-      }
-      const rng = randomFrom(seed);
-      const cells = [];
-      function idx(x, y, z) { return (z * NY + y) * NX + x; }
-      function at(x, y, z) { return cells[idx(x, y, z)]; }
-      function cellX(x) { return center.x + (x - (NX - 1) / 2) * CELL; }
-      function cellY(y) { return center.y + (y - (NY - 1) / 2) * CELL; }
-      function cellZ(z) { return center.z + ((NZ - 1) / 2 - z) * CELL; }
-      function cellPosition(x, y, z) { return new THREE.Vector3(cellX(x), cellY(y), cellZ(z)); }
-      const dirs = [
-        { x: 1, y: 0, z: 0, key: "xp", opposite: "xn" },
-        { x: -1, y: 0, z: 0, key: "xn", opposite: "xp" },
-        { x: 0, y: 1, z: 0, key: "yp", opposite: "yn" },
-        { x: 0, y: -1, z: 0, key: "yn", opposite: "yp" },
-        { x: 0, y: 0, z: 1, key: "zp", opposite: "zn" },
-        { x: 0, y: 0, z: -1, key: "zn", opposite: "zp" }
-      ];
-      for (let z = 0; z < NZ; z += 1) {
-        for (let y = 0; y < NY; y += 1) {
-          for (let x = 0; x < NX; x += 1) {
-            cells.push({ x, y, z, visited: false, open: { xp: false, xn: false, yp: false, yn: false, zp: false, zn: false } });
-          }
-        }
-      }
-
-      // Seeded depth-first carve guarantees a connected route through every level of the maze.
-      const start = at(0, 1, 0);
-      const stack = [start];
-      start.visited = true;
-      while (stack.length) {
-        const here = stack[stack.length - 1];
-        const possible = [];
-        dirs.forEach((d) => {
-          const x = here.x + d.x, y = here.y + d.y, z = here.z + d.z;
-          if (x < 0 || x >= NX || y < 0 || y >= NY || z < 0 || z >= NZ) return;
-          const next = at(x, y, z);
-          if (!next.visited) possible.push({ d, next });
-        });
-        if (!possible.length) {
-          stack.pop();
-        } else {
-          const pick = possible[Math.floor(rng() * possible.length)];
-          here.open[pick.d.key] = true;
-          pick.next.open[pick.d.opposite] = true;
-          pick.next.visited = true;
-          stack.push(pick.next);
-        }
-      }
-
-      // Add a few extra links so routes can loop rather than forcing one long chain.
-      cells.forEach((cell) => {
-        if (cell.x < NX - 1 && !cell.open.xp && rng() < 0.14) {
-          cell.open.xp = true; at(cell.x + 1, cell.y, cell.z).open.xn = true;
-        }
-        if (cell.y < NY - 1 && !cell.open.yp && rng() < 0.12) {
-          cell.open.yp = true; at(cell.x, cell.y + 1, cell.z).open.yn = true;
-        }
-        if (cell.z < NZ - 1 && !cell.open.zp && rng() < 0.16) {
-          cell.open.zp = true; at(cell.x, cell.y, cell.z + 1).open.zn = true;
-        }
-      });
-
-      const group = new THREE.Group();
-      group.name = "bcm-procedural-asteroid-maze";
-      const walls = [];
-      function addWall(x, y, z, sx, sy, sz, cell) {
-        walls.push({ x, y, z, sx, sy, sz, cell });
-      }
-      cells.forEach((cell) => {
-        const x = cellX(cell.x), y = cellY(cell.y), z = cellZ(cell.z);
-        if (cell.x === 0) addWall(x - CELL / 2, y, z, WALL, CELL, CELL, cell);
-        if (cell.x === NX - 1) addWall(x + CELL / 2, y, z, WALL, CELL, CELL, cell);
-        else if (!cell.open.xp) addWall(x + CELL / 2, y, z, WALL, CELL, CELL, cell);
-        if (cell.y === 0) addWall(x, y - CELL / 2, z, CELL, WALL, CELL, cell);
-        if (cell.y === NY - 1) addWall(x, y + CELL / 2, z, CELL, WALL, CELL, cell);
-        else if (!cell.open.yp) addWall(x, y + CELL / 2, z, CELL, WALL, CELL, cell);
-        if (cell.z === 0) {
-          // Leave one clean entrance into the first central cell.
-          if (!(cell.x === 0 && cell.y === 1)) addWall(x, y, z + CELL / 2, CELL, CELL, WALL, cell);
-        } else if (!cell.open.zn) {
-          addWall(x, y, z + CELL / 2, CELL, CELL, WALL, cell);
-        }
-        if (cell.z === NZ - 1) {
-          // Far exit is opened only at the last cell. Internal Z-planes are emitted once
-          // from the adjacent cell's positive face, avoiding overlapping double walls.
-          if (!(cell.x === NX - 1 && cell.y === 1)) addWall(x, y, z - CELL / 2, CELL, CELL, WALL, cell);
-        }
-      });
-
-      // Use every prepared asterwall variant. The files are small, and a full
-      // shuffle means the entire asteroid run can display the whole texture family.
-      let maze = null;
-      const fallbackTexture = makeMazeTexture(THREE);
-      const availableWallAssets = asteroidWallAssetPool();
-      // Asset ordering is decorative too: do not consume the topology/crystal RNG.
-      const wallAssetOrderRng = randomFrom(hashSeed(String(seed) + "|wall-assets"));
-      for (let i = availableWallAssets.length - 1; i > 0; i -= 1) {
-        const j = Math.floor(wallAssetOrderRng() * (i + 1));
-        [availableWallAssets[i], availableWallAssets[j]] = [availableWallAssets[j], availableWallAssets[i]];
-      }
-      const chosenWallAssets = availableWallAssets;
-      const wallMaterials = [];
-      const wallTextures = [];
-      const wallVariantTextures = [];
-      const wallVariantMaterials = [];
-      const wallVariantsByAsset = Array.from({ length: Math.max(1, chosenWallAssets.length) }, () => []);
-      const wallTextureCopiesByAsset = Array.from({ length: Math.max(1, chosenWallAssets.length) }, () => []);
-      if (chosenWallAssets.length) {
-        const loader = new THREE.TextureLoader();
-        chosenWallAssets.forEach((asset, index) => {
-          const texture = loader.load(asset.url, (loadedTexture) => {
-            // Clones created before TextureLoader decodes the image keep image=null.
-            // Sync that decoded image into all existing wall and Ring texture copies.
-            const syncImage = (copy) => {
-              if (!copy) return;
-              copy.image = loadedTexture.image;
-              copy.needsUpdate = true;
-            };
-            (wallVariantsByAsset[index] || []).forEach((variant) => syncImage(variant.texture));
-            (wallTextureCopiesByAsset[index] || []).forEach(syncImage);
-          }, undefined, () => {
-            // Keep both the 3D maze and Ring's 2D cutaway on the same fallback.
-            wallTextures[index] = fallbackTexture;
-            if (maze?.textures && maze.textures[index] !== undefined) maze.textures[index] = fallbackTexture;
-            (wallTextureCopiesByAsset[index] || []).forEach((copy) => {
-              copy.image = fallbackTexture.image;
-              copy.needsUpdate = true;
-            });
-            if (wallMaterials[index]) {
-              wallMaterials[index].map = fallbackTexture;
-              wallMaterials[index].needsUpdate = true;
-            }
-            (wallVariantsByAsset[index] || []).forEach((variant) => {
-              const replacement = fallbackTexture.clone();
-              replacement.wrapS = THREE.RepeatWrapping;
-              replacement.wrapT = THREE.RepeatWrapping;
-              replacement.center.set(0.5, 0.5);
-              replacement.rotation = variant.turn * (Math.PI / 2);
-              replacement.needsUpdate = true;
-              try { variant.texture.dispose(); } catch (e) {}
-              variant.texture = replacement;
-              variant.material.map = replacement;
-              variant.material.needsUpdate = true;
-              wallVariantTextures.push(replacement);
-            });
-            try { texture.dispose(); } catch (e) {}
-          });
-          texture.generateMipmaps = false;
-          texture.minFilter = THREE.LinearFilter;
-          texture.magFilter = THREE.LinearFilter;
-          texture.wrapS = THREE.RepeatWrapping;
-          texture.wrapT = THREE.RepeatWrapping;
-          texture.repeat.set(1, 1);
-          if (THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
-          else if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
-          const maxAnisotropy = runtime.renderer?.capabilities?.getMaxAnisotropy?.() || 1;
-          texture.anisotropy = Math.min(4, maxAnisotropy);
-          wallTextures.push(texture);
-          wallMaterials.push(new THREE.MeshStandardMaterial({
-            map: texture, color: 0xffffff, roughness: 0.82, metalness: 0.24, emissive: 0x07121a
-          }));
-        });
-      } else {
-        wallTextures.push(fallbackTexture);
-        wallMaterials.push(new THREE.MeshStandardMaterial({
-          map: fallbackTexture, color: 0xa9bec8, roughness: 0.82, metalness: 0.24, emissive: 0x07121a
-        }));
-      }
-
-      // Texture selection is deterministic for this maze seed but does not consume
-      // the route/crystal RNG stream. Each cell's wall choice now drives both views.
-      const wallLookRng = randomFrom(hashSeed(seed + "|wall-map"));
-      cells.forEach((cell) => {
-        cell.wallTurn = Math.floor(wallLookRng() * 4);
-        cell.wallAsset = wallTextures.length > 1 ? Math.floor(wallLookRng() * wallTextures.length) : 0;
-      });
-
-      const wallVariantByKey = new Map();
-      function wallVariant(cell) {
-        const assetIndex = Math.max(0, Math.min(wallTextures.length - 1, Math.floor(Number(cell?.wallAsset) || 0)));
-        const turn = ((Math.floor(Number(cell?.wallTurn) || 0) % 4) + 4) % 4;
-        const key = assetIndex + ":" + turn;
-        if (wallVariantByKey.has(key)) return { key, entry: wallVariantByKey.get(key) };
-        const source = wallTextures[assetIndex] || fallbackTexture;
-        const variantTexture = source.clone();
-        variantTexture.wrapS = THREE.RepeatWrapping;
-        variantTexture.wrapT = THREE.RepeatWrapping;
-        variantTexture.center.set(0.5, 0.5);
-        variantTexture.rotation = turn * (Math.PI / 2);
-        variantTexture.needsUpdate = true;
-        const variantMaterial = new THREE.MeshStandardMaterial({
-          map: variantTexture, color: 0xffffff, roughness: 0.82, metalness: 0.24, emissive: 0x07121a
-        });
-        const entry = { assetIndex, turn, texture: variantTexture, material: variantMaterial };
-        wallVariantByKey.set(key, entry);
-        wallVariantsByAsset[assetIndex].push(entry);
-        wallVariantTextures.push(variantTexture);
-        wallVariantMaterials.push(variantMaterial);
-        return { key, entry };
-      }
-
-      const unit = new THREE.BoxGeometry(1, 1, 1);
-      const wallBatches = new Map();
-      walls.forEach((wall) => {
-        const resolved = wallVariant(wall.cell);
-        if (!wallBatches.has(resolved.key)) wallBatches.set(resolved.key, { entry: resolved.entry, walls: [] });
-        wallBatches.get(resolved.key).walls.push(wall);
-      });
-      const wallMeshes = Array.from(wallBatches.entries()).map(([key, batch]) => {
-        const wallMesh = new THREE.InstancedMesh(unit, batch.entry.material, batch.walls.length);
-        wallMesh.name = "asteroid-maze-wall-panels-" + key.replace(":", "-");
-        wallMesh.frustumCulled = false;
-        const matrix = new THREE.Matrix4();
-        const rotation = new THREE.Quaternion();
-        batch.walls.forEach((wall, instanceIndex) => {
-          matrix.compose(
-            new THREE.Vector3(wall.x, wall.y, wall.z),
-            rotation,
-            new THREE.Vector3(wall.sx, wall.sy, wall.sz)
-          );
-          wallMesh.setMatrixAt(instanceIndex, matrix);
-        });
-        wallMesh.instanceMatrix.needsUpdate = true;
-        group.add(wallMesh);
-        return wallMesh;
-      });
-      const wallMesh = wallMeshes[0] || null;
-      const material = wallMaterials[0];
-      const texture = wallTextures[0];
-      const shell = new THREE.Mesh(
-        new THREE.SphereGeometry(46, 18, 14),
-        new THREE.MeshBasicMaterial({ color: 0x254050, transparent: true, opacity: 0.08, side: THREE.BackSide, depthWrite: false })
-      );
-      shell.name = "asteroid-inner-shell";
-      shell.visible = false;
-      shell.position.copy(center);
-      group.add(shell);
-
-      const crystalMaterial = new THREE.MeshBasicMaterial({ color: 0x66ffed });
-      const crystalGeometry = new THREE.OctahedronGeometry(0.92, 1);
-      const beaconMaterial = new THREE.MeshBasicMaterial({ color: 0xdbc17a });
-      const beaconGeometry = new THREE.TorusGeometry(1.1, 0.12, 6, 20);
-      const startNode = at(0, 1, 0);
-      const exitNode = at(NX - 1, 1, NZ - 1);
-
-      const routeParent = new Map([[startNode, null]]);
-      const routeQueue = [startNode];
-      for (let cursor = 0; cursor < routeQueue.length && !routeParent.has(exitNode); cursor += 1) {
-        const here = routeQueue[cursor];
-        dirs.forEach((dir) => {
-          if (!here.open[dir.key]) return;
-          const next = at(here.x + dir.x, here.y + dir.y, here.z + dir.z);
-          if (routeParent.has(next)) return;
-          routeParent.set(next, here);
-          routeQueue.push(next);
-        });
-      }
-      const routeCells = [];
-      for (let node = exitNode; node && routeParent.has(node); node = routeParent.get(node)) routeCells.unshift(node);
-      const isEndpoint = (cell) =>
-        (cell.x === startNode.x && cell.y === startNode.y && cell.z === startNode.z) ||
-        (cell.x === exitNode.x && cell.y === exitNode.y && cell.z === exitNode.z);
-      let coreCandidates = routeCells.filter((cell) => !isEndpoint(cell));
-      const middleRoute = coreCandidates.filter((cell) => cell.y === 1);
-      if (middleRoute.length >= 3) coreCandidates = middleRoute;
-      const crystalCells = [];
-      [0.22, 0.50, 0.78].forEach((fraction) => {
-        if (coreCandidates.length < 3) return;
-        let index = Math.max(0, Math.min(coreCandidates.length - 1, Math.round((coreCandidates.length - 1) * fraction)));
-        while (crystalCells.includes(coreCandidates[index]) && index < coreCandidates.length - 1) index += 1;
-        if (crystalCells.includes(coreCandidates[index])) index = coreCandidates.findIndex((cell) => !crystalCells.includes(cell));
-        if (index >= 0) crystalCells.push(coreCandidates[index]);
-      });
-      const fallbackCandidates = cells.filter((cell) => !isEndpoint(cell) && !crystalCells.includes(cell));
-      while (crystalCells.length < 3 && fallbackCandidates.length) {
-        crystalCells.push(fallbackCandidates.splice(Math.floor(rng() * fallbackCandidates.length), 1)[0]);
-      }
-      const crystals = [];
-      crystalCells.slice(0, 3).forEach((cell, index) => {
-        const mesh = new THREE.Mesh(crystalGeometry, crystalMaterial);
-        mesh.position.copy(cellPosition(cell.x, cell.y, cell.z));
-        mesh.position.y += 0.35;
-        mesh.name = "core-shard-" + index;
-        mesh.scale.setScalar(1.18);
-        group.add(mesh);
-        crystals.push({ mesh, taken: false, scouted: true, phase: rng() * Math.PI * 2, cell: { x: cell.x, y: cell.y, z: cell.z } });
-      });
-      const beacon = new THREE.Mesh(beaconGeometry, beaconMaterial);
-      beacon.position.copy(cellPosition(exitNode.x, exitNode.y, exitNode.z));
-      beacon.rotation.x = Math.PI / 2;
-      beacon.scale.set(1.65, 1.65, 1.65);
-      beacon.name = "return-warp-beacon";
-      group.add(beacon);
-
-      const satellites = [
-        { offset: new THREE.Vector3(34, 3, 10), radius: 6.4 },
-        { offset: new THREE.Vector3(-30, -7, 16), radius: 3.6 }
-      ].map((rock, index) => {
-        const mesh = new THREE.Mesh(
-          new THREE.SphereGeometry(rock.radius, 12, 9),
-          wallMaterials[index % wallMaterials.length]
-        );
-        mesh.position.copy(center).add(rock.offset);
-        mesh.name = "asteroid-satellite-" + index;
-        group.add(mesh);
-        return { position: mesh.position, radius: rock.radius, mesh: mesh };
-      });
-
-      scene.add(group);
-      maze = {
-        active: true,
-        group,
-        center,
-        // The 2D Ring mode reuses this exact maze instance and topology, not a second RNG.
-        seed,
-        dimensions: { nx: NX, ny: NY, nz: NZ },
-        startCell: { x: startNode.x, y: startNode.y, z: startNode.z },
-        exitCell: { x: exitNode.x, y: exitNode.y, z: exitNode.z },
-        cells,
-        walls,
-        wallMesh,
-        wallMeshes,
-        shell,
-        crystals,
-        beacon,
-        start: cellPosition(startNode.x, startNode.y, startNode.z),
-        exit: cellPosition(exitNode.x, exitNode.y, exitNode.z),
-        count: 0,
-        sinceStatus: 0,
-        texture,
-        textures: wallTextures.concat(fallbackTexture === texture ? [] : [fallbackTexture]),
-        wallTextureCopiesByAsset,
-        material,
-        materials: wallMaterials,
-        wallVariantMaterials,
-        wallVariantTextures,
-        geometry: unit,
-        crystalGeometry,
-        crystalMaterial,
-        beaconGeometry,
-        beaconMaterial,
-        satellites,
-        // Wide enough to fly around the asteroid and its satellites.
-        // Wall-contact damping stays the 0.11.2 baseline; only the envelope grew.
-        flyRadius: 160,
-        lastPosition: null,
-        lastImpactAt: 0,
-        ringCompleted: false,
-        hydrogen: {
-          cell: { x: startNode.x, y: startNode.y, z: startNode.z },
-          unlocked: !!window.BCMWorldMission?.hydrogenUnlocked,
-          taken: !!window.BCMWorldMission?.hydrogenCollected,
-          scouted: false
-        }
-      };
-      if (window.BCMWorldMission) {
-        window.BCMWorldMission.asteroidSeed = seed;
-      }
-      state.savedSpeedMode = engine.getSpeedMode ? engine.getSpeedMode() : 1;
-      if (engine.setSpeedMode) engine.setSpeedMode(2);
-      state.maze = maze;
-      maze.pickupEffects = [];
-
-      // Wall-mounted crystal deposits are purely decorative. Their placement
-      // uses a separate seed stream so it cannot alter maze topology, exits,
-      // Hydrogen cells, wall textures or the existing collision list.
-      function attachAsteroidWallCrystals() {
-        const decorationGroup = new THREE.Group();
-        decorationGroup.name = "asteroid-wall-crystal-decorations";
-        maze.wallCrystalGroup = decorationGroup;
-        group.add(decorationGroup);
-
-        const placementRng = randomFrom(hashSeed(String(seed) + "|wall-crystal-layout"));
-        const endpoint = (cell, point) => !!cell && !!point &&
-          cell.x === point.x && cell.y === point.y && cell.z === point.z;
-        const byCell = new Map();
-
-        walls.forEach((wall) => {
-          const cell = wall && wall.cell;
-          if (!cell || endpoint(cell, maze.startCell) || endpoint(cell, maze.exitCell)) return;
-
-          // Only the vertical side panels are decorated. Floor/ceiling panels
-          // and passage openings stay visually clear.
-          if (wall.sy <= Math.min(wall.sx, wall.sz)) return;
-          const key = cell.x + ":" + cell.y + ":" + cell.z;
-          if (!byCell.has(key)) byCell.set(key, []);
-          byCell.get(key).push(wall);
-        });
-
-        // Prefer the first traversable route cells across all heights so the pilot can
-        // see a deposit early in the asteroid run. This only ranks the existing
-        // wall list; route generation and its seeded RNG are not modified.
-        const routeIndexByCell = new Map();
-        routeCells.forEach((cell, index) => {
-          routeIndexByCell.set(cell.x + ":" + cell.y + ":" + cell.z, index);
-        });
-        const candidates = [];
-        byCell.forEach((cellWalls, key) => {
-          const routeIndex = routeIndexByCell.get(key);
-          if (Number.isFinite(routeIndex) && routeIndex <= 0) return;
-          if (!cellWalls.length) return;
-          const pick = Math.floor(placementRng() * cellWalls.length);
-          const onRoute = Number.isFinite(routeIndex);
-          candidates.push({
-            wall: cellWalls[pick],
-            routeIndex: onRoute ? routeIndex : null,
-            routePriority: onRoute ? 0 : 1,
-            sortSalt: placementRng()
-          });
-        });
-        // Use the main route first, then fill other eligible cells across the maze
-        // if it has fewer than twelve panels. The wall list remains read-only.
-        candidates.sort((a, b) =>
-          a.routePriority - b.routePriority ||
-          (a.routeIndex ?? Number.MAX_SAFE_INTEGER) - (b.routeIndex ?? Number.MAX_SAFE_INTEGER) ||
-          a.sortSalt - b.sortSalt
-        );
-
-        const placementCount = Math.min(12, candidates.length);
-        // Rotate the four-colour palette by one seeded offset. A full set of
-        // four deposits therefore shows all four authored variants, while the
-        // asteroid seed still changes which colour appears first.
-        const paletteOffset = Math.floor(placementRng() * asteroidWallCrystalColors.length);
-        const placements = candidates.slice(0, placementCount).map((candidate, index) => {
-          const wall = candidate.wall;
-          const routeIndex = candidate.routeIndex;
-          const cellCenter = cellPosition(wall.cell.x, wall.cell.y, wall.cell.z);
-          const inward = cellCenter.sub(new THREE.Vector3(wall.x, wall.y, wall.z));
-          inward.y = 0;
-          if (inward.lengthSq() < 1e-6) return null;
-          inward.normalize();
-
-          const up = new THREE.Vector3(0, 1, 0);
-          // The separate crystal GLBs retain their shared source coordinates.
-          // Their growth axis is local +Z; map it out from the wall and keep +Y vertical.
-          const tangent = up.clone().cross(inward).normalize();
-          const basis = new THREE.Matrix4().makeBasis(tangent, up, inward);
-          const quaternion = new THREE.Quaternion().setFromRotationMatrix(basis);
-          const wallThickness = Math.min(wall.sx, wall.sz);
-          const scale = 0.60 + placementRng() * 0.07;
-          const color = asteroidWallCrystalColors[(index + paletteOffset) % asteroidWallCrystalColors.length];
-          const position = new THREE.Vector3(wall.x, wall.y, wall.z)
-            .addScaledVector(inward, wallThickness * 0.5 - 0.08)
-            .addScaledVector(tangent, (placementRng() - 0.5) * 2.4)
-            .addScaledVector(up, (placementRng() - 0.5) * 1.6);
-          return { wall, position, quaternion, scale, routeIndex, color, index };
-        }).filter(Boolean);
-
-        maze.wallCrystalPlacementCount = placements.length;
-        maze.wallCrystalPlacements = placements.map((placement) => ({
-          cell: { x: placement.wall.cell.x, y: placement.wall.cell.y, z: placement.wall.cell.z },
-          routeIndex: placement.routeIndex,
-          color: placement.color
-        }));
-        if (!placements.length) {
-          group.remove(decorationGroup);
-          maze.wallCrystalGroup = null;
-          return;
-        }
-
-        Promise.all(placements.map((placement) =>
-          loadAsteroidWallCrystalTemplate(THREE, placement.color)
-            .then((template) => ({ placement, template }))
-        )).then((loaded) => {
-          // A load may finish after the pilot has left and disposed this maze.
-          if (!maze.active || state.maze !== maze || decorationGroup.parent !== group) return;
-          loaded.forEach(({ placement, template }) => {
-            const model = template.clone(true);
-            model.name = "asteroid-wall-crystal-" + placement.index;
-            model.position.copy(placement.position);
-            model.quaternion.copy(placement.quaternion);
-            model.scale.setScalar(placement.scale);
-            model.userData.bcmWallDecoration = true;
-            model.userData.bcmWallColor = placement.color;
-            model.userData.bcmWallCell = { x: placement.wall.cell.x, y: placement.wall.cell.y, z: placement.wall.cell.z };
-            model.userData.bcmWallRouteIndex = placement.routeIndex;
-            model.userData.bcmWallScale = placement.scale;
-            model.traverse((node) => {
-              if (!node || !node.isMesh) return;
-              node.frustumCulled = true;
-              node.castShadow = false;
-              node.receiveShadow = false;
-            });
-            decorationGroup.add(model);
-          });
-          maze.wallCrystalCount = loaded.length;
-        }).catch((error) => {
-          if (decorationGroup.parent === group) group.remove(decorationGroup);
-          if (maze.wallCrystalGroup === decorationGroup) maze.wallCrystalGroup = null;
-          maze.wallCrystalCount = 0;
-          try { console.warn("[BCM] Asteroid wall crystal model was skipped:", error); } catch (e) {}
-        });
-      }
-
-      attachAsteroidWallCrystals();
-      publishAsteroidChart(maze);
-      function spawnCrystalPickupEffect(position, pickupLabel) {
-        const effect = new THREE.Group();
-        effect.name = "asteroid-crystal-pickup-impact";
-        effect.position.copy(position);
-        const glowMaterial = new THREE.MeshBasicMaterial({
-          color: 0xbafcff, transparent: true, opacity: 0.98,
-          blending: THREE.AdditiveBlending, depthWrite: false
-        });
-        const ringMaterial = new THREE.MeshBasicMaterial({
-          color: 0x5befff, transparent: true, opacity: 0.92,
-          blending: THREE.AdditiveBlending, depthWrite: false
-        });
-        const core = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), glowMaterial);
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.055, 6, 24), ringMaterial);
-        ring.rotation.x = Math.PI * 0.34;
-        effect.add(core, ring);
-        const light = new THREE.PointLight(0x74f6ff, 3.8, 12, 2);
-        effect.add(light);
-
-        // A world-space label makes mission pickups obvious even when the HUD is small.
-        const labelCanvas = document.createElement("canvas");
-        labelCanvas.width = 320;
-        labelCanvas.height = 112;
-        const ctx = labelCanvas.getContext("2d");
-        if (ctx) {
-          ctx.clearRect(0, 0, labelCanvas.width, labelCanvas.height);
-          ctx.font = "bold 64px system-ui, sans-serif";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.lineJoin = "round";
-          ctx.lineWidth = 14;
-          ctx.strokeStyle = "rgba(2, 15, 26, 0.95)";
-          ctx.strokeText(pickupLabel || "CORE +1", 160, 56);
-          ctx.fillStyle = pickupLabel === "H +1" ? "#bafff1" : "#a9f5ff";
-          ctx.fillText(pickupLabel || "CORE +1", 160, 56);
-        }
-        const labelTexture = new THREE.CanvasTexture(labelCanvas);
-        labelTexture.needsUpdate = true;
-        const labelMaterial = new THREE.SpriteMaterial({
-          map: labelTexture, transparent: true, depthWrite: false, opacity: 1
-        });
-        const labelSprite = new THREE.Sprite(labelMaterial);
-        labelSprite.position.set(0, 1.55, 0);
-        labelSprite.scale.set(3.6, 1.25, 1);
-        effect.add(labelSprite);
-
-        scene.add(effect);
-        maze.pickupEffects.push({
-          group: effect, core, ring, light, glowMaterial, ringMaterial,
-          labelSprite, labelMaterial, labelTexture, age: 0, duration: 1.15
-        });
-      }
-      function updateCrystalPickupEffects(dt) {
-        maze.pickupEffects = maze.pickupEffects.filter((effect) => {
-          effect.age += dt;
-          const t = Math.min(1, effect.age / effect.duration);
-          effect.ring.scale.setScalar(0.55 + t * 6.6);
-          effect.ring.rotation.z += dt * 4.0;
-          effect.core.scale.setScalar(0.6 + (1 - t) * 2.8);
-          effect.glowMaterial.opacity = Math.max(0, (1 - t) * 0.98);
-          effect.ringMaterial.opacity = Math.max(0, (1 - t) * 0.96);
-          effect.light.intensity = Math.max(0, (1 - t) * 3.8);
-          if (effect.labelSprite) {
-            effect.labelSprite.position.y = 1.55 + t * 2.2;
-            effect.labelMaterial.opacity = Math.max(0, 1 - t * 0.92);
-            effect.labelSprite.scale.set(3.6 + t * 0.75, 1.25 + t * 0.22, 1);
-          }
-          if (t >= 1) {
-            scene.remove(effect.group);
-            effect.group.traverse((child) => { if (child.geometry) child.geometry.dispose(); });
-            effect.glowMaterial.dispose();
-            effect.ringMaterial.dispose();
-            if (effect.labelMaterial) effect.labelMaterial.dispose();
-            if (effect.labelTexture) effect.labelTexture.dispose();
-            return false;
-          }
-          return true;
-        });
-      }
-      maze.spawnCrystalPickupEffect = spawnCrystalPickupEffect;
-      maze.updateCrystalPickupEffects = updateCrystalPickupEffects;
-      state.ringApproachArmed = true;
-      root.classList.add("bcm-warp-maze-active");
-      exitButton.textContent = nextWarpDestinationLabel();
-      exitButton.hidden = false;
-      overlay.hidden = true;
-      root.classList.remove("bcm-warp-open");
-      launchButton.classList.remove("is-active");
-
-      // The main physics resumes in this scene. The seeded maze uses a small number of
-      // instanced wall batches and up to four asterwall textures, with a tiny procedural fallback.
-      // Cell +Z index is world −Z, the ship's forward at yaw 0. Face whichever
-      // side the carve actually opened, including up/down, so spawn is not a wall.
-      const spawn = maze.start.clone();
-      const look = new THREE.Quaternion();
-      if (startNode.open.zp) {
-        spawn.z -= 0.45;
-      } else if (startNode.open.xp) {
-        look.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2);
-        spawn.x += 0.45;
-      } else if (startNode.open.xn) {
-        look.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
-        spawn.x -= 0.45;
-      } else if (startNode.open.yp) {
-        look.setFromEuler(new THREE.Euler(1.05, 0, 0, "YXZ"));
-        spawn.y += 0.45;
-      } else if (startNode.open.yn) {
-        look.setFromEuler(new THREE.Euler(-1.05, 0, 0, "YXZ"));
-        spawn.y -= 0.45;
-      } else if (startNode.open.zn) {
-        look.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
-        spawn.z += 0.45;
-      }
-      engine.teleport({ x: spawn.x, y: spawn.y, z: spawn.z }, look);
-      engine.pauseForWarp(false);
-      rememberPlace(asteroidPlace(state.target));
-      engine.setExternalHUD(state.place.label, "EXPEDITION · CORE SHARDS 0/3 · U / R3 OPENS THE HOLD");
-      maze.lastPosition = runtime.ship.position.clone();
-      state.mode = "maze";
-      state.lastStatusAt = 0;
-      window.BCMDeepSpaceWarpFrame = updateMazeFrame;
+      if (planetId) look.apply(runtime, planetId);
+      else look.clear();
+      if (typeof look.showNeighbours === "function" && sector && Number.isFinite(Number(sector.x)) && Number.isFinite(Number(sector.y))) {
+        look.showNeighbours(runtime, Number(sector.x), Number(sector.y));
+      } else if (typeof look.clearNeighbours === "function") look.clearNeighbours();
     }
 
+    // An asteroid sector is not ONI CSS: no landing screen, no station; its neighbours around it.
+    function enterAsteroidMaze() {
+      const location = getAsteroidMazeLocation();
+      if (!location) return false;
+      dressSector("asteroid", state.target);
+      return location.enter();
+    }
     function updateMazeFrame(frame) {
-      const maze = state.maze;
-      if (!maze || !maze.active || !frame || !frame.ship) return;
-      const ship = frame.ship;
-      const pos = ship.position;
-      const radius = 0.7;
-
-      // Ring gameplay replaces the flight view. The hold does not: the helm
-      // keeps flying the same ship, so maze collision stays active.
-      if (state.ringPlatformer || state.ringTransitionActive) {
-        if (frame.camera) {
-          frame.camera.position.copy(pos);
-          frame.camera.quaternion.copy(ship.quaternion);
-        }
-        if (ship.visual) {
-          ship.visual.position.copy(pos);
-          ship.visual.quaternion.copy(ship.quaternion);
-        }
-        maze.lastPosition.copy(pos);
-        return;
-      }
-
-      // Only test wall panels close to the craft; distant cells cost almost nothing per frame.
-      for (let pass = 0; pass < 2; pass += 1) {
-        for (let i = 0; i < maze.walls.length; i += 1) {
-          const w = maze.walls[i];
-          const hx = w.sx / 2 + radius, hy = w.sy / 2 + radius, hz = w.sz / 2 + radius;
-          if (Math.abs(pos.x - w.x) > hx + 1.2 || Math.abs(pos.y - w.y) > hy + 1.2 || Math.abs(pos.z - w.z) > hz + 1.2) continue;
-          const px = hx - Math.abs(pos.x - w.x);
-          const py = hy - Math.abs(pos.y - w.y);
-          const pz = hz - Math.abs(pos.z - w.z);
-          if (px <= 0 || py <= 0 || pz <= 0) continue;
-          const impactSpeed = ship.velocity.length();
-          const impactNow = performance.now();
-          if (impactSpeed > 3.0 && impactNow - maze.lastImpactAt > 650) {
-            maze.lastImpactAt = impactNow;
-            const compartmentId = pos.x < maze.center.x - 5.4 ? 1 : (pos.x > maze.center.x + 5.4 ? 3 : 2);
-            const damage = Math.max(4, Math.min(24, Math.round((impactSpeed - 2.0) * 4.4)));
-            const damaged = window.BCMHullRepairState?.triggerExternalImpact?.(compartmentId, damage);
-            if (damaged) {
-              setMazeStatus("IMPACT · " + damaged.name + " · INTEGRITY " + Math.round(damaged.integrity) + "% · HIT " + damage);
-            }
-          }
-          if (px <= py && px <= pz) {
-            pos.x = w.x + (pos.x >= w.x ? 1 : -1) * (hx + 0.015);
-            ship.velocity.x *= 0.15;
-          } else if (py <= pz) {
-            pos.y = w.y + (pos.y >= w.y ? 1 : -1) * (hy + 0.015);
-            ship.velocity.y *= 0.15;
-          } else {
-            pos.z = w.z + (pos.z >= w.z ? 1 : -1) * (hz + 0.015);
-            ship.velocity.z *= 0.15;
-          }
-        }
-      }
-
-      const fromCenter = pos.clone().sub(maze.center);
-      const flyRadius = Number(maze.flyRadius) || 160;
-      if (fromCenter.length() > flyRadius) {
-        fromCenter.setLength(flyRadius);
-        pos.copy(maze.center).add(fromCenter);
-        ship.velocity.multiplyScalar(0.25);
-      }
-      (maze.satellites || []).forEach((rock) => {
-        const away = pos.clone().sub(rock.position);
-        const limit = rock.radius + 1.05;
-        if (away.length() >= limit) return;
-        if (away.lengthSq() < 1e-6) away.set(1, 0, 0);
-        away.setLength(limit);
-        pos.copy(rock.position).add(away);
-        ship.velocity.multiplyScalar(0.45);
-      });
-
-      // Local artificial gravity activates near the gold ring, with a smooth falloff.
-      const ringVector = maze.beacon.position.clone().sub(pos);
-      const approachDistance = ringVector.length();
-      state.ringDistance = approachDistance;
-      if (approachDistance < 22 && approachDistance > 2.65) {
-        const falloff = Math.max(0, 1 - approachDistance / 22);
-        ringVector.normalize();
-        ship.velocity.addScaledVector(ringVector, (frame.dt || 0.016) * (0.25 + falloff * falloff * 1.8));
-      }
-
-      maze.crystals.forEach((crystal) => {
-        if (crystal.taken) return;
-        crystal.mesh.rotation.y += Math.min(frame.dt || 0.016, 0.04) * 1.35;
-        crystal.mesh.position.y += Math.sin(performance.now() * 0.002 + crystal.phase) * 0.001;
-        if (!crystal.scouted && pos.distanceTo(crystal.mesh.position) < 8) {
-          crystal.scouted = true;
-          publishAsteroidChart(maze);
-          setMazeStatus("CHART MARK · CORE SHARD " + (crystal.cell.x + 1) + "." + (crystal.cell.z + 1));
-        }
-        if (pos.distanceTo(crystal.mesh.position) < 2.0) {
-          const pickupPosition = crystal.mesh.position.clone();
-          crystal.taken = true;
-          crystal.scouted = true;
-          crystal.mesh.visible = false;
-          maze.count += 1;
-          publishAsteroidChart(maze);
-          const mission = window.BCMWorldMission || {};
-          const isHydrogenPickup = !!mission.hydrogenUnlocked &&
-            Number(mission.hydrogenCount || 0) < 3;
-          maze.spawnCrystalPickupEffect(pickupPosition, isHydrogenPickup ? "H +1" : "CORE +1");
-          if (isHydrogenPickup) {
-            window.dispatchEvent(new CustomEvent("bcm:mission:hydrogen-shard-collected", {
-              detail: {
-                crystalId: String(maze.seed) + ":" + crystal.cell.x + "," + crystal.cell.y + "," + crystal.cell.z,
-                asteroidSeed: maze.seed,
-                cell: { ...crystal.cell },
-                type: "asteroid-crystal"
-              }
-            }));
-            const count = Number(window.BCMWorldMission?.hydrogenCount || 0);
-            setMazeStatus("HYDROGEN " + count + "/3 · " + Math.max(0, 3 - count) + " LEFT");
-          } else {
-            setMazeStatus("CORE SHARDS " + maze.count + "/3 · " + (maze.count === 3 ? "GOLD RING IS OPEN" : "SEARCH THE CONNECTED CORRIDORS"));
-          }
-        }
-      });
-      maze.updateCrystalPickupEffects(Math.min(frame.dt || 0.016, 0.04));
-      maze.beacon.rotation.z += Math.min(frame.dt || 0.016, 0.04) * 0.4;
-      const ringDistance = pos.distanceTo(maze.beacon.position);
-      state.ringDistance = ringDistance;
-      syncHullButtonVisibility();
-      syncRingButtonVisibility();
-      // Require the ship to leave the beacon's capture radius after exiting Ring
-      // before accepting another approach; the same level can still be re-entered.
-      if (ringDistance > 4.2) {
-        state.ringApproachArmed = true;
-        state.ringEntryFailed = false;
-      }
-      if (state.ringApproachArmed && !state.ringEntryFailed && !state.ringPlatformer &&
-          !maze.ringCompleted && ringDistance < 2.6) {
-        attemptOpenRingPlatformer(maze);
-        return;
-      }
-
-      if (frame.camera) {
-        frame.camera.position.copy(pos);
-        frame.camera.quaternion.copy(ship.quaternion);
-      }
-      if (ship.visual) {
-        ship.visual.position.copy(pos);
-        ship.visual.quaternion.copy(ship.quaternion);
-      }
-      maze.lastPosition.copy(pos);
-      if (performance.now() - maze.sinceStatus > 1300) {
-        maze.sinceStatus = performance.now();
-        const message = state.ringDistance < 22
-          ? "RING AHEAD · THE LEVEL IS OPTIONAL · HELM STILL FLIES THE SHIP"
-          : "EXPEDITION · CORE SHARDS " + maze.count + "/3 · ASTEROID COMPLEX";
-        setMazeStatus(message);
-      }
+      const location = getAsteroidMazeLocation();
+      if (location) return location.update(frame);
     }
 
     function openHullInterior() {
@@ -3252,2486 +2531,6 @@
       openHullInterior();
     };
 
-    function openRingPlatformer(maze, afterTransition = false) {
-      if (!maze || !maze.active || state.ringPlatformer || state.hullOpen || state.mode !== "maze") return false;
-      const engine = api();
-      const runtime = engine && engine.getRuntime ? engine.getRuntime() : null;
-      if (!runtime?.ship || !runtime.THREE || !runtime.scene) return false;
-      // Disarm only after the engine is valid; a failed attempt must not lock out
-      // the Ring button until the pilot leaves the beacon's capture radius.
-      state.ringApproachArmed = false;
-      if (!afterTransition) {
-        const transitionSource = findRingTransitionVideoSource();
-        if (transitionSource) return playRingTransition(maze, transitionSource, engine);
-      }
-
-      startRingAudio();
-      state.ringPlatformer = true;
-      hullEnterButton.hidden = true;
-      ringEnterButton.hidden = true;
-      if (engine.pauseForWarp) engine.pauseForWarp(true);
-
-      const THREE = runtime.THREE;
-      const scene = runtime.scene;
-      const seed = Number(maze.seed) || 0;
-
-      const root2d = document.createElement("div");
-      root2d.id = "bcm-ring-platformer";
-      root2d.tabIndex = 0;
-      root2d.style.cssText = "position:fixed;inset:0;z-index:1001200;background:transparent;color:#e8f4f8;font:14px system-ui,sans-serif;overflow:hidden;touch-action:none;pointer-events:auto";
-      const en = window.BCMDialogue?.language === "en";
-      const copy = en ? {
-        landing: "LANDING", bosses: "BOSSES", back: "Return to ship", canvas: "Large arena progress",
-        jump: "JUMP", action: "E · DOOR", floor: "R · FLOOR", laser: "LASER", dash: "DASH",
-        title: "Seeded asteroid cells",
-        description: "This is the same asteroid you just landed on. E follows the marked open door; R / LB changes floor at a glowing hatch. Space / W only jumps. A boss may guard a passage; the pig arena is optional.",
-        controls: "P1: A/D or ←/→ move · Space/W jump · E door · R floor · Q fire · Shift/C dash\nP2: J/L move · P jump · O door · I floor · K fire · U dash\nGamepad: stick move · A jump · X door · LB floor · Y fire · B dash"
-      } : {
-        landing: "ВЫСАДКА", bosses: "БОССЫ", back: "В корабль", canvas: "Прогресс по аренам",
-        jump: "ПРЫЖОК", action: "E · ДВЕРЬ", floor: "R · ЭТАЖ", laser: "ЛАЗЕР", dash: "РЫВОК",
-        title: "Высадка на этот астероид",
-        description: "Это тот же астероид и те же текстуры клеток. E — пройти через отмеченную открытую дверь; R / LB — перейти на другой этаж у светящегося люка. Space / W — только прыжок. Иногда проход охраняет противник; арена со свиньями необязательна.",
-        controls: "P1: A/D или ←/→ — бег · Space/W — прыжок · E — дверь · R — этаж · Q — лазер · Shift/C — рывок\nP2: J/L — бег · P — прыжок · O — дверь · I — этаж · K — лазер · U — рывок\nГеймпад: стик — бег · A — прыжок · X — дверь · LB — этаж · Y — лазер · B — рывок"
-      };
-      root2d.innerHTML =
-        '<div style="position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;pointer-events:none;z-index:3">' +
-          '<div style="max-width:62%;text-shadow:0 2px 8px #000"><div style="font-size:11px;letter-spacing:.16em;color:#60ddec">RING // FRONTIER</div>' +
-          '<div data-ring-status style="font-weight:900;margin-top:5px;line-height:1.3">' + copy.landing + '</div>' +
-          '<div data-ring-floor style="margin-top:5px;color:#b8cbd6;font-size:12px"></div>' +
-          '<div data-ring-boss-meter style="display:none;width:min(48vw,300px);height:7px;margin-top:8px;border:1px solid rgba(211,235,248,.6);border-radius:9px;background:rgba(4,10,18,.8);overflow:hidden"><div data-ring-boss-fill style="width:100%;height:100%;background:linear-gradient(90deg,#55e6ef,#f6b55e);transition:width .12s linear"></div></div></div>' +
-          '<div style="display:flex;flex-direction:column;gap:7px;align-items:flex-end;pointer-events:auto">' +
-            '<div data-ring-count style="padding:6px 9px;background:rgba(7,22,34,.94);border:1px solid #25485b;border-radius:8px;color:#d9f8ff;white-space:nowrap">' + copy.bosses + ' 0/3</div>' +
-            '<button type="button" data-ring-exit title="' + copy.back + '" aria-label="' + copy.back + '" style="min-width:42px;min-height:42px;padding:7px 11px;border:1px solid #547083;border-radius:9px;background:rgba(16,35,45,.96);color:#e8fbff;font-size:20px;font-weight:800">↩</button>' +
-          '</div>' +
-        '</div>' +
-        '<canvas data-ring-canvas aria-label="' + copy.canvas + '" style="position:absolute;right:12px;top:78px;width:min(34vw,220px);height:168px;min-width:120px;min-height:120px;border:1px solid rgba(88,173,198,.55);border-radius:9px;background:rgba(3,10,18,.83);z-index:2;pointer-events:none"></canvas>' +
-        '<div data-ring-split-divider hidden style="position:absolute;inset:0;z-index:1;pointer-events:none;border:0"></div>' +
-        '<div style="position:absolute;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:flex-end;gap:12px;z-index:4;pointer-events:none">' +
-          '<div style="display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,42px);gap:4px;pointer-events:auto">' +
-             '<span></span><button type="button" data-ring-action="jump" aria-label="' + copy.jump + '" style="grid-column:2;grid-row:1;min-height:42px">' + copy.jump + '</button><span></span>' +
-             '<button type="button" data-ring-action="left" aria-label="' + (en ? "Left" : "Влево") + '" style="min-height:42px">◀</button><span style="display:block"></span><button type="button" data-ring-action="right" aria-label="' + (en ? "Right" : "Вправо") + '" style="min-height:42px">▶</button>' +
-             '<button type="button" data-ring-action="floor" aria-label="' + copy.floor + '" title="' + (en ? "R / LB: change floor at a glowing hatch" : "R / LB: сменить этаж у светящегося люка") + '" style="grid-column:1 / span 3;grid-row:3;min-height:38px">' + copy.floor + '</button>' +
-           '</div>' +
-           '<div style="display:flex;gap:6px;align-items:flex-end;pointer-events:auto">' +
-            '<button type="button" data-ring-action="activate" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.action + '</button>' +
-            '<button type="button" data-ring-action="fire" aria-label="' + copy.laser + '" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.laser + '</button>' +
-            '<button type="button" data-ring-action="dash" style="min-height:42px;padding:6px 10px;font-size:12px">' + copy.dash + '</button>' +
-          '</div>' +
-        '</div>' +
-        '<div data-ring-mode-menu style="position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(1,5,12,.74);pointer-events:auto">' +
-          '<div style="width:min(480px,100%);padding:22px;border:1px solid #37677c;border-radius:16px;background:rgba(6,20,32,.97);box-shadow:0 12px 60px #0009;text-align:center">' +
-            '<div style="font-size:12px;letter-spacing:.18em;color:#60ddec">RING FRONTIER · SEED ' + seed + '</div>' +
-            '<div style="font-size:24px;font-weight:900;margin:12px 0 7px">' + copy.title + '</div>' +
-            '<div style="color:#b7cbd6;line-height:1.5;margin-bottom:17px">' + copy.description + '</div>' +
-            '<div style="color:#91b8c7;font-size:12px;line-height:1.5;margin-bottom:17px;white-space:pre-line">' + copy.controls + '</div>' +
-            '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">' +
-              '<button type="button" data-ring-single style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #69d7ea;border-radius:10px;background:#123c48;color:#e8fbff;font-weight:900">SINGLE</button>' +
-              '<button type="button" data-ring-multi style="min-height:48px;min-width:126px;padding:9px 16px;border:1px solid #bb9a57;border-radius:10px;background:#3b301b;color:#fff0c7;font-weight:900">MULTI · 2 CREW</button>' +
-            '</div>' +
-          '</div>' +
-        '</div>';
-      document.body.appendChild(root2d);
-      const canvas = root2d.querySelector("[data-ring-canvas]");
-      const g = canvas.getContext("2d");
-      const statusEl = root2d.querySelector("[data-ring-status]");
-      const countEl = root2d.querySelector("[data-ring-count]");
-      const floorEl = root2d.querySelector("[data-ring-floor]");
-      const menu = root2d.querySelector("[data-ring-mode-menu]");
-      const splitDivider = root2d.querySelector("[data-ring-split-divider]");
-      const modeButtons = [
-        root2d.querySelector("[data-ring-single]"),
-        root2d.querySelector("[data-ring-multi]")
-      ];
-      const playerColors = ["#65dcf0", "#f3c46c"];
-      const crewSelection = Array.isArray(window.BCMMiniCrewSelection?.players)
-        ? window.BCMMiniCrewSelection.players : [];
-      const crewImages = [];
-      crewSelection.slice(0, 2).forEach((crew, index) => {
-        const imageUrl = String(crew?.image || "");
-        if (!imageUrl) { crewImages[index] = null; return; }
-        const img = new Image();
-        img.onload = () => {};
-        img.onerror = () => {};
-        img.src = imageUrl;
-        crewImages[index] = img;
-      });
-
-      let mapWidth = 1, mapHeight = 1, pixelRatio = 1, raf = 0, done = false, gameStarted = false;
-      let mode = "single";
-      let players = [];
-      let splitActive = false;
-      let frameStamp = 0;
-      let lastHudCount = -1;
-      const keyboardInputs = [{}, {}];
-      const touchInputs = [{}, {}];
-      const padInputs = [{}, {}];
-      const previousPad = [{}, {}];
-      let menuFocusIndex = 0;
-      let menuPadPrevious = { left: false, right: false, confirm: false };
-      const weaponProgress = window.BCMRingWeaponProgress || (window.BCMRingWeaponProgress = {
-        type: "pointer", tier: 1, completedRuns: 0, pendingUpgrade: false, lastUpgradePromptRun: -1, nextUpgradeAt: 2
-      });
-      weaponProgress.nextUpgradeAt = Math.max(2, Math.floor(Number(weaponProgress.nextUpgradeAt) || 2));
-      const weaponPalette = [0xff426f, 0xffab48, 0xffed57, 0x56f0a0, 0x58c9ff, 0xc884ff];
-      const weaponShots = [];
-      let weaponShotIndex = 0;
-      let masterOfferedThisRun = false;
-      const oneShotActions = new Set(["activate", "dash", "floor"]);
-      const worldSaved = {
-        oldMazeVisible: maze.group ? maze.group.visible : true,
-        oldShipVisible: runtime.ship.visual ? runtime.ship.visual.visible : true,
-        oldBackground: scene.background
-      };
-
-      function focusModeMenu(index) {
-        if (gameStarted || done || !modeButtons.length) return;
-        menuFocusIndex = ((Number(index) || 0) % modeButtons.length + modeButtons.length) % modeButtons.length;
-        modeButtons.forEach((button, buttonIndex) => {
-          if (!button) return;
-          const focused = buttonIndex === menuFocusIndex;
-          button.style.outline = focused ? "3px solid #f4fbff" : "none";
-          button.style.outlineOffset = "3px";
-          button.style.boxShadow = focused
-            ? "0 0 0 5px rgba(83,213,235,.25), 0 8px 24px #0008"
-            : "none";
-          button.setAttribute("aria-pressed", focused ? "true" : "false");
-        });
-      }
-
-      function confirmModeMenu() {
-        if (gameStarted || done) return false;
-        startMode(menuFocusIndex === 1 ? "multi" : "single");
-        return true;
-      }
-
-      function pollModeMenuGamepad() {
-        const connected = [...navigator.getGamepads()].filter((pad) => pad && pad.connected);
-        const pad = connected[0];
-        if (!pad) {
-          menuPadPrevious = { left: false, right: false, confirm: false };
-          return;
-        }
-        const axisX = Number(pad.axes?.[0] || 0);
-        const button = (number) => !!(pad.buttons && pad.buttons[number] && pad.buttons[number].pressed);
-        const left = button(14) || axisX < -0.55;
-        const right = button(15) || axisX > 0.55;
-        // Standard gamepad A confirms a menu choice; Start is a convenient fallback.
-        const confirm = button(0) || button(9);
-        if (left && !menuPadPrevious.left) focusModeMenu(menuFocusIndex - 1);
-        if (right && !menuPadPrevious.right) focusModeMenu(menuFocusIndex + 1);
-        if (confirm && !menuPadPrevious.confirm) confirmModeMenu();
-        menuPadPrevious = { left, right, confirm };
-      }
-
-      function resize2d() {
-        const rect = canvas.getBoundingClientRect();
-        pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
-        mapWidth = Math.max(1, rect.width);
-        mapHeight = Math.max(1, rect.height);
-        canvas.width = Math.round(mapWidth * pixelRatio);
-        canvas.height = Math.round(mapHeight * pixelRatio);
-      }
-
-      function buildRingWorld() {
-        const world = new THREE.Group();
-        world.name = "bcm-ring-frontier-side-scroll";
-        const buckets = { floor: [], platforms: [], backdrop: [], trim: [] };
-        const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
-        const materials = [
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0.22 }),
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.35, emissive: 0x06121b }),
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0.04, emissive: 0x030a13 }),
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45, metalness: 0.45, emissive: 0x0b2630 })
-        ];
-        const worldTextures = [];
-        const extraGeometries = [];
-        function addBox(bucket, x, y, z, sx, sy, sz, color) {
-          buckets[bucket].push({ x, y, z, sx, sy, sz, color: color || 0x28414d });
-        }
-        const platforms = [];
-        function addPlatform(x1, x2, topY, color) {
-          const width = x2 - x1;
-          const center = (x1 + x2) / 2;
-          const floor = topY === 0;
-          addBox(floor ? "floor" : "platforms", center, topY - 0.18, 0,
-            width, 0.36, 3.8, color || (floor ? 0x182b38 : 0x486b7d));
-          if (floor) {
-            // Broken-up floor markings read as a traversable stage, not a flat map tile.
-            for (let mark = x1 + 2.5; mark < x2 - 1; mark += 7.5) {
-              addBox("trim", mark, 0.045, 0.08, 1.25, 0.055, 0.08,
-                ((Math.floor(mark) % 2) === 0) ? 0x61deef : 0x405e70);
-            }
-          } else {
-            // A bright lip and dark support braces give the ledges a comic-panel silhouette.
-            addBox("trim", center, topY + 0.055, 0.12, width + 0.12, 0.075, 3.92,
-              color || 0x64d9e8);
-            const braceY = topY * 0.48;
-            const braceHeight = Math.max(0.45, topY * 0.88);
-            [x1 + 0.35, x2 - 0.35].forEach((braceX) => {
-              addBox("backdrop", braceX, braceY, -0.34, 0.20, braceHeight, 0.20, 0x07121b);
-              addBox("trim", braceX, braceY, -0.20, 0.055, braceHeight * 0.94, 0.08,
-                color || 0x64d9e8);
-            });
-          }
-          platforms.push({ minX: x1, maxX: x2, y: topY });
-        }
-        addPlatform(-51, 84, 0, 0x142936);
-        [
-          [-39, -33, 2.2], [-31, -26, 4.25], [-24, -19, 2.3], [-16, -9, 3.75],
-          [1, 6, 2.1], [8, 13, 4.1], [15, 21, 2.35], [24, 31, 4.0],
-          [39, 45, 2.15], [47, 52, 4.35], [55, 61, 2.5], [64, 71, 4.0]
-        ].forEach((ledge, i) => addPlatform(ledge[0], ledge[1], ledge[2],
-          [0x456b7b, 0x607786, 0x485f7c][i % 3]));
-
-        const zones = [
-          { x1: -50, x2: -2, center: -26, arenaX: -16, color: 0x0a2639, trim: 0x37c5e7, art: 0 },
-          { x1: -2, x2: 36, center: 17, arenaX: 18, color: 0x14263a, trim: 0x5fe0c4, art: 1 },
-          { x1: 36, x2: 84, center: 60, arenaX: 58, color: 0x271a39, trim: 0xc08bff, art: 2 }
-        ];
-
-        function makeComicBackdrop(zone) {
-          const canvas = document.createElement("canvas");
-          canvas.width = 1024;
-          canvas.height = 512;
-          const ctx = canvas.getContext("2d");
-          const palettes = [
-            { top: "#06111d", bottom: "#173b4d", glow: "#1bbbdc", mid: "#122c3d", deep: "#07131f", metal: "#2d4b5a", accent: "#75edff" },
-            { top: "#061918", bottom: "#25494a", glow: "#31c9a4", mid: "#173834", deep: "#071b20", metal: "#355756", accent: "#7af8d8" },
-            { top: "#100d20", bottom: "#3b2450", glow: "#a45ce8", mid: "#291b3d", deep: "#100e20", metal: "#4b355c", accent: "#e2a7ff" }
-          ];
-          const p = palettes[zone.art];
-          const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
-          bg.addColorStop(0, p.top);
-          bg.addColorStop(0.52, p.bottom);
-          bg.addColorStop(1, "#050910");
-          ctx.fillStyle = bg;
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-          const glow = ctx.createRadialGradient(
-            canvas.width * (0.28 + zone.art * 0.20), canvas.height * 0.40, 4,
-            canvas.width * (0.28 + zone.art * 0.20), canvas.height * 0.40, 360
-          );
-          glow.addColorStop(0, p.glow + "88");
-          glow.addColorStop(1, p.glow + "00");
-          ctx.fillStyle = glow;
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-          // Distant silhouette: irregular machinery, towers and broken skyline, inked like a comic panel.
-          const randomAt = (n) => {
-            const raw = Math.sin((zone.art + 3) * 71.31 + n * 19.17) * 43758.5453;
-            return raw - Math.floor(raw);
-          };
-          for (let i = 0; i < 14; i += 1) {
-            const x = i * 78 - 18;
-            const bw = 38 + randomAt(i + 2) * 52;
-            const bh = 100 + randomAt(i + 23) * 245;
-            const top = 390 - bh;
-            ctx.beginPath();
-            ctx.moveTo(x, 432);
-            ctx.lineTo(x, top + 28);
-            ctx.lineTo(x + bw * 0.16, top + 8);
-            ctx.lineTo(x + bw * 0.30, top + 23);
-            ctx.lineTo(x + bw * 0.52, top);
-            ctx.lineTo(x + bw * 0.70, top + 18);
-            ctx.lineTo(x + bw, top + 34);
-            ctx.lineTo(x + bw, 432);
-            ctx.closePath();
-            ctx.fillStyle = i % 2 ? p.mid : p.deep;
-            ctx.strokeStyle = "#02060b";
-            ctx.lineWidth = 12;
-            ctx.lineJoin = "miter";
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.globalAlpha = 0.68;
-            ctx.fillStyle = p.accent;
-            for (let windowY = top + 47; windowY < 385; windowY += 34) {
-              if (randomAt(i * 13 + windowY) > 0.62) continue;
-              ctx.fillRect(x + 8, windowY, Math.max(4, bw * 0.14), 9);
-              ctx.fillRect(x + bw * 0.53, windowY + 8, Math.max(4, bw * 0.18), 5);
-            }
-            ctx.globalAlpha = 1;
-          }
-
-          // Monumental reactor rings and thick conduit lines create depth behind the arena.
-          const reactorX = canvas.width * (0.70 - zone.art * 0.06);
-          const reactorY = 220;
-          [150, 116, 83].forEach((radius, i) => {
-            ctx.beginPath();
-            ctx.arc(reactorX, reactorY, radius, 0, Math.PI * 2);
-            ctx.strokeStyle = i === 0 ? "#02060b" : p.accent;
-            ctx.lineWidth = i === 0 ? 18 : (i === 1 ? 7 : 3);
-            ctx.globalAlpha = i === 0 ? 0.95 : (0.30 + i * 0.18);
-            ctx.stroke();
-          });
-          ctx.globalAlpha = 1;
-          ctx.fillStyle = p.deep;
-          ctx.strokeStyle = "#02060b";
-          ctx.lineWidth = 14;
-          ctx.beginPath();
-          ctx.moveTo(reactorX - 34, reactorY - 70);
-          ctx.lineTo(reactorX + 58, reactorY - 24);
-          ctx.lineTo(reactorX + 40, reactorY + 76);
-          ctx.lineTo(reactorX - 62, reactorY + 40);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-
-          for (let pipe = 0; pipe < 5; pipe += 1) {
-            const y = 65 + pipe * 68;
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(128 + pipe * 23, y);
-            ctx.lineTo(155 + pipe * 23, y + 24);
-            ctx.lineTo(canvas.width, y + 24);
-            ctx.strokeStyle = "#02060b";
-            ctx.lineWidth = 17;
-            ctx.stroke();
-            ctx.strokeStyle = pipe % 2 ? p.metal : p.accent;
-            ctx.lineWidth = pipe % 2 ? 5 : 2;
-            ctx.globalAlpha = pipe % 2 ? 0.7 : 0.45;
-            ctx.stroke();
-            ctx.globalAlpha = 1;
-          }
-
-          // Halftone dots and panel hatching provide a hand-inked, comic-book finish.
-          ctx.globalAlpha = 0.17;
-          ctx.fillStyle = p.accent;
-          for (let y = 18; y < 496; y += 15) {
-            for (let x = 18 + ((Math.floor(y / 15) % 2) * 7); x < 1008; x += 15) {
-              const dx = (x - 512) / 512;
-              const dy = (y - 256) / 256;
-              if (dx * dx + dy * dy > 0.84 && randomAt(x + y) < 0.72) continue;
-              ctx.beginPath();
-              ctx.arc(x, y, 1.4 + randomAt(x * 2 + y) * 0.8, 0, Math.PI * 2);
-              ctx.fill();
-            }
-          }
-          ctx.globalAlpha = 1;
-          for (let i = 0; i < 10; i += 1) {
-            const x = i * 116 - 30;
-            ctx.beginPath();
-            ctx.moveTo(x, 512);
-            ctx.lineTo(x + 110, 390);
-            ctx.strokeStyle = "#02060b";
-            ctx.lineWidth = 9;
-            ctx.globalAlpha = 0.35;
-            ctx.stroke();
-          }
-          ctx.globalAlpha = 1;
-
-          // Heavy black frame and bright inset line make each zone read as a distinct large location.
-          ctx.strokeStyle = "#02060b";
-          ctx.lineWidth = 26;
-          ctx.strokeRect(9, 9, canvas.width - 18, canvas.height - 18);
-          ctx.strokeStyle = p.accent;
-          ctx.globalAlpha = 0.88;
-          ctx.lineWidth = 3;
-          ctx.strokeRect(25, 25, canvas.width - 50, canvas.height - 50);
-          ctx.globalAlpha = 1;
-          ctx.fillStyle = p.accent;
-          for (let bolt = 0; bolt < 14; bolt += 1) {
-            const x = 43 + bolt * 71;
-            ctx.beginPath();
-            ctx.arc(x, 39, 3.4, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(x, 472, 3.4, 0, Math.PI * 2);
-            ctx.fill();
-          }
-
-          const texture = new THREE.CanvasTexture(canvas);
-          if (THREE.sRGBEncoding !== undefined) texture.encoding = THREE.sRGBEncoding;
-          return texture;
-        }
-
-        const parallaxPanels = [];
-        zones.forEach((zone, index) => {
-          const texture = makeComicBackdrop(zone);
-          const panelGeometry = new THREE.PlaneGeometry(zone.x2 - zone.x1, 11.2);
-          const panelMaterial = new THREE.MeshBasicMaterial({
-            map: texture, side: THREE.DoubleSide, depthWrite: false
-          });
-          const panel = new THREE.Mesh(panelGeometry, panelMaterial);
-          panel.name = "ring-comic-zone-backdrop-" + (index + 1);
-          panel.position.set(zone.center, 4.9, -5.15);
-          world.add(panel);
-          worldTextures.push(texture);
-          extraGeometries.push(panelGeometry);
-          materials.push(panelMaterial);
-          parallaxPanels.push({ mesh: panel, baseX: zone.center, factor: 0.48 });
-
-          // Layered silhouettes sit between the painted backdrop and the play plane.
-          for (let x = zone.x1 + 3.2; x < zone.x2; x += 6.4) {
-            addBox("trim", x, 4.0, -2.8, 0.24, 8.1, 0.24, zone.trim);
-            addBox("trim", x + 1.25, 7.6, -2.7, 2.4, 0.14, 0.18, zone.trim);
-            addBox("backdrop", x + 2.8, 2.8, -3.5, 3.0, 3.1, 0.24, index === 1 ? 0x183d46 : 0x172838);
-          }
-          addBox("trim", zone.center, 9.0, -2.5, zone.x2 - zone.x1 - 3.0, 0.12, 0.18, zone.trim);
-
-          // Each boss gets a framed arena with a heavy lintel, pylons and glowing edge strips.
-          const arenaX = zone.arenaX;
-          const arenaHalf = 8.6;
-          [-1, 1].forEach((side) => {
-            const pillarX = arenaX + side * arenaHalf;
-            addBox("backdrop", pillarX, 3.65, -2.95, 0.72, 7.25, 0.48, 0x050a12);
-            addBox("trim", pillarX, 3.65, -2.70, 0.13, 6.95, 0.17, zone.trim);
-            addBox("backdrop", pillarX, 0.34, -2.55, 1.45, 0.65, 0.52, 0x03070d);
-            addBox("trim", pillarX, 0.69, -2.45, 1.2, 0.11, 0.22, zone.trim);
-          });
-          addBox("backdrop", arenaX, 7.25, -3.0, arenaHalf * 2 + 1.1, 0.56, 0.46, 0x050a12);
-          addBox("trim", arenaX, 6.93, -2.71, arenaHalf * 2 - 0.6, 0.095, 0.16, zone.trim);
-          addBox("backdrop", arenaX, 0.18, -2.55, arenaHalf * 2 + 1.1, 0.35, 0.46, 0x03070d);
-        });
-
-        const barriers = [];
-        [
-          { x: -2, unlockAfter: 1, color: 0xffbd63 },
-          { x: 36, unlockAfter: 2, color: 0xa97cff }
-        ].forEach((item) => {
-          const barrierGroup = new THREE.Group();
-          barrierGroup.position.set(item.x, 3.3, 0.15);
-          const material = new THREE.MeshStandardMaterial({
-            color: item.color, emissive: item.color, emissiveIntensity: 1.1,
-            transparent: true, opacity: 0.72, roughness: 0.24, metalness: 0.28
-          });
-          barrierGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.32, 6.6, 0.45), material));
-          world.add(barrierGroup);
-          materials.push(material);
-          barriers.push({ x: item.x, unlockAfter: item.unlockAfter, group: barrierGroup });
-        });
-
-        const bossBodyGeometry = new THREE.DodecahedronGeometry(1, 1);
-        const bossOutlineGeometry = new THREE.DodecahedronGeometry(1, 1);
-        const bossArmorGeometry = new THREE.BoxGeometry(1, 1, 1);
-        const bossHornGeometry = new THREE.ConeGeometry(0.42, 1.35, 5);
-        const bossCoreGeometry = new THREE.SphereGeometry(0.40, 12, 10);
-        const bossEyeGeometry = new THREE.SphereGeometry(0.18, 10, 8);
-        // Reuse a small set of Three.js primitives to restore the three pig bosses;
-        // no external textures or newly generated image assets are needed.
-        const pigSphereGeometry = new THREE.SphereGeometry(1, 16, 12);
-        const pigEarGeometry = new THREE.ConeGeometry(0.24, 0.58, 5);
-        const pigTuskGeometry = new THREE.ConeGeometry(0.13, 0.34, 5);
-        const pigTailGeometry = new THREE.TorusGeometry(0.20, 0.065, 6, 16);
-        const bossRingGeometry = new THREE.TorusGeometry(1.9, 0.10, 8, 28);
-        const exitGeometry = new THREE.TorusGeometry(1.15, 0.13, 8, 32);
-        const shockwaveGeometry = new THREE.TorusGeometry(0.82, 0.12, 8, 20);
-        const pickupGeometry = new THREE.OctahedronGeometry(0.38, 0);
-        const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xc9fbff });
-        const bossCoreMaterial = new THREE.MeshBasicMaterial({ color: 0xfff0b5 });
-        const pigSnoutMaterial = new THREE.MeshStandardMaterial({
-          color: 0xf0b0ae, roughness: 0.72, metalness: 0.02
-        });
-        const pigInnerEarMaterial = new THREE.MeshStandardMaterial({
-          color: 0x813747, roughness: 0.78, metalness: 0.01
-        });
-        const pigNostrilMaterial = new THREE.MeshBasicMaterial({ color: 0x341821 });
-        const pigEyeWhiteMaterial = new THREE.MeshBasicMaterial({ color: 0xfff2df });
-        const pigPupilMaterial = new THREE.MeshBasicMaterial({ color: 0x11131b });
-        const pigTuskMaterial = new THREE.MeshStandardMaterial({
-          color: 0xf4d59b, roughness: 0.4, metalness: 0.04
-        });
-        const pigHoofMaterial = new THREE.MeshStandardMaterial({
-          color: 0x382633, roughness: 0.62, metalness: 0.12
-        });
-        const bossOutlineMaterial = new THREE.MeshBasicMaterial({ color: 0x02060b });
-        const bossArmorMaterial = new THREE.MeshStandardMaterial({
-          color: 0x1b2935, roughness: 0.48, metalness: 0.62, emissive: 0x09121a, emissiveIntensity: 0.45
-        });
-        const bossRingMaterial = new THREE.MeshBasicMaterial({ color: 0x9cf5ff, transparent: true, opacity: 0.9 });
-        const exitMaterial = new THREE.MeshBasicMaterial({ color: 0x72f0e2, transparent: true, opacity: 0.8 });
-        const pickupMaterial = new THREE.MeshStandardMaterial({ color: 0x75f2e1, emissive: 0x117f79, emissiveIntensity: 1.25, roughness: 0.22, metalness: 0.2 });
-        const shockwaveMaterial = new THREE.MeshBasicMaterial({ color: 0xff9e5e, transparent: true, opacity: 0.94 });
-        materials.push(eyeMaterial, bossCoreMaterial, pigSnoutMaterial, pigInnerEarMaterial,
-          pigNostrilMaterial, pigEyeWhiteMaterial, pigPupilMaterial, pigTuskMaterial,
-          pigHoofMaterial, bossOutlineMaterial, bossArmorMaterial,
-          bossRingMaterial, exitMaterial, pickupMaterial, shockwaveMaterial);
-
-        const bosses = [
-          { name: "СБОЙНЫЙ СТРАЖ", x: -16, y: 0, maxHp: 5, color: 0xffa45f, zone: 0 },
-          { name: "ПЛАЗМЕННЫЙ СЕРДЕЧНИК", x: 18, y: 0, maxHp: 7, color: 0x5fe6cf, zone: 1 },
-          { name: "СТАРШИЙ СИНГУЛЯРНОСТИ", x: 58, y: 0, maxHp: 9, color: 0xc28aff, zone: 2 }
-        ];
-        bosses.forEach((boss, index) => {
-          const bossMaterial = new THREE.MeshStandardMaterial({
-            color: boss.color, emissive: boss.color, emissiveIntensity: 0.48,
-            roughness: 0.34, metalness: 0.52
-          });
-          const armorAccent = new THREE.MeshStandardMaterial({
-            color: boss.color, emissive: boss.color, emissiveIntensity: 0.20,
-            roughness: 0.42, metalness: 0.60
-          });
-          materials.push(bossMaterial, armorAccent);
-          const group = new THREE.Group();
-          group.name = "ring-boss-" + (index + 1);
-          group.position.set(boss.x, boss.y, 0.1);
-          const pigSkinMaterial = new THREE.MeshStandardMaterial({
-            color: [0xd9878e, 0xc97c89, 0xa98ac8][index],
-            roughness: 0.72, metalness: 0.03, emissive: 0x16090d, emissiveIntensity: 0.12
-          });
-          materials.push(pigSkinMaterial);
-
-          // Dark offset meshes create the thick inked silhouette of a comic-book boss.
-          const outline = new THREE.Mesh(bossOutlineGeometry, bossOutlineMaterial);
-          outline.position.set(0, 2.30, -0.20);
-          outline.scale.set(2.45 + index * 0.24, 2.20 + index * 0.23, 0.94);
-          group.add(outline);
-
-          [-1, 1].forEach((side) => {
-            const armOutline = new THREE.Mesh(bossArmorGeometry, bossOutlineMaterial);
-            armOutline.position.set(side * (1.63 + index * 0.12), 1.72, -0.16);
-            armOutline.rotation.z = side * -0.15;
-            armOutline.scale.set(1.82 + index * 0.12, 0.94 + index * 0.10, 0.92);
-            group.add(armOutline);
-
-            const arm = new THREE.Mesh(bossArmorGeometry, bossArmorMaterial);
-            arm.position.set(side * (1.63 + index * 0.12), 1.77, 0.02);
-            arm.rotation.z = side * -0.15;
-            arm.scale.set(1.62 + index * 0.12, 0.70 + index * 0.10, 0.72);
-            group.add(arm);
-
-            const hornOutline = new THREE.Mesh(bossHornGeometry, bossOutlineMaterial);
-            hornOutline.position.set(side * (0.94 + index * 0.08), 3.92 + index * 0.20, -0.15);
-            hornOutline.rotation.z = side * -0.37;
-            hornOutline.scale.set(1.14, 1.12, 0.86);
-            group.add(hornOutline);
-
-            const horn = new THREE.Mesh(bossHornGeometry, armorAccent);
-            horn.position.set(side * (0.94 + index * 0.08), 3.95 + index * 0.20, 0.02);
-            horn.rotation.z = side * -0.37;
-            horn.scale.set(0.96, 0.96, 0.76);
-            group.add(horn);
-          });
-
-          const body = new THREE.Mesh(bossBodyGeometry, bossMaterial);
-          body.position.set(0, 2.25, 0.02);
-          body.scale.set(2.08 + index * 0.24, 1.94 + index * 0.22, 0.78);
-          group.add(body);
-
-          const core = new THREE.Mesh(bossCoreGeometry, bossCoreMaterial);
-          core.position.set(0, 2.20, 0.86);
-          core.scale.set(1.0 + index * 0.08, 1.10 + index * 0.10, 0.48);
-          group.add(core);
-
-          const eyeLeft = new THREE.Mesh(bossEyeGeometry, eyeMaterial);
-          eyeLeft.position.set(-0.74, 2.54, 0.82);
-          eyeLeft.scale.setScalar(1.12 + index * 0.08);
-          const eyeRight = new THREE.Mesh(bossEyeGeometry, eyeMaterial);
-          eyeRight.position.set(0.74, 2.54, 0.82);
-          eyeRight.scale.setScalar(1.12 + index * 0.08);
-          group.add(eyeLeft, eyeRight);
-
-          const ring = new THREE.Mesh(bossRingGeometry, bossRingMaterial);
-          ring.position.set(0, 2.20, -0.05);
-          ring.scale.set(1.18 + index * 0.15, 1.18 + index * 0.15, 1);
-          group.add(ring);
-
-          // Pig body, face, ears, nostrils and tusks sit in front of the arena armor.
-          const pig = new THREE.Group();
-          pig.name = "ring-pig-boss-" + (index + 1);
-          pig.position.z = 0.72;
-          group.add(pig);
-          const pigBody = new THREE.Mesh(pigSphereGeometry, pigSkinMaterial);
-          pigBody.name = "ring-pig-boss-body-" + (index + 1);
-          pigBody.position.set(0, 1.48, 0.08);
-          pigBody.scale.set(1.46 + index * 0.10, 0.98 + index * 0.08, 0.68);
-          pig.add(pigBody);
-
-          const pigHead = new THREE.Mesh(pigSphereGeometry, pigSkinMaterial);
-          pigHead.name = "ring-pig-boss-head-" + (index + 1);
-          pigHead.position.set(0, 2.38, 0.42);
-          pigHead.scale.set(0.82 + index * 0.04, 0.78 + index * 0.04, 0.59);
-          pig.add(pigHead);
-
-          const pigSnout = new THREE.Mesh(pigSphereGeometry, pigSnoutMaterial);
-          pigSnout.name = "ring-pig-boss-snout-" + (index + 1);
-          pigSnout.position.set(0, 2.10, 0.94);
-          pigSnout.scale.set(0.48, 0.34, 0.25);
-          pig.add(pigSnout);
-          [-1, 1].forEach((side) => {
-            const nostril = new THREE.Mesh(pigSphereGeometry, pigNostrilMaterial);
-            nostril.name = "ring-pig-boss-nostril";
-            nostril.position.set(side * 0.15, 2.12, 1.16);
-            nostril.scale.set(0.07, 0.095, 0.045);
-            pig.add(nostril);
-
-            const eye = new THREE.Mesh(bossEyeGeometry, pigEyeWhiteMaterial);
-            eye.name = "ring-pig-boss-eye";
-            eye.position.set(side * 0.34, 2.62, 0.91);
-            eye.scale.set(1.0, 1.08, 0.72);
-            pig.add(eye);
-            const pupil = new THREE.Mesh(pigSphereGeometry, pigPupilMaterial);
-            pupil.name = "ring-pig-boss-pupil";
-            pupil.position.set(side * 0.36, 2.62, 0.985);
-            pupil.scale.set(0.065, 0.085, 0.045);
-            pig.add(pupil);
-
-            const ear = new THREE.Mesh(pigEarGeometry, pigSkinMaterial);
-            ear.name = "ring-pig-boss-ear";
-            ear.position.set(side * 0.56, 3.02, 0.27);
-            ear.rotation.z = side * 0.24;
-            ear.scale.set(1.0, 1.0, 0.82);
-            pig.add(ear);
-            const innerEar = new THREE.Mesh(pigEarGeometry, pigInnerEarMaterial);
-            innerEar.name = "ring-pig-boss-inner-ear";
-            innerEar.position.set(side * 0.56, 3.04, 0.40);
-            innerEar.rotation.z = side * 0.24;
-            innerEar.scale.set(0.52, 0.58, 0.35);
-            pig.add(innerEar);
-
-            const tusk = new THREE.Mesh(pigTuskGeometry, pigTuskMaterial);
-            tusk.name = "ring-pig-boss-tusk";
-            tusk.position.set(side * 0.43, 1.95, 0.91);
-            tusk.rotation.z = side * -0.52;
-            pig.add(tusk);
-
-            const leg = new THREE.Mesh(bossArmorGeometry, pigSkinMaterial);
-            leg.name = "ring-pig-boss-leg";
-            leg.position.set(side * 0.86, 0.51, 0.17);
-            leg.scale.set(0.32, 0.66, 0.42);
-            pig.add(leg);
-            const hoof = new THREE.Mesh(bossArmorGeometry, pigHoofMaterial);
-            hoof.name = "ring-pig-boss-hoof";
-            hoof.position.set(side * 0.86, 0.18, 0.22);
-            hoof.scale.set(0.35, 0.20, 0.44);
-            pig.add(hoof);
-          });
-          const pigTail = new THREE.Mesh(pigTailGeometry, pigSkinMaterial);
-          pigTail.name = "ring-pig-boss-tail";
-          pigTail.position.set(-1.47, 1.88, -0.03);
-          pigTail.rotation.y = Math.PI / 2;
-          pig.add(pigTail);
-
-          // Keep the weakpoint visible above the snout for the existing activation mechanic.
-          core.position.set(0, 2.78, 1.85);
-          world.add(group);
-          Object.assign(boss, { group, hp: boss.maxHp, alive: true, activated: false, nextAttackAt: 0, lastDamageAt: 0 });
-        });
-
-        const exitMarker = new THREE.Mesh(exitGeometry, exitMaterial);
-        exitMarker.name = "ring-frontier-exit";
-        exitMarker.position.set(81, 2.0, 0.45);
-        world.add(exitMarker);
-
-        const coreMeshes = [];
-        [-30, 8, 49].forEach((x, index) => {
-          const mesh = new THREE.Mesh(pickupGeometry, pickupMaterial);
-          mesh.name = "ring-frontier-repair-core-" + index;
-          mesh.position.set(x, index === 1 ? 2.9 : 1.3, 0.25);
-          world.add(mesh);
-          coreMeshes.push({ mesh, x, y: mesh.position.y, taken: false });
-        });
-
-        const meshBatch = (name, items, material) => {
-          if (!items.length) return null;
-          const mesh = new THREE.InstancedMesh(boxGeometry, material, items.length);
-          mesh.name = name;
-          mesh.frustumCulled = false;
-          const box = new THREE.Object3D();
-          for (let i = 0; i < items.length; i += 1) {
-            const item = items[i];
-            box.position.set(item.x, item.y, item.z);
-            box.rotation.set(0, 0, 0);
-            box.scale.set(item.sx, item.sy, item.sz);
-            box.updateMatrix();
-            mesh.setMatrixAt(i, box.matrix);
-            const tint = new THREE.Color(0xffffff);
-            if (mesh.setColorAt) mesh.setColorAt(i, tint);
-          }
-          mesh.instanceMatrix.needsUpdate = true;
-          world.add(mesh);
-        };
-        meshBatch("ring-frontier-floor", buckets.floor, materials[0]);
-        meshBatch("ring-frontier-platforms", buckets.platforms, materials[1]);
-        meshBatch("ring-frontier-backdrop", buckets.backdrop, materials[2]);
-        meshBatch("ring-frontier-ribs", buckets.trim, materials[3]);
-        scene.add(world);
-
-        return {
-          group: world, boxGeometry, materials, textures: worldTextures, parallaxPanels,
-          specialGeometry: [...extraGeometries, bossBodyGeometry, bossOutlineGeometry, bossArmorGeometry,
-            bossHornGeometry, bossCoreGeometry, bossEyeGeometry, pigSphereGeometry, pigEarGeometry,
-            pigTuskGeometry, pigTailGeometry, bossRingGeometry, exitGeometry, shockwaveGeometry, pickupGeometry],
-          platforms, bosses, barriers, coreMeshes, exitMarker, exitX: 81, spawnX: -45,
-          shockwaves: [], shockwaveGeometry, shockwaveMaterial,
-          defeatedBosses: 0, pickupGeometry
-        };
-      }
-
-      function updateRoomSlice() {
-        // The pigs-and-ring side-scroller stays one large cell. Neighbors use the asteroid chart.
-      }
-
-      function attachAsteroidCellPath(world) {
-        const RING_CELL_HOME = 420;
-        const ROOM_HALF = 6;
-        const keyOf = (x, y, z) => x + "," + y + "," + z;
-        const step = { xp: [1, 0, 0], xn: [-1, 0, 0], zp: [0, 0, 1], zn: [0, 0, -1], yp: [0, 1, 0], yn: [0, -1, 0] };
-        const opposite = { xp: "xn", xn: "xp", zp: "zn", zn: "zp", yp: "yn", yn: "yp" };
-        const nodes = new Map();
-        (maze.cells || []).forEach((cell) => {
-          const large = !!(maze.exitCell && cell.x === maze.exitCell.x && cell.y === maze.exitCell.y && cell.z === maze.exitCell.z);
-          const astral = cell.y !== 1;
-          const astralHash = hashSeed(String(maze.seed) + "|astral|" + cell.x + "|" + cell.y + "|" + cell.z);
-          nodes.set(keyOf(cell.x, cell.y, cell.z), {
-            x: cell.x, y: cell.y, z: cell.z,
-            open: cell.open || {},
-            wallTurn: cell.wallTurn || 0,
-            wallAsset: cell.wallAsset || 0,
-            astral,
-            astralMode: astral ? ["drift", "flux", "dense"][astralHash % 3] : "normal",
-            astralPhase: ((hashSeed(String(maze.seed) + "|phase|" + cell.x + "|" + cell.y + "|" + cell.z) / 0xffffffff) * Math.PI * 2),
-            large,
-            mobs: []
-          });
-        });
-        function neighbor(node, dir) {
-          if (!node || !node.open || !node.open[dir] || !step[dir]) return null;
-          const delta = step[dir];
-          return nodes.get(keyOf(node.x + delta[0], node.y + delta[1], node.z + delta[2])) || null;
-        }
-        // The carved map is connected. BFS gives every room a known route to the
-        // large pig arena, so a player can escape dead ends without a random guess.
-        function nextDirectionTowardLarge(startNode) {
-          if (!startNode || startNode.large) return null;
-          const dirs = ["xp", "xn", "zp", "zn", "yp", "yn"];
-          const firstStep = new Map([[startNode, null]]);
-          const queue = [startNode];
-          for (let cursor = 0; cursor < queue.length; cursor += 1) {
-            const here = queue[cursor];
-            for (const dir of dirs) {
-              const next = neighbor(here, dir);
-              if (!next || firstStep.has(next)) continue;
-              firstStep.set(next, here === startNode ? dir : firstStep.get(here));
-              if (next.large) return firstStep.get(next);
-              queue.push(next);
-            }
-          }
-          return null;
-        }
-        function nextDirectionToward(startNode, goalNode) {
-          if (!startNode || !goalNode || startNode === goalNode) return null;
-          const dirs = ["xp", "xn", "zp", "zn", "yp", "yn"];
-          function search(allowLarge) {
-            const firstStep = new Map([[startNode, null]]);
-            const queue = [startNode];
-            for (let cursor = 0; cursor < queue.length; cursor += 1) {
-              const here = queue[cursor];
-              for (const dir of dirs) {
-                const next = neighbor(here, dir);
-                if (!next || firstStep.has(next)) continue;
-                if (!allowLarge && next.large && next !== goalNode) continue;
-                const step = here === startNode ? dir : firstStep.get(here);
-                firstStep.set(next, step);
-                if (next === goalNode) return step;
-                queue.push(next);
-              }
-            }
-            return null;
-          }
-          return search(false) || search(true);
-        }
-        function distanceToNode(fromNode, goalNode) {
-          if (!fromNode || !goalNode) return Infinity;
-          if (fromNode === goalNode) return 0;
-          const dirs = ["xp", "xn", "zp", "zn", "yp", "yn"];
-          function measure(allowLarge) {
-            const dist = new Map([[fromNode, 0]]);
-            const queue = [fromNode];
-            for (let cursor = 0; cursor < queue.length; cursor += 1) {
-              const here = queue[cursor];
-              const steps = dist.get(here);
-              for (const dir of dirs) {
-                const next = neighbor(here, dir);
-                if (!next || dist.has(next)) continue;
-                if (!allowLarge && next.large && next !== goalNode) continue;
-                dist.set(next, steps + 1);
-                if (next === goalNode) return steps + 1;
-                queue.push(next);
-              }
-            }
-            return Infinity;
-          }
-          const around = measure(false);
-          return Number.isFinite(around) ? around : measure(true);
-        }
-        const routeMission = window.BCMWorldMission || {};
-        const routeCrystals = (maze.crystals || []).filter((crystal) => crystal && crystal.cell).map((crystal) => {
-          const cell = { x: crystal.cell.x, y: crystal.cell.y, z: crystal.cell.z };
-          const id = String(maze.seed) + ":" + cell.x + "," + cell.y + "," + cell.z;
-          // Don't inherit a 3D pickup made before the Hydrogen mission unlocked.
-          return { id, cell, taken: !!routeMission.hydrogenCollectedIds?.[id], scouted: false };
-        });
-        function objectiveNode(fromNode) {
-          const mission = window.BCMWorldMission || {};
-          const hydrogenRouteActive = !!mission.hydrogenUnlocked &&
-            Number(mission.hydrogenCount || 0) < 3 && routeCrystals.length > 0;
-          const pending = hydrogenRouteActive
-            ? routeCrystals.filter((crystal) => !crystal.taken).map((crystal) =>
-              nodes.get(keyOf(crystal.cell.x, crystal.cell.y, crystal.cell.z)) || null).filter(Boolean)
-            : [];
-          let best = null;
-          let bestDist = Infinity;
-          pending.forEach((goal) => {
-            const dist = distanceToNode(fromNode, goal);
-            if (dist < bestDist) { best = goal; bestDist = dist; }
-          });
-          if (best) return best;
-
-          // With no active Hydrogen-shard route, guide the pilot through the large
-          // connected area before returning home. Otherwise a two-cell backtrack
-          // incorrectly looked like a completed Ring run and closed the level.
-          const visitedLarge = !!world.cellPath?.visitedLarge;
-          const large = [...nodes.values()].find((candidate) => candidate.large);
-          if (!hydrogenRouteActive && !visitedLarge && large && large !== fromNode) return large;
-
-          const home = maze.startCell
-            ? nodes.get(keyOf(maze.startCell.x, maze.startCell.y, maze.startCell.z))
-            : null;
-          return home && home !== fromNode ? home : null;
-        }
-        const textures = (maze.textures || []).map((tex, index) => {
-          const copy = tex.clone();
-          copy.image = tex.image;
-          copy.needsUpdate = true;
-          copy.wrapS = THREE.RepeatWrapping;
-          copy.wrapT = THREE.RepeatWrapping;
-          copy.center.set(0.5, 0.5);
-          if (maze.wallTextureCopiesByAsset && maze.wallTextureCopiesByAsset[index]) {
-            maze.wallTextureCopiesByAsset[index].push(copy);
-          }
-          return copy;
-        });
-        if (!textures.length) {
-          const canvas = document.createElement("canvas");
-          canvas.width = 64;
-          canvas.height = 64;
-          const ctx = canvas.getContext("2d");
-          ctx.fillStyle = "#3d5562";
-          ctx.fillRect(0, 0, 64, 64);
-          ctx.strokeStyle = "#8fd0e2";
-          ctx.strokeRect(4, 4, 56, 56);
-          textures.push(new THREE.CanvasTexture(canvas));
-        }
-        const floorMaterial = new THREE.MeshStandardMaterial({
-          map: textures[0], color: 0xffffff, roughness: 0.82, metalness: 0.24
-        });
-        const wallMaterial = new THREE.MeshStandardMaterial({
-          map: textures[0], color: 0xffffff, roughness: 0.9, metalness: 0.18,
-          emissive: 0x000000, emissiveIntensity: 0
-        });
-        const room = new THREE.Group();
-        room.name = "bcm-asteroid-cell-room";
-        const floor = new THREE.Mesh(new THREE.BoxGeometry(ROOM_HALF * 2, 0.36, 3.8), floorMaterial);
-        floor.position.set(RING_CELL_HOME, -0.18, 0);
-        room.add(floor);
-        const doorGeo = new THREE.BoxGeometry(0.28, 2.4, 0.4);
-        const doorLeft = new THREE.Mesh(doorGeo, wallMaterial);
-        const doorRight = new THREE.Mesh(doorGeo, wallMaterial);
-        doorLeft.position.set(RING_CELL_HOME - ROOM_HALF + 0.2, 1.15, 0);
-        doorRight.position.set(RING_CELL_HOME + ROOM_HALF - 0.2, 1.15, 0);
-        const sealedWallGeo = new THREE.BoxGeometry(0.24, 2.55, 3.8);
-        const sealedWallLeft = new THREE.Mesh(sealedWallGeo, wallMaterial);
-        const sealedWallRight = new THREE.Mesh(sealedWallGeo, wallMaterial);
-        sealedWallLeft.name = "ring-cell-sealed-wall-left";
-        sealedWallRight.name = "ring-cell-sealed-wall-right";
-        sealedWallLeft.position.set(RING_CELL_HOME - ROOM_HALF + 0.12, 1.15, 0);
-        sealedWallRight.position.set(RING_CELL_HOME + ROOM_HALF - 0.12, 1.15, 0);
-        room.add(sealedWallLeft, sealedWallRight, doorLeft, doorRight);
-        const backGeo = new THREE.PlaneGeometry(ROOM_HALF * 2.4, 5.4);
-        const backWall = new THREE.Mesh(backGeo, wallMaterial);
-        backWall.name = "ring-cell-asteroid-face";
-        backWall.position.set(RING_CELL_HOME, 2.2, -1.5);
-        const ceilingGeo = new THREE.BoxGeometry(ROOM_HALF * 2, 0.28, 3.6);
-        const ceiling = new THREE.Mesh(ceilingGeo, floorMaterial);
-        ceiling.name = "ring-cell-asteroid-ceiling";
-        ceiling.position.set(RING_CELL_HOME, 3.65, 0);
-        room.add(backWall, ceiling);
-        const hatch = new THREE.Mesh(
-          new THREE.BoxGeometry(1.1, 0.08, 1.1),
-          new THREE.MeshBasicMaterial({ color: 0x5fdbc8, emissive: 0x124b55, emissiveIntensity: 0.9 })
-        );
-        hatch.position.set(RING_CELL_HOME, 0.08, 0.2);
-        room.add(hatch);
-        const portalMaterial = new THREE.MeshBasicMaterial({
-          color: 0x7ef4e6, emissive: 0x1a8eab, transparent: true, opacity: 0.92,
-          blending: THREE.AdditiveBlending, depthWrite: false
-        });
-        const portalRing = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.085, 8, 24), portalMaterial);
-        portalRing.name = "ring-cell-vertical-portal";
-        portalRing.position.set(RING_CELL_HOME, 1.42, 0.62);
-        room.add(portalRing);
-        const mobMat = new THREE.MeshStandardMaterial({ color: 0xd27a4a, emissive: 0x3a1408, roughness: 0.45, metalness: 0.2 });
-        const mobGeo = new THREE.BoxGeometry(0.7, 0.9, 0.5);
-        nodes.forEach((node) => {
-          if (node.large) return;
-          const sides = ["xn", "xp", "zn", "zp", "yn", "yp"].filter((dir) => node.open && node.open[dir]);
-          const count = Math.min(2, sides.length);
-          for (let i = 0; i < count; i += 1) {
-            const side = sides[i];
-            const mesh = new THREE.Mesh(mobGeo, mobMat);
-            mesh.visible = false;
-            mesh.name = "ring-cell-mob";
-            room.add(mesh);
-            const fromLeft = side === "xn" || side === "zn" || side === "yn";
-            node.mobs.push({
-              side,
-              offset: fromLeft ? -4.2 : 4.2,
-              dir: fromLeft ? 1 : -1,
-              alive: true,
-              respawnAt: 0,
-              mesh
-            });
-          }
-        });
-        scene.add(room);
-        world.platforms.push({ minX: RING_CELL_HOME - ROOM_HALF, maxX: RING_CELL_HOME + ROOM_HALF, y: 0, cellRoom: true });
-        world.materials.push(floorMaterial, wallMaterial, hatch.material, portalMaterial, mobMat);
-        textures.forEach((texture) => world.textures.push(texture));
-        world.specialGeometry.push(floor.geometry, doorGeo, sealedWallGeo, hatch.geometry, portalRing.geometry, mobGeo, backGeo, ceilingGeo);
-        const start = (maze.startCell && nodes.get(keyOf(maze.startCell.x, maze.startCell.y, maze.startCell.z)))
-          || nodes.values().next().value;
-        const horizontalOpen = ["xp", "xn", "zp", "zn"];
-        const towardLarge = start ? nextDirectionTowardLarge(start) : null;
-        const firstOpen = (towardLarge && horizontalOpen.includes(towardLarge) && start.open && start.open[towardLarge])
-          ? towardLarge
-          : (horizontalOpen.find((dir) => start && start.open && start.open[dir]) || "xp");
-        const hydrogenGeometry = new THREE.OctahedronGeometry(0.46, 0);
-        const hydrogenMaterial = new THREE.MeshStandardMaterial({
-          color: 0x9cffe9, emissive: 0x198b78, emissiveIntensity: 1.15,
-          metalness: 0.18, roughness: 0.28
-        });
-        const hydrogenMesh = new THREE.Mesh(hydrogenGeometry, hydrogenMaterial);
-        hydrogenMesh.name = "ring-hydrogen-pickup";
-        hydrogenMesh.position.set(RING_CELL_HOME + 2.6, 0.82, 0.58);
-        hydrogenMesh.visible = !!window.BCMWorldMission?.hydrogenUnlocked &&
-          !window.BCMWorldMission?.hydrogenCollected && !start?.large;
-        room.add(hydrogenMesh);
-        world.materials.push(hydrogenMaterial);
-        world.specialGeometry.push(hydrogenGeometry);
-        const hydrogenState = maze.hydrogen || {
-          cell: { x: start?.x || 0, y: start?.y || 1, z: start?.z || 0 },
-          unlocked: !!window.BCMWorldMission?.hydrogenUnlocked,
-          taken: !!window.BCMWorldMission?.hydrogenCollected,
-          scouted: false
-        };
-        world.cellPath = {
-          nodes, neighbor, opposite, keyOf, nextDirectionTowardLarge, nextDirectionToward, objectiveNode, routeCrystals,
-          nx: maze.dimensions?.nx || 7,
-          ny: maze.dimensions?.ny || 3,
-          nz: maze.dimensions?.nz || 7,
-          room, floorMaterial, wallMaterial, doorLeft, doorRight, sealedWallLeft, sealedWallRight,
-          hatch, portalRing, portalMaterial, textures,
-          hydrogenNode: start,
-          hydrogen: hydrogenState,
-          hydrogenMesh,
-          hydrogenPickupX: RING_CELL_HOME + 2.6,
-          homeX: RING_CELL_HOME, half: ROOM_HALF,
-          current: start, heading: firstOpen, previous: null, returnNode: null,
-          visitedLarge: !!start?.large, departed: false, pendingReturn: false,
-          respawnMs: 240000, turnQueued: false
-        };
-        world.inLargeCell = false;
-        world.group.visible = false;
-        room.visible = true;
-        const skinList = textures.filter(Boolean);
-        (world.parallaxPanels || []).forEach((panel, index) => {
-          const material = panel.mesh && panel.mesh.material;
-          if (!material || !skinList.length) return;
-          material.map = skinList[index % skinList.length];
-          if (material.color) material.color.setHex(0xffffff);
-          material.needsUpdate = true;
-        });
-        (world.materials || []).slice(0, 4).forEach((material, index) => {
-          if (!material || !skinList.length) return;
-          material.map = skinList[index % skinList.length];
-          if (material.color) material.color.setHex(0xffffff);
-          material.needsUpdate = true;
-        });
-        applyRingCellLook(world);
-        const gateRoll = hashSeed(String(maze.seed) + "|boss-gate") % 3;
-        if (gateRoll === 1 && start) {
-          const firstCrystal = (maze.crystals || []).map((crystal) => {
-            if (!crystal || !crystal.cell) return null;
-            return nodes.get(keyOf(crystal.cell.x, crystal.cell.y, crystal.cell.z)) || null;
-          }).filter(Boolean).sort((a, b) => distanceToNode(start, a) - distanceToNode(start, b))[0];
-          const trail = [];
-          let walk = start;
-          const seen = new Set();
-          while (walk && firstCrystal && walk !== firstCrystal && trail.length < 48 && !seen.has(walk)) {
-            seen.add(walk);
-            const dir = nextDirectionToward(walk, firstCrystal);
-            walk = dir ? neighbor(walk, dir) : null;
-            if (walk && walk !== firstCrystal && !walk.large) trail.push(walk);
-          }
-          const gateCell = trail.length ? trail[Math.floor(trail.length / 2)] : null;
-          if (gateCell) gateCell.gate = true;
-        }
-        publishAsteroidChart(maze);
-      }
-
-      function applyRingCellLook(world, nodeOverride, headingOverride) {
-        const path = world.cellPath;
-        if (!path || !(nodeOverride || path.current)) return;
-        const node = nodeOverride || path.current;
-        const heading = headingOverride || path.heading;
-        const tex = path.textures[Math.abs(node.wallAsset || 0) % path.textures.length];
-        if (tex) {
-          tex.rotation = (node.wallTurn || 0) * (Math.PI / 2);
-          tex.center.set(0.5, 0.5);
-          path.floorMaterial.map = tex;
-          path.wallMaterial.map = tex;
-          path.floorMaterial.needsUpdate = true;
-          path.wallMaterial.needsUpdate = true;
-        }
-        const astralPalette = {
-          drift: { floor: 0xc9b6ff, wall: 0x8d78c9 },
-          flux: { floor: 0x9ce9ff, wall: 0x438fa9 },
-          dense: { floor: 0xf0c8ff, wall: 0x9666ac }
-        };
-        const tint = astralPalette[node.astralMode] || { floor: 0x9ce9ff, wall: 0x438fa9 };
-        path.floorMaterial.color.setHex(0xffffff);
-        path.wallMaterial.color.setHex(0xffffff);
-        if (path.floorMaterial.emissive && path.wallMaterial.emissive) {
-          path.floorMaterial.emissive.setHex(node.astral ? tint.floor : 0x000000);
-          path.wallMaterial.emissive.setHex(node.astral ? tint.wall : 0x000000);
-          path.floorMaterial.emissiveIntensity = node.astral ? 0.16 : 0;
-          path.wallMaterial.emissiveIntensity = node.astral ? 0.16 : 0;
-        }
-        const rightDoor = !node.large && !!path.neighbor(node, heading);
-        const leftDoor = !node.large && !!path.neighbor(node, path.opposite[heading]);
-        path.doorRight.visible = rightDoor;
-        path.doorLeft.visible = leftDoor;
-        path.sealedWallRight.visible = !node.large && !rightDoor;
-        path.sealedWallLeft.visible = !node.large && !leftDoor;
-        const verticalExit = !node.large && !!(path.neighbor(node, "yp") || path.neighbor(node, "yn"));
-        path.hatch.visible = verticalExit;
-        path.portalRing.visible = verticalExit;
-        path.portalMaterial.color.setHex(path.neighbor(node, "yp") ? 0x7ef4e6 : 0xb99aff);
-        // MeshBasicMaterial has no emissive. Calling setHex there aborted the level
-        // and restored the asteroid, so the Ring maze never stayed open.
-        if (path.portalMaterial.emissive && path.portalMaterial.emissive.setHex) {
-          path.portalMaterial.emissive.setHex(path.neighbor(node, "yp") ? 0x1a8eab : 0x5d2d91);
-        }
-        if (path.hydrogenMesh) {
-          const mission = window.BCMWorldMission || {};
-          const hydrogenActive = !!mission.hydrogenUnlocked && Number(mission.hydrogenCount || 0) < 3;
-          const crystalHere = (path.routeCrystals || []).some((crystal) =>
-            crystal && !crystal.taken && crystal.cell &&
-            crystal.cell.x === node.x && crystal.cell.y === node.y && crystal.cell.z === node.z);
-          path.hydrogenMesh.visible = hydrogenActive && !node.large && (crystalHere ||
-            (!(path.routeCrystals || []).length && node === path.hydrogenNode));
-        }
-        path.nodes.forEach((other) => {
-          (other.mobs || []).forEach((mob) => {
-            if (!mob.mesh) return;
-            mob.mesh.visible = other === node && mob.alive && !node.large;
-          });
-        });
-        if (!nodeOverride) world.inLargeCell = !!node.large;
-        world.group.visible = !!node.large;
-        path.room.visible = !node.large;
-      }
-
-      function placeParty(x, player) {
-        const targets = player ? [player] : players;
-        targets.forEach((mate, index) => {
-          mate.worldX = x + (!player && index ? -0.9 : 0);
-          mate.worldY = 0;
-          mate.vy = 0;
-          mate.grounded = true;
-          mate.supportPlatform = null;
-          const node = mate.ringCurrent || worldState.cellPath?.current;
-          mate.checkpointX = node?.large ? worldState.spawnX : worldState.cellPath.homeX;
-          // Teleport, not a step: pose without advancing the walk.
-          updatePlayerSprite(mate, 0);
-        });
-      }
-
-      function faceAsteroidRoute(world, node, player) {
-        const path = world.cellPath;
-        if (!path || !node || typeof path.objectiveNode !== "function" || typeof path.nextDirectionToward !== "function") return;
-        const goal = path.objectiveNode(node);
-        const step = goal ? path.nextDirectionToward(node, goal) : null;
-        path.routeStep = step;
-        if (node.large) return;
-        const horizontal = ["xp", "xn", "zp", "zn"];
-        let heading = player ? (player.ringHeading || path.heading) : path.heading;
-        if (step && horizontal.includes(step) && path.neighbor(node, step)) heading = step;
-        else if (step === "yp" || step === "yn") {
-          const closed = horizontal.find((dir) => !path.neighbor(node, dir));
-          if (closed) heading = closed;
-        }
-        if (player) {
-          player.ringHeading = heading;
-          if (player.index === 0) path.heading = heading;
-        } else {
-          path.heading = heading;
-        }
-        const home = maze.startCell
-          ? path.nodes.get(path.keyOf(maze.startCell.x, maze.startCell.y, maze.startCell.z))
-          : null;
-        if (home && node !== home) path.departed = true;
-        const mission = window.BCMWorldMission || {};
-        const routeCrystals = path.routeCrystals || [];
-        const hydrogenRouteActive = !!mission.hydrogenUnlocked &&
-          Number(mission.hydrogenCount || 0) < 3 && routeCrystals.length > 0;
-        const pending = hydrogenRouteActive && routeCrystals.some((crystal) => crystal && !crystal.taken);
-        const objectiveReached = hydrogenRouteActive
-          ? routeCrystals.every((crystal) => crystal && crystal.taken)
-          : !!path.visitedLarge;
-        // A home revisit is not a win by itself: only finish after collecting the
-        // active route's crystals, or after the no-Hydrogen route visited the large area.
-        if (path.departed && home && node === home && objectiveReached && !pending) path.pendingReturn = true;
-      }
-
-      function enterRingCell(world, node, fromSide, player) {
-        const path = world.cellPath;
-        if (!path || !node) return world.spawnX;
-        const previous = player ? (player.ringCurrent || path.current) : path.current;
-        path.previous = previous;
-        path.current = node;
-        if (node.large) path.visitedLarge = true;
-        if (player) {
-          player.ringPrevious = previous;
-          player.ringCurrent = node;
-          if (node.large && previous && !previous.large) player.ringReturnNode = previous;
-          else if (!node.large) player.ringReturnNode = null;
-          player.ringHeading = player.ringHeading || path.heading;
-          if (player.index === 0) {
-            path.heading = player.ringHeading;
-            path.returnNode = player.ringReturnNode || null;
-          }
-        } else if (node.large && previous && !previous.large) {
-          path.returnNode = previous;
-        }
-        faceAsteroidRoute(world, node, player);
-        applyRingCellLook(world, player ? node : null, player ? (player.ringHeading || path.heading) : path.heading);
-        if (node.large) return world.spawnX;
-        if (fromSide === "right") return path.homeX + path.half - 1.6;
-        if (fromSide === "left") return path.homeX - path.half + 1.6;
-        return path.homeX;
-      }
-
-      const oldBackground = scene.background;
-
-      const old = document.getElementById("bcm-ring-platformer-old");
-      if (old) old.remove();
-
-      // The side-scroll world has to exist before the mode buttons are wired.
-      // Without this call the menu is already on screen when spawn setup throws,
-      // so SINGLE/MULTI look clickable and the level never starts.
-      const worldState = buildRingWorld();
-      attachAsteroidCellPath(worldState);
-      const mission = window.BCMWorldMission;
-      if (mission?.hydrogenUnlocked && !mission.hydrogenCollected && !mission.ringHydrogenPromptShown) {
-        mission.ringHydrogenPromptShown = true;
-        window.BCMDialogue?.showOperator?.("", window.BCMDialogue?.language === "en"
-          ? "Hydrogen is marked on your chart. It is in the first small cell, not at the pig arena. Take the side door and search the floor."
-          : "Hydrogen отмечен на карте. Он в первой малой ячейке, а не на арене со свиньями. Иди через боковую дверь и осмотри пол.");
-      }
-      const cameraOne = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
-      const cameraTwo = new THREE.OrthographicCamera(-5, 5, 4.6, -4.6, 0.1, 500);
-      const cameraFocus = { x: worldState.cellPath ? worldState.cellPath.homeX : worldState.spawnX, y: 1.6, z: 0 };
-
-      const savedPlayerVisualState = [];
-      let width = 1, height = 1;
-
-      const textureLoader = new THREE.TextureLoader();
-      function fallbackCrewTexture(index) {
-        const portrait = document.createElement("canvas");
-        portrait.width = 64; portrait.height = 96;
-        const ctx = portrait.getContext("2d");
-        ctx.fillStyle = playerColors[index]; ctx.beginPath(); ctx.arc(32, 18, 11, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#e8d9bb"; ctx.fillRect(22, 30, 20, 12);
-        ctx.fillStyle = playerColors[index]; ctx.fillRect(16, 39, 32, 32);
-        ctx.fillStyle = "#1a2730"; ctx.fillRect(18, 71, 11, 22); ctx.fillRect(35, 71, 11, 22);
-        return new THREE.CanvasTexture(portrait);
-      }
-
-      function makePlayerSprite(player) {
-        let texture = null;
-        const imageUrl = String(crewSelection[player.index]?.image || "");
-        if (window.BCMCrewCutout?.placeholder) {
-          try { texture = window.BCMCrewCutout.placeholder(THREE, player.index); } catch (e) {}
-        }
-        if (!texture) texture = fallbackCrewTexture(player.index);
-        if (texture.colorSpace !== undefined && THREE.SRGBColorSpace !== undefined) texture.colorSpace = THREE.SRGBColorSpace;
-        const material = new THREE.SpriteMaterial({
-          map: texture, transparent: true, alphaTest: 0.035, depthWrite: false
-        });
-        const sprite = new THREE.Sprite(material);
-        sprite.name = "ring-crew-sprite-" + (player.index + 1);
-        sprite.scale.set(1.18, 1.78, 1);
-        sprite.renderOrder = 8;
-        scene.add(sprite);
-        player.sprite = sprite;
-        player.spriteMaterial = material;
-        // crew-core.js cuts and assembles the Crew; Ring shows the placeholder
-        // until it is ready. Tower does not have to be loaded (BUG-002).
-        if (imageUrl && window.BCMCrewCore?.requestCrewTexture) {
-          const pending = window.BCMCrewCore.requestCrewTexture(THREE, imageUrl);
-          if (pending) pending.bcmCrewReady.then((cut) => {
-            if (!cut || !player.spriteMaterial || player.spriteMaterial.map === cut) return;
-            player.spriteMaterial.map = cut;
-            player.spriteMaterial.needsUpdate = true;
-          }).catch(() => {});
-        }
-      }
-
-      function playerWorldPosition(player) {
-        return { x: player.worldX, y: player.worldY + 0.98, z: 0.45 };
-      }
-      function updatePlayerSprite(player, dt) {
-        if (!player.sprite) return;
-        const moved = Math.abs((player._prevX ?? player.worldX) - player.worldX) > 0.01;
-        player._prevX = player.worldX;
-        if (window.BCMCrewCore) {
-          window.BCMCrewCore.applyPlatformSprite(player.sprite, {
-            facing: player.facing,
-            moving: moved || !player.grounded,
-            grounded: player.grounded,
-            vy: player.vy,
-            crew: crewSelection[player.index],
-            index: player.index,
-            y: player.worldY + 0.98
-          }, dt);
-          player.sprite.position.x = player.worldX;
-          player.sprite.position.z = 0.45;
-        } else {
-          const p = playerWorldPosition(player);
-          player.sprite.position.set(p.x, p.y, p.z);
-          player.sprite.scale.x = player.facing < 0 ? -1.45 : 1.45;
-        }
-        player.sprite.visible = true;
-      }
-
-      function createPlayer(index, spawn) {
-        const crew = crewSelection[index] || {};
-        const player = {
-          index,
-          name: String(crew.name || crew.displayName || ("Crew " + (index + 1))),
-          worldX: Number(spawn.x) || 0, worldY: Number(spawn.y) || 0,
-          x: Number(spawn.x) || 0, y: Number(spawn.y) || 0, z: 0,
-          localX: 0, jumpHeight: 0, vy: 0, grounded: true, supportPlatform: null,
-          facing: 1, lastActionAt: 0, wasJumpDown: false,
-          actionReadyAt: 0, dashReadyAt: 0, dashUntil: 0,
-          weaponType: weaponProgress.type || "pointer",
-          weaponTier: Math.max(1, Number(weaponProgress.tier) || 1),
-          weaponReadyAt: 0,
-          hp: 5, maxHp: 5, invulnerableUntil: 0,
-          checkpointX: Number(spawn.x) || -45,
-          image: crewImages[index] || null, tint: playerColors[index], moves: 0,
-          sprite: null, spriteMaterial: null,
-          ringCurrent: worldState.cellPath ? worldState.cellPath.current : null,
-          ringPrevious: null,
-          ringHeading: worldState.cellPath ? worldState.cellPath.heading : "xp",
-          ringReturnNode: worldState.cellPath ? worldState.cellPath.returnNode : null,
-          ringTurnQueued: false
-        };
-        makePlayerSprite(player);
-        return player;
-      }
-
-      function getInput(player) {
-        const index = player.index;
-        const keys = keyboardInputs[index] || {};
-        const touch = touchInputs[index] || {};
-        const pad = padInputs[index] || {};
-        return {
-          left: !!(keys.left || touch.left || pad.left),
-          right: !!(keys.right || touch.right || pad.right),
-          jump: !!(keys.jump || touch.jump || pad.jump),
-          fire: !!(keys.fire || touch.fire || pad.fire)
-        };
-      }
-
-      const bossMeter = root2d.querySelector("[data-ring-boss-meter]");
-      const bossFill = root2d.querySelector("[data-ring-boss-fill]");
-
-      function updateHud(message) {
-        countEl.textContent = "БОССЫ " + worldState.defeatedBosses + "/3";
-        const p1 = players[0];
-        const p2 = players[1];
-        if (p1) {
-          const zone = p1.worldX < -2 ? 1 : p1.worldX < 36 ? 2 : 3;
-          const astralNode = worldState.cellPath && worldState.cellPath.current;
-          const anomalyLabel = astralNode?.astral
-            ? ({ drift: "ASTRAL · DRIFT", flux: "ASTRAL · GRAVITY FLUX", dense: "ASTRAL · DENSE GRAVITY" }[astralNode.astralMode] || "ASTRAL")
-            : "";
-          floorEl.textContent = "ЗОНА " + zone + "/3 · P1 HP " + p1.hp +
-            (p2 ? " · P2 HP " + p2.hp : "") + (splitActive ? " · SPLIT" : " · SHARED") +
-            (anomalyLabel ? " · " + anomalyLabel : "");
-        } else {
-          floorEl.textContent = "RING FRONTIER · 3 ЗОНЫ";
-        }
-        const focusPlayer = p1 || p2;
-        const activeBoss = worldState.bosses.find((boss) =>
-          boss.alive && focusPlayer && Math.abs(focusPlayer.worldX - boss.x) < 15
-        );
-        if (bossMeter) bossMeter.style.display = activeBoss ? "block" : "none";
-        if (bossFill) bossFill.style.width = activeBoss ? Math.max(0, activeBoss.hp / activeBoss.maxHp * 100) + "%" : "100%";
-        if (message) {
-          statusEl.textContent = message;
-          return;
-        }
-        if (worldState.defeatedBosses >= 3) {
-          statusEl.textContent = (p1 && p1.worldX >= worldState.exitX - 2)
-            ? "ВЫХОД ОТКРЫТ · ВОЗВРАЩАЙСЯ К КОЛЬЦУ"
-            : "АРЕНЫ ОЧИЩЕНЫ · ИДИ К ВЫХОДУ";
-        } else if (activeBoss) {
-          statusEl.textContent = activeBoss.name + " · " + activeBoss.hp + "/" + activeBoss.maxHp;
-        } else if (worldState.cellPath && worldState.cellPath.current && !worldState.cellPath.current.large) {
-          const en = window.BCMDialogue?.language === "en";
-          const step = worldState.cellPath.routeStep;
-          const here = worldState.cellPath.current;
-          const gateLocked = !!(here.gate && !here.gateCleared && (here.mobs || []).some((mob) => mob.alive));
-          if (gateLocked) {
-            statusEl.textContent = en
-              ? "THIS CELL'S PASSAGE IS GUARDED · FIRE THE LASER · THEN THE OPEN DOOR"
-              : "ПРОХОД ЭТОЙ КЛЕТКИ СТЕРЕЖЁТ БОСС · ЛАЗЕР · ПОТОМ ОТКРЫТАЯ ДВЕРЬ";
-          } else if (step === "yp" || step === "yn") {
-            statusEl.textContent = en
-              ? "ASTEROID CELL · JUMP OR E AT THE GLOW · OTHER FLOOR"
-              : "ЯЧЕЙКА АСТЕРОИДА · ПРЫЖОК ИЛИ E У СВЕЧЕНИЯ · ДРУГОЙ ЭТАЖ";
-          } else if (worldState.cellPath.departed &&
-              (!window.BCMWorldMission?.hydrogenUnlocked ||
-               Number(window.BCMWorldMission?.hydrogenCount || 0) >= 3 ||
-               !(worldState.cellPath.routeCrystals || []).some((crystal) => crystal && !crystal.taken))) {
-            statusEl.textContent = en
-              ? "CELL · OPEN DOOR LEADS BACK TO THE LANDING"
-              : "ЯЧЕЙКА · ОТКРЫТАЯ ДВЕРЬ ВЕДЁТ К МЕСТУ ВЫСАДКИ";
-          } else {
-            statusEl.textContent = worldState.cellPath.current.astral
-              ? (en ? "ASTRAL LAYER · JUMP AT THE GLOW" : "АСТРАЛЬНЫЙ СЛОЙ · ПРЫЖОК У СВЕЧЕНИЯ")
-              : (en ? "CELL · WALK THROUGH THE OPEN DOOR · E TURNS" : "ЯЧЕЙКА · ИДИ В ОТКРЫТУЮ ДВЕРЬ · E ПОВОРОТ");
-          }
-        } else {
-          statusEl.textContent = "ЗОНА " + (p1 ? (p1.worldX < -2 ? 1 : p1.worldX < 36 ? 2 : 3) : 1) +
-            " · НАЙДИ АРЕНУ БОССА";
-        }
-      }
-
-      function collectHydrogenAt(player) {
-        const path = worldState.cellPath;
-        const mission = window.BCMWorldMission || {};
-        const playerNode = player.ringCurrent || path?.current;
-        if (!path || (path.routeCrystals || []).length || !path.hydrogenMesh ||
-            !mission.hydrogenUnlocked || Number(mission.hydrogenCount || 0) >= 3 ||
-            path.hydrogen.taken || playerNode !== path.hydrogenNode || playerNode?.large) return false;
-        if (Math.abs(player.worldX - path.hydrogenPickupX) > 1.05 ||
-            Math.abs(player.worldY - 0.82) > 1.25) return false;
-
-        path.hydrogenMesh.visible = false;
-        path.hydrogen.taken = true;
-        path.hydrogen.unlocked = true;
-        maze.hydrogen = path.hydrogen;
-        publishAsteroidChart(maze);
-        window.dispatchEvent(new CustomEvent("bcm:mission:hydrogen-shard-collected", {
-          detail: {
-            crystalId: "ring:" + String(maze.seed),
-            asteroidSeed: maze.seed,
-            cell: { ...path.hydrogen.cell },
-            type: "ring"
-          }
-        }));
-        updateHud(window.BCMDialogue?.language === "en"
-          ? "HYDROGEN RECOVERED · MISSION UPDATED"
-          : "HYDROGEN ПОЛУЧЕН · ЗАДАНИЕ ОБНОВЛЕНО");
-        drawMiniMap();
-        return true;
-      }
-
-      function collectRouteCrystal(player) {
-        const path = worldState.cellPath;
-        const node = player.ringCurrent || path?.current;
-        if (!path || !node || node.large) return false;
-        const mission = window.BCMWorldMission || {};
-        if (!mission.hydrogenUnlocked || Number(mission.hydrogenCount || 0) >= 3) return false;
-        const crystal = (path.routeCrystals || []).find((item) =>
-          item && !item.taken && item.cell &&
-          item.cell.x === node.x && item.cell.y === node.y && item.cell.z === node.z);
-        if (!crystal) return false;
-        if (Math.abs(player.worldX - path.hydrogenPickupX) > 1.15) return false;
-        crystal.taken = true;
-        crystal.scouted = true;
-        if (path.hydrogenMesh) path.hydrogenMesh.visible = false;
-        publishAsteroidChart(maze);
-        window.dispatchEvent(new CustomEvent("bcm:mission:hydrogen-shard-collected", {
-          detail: {
-            crystalId: crystal.id,
-            asteroidSeed: maze.seed,
-            cell: { x: crystal.cell.x, y: crystal.cell.y, z: crystal.cell.z },
-            type: "asteroid-crystal"
-          }
-        }));
-        const count = Number(window.BCMWorldMission?.hydrogenCount || 0);
-        const left = (path.routeCrystals || []).filter((item) => item && !item.taken).length;
-        const en = window.BCMDialogue?.language === "en";
-        updateHud(count >= 3
-          ? (en ? "HYDROGEN 3/3 · RETURN TO THE LANDING CELL" : "HYDROGEN 3/3 · ВЕРНИСЬ К МЕСТУ ВЫСАДКИ")
-          : (en
-            ? "HYDROGEN " + count + "/3 · " + Math.max(0, 3 - count) + " LEFT · FOLLOW THE OPEN DOOR"
-            : "HYDROGEN " + count + "/3 · ОСТАЛОСЬ " + Math.max(0, 3 - count) + " · ИДИ В ОТКРЫТУЮ ДВЕРЬ"));
-        faceAsteroidRoute(worldState, node, player);
-        return true;
-      }
-
-      function collectAt(player) {
-        let collected = false;
-        worldState.coreMeshes.forEach((core) => {
-          if (core.taken || Math.abs(player.worldX - core.x) > 1.0 ||
-              Math.abs((player.worldY + 0.8) - core.y) > 1.5) return;
-          core.taken = true;
-          core.mesh.visible = false;
-          player.hp = Math.min(player.maxHp, player.hp + 1);
-          collected = true;
-        });
-        if (collected) updateHud("ЭНЕРГОЯДРО · СИСТЕМЫ ВОССТАНОВЛЕНЫ");
-        return collected;
-      }
-
-      function currentWeaponProfile(player) {
-        const type = String(player?.weaponType || weaponProgress.type || "pointer");
-        const tier = Math.max(1, Number(player?.weaponTier || weaponProgress.tier) || 1);
-        if (type === "pulse") return { cooldown: Math.max(360, 720 - tier * 45), damage: 2 + Math.floor((tier - 1) / 2), color: 0xffb960, range: 16, width: 0.07 };
-        if (type === "spectrum") return { cooldown: Math.max(190, 390 - tier * 30), damage: 1 + Math.floor(tier / 3), color: weaponPalette[weaponShotIndex % weaponPalette.length], range: 17, width: 0.055 };
-        return { cooldown: Math.max(75, 150 - tier * 14), damage: 1, color: 0x75eaff, range: 15, width: 0.045 };
-      }
-
-      function firePlayerWeapon(player, now) {
-        if (!player || !gameStarted || done || now < player.weaponReadyAt) return false;
-        const profile = currentWeaponProfile(player);
-        player.weaponReadyAt = now + profile.cooldown;
-        const start = new THREE.Vector3(player.worldX, player.worldY + 0.9, 0.92);
-        const end = start.clone().add(new THREE.Vector3(player.facing * profile.range, 0, 0));
-        let target = null;
-        let nearest = Infinity;
-        const playerNode = player.ringCurrent || worldState.cellPath?.current;
-        if (playerNode && !playerNode.large) {
-          (playerNode.mobs || []).forEach((mob) => {
-            if (!mob.alive || !mob.mesh) return;
-            const forwardDistance = (mob.mesh.position.x - player.worldX) * player.facing;
-            if (forwardDistance <= 0.2 || forwardDistance > profile.range) return;
-            mob.alive = false;
-            mob.mesh.visible = false;
-            mob.respawnAt = now + worldState.cellPath.respawnMs;
-          });
-        }
-        for (const boss of worldState.bosses) {
-          if (!boss.alive) continue;
-          const forwardDistance = (boss.x - player.worldX) * player.facing;
-          if (forwardDistance <= 0 || forwardDistance > profile.range) continue;
-          if (Math.abs(player.worldY - boss.y) > 4.4) continue;
-          if (forwardDistance < nearest) { target = boss; nearest = forwardDistance; }
-        }
-        if (target) end.set(target.x, target.y + 0.2, 0.94);
-        const beamDirection = end.clone().sub(start);
-        const beamLength = Math.max(0.01, beamDirection.length());
-        const beamRotation = new THREE.Quaternion().setFromUnitVectors(
-          new THREE.Vector3(0, 1, 0), beamDirection.clone().normalize()
-        );
-        const geometry = new THREE.CylinderGeometry(profile.width, profile.width, beamLength, 6, 1, true);
-        const material = new THREE.MeshBasicMaterial({
-          color: profile.color, transparent: true, opacity: 0.94, depthTest: false, depthWrite: false
-        });
-        const beam = new THREE.Mesh(geometry, material);
-        beam.position.copy(start).add(end).multiplyScalar(0.5);
-        beam.quaternion.copy(beamRotation);
-        beam.renderOrder = 999;
-        scene.add(beam);
-        const glowWidth = profile.width * (player.weaponType === "pointer" ? 2.2 : 3.2);
-        const glowGeometry = new THREE.CylinderGeometry(glowWidth, glowWidth, beamLength, 6, 1, true);
-        const glowMaterial = new THREE.MeshBasicMaterial({
-          color: profile.color, transparent: true, opacity: 0.23, depthTest: false, depthWrite: false
-        });
-        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-        glow.position.copy(beam.position);
-        glow.quaternion.copy(beamRotation);
-        glow.renderOrder = 998;
-        scene.add(glow);
-        weaponShots.push({ mesh: beam, life: 0.105, geometry, material, glow, glowGeometry, glowMaterial });
-
-        if (player.weaponType === "spectrum") weaponShotIndex += 1;
-        if (target && target.activated && now >= (Number(target.nextDamageAt) || 0)) {
-          target.nextDamageAt = now + Math.max(110, profile.cooldown * 0.7);
-          target.hp = Math.max(0, target.hp - profile.damage);
-          target.lastDamageAt = now;
-          if (target.hp <= 0) {
-            target.alive = false;
-            target.group.visible = false;
-            worldState.defeatedBosses = Math.min(3, worldState.defeatedBosses + 1);
-            worldState.barriers.forEach((barrier) => {
-              barrier.group.visible = worldState.defeatedBosses < barrier.unlockAfter;
-            });
-            updateHud(target.name + " · ОРУЖИЕ " + String(player.weaponType).toUpperCase());
-            if (worldState.defeatedBosses === 1 && !masterOfferedThisRun) {
-              masterOfferedThisRun = true;
-              window.setTimeout(() => offerWeaponChoice(false), 120);
-            }
-          } else {
-            updateHud("ПОПАДАНИЕ · " + target.name + " · " + target.hp + "/" + target.maxHp);
-          }
-        } else if (target && !target.activated) {
-          updateHud("АРЕНА ЕЩЁ НЕ ОТКРЫТА");
-        }
-        return true;
-      }
-
-      function updateWeaponShots(dt) {
-        for (let i = weaponShots.length - 1; i >= 0; i -= 1) {
-          const shot = weaponShots[i];
-          shot.life -= dt;
-          const opacity = Math.max(0, shot.life / 0.105);
-          shot.mesh.material.opacity = opacity;
-          shot.glow.material.opacity = opacity * 0.3;
-          if (shot.life > 0) continue;
-          scene.remove(shot.mesh);
-          scene.remove(shot.glow);
-          try { shot.geometry.dispose(); } catch (e) {}
-          try { shot.material.dispose(); } catch (e) {}
-          try { shot.glowGeometry.dispose(); } catch (e) {}
-          try { shot.glowMaterial.dispose(); } catch (e) {}
-          weaponShots.splice(i, 1);
-        }
-      }
-
-      function applyTeamWeapon(type, tier) {
-        const validType = ["pointer", "pulse", "spectrum"].includes(type) ? type : "pointer";
-        weaponProgress.type = validType;
-        weaponProgress.tier = Math.max(1, Math.min(5, Math.floor(Number(tier) || 1)));
-        players.forEach((player) => {
-          player.weaponType = weaponProgress.type;
-          player.weaponTier = weaponProgress.tier;
-          player.weaponReadyAt = 0;
-        });
-        const fireButton = root2d.querySelector('[data-ring-action="fire"]');
-        if (fireButton) {
-          const labels = window.BCMDialogue?.language === "en"
-            ? { pointer: "LASER", pulse: "PULSE", spectrum: "SPECTRUM" }
-            : { pointer: "ЛАЗЕР", pulse: "ИМПУЛЬС", spectrum: "СПЕКТР" };
-          fireButton.textContent = labels[validType];
-        }
-        const names = window.BCMDialogue?.language === "en"
-          ? { pointer: "Laser pointer", pulse: "Pulse beam", spectrum: "Spectrum beam" }
-          : { pointer: "Лазер-указка", pulse: "Импульсный луч", spectrum: "Спектральный луч" };
-        updateHud("ОРУЖИЕ · " + names[validType] + " · T" + weaponProgress.tier);
-      }
-
-      function offerWeaponChoice(upgradeTest) {
-        const lang = window.BCMDialogue?.language || "ru";
-        const message = upgradeTest
-          ? (lang === "en" ? "A stronger weapon test is ready. Upgrade your current weapon or keep the proven setting." : "Мастер подготовил усиленный тест. Улучшить оружие или оставить проверенный вариант?")
-          : (lang === "en" ? "Choose a main weapon. Each option has its own firing rhythm and beam colour." : "Выбери основное оружие. У каждого свой ритм выстрела и цвет луча.");
-        const choices = upgradeTest
-          ? [
-              { label: lang === "en" ? "TEST UPGRADE" : "ПРОБНЫЙ АПГРЕЙД", onSelect: () => {
-                applyTeamWeapon(weaponProgress.type || "pointer", (weaponProgress.tier || 1) + 1);
-                weaponProgress.pendingUpgrade = false;
-                weaponProgress.lastUpgradePromptRun = weaponProgress.completedRuns;
-                weaponProgress.nextUpgradeAt = weaponProgress.completedRuns + 2;
-              } },
-              { label: lang === "en" ? "KEEP CURRENT" : "ОСТАВИТЬ", onSelect: () => {
-                weaponProgress.pendingUpgrade = false;
-                weaponProgress.lastUpgradePromptRun = weaponProgress.completedRuns;
-                weaponProgress.nextUpgradeAt = weaponProgress.completedRuns + 2;
-              } }
-            ]
-          : [
-              { label: lang === "en" ? "Laser pointer · fast" : "Лазер-указка · быстро", onSelect: () => applyTeamWeapon("pointer", 1) },
-              { label: lang === "en" ? "Pulse · heavy" : "Импульс · мощно", onSelect: () => applyTeamWeapon("pulse", 1) },
-              { label: lang === "en" ? "Spectrum · rainbow" : "Спектр · радуга", onSelect: () => applyTeamWeapon("spectrum", 1) }
-            ];
-        window.BCMDialogue?.showOperator(lang === "en" ? "WEAPON MASTER" : "МАСТЕР ОРУЖИЯ", message, choices);
-      }
-
-      function activateBossWeakpoint(player) {
-        const now = performance.now();
-        const boss = worldState.bosses.find((item) =>
-          item.alive && item.activated && Math.abs(player.worldX - item.x) < 5.8 &&
-          Math.abs(player.worldY - item.y) < 4.5
-        );
-        if (!boss) {
-          updateHud("ПОДОЙДИ К АРЕНЕ И НАЖМИ АКТИВАЦИЮ");
-          return false;
-        }
-        if (now < boss.nextDamageAt) return false;
-        boss.nextDamageAt = now + 620;
-        boss.hp = Math.max(0, boss.hp - 1);
-        boss.lastDamageAt = now;
-        if (boss.hp <= 0) {
-          boss.alive = false;
-          boss.group.visible = false;
-          worldState.defeatedBosses = Math.min(3, worldState.defeatedBosses + 1);
-          worldState.barriers.forEach((barrier) => {
-            barrier.group.visible = worldState.defeatedBosses < barrier.unlockAfter;
-          });
-          updateHud(boss.name + " · АРЕНА ОЧИЩЕНА");
-          if (worldState.defeatedBosses === 1 && !masterOfferedThisRun) {
-            masterOfferedThisRun = true;
-            window.setTimeout(() => offerWeaponChoice(false), 120);
-          }
-        } else {
-          updateHud("ТОЧКА БОССА ОТКЛИКНУЛАСЬ · " + boss.hp + " / " + boss.maxHp);
-        }
-        return true;
-      }
-
-      function triggerAction(index, action) {
-        const player = players[index];
-        if (!player || !gameStarted || done) return false;
-        const now = performance.now();
-        if (action === "floor") {
-          const path = worldState.cellPath;
-          const node = player.ringCurrent || path?.current;
-          if (!path || !node || node.large) return false;
-          const routeStep = path.routeStep;
-          const preferred = player.ringFloorDirection ||
-            ((routeStep === "yp" || routeStep === "yn") ? routeStep : "yp");
-          const nextDir = [preferred, path.opposite[preferred]].find((dir) => path.neighbor(node, dir));
-          if (!nextDir) {
-            updateHud(window.BCMDialogue?.language === "en"
-              ? "NO FLOOR CONNECTION HERE · FIND A GLOWING HATCH"
-              : "ЗДЕСЬ НЕТ ПЕРЕХОДА МЕЖДУ ЭТАЖАМИ · ИЩИ СВЕТЯЩИЙСЯ ЛЮК");
-            return true;
-          }
-          const nextNode = path.neighbor(node, nextDir);
-          player.ringFloorDirection = path.opposite[nextDir] || "yp";
-          placeParty(enterRingCell(worldState, nextNode, null, player), player);
-          return true;
-        }
-        if (action === "activate") {
-          const path = worldState.cellPath;
-          const node = player.ringCurrent || path?.current;
-          if (node && node.large && path) {
-            const dirs = ["xp", "xn", "zp", "zn", "yp", "yn"].filter((dir) => path.neighbor(node, dir));
-            const other = dirs.map((dir) => path.neighbor(node, dir)).find((next) => next && next !== player.ringReturnNode);
-            const leave = other || (dirs[0] ? path.neighbor(node, dirs[0]) : null);
-            if (leave) {
-              placeParty(enterRingCell(worldState, leave, "right", player), player);
-              return true;
-            }
-          }
-          if (node && !node.large) {
-            const step = path && path.routeStep;
-            const gateLocked = !!(node.gate && !node.gateCleared && (node.mobs || []).some((mob) => mob.alive));
-            if (path && step && path.neighbor(node, step) && !gateLocked) {
-              const fromRight = step === "xn" || step === "zn";
-              placeParty(enterRingCell(worldState, path.neighbor(node, step), fromRight ? "right" : "left", player), player);
-              return true;
-            }
-            if (gateLocked) {
-              updateHud(window.BCMDialogue?.language === "en"
-                ? "A BOSS GUARDS THIS PASSAGE · FIRE THE LASER"
-                : "БОСС СТЕРЕЖЁТ ПРОХОД · СТРЕЛЯЙ ЛАЗЕРОМ");
-              return true;
-            }
-            player.ringTurnQueued = true;
-            return true;
-          }
-          return activateBossWeakpoint(player);
-        }
-        if (action === "dash" && now >= player.dashReadyAt) {
-          player.dashUntil = now + 210;
-          player.dashReadyAt = now + 850;
-          player.invulnerableUntil = Math.max(player.invulnerableUntil, now + 210);
-          return true;
-        }
-        return false;
-      }
-
-      function keyboardMove(event) {
-        if (done) return;
-        const down = event.type === "keydown";
-        if (down && event.code === "Escape") {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          finishRingPlatformer(maze, false);
-          return;
-        }
-        if (!gameStarted) {
-          const previousFocus = event.code === "ArrowLeft" || event.code === "KeyA" || event.code === "Tab" && event.shiftKey;
-          const nextFocus = event.code === "ArrowRight" || event.code === "KeyD" || event.code === "Tab" && !event.shiftKey;
-          const confirm = event.code === "KeyE" || event.code === "Enter" || event.code === "NumpadEnter" || event.code === "Space";
-          if (previousFocus || nextFocus || confirm) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            if (!down || event.repeat) return;
-            if (previousFocus) focusModeMenu(menuFocusIndex - 1);
-            else if (nextFocus) focusModeMenu(menuFocusIndex + 1);
-            else confirmModeMenu();
-          }
-          return;
-        }
-        const p1 = {
-          ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
-          Space: "jump", ArrowUp: "jump", KeyW: "jump"
-        };
-        const p2 = { KeyJ: "left", KeyL: "right", KeyP: "jump" };
-        let index = 0;
-        if (event.code === "KeyQ" || (mode === "multi" && event.code === "KeyK")) {
-          index = event.code === "KeyK" ? 1 : 0;
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          keyboardInputs[index].fire = down;
-          return;
-        }
-        let action = p1[event.code] || null;
-        if (!action && mode === "multi") {
-          action = p2[event.code] || null;
-          if (action) index = 1;
-        }
-        const p1Activate = event.code === "KeyE";
-        const p1Floor = event.code === "KeyR";
-        const p1Dash = event.code === "ShiftLeft" || event.code === "ShiftRight" || event.code === "KeyC";
-        const p2Activate = event.code === "KeyO";
-        const p2Floor = event.code === "KeyI";
-        const p2Dash = event.code === "KeyU";
-        if (mode === "multi" && (p2Activate || p2Floor || p2Dash)) index = 1;
-        if (p1Floor || p2Floor) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          if (down && !event.repeat) triggerAction(index, "floor");
-          return;
-        }
-        if (p1Activate || p2Activate) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          if (down && !event.repeat) triggerAction(index, "activate");
-          return;
-        }
-        if (p1Dash || p2Dash) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          if (down && !event.repeat) triggerAction(index, "dash");
-          return;
-        }
-        if (!action || index >= (mode === "multi" ? 2 : 1)) return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        keyboardInputs[index][action] = down;
-      }
-
-      function pollGamepads() {
-        if (done || !navigator.getGamepads) return;
-        if (!gameStarted) {
-          pollModeMenuGamepad();
-          return;
-        }
-        const connected = [...navigator.getGamepads()].filter((pad) => pad && pad.connected);
-        const assignment = mode === "multi"
-          ? (connected.length > 1 ? [connected[0], connected[1]] : [null, connected[0] || null])
-          : [connected[0] || null];
-        for (let i = 0; i < 2; i += 1) {
-          const pad = assignment[i];
-          const statePad = padInputs[i] = {};
-          if (!pad || !players[i]) continue;
-          const axisX = Number(pad.axes?.[0] || 0);
-          const axisY = Number(pad.axes?.[1] || 0);
-          const button = (n) => !!(pad.buttons && pad.buttons[n] && pad.buttons[n].pressed);
-          statePad.left = !!(button(14) || axisX < -0.42);
-          statePad.right = !!(button(15) || axisX > 0.42);
-          statePad.jump = !!(button(0) || button(12) || axisY < -0.68);
-          statePad.dash = !!button(1);
-          statePad.activate = !!button(2);
-          statePad.fire = !!button(3);
-          statePad.floor = !!button(4);
-          if (statePad.activate && !previousPad[i].activate) triggerAction(i, "activate");
-          if (statePad.dash && !previousPad[i].dash) triggerAction(i, "dash");
-          if (statePad.floor && !previousPad[i].floor) triggerAction(i, "floor");
-          previousPad[i] = { activate: statePad.activate, dash: statePad.dash, floor: statePad.floor };
-        }
-      }
-
-      function damagePlayer(player, now) {
-        if (now < player.invulnerableUntil) return;
-        player.hp -= 1;
-        player.invulnerableUntil = now + 1000;
-        if (player.hp <= 0) {
-          player.hp = player.maxHp;
-          player.worldX = player.checkpointX;
-          player.worldY = 0;
-          player.vy = 0;
-          player.grounded = true;
-          player.supportPlatform = null;
-          player.invulnerableUntil = now + 1500;
-          updateHud(player.name + " · ВОЗВРАТ НА КОНТРОЛЬНУЮ ТОЧКУ");
-        } else {
-          updateHud(player.name + " · ПОВРЕЖДЕНИЕ " + player.hp + " HP");
-        }
-      }
-
-      function updateCellMobs(dt, now) {
-        const path = worldState.cellPath;
-        if (!path) return;
-        const activeNodes = new Set(players.map((player) => player.ringCurrent || path.current).filter((node) => node && !node.large));
-        if (!activeNodes.size && path.current && !path.current.large) activeNodes.add(path.current);
-        activeNodes.forEach((node) => {
-          if (node.astral) {
-            const tex = path.textures[Math.abs(node.wallAsset || 0) % path.textures.length];
-            if (tex) tex.rotation = (node.wallTurn || 0) * (Math.PI / 2) + now * 0.0004;
-          }
-          (node.mobs || []).forEach((mob) => {
-            if (!mob.mesh) return;
-            if (!mob.alive) {
-              mob.mesh.visible = false;
-              if (node.gate) return;
-              if (now >= mob.respawnAt) mob.alive = true;
-              else return;
-            }
-            const limit = node.gate ? 3.05 : 2.15;
-            mob.offset += mob.dir * (node.astral ? 2.4 : 1.7) * dt;
-            if (mob.offset > limit || mob.offset < -limit) mob.dir *= -1;
-            mob.offset = Math.max(-limit, Math.min(limit, mob.offset));
-            mob.mesh.position.set(path.homeX + mob.offset, node.astral ? 1.2 : 0.55, 0.45);
-            mob.mesh.visible = true;
-            const hit = players.find((player) => (player.ringCurrent || path.current) === node &&
-              Math.abs(player.worldX - mob.mesh.position.x) < 0.62 && player.worldY < 1.35);
-            if (hit) damagePlayer(hit, now);
-          });
-          if (node.gate && !(node.mobs || []).some((mob) => mob.alive)) node.gateCleared = true;
-        });
-      }
-
-      function updateBosses(dt, now) {
-        const living = players.filter(Boolean);
-        worldState.bosses.forEach((boss) => {
-          if (!boss.alive) return;
-          const ring = boss.group.children[3];
-          if (ring) ring.rotation.z += dt * 0.8;
-          const target = living.reduce((best, player) =>
-            !best || Math.abs(player.worldX - boss.x) < Math.abs(best.worldX - boss.x) ? player : best, null);
-          if (!target || Math.abs(target.worldX - boss.x) > 14) return;
-          if (!boss.activated) {
-            boss.activated = true;
-            boss.nextAttackAt = now + 900;
-            boss.nextDamageAt = 0;
-            updateHud("АРЕНА ОТКРЫТА · " + boss.name);
-          }
-          if (now < boss.nextAttackAt) return;
-          boss.nextAttackAt = now + Math.max(1350, 2350 - boss.zone * 220);
-          const direction = target.worldX < boss.x ? -1 : 1;
-          const startX = boss.x + direction * 2.2;
-          const mesh = new THREE.Mesh(worldState.shockwaveGeometry, worldState.shockwaveMaterial);
-          mesh.position.set(startX, 0.95, 0.78);
-          mesh.scale.setScalar(0.78);
-          worldState.group.add(mesh);
-          worldState.shockwaves.push({ mesh, x: startX, direction, age: 0 });
-        });
-      }
-
-      function updatePlayers(dt) {
-        if (worldState.cellPath && worldState.cellPath.pendingReturn) {
-          worldState.cellPath.pendingReturn = false;
-          finishRingPlatformer(maze, true);
-          return;
-        }
-        pollGamepads();
-        const now = performance.now();
-        for (const player of players) {
-          const input = getInput(player);
-          const direction = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-          if (direction) { player.facing = direction; player.moves += dt; }
-          if (input.fire) firePlayerWeapon(player, now);
-          const dashing = now < player.dashUntil, previousX = player.worldX;
-          if (dashing) player.worldX += player.facing * 12.5 * dt;
-          else player.worldX += direction * 7.2 * dt;
-          const path = worldState.cellPath;
-          const playerNode = player.ringCurrent || path?.current;
-          const playerInLarge = playerNode ? !!playerNode.large : worldState.inLargeCell;
-          if (playerInLarge) {
-            if (direction < 0 && previousX <= -48.15 && path && player.ringReturnNode) {
-              placeParty(enterRingCell(worldState, player.ringReturnNode, "right", player), player);
-              continue;
-            }
-            player.worldX = Math.max(-49, Math.min(worldState.exitX + 1.5, player.worldX));
-          } else if (path && playerNode) {
-            const node = playerNode;
-            const horizontalDirs = ["xp", "xn", "zp", "zn"];
-            const step = path.routeStep;
-            const progressDir = (step && horizontalDirs.includes(step) && path.neighbor(node, step))
-              ? step
-              : (player.ringHeading || path.heading);
-            if (progressDir !== (player.ringHeading || path.heading) && step && horizontalDirs.includes(step)) {
-              player.ringHeading = progressDir;
-              if (player.index === 0) path.heading = progressDir;
-            }
-            const heading = player.ringHeading || path.heading;
-            const gateLocked = !!(node.gate && !node.gateCleared && (node.mobs || []).some((mob) => mob.alive));
-            if (player.worldX > path.homeX + path.half - 0.4) {
-              const forward = (step && horizontalDirs.includes(step)) ? step : heading;
-              const nextNode = !gateLocked || forward !== step ? path.neighbor(node, forward) : null;
-              if (gateLocked && forward === step) {
-                player.worldX = path.homeX + path.half - 0.55;
-                updateHud(window.BCMDialogue?.language === "en"
-                  ? "A BOSS GUARDS THIS PASSAGE · FIRE THE LASER"
-                  : "БОСС СТЕРЕЖЁТ ПРОХОД · СТРЕЛЯЙ ЛАЗЕРОМ");
-              } else if (nextNode) {
-                placeParty(enterRingCell(worldState, nextNode, "left", player), player);
-                continue;
-              }
-            }
-            if (player.worldX < path.homeX - path.half + 0.4) {
-              const nextNode = path.neighbor(node, path.opposite[heading]);
-              if (nextNode) {
-                placeParty(enterRingCell(worldState, nextNode, "right", player), player);
-                continue;
-              }
-            }
-            player.worldX = Math.max(path.homeX - path.half + 0.35, Math.min(path.homeX + path.half - 0.35, player.worldX));
-            if (player.ringTurnQueued) {
-              player.ringTurnQueued = false;
-              const activeHeading = player.ringHeading || path.heading;
-              if ((step === "yp" || step === "yn") && path.neighbor(node, step) && !gateLocked) {
-                placeParty(enterRingCell(worldState, path.neighbor(node, step), null, player), player);
-                continue;
-              }
-              if (step && horizontalDirs.includes(step) && path.neighbor(node, step) && !gateLocked) {
-                const fromRight = step === "xn" || step === "zn";
-                placeParty(enterRingCell(worldState, path.neighbor(node, step), fromRight ? "right" : "left", player), player);
-                continue;
-              }
-              const routeDirection = path.nextDirectionTowardLarge(node);
-              const pendingCrystals = (maze.crystals || []).some((crystal) => crystal && !crystal.taken);
-              if (!pendingCrystals && routeDirection && horizontalDirs.includes(routeDirection) && path.neighbor(node, routeDirection)) {
-                const fromRight = routeDirection === "xn" || routeDirection === "zn";
-                placeParty(enterRingCell(worldState, path.neighbor(node, routeDirection), fromRight ? "right" : "left", player), player);
-                continue;
-              }
-              const openH = horizontalDirs.filter((dir) => path.neighbor(node, dir));
-              const idx = Math.max(0, openH.indexOf(activeHeading));
-              const turn = openH.length > 1 ? openH[(idx + 1) % openH.length] : null;
-              if (turn && turn !== activeHeading) {
-                player.ringHeading = turn;
-                if (player.index === 0) path.heading = turn;
-                const goal = typeof path.objectiveNode === "function" ? path.objectiveNode(node) : null;
-                path.routeStep = goal && typeof path.nextDirectionToward === "function"
-                  ? path.nextDirectionToward(node, goal) : path.routeStep;
-                applyRingCellLook(worldState, node, player.ringHeading || path.heading);
-              } else {
-                updateHud("ТУТ НЕТ БОКОВОГО ПРОХОДА · ИЩИ СВЕЧЕНИЕ ПОРТАЛА");
-              }
-            }
-          } else player.worldX = Math.max(-49, Math.min(worldState.exitX + 1.5, player.worldX));
-          worldState.barriers.forEach((barrier) => {
-            if (worldState.defeatedBosses < barrier.unlockAfter && previousX <= barrier.x + 0.12 && player.worldX > barrier.x - 0.72) player.worldX = barrier.x - 0.72;
-          });
-          const previousY = player.worldY;
-          const astralNode = player.ringCurrent || worldState.cellPath?.current;
-          const astral = !!(astralNode && astralNode.astral && !playerInLarge);
-          const astralMode = astral ? astralNode.astralMode : "normal";
-          let gravity = 21, jumpVelocity = 8.8;
-          if (astralMode === "drift") { gravity = 6.0; jumpVelocity = 7.8; }
-          else if (astralMode === "flux") { gravity = 8.0 + Math.sin(now * 0.0018 + (astralNode.astralPhase || 0)) * 1.8; jumpVelocity = 8.8; }
-          else if (astralMode === "dense") { gravity = 14.5; jumpVelocity = 10.2; }
-          const jumpPressed = input.jump && !player.wasJumpDown && player.grounded;
-          if (jumpPressed) { player.vy = jumpVelocity; player.grounded = false; player.supportPlatform = null; }
-          player.wasJumpDown = input.jump;
-          player.vy -= gravity * dt;
-          player.worldY += player.vy * dt;
-          if (player.vy <= 0) {
-            const landing = worldState.platforms.filter((platform) =>
-              player.worldX >= platform.minX && player.worldX <= platform.maxX &&
-              previousY >= platform.y && player.worldY <= platform.y
-            ).sort((a,b)=>b.y-a.y)[0];
-            if (landing) {
-              player.worldY = landing.y; player.vy = 0; player.grounded = true; player.supportPlatform = landing;
-              if (landing.y === 0) player.checkpointX = playerInLarge ? worldState.spawnX : (path ? path.homeX : (player.worldX < -2 ? -43 : (player.worldX < 36 ? 3 : 40)));
-            } else player.grounded = false;
-          }
-          if (player.worldY < -7) {
-            player.worldY = 0; player.vy = 0; player.grounded = true; player.supportPlatform = null;
-            player.worldX = player.checkpointX; damagePlayer(player, now);
-          }
-          if (player.grounded && player.supportPlatform && player.supportPlatform.y > 0 &&
-              (player.worldX < player.supportPlatform.minX || player.worldX > player.supportPlatform.maxX)) {
-            player.grounded = false; player.vy = -0.2; player.supportPlatform = null;
-          }
-          collectAt(player); collectHydrogenAt(player); collectRouteCrystal(player);
-          const blinking = now < player.invulnerableUntil && Math.floor(now / 90) % 2 === 0;
-          if (player.sprite) player.sprite.visible = !blinking;
-          updatePlayerSprite(player, dt);
-        }
-        worldState.shockwaves = worldState.shockwaves.filter((wave) => {
-          wave.age += dt; wave.x += wave.direction * 8.5 * dt; wave.mesh.position.x = wave.x;
-          wave.mesh.scale.setScalar(0.72 + Math.min(0.45, wave.age * 0.22));
-          const hitPlayer = players.find((player) => Math.abs(player.worldX - wave.x) < 1.0 && player.worldY < 1.15);
-          if (hitPlayer) { damagePlayer(hitPlayer, now); wave.mesh.parent?.remove(wave.mesh); return false; }
-          if (wave.x < -53 || wave.x > worldState.exitX + 4) { wave.mesh.parent?.remove(wave.mesh); return false; }
-          return true;
-        });
-        updateCellMobs(dt, now); updateBosses(dt, now);
-        worldState.coreMeshes.forEach((core, index) => { if (!core.taken) core.mesh.rotation.y += dt * (1 + index * 0.2); });
-        worldState.exitMarker.rotation.z += dt * 0.42;
-        if (worldState.defeatedBosses >= 3 && players.some((player) =>
-          (player.ringCurrent ? player.ringCurrent.large : worldState.inLargeCell) && player.worldX >= worldState.exitX - 1.3
-        )) { finishRingPlatformer(maze, true); return; }
-        updateSplitState(); updateHud();
-      }
-
-      function updateSplitState() {
-        const path = worldState.cellPath;
-        if (players[0] && players[0].ringCurrent && path) {
-          path.current = players[0].ringCurrent;
-          path.heading = players[0].ringHeading || path.heading;
-          path.returnNode = players[0].ringReturnNode || null;
-          worldState.inLargeCell = !!players[0].ringCurrent.large;
-        }
-        if (mode !== "multi" || players.length < 2) {
-          splitActive = false;
-          splitDivider.hidden = true;
-          return;
-        }
-        const p1 = players[0], p2 = players[1];
-        const dx = Math.abs(p1.worldX - p2.worldX), dy = Math.abs(p1.worldY - p2.worldY);
-        const haveSeparateCells = !!(p1.ringCurrent && p2.ringCurrent && p1.ringCurrent !== p2.ringCurrent);
-        if (haveSeparateCells) splitActive = true;
-        else if (p1.ringCurrent && p2.ringCurrent && !p1.ringCurrent.large && !p2.ringCurrent.large) {
-          if (!splitActive && (dx > 4 || dy > 3)) splitActive = true;
-          else if (splitActive && dx < 2.5 && dy < 1.5) splitActive = false;
-        } else {
-          if (!splitActive && (dx > 20 || dy > 7)) splitActive = true;
-          else if (splitActive && dx < 14 && dy < 4.5) splitActive = false;
-        }
-        splitDivider.hidden = !splitActive;
-        splitDivider.style.border = "0";
-        splitDivider.style.borderLeft = "0";
-        splitDivider.style.background = splitActive
-          ? "linear-gradient(to bottom, transparent calc(50% - 1px), rgba(115,203,225,.82) calc(50% - 1px), rgba(115,203,225,.82) calc(50% + 1px), transparent calc(50% + 1px))"
-          : "transparent";
-      }
-
-      function configureCamera(camera, viewport, center) {
-        const aspect = Math.max(0.3, viewport.w / Math.max(1, viewport.h));
-        const halfHeight = viewport.h > viewport.w ? 7.1 : 5.4;
-        // The painted zone backgrounds drift more slowly than the action plane.
-        // Apply per view so local split-screen cameras each get the same parallax illusion.
-        const worldState = state.ringRenderState && state.ringRenderState.worldState;
-        if (worldState && Array.isArray(worldState.parallaxPanels)) {
-          worldState.parallaxPanels.forEach((layer) => {
-            layer.mesh.position.x = layer.baseX + center.x * (1 - layer.factor);
-          });
-        }
-        camera.left = -halfHeight * aspect;
-        camera.right = halfHeight * aspect;
-        camera.top = halfHeight;
-        camera.bottom = -halfHeight;
-        camera.near = 0.1;
-        camera.far = 500;
-        camera.updateProjectionMatrix();
-        camera.up.set(0, 1, 0);
-        camera.position.set(center.x, center.y + 0.65, 42);
-        camera.lookAt(center.x, center.y + 0.65, 0);
-      }
-
-      function cameraTargetFor(player) {
-        return { x: player.worldX, y: player.worldY + 2.2, z: 0 };
-      }
-
-      function renderRingViews(frameContext) {
-        if (!state.ringPlatformer || !state.ringRenderState || done) return false;
-        const renderer = frameContext && frameContext.renderer;
-        const activeScene = frameContext && frameContext.scene;
-        if (!renderer || !activeScene) return false;
-        const canvasEl = renderer.domElement;
-        const viewW = Math.max(1, (canvasEl && canvasEl.clientWidth) || root.clientWidth || 1);
-        const viewH = Math.max(1, (canvasEl && canvasEl.clientHeight) || root.clientHeight || 1);
-        renderer.setScissorTest(false);
-        renderer.setViewport(0, 0, viewW, viewH);
-        if (!players.length) {
-          configureCamera(cameraOne, { w: viewW, h: viewH }, cameraFocus);
-          renderer.render(activeScene, cameraOne);
-          return true;
-        }
-        const oldAutoClear = renderer.autoClear;
-        renderer.autoClear = false;
-        renderer.setScissorTest(true);
-        const landscape = viewW >= viewH;
-        let views;
-        if (splitActive && mode === "multi" && players.length > 1) {
-          // P1/pilot always owns the upper horizontal half; P2's lower view is
-          // independent so players can explore different zones comfortably.
-          const half = Math.floor(viewH / 2);
-          views = [
-            { x: 0, y: half, w: viewW, h: viewH - half, player: players[0], camera: cameraOne },
-            { x: 0, y: 0, w: viewW, h: half, player: players[1], camera: cameraTwo }
-          ];
-        } else {
-          let target = cameraTargetFor(players[0]);
-          if (mode === "multi" && players[1]) {
-            const other = cameraTargetFor(players[1]);
-            target = {
-              x: (target.x + other.x) * 0.5,
-              y: (target.y + other.y) * 0.5,
-              z: 0
-            };
-          }
-          views = [{ x: 0, y: 0, w: viewW, h: viewH, player: players[0], camera: cameraOne, target }];
-        }
-
-        for (const view of views) {
-          const target = view.target || cameraTargetFor(view.player);
-          const previousSpriteVisibility = players.map((player) => player.sprite ? player.sprite.visible : null);
-          if (worldState.cellPath && view.player?.ringCurrent) {
-            applyRingCellLook(worldState, view.player.ringCurrent, view.player.ringHeading);
-            players.forEach((player) => {
-              if (player.sprite && player.ringCurrent !== view.player.ringCurrent) player.sprite.visible = false;
-            });
-          }
-          configureCamera(view.camera, view, target);
-          renderer.setViewport(view.x, view.y, view.w, view.h);
-          renderer.setScissor(view.x, view.y, view.w, view.h);
-          renderer.clear(true, true, true);
-          renderer.render(activeScene, view.camera);
-          players.forEach((player, index) => {
-            if (player.sprite && previousSpriteVisibility[index] !== null) player.sprite.visible = previousSpriteVisibility[index];
-          });
-        }
-        renderer.setScissorTest(false);
-        renderer.setViewport(0, 0, viewW, viewH);
-        renderer.autoClear = oldAutoClear;
-        return true;
-      }
-
-      function drawMiniMap() {
-        if (done || !g) return;
-        g.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-        g.clearRect(0, 0, mapWidth, mapHeight);
-        const bg = g.createLinearGradient(0, 0, mapWidth, mapHeight);
-        bg.addColorStop(0, "#081826");
-        bg.addColorStop(1, "#02070d");
-        g.fillStyle = bg;
-        g.fillRect(0, 0, mapWidth, mapHeight);
-        const path = worldState.cellPath;
-        if (path && path.current) {
-          const pad = 8;
-          const cellW = (mapWidth - pad * 2) / Math.max(1, path.nx);
-          const cellH = (mapHeight - 16) / Math.max(1, path.nz);
-          const layer = path.current.y;
-          for (let z = 0; z < path.nz; z += 1) {
-            for (let x = 0; x < path.nx; x += 1) {
-              const node = path.nodes.get(path.keyOf(x, layer, z));
-              if (!node) continue;
-              const px = pad + x * cellW;
-              const py = 8 + z * cellH;
-              const linked = node.open.xp || node.open.xn || node.open.zp || node.open.zn || node.open.yp || node.open.yn;
-              const anomalyFill = {
-                drift: "#2a2047",
-                flux: "#123d4a",
-                dense: "#362247"
-              }[node.astralMode] || "#2a1844";
-              g.fillStyle = node.large ? "#4a3b14" : node.astral ? anomalyFill : (linked ? "#143246" : "#0c1a24");
-              g.fillRect(px + 1, py + 1, Math.max(1, cellW - 2), Math.max(1, cellH - 2));
-              if (node.astral) {
-                const glyph = ({ drift: "≈", flux: "↕", dense: "◆" }[node.astralMode]) || "·";
-                g.fillStyle = "#dfe5ff";
-                g.font = "bold 9px system-ui";
-                g.textAlign = "center";
-                g.textBaseline = "middle";
-                g.fillText(glyph, px + cellW * 0.5, py + cellH * 0.5);
-              }
-              if (node === path.current) {
-                g.strokeStyle = "#f4fbff";
-                g.strokeRect(px + 0.5, py + 0.5, Math.max(1, cellW - 1), Math.max(1, cellH - 1));
-              }
-              const mark = (maze.crystals || []).find((crystal) =>
-                crystal.cell && crystal.cell.x === x && crystal.cell.y === layer && crystal.cell.z === z &&
-                (crystal.scouted || crystal.taken));
-              if (mark) {
-                g.fillStyle = mark.taken ? "#8ef6d8" : "#5ce1ff";
-                g.fillRect(px + cellW * 0.32, py + cellH * 0.32, Math.max(2, cellW * 0.34), Math.max(2, cellH * 0.34));
-              }
-              const mission = window.BCMWorldMission || {};
-              const hydrogen = maze.hydrogen;
-              if (hydrogen && hydrogen.unlocked && !mission.hydrogenCollected &&
-                  hydrogen.cell.x === x && hydrogen.cell.y === layer && hydrogen.cell.z === z) {
-                g.fillStyle = "#9cffe9";
-                g.font = "bold 10px system-ui";
-                g.textAlign = "center";
-                g.textBaseline = "middle";
-                g.fillText("H", px + cellW * 0.5, py + cellH * 0.5);
-              }
-            }
-          }
-          return;
-        }
-        const x1 = 9, x2 = mapWidth - 9, y = Math.max(20, mapHeight * 0.52);
-        const trackW = Math.max(1, x2 - x1);
-        const zones = [
-          { a: -50, b: -2, c: "#194359" },
-          { a: -2, b: 36, c: "#1f4c4a" },
-          { a: 36, b: 84, c: "#3c2852" }
-        ];
-        zones.forEach((zone) => {
-          const left = x1 + (zone.a + 50) / 134 * trackW;
-          const right = x1 + (zone.b + 50) / 134 * trackW;
-          g.fillStyle = zone.c;
-          g.fillRect(left, y - 5, right - left, 10);
-          g.strokeStyle = "rgba(191,226,239,.26)";
-          g.strokeRect(left, y - 5, right - left, 10);
-        });
-        worldState.bosses.forEach((boss, index) => {
-          const x = x1 + (boss.x + 50) / 134 * trackW;
-          g.fillStyle = boss.alive ? "#ffba75" : "#67e6cf";
-          g.beginPath();
-          g.arc(x, y, boss.alive ? 4.3 : 3.2, 0, Math.PI * 2);
-          g.fill();
-          g.fillStyle = "#d1e7ef";
-          g.font = "9px system-ui";
-          g.textAlign = "center";
-          g.fillText(String(index + 1), x, y - 10);
-        });
-        players.forEach((player) => {
-          const x = x1 + (player.worldX + 50) / 134 * trackW;
-          g.fillStyle = playerColors[player.index];
-          g.shadowColor = playerColors[player.index];
-          g.shadowBlur = 6;
-          g.beginPath();
-          g.arc(x, y + (player.index ? 4 : -4), 3, 0, Math.PI * 2);
-          g.fill();
-          g.shadowBlur = 0;
-        });
-        g.fillStyle = "#b8d2de";
-        g.font = "9px system-ui";
-        g.textAlign = "left";
-        g.textBaseline = "top";
-        // Progress is shown by the strip and markers; avoid tiny permanent caption text.
-      }
-
-      function startMode(nextMode) {
-        if (done || gameStarted) return;
-        mode = nextMode === "multi" ? "multi" : "single";
-        gameStarted = true;
-        menu.hidden = true;
-        menu.style.display = "none";
-        const home = worldState.cellPath
-          ? enterRingCell(worldState, worldState.cellPath.current, null)
-          : worldState.spawnX;
-        const spawn1 = { x: home, y: 0 };
-        const spawn2 = mode === "multi" ? { x: home - 1.4, y: 0 } : null;
-        players = [createPlayer(0, spawn1)];
-        if (spawn2) players.push(createPlayer(1, spawn2));
-        updateSplitState();
-        updateHud(mode === "multi" ? "MULTI" : "SINGLE");
-        statusEl.style.display = "";
-        floorEl.style.display = "";
-        countEl.style.display = "none";
-        window.BCMDialogue?.showControls("ring");
-        if (Number(weaponProgress.completedRuns) >= Number(weaponProgress.nextUpgradeAt || 2) &&
-            weaponProgress.pendingUpgrade &&
-            Number(weaponProgress.lastUpgradePromptRun) !== Number(weaponProgress.completedRuns)) {
-          window.setTimeout(() => offerWeaponChoice(true), 250);
-        }
-        resize2d();
-        root2d.focus({ preventScroll: true });
-      }
-
-      function updateViewportSize() {
-        width = Math.max(1, root.clientWidth);
-        height = Math.max(1, root.clientHeight);
-        cameraOne.aspect = width / height;
-        cameraTwo.aspect = width / height;
-        updateSplitState();
-      }
-
-      function frame(now) {
-        if (done) return;
-        try {
-          const dt = frameStamp ? Math.min(0.05, Math.max(0.001, (now - frameStamp) / 1000)) : 1 / 60;
-          frameStamp = now;
-          updatePlayers(dt);
-          updateWeaponShots(dt);
-          if (!done) {
-            updateSplitState();
-            drawMiniMap();
-          }
-        } catch (error) {
-          try { console.error("Mini-Sim Ring maze frame failed:", error); } catch (e) {}
-        }
-        if (!done) raf = requestAnimationFrame(frame);
-      }
-
-      function setActionFromPointer(button, action, down, event) {
-        const index = Number(button.getAttribute("data-ring-player") || 0);
-        if (!players[index]) return;
-        if (oneShotActions.has(action)) {
-          if (down) triggerAction(index, action);
-          return;
-        }
-        touchInputs[index][action] = down;
-        if (down && event && button.setPointerCapture) {
-          try { button.setPointerCapture(event.pointerId); } catch (e) {}
-        }
-      }
-
-      root2d.querySelectorAll("[data-ring-action]").forEach((button) => {
-        const action = button.getAttribute("data-ring-action");
-        button.style.cssText += ";pointer-events:auto;border:1px solid #426779;border-radius:10px;background:rgba(16,35,45,.96);color:#e8fbff;font-weight:900;touch-action:none";
-        button.addEventListener("pointerdown", (event) => {
-          event.preventDefault();
-          setActionFromPointer(button, action, true, event);
-        });
-        const stop = (event) => {
-          if (!oneShotActions.has(action)) setActionFromPointer(button, action, false, event);
-        };
-        ["pointerup", "pointercancel", "lostpointercapture"].forEach((name) => button.addEventListener(name, stop));
-      });
-      const closeButton = root2d.querySelector("[data-ring-exit]");
-      closeButton.style.cssText += ";pointer-events:auto";
-      closeButton.addEventListener("click", () => finishRingPlatformer(maze, false));
-      focusModeMenu(0);
-      modeButtons.forEach((button, index) => {
-        if (!button) return;
-        button.style.pointerEvents = "auto";
-        button.style.position = "relative";
-        button.style.zIndex = "50";
-        button.style.cursor = "pointer";
-        const activate = () => {
-          focusModeMenu(index);
-          startMode(index === 1 ? "multi" : "single");
-        };
-        // pointerdown gives mobile taps an immediate activation path; the click
-        // handler remains for keyboard and assistive-technology activation.
-        button.addEventListener("pointerdown", (event) => {
-          if (event.button !== 0 || gameStarted || done) return;
-          event.preventDefault();
-          event.stopPropagation();
-          activate();
-        });
-        button.addEventListener("focus", () => focusModeMenu(index));
-        button.addEventListener("click", activate);
-      });
-      root2d.addEventListener("keydown", (event) => {
-        if (gameStarted || done) return;
-        if (event.code === "ArrowLeft" || event.code === "ArrowUp") {
-          event.preventDefault();
-          event.stopPropagation();
-          focusModeMenu(menuFocusIndex - 1);
-        } else if (event.code === "ArrowRight" || event.code === "ArrowDown") {
-          event.preventDefault();
-          event.stopPropagation();
-          focusModeMenu(menuFocusIndex + 1);
-        } else if (event.code === "Enter" || event.code === "Space") {
-          event.preventDefault();
-          event.stopPropagation();
-          confirmModeMenu();
-        }
-      });
-      menu.addEventListener("pointerdown", (event) => {
-        if (gameStarted || done || event.target.closest("button")) return;
-        if (event.target === menu || event.target.closest("[data-ring-mode-menu]")) {
-          event.preventDefault();
-          confirmModeMenu();
-        }
-      });
-      window.addEventListener("keydown", keyboardMove, true);
-      window.addEventListener("keyup", keyboardMove, true);
-      window.addEventListener("blur", () => {
-        keyboardInputs.forEach((entry) => Object.keys(entry).forEach((key) => { entry[key] = false; }));
-        touchInputs.forEach((entry) => Object.keys(entry).forEach((key) => { entry[key] = false; }));
-      });
-      window.addEventListener("resize", resize2d);
-      resize2d();
-
-      state.ringRenderState = {
-        worldState,
-        scene,
-        maze,
-        oldMazeVisible: worldSaved.oldMazeVisible,
-        oldShipVisible: worldSaved.oldShipVisible,
-        oldBackground,
-        runtime
-      };
-      window.BCMDeepSpaceWarpRender = renderRingViews;
-
-      state.ringPlatformerCleanup = () => {
-        done = true;
-        if (raf) cancelAnimationFrame(raf);
-        try {
-          const gl = runtime.renderer;
-          const canvasEl = gl && gl.domElement;
-          if (gl && canvasEl) {
-            gl.setScissorTest(false);
-            gl.setViewport(0, 0, Math.max(1, canvasEl.clientWidth), Math.max(1, canvasEl.clientHeight));
-            gl.autoClear = true;
-          }
-        } catch (e) {}
-        window.removeEventListener("keydown", keyboardMove, true);
-        window.removeEventListener("keyup", keyboardMove, true);
-        window.removeEventListener("resize", resize2d);
-        if (worldState.cellPath && worldState.cellPath.room) worldState.cellPath.room.parent?.remove(worldState.cellPath.room);
-        worldState.group.parent?.remove(worldState.group);
-        worldState.group.traverse((object) => {
-          if (object.geometry && object.geometry !== worldState.boxGeometry) {
-            // Meshes share a small set of geometries; special crystal geometries are disposed below.
-          }
-        });
-        try { worldState.boxGeometry.dispose(); } catch (e) {}
-        worldState.specialGeometry.forEach((geometry) => { try { geometry.dispose(); } catch (e) {} });
-        worldState.textures.forEach((texture) => { try { texture.dispose(); } catch (e) {} });
-        worldState.materials.forEach((material) => { try { material.dispose(); } catch (e) {} });
-        players.forEach((player) => {
-          if (player.sprite) scene.remove(player.sprite);
-          if (player.spriteMaterial) player.spriteMaterial.dispose();
-        });
-        weaponShots.forEach((shot) => {
-          scene.remove(shot.mesh);
-          scene.remove(shot.glow);
-          try { shot.geometry.dispose(); } catch (e) {}
-          try { shot.material.dispose(); } catch (e) {}
-          try { shot.glowGeometry.dispose(); } catch (e) {}
-          try { shot.glowMaterial.dispose(); } catch (e) {}
-        });
-        weaponShots.length = 0;
-        maze.group.visible = worldSaved.oldMazeVisible;
-        if (runtime.ship.visual) runtime.ship.visual.visible = worldSaved.oldShipVisible;
-        scene.background = oldBackground;
-        state.ringRenderState = null;
-        window.BCMDeepSpaceWarpRender = null;
-        splitDivider.remove();
-        root2d.remove();
-        syncHullButtonVisibility();
-      };
-      // Commit the scene switch only after the Ring world, input bindings,
-      // renderer, and cleanup routine are ready. Failures before this point
-      // leave the asteroid visible; later failures are safely rolled back above.
-      maze.group.visible = false;
-      if (runtime.ship.visual) runtime.ship.visual.visible = false;
-      scene.background = new THREE.Color(0x030812);
-      state.ringLastUpdate = 0;
-      syncHullButtonVisibility();
-      raf = requestAnimationFrame(frame);
-      return true;
-    }
-
-    function finishRingPlatformer(maze, completed) {
-      if (!state.ringPlatformer || !maze) return false;
-      const success = completed === true;
-      maze.ringCompleted = success;
-      if (success) {
-        const progress = window.BCMRingWeaponProgress || (window.BCMRingWeaponProgress = {
-          type: "pointer", tier: 1, completedRuns: 0, pendingUpgrade: false, lastUpgradePromptRun: -1
-        });
-        progress.completedRuns = (Number(progress.completedRuns) || 0) + 1;
-        progress.nextUpgradeAt = Math.max(2, Number(progress.nextUpgradeAt) || 2);
-        if (progress.completedRuns >= progress.nextUpgradeAt && Number(progress.tier) < 5) progress.pendingUpgrade = true;
-      }
-      const cleanup = state.ringPlatformerCleanup;
-      state.ringPlatformerCleanup = null;
-      state.ringPlatformer = false;
-      state.ringTransitionActive = false;
-      if (typeof cleanup === "function") cleanup();
-      stopRingAudio(true);
-      const engine = api();
-      if (engine && engine.pauseForWarp) engine.pauseForWarp(false);
-      syncHullButtonVisibility();
-      setMazeStatus(success
-        ? "2D IN 3D · ROUTE COMPLETE · BACK IN THE ASTEROID MAZE"
-        : "BACK IN THE ASTEROID MAZE · RING RUN PAUSED");
-      return true;
-    }
-
-
     function setMazeStatus(message) {
       const engine = api();
       const placeLabel = state.place && state.place.id === "asteroid" && state.place.label
@@ -5741,27 +2540,14 @@
     }
 
     function disposeMaze() {
-      const maze = state.maze;
-      if (!maze) return;
-      maze.active = false;
-      if (maze.group && maze.group.parent) maze.group.parent.remove(maze.group);
-      for (const mesh of maze.wallMeshes || [maze.wallMesh]) {
-        try { mesh?.dispose?.(); } catch (e) {}
+      if (asteroidMazeLocation) {
+        asteroidMazeLocation.dispose();
+        return;
       }
-      try { maze.geometry.dispose(); } catch (e) {}
-      for (const material of new Set([...(maze.materials || [maze.material]), ...(maze.wallVariantMaterials || [])])) {
-        try { material?.dispose?.(); } catch (e) {}
+      if (state.maze) {
+        state.maze.active = false;
+        state.maze = null;
       }
-      for (const texture of new Set([...(maze.textures || [maze.texture]), ...(maze.wallVariantTextures || [])])) {
-        try { texture?.dispose?.(); } catch (e) {}
-      }
-      try { maze.shell.geometry.dispose(); } catch (e) {}
-      try { maze.shell.material.dispose(); } catch (e) {}
-      try { maze.crystalGeometry.dispose(); } catch (e) {}
-      try { maze.crystalMaterial.dispose(); } catch (e) {}
-      try { maze.beaconGeometry.dispose(); } catch (e) {}
-      try { maze.beaconMaterial.dispose(); } catch (e) {}
-      state.maze = null;
     }
 
     function nextWarpDestinationLabel() {
@@ -5803,7 +2589,7 @@
         state.nav = navigationAfterArrival(arrivedSector);
         state.sectorProgressed = true;
       }
-      state.target = null;
+      clearWarpDestination();
 
       if (engine) {
         if (state.savedSpeedMode != null && engine.setSpeedMode) {
@@ -5834,7 +2620,7 @@
       footnoteElement.textContent = state.nav && state.nav.live
         ? "Соседние сектора показаны только если их передал SAGE-адаптер. Warp остаётся локальной симуляцией и не перемещает флот в блокчейне."
         : (window.BCMSageMapCore
-          ? "Карта Galia подключена. ONI CSS — X -40, Y 30. Планета Fable — один шаг на северо-восток: X -39, Y 31. Warp локальный и не двигает флот в блокчейне."
+          ? "Карта Galia подключена. ONI CSS — X -40, Y 30. Fable — на ONI CSS. Пустыня Twinsun — один шаг на север: X -40, Y 31. Warp локальный и не двигает флот в блокчейне."
           : "LOCAL TEST GRID · координаты и соседние клетки тестовые, не данные SAGE. Полная карта и реальные связи секторов ещё не подключены.");
       listSectorTargets();
       renderSectorGrid();
@@ -6820,13 +3606,30 @@
    * устройстве, 5184 на обычном ПК.
    */
   var WARP_SPACE_ASTEROIDS = {
-    large: { px: 160, minPx: 26, maxPx: 92, scale: 0.30 },
-    medium: { px: 112, minPx: 14, maxPx: 46, scale: 0.20 },
-    small: { px: 80, minPx: 7, maxPx: 20, scale: 0.12 }
+    large: { px: 160, minPx: 26, maxPx: 92, scale: 0.30, damage: 15 },
+    medium: { px: 112, minPx: 14, maxPx: 46, scale: 0.20, damage: 8 },
+    small: { px: 80, minPx: 7, maxPx: 20, scale: 0.12, damage: 3 },
+    // Поток камней НА игрока. В геометрии трубы БОЛЬШИЙ радиус — это КАМЕРА,
+    // а малый — точка схода (radiusX растёт с глубиной, корабль висит на 0.92).
+    // Поэтому «на нас» = глубина РАСТЁТ: камень выходит из точки схода, растёт
+    // и уходит за камеру. Ревизия 24 гнала глубину вниз — визуально это «внутрь
+    // воронки», ровно то, на что указал владелец.
+    flow: 0.115,     // долей глубины в секунду: весь путь ≈ 8.3 с
+    spinMax: 0.35,   // радиан в секунду, верхняя граница вращения камня
+    shipDepth: 0.92  // глубина корабля: на ней камень проходит мимо (касание)
   };
 
   var WARP_SPACE_ASTEROID_SLOTS = 30;
   var asteroidSlotCache = {};
+  /* Когда камень последний раз коснулся корабля (по слоту, в секундах).
+   * Нужно из-за дробления кадра: шаг dt приходит от игры, а фактический шаг
+   * кадров чуть другой — у самой границы 0.92 пересечение засчитывалось два
+   * кадра подряд, то есть ОДИН камень «бил» дважды. За 12 с это давало
+   * двойные касания — те самые «не корректные касания».
+   * Камень проходит плоскость корабля раз в оборот потока (~8.3 с), поэтому
+   * порог 1 с ничего настоящего не съедает. */
+  var asteroidCrossCache = { key: "", at: {} };
+  var ASTEROID_CROSS_GAP = 1.0;
 
   function warpSpaceAsteroidArt() {
     var art = typeof window !== "undefined" ? window.BCM_WARP_ASTEROID_ART : null;
@@ -6895,34 +3698,84 @@
     return Math.max(spec.minPx, Math.min(spec.maxPx, px));
   }
 
-  function drawWarpSpaceAsteroids(g, point, wallRadius, seed, density, images, t) {
+  /* Глубина камня в момент t: камень идёт из точки схода к камере.
+   * Чистая функция — состояния нет, любой кадр воспроизводим. */
+  function warpSpaceAsteroidDepthAt(slotDepth, t, flow) {
+    var d = Number(slotDepth);
+    if (!isFinite(d)) d = 0.5;
+    var speed = flow == null ? WARP_SPACE_ASTEROIDS.flow : Number(flow);
+    if (!isFinite(speed) || speed < 0) speed = 0;
+    var time = Number(t);
+    if (!isFinite(time)) time = 0;
+    var span = 0.96;
+    // ПЛЮС: камень идёт из точки схода к камере (см. комментарий у flow).
+    var moved = d + speed * time;
+    moved = moved - Math.floor(moved / span) * span;
+    return 0.04 + moved;
+  }
+
+  function drawWarpSpaceAsteroids(g, point, wallRadius, seed, density, images, t, opts) {
     var slots = warpSpaceAsteroidField(seed, density);
     var drawn = 0;
     var near = 0;
-    if (!slots.length) return { drawn: 0, near: 0 };
+    var hits = [];
+    var o = opts || {};
+    var flow = o.flow == null ? WARP_SPACE_ASTEROIDS.flow : Number(o.flow);
+    if (!isFinite(flow) || flow < 0) flow = WARP_SPACE_ASTEROIDS.flow;
+    // Глубина корабля: ровно на ней камень проходит мимо игрока.
+    var shipDepth = Number(o.shipDepth);
+    if (!isFinite(shipDepth) || shipDepth <= 0 || shipDepth >= 1) shipDepth = WARP_SPACE_ASTEROIDS.shipDepth;
+    // Шаг кадра: по нему ловится ПЕРЕСЕЧЕНИЕ глубины корабля, а не «попал в окно».
+    var dt = Number(o.dt);
+    if (!isFinite(dt) || dt <= 0) dt = 1 / 60;
+    if (dt > 0.25) dt = 0.25;
+    if (!slots.length) return { drawn: 0, near: 0, hits: hits };
+    var crossKey = (Number(seed) >>> 0) + "|" + slots.length;
+    if (asteroidCrossCache.key !== crossKey) {
+      asteroidCrossCache = { key: crossKey, at: {} };
+    }
+    var time = Number(t) || 0;
     for (var i = 0; i < slots.length; i += 1) {
       var slot = slots[i];
-      // Ближние камни у самой камеры выходят за кольцо — не рисуем их.
-      // Раньше они обрывались рывком на 0.10 и в кадре это читалось как
-      // «рваный кусок», влетающий с края: теперь гаснут плавно 0.10 -> 0.04.
+      // Глубина С УЧЁТОМ ПОТОКА: камни летят на игрока, а не стоят на месте.
+      var depthNow = warpSpaceAsteroidDepthAt(slot.depth, t, flow);
+      var depthPrev = warpSpaceAsteroidDepthAt(slot.depth, (Number(t) || 0) - dt, flow);
+      // Гасим камень на обоих концах пути: на дальнем он «рождается» в точке
+      // схода, на ближнем уходит за камеру. Без этого в кадре щёлкал край.
       var edgeFade = 1;
-      if (slot.depth < 0.04) continue;
-      if (slot.depth < 0.10) edgeFade = (slot.depth - 0.04) / 0.06;
-      var radius = warpSpaceAsteroidRadius(slot.size, wallRadius);
-      if (!(radius > 0.5)) continue;
-      var p = point(slot.depth, slot.angle);
-      if (!p || !isFinite(p.x) || !isFinite(p.y)) continue;
+      if (depthNow < 0.04) continue;
+      if (depthNow < 0.12) edgeFade = (depthNow - 0.04) / 0.08;
+      if (depthNow > 0.97) edgeFade = Math.max(0, (1 - depthNow) / 0.03);
+      if (edgeFade <= 0) continue;
       var spec = WARP_SPACE_ASTEROIDS[slot.size] || WARP_SPACE_ASTEROIDS.medium;
-      // Настоящий размер камня: ближе к камере — крупнее. Без этого поле
-      // читается как плоские наклейки.
-      var zoom = 0.42 + (1 - slot.depth) * 1.15;
-      var size = Math.max(spec.minPx * 0.8, Math.min(spec.maxPx * 1.2, radius * zoom));
+      var p = point(depthNow, slot.angle);
+      if (!p || !isFinite(p.x) || !isFinite(p.y)) continue;
+      // Радиус кольца на этой глубине: два зонда по противоположным углам.
+      // Нужен и для размера камня, и чтобы перевести пиксели в угловую ширину
+      // (корабль висит внутри кольца, «расстояние по экрану» не сходится).
+      var qa = point(depthNow, 0, 0);
+      var qb = point(depthNow, Math.PI, 0);
+      var ring = 0;
+      if (qa && qb && isFinite(qa.x) && isFinite(qb.x)) {
+        var qdx = qa.x - qb.x, qdy = qa.y - qb.y;
+        ring = Math.sqrt(qdx * qdx + qdy * qdy) * 0.5;
+      }
+      // Размер камня пропорционален радиусу трубы на его глубине: в точке
+      // схода мелкий, у камеры крупный. Раньше считался от «постоянного»
+      // радиуса с обратным зумом — камни уменьшались, подлетая.
+      var size;
+      if (ring > 1) {
+        size = Math.max(spec.minPx * 0.9, Math.min(spec.px * 0.85, ring * spec.scale));
+      } else {
+        var radius = warpSpaceAsteroidRadius(slot.size, wallRadius);
+        size = Math.max(spec.minPx * 0.9, Math.min(spec.px * 0.85, radius));
+      }
       var image = images && slot.id ? images[slot.id] : null;
-      var alpha = (0.55 + (1 - slot.depth) * 0.45) * edgeFade;
+      var alpha = (0.45 + depthNow * 0.55) * edgeFade;
       g.save();
       g.globalAlpha = Math.max(0.12, Math.min(1, alpha));
       g.translate(p.x, p.y);
-      g.rotate(slot.angle * 1.7 + (Number(t) || 0) * slot.spin + slot.depth);
+      g.rotate(slot.angle * 1.7 + (Number(t) || 0) * Math.min(WARP_SPACE_ASTEROIDS.spinMax, slot.spin) + depthNow);
       if (image) {
         g.drawImage(image, -size * 0.5, -size * 0.5, size, size);
       } else {
@@ -6943,10 +3796,32 @@
       }
       g.restore();
       drawn += 1;
-      // Камень прошёл рядом с кораблём — сигнал для вибрации геймпада.
-      if (slot.depth > 0.05 && slot.depth < 0.16) near += 1;
+      // Камень прошёл мимо камеры — сигнал для вибрации геймпада.
+      if (depthNow > shipDepth && depthNow < 0.99) near += 1;
+      // КАСАНИЕ считается по ПЕРЕСЕЧЕНИЮ глубины корабля: камень ровно в этот
+      // кадр прошёл плоскость, где висит корабль. Раньше бралось широкое окно
+      // 0.86…0.98 и первый же кадр в нём объявлялся ударом — удар «прилетал»
+      // за несколько процентов глубины до касания, это и было «не корректные
+      // касания». Пересечение даёт один удар на один пролёт, в точке касания.
+      // Пересечение ловит и большой шаг кадра (просадка fps): камень «перепрыгнул»
+      // плоскость — всё равно одно касание. Широкое окно допуска не нужно: пока
+      // оно стояло, камень объявлялся ударом каждый кадр внутри окна (1729
+      // «касаний» за 12 с вместо 43) — это и были некорректные касания.
+      var crossed = depthPrev < shipDepth && depthNow >= shipDepth;
+      var hitKey = "s" + i;
+      var lastHit = asteroidCrossCache.at[hitKey];
+      var tooSoon = lastHit != null && (time - lastHit) < ASTEROID_CROSS_GAP;
+      if (crossed && ring > 0 && !tooSoon) {
+        asteroidCrossCache.at[hitKey] = time;
+        hits.push({
+          // slot — номер слота в поле: по нему видно, что один камень не бьёт дважды
+          slot: i, id: slot.id, size: slot.size, depth: depthNow,
+          x: p.x, y: p.y, px: size, angle: slot.angle, ring: ring,
+          damage: spec.damage || 6, crossed: crossed
+        });
+      }
     }
-    return { drawn: drawn, near: near };
+    return { drawn: drawn, near: near, hits: hits };
   }
 
   function warpSpaceQuadArea(p00, p01, p10) {
@@ -7018,9 +3893,14 @@
    */
   var WARP_SPACE_ANOMALIES = {
     id: "snake",
-    appearAt: 8,        // с — первое появление
-    active: 9,          // с — сколько длится одна жизнь
-    rest: 4,            // с — пауза между появлениями («отключение существования»)
+    // Ревизия 29: владелец — «слишком поздно запускается, ближе к началу уровня».
+    // Ревизия 30: «пусть рисуют весь оставшийся уровень» + «движутся к уровню,
+    // как другие препятствия». Поэтому пауза почти убрана (0.6 с — только чтобы
+    // смена вида не выглядела склейкой), а глубина каждой жизни идёт от дальней
+    // стенки к камере ровно как у камней: тело летит на игрока, а не висит.
+    appearAt: 2,        // с — первое появление
+    active: 8,          // с — сколько длится одна жизнь
+    rest: 0.6,          // с — короткая склейка между рисунками
     segments: 30,       // сегментов в теле на максимуме
     growTo: 1,          // секунды роста 0..1 от длины
     span: 0.34,         // какая доля глубины трубы занята телом
@@ -7038,7 +3918,11 @@
     { id: "gate", weight: 3, color: "198,214,255", label: "Перекрывает проход" },
     { id: "mid", weight: 2, color: "216,198,255", label: "Из середины" },
     { id: "coil", weight: 2, color: "255,228,172", label: "Спираль" },
-    { id: "twin", weight: 1, color: "170,255,208", label: "Две змейки" }
+    { id: "twin", weight: 1, color: "170,255,208", label: "Две змейки" },
+    // Ревизия 28: «танец змеек» — две сразу, водят друг с другом и в конце
+    // сворачиваются в ЗЕРКАЛЬНЫЕ спирали по обе стороны кольца. Одна жизнь
+    // аномалии = один танец, весь номер укладывается в один варп.
+    { id: "dance", weight: 4, color: "255,206,232", label: "Танец двух змеек" }
   ];
 
   function warpSpaceAnomalyVariantIds() {
@@ -7053,6 +3937,10 @@
     var list = WARP_SPACE_ANOMALY_VARIANTS;
     var n = Math.trunc(Number(index));
     if (!isFinite(n) || n < 0) n = 0;
+    // Первые ДВЕ аномалии заезда — «танец»: владелец увидел его один раз за
+    // варп и попросил чаще и ближе к началу. Дальше танец идёт из мешка с
+    // повышенным весом, чтобы не пропадал совсем.
+    if (n < 2) return "dance";
     var bag = [];
     var total = 0;
     var i, k;
@@ -7108,6 +3996,10 @@
       ? forcedId
       : warpSpaceAnomalyVariantFor(index);
     var vspec = warpSpaceAnomalySpec(variant);
+    // Полёт на игрока, как у камней: голова идёт от дальней стенки к камере.
+    // Ревизия 30: раньше каждый вид жил по своему закону по глубине, и «рисунки»
+    // читались висящими на месте. Теперь общий ход: 0.96 -> 0.10 за жизнь.
+    var travel = 0.96 - 0.86 * Math.max(0, Math.min(1, phase));
     var grow = Math.min(1, lifeStart / Math.max(0.2, spec.growTo));
     var thickness = spec.thickness + (spec.thicknessTo - spec.thickness) * grow;
     var plan = {
@@ -7117,8 +4009,7 @@
     };
     if (variant === "gate") {
       // Надвигается из глубины: издалека к камере, потом уходит за неё.
-      var advance = phase < 0.5 ? phase * 2 : 1;
-      plan.depth = 0.94 - 0.80 * (advance * advance * (3 - 2 * advance));
+      plan.depth = travel;
       plan.gapWidth = spec.gap;
       // Щель уезжает вбок — проход всё время в другом месте.
       plan.gapCenter = 0.5 + 0.30 * Math.sin(phase * Math.PI * 2.6);
@@ -7131,26 +4022,42 @@
       baseDepth = Math.max(0.18, Math.min(0.72, baseDepth));
       plan.depth = baseDepth + 0.10 * Math.sin(phase * Math.PI * 2);
       plan.angle0 = anchor && isFinite(anchor.angle) ? Number(anchor.angle) : 0.5 + phase * 0.6;
+      // mid цепляется за камень, но всё равно едет на игрока вместе с потоком.
+      plan.depth = baseDepth + (travel - 0.45) * 0.35;
       plan.head = plan.depth;
       plan.length = spec.span * (0.85 + 0.55 * grow);
       plan.insetMax = spec.inset;
     } else if (variant === "coil") {
-      plan.depth = 0.88 - 0.66 * phase;
+      plan.depth = travel;
       plan.angle0 = 0.4 + phase * 1.2;
       plan.head = plan.depth;
       plan.length = spec.span * (0.55 + 0.45 * grow);
       plan.turns = 1.15;
       plan.insetMax = spec.inset * 0.8;
     } else if (variant === "twin") {
-      plan.depth = 0.80 - 0.52 * phase;
+      plan.depth = travel;
       plan.angle0 = 0.35 + 0.5 * Math.sin(phase * Math.PI * 1.6);
       plan.head = plan.depth;
       plan.length = spec.span * (0.8 + 0.5 * grow);
       plan.insetMax = 0;
+    } else if (variant === "dance") {
+      // Танец: обе змейки идут из глубины на игрока, встречаются в середине
+      // кадра, кружат друг с другом и в конце уходят в зеркальные спирали.
+      // Фазы заданы долями жизни аномалии, поэтому номер всегда доигрывается
+      // до конца — «за один варп».
+      plan.depth = 0.86 - 0.50 * (phase * phase * (3 - 2 * phase));
+      plan.angle0 = 0;
+      plan.head = plan.depth;
+      plan.length = spec.span * (0.9 + 0.7 * grow);
+      plan.turns = 2.6;          // витков в финальной спирали (рев. 29: было 2.2)
+      plan.insetMax = spec.inset * 0.55;
+      plan.depth = travel;
     } else {
       // wall — как было в рев. 20: ход вперёд-назад, местами быстрее игрока.
       var swing = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);
-      plan.head = 0.30 + swing * 0.62;
+      // wall ходит туда-обратно ПО СТЕНКЕ (угол), а по глубине едет на игрока —
+      // ревизия 30: «пусть реально движутся к уровню, как другие препятствия».
+      plan.head = Math.max(0.08, Math.min(0.95, travel + swing * 0.06));
       plan.length = spec.span * (0.35 + 0.65 * grow);
       plan.depth = plan.head;
     }
@@ -7161,12 +4068,14 @@
    * насколько глубоко внутрь трубы ушёл сегмент (доля радиуса) и долю вдоль
    * тела. Раньше здесь был только «wiggle» по углу — теперь угол считается для
    * всех видов, поэтому змейка умеет идти и вдоль, и поперёк сечения. */
-  function warpSpaceAnomalyPoint(plan, k, segments, t) {
+  function warpSpaceAnomalyPoint(plan, k, segments, t, dir) {
     var spec = WARP_SPACE_ANOMALIES;
     var n = Math.max(1, segments | 0);
     var s = Math.max(0, Math.min(n, Number(k) || 0));
     var along = s / n;
     var time = Number(t) || 0;
+    // Направление нужно только танцу: +1 и -1 — две змейки, зеркальные друг другу.
+    var sign = Number(dir) < 0 ? -1 : 1;
     var out = { depth: plan.depth, angle: 0, inset: 0, along: along, wiggle: 0 };
     if (plan.variant === "gate") {
       // Всё сечение, кроме щели: идём «длинным путём» от одного края щели к другому.
@@ -7192,6 +4101,52 @@
       out.depth = plan.head - along * plan.length;
       out.angle = plan.angle0 + Math.sin(along * 4.2 - time * 2.2) * 0.22;
       out.inset = 0;
+    } else if (plan.variant === "dance") {
+      /* Хореография на доли жизни (plan.phase). Ревизия 29 — «доработай танец»:
+       * сделал три ЧИТАЕМЫХ акта и настоящую спираль в финале.
+       *   0.00–0.28  ВЫХОД: обе змейки идут из глубины камере навстречу,
+       *              каждая в своей половине кольца, тело вытянуто.
+       *   0.28–0.60  ТАНЕЦ: сходятся к центру кадра и водят друг с другом —
+       *              идут в противофазе и ПЕРЕСЕКАЮТСЯ (одна проходит над
+       *              другой по глубине, чтобы читалось «вдвоём»).
+       *   0.60–1.00  СПИРАЛИ: расходятся каждая на своё зеркальное место
+       *              (π/2 ± 0.5) и наматываются в спираль: угол крутится, а
+       *              тело уходит внутрь трубы — на экране это улитка.
+       * Зеркальность честная: точки второй змейки — отражение первой
+       * относительно вертикали кольца, закрутка в разные стороны. */
+      var phase = Math.max(0, Math.min(1, Number(plan.phase) || 0));
+      var smooth = function (v) {
+        var x = Math.max(0, Math.min(1, v));
+        return x * x * (3 - 2 * x);
+      };
+      var exit0 = smooth(phase / 0.28);                 // выход из глубины
+      var meet = smooth((phase - 0.22) / 0.22);         // сход к центру
+      var dance = smooth((phase - 0.28) / 0.20) * (1 - smooth((phase - 0.52) / 0.14));
+      var coil = smooth((phase - 0.60) / 0.28);         // финальные спирали
+      var u = along;                                    // 0 — голова, 1 — хвост
+      var side = sign > 0 ? 0 : Math.PI;                // своя половина кольца
+      var home = Math.PI * 0.5 - sign * 0.5;            // зеркальная пара мест
+      // Положение «центра фигуры»: от своей половины к центру кадра и обратно.
+      var base = side + (home - side) * meet;
+      // Танец: противофаза + пересечение — вторая змейка идёт по той же дуге,
+      // но с обратным знаком, поэтому на середине акта они встречаются.
+      base += Math.sin(phase * Math.PI * 5 + (sign > 0 ? 0 : Math.PI)) * 0.55 * dance;
+      // Волна вдоль тела: живая змейка, а не труба.
+      // Знак обязателен: без него волна у обеих змеек одинаковая и финальная
+      // пара перестаёт быть зеркальной (проверено: отклонение 0.33 рад).
+      base += sign * Math.sin(u * 5.2 - time * 3.1) * (0.06 + 0.16 * dance) * (1 - coil * 0.7);
+      // Финал: спираль. Угол крутится вокруг своего места, а тело уходит внутрь:
+      // u в квадрате — витки сгущаются к хвосту, как у настоящей улитки.
+      var wind = sign * u * u * plan.turns * Math.PI * 2;
+      out.angle = base + wind * coil;
+      // Глубина: выходит из глубины на камеру, в танце покачивается, при
+      // намотке немного отступает — спираль читается объёмной.
+      out.depth = plan.head - along * plan.length * (1 - 0.30 * coil)
+        + sign * Math.sin(phase * Math.PI * 3) * 0.018 * dance;
+      // Внутрь трубы уходим только в спирали: 0 -> insetMax.
+      out.inset = plan.insetMax * coil * (0.35 + 0.65 * u * u);
+      // Выход: в первые доли секунды тело ещё далеко и тонкое — его догоняет свет.
+      if (phase < 0.28) out.inset *= exit0;
     } else {
       out.depth = Math.max(0.05, plan.head - along * plan.length);
       out.angle = Math.sin(along * 7.5 + time * 2.1) * 0.22 * (0.35 + along);
@@ -7220,14 +4175,19 @@
     var spec = WARP_SPACE_ANOMALIES;
     var base = Math.max(6, Math.round(spec.segments * (0.45 + 0.55 * plan.phase)));
     var segments = plan.variant === "gate" ? Math.round(base * 1.5)
-      : plan.variant === "twin" ? Math.round(base * 0.6) : base;
+      : plan.variant === "twin" ? Math.round(base * 0.6)
+        // у танца два тела, но спираль требует плавности — сегментов больше
+        : plan.variant === "dance" ? Math.round(base * 1.0) : base;
     var radius = warpSpaceAnomalyRadius(point, plan.depth);
     var drawn = 0;
     var started = false;
 
     var place = function (k, angleShift) {
-      var part = warpSpaceAnomalyPoint(plan, k, segments, t);
-      var angle = part.angle + (angleShift || 0);
+      // У танца две змейки: angleShift +0 / π и знак ±1 (зеркальные спирали).
+      // У остальных видов знак не влияет — они односторонние.
+      var dir = plan.variant === "dance" ? (angleShift > 0.5 ? -1 : 1) : 1;
+      var part = warpSpaceAnomalyPoint(plan, k, segments, t, dir);
+      var angle = part.angle + (plan.variant === "dance" ? 0 : (angleShift || 0));
       var p = point(part.depth, angle, -part.inset * radius);
       if (!p || !isFinite(p.x) || !isFinite(p.y)) return null;
       return p;
@@ -7239,7 +4199,7 @@
     // Всё тело (у twin — оба куска) в ОДНОМ пути: два штриха на кадр, а не
     // по два на каждую змейку.
     g.beginPath();
-    var bodies = plan.variant === "twin" ? [0, Math.PI] : [0];
+    var bodies = (plan.variant === "twin" || plan.variant === "dance") ? [0, Math.PI] : [0];
     for (var b = 0; b < bodies.length; b += 1) {
       started = false;
       for (var k = 0; k <= segments; k += 1) {
@@ -7778,6 +4738,10 @@
     return r > 1 ? 1 : r;
   }
 
+    // ==========================================================================
+    // БЛОК 06 · ЯДРО ПЕРЕХОДА: сетка и рассыпание между кадрами фона
+    // метка [block:dissolve] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
   function drawSpaceDissolve(g, prevCache, nextCache, k, w, h, cells, cols, rows, quality, intensity, frame, maxDraws) {
     var t = clampUnit(k);
     var eased = t * t * (3 - 2 * t);
@@ -8039,6 +5003,7 @@
         warpSpaceAsteroidSizeOf,
         warpSpaceAsteroidField,
         warpSpaceAsteroidRadius,
+        warpSpaceAsteroidDepthAt,
         drawWarpSpaceAsteroids,
         warpSpaceQuadArea,
         warpSpacePanelVisible,
@@ -8061,6 +5026,9 @@
         rgbaCss
       };
     })();
+
+    // Ядро расчётов одно на страницу: им пользуется и полёт в мосте.
+    window.BCMWarpSpace = warpSpace;
 
     let warpSpaceCache = null;
 
@@ -8260,6 +5228,10 @@
     // ------------------------------------------------- способ смены кадра
     // Приоритет — рассыпание (по указанию владельца). Остальные виды — как
     // двери в первой комнате: каждый переход может открываться по-своему.
+    // ==========================================================================
+    // БЛОК 07 · ПЕРЕХОДЫ: вид перехода и его сила
+    // метка [block:transition] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
     function warpSpaceTransitionNow(randomKind) {
       if (state.warpTransitionAuto) {
         // Случайный ритм уже выбрал вид за нас — главнее «по кругу».
@@ -8303,9 +5275,16 @@
       };
     }
 
+    // ==========================================================================
+    // БЛОК 09 · КОРАБЛЬ СЗАДИ: размер, крен, точка на кольце для попаданий
+    // метка [block:ship] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
     function drawWarpShipLayer(g, x, y, bank, thrust, roll) {
       const frame = warpFrameSize();
       const size = warpSpace.warpSpaceShipSize(frame.w, frame.h) * (Number(state.warpShipScale) || 1);
+      // Точку корабля запоминаем для полёта в мосте: по ней считается
+      // попадание камня (задержка в один кадр, ~16 мс, на глаз не видно).
+      state.warpShipPoint = { x: Number(x) || 0, y: Number(y) || 0, size: size };
       warpSpace.drawWarpShip(g, x, y, size, state.warpShipSpec, bank, thrust,
         state.warpShipSprite || null, roll);
       return size;
@@ -8544,6 +5523,10 @@
 
     // Декоративный фон живёт своим циклом: 3 с переход частицами, 4,5 с пауза.
     // Переход не начинается, если до прибытия он не успеет дорисоваться.
+    // ==========================================================================
+    // БЛОК 08 · ФОНОВЫЕ СЦЕНЫ: обои, пул кадров, ритм 142 BPM
+    // метка [block:backdrop] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
     function drawWarpSpaceBackdrop(g, w, h, t) {
       const remaining = Math.max(0, WARP_DURATION - Number(state.elapsed || 0));
       // Номер кадра нужен рассыпанию: при переполненной сетке оно рисует долю
@@ -8659,6 +5642,10 @@
       const visualClass = activeWarpVisualClass();
       // Профиль нужен до расчёта направления: под «Пульсом» стенка идёт назад.
       const spaceProfile = warpSpaceProfile();
+    // ==========================================================================
+    // БЛОК 11 · ПОЛЁТ, ГЕОМЕТРИЯ КАДРА: труба, завороты, делегирование в мост
+    // метка [block:flight] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
       // Class II reverses visible corridor motion, not just its colour pulse.
       // Course timing and obstacle collision remain on the same forward clock.
       // Профиль с reverseMotion разворачивает ход ещё раз, поэтому два
@@ -8746,103 +5733,48 @@ return axialRoll + ahead * 0.12 +
       // Рисуется до стенки: стенка непрозрачна, значит препятствия не перекрываются.
       drawWarpSpaceBackdrop(g, w, h, t);
 
-      // Build the inside wall from circumferential panels. Seams, panel
-      // highlights, rings, and obstacles all rotate around the tunnel axis.
-      const depthSteps = warpSpaceDepthSteps();
-      // 18 панелей для всех классов: при 12 у класса III сечение читалось
-      // как гранёный «купол» — это и было видно на скриншотах.
-      const panelCount = 18;
-      for (let step = 0; step < depthSteps; step += 1) {
-        const d0 = 0.04 + (step / depthSteps) * 0.96;
-        const d1 = 0.04 + ((step + 1) / depthSteps) * 0.96;
-        for (let panel = 0; panel < panelCount; panel += 1) {
-          const a0 = panel * Math.PI * 2 / panelCount;
-          const a1 = (panel + 1) * Math.PI * 2 / panelCount;
-          const p00 = point(d0, a0, 0);
-          const p01 = point(d0, a1, 0);
-          const p11 = point(d1, a1, 0);
-          const p10 = point(d1, a0, 0);
-          // Субпиксельные панели у точки схода не видны, но каждый fill стоит
-          // вызова. Отсечение ниже порога в 1.6 px² экономит около десятой части
-          // заливок и не меняет картинку заметно.
-          // Субпиксельные панели у точки схода не видны, но каждый fill стоит
-          // вызова. Площадь — полная шнуровка (ядро: warpSpacePanelVisible).
-          // Раньше здесь стоял один член |dx1*dy2|: на 0° и 180° радиальное
-          // ребро горизонтально, произведение обнулялось, и здоровая панель
-          // выбрасывалась — это и были «дыры» в стенке на живом сайте.
-          if (!warpSpace.warpSpacePanelVisible(p00, p01, p10, warpSpaceCullScale())) continue;
-          // Перекрытие на 1 px: у соседних панелей общие рёбра, и любое
-          // сглаживание края давало волосяные щели. Расширяем от центра.
-          const cxq = (p00.x + p01.x) / 2;
-          const cyq = (p00.y + p01.y) / 2;
-          const push = (p) => {
-            const dx = p.x - cxq;
-            const dy = p.y - cyq;
-            const len = Math.sqrt(dx * dx + dy * dy) || 1;
-            return { x: p.x + (dx / len) * 1.0, y: p.y + (dy / len) * 1.0 };
-          };
-          const q00 = push(p00), q01 = push(p01), q11 = push(p11), q10 = push(p10);
-          g.beginPath();
-          g.moveTo(q00.x, q00.y);
-          g.lineTo(q01.x, q01.y);
-          g.lineTo(q11.x, q11.y);
-          g.lineTo(q10.x, q10.y);
-          g.closePath();
-          const shimmer = Math.sin(shimmerTime * 1.35 + panel * 1.72 + step * 0.77 + playerAngle) * 0.5 + 0.5;
-          const light = (((step + Math.floor(shimmerTime * 8) + panel * 3) % 5 + 5) % 5 === 0) ? 1 : 0;
-          // Цвет панели берётся из палитры класса с локальным сдвигом перелива,
-          // поэтому смена A -> B идёт волной вдоль стенки, а не разом.
-          // Цвет панели целиком из палитры (при радуге — из цветового круга).
-          // warpSpacePanelCss сам добавляет модуляцию shimmer/light: в радужном
-          // режиме она идёт по светлоте того же оттенка, чтобы огоньки не
-          // уводили красную стенку в бирюзу.
-          const panelMix = warpSpaceLocalMix(panel / panelCount + step * 0.04);
-          g.fillStyle = warpSpace.warpSpacePanelCss(
-            activeWarpVisualClass(), shimmer, light, panelMix,
-            state.warpRainbow ? (panel / panelCount + step * 0.04) : null
-          );
-          g.fill();
-          // No transverse panel outlines: they read as hoops at speed.
-          // The longitudinal strips below are the sole continuous surface lines.
-        }
-      }
-
-      // Аномалия-«полувраг»: змейка ползёт по трубе вместе с игроком.
-      // Ни на что не влияет — это декор, как и камни. Появляется ~8-й с,
-      // потом на время «выключает существование», чтобы не грузить кадр.
-      if (Number(state.warpAnomalies) > 0) {
-        // Якорь — ближний к середине трубы камень: вид «из середины»
-        // цепляется за него и идёт вместе с препятствиями.
-        let anomalyAnchor = null;
-        if (Number(state.warpAsteroids) > 0) {
-          const rockSlots = warpSpace.warpSpaceAsteroidField(
-            Number(state.warpAsteroidSeed || 0) >>> 0, warpAsteroidDensityNow());
-          let best = 9;
-          for (let ri = 0; ri < rockSlots.length; ri += 1) {
-            const rs = rockSlots[ri];
-            if (!rs || !(rs.depth > 0.22) || !(rs.depth < 0.66)) continue;
-            const dist = Math.abs(rs.depth - 0.45);
-            if (dist < best) { best = dist; anomalyAnchor = { depth: rs.depth, angle: rs.angle }; }
-          }
-        }
-        warpSpace.drawWarpSpaceAnomaly(g, point,
-          Number(state.elapsed || 0) + Number(t || 0) * 0.001,
-          anomalyAnchor, state.warpAnomalyVariant || "auto");
-      }
-      // Астероиды на стенке: настоящие меши, испечённые в спрайты. Рисуются
-      // после панелей (стенка уже залита) и до колец, чтобы кольца и пульс
-      // остались поверх — иначе поле перекрывает ориентиры глубины.
-      if (Number(state.warpAsteroids) > 0) {
-        const fieldDrawn = warpSpace.drawWarpSpaceAsteroids(g, point, maxRadius,
-          Number(state.warpAsteroidSeed || 0) >>> 0,
-          warpAsteroidDensityNow(), warpAsteroidImages(),
-          Number(state.elapsed || 0));
-        // Камень прошёл рядом — короткая вибрация (джойстик/телефон).
-        warpAsteroidHaptic(fieldDrawn && fieldDrawn.near, Number(state.elapsed || 0) * 1000);
+      // ПОЛЁТ ЖИВЁТ В warp-bridge.js (решение владельца): космос, панели
+      // стенки, завороты, камни, аномалия-«полувраг» и вибрация рисуются
+      // оттуда. Здесь остаётся только геометрия кадра и меню/HUD.
+      const bridgeFlight = window.BCMWarpBridge && window.BCMWarpBridge.flight;
+      if (bridgeFlight) {
+        bridgeFlight.configure({
+          visualClass: activeWarpVisualClass(),
+          rainbow: !!state.warpRainbow,
+          lowMode: !!state.warpLowMode,
+          density: warpAsteroidDensityNow(),
+          seed: Number(state.warpAsteroidSeed || 0) >>> 0,
+          anomalies: Number(state.warpAnomalies) > 0 ? 1 : 0,
+          variant: state.warpAnomalyVariant || "auto",
+          haptics: !!state.warpHaptics,
+          // Отсечение панелей — как у варпа: оно зависит от тира качества.
+          cullScale: warpSpaceCullScale()
+        });
+        bridgeFlight.drawArt(g, {
+          point, w, h, maxRadius,
+          elapsed: Number(state.elapsed || 0) + Number(t || 0) * 0.001,
+          shimmerTime, playerAngle,
+          images: warpAsteroidImages(),
+          // Угол камня -> угол кольца: в кадре точка повёрнута на twist(d).
+          // Без этого сравнение с углом корабля смещено на крен трубы.
+          ringAngle: (theta, depth) => theta + courseTwist(depth),
+          // Перелив палитры берём у варпа: у него есть и режим, и время.
+          // Жёсткий mix в мосте делал стенку заметно светлее сайта.
+          mix: warpSpaceLocalMix,
+          // Корабль — чтобы камни могли попасть, а не просто пролететь.
+          ship: state.warpShipPoint || null,
+          t: Number(state.elapsed || 0) * 1000
+        });
+      } else if (window.console && console.warn) {
+        console.warn("deep-space-warp: warp-bridge.js не загружен, панели стенки не рисуются");
       }
 
       // Глубинные кольца и (опционально) расходящийся пульс. Тонкие, одного
       // цвета, без разрывов — чтобы не читались как ворота столкновения.
+    // ==========================================================================
+    // БЛОК 10 · КОЛЬЦА И ИМПУЛЬС: глубинные кольца и расходящийся импульс
+    // метка [block:rings] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
       const seamPalette = warpSpacePalette(0.25);
       warpSpace.drawWarpSpaceRings(g, point, spaceProfile, t, warpSpace.rgbCss(seamPalette.ring));
       warpSpace.drawWarpSpacePulse(g, centerX(0.5), centerY(0.5),
@@ -8981,6 +5913,11 @@ return axialRoll + ahead * 0.12 +
       state.warpShipRollShown = craftRoll;
       const craftSize = drawWarpShipLayer(g, craftPoint.x, craftPoint.y,
         (state.steerBank || 0) * 1.4, craftThrust, craftRoll);
+      // Положение корабля на кольце — вторая половина попадания камня.
+      if (state.warpShipPoint) {
+        state.warpShipPoint.angle = craftRing;
+        state.warpShipPoint.depth = nearDepth;
+      }
       // Кольцо вокруг корабля: видно, что он маленький и летит по стенке,
       // а не «висит» на экране. Тонкое, декоративное, на столкновения не влияет.
       g.save();
@@ -9040,6 +5977,10 @@ return axialRoll + ahead * 0.12 +
       else state.animationRunning = false;
     }
 
+    // ==========================================================================
+    // БЛОК 12 · ПОЛЁТ, ДВИЖЕНИЕ: скорость, тайминг, ввод
+    // метка [block:flightmove] — по ней ищут grep и BCMDeepSpaceWarpBlocks()
+    // ==========================================================================
     function updateTube(dt, now) {
       // Сглаженный замер кадра. Понижение качества — только по устойчивому
       // ряду медленных кадров: один тяжёлый кадр не должен менять вид.
@@ -9128,6 +6069,8 @@ return axialRoll + ahead * 0.12 +
           }
         }
 
+        // QA only (browser probes cannot steer): ?bcm_qa_warp_nodamage=1 lets a jump finish.
+        if (hit && qaNoDamage()) hit = false;
         if (hit) {
           state.shields = Math.max(0, state.shields - 25);
           // Each obstacle is resolved exactly once; repeated hits progressively
@@ -9154,6 +6097,47 @@ return axialRoll + ahead * 0.12 +
         Math.round(playerAngle * 180 / Math.PI) + "°";
       tubeShield.style.width = state.shields + "%";
     }
+
+    window.BCMDeepSpaceWarpShowMap = function () {
+      if (root.classList.contains("bcm-warp-maze-active")) return false;
+      if (state.mode === "tube" || state.mode === "maze") return false;
+      const engine = api();
+      const running = !!(engine && engine.getRuntime && engine.getRuntime().running);
+      if (running && root.classList.contains("game-active")) {
+        openMap();
+        return true;
+      }
+      state.nav = readNavigation();
+      clearWarpDestination();
+      previewedSectorId = "";
+      state.mode = "map";
+      state.target = null;
+      state.openedAt = performance.now();
+      state.elapsed = 0;
+      currentElement.textContent = "CURRENT · " + sectorText(state.nav.current);
+      sourceElement.textContent = state.nav.label;
+      sourceElement.classList.toggle("is-preview", !state.nav.live);
+      footnoteElement.textContent = state.nav.live
+        ? "Имена известных секторов берёт SAGE-адаптер. Сетка не режется до 4 сторон: открыты 8 соседей и следующее кольцо. Сам Warp локальный и не двигает корабль в SAGE."
+        : "ONI CSS, X -40, Y 30. Fable теперь здесь, на ONI CSS (раз в сто лет планеты меняются местами). Пустыня Twinsun — сосед на севере, X -40, Y 31. На карте 8 соседей и следующее кольцо. Warp локальный и не двигает флот в блокчейне.";
+      listSectorTargets();
+      renderSectorGrid();
+      renderGalaxyMap();
+      selectedElement.textContent = "DESTINATION NOT SELECTED";
+      startButton.disabled = true;
+      mapView.hidden = false;
+      tubeView.hidden = true;
+      tubeResult.hidden = true;
+      touchControls.hidden = true;
+      overlay.hidden = false;
+      root.classList.add("bcm-warp-open");
+      launchButton.classList.add("is-active");
+      overlay.style.pointerEvents = "auto";
+      resizeBackdrop();
+      renderGalaxyMap();
+      startBackdropLoop();
+      return true;
+    };
 
     window.BCMDeepSpaceWarpToggle = function () {
       if (state.mode === "closed") {

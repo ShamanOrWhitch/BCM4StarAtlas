@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.8.23
+ * Version: 0.8.24
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -1678,6 +1678,30 @@ function galia_desk_globe_markup($full = false) {
     <script>
       window.GALIA_ASSET = <?php echo wp_json_encode($base); ?>;
       window.GALIA_WP = <?php echo wp_json_encode(array('ajax' => $ajax, 'nonce' => $nonce)); ?>;
+      (function () {
+        function deskMap() {
+          var onMap = location.hash.indexOf("/map") === 0 || location.hash.indexOf("#/map") === 0;
+          if (!onMap) return;
+          var box = document.getElementById("galia-root");
+          if (box) { box.style.minHeight = "0"; box.style.background = "transparent"; }
+          var fallback = document.getElementById("galia-sage-fallback");
+          if (fallback) fallback.style.display = "none";
+          var app = document.getElementById("galia-app");
+          if (app) app.style.display = "none";
+          var sim = document.querySelector(".bcm-mini-sim");
+          if (sim && sim.scrollIntoView) sim.scrollIntoView({ block: "start" });
+          if (window.BCMDeepSpaceWarpShowMap) window.BCMDeepSpaceWarpShowMap();
+        }
+        var tries = 0;
+        var timer = setInterval(function () {
+          tries += 1;
+          if (window.BCMDeepSpaceWarpShowMap || tries > 40) {
+            clearInterval(timer);
+            deskMap();
+          }
+        }, 250);
+        window.addEventListener("hashchange", deskMap);
+      })();
     </script>
     <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.8.23'); ?>"></script>
     <!-- /noptimize -->
