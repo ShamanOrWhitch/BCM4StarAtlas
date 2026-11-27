@@ -26,9 +26,10 @@ export function readDrive() {
   const throttle = keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0;
   const brake = keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0;
   const drift = keys.has("ShiftLeft") || keys.has("ShiftRight") || keys.has("Space");
+  const handbrake = keys.has("KeyZ");
   const use = keys.has("ControlLeft") || keys.has("ControlRight") || keys.has("KeyE");
   const cam = keys.has("KeyV");
-  return { throttle, brake, steer, drift, use, cam };
+  return { throttle, brake, steer, drift, handbrake, use, cam };
 }
 
 let tiltOn = false;

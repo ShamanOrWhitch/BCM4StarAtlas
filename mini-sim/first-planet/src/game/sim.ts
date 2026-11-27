@@ -72,6 +72,7 @@ export type DriveInput = {
   brake: number;
   steer: number;
   drift: boolean;
+  handbrake: boolean;
   use: boolean;
 };
 
@@ -361,6 +362,7 @@ function aiDrive(car: Car, race: Race): DriveInput {
     steer,
     // No drift through the slalom: the slide carries the car past the gate.
     drift: !race.gates.length && Math.abs(err) > 0.5 && car.speed > 20,
+    handbrake: false,
     use,
   };
 }
@@ -390,10 +392,18 @@ function stepCar(car: Car, input: DriveInput, dt: number, race: Race) {
   const speedFactor =
     Math.min(1, Math.max(0.22, sp / 15)) * (1 - Math.min(0.4, Math.max(0, (sp - 34) / 50)));
   const reverse = car.speed >= 0 ? 1 : -1;
-  const wantDrift = input.drift && sp > 9 && Math.abs(input.steer) > 0.15 && !car.finished;
-  car.yaw += input.steer * (wantDrift ? 2.45 : 2.05) * speedFactor * reverse * dt;
+  const handbrake = !!(input.handbrake && sp > 8 && Math.abs(input.steer) > 0.12 && !car.finished);
+  const wantDrift = !handbrake && input.drift && sp > 9 && Math.abs(input.steer) > 0.15 && !car.finished;
+  car.yaw += input.steer * (handbrake ? 3.6 : wantDrift ? 2.45 : 2.05) * speedFactor * reverse * dt;
 
-  if (wantDrift) {
+  if (handbrake) {
+    // A handbrake turns the nose and dumps speed. It does not store a drift boost.
+    car.drifting = false;
+    car.drift = 0;
+    car.lat += input.steer * 26 * dt;
+    car.lat *= Math.exp(-2.2 * dt);
+    car.speed *= Math.exp(-1.8 * dt);
+  } else if (wantDrift) {
     car.drifting = true;
     car.drift = Math.min(1.35, car.drift + dt * (0.7 + Math.abs(input.steer) * 0.8));
     car.lat += input.steer * 18 * dt;
@@ -473,9 +483,10 @@ function stepCar(car: Car, input: DriveInput, dt: number, race: Race) {
     }
   }
 
-  if (sp < 2.5 && !car.finished) car.stuck += dt;
+  if (sp < 2.5 && !car.finished && (car.ai || input.throttle > 0.2)) car.stuck += dt;
   else car.stuck = 0;
   if (car.ai && car.stuck > 3.2) respawnCar(car, track);
+  if (car.you && car.stuck > 2.4) respawnCar(car, track);
   if (car.you && car.wrongT > 1.7) respawnCar(car, track);
 
   const pressed = input.use && !car.useHeld;

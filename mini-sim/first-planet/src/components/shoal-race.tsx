@@ -276,8 +276,8 @@ export function ShoalRace({
           </dl>
           <p className="mt-4 text-sm text-muted">
             Экипаж Kestrel, Brine и Halo. Победа открывает следующий уровень: соперники быстрее
-            {look.kind === "slalom" ? ", ворота уже" : ""}. A влево, D вправо, Shift дрифт
-            {look.items ? ", Ctrl предмет" : ""}.
+            {look.kind === "slalom" ? ", ворота уже" : ""}. A влево, D вправо, Shift дрифт, Z ручник
+            {look.items ? ", Ctrl предмет" : ""}. Если упёрся и держишь газ, машина возвращается на дорогу.
           </p>
         </section>
       ) : null}

@@ -932,8 +932,8 @@
     },
     race: {
       title: "Гонка",
-      buttons: [[7, "KeyW"], [6, "KeyS"], [0, "Space"], [2, "KeyE"], [5, "ShiftLeft"], [3, "KeyV"]],
-      hint: "Стик — руль · RT — газ · LT — тормоз · A — дрифт · X — предмет · Start — пауза"
+      buttons: [[7, "KeyW"], [6, "KeyS"], [0, "Space"], [1, "KeyZ"], [2, "KeyE"], [5, "ShiftLeft"], [3, "KeyV"]],
+      hint: "Стик — руль · RT — газ · LT — тормоз · A — дрифт · B — ручник · X — предмет · Start — пауза"
     }
   };
   const PAD_DEAD = 0.35;
