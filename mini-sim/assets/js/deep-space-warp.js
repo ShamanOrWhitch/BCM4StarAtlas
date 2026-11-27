@@ -6098,6 +6098,47 @@ return axialRoll + ahead * 0.12 +
       tubeShield.style.width = state.shields + "%";
     }
 
+    window.BCMDeepSpaceWarpShowMap = function () {
+      if (root.classList.contains("bcm-warp-maze-active")) return false;
+      if (state.mode === "tube" || state.mode === "maze") return false;
+      const engine = api();
+      const running = !!(engine && engine.getRuntime && engine.getRuntime().running);
+      if (running && root.classList.contains("game-active")) {
+        openMap();
+        return true;
+      }
+      state.nav = readNavigation();
+      clearWarpDestination();
+      previewedSectorId = "";
+      state.mode = "map";
+      state.target = null;
+      state.openedAt = performance.now();
+      state.elapsed = 0;
+      currentElement.textContent = "CURRENT · " + sectorText(state.nav.current);
+      sourceElement.textContent = state.nav.label;
+      sourceElement.classList.toggle("is-preview", !state.nav.live);
+      footnoteElement.textContent = state.nav.live
+        ? "Имена известных секторов берёт SAGE-адаптер. Сетка не режется до 4 сторон: открыты 8 соседей и следующее кольцо. Сам Warp локальный и не двигает корабль в SAGE."
+        : "ONI CSS, X -40, Y 30. Fable теперь здесь, на ONI CSS (раз в сто лет планеты меняются местами). Пустыня Twinsun — сосед на севере, X -40, Y 31. На карте 8 соседей и следующее кольцо. Warp локальный и не двигает флот в блокчейне.";
+      listSectorTargets();
+      renderSectorGrid();
+      renderGalaxyMap();
+      selectedElement.textContent = "DESTINATION NOT SELECTED";
+      startButton.disabled = true;
+      mapView.hidden = false;
+      tubeView.hidden = true;
+      tubeResult.hidden = true;
+      touchControls.hidden = true;
+      overlay.hidden = false;
+      root.classList.add("bcm-warp-open");
+      launchButton.classList.add("is-active");
+      overlay.style.pointerEvents = "auto";
+      resizeBackdrop();
+      renderGalaxyMap();
+      startBackdropLoop();
+      return true;
+    };
+
     window.BCMDeepSpaceWarpToggle = function () {
       if (state.mode === "closed") {
         openMap();

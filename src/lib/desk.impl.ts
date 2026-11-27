@@ -446,27 +446,20 @@ export async function buildMarket(): Promise<MarketSnap> {
     const usdcSide = usdcBook.get(item.mint);
     const polisSide = polisBook.get(item.mint);
 
-    const hasDirectUsdc = usdcSide?.ask != null || usdcSide?.bid != null;
-    const derivedAsk =
-      usdcSide?.ask ??
-      (atlasSide?.ask != null && atlasUsd != null && atlasUsd > 0 ? atlasSide.ask * atlasUsd : null);
-    const derivedBid =
-      usdcSide?.bid ??
-      (atlasSide?.bid != null && atlasUsd != null && atlasUsd > 0 ? atlasSide.bid * atlasUsd : null);
-
+    const hasDirectUsdc = usdcSide?.ask != null;
     const row: ResourceRow = {
       mint: item.mint,
       name: item.name,
       symbol: item.symbol,
       className: item.className,
       image: item.image,
-      ask: derivedAsk ?? atlasSide?.ask ?? polisSide?.ask ?? null,
-      bid: derivedBid ?? atlasSide?.bid ?? polisSide?.bid ?? null,
-      askQty: usdcSide?.askQty ?? atlasSide?.askQty ?? polisSide?.askQty ?? 0,
-      quote: derivedAsk != null || derivedBid != null ? "USDC" : atlasSide?.ask != null || atlasSide?.bid != null ? "ATLAS" : "POLIS",
-      usdcDerived: !hasDirectUsdc && (atlasSide?.ask != null || atlasSide?.bid != null),
-      usdcAsk: derivedAsk,
-      usdcBid: derivedBid,
+      ask: usdcSide?.ask ?? null,
+      bid: usdcSide?.bid ?? null,
+      askQty: usdcSide?.askQty ?? 0,
+      quote: hasDirectUsdc ? "USDC" : atlasSide?.ask != null ? "ATLAS" : polisSide?.ask != null ? "POLIS" : "USDC",
+      usdcDerived: false,
+      usdcAsk: usdcSide?.ask ?? null,
+      usdcBid: usdcSide?.bid ?? null,
       atlasAsk: atlasSide?.ask ?? null,
       atlasBid: atlasSide?.bid ?? null,
       polisAsk: polisSide?.ask ?? null,
@@ -542,7 +535,7 @@ export async function buildMarket(): Promise<MarketSnap> {
     tape: pushTape([...resources, ...ships]),
     floors: { ...floors },
     note:
-      "Рынок читается сервером. Ресурсы и корабли сначала ищутся в USDC; если прямого USDC-ордера нет, цена ATLAS переводится в USDC по текущему курсу ATLAS/USDC. Отдельно сохраняются стаканы ATLAS и POLIS. Графики: ATLAS/USDC, POLIS/USDC и POLIS/ATLAS.",
+      "Рынок читается сервером. Продажа — лучшая лимитка продавца в своём стакане: USDC и ATLAS не смешиваются и не пересчитываются друг в друга. Ставка покупателя ценой не считается. Графики пар по умолчанию дневные; стол сам запрашивает 15м, 1ч, 4ч, 1д, 1н и 1м.",
   };
 
   const hasUsefulMarketData =

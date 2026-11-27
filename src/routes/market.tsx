@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppChrome } from "@/components/app-chrome";
 import { loadMarket, watchLiveBooks, type Candle, type MarketSnap, type ResourceRow, type TapePoint } from "@/lib/desk";
+import { fetchKrakenCandles } from "@/lib/desk-direct";
+import { bidPrice, bucketByMonth, CHART_PERIODS, fmtUsd, marketHref, ratioCandles, usdcSegment, type ChartPeriodId, type QuoteId } from "@/lib/market-price";
 import { deltaPct, recordTape, rememberFloors } from "@/lib/price-tape";
 
 export const Route = createFileRoute("/market")({ component: MarketPage });
@@ -25,16 +27,11 @@ const FILTERS = [
   { id: "contracts", label: "контракты" },
 ];
 
-const PERIODS = [
-  { id: "15m", label: "15м", ms: 15 * 60 * 1000 },
-  { id: "4h", label: "4ч", ms: 4 * 60 * 60 * 1000 },
-  { id: "1d", label: "1д", ms: 24 * 60 * 60 * 1000 },
-  { id: "1w", label: "1н", ms: 7 * 24 * 60 * 60 * 1000 },
-  { id: "1y", label: "1г", ms: 365 * 24 * 60 * 60 * 1000 },
-  { id: "all", label: "всё", ms: Number.POSITIVE_INFINITY },
-] as const;
+type PeriodId = ChartPeriodId;
 
-type PeriodId = (typeof PERIODS)[number]["id"];
+function periodOf(id: PeriodId) {
+  return CHART_PERIODS.find((item) => item.id === id) ?? CHART_PERIODS[3];
+}
 
 function stampMs(t: number): number {
   return t > 0 && t < 1e12 ? t * 1000 : t;
@@ -51,14 +48,13 @@ function mergeTape(server: TapePoint[], local: TapePoint[]): TapePoint[] {
 }
 
 function anchorAsks(tape: TapePoint[], floors: Record<string, number>, period: PeriodId): Record<string, number> {
-  if (period === "all") return floors;
-  const span = PERIODS.find((item) => item.id === period)?.ms ?? 0;
+  const span = periodOf(period).ms;
   const cutoff = Date.now() - span;
   let hit: Record<string, number> | undefined;
   for (const point of tape) {
     if (stampMs(point.t) <= cutoff) hit = point.asks;
   }
-  return hit ?? {};
+  return hit ?? floors;
 }
 
 function fmtAtlas(n: number | null): string {
@@ -67,27 +63,25 @@ function fmtAtlas(n: number | null): string {
   return n.toLocaleString("ru-RU", { maximumFractionDigits: 6 });
 }
 
-function priced(row: ResourceRow, quote: "USDC" | "ATLAS" | "POLIS"): ResourceRow {
-  const pack = (ask: number | null | undefined, bid: number | null | undefined, unit: "USDC" | "ATLAS" | "POLIS") => ({
-    ...row,
-    ask: ask ?? null,
-    bid: bid ?? null,
-    quote: unit,
-  });
-  if (quote === "ATLAS") return pack(row.atlasAsk, row.atlasBid, "ATLAS");
-  if (quote === "POLIS") return pack(row.polisAsk, row.polisBid, "POLIS");
-  if (row.usdcAsk != null || row.usdcBid != null) return pack(row.usdcAsk, row.usdcBid, "USDC");
-  return pack(row.usdcAsk, row.usdcBid, "USDC");
-}
-function money(row: ResourceRow): string {
-  const n = row.ask ?? row.bid;
-  const unit = row.quote === "POLIS" ? "POLIS" : row.quote === "ATLAS" ? "ATLAS" : "USDC";
-  return `${fmtAtlas(n)} ${unit}`;
+function atlasRate(data: MarketSnap | null): number | null {
+  return data?.pairQuotes?.atlasUsdc ?? data?.atlas?.usd ?? null;
 }
 
-function fmtUsd(n: number | null): string {
-  if (n == null) return "—";
-  return `$${n.toLocaleString("en-US", { maximumFractionDigits: 6 })}`;
+function segmentBid(row: ResourceRow, atlasUsd: number | null): number | null {
+  const segment = usdcSegment(row, atlasUsd);
+  if (segment.book === "USDC") return bidPrice(row, "USDC");
+  if (segment.book === "ATLAS") {
+    const bid = bidPrice(row, "ATLAS");
+    return bid != null && atlasUsd != null && atlasUsd > 0 ? bid * atlasUsd : null;
+  }
+  return null;
+}
+
+function fmtSpot(n: number | null): string {
+  if (n == null || !(n > 0)) return "—";
+  if (n >= 0.01) return fmtUsd(n);
+  const digits = Math.min(8, Math.ceil(-Math.log10(n)) + 2);
+  return `$${n.toLocaleString("en-US", { maximumFractionDigits: digits })}`;
 }
 
 function fmtCompact(n: number | null): string {
@@ -111,8 +105,16 @@ export function MarketPage() {
   const [floors, setFloors] = useState<Record<string, number>>({});
   const [resourceMint, setResourceMint] = useState("");
   const [bookMint, setBookMint] = useState("");
-  const [quote, setQuote] = useState<"USDC" | "ATLAS" | "POLIS">("USDC");
-  const [period, setPeriod] = useState<PeriodId>("1w");
+  const [quote, setQuote] = useState<QuoteId>("USDC");
+  const [period, setPeriod] = useState<PeriodId>("1d");
+  const [charts, setCharts] = useState<{
+    atlas: Candle[];
+    polis: Candle[];
+    solPolis: Candle[];
+    atlasSol: Candle[];
+    polisAtlas: Candle[];
+  } | null>(null);
+  const [chartNote, setChartNote] = useState("");
 
   async function pull(_force: boolean) {
     setLoading(true);
@@ -122,7 +124,7 @@ export function MarketPage() {
       setSnap(data);
       const asks: Record<string, number> = {};
       for (const row of [...data.resources, ...data.ships]) {
-        const price = row.usdcAsk ?? row.ask;
+        const price = usdcSegment(row, atlasRate(data)).usd;
         if (price != null) asks[row.mint] = price;
       }
       setTape(mergeTape(data.tape ?? [], recordTape(asks, data.atlas.usd)));
@@ -148,7 +150,7 @@ export function MarketPage() {
         setSnap(data);
         const asks: Record<string, number> = {};
         for (const row of [...data.resources, ...data.ships]) {
-          const price = row.usdcAsk ?? row.ask;
+          const price = usdcSegment(row, atlasRate(data)).usd;
           if (price != null) asks[row.mint] = price;
         }
         setTape(recordTape(asks, data.atlas.usd));
@@ -188,6 +190,44 @@ export function MarketPage() {
     };
   }, []);
 
+  useEffect(() => {
+    const spec = periodOf(period);
+    let stop = false;
+    setChartNote("");
+    void (async () => {
+      try {
+        const [atlasRaw, polisRaw, solRaw] = await Promise.all([
+          fetchKrakenCandles("ATLASUSD", spec.kraken),
+          fetchKrakenCandles("POLISUSD", spec.kraken),
+          fetchKrakenCandles("SOLUSD", spec.kraken),
+        ]);
+        if (stop) return;
+        const atlas = spec.id === "1mo" ? bucketByMonth(atlasRaw) : atlasRaw;
+        const polis = spec.id === "1mo" ? bucketByMonth(polisRaw) : polisRaw;
+        const sol = spec.id === "1mo" ? bucketByMonth(solRaw) : solRaw;
+        if (atlas.length < 2 && polis.length < 2) {
+          setCharts(null);
+          setChartNote(`Свечи ${spec.label} не пришли. График этого срока не подменяется дневным.`);
+          return;
+        }
+        setCharts({
+          atlas,
+          polis,
+          solPolis: ratioCandles(polis, sol, spec.bucketMs),
+          atlasSol: ratioCandles(sol, atlas, spec.bucketMs),
+          polisAtlas: ratioCandles(polis, atlas, spec.bucketMs),
+        });
+      } catch (err) {
+        if (stop) return;
+        setCharts(null);
+        setChartNote(err instanceof Error ? err.message : `Свечи ${spec.label} не открылись`);
+      }
+    })();
+    return () => {
+      stop = true;
+    };
+  }, [period]);
+
   const previous = tape.length >= 2 ? tape[tape.length - 2] : undefined;
   const rows = useMemo(() => {
     if (!snap) return [];
@@ -198,8 +238,15 @@ export function MarketPage() {
       return row.name.toLowerCase().includes(q) || row.symbol.toLowerCase().includes(q);
     });
   }, [snap, filter, query]);
-  const viewRows = useMemo(() => rows.map((row) => priced(row, quote)), [rows, quote]);
-  const viewShips = useMemo(() => (snap?.ships ?? []).map((row) => priced(row, quote)), [snap, quote]);
+  const rate = atlasRate(snap);
+  const viewRows = useMemo(() => rows.map((row) => {
+    const segment = usdcSegment(row, rate);
+    return { ...row, ask: segment.usd, book: segment.book };
+  }), [rows, rate]);
+  const viewShips = useMemo(() => (snap?.ships ?? []).map((row) => {
+    const segment = usdcSegment(row, rate);
+    return { ...row, ask: segment.usd, book: segment.book };
+  }), [snap, rate]);
   const anchor = useMemo(() => anchorAsks(tape, floors, period), [tape, floors, period]);
 
   return (
@@ -207,7 +254,7 @@ export function MarketPage() {
       <div className="h-full overflow-y-auto">
         <div className="mx-auto flex max-w-5xl flex-col gap-4 px-3 py-4 md:px-6">
           <div className="flex flex-wrap items-center gap-2">
-            {PERIODS.map((item) => (
+            {CHART_PERIODS.map((item) => (
               <button
                 key={item.id}
                 type="button"
@@ -226,30 +273,34 @@ export function MarketPage() {
               Биржа Star Atlas
             </a>
           </div>
+          <p className="text-sm text-muted">
+            Кнопки срока меняют все свечи ниже. Цена везде в USDC: если в стакане USDC есть продавец — это его лимитка. Если продавцов в USDC нет — лучшая продажа в ATLAS умножается на курс ATLAS/USDC. Ставка покупателя ценой не является. Пузырь открывает тот стакан, откуда взята цена.
+          </p>
+          {chartNote ? <p className="text-sm text-danger">{chartNote}</p> : null}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <PairCard name="ATLAS / USD" value={snap?.pairQuotes?.atlasUsdc ?? snap?.atlas?.usd ?? null} unit="USD" />
             <PairCard name="POLIS / USD" value={snap?.pairQuotes?.polisUsdc ?? snap?.polis?.usd ?? null} unit="USD" />
             <PairCard name="SOL за 1 POLIS" value={snap?.pairQuotes?.solPerPolis ?? null} unit="SOL" />
             <PairCard name="ATLAS за 1 SOL" value={snap?.pairQuotes?.atlasPerSol ?? null} unit="ATLAS" />
           </div>
-          <CandleChart title="ATLAS / USD" candles={snap?.candles ?? []} />
-          <CandleChart title="POLIS / USD" candles={snap?.polisUsdcCandles ?? []} />
-          <CandleChart title="SOL за 1 POLIS" candles={snap?.solPolisCandles ?? []} />
-          <CandleChart title="ATLAS за 1 SOL" candles={snap?.solAtlasCandles ?? []} />
-          <CandleChart title="ATLAS за 1 POLIS" candles={snap?.pairCandles ?? []} />
+          <CandleChart title="ATLAS / USD" spanLabel={periodOf(period).label} candles={charts?.atlas ?? []} />
+          <CandleChart title="POLIS / USD" spanLabel={periodOf(period).label} candles={charts?.polis ?? []} />
+          <CandleChart title="SOL за 1 POLIS" spanLabel={periodOf(period).label} candles={charts?.solPolis ?? []} />
+          <CandleChart title="ATLAS за 1 SOL" spanLabel={periodOf(period).label} candles={charts?.atlasSol ?? []} />
+          <CandleChart title="ATLAS за 1 POLIS" spanLabel={periodOf(period).label} candles={charts?.polisAtlas ?? []} />
           <BubbleField
             title="Ресурсы"
             rows={viewRows}
             anchor={anchor}
             floors={floors}
-            versus={period === "all" ? "floor" : "tape"}
+            versus="tape"
           />
           <BubbleField
             title="Корабли"
             rows={viewShips}
             anchor={anchor}
             floors={floors}
-            versus={period === "all" ? "floor" : "tape"}
+            versus="tape"
           />
 
           <div className="flex flex-wrap items-center gap-2">
@@ -297,8 +348,9 @@ export function MarketPage() {
                 <tr>
                   <th className="px-3 py-2 font-medium">Ресурс</th>
                   <th className="px-3 py-2 font-medium">Класс</th>
-                  <th className="px-3 py-2 font-medium">Продажа, {quote}</th>
-                  <th className="px-3 py-2 font-medium">Покупка, {quote}</th>
+                  <th className="px-3 py-2 font-medium">Продажа, USDC</th>
+                  <th className="px-3 py-2 font-medium">Откуда</th>
+                  <th className="px-3 py-2 font-medium">Ставка, USDC</th>
                   <th className="px-3 py-2 font-medium">Δ</th>
                 </tr>
               </thead>
@@ -309,15 +361,19 @@ export function MarketPage() {
                   return (
                     <tr key={row.mint} className="border-t border-line">
                       <td className="px-3 py-2">
-                        <button type="button" className="text-left text-fg" onClick={() => setBookMint(open ? "" : row.mint)}>
+                        <a className="text-fg underline decoration-white/20" href={marketHref(row.mint, row.book)} target="_blank" rel="noreferrer">
                           {row.name}
+                        </a>
+                        <button type="button" className="ml-2 text-faint underline" onClick={() => setBookMint(open ? "" : row.mint)}>
+                          уровни
                         </button>
                         <span className="ml-2 font-mono text-faint">{row.symbol}</span>
-                        {open ? <BookPeek row={row} quote={quote} /> : null}
+                        {open ? <BookPeek row={row} quote={row.book ?? quote} /> : null}
                       </td>
                       <td className="px-3 py-2 text-muted">{CLASS_LABEL[row.className] ?? row.className}</td>
-                      <td className="px-3 py-2 font-mono text-fg">{fmtAtlas(row.ask)}</td>
-                      <td className="px-3 py-2 font-mono text-muted">{fmtAtlas(row.bid)}</td>
+                      <td className="px-3 py-2 font-mono text-fg">{fmtUsd(row.ask)}</td>
+                      <td className="px-3 py-2 text-muted">{row.book === "ATLAS" ? "стакан ATLAS × курс" : row.book === "USDC" ? "стакан USDC" : "нет продажи"}</td>
+                      <td className="px-3 py-2 font-mono text-muted">{fmtUsd(segmentBid(row, rate))}</td>
                       <td className={`px-3 py-2 font-mono ${d == null ? "text-faint" : d > 0 ? "text-danger" : "text-ok"}`}>
                         {fmtPct(d)}
                       </td>
@@ -379,7 +435,7 @@ function FloorLift({ rows, floors }: { rows: ResourceRow[]; floors: Record<strin
               <span>
                 <span className="text-ok">от пола {fmtPct(lift)}</span>
                 <span className="text-danger"> · MSRP {fmtPct(discount)}</span>
-                <span className="text-muted"> · пол {fmtAtlas(floors[row.mint] ?? null)}</span>
+                <span className="text-muted"> · пол {fmtUsd(floors[row.mint] ?? null)}</span>
               </span>
             </p>
           ))}
@@ -414,7 +470,7 @@ function SmallHullCheck({ rows, floors }: { rows: ResourceRow[]; floors: Record<
               {row.className} · {row.name}
             </span>
             <span>
-              <span className={lift != null && lift >= 8 ? "text-ok" : "text-faint"}>{fmtAtlas(row.usdcAsk ?? null)} · пол {fmtPct(lift)}</span>
+              <span className={lift != null && lift >= 8 ? "text-ok" : "text-faint"}>{fmtUsd(row.usdcAsk ?? null)} · пол {fmtPct(lift)}</span>
               <span className={discount != null && discount < 0 ? "text-danger" : "text-ok"}> · MSRP {fmtPct(discount)}</span>
             </span>
           </p>
@@ -432,7 +488,7 @@ function BubbleField({
   versus = "tape",
 }: {
   title: string;
-  rows: ResourceRow[];
+  rows: Array<ResourceRow & { book?: "USDC" | "ATLAS" | null }>;
   anchor: Record<string, number>;
   floors?: Record<string, number>;
   versus?: "tape" | "floor";
@@ -450,28 +506,35 @@ function BubbleField({
       <div className="flex flex-wrap items-end gap-3">
         {shown.map((row) => {
           const base = versus === "floor" ? (anchor[row.mint] ?? floors[row.mint]) : anchor[row.mint];
-          const ask = row.usdcAsk ?? row.ask;
+          const ask = row.ask;
           const change = deltaPct(ask, base);
           const weight = row.ask && row.ask > 0 ? row.ask : max * 0.15;
           const size = 108 + Math.sqrt(weight / max) * 56;
           const up = change != null && change >= 0;
           const ring = change == null ? "rgba(232,238,242,0.45)" : up ? "#3dba7a" : "#e15b4a";
           return (
-            <div
+            <a
               key={row.mint}
+              href={marketHref(row.mint, row.book ?? null)}
+              target="_blank"
+              rel="noreferrer"
               className="relative shrink-0 overflow-hidden rounded-full border-[3px] bg-[#121820]"
               style={{ width: size, height: size, borderColor: ring }}
-              title={row.name}
+              title={`${row.name} · ${row.book === "ATLAS" ? "стакан ATLAS, цена в USDC" : "стакан USDC"}`}
             >
               {row.image ? <img src={row.image} alt="" className="absolute inset-0 h-full w-full object-cover" /> : null}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-black/10" />
               <div className="absolute inset-x-1 bottom-2 z-10 text-center text-white">
                 <p className="font-mono text-sm font-semibold leading-none" style={{ color: ring }}>
-                  {change == null ? money(row) : fmtPct(change)}
+                  {row.ask == null ? "—" : fmtUsd(row.ask)}
                 </p>
                 <p className="mt-1 line-clamp-2 font-display text-[11px] leading-tight">{row.name}</p>
+                <p className="font-mono text-[10px] leading-none text-white/70">
+                  {row.book === "ATLAS" ? "из ATLAS" : row.book === "USDC" ? "USDC" : ""}
+                  {change == null ? "" : ` ${fmtPct(change)}`}
+                </p>
               </div>
-            </div>
+            </a>
           );
         })}
       </div>
@@ -499,7 +562,7 @@ function ResourceTape({
   return (
     <section className="rounded-xl border border-line bg-surface p-3">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-display text-sm tracking-[0.16em] text-brass uppercase">График ресурса · ATLAS</h2>
+        <h2 className="font-display text-sm tracking-[0.16em] text-brass uppercase">График ресурса · USDC</h2>
         <select
           value={picked}
           onChange={(event) => onMint(event.target.value)}
@@ -545,14 +608,14 @@ function TapeLine({ name, points }: { name: string; points: { t: number; v: numb
   return (
     <figure>
       <figcaption className="mb-1 font-mono text-xs text-muted">
-        {name} {fmtAtlas(last)} ATLAS · {fmtPct(move)}
+        {name} {fmtUsd(last)} · {fmtPct(move)}
       </figcaption>
       <svg viewBox={`0 0 ${w} ${h}`} className="h-32 w-full">
         <text x={w - 4} y="14" textAnchor="end" fill="#8b96a3" fontSize="12">
-          {fmtAtlas(max)}
+          {fmtUsd(max)}
         </text>
         <text x={w - 4} y={h - 4} textAnchor="end" fill="#8b96a3" fontSize="12">
-          {fmtAtlas(min)}
+          {fmtUsd(min)}
         </text>
         <path d={d} fill="none" stroke="#c4a35a" strokeWidth="2" />
       </svg>
@@ -560,28 +623,27 @@ function TapeLine({ name, points }: { name: string; points: { t: number; v: numb
   );
 }
 
-function BookPeek({ row, quote }: { row: ResourceRow; quote: "USDC" | "ATLAS" | "POLIS" }) {
-  const asks = quote === "ATLAS" ? row.atlasAsks : quote === "POLIS" ? [] : row.usdcAsks?.length ? row.usdcAsks : row.atlasAsks;
-  const bids = quote === "ATLAS" ? row.atlasBids : quote === "POLIS" ? [] : row.usdcBids?.length ? row.usdcBids : row.atlasBids;
-  const unit = asks?.length ? (quote === "USDC" && row.usdcAsks?.length ? "USDC" : "ATLAS") : quote;
+function BookPeek({ row, quote }: { row: ResourceRow; quote: QuoteId }) {
+  const asks = quote === "ATLAS" ? row.atlasAsks : quote === "POLIS" ? [] : row.usdcAsks;
+  const bids = quote === "ATLAS" ? row.atlasBids : quote === "POLIS" ? [] : row.usdcBids;
   if (!asks?.length && !bids?.length) {
-    return <p className="mt-1 text-xs text-muted">Стакан в {quote} пуст. Если цена есть только в другой валюте — переключи ползунок сверху.</p>;
+    return <p className="mt-1 text-xs text-muted">В стакане {quote} нет лимиток. Другой стакан сюда не подставляется.</p>;
   }
   return (
     <div className="mt-2 grid grid-cols-2 gap-3 text-xs">
       <div>
-        <p className="text-danger">продавцы · {unit}</p>
+        <p className="text-danger">продавцы · {quote}</p>
         {(asks ?? []).map((level) => (
           <p key={`a-${level.price}`} className="font-mono">
-            {fmtAtlas(level.price)} ×{level.qty}
+            {quote === "USDC" ? fmtUsd(level.price) : fmtAtlas(level.price)} ×{level.qty}
           </p>
         ))}
       </div>
       <div>
-        <p className="text-ok">покупатели · {unit}</p>
+        <p className="text-ok">ставки · {quote}</p>
         {(bids ?? []).map((level) => (
           <p key={`b-${level.price}`} className="font-mono">
-            {fmtAtlas(level.price)} ×{level.qty}
+            {quote === "USDC" ? fmtUsd(level.price) : fmtAtlas(level.price)} ×{level.qty}
           </p>
         ))}
       </div>
@@ -589,10 +651,10 @@ function BookPeek({ row, quote }: { row: ResourceRow; quote: "USDC" | "ATLAS" | 
   );
 }
 
-function CandleChart({ title, candles }: { title: string; candles: Candle[] }) {
+function CandleChart({ title, spanLabel, candles }: { title: string; spanLabel: string; candles: Candle[] }) {
   const [hover, setHover] = useState<{ x: number; y: number; index: number; price: number } | null>(null);
 
-  if (candles.length < 2) return <p className="text-sm text-muted">{title}: свечи ещё не пришли.</p>;
+  if (candles.length < 2) return <p className="text-sm text-muted">{title} · {spanLabel}: свечи ещё не пришли.</p>;
   const w = 720;
   const h = 260;
   const pad = 28;
@@ -608,7 +670,13 @@ function CandleChart({ title, candles }: { title: string; candles: Candle[] }) {
   const move = first && first.o ? ((last.c - first.o) / first.o) * 100 : null;
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((step) => min + span * step);
   const fmtTick = (n: number) => (n >= 100 ? n.toFixed(2) : n >= 1 ? n.toFixed(2) : n.toFixed(6));
-  const dateOf = (t: number) => new Date(t > 1e12 ? t : t * 1000).toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
+  const dateOf = (t: number) => {
+    const when = new Date(t > 1e12 ? t : t * 1000);
+    if (spanLabel === "15м" || spanLabel === "1ч" || spanLabel === "4ч") {
+      return when.toLocaleString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+    }
+    return when.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
+  };
   const marks = candles.filter((_, index) => index % Math.ceil(candles.length / 5) === 0 || index === candles.length - 1);
 
   function onMove(event: MouseEvent<SVGSVGElement>) {
@@ -626,7 +694,7 @@ function CandleChart({ title, candles }: { title: string; candles: Candle[] }) {
   return (
     <figure className="rounded-xl border border-line bg-surface p-3">
       <figcaption className="mb-2 flex flex-wrap items-baseline justify-between gap-3">
-        <span className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{title} · 1д</span>
+        <span className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{title} · {spanLabel}</span>
         <span className="font-mono text-lg text-fg">сейчас {fmtTick(last.c)}</span>
         <span className="font-mono text-xs text-muted">
           мин {fmtTick(min)} · среднее {fmtTick(candles.reduce((sum, candle) => sum + candle.c, 0) / candles.length)} · макс {fmtTick(max)}
@@ -704,7 +772,7 @@ function TokenCard({ name, quote }: { name: string; quote?: MarketSnap["atlas"] 
   return (
     <article className="rounded-xl border border-line bg-surface p-3">
       <p className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{name}</p>
-      <p className="mt-1 font-mono text-2xl text-fg">{fmtUsd(quote?.usd ?? null)}</p>
+      <p className="mt-1 font-mono text-2xl text-fg">{fmtSpot(quote?.usd ?? null)}</p>
       <p className="text-sm text-muted">
         24ч {fmtPct(quote?.change24h ?? null)} · в обороте {fmtCompact(quote?.circulating ?? null)}
       </p>

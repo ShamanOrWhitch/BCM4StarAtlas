@@ -57,11 +57,15 @@ function Shell() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
   if (tab === "map") return <MapTab />;
+  if (typeof document !== "undefined") {
+    const fallback = document.getElementById("galia-sage-fallback");
+    if (fallback) fallback.style.display = "none";
+  }
   if (tab === "ships") return <ShipsPage />;
   if (tab === "market") return <MarketPage />;
   if (tab === "wallet") return <WalletPage />;
   return <CrewBay />;
 }
 
-const root = document.getElementById("galia-root");
+const root = document.getElementById("galia-app") || document.getElementById("galia-root");
 if (root) createRoot(root).render(<Shell />);

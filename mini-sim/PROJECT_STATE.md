@@ -1,3 +1,11 @@
+## Patch — Desk map uses the 0.16.41 Warp map; work stays on main (27 November 2026)
+
+- Mini-Sim remains **0.16.41**. The desk fixes are on `main`, not on a branch frozen at 0.15.10.
+- `#/map` hides the empty desk panel and calls `BCMDeepSpaceWarpShowMap` in `deep-space-warp.js`.
+- Live site after this push is not confirmed. Upload `galia-desk.php` and `deep-space-warp.js` from `main`, then clear the Autoptimize cache.
+
+---
+
 ## Hotfix — Tower 0.2.91: общая мёртвая зона геймпада (24 ноября 2026)
 
 - **WORK LOCK:** [#170](https://github.com/ShamanOrWhitch/BCM4StarAtlas/issues/170). **Decision:** D-105.
