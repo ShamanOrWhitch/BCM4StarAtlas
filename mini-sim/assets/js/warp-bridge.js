@@ -87,7 +87,10 @@
     flow: 0.115,         // скорость потока камней (долей глубины в секунду)
     panels: 18,          // панелей по окружности
     depthSteps: 23,      // колец по глубине
-    cullScale: 1.6       // порог отсечения субпиксельных панелей
+    cullScale: 1.6,      // порог отсечения субпиксельных панелей
+    // Ревизия 36: сколько оборотов цвета делать ПО КРУГУ сечения. 1 — волна
+    // обходит кольцо один раз (мягкий перелив), 2 — полосы вдвое чаще.
+    colorTurns: 1
   });
 
   var flightState = {};
@@ -127,6 +130,9 @@
       } else if (key === "cullScale") {
         var s = Number(opts[key]);
         flightState.cullScale = isFinite(s) && s > 0 ? s : FLIGHT_DEFAULTS.cullScale;
+      } else if (key === "colorTurns") {
+        var turns = Number(opts.colorTurns);
+        flightState.colorTurns = isFinite(turns) ? Math.max(0, Math.min(4, turns)) : FLIGHT_DEFAULTS.colorTurns;
       } else if (key === "flow") {
         var f = Number(opts.flow);
         flightState.flow = isFinite(f) && f >= 0 ? Math.min(1, f) : FLIGHT_DEFAULTS.flow;
@@ -281,9 +287,7 @@
    * Дешево: два штриха и один прямоугольник. */
   function drawImpactFlash(g, w, h, nowMs) {
     if (!(nowMs < impactState.flashUntil) || !impactState.last) return 0;
-    // Never more than one flash long: a stale flash must not grow the ring
-    // below zero (arc() would throw and take the ship with it).
-    var left = Math.min(1, (impactState.flashUntil - nowMs) / 240);
+    var left = (impactState.flashUntil - nowMs) / 240;
     if (!(left > 0)) return 0;
     var hit = impactState.last;
     g.save();
@@ -322,14 +326,6 @@
     var playerAngle = Number(o.playerAngle) || 0;
     var rainbow = flightState.rainbow;
     var nowMs = Number(o.t) || 0;
-    // A new jump restarts the tube clock at zero. Hits of the previous jump
-    // (flash, cooldown) belong to the old clock: drop them, or the first
-    // seconds of the next jump draw a flash with a negative radius and the
-    // ship is never drawn (owner, live 0.15.22: "на второй прыжок игра не
-    // показывает кораблик").
-    if (lastDrawAt >= 0 && nowMs < lastDrawAt - 500) {
-      impactState.last = null; impactState.lastAt = -1e9; impactState.flashUntil = -1e9;
-    }
     // Шаг кадра в секундах: по нему ядро ловит момент касания (пересечение
     // глубины корабля), а не «попал в широкое окно».
     var frameDt = lastDrawAt < 0 ? 1 / 60 : (nowMs - lastDrawAt) / 1000;
@@ -380,12 +376,21 @@
           return { x: p.x + (dx / len), y: p.y + (dy / len) };
         };
         var q00 = push(p00), q01 = push(p01), q11 = push(p11), q10 = push(p10);
-        var shimmer = Math.sin(shimmerTime * 1.35 + panel * 1.72 + step * 0.77 + playerAngle) * 0.5 + 0.5;
+        // Ревизия 36: «поменьше мерцал». Тот же темп 0.14.0, но волна мягче
+        // (амплитуда 0.42 вместо 0.5) и без «ступеньки» в огоньках ниже.
+        var shimmer = Math.sin(shimmerTime * 1.05 + panel * 1.72 + step * 0.77 + playerAngle) * 0.42 + 0.5;
         // Огоньки-подсветки: шаг 8 раз в секунду. На слабом режиме — вдвое реже,
         // чтобы не мигало и не стоило лишних вычислений.
-        var tick = flightState.lowMode ? 4 : 8;
-        var light = (((step + Math.floor(shimmerTime * tick) + panel * 3) % 5 + 5) % 5 === 0) ? 1 : 0;
-        var phase = panel / panelCount + step * 0.04;
+        // Огоньки больше не мигают ступенькой раз в 1/8 с: волна по кругу,
+        // плавная, на слабом режиме — тише. Мерцание ушло, движение света осталось.
+        var lightWave = Math.sin(shimmerTime * 1.25 + panel * (Math.PI * 4 / panelCount) + step * 0.52);
+        var light = lightWave > 0.72 ? (lightWave - 0.72) / 0.28 : 0;
+        if (flightState.lowMode) light *= 0.6;
+        // Фаза цвета непрерывна: colorTurns оборотов ПО КРУГУ сечения плюс
+        // медленный ход вдоль трубы. Раньше зависела только от номера панели,
+        // поэтому кольцо перекрашивалось целиком, а не переливалось.
+        var turns = isFinite(flightState.colorTurns) ? flightState.colorTurns : 1;
+        var phase = panel / panelCount * turns + shimmerTime * 0.055 + step * 0.012;
         g.beginPath();
         g.moveTo(q00.x, q00.y);
         g.lineTo(q01.x, q01.y);

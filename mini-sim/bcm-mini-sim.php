@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.16.45
+ * Version: 0.15.25
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.16.45');
+define('BCM_MINI_SIM_VERSION', '0.15.25');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -832,11 +832,7 @@ function bcm_mini_sim_enqueue_assets()
 
     wp_enqueue_style('bcm-mini-sim', BCM_MINI_SIM_URL . 'assets/css/mini-sim.css', array(), BCM_MINI_SIM_VERSION);
     wp_enqueue_script('bcm-crew-wallet', BCM_MINI_SIM_URL . 'assets/js/crew-wallet.js', array(), BCM_MINI_SIM_VERSION, false);
-    // Space traffic around ONI CSS (owner 23.11.2026, WORK LOCK #144): local simulation; read by mini-sim.js.
-    wp_enqueue_script('bcm-fleet-motion', BCM_MINI_SIM_URL . 'assets/js/fleet-motion.js', array(), BCM_MINI_SIM_VERSION, false);
-    wp_enqueue_script('bcm-star-base', BCM_MINI_SIM_URL . 'assets/js/star-base.js', array(), BCM_MINI_SIM_VERSION, false);
-    wp_enqueue_script('bcm-sector-look', BCM_MINI_SIM_URL . 'assets/js/sector-look.js', array('bcm-star-base'), BCM_MINI_SIM_VERSION, false);
-    wp_enqueue_script('bcm-mini-sim', BCM_MINI_SIM_URL . 'assets/js/mini-sim.js', array('bcm-crew-wallet', 'bcm-room0-race', 'bcm-fleet-motion', 'bcm-sector-look'), BCM_MINI_SIM_VERSION, false);
+    wp_enqueue_script('bcm-mini-sim', BCM_MINI_SIM_URL . 'assets/js/mini-sim.js', array('bcm-crew-wallet'), BCM_MINI_SIM_VERSION, false);
     // Lightweight Warp arcade layer uses the existing r128 scene; it creates no second renderer.
     // Pure walking rig (pose math); crew-core assembles the Crew from it.
     wp_enqueue_script('bcm-crew-rig', BCM_MINI_SIM_URL . 'assets/js/crew-rig.js', array(), BCM_MINI_SIM_VERSION, true);
@@ -846,25 +842,10 @@ function bcm_mini_sim_enqueue_assets()
     wp_enqueue_script('bcm-warp-sector-scene', BCM_MINI_SIM_URL . 'assets/js/warp-sector-scene.js', array('bcm-mini-sim', 'bcm-warp-sector-core'), BCM_MINI_SIM_VERSION, true);
     // One SAGE map with Galia (generated from Galia src/data, IDEA-014).
     wp_enqueue_script('bcm-sage-map', BCM_MINI_SIM_URL . 'assets/js/sage-map.js', array(), BCM_MINI_SIM_VERSION, true);
-    // Room 0 race course and rival ships (IDEA-021); read by mini-sim.js when Room 0 is built.
-    wp_enqueue_script('bcm-room0-race', BCM_MINI_SIM_URL . 'assets/js/room0-race.js', array(), BCM_MINI_SIM_VERSION, false);
-    // Ring comic panels (IDEA-024): the level inside each Ring cell; read by deep-space-warp.js.
-    wp_enqueue_script('bcm-ring-panels', BCM_MINI_SIM_URL . 'assets/js/ring-panels.js', array(), BCM_MINI_SIM_VERSION, false);
-    wp_enqueue_script('bcm-galia-lore', BCM_MINI_SIM_URL . 'assets/js/galia-lore.js', array(), BCM_MINI_SIM_VERSION, true);
-    wp_enqueue_script('bcm-galia-quests', BCM_MINI_SIM_URL . 'assets/js/galia-quests.js', array('bcm-galia-lore'), BCM_MINI_SIM_VERSION, true);
-    wp_enqueue_script('bcm-sage-map-core', BCM_MINI_SIM_URL . 'assets/js/sage-map-core.js', array('bcm-sage-map', 'bcm-galia-lore'), BCM_MINI_SIM_VERSION, true);
+    wp_enqueue_script('bcm-sage-map-core', BCM_MINI_SIM_URL . 'assets/js/sage-map-core.js', array('bcm-sage-map'), BCM_MINI_SIM_VERSION, true);
     wp_enqueue_script('bcm-warp-bridge', BCM_MINI_SIM_URL . 'assets/js/warp-bridge.js', array(), BCM_MINI_SIM_VERSION, true);
     wp_enqueue_script('bcm-asteroid-maze-location', BCM_MINI_SIM_URL . 'assets/js/asteroid-maze-location.js', array('bcm-mini-sim', 'bcm-crew-core', 'bcm-hull-dive', 'bcm-warp-bridge'), BCM_MINI_SIM_VERSION, true);
-    // Ring boss forms: own move, tell and open window per form (owner 22.11.2026); read by ring-platformer.js.
-    wp_enqueue_script('bcm-ring-boss-moves', BCM_MINI_SIM_URL . 'assets/js/ring-boss-moves.js', array(), BCM_MINI_SIM_VERSION, true);
-    // Runner chase rules (owner 23.11.2026 "Погоня Гонщика"); read by ring-platformer.js.
-    wp_enqueue_script('bcm-ring-runner-chase', BCM_MINI_SIM_URL . 'assets/js/ring-runner-chase.js', array(), BCM_MINI_SIM_VERSION, true);
-    // Ship core: one flight model for every ship (owner 26.11.2026, IDEA-031).
-    wp_enqueue_script('bcm-ship-core', BCM_MINI_SIM_URL . 'assets/js/ship-core.js', array(), BCM_MINI_SIM_VERSION, true);
-    // Ring cell mobs: the owner's pig mobs, a gait per kind (owner 24.11.2026, BUG-028); read by ring-platformer.js.
-    wp_enqueue_script('bcm-ring-mobs', BCM_MINI_SIM_URL . 'assets/js/ring-mobs.js', array(), BCM_MINI_SIM_VERSION, true);
-    wp_enqueue_script('bcm-ring-platformer', BCM_MINI_SIM_URL . 'assets/js/ring-platformer.js', array('bcm-mini-sim', 'bcm-crew-core', 'bcm-ring-boss-moves', 'bcm-ring-runner-chase', 'bcm-ring-mobs'), BCM_MINI_SIM_VERSION, true);
-    wp_enqueue_script('bcm-deep-space-warp', BCM_MINI_SIM_URL . 'assets/js/deep-space-warp.js', array('bcm-mini-sim', 'bcm-hull-dive', 'bcm-crew-core', 'bcm-warp-sector-scene', 'bcm-sage-map-core', 'bcm-warp-bridge', 'bcm-asteroid-maze-location', 'bcm-ring-platformer'), BCM_MINI_SIM_VERSION, true);
+    wp_enqueue_script('bcm-deep-space-warp', BCM_MINI_SIM_URL . 'assets/js/deep-space-warp.js', array('bcm-mini-sim', 'bcm-hull-dive', 'bcm-crew-core', 'bcm-warp-sector-scene', 'bcm-sage-map-core', 'bcm-warp-bridge', 'bcm-asteroid-maze-location'), BCM_MINI_SIM_VERSION, true);
     wp_enqueue_script('bcm-ui-layer-audit', BCM_MINI_SIM_URL . 'assets/js/ui-layer-audit.js', array('bcm-deep-space-warp'), BCM_MINI_SIM_VERSION, true);
     wp_localize_script('bcm-mini-sim', 'BCMMiniSimConfig', array(
         'crewServerAjax' => admin_url('admin-ajax.php'),
@@ -953,7 +934,7 @@ function bcm_mini_sim_shortcode($atts = array())
         <div class="bcm-mini-sim-landscape-warning">ПОВЕРНИТЕ УСТРОЙСТВО ГОРИЗОНТАЛЬНО</div>
         <div class="bcm-mini-sim-hud">
             <div class="bcm-mini-sim-brand">BCM 4 STAR ATLAS</div>
-            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.16.41</div>
+            <div class="bcm-mini-sim-title">SPACE LABYRINTH — 0.15.25</div>
             <div class="bcm-mini-sim-mission">МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS</div>
             <div class="bcm-mini-sim-attract-marquee" role="img" aria-label="Inspired by Star Atlas. Powered for all creatures. BCM4SA. Read-only Crew and ship console.">
                 <span class="bcm-mini-sim-attract-prefix" aria-hidden="true">BCM4SA //</span>

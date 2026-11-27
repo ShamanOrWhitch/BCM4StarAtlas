@@ -70,7 +70,7 @@
   const uiText = {
     ru: {
       play: "ИГРАТЬ",
-      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.16.45",
+      title: "КОСМИЧЕСКИЙ ЛАБИРИНТ — 0.15.25",
       mission: "МИССИЯ: ДОБРАТЬСЯ ДО ONICSS",
       crewTitle: "ЭКИПАЖ ПЕРЕД ВЫЛЕТОМ",
       crewNote: "Без кошелька можно начать на двухместном корабле. Выбери Crew по изображению; скан адреса не обязателен.",
@@ -91,7 +91,7 @@
     },
     en: {
       play: "PLAY",
-      title: "SPACE LABYRINTH — 0.16.45",
+      title: "SPACE LABYRINTH — 0.15.25",
       mission: "MISSION: REACH ONICSS",
       crewTitle: "CREW CHECK",
       crewNote: "You can launch with the two-seat starter ship without a wallet. Choose Crew by their portraits; wallet scan is optional.",
@@ -268,7 +268,7 @@
     controlsDialogTimer = 0;
   }
 
-  function showOperatorDialog(speaker, message, choices, avatarAsset, durationMs) {
+  function showOperatorDialog(speaker, message, choices, avatarAsset) {
     if (!operatorDialog) return;
     hideOperatorDialog();
     operatorSpeaker.textContent = String(speaker || textForLanguage("operator"));
@@ -294,9 +294,7 @@
       (speakerName.includes("medusa") ? "medusa.mp4" :
        (speakerName.includes("zombie") ? "zombie.mp4" : "panda.mp4"));
     prepareOperatorAvatar(faceAsset);
-    const duration = Number(durationMs);
-    operatorDialogTimer = window.setTimeout(hideOperatorDialog, Number.isFinite(duration) && duration > 0
-      ? Math.max(1200, Math.min(13000, duration)) : 13000);
+    operatorDialogTimer = window.setTimeout(hideOperatorDialog, 13000);
   }
 
   function phonePrimaryControls() {
@@ -332,8 +330,8 @@
     const normalizedLevel = String(level || "").toLowerCase();
     const levelText = {
       ring: {
-        ru: {controlsKeyboard:"Ring: A/D — бег; ↑/↓ — вертикаль в астральных полях; Space/W — прыжок; в фиолетовом поле держи — джетпак летит, пока жмёшь, и тратит топливо; E — дверь; R — этаж; Q — лазер; Shift/C — рывок.",controlsTouch:"Ring: ◀ ▶ — бег, ↑ ↓ — вертикаль; ПРЫЖОК — прыжок, держи — джетпак; ЭТАЖ — сменить этаж; ДВЕРЬ — пройти; ЛАЗЕР — выстрел; РЫВОК — ускорение.",controlsGamepad:"Ring: стик — бег/вертикаль; A — прыжок, держи — джетпак; X — дверь; LB — этаж; Y — лазер; B — рывок."},
-        en: {controlsKeyboard:"Ring: A/D move; Up/Down steer in astral fields; Space/W jumps and pulses the jetpack in purple fields; E uses the door; R changes floor; Q fires; Shift/C dashes.",controlsTouch:"Ring: ◀ ▶ move, ↑ ↓ steer; JUMP jumps/pulses; FLOOR changes levels; DOOR enters; LASER fires; DASH dodges.",controlsGamepad:"Ring: stick moves/steers; A jumps/pulses; X door; LB floor; Y fire; B dash."}
+        ru: {controlsKeyboard:"Ring: A/D или ←/→ — бег; Space/W — прыжок; E — дверь; R — этаж; Q — лазер; Shift/C — рывок.",controlsTouch:"Ring: ◀ ▶ — бег; ПРЫЖОК — прыжок; ЭТАЖ — сменить этаж; ДВЕРЬ — пройти; ЛАЗЕР — выстрел; РЫВОК — ускорение.",controlsGamepad:"Ring: стик — бег; A — прыжок; X — дверь; LB — этаж; Y — лазер; B — рывок."},
+        en: {controlsKeyboard:"Ring: A/D or ←/→ move; Space/W jumps; E uses the door; R changes floor; Q fires; Shift/C dashes.",controlsTouch:"Ring: ◀ ▶ move; JUMP jumps; FLOOR changes levels; DOOR enters; LASER fires; DASH dodges.",controlsGamepad:"Ring: stick moves; A jumps; X door; LB floor; Y fire; B dash."}
       },
       hull: {
         ru: {controlsKeyboard:"Кабина: мышь/палец — тащи Crew; удерживай воду для насоса, пробоину — для ремонта.",controlsTouch:"Кабина: тащи Crew; держи палец на воде для насоса и на шве для ремонта.",controlsGamepad:"Кабина: стик двигает Crew; A ремонт, B насос, LB/X — штурвал. V — Warp, не трюм."},
@@ -2382,10 +2380,6 @@
     group.visible = !!race.active;
     const useSeed = (seed == null ? (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) : seed) >>> 0;
     const rand = seedRandom(useSeed);
-    // IDEA-021 (owner 19.11.2026): a harder seeded course with pylons and rival
-    // ships, from room0-race.js. The old five-corridor loop stays as a fallback.
-    const course = window.BCMRoom0Race ? window.BCMRoom0Race.buildCourse(useSeed) : null;
-    race.course = course;
     const kind = Math.floor(rand() * 4);
     const z0 = 24;
     const point = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -2412,11 +2406,7 @@
       corners = [point(-16, 0, z0), point(-16, lift(), z0 + d * 0.4), point(10, lift() + 12, z0 + d), point(10 + w, lift(), z0 + d), point(10 + w, 6, z0 + d * 0.25), point(8, 0, z0)];
     }
     race.kindLabel = ["широкий овал", "собачья нога", "длинная петля", "зигзаг"][kind];
-    if (course) {
-      corners = course.corners.map((c) => point(c.x, c.y, c.z));
-      race.kindLabel = course.corners.length + " ПОВОРОТОВ";
-    }
-    let halfW = 11 + rand() * 3;
+    const halfW = 11 + rand() * 3;
     const halfH = 2.5;
     race.segments = [];
     race.gates = [];
@@ -2429,7 +2419,6 @@
       yaw: Math.atan2(launch.x, -launch.z)
     };
     for (let i = 0; i < corners.length; i += 1) {
-      if (course && course.segments[i]) halfW = course.segments[i].halfW;
       const a = corners[i];
       const b = corners[(i + 1) % corners.length];
       const dir = b.clone().sub(a);
@@ -2471,65 +2460,9 @@
       race.segments.push({ a, b, dir, side, len, halfW, halfH });
       race.gates.push({ point: mid.clone(), dir: dir.clone(), side: side.clone(), halfW: halfW - 0.3 });
     }
-    race.pylons = [];
-    race.rivals = [];
-    race.rivalMeshes = [];
-    if (course) {
-      const pylonMat = new THREE.MeshStandardMaterial({ color: 0xff7a3d, emissive: 0x5a1a06, roughness: 0.5, metalness: 0.3 });
-      course.pylons.forEach((p) => {
-        const pylon = new THREE.Mesh(new THREE.CylinderGeometry(p.radius, p.radius * 1.15, 8.2, 10), pylonMat);
-        pylon.position.set(p.x, p.y + 2, p.z);
-        pylon.name = "room0-pylon";
-        group.add(pylon);
-        race.pylons.push(p);
-      });
-      // Rival ships: a small hull, wings and an engine glow, each in its own colour.
-      const colours = [0x5ad1ff, 0xffd166, 0xc77dff];
-      race.rivals = window.BCMRoom0Race.createRivals(course, 3, useSeed);
-      race.rivals.forEach((rival, i) => {
-        const craft = new THREE.Group();
-        craft.name = "room0-rival";
-        const hullMat = new THREE.MeshStandardMaterial({ color: colours[i % colours.length], roughness: 0.45, metalness: 0.4 });
-        const hull = new THREE.Mesh(new THREE.ConeGeometry(0.75, 3.2, 6), hullMat);
-        hull.rotation.x = Math.PI / 2;
-        const wings = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.14, 1.1), hullMat);
-        wings.position.z = -0.6;
-        const glow = new THREE.Mesh(new THREE.SphereGeometry(0.42, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-        glow.position.z = -1.7;
-        craft.add(hull, wings, glow);
-        group.add(craft);
-        race.rivalMeshes.push(craft);
-      });
-      placeRivals();
-    }
     parent.add(group);
     race.group = group;
     room0Labyrinth.group = group;
-  }
-
-  function placeRivals() {
-    if (!race.course || !race.rivals) return;
-    race.rivals.forEach((rival, i) => {
-      const mesh = race.rivalMeshes[i];
-      if (!mesh) return;
-      const at = window.BCMRoom0Race.positionOf(race.course, rival);
-      mesh.position.set(at.x, at.y, at.z);
-      mesh.rotation.set(0, at.yaw, 0);
-    });
-  }
-
-  /** Rivals fly the loop while the race is on (IDEA-021). */
-  function updateRoom0Rivals(dt) {
-    if (!race.active || !race.course || !race.rivals || !race.rivals.length) return;
-    window.BCMRoom0Race.stepRivals(race.rivals, race.course, dt, ship.maxSpeed);
-    placeRivals();
-  }
-
-  /** The player's place among the rivals: laps first, then the way into the lap. */
-  function room0Place() {
-    if (!race.course || !race.rivals || !race.rivals.length || !ship.position) return 0;
-    const here = window.BCMRoom0Race.progressOn(race.course, ship.position);
-    return window.BCMRoom0Race.placeOf({ laps: race.laps, distance: here.distance }, race.rivals);
   }
 
   function updateRoom0Labyrinth() {
@@ -2572,21 +2505,6 @@
     const roadY = best.point.y;
     if (ship.position.y > roadY + 4.2) ship.position.y = roadY + 4.2;
     if (ship.position.y < roadY - 1.4) ship.position.y = roadY - 1.4;
-
-    // Pylons are solid: bounce off and lose speed.
-    (race.pylons || []).forEach((p) => {
-      const dx = ship.position.x - p.x;
-      const dz = ship.position.z - p.z;
-      const dist = Math.hypot(dx, dz);
-      const reach = p.radius + 0.7;
-      if (dist >= reach || Math.abs(ship.position.y - (p.y + 2)) > 4.4) return;
-      const k = reach / Math.max(0.001, dist);
-      ship.position.x = p.x + dx * k;
-      ship.position.z = p.z + dz * k;
-      const speed = ship.velocity.length();
-      ship.velocity.multiplyScalar(0.35);
-      if (speed > 1.0) triggerCollisionImpact(Math.min(0.55, speed / Math.max(1, ship.maxSpeed)));
-    });
 
     const gate = race.gates[race.nextGate];
     if (gate && race.prev) {
@@ -2975,9 +2893,6 @@
 
     parent.add(group);
     spaceSatellite.group = group;
-    buildSpaceTraffic(group);
-    // Owner 24.11.2026: "у ONI CSS опять кто-то испортил спутник текстурой фиолетовой планеты… ONI CSS как
-    // планета со станцией была самодостаточна" — the start sector keeps its own look (no sector dress).
 
     const starGeometry = new THREE.BufferGeometry();
     const starPoints = [];
@@ -3004,99 +2919,6 @@
     starField.visible = false;
     parent.add(starField);
     spaceSatellite.stars = starField;
-  }
-
-  // Space traffic around ONI CSS (owner 23.11.2026: "в космосе у некоторых кораблей должна
-  // быть жизнь, ну кто-то прилетает, кто-то улетает"; WORK LOCK #144). fleet-motion.js moves
-  // a few non-player ships: they arrive from the edge, hold at a berth by the station and
-  // depart. A LOCAL SIMULATION for the look of space — never a real SAGE fleet movement.
-  const spaceTraffic = { fleet: null, group: null, pivots: [] };
-  const TRAFFIC_SHIP_IDS = ["opal", "solos", "scud", "mik"];
-
-  function buildSpaceTraffic(stationGroup) {
-    if (!window.BCMFleetMotion || !stationGroup || spaceTraffic.fleet) return;
-    const trafficGroup = new THREE.Group();
-    trafficGroup.name = "space-traffic";
-    trafficGroup.userData.localSimulation = true;
-    stationGroup.add(trafficGroup);
-    const seed = (Number(window.BCMMiniSimSession && window.BCMMiniSimSession.sessionSeed) >>> 0) || 7;
-    spaceTraffic.fleet = window.BCMFleetMotion.create({ seed, count: TRAFFIC_SHIP_IDS.length, spawnRadius: 150, maxSpeed: 20 });
-    spaceTraffic.group = trafficGroup;
-    spaceTraffic.pivots = TRAFFIC_SHIP_IDS.map((id, index) => {
-      const pivot = new THREE.Group();
-      pivot.name = "space-traffic-" + id;
-      pivot.visible = false;
-      pivot.userData.loaded = false;
-      trafficGroup.add(pivot);
-      return pivot;
-    });
-    const load = (Loader) => {
-      TRAFFIC_SHIP_IDS.forEach((id, index) => {
-        const spec = FLIGHT_SHIPS.find((item) => item.id === id);
-        const url = spec && assetUrl(spec.file);
-        if (!url) return;
-        new Loader().load(url, (gltf) => {
-          const hull = gltf && (gltf.scene || (gltf.scenes && gltf.scenes[0]));
-          const pivot = spaceTraffic.pivots[index];
-          if (!hull || !pivot || spaceTraffic.group !== trafficGroup) return;
-          aimFlightNose(hull, catalogNose(spec.file));
-          hull.updateMatrixWorld(true);
-          const box = new THREE.Box3().setFromObject(hull);
-          const size = box.getSize(new THREE.Vector3());
-          hull.scale.multiplyScalar((spec.length || 12) * 0.7 / Math.max(size.x, size.z, 0.001));
-          hull.updateMatrixWorld(true);
-          const centre = new THREE.Box3().setFromObject(hull).getCenter(new THREE.Vector3());
-          hull.position.sub(centre);
-          pivot.add(hull);
-          pivot.userData.loaded = true;
-        }, undefined, () => console.warn("BCM space traffic: ship model failed", spec.file));
-      });
-    };
-    // The GLTF loader is shared with the ship yard; wait for it if it is not there yet.
-    let tries = 0;
-    const waitLoader = () => {
-      if (spaceTraffic.group !== trafficGroup) return;
-      if (window.THREE && window.THREE.GLTFLoader) { load(window.THREE.GLTFLoader); return; }
-      tries += 1;
-      if (tries < 60) window.setTimeout(waitLoader, 500);
-    };
-    waitLoader();
-  }
-
-  function updateSpaceTraffic(dt) {
-    const fleet = spaceTraffic.fleet;
-    const group = spaceTraffic.group;
-    if (!fleet || !group || !group.parent) return;
-    const local = group.worldToLocal(ship.position.clone());
-    const poses = fleet.step(dt, { avoid: { x: local.x, y: local.y, z: local.z, r: 14 } });
-    poses.forEach((pose, index) => {
-      const pivot = spaceTraffic.pivots[index];
-      if (!pivot) return;
-      pivot.visible = !!(pose.visible && pivot.userData.loaded);
-      pivot.position.set(pose.x, pose.y, pose.z);
-      pivot.rotation.set(pose.pitch, pose.yaw, pose.roll, "YXZ");
-      pivot.userData.trafficState = pose.state;
-    });
-  }
-
-  // Station contracts (galia-quests.js): how far the ship is from this sector's star base.
-  const contractBases = { id: null, list: [] };
-  function updateGaliaContracts() {
-    const quests = window.BCMGaliaQuests;
-    if (!quests || !scene || !ship.position) return;
-    const lookId = window.BCMSectorLook ? window.BCMSectorLook.current() : null;
-    if (contractBases.id !== lookId) {
-      contractBases.id = lookId;
-      contractBases.list = [];
-      if (lookId) scene.traverse((obj) => { if (obj.name === "star-base") contractBases.list.push(obj); });
-    }
-    let baseDistance = Infinity;
-    const p = new THREE.Vector3();
-    contractBases.list.forEach((base) => {
-      base.getWorldPosition(p);
-      baseDistance = Math.min(baseDistance, p.distanceTo(ship.position));
-    });
-    window.BCMGaliaQuests.tick({ sector: lookId, baseDistance });
   }
 
   function updateSpaceSatelliteVisibility() {
@@ -4517,11 +4339,9 @@
 
     const pitchOffset = Math.max(-35, Math.min(35, screenVertical));
     const yawOffset = Math.max(-35, Math.min(35, screenHorizontal));
-    // Owner 23.11.2026 "у андроид чуть больше чувствительности": smaller dead zone, full
-    // turn by 24° (was 30°), gain 0.55 (was 0.40) — 12° of tilt now turns about twice as much.
-    const dead = 3.0;
-    const response = 24.0;
-    const gain = 0.55;
+    const dead = 4.0;
+    const response = 30.0;
+    const gain = 0.40;
 
     const shape = (offset) => {
       if (Math.abs(offset) <= dead) return 0;
@@ -4698,9 +4518,6 @@
     backside.group = null;
     spaceSatellite.group = null;
     spaceSatellite.stationMesh = null;
-    spaceTraffic.fleet = null;
-    spaceTraffic.group = null;
-    spaceTraffic.pivots = [];
     spaceSatellite.stars = null;
     towerPreload.landingVideo = null;
     towerPreload.fallbackVideo = null;
@@ -5508,12 +5325,8 @@
     const collisionStart = ship.position.clone();
     ship.position.addScaledVector(ship.velocity, dt);
     updateRoom0Labyrinth();
-    updateRoom0Rivals(dt);
     collide(collisionStart);
     updateSpaceSatelliteVisibility();
-    updateSpaceTraffic(dt);
-    if (window.BCMSectorLook) window.BCMSectorLook.update(dt);
-    updateGaliaContracts();
     updateCollisionImpact(dt);
 
     const focusedOrbit = orbitFocusedScreen(dt);
@@ -5582,9 +5395,7 @@
 
     if (interaction) {
       if (gate && gateDistance <= gateUiRadius) {
-        // Outside ONI CSS the gate is the sector planet's own landing (sector-look.js).
-        const landingName = (window.BCMSectorLook && window.BCMSectorLook.landingLabel()) || "ONICSS";
-        interaction.textContent = landingName + " · " +
+        interaction.textContent = "ONICSS · " +
           Math.max(0, Math.round(100 - (gateDistance / Math.max(1, gate.radius)) * 100)) + "%";
       } else {
         const portalUiThreshold = Number(config.towerApproach?.portalCoverageThreshold) || 0.60;
@@ -5631,10 +5442,7 @@
     }
     if (race.active) {
       showMission("МИССИЯ: 2 КРУГА ПО ТРАССЕ, НИ РАЗУ НЕ ВЫЛЕТАЯ В КОСМОС");
-      const place = room0Place();
-      setStatus("ТРАССА · КРУГ " + Math.min(race.needed, race.laps + 1) + "/2" +
-        (place ? " · МЕСТО " + place + "/" + (race.rivals.length + 1) : "") +
-        " · НЕ ВЫЛЕТАТЬ В КОСМОС · SPD " + ship.velocity.length().toFixed(1));
+      setStatus("ТРАССА · КРУГ " + Math.min(race.needed, race.laps + 1) + "/2 · НЕ ВЫЛЕТАТЬ В КОСМОС · SPD " + ship.velocity.length().toFixed(1));
     } else {
       showMission("МИССИЯ: ПРОВЕРИТЬ ЭКРАНЫ И ПРИЗЕМЛИТЬСЯ НА ONICSS");
       setStatus(room + " · SPD " + ship.velocity.length().toFixed(1));
@@ -6280,8 +6088,6 @@
     : legacyFlightShips;
   let chosenFlight = FLIGHT_SHIPS.find((ship) => ship.id ===
       (window.BCMMiniCrewSelection && window.BCMMiniCrewSelection.shipId))
-    // Owner 26.11.2026: "По Умолчанию дай нам Calico Evac" — the default ship of the flight and Warp.
-    || FLIGHT_SHIPS.find((ship) => ship.id === "calico-evac")
     || FLIGHT_SHIPS.find((ship) => ship.id === "opal")
     || FLIGHT_SHIPS[0];
   // A fleet chosen in Galia Desk before Mini-Sim booted.
@@ -6849,32 +6655,8 @@
       groups.get(category).appendChild(option);
     });
     select.value = chosenFlight.id;
-    // Owner 26.11.2026: "к выбору нужно справа бы ещё модельку отобразить". A 3/4 picture of the
-    // chosen hull beside the list (tools/ship-previews/render.mjs; no second WebGL context).
-    const preview = document.createElement("figure");
-    preview.setAttribute("data-flight-ship-preview", "");
-    preview.style.cssText = "margin:0;flex:0 0 192px;width:192px;height:108px;border-radius:9px;overflow:hidden;" +
-      "border:1px solid rgba(228,163,34,.35);background:#1c2633;display:flex;align-items:center;justify-content:center;" +
-      "color:#9fb0c2;font:12px/1.3 sans-serif;text-align:center";
-    const showPreview = () => {
-      const url = assetUrl("mesh/ships/previews/" + chosenFlight.id + ".webp");
-      preview.innerHTML = "";
-      if (url) {
-        const img = document.createElement("img");
-        img.src = url;
-        img.alt = chosenFlight.name;
-        img.width = 192;
-        img.height = 108;
-        img.style.cssText = "display:block;width:192px;height:108px;object-fit:cover";
-        preview.appendChild(img);
-      } else {
-        preview.textContent = chosenFlight.name + " · нет превью";
-      }
-    };
-    showPreview();
     select.addEventListener("change", () => {
       chosenFlight = FLIGHT_SHIPS.find((ship) => ship.id === select.value) || chosenFlight;
-      showPreview();
       if (window.BCMMiniCrewSelection) {
         window.BCMMiniCrewSelection.shipId = chosenFlight.id;
         window.BCMMiniCrewSelection.shipFile = chosenFlight.file;
@@ -6886,12 +6668,7 @@
     const hint = document.createElement("p");
     hint.textContent = "На стоянке используется отдельная idle/off-модель, при пересадке — полётная. Для одиночных GLB форма остаётся общей.";
     hint.style.cssText = "font-size:12px;opacity:.72;margin:6px 0 0";
-    const row = document.createElement("div");
-    row.style.cssText = "display:flex;gap:10px;align-items:center;flex-wrap:wrap";
-    select.style.flex = "1 1 220px";
-    select.style.width = "auto";
-    row.append(select, preview);
-    box.appendChild(row);
+    box.appendChild(select);
     box.appendChild(hint);
   }
 
@@ -7031,7 +6808,7 @@
       const restored = restoreShipFromLocalReturn();
       setStatus(restored
         ? "SPACE LABYRINTH · ВОССТАНОВЛЕНИЕ ПОСЛЕ TOWER"
-        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.16.45") + " · SPEED 1");
+        : "ENGINE READY · LOCAL r128 · " + (config.version || "0.15.25") + " · SPEED 1");
       hudAssets();
       requestAnimationFrame(render);
       if (restored) resumeLocalSessionAfterReturn();
