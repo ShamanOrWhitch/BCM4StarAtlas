@@ -47,6 +47,9 @@ const EMPTY: Hud = {
   out: false,
   nextGate: -1,
   hazard: null,
+  hull: 100,
+  pitting: false,
+  pitNear: false,
 };
 
 export function ShoalRace({
@@ -350,6 +353,9 @@ export function ShoalRace({
             {hud.hazard === "mob" ? (
               <p className="rounded-full bg-accent px-4 py-1 text-sm font-medium text-fg">Моб</p>
             ) : null}
+            {hud.pitNear ? (
+              <p className="rounded-full bg-primary px-4 py-1 text-sm font-medium text-bg">Пит справа · сбрось скорость</p>
+            ) : null}
             {hud.go > 0 && phase === "race" ? (
               <p className="font-display text-5xl text-primary">Go</p>
             ) : null}
@@ -362,6 +368,13 @@ export function ShoalRace({
                 Скорость
               </p>
               <p className="font-display text-3xl leading-none">{Math.round(hud.speed * 3.2)}</p>
+              <p className="mt-2 text-xs text-muted">Корпус {Math.round(hud.hull)}</p>
+              <div className="mt-1 h-1.5 w-28 overflow-hidden rounded-full bg-bg">
+                <div
+                  className="h-full bg-accent"
+                  style={{ width: `${Math.round(hud.hull)}%` }}
+                />
+              </div>
               <div className="mt-2 h-1.5 w-28 overflow-hidden rounded-full bg-bg">
                 <div
                   className="h-full bg-primary"
@@ -417,6 +430,24 @@ export function ShoalRace({
           onTilt={() => void toggleTilt().then((on) => setTilt(on || tiltEnabled()))}
           lift={96}
           row
+        />
+      ) : null}
+
+      {phase === "race" && hud.pitting ? (
+        <RepairPit
+          hull={hud.hull}
+          onWeld={(good) => {
+            const race = raceRef.current;
+            if (!race || !good) return;
+            race.patch();
+            setHud(race.hud());
+          }}
+          onLeave={() => {
+            const race = raceRef.current;
+            if (!race) return;
+            race.leavePit();
+            setHud(race.hud());
+          }}
         />
       ) : null}
 
@@ -482,6 +513,72 @@ export function ShoalRace({
         </section>
       ) : null}
     </main>
+  );
+}
+
+function RepairPit({
+  hull,
+  onWeld,
+  onLeave,
+}: {
+  hull: number;
+  onWeld: (good: boolean) => void;
+  onLeave: () => void;
+}) {
+  const [needle, setNeedle] = useState(0);
+  const [miss, setMiss] = useState(false);
+  const needleRef = useRef(0);
+  useEffect(() => {
+    let frame = 0;
+    let last = performance.now();
+    const loop = (now: number) => {
+      frame = requestAnimationFrame(loop);
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      needleRef.current = (needleRef.current + dt * 0.62) % 1;
+      setNeedle(needleRef.current);
+    };
+    frame = requestAnimationFrame(loop);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.repeat) return;
+      if (event.code === "KeyF" || event.code === "Space") {
+        event.preventDefault();
+        weld();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
+  function weld() {
+    const good = needleRef.current > 0.4 && needleRef.current < 0.6;
+    setMiss(!good);
+    onWeld(good);
+  }
+  const left = Math.max(0, Math.ceil((100 - hull) / 34));
+  return (
+    <section data-gamepad-menu className="absolute inset-0 z-30 grid place-items-center bg-bg/50 p-4">
+      <div className="w-full max-w-sm rounded-2xl border border-primary bg-surface p-5 text-fg">
+        <p className="text-xs tracking-widest text-primary uppercase">Пит</p>
+        <h2 className="font-display mt-1 text-4xl leading-none">Почини сам</h2>
+        <p className="mt-2 text-sm text-muted">Жми, когда метка в зелёной полосе. Три точных шва собирают корпус.</p>
+        <div className="relative mt-4 h-10 overflow-hidden rounded-xl border border-line bg-bg">
+          <div className="absolute inset-y-0 left-[40%] w-[20%] bg-primary/40" />
+          <div className="absolute inset-y-0 w-1 bg-fg" style={{ left: `${needle * 100}%` }} />
+        </div>
+        <p className="mt-2 text-sm">{miss ? "Мимо шва" : `Корпус ${Math.round(hull)} · швов ещё ${left}`}</p>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button type="button" onClick={weld} className="h-12 rounded-xl bg-primary font-medium text-bg">
+            Варить
+          </button>
+          <button type="button" onClick={onLeave} className="h-12 rounded-xl border border-line">
+            Выехать
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }
 

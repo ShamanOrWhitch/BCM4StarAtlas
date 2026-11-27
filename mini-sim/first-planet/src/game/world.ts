@@ -569,6 +569,10 @@ export function createWorld(canvas: HTMLCanvasElement): World {
   const mobGeo = new THREE.SphereGeometry(0.82, 10, 8);
   const mobMat = new THREE.MeshStandardMaterial({ color: 0xe6c15a, emissive: 0x6a4010, emissiveIntensity: 0.4 });
   const mobMeshes: THREE.Mesh[] = [];
+  const pitGeo = new THREE.BoxGeometry(1, 0.18, 1);
+  const pitMat = new THREE.MeshBasicMaterial({ color: 0x37d67a, transparent: true, opacity: 0.82 });
+  const pitMesh = new THREE.Mesh(pitGeo, pitMat);
+  scene.add(pitMesh);
   const hazardColor = (planet?: string) => {
     if (planet === "fable") return { trap: 0xff5a2a, mob: 0xffd27a };
     if (planet === "opus") return { trap: 0x9fd7ff, mob: 0xe7f6ff };
@@ -892,6 +896,14 @@ export function createWorld(canvas: HTMLCanvasElement): World {
         if (!mob) return;
         mesh.position.set(mob.x, ROAD_Y + 0.9, mob.z);
       });
+      if (race.pit) {
+        const mid = sampleAt(race.track, (race.pit.s0 + race.pit.s1) / 2);
+        const lat = race.track.halfWidth * 0.42 * race.pit.side;
+        pitMesh.visible = true;
+        pitMesh.position.set(mid.x + mid.nx * lat, ROAD_Y + 0.16, mid.z + mid.nz * lat);
+        pitMesh.rotation.y = Math.atan2(mid.tx, mid.tz);
+        pitMesh.scale.set(race.track.halfWidth * 0.5, 1, Math.max(8, race.pit.s1 - race.pit.s0));
+      }
 
       water.position.y = 0.2 + Math.sin(elapsed * 0.7) * 0.04;
       raceSky.position.copy(camera.position);

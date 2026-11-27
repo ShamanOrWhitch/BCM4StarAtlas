@@ -54,6 +54,8 @@ export type Car = {
   /** Seconds until the next trap or mob can hit this car again. */
   hazardCd: number;
   hit: "trap" | "mob" | null;
+  /** 100 is whole. Traps and mobs chip it. The pit is how it comes back. */
+  hull: number;
 };
 
 /** A slalom gate: where along the lap, its centre across the road and its half-width. */
@@ -81,6 +83,8 @@ export type Mob = {
   x: number;
   z: number;
 };
+
+export type Pit = { s0: number; s1: number; side: number };
 
 export type DriveInput = {
   throttle: number;
@@ -112,6 +116,9 @@ export type Hud = {
   total: number;
   item: ItemKind | null;
   hazard: "trap" | "mob" | null;
+  hull: number;
+  pitting: boolean;
+  pitNear: boolean;
   drift: number;
   boosting: boolean;
   wrong: boolean;
@@ -193,6 +200,7 @@ function makeCar(
     gateNext: 0,
     hazardCd: 0,
     hit: null,
+    hull: 100,
   };
 }
 
@@ -216,6 +224,8 @@ export type Race = {
   boxes: Box[];
   traps: Trap[];
   mobs: Mob[];
+  pit: Pit;
+  pitting: boolean;
   slicks: Slick[];
   time: number;
   go: number;
@@ -224,6 +234,8 @@ export type Race = {
   hud: () => Hud;
   reset: () => void;
   respawnYou: () => void;
+  patch: () => number;
+  leavePit: () => void;
 };
 
 function layoutBoxes(track: Track, seed: number): Box[] {
@@ -290,12 +302,27 @@ function strike(car: Car, kind: "trap" | "mob") {
   car.hazardCd = 1.15;
   car.hit = kind;
   if (kind === "trap") {
+    car.hull = Math.max(0, car.hull - 14);
     car.speed *= 0.7;
     car.slick = Math.max(car.slick, 0.55);
     return;
   }
+  car.hull = Math.max(0, car.hull - 22);
   car.speed *= 0.52;
   car.lat += (car.lat >= 0 ? 1 : -1) * 3;
+}
+
+function layoutPit(track: Track): Pit {
+  const span = Math.min(42, track.length * 0.07);
+  const s1 = Math.max(span + 8, track.length - 22);
+  return { s0: s1 - span, s1, side: 1 };
+}
+
+function carInPit(car: Car, track: Track, pit: Pit) {
+  const proj = project(track, car.x, car.z, car.hint);
+  const along = proj.s >= pit.s0 && proj.s <= pit.s1;
+  const onSide = pit.side > 0 ? proj.lat > track.halfWidth * 0.18 : proj.lat < -track.halfWidth * 0.18;
+  return along && onSide;
 }
 
 /** Slalom: the gate the car meets next and how far ahead it is. */
@@ -451,12 +478,14 @@ function stepCar(car: Car, input: DriveInput, dt: number, race: Race) {
     car.slick -= dt;
     car.speed *= Math.exp(-1.5 * dt);
   }
-  if (!car.finished) {
+  if (!car.finished && !(race.pitting && car.you)) {
     car.speed += (input.throttle * 26 - input.brake * 48) * dt;
     const coast = input.throttle < 0.05 && input.brake < 0.05;
     car.speed *= Math.exp(-(coast ? 0.42 : 0.18) * dt);
-    car.speed = Math.min(car.boost > 0 ? 56 : 40, Math.max(-12, car.speed));
+    const cap = (car.boost > 0 ? 56 : 40) * (0.42 + 0.58 * (car.hull / 100));
+    car.speed = Math.min(cap, Math.max(-12, car.speed));
   }
+  if (race.pitting && car.you) car.speed *= Math.exp(-3.4 * dt);
 
   const sp = Math.abs(car.speed);
   const speedFactor =
@@ -607,6 +636,8 @@ export function createRace(seed = 0, planet?: string, level?: number): Race {
     boxes: mode.items ? layoutBoxes(track, locationSeed) : [],
     traps: hazards.traps,
     mobs: hazards.mobs,
+    pit: layoutPit(track),
+    pitting: false,
     slicks: [],
     time: 0,
     go: 0,
@@ -656,6 +687,10 @@ export function createRace(seed = 0, planet?: string, level?: number): Race {
           if (dx * dx + dz * dz < 5.8) strike(car, "mob");
         }
       }
+      const you = this.cars[0];
+      const inside = carInPit(you, this.track, this.pit);
+      if (!this.pitting && you.hull < 98 && you.speed < 26 && inside) this.pitting = true;
+      if (this.pitting && !inside && you.speed > 10) this.pitting = false;
       this.slicks = this.slicks.filter((slick) => {
         slick.life -= dt;
         if (slick.life <= 0) return false;
@@ -694,6 +729,9 @@ export function createRace(seed = 0, planet?: string, level?: number): Race {
         total: this.cars.length,
         item: you.item,
         hazard: you.hazardCd > 0 ? you.hit : null,
+        hull: you.hull,
+        pitting: this.pitting,
+        pitNear: !this.pitting && you.hull < 98 && forwardDelta(you.s, this.pit.s0, this.track.length) < 90,
         drift: Math.min(1, you.drift / 1.05),
         boosting: you.boost > 0,
         wrong: you.wrongT > 0.35,
@@ -724,6 +762,8 @@ export function createRace(seed = 0, planet?: string, level?: number): Race {
       this.boxes = next.boxes;
       this.traps = next.traps;
       this.mobs = next.mobs;
+      this.pit = next.pit;
+      this.pitting = false;
       this.slicks = [];
       this.time = 0;
       this.go = 0.85;
@@ -731,6 +771,19 @@ export function createRace(seed = 0, planet?: string, level?: number): Race {
     },
     respawnYou() {
       respawnCar(this.cars[0], this.track);
+    },
+    patch() {
+      const you = this.cars[0];
+      if (!this.pitting) return you.hull;
+      you.hull = Math.min(100, you.hull + 34);
+      if (you.hull >= 100) this.leavePit();
+      return you.hull;
+    },
+    leavePit() {
+      this.pitting = false;
+      const you = this.cars[0];
+      you.speed = Math.max(you.speed, 16);
+      you.boost = Math.max(you.boost, 0.45);
     },
   };
   if (typeof window !== "undefined") race.storedBest = loadStoredBest(planet);
