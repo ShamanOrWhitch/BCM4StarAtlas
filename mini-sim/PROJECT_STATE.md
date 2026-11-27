@@ -1,16 +1,18 @@
 ## Patch — Mini-Sim 0.16.42: the sector page is only the map (27 November 2026)
 
+- **Main:** `4396530`.
 - `#/map` no longer opens the Warp menu. Cancel of that menu was what broke the flight.
-- The map stays. A click on a star, a faction station or a landmark enters that sector the same way a finished jump would, without the tunnel.
+- The map stays the coordinate grid. It is not the round SAGE Labs picture. A click hits a star, a faction station or a landmark and enters that sector the same way a finished jump would, without the tunnel. An empty grid cell is not a click.
 - Mini-Sim version is `0.16.42` so the new script and style are not served from the old cache. Live page after upload not confirmed.
 
 ---
 
-## Patch — Desk map uses the 0.16.41 Warp map; work stays on main (27 November 2026)
+## Patch — Desk map uses the Warp map; work stays on main (27 November 2026)
 
-- Mini-Sim remains **0.16.41**. The desk fixes are on `main`, not on a branch frozen at 0.15.10.
+- **Main:** `41b4391`. At this commit Mini-Sim was still **0.16.41**. The next commit, `4396530`, raised it to `0.16.42`.
+- The desk fixes are on `main`, not on a branch frozen at 0.15.10.
 - `#/map` hides the empty desk panel and calls `BCMDeepSpaceWarpShowMap` in `deep-space-warp.js`.
-- Live site after this push is not confirmed. Upload `galia-desk.php` and `deep-space-warp.js` from `main`, then clear the Autoptimize cache.
+- Live site after this push is not confirmed.
 
 ---
 
