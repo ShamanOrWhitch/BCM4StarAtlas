@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { SAGE_CSS, SAGE_RANGE, SAGE_SECTOR_COUNT, SAGE_STARS, type SageCss, type SageStar } from "@/data/sage-plane";
+import { SAGE_CSS, SAGE_LANDMARKS, SAGE_RANGE, SAGE_SECTOR_COUNT, SAGE_STARS, type SageCss, type SageLandmark, type SageStar } from "@/data/sage-plane";
 import { FACTION_TONE } from "@/data/systems";
 
 const KIND_COLOR = ["#e7e4dc", "#e15b4a", "#e6c15a", "#7eb6ff", "#ff8a4a"];
 
-type Pick = { kind: "star"; star: SageStar } | { kind: "css"; css: SageCss };
+type Pick = { kind: "star"; star: SageStar } | { kind: "css"; css: SageCss } | { kind: "mark"; mark: SageLandmark };
 
 type Cam = { x: number; y: number; k: number };
 
@@ -133,6 +133,27 @@ export function SagePlane({
       }
     }
 
+    for (const mark of SAGE_LANDMARKS) {
+      const p = toScreen(mark.x, mark.y, w, h);
+      const r = Math.max(5, Math.min(9, k * 0.55));
+      ctx.beginPath();
+      ctx.moveTo(p.sx, p.sy - r);
+      ctx.lineTo(p.sx + r, p.sy);
+      ctx.lineTo(p.sx, p.sy + r);
+      ctx.lineTo(p.sx - r, p.sy);
+      ctx.closePath();
+      ctx.fillStyle = mark.color;
+      ctx.fill();
+      ctx.lineWidth = active?.kind === "mark" && active.mark.id === mark.id ? 2 : 1;
+      ctx.strokeStyle = "#f4efe4";
+      ctx.stroke();
+      ctx.font = "600 12px Rajdhani, sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillStyle = mark.color;
+      ctx.fillText(mark.name.split(" · ")[0], p.sx + r + 4, p.sy + 2);
+    }
+
     for (const css of SAGE_CSS) {
       const p = toScreen(css.x, css.y, w, h);
       const tone = FACTION_TONE[css.faction];
@@ -202,6 +223,10 @@ export function SagePlane({
 
   function pickAt(sx: number, sy: number): Pick | null {
     const { w, h } = sizeOf();
+    for (const mark of SAGE_LANDMARKS) {
+      const p = toScreen(mark.x, mark.y, w, h);
+      if (Math.hypot(sx - p.sx, sy - p.sy) <= 14) return { kind: "mark", mark };
+    }
     for (const css of SAGE_CSS) {
       const p = toScreen(css.x, css.y, w, h);
       if (Math.hypot(sx - p.sx, sy - p.sy) <= 16) return { kind: "css", css };
@@ -260,7 +285,7 @@ export function SagePlane({
       <div className="pointer-events-none absolute bottom-24 left-3 z-20 max-w-[18rem] md:bottom-4">
         <p className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">SAGE · плоскость</p>
         <p className="text-sm text-muted">
-          {SAGE_STARS.length} звезды, {SAGE_SECTOR_COUNT} секторов в цепи. Сетка −50…50. Имена систем не выдуманы.
+          {SAGE_STARS.length} звезды, {SAGE_LANDMARKS.length} планета Mini-Sim, {SAGE_SECTOR_COUNT} секторов в цепи. Сетка −50…50.
         </p>
         {card ? (
           <div className="pointer-events-auto mt-2 rounded-lg border border-line bg-surface/95 p-2">
@@ -279,6 +304,13 @@ export function SagePlane({
                 >
                   3D · CSS
                 </button>
+              </>
+            ) : card.kind === "mark" ? (
+              <>
+                <p className="font-display text-sm" style={{ color: card.mark.color }}>{card.mark.name}</p>
+                <p className="font-mono text-xs text-muted">
+                  {card.mark.x}, {card.mark.y} · карта Mini-Sim
+                </p>
               </>
             ) : (
               <>

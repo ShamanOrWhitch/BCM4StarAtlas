@@ -1,6 +1,7 @@
 import { Component, useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Overlay } from "@/components/cartograph/overlay";
+import { SagePlane } from "@/components/cartograph/sage-plane";
 import { useCartograph } from "@/components/cartograph/store";
 import { SYSTEMS, cssMarker } from "@/data/systems";
 import type { WalletItem } from "@/lib/desk-types";
@@ -56,12 +57,25 @@ function aimHome() {
 }
 
 export function MapPage() {
+  const [view, setView] = useState<"sectors" | "globe">("sectors");
+  const [focus, setFocus] = useState<"ONI" | "MUD" | "Ustur" | null>(null);
   const [CanvasView, setCanvasView] = useState<ComponentType | null>(null);
   const [webglError, setWebglError] = useState("");
   const [progress, setProgress] = useState(12);
   const alive = useRef(true);
 
   useEffect(() => {
+    alive.current = true;
+    const scan = rememberedWalletScan();
+    const race = scan ? raceOf(scan.items) : null;
+    if (race) setFocus(race);
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (view !== "globe") return;
     alive.current = true;
     aimHome();
     const creep = window.setInterval(() => setProgress((n) => (n < 70 ? n + 4 : n)), 140);
@@ -80,11 +94,27 @@ export function MapPage() {
       alive.current = false;
       window.clearInterval(creep);
     };
-  }, []);
+  }, [view]);
+
+  function openCss(id: string) {
+    const system = SYSTEMS.find((row) => row.id === id) ?? SYSTEMS[0];
+    const station = cssMarker(system);
+    useCartograph.setState({ systemId: system.id, markerId: station?.id ?? "oni-css", focusNonce: Date.now() });
+    setView("globe");
+  }
 
   return (
     <main className="relative h-full min-h-[560px] w-full overflow-hidden bg-bg">
-      {CanvasView && !webglError ? (
+      {view === "sectors" ? (
+        <SagePlane
+          focus={focus}
+          onAim={(id) => {
+            const system = SYSTEMS.find((row) => row.id === id);
+            if (system) useCartograph.setState({ systemId: system.id });
+          }}
+          onOpen={openCss}
+        />
+      ) : CanvasView && !webglError ? (
         <CanvasBoundary onError={(message) => setWebglError(message)}>
           <CanvasView />
         </CanvasBoundary>
@@ -101,7 +131,16 @@ export function MapPage() {
           </div>
         </div>
       )}
-      <Overlay />
+      {view === "globe" ? (
+        <button
+          type="button"
+          onClick={() => setView("sectors")}
+          className="absolute top-16 left-3 z-30 h-11 rounded-lg border border-line bg-bg/90 px-3 font-display text-sm"
+        >
+          Секторы SAGE
+        </button>
+      ) : null}
+      <Overlay expanse={view === "sectors"} />
     </main>
   );
 }

@@ -31,6 +31,7 @@ const data = {
   factionTone: systems.FACTION_TONE,
   stars: sage.SAGE_STARS.map((s) => [s.x, s.y, s.kind, s.size, s.name]),
   css: sage.SAGE_CSS.map((c) => ({ id: c.id, faction: c.faction, name: c.name, x: c.x, y: c.y, system: CSS_SYSTEM[c.id] || null })),
+  landmarks: sage.SAGE_LANDMARKS.map((mark) => ({ id: mark.id, x: mark.x, y: mark.y, name: mark.name, planet: mark.planet, color: mark.color })),
   systems: systems.SYSTEMS
     .filter((s) => Object.values(CSS_SYSTEM).includes(s.id))
     .map((s) => ({

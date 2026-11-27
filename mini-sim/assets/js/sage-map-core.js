@@ -10,12 +10,11 @@
   const cssByKey = new Map((data.css || []).map((css) => [css.x + "," + css.y, css]));
   const systemById = new Map((data.systems || []).map((system) => [system.id, system]));
 
-  // Mini-Sim landmarks: places the game adds on top of the Galia map. They are
-  // not SAGE systems and never go into Galia data. Planet Fable is the owner's
-  // test planet, one jump north-east of ONI CSS (IDEA-002, 16.11.2026).
-  const landmarks = [
-    { id: "fable", x: -39, y: 31, name: "Fable · тестовая планета", planet: "fable", color: "#b48cff" }
-  ];
+  // Mini-Sim landmarks travel with the generated map. The fallback is the same
+  // Fable point, so an older sage-map.js still names the test planet.
+  const landmarks = (data.landmarks && data.landmarks.length)
+    ? data.landmarks
+    : [{ id: "fable", x: -39, y: 31, name: "Fable · тестовая планета", planet: "fable", color: "#b48cff" }];
   const landmarkByKey = new Map(landmarks.map((mark) => [mark.x + "," + mark.y, mark]));
 
   function landmarkAt(x, y) {

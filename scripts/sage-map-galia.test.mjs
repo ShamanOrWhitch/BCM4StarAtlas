@@ -31,7 +31,12 @@ test("sector names and system lookup come from the Galia map", async () => {
   assert.equal(oni.id, "oni");
   assert.match(oni.planet, /Akenat/);
   assert.ok(oni.markers.some((m) => m.id === "oni-css" && m.placement === "orbit"), "ONI CSS is a station on orbit");
+  assert.equal(core.planetForSector(-39, 31).id, "fable");
+  assert.equal(core.landmarkAt(-39, 31).x, -39);
   assert.equal(core.systemForSector(-38, 25), null);
+  const page = await read("src/routes/map.tsx");
+  assert.match(page, /SagePlane/, "the desk map does not open the SAGE sector plane");
+  assert.match(page, /useState<"sectors" \| "globe">\("sectors"\)/, "the desk map still opens the globe first");
   assert.equal(core.starColor(core.starAt(-38, 25)), core.data.kindColor[core.starAt(-38, 25).kind]);
 });
 

@@ -427,6 +427,16 @@ window.BCMSageMap = {
    "system": "ustur"
   }
  ],
+ "landmarks": [
+  {
+   "id": "fable",
+   "x": -39,
+   "y": 31,
+   "name": "Fable · тестовая планета",
+   "planet": "fable",
+   "color": "#b48cff"
+  }
+ ],
  "systems": [
   {
    "id": "oni",

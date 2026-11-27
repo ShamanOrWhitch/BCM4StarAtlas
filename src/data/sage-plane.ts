@@ -84,6 +84,13 @@ export const SAGE_CSS = [
 
 export type SageCss = (typeof SAGE_CSS)[number];
 
+/** Places Mini-Sim adds on the SAGE plane. Not chain systems. Fable is one jump north-east of ONI CSS. */
+export const SAGE_LANDMARKS = [
+  { id: "fable", x: -39, y: 31, name: "Fable · тестовая планета", planet: "fable", color: "#b48cff" },
+] as const;
+
+export type SageLandmark = (typeof SAGE_LANDMARKS)[number];
+
 /** Nearest real stars on the square grid. A one-cell ring around a CSS is empty; the next stars sit a few cells out. */
 export function nearestStars(x: number, y: number, within = 8): Array<SageStar & { dist: number }> {
   return SAGE_STARS.map((star) => ({
