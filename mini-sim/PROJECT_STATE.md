@@ -1,3 +1,11 @@
+## Patch — Desk map opens the Mini-Sim SAGE sector plane (27 November 2026)
+
+- `/map` starts on the SAGE plane (stars, three CSS, Fable at −39, 31), the same map Warp uses. The 3D globe opens from a CSS, and «Секторы SAGE» returns.
+- Plugin `0.8.22` bundle: replace `app/app.js`, `app/app.css`, add `map-DsKCBDJz.js` and `scene-BepYCl9e.js`, remove the old hashed map and scene files.
+- **Commit:** `8c538b6`. Live site not confirmed. Test `scripts/sage-map-galia.test.mjs` 3/3.
+
+---
+
 ## Patch — USDC prices show hundredths only (27 November 2026)
 
 - Item prices in USDC use two decimal places. A fraction of a cent prints as `$0.00`. The ATLAS token rate is not forced to two decimals.
