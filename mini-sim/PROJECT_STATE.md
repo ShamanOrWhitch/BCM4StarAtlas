@@ -1,6 +1,6 @@
 ## Patch — Mini-Sim 0.16.46: race hull, a pit and a weld you do yourself (27 November 2026)
 
-- **Main:** `8d58173`. Live site not confirmed. `first-planet/wp-dist` rebuilt.
+- **Main:** `dee20bd`, on top of the upload `abd560b`. That upload stays. Its header said `0.15.25`; the version line stays `0.16.46` so the new race files are not cached as an older plugin. Live site not confirmed. `first-planet/wp-dist` rebuilt.
 - A trap takes 14 hull, a mob 22. Lower hull lowers the speed cap. The bar sits under the speed.
 - The green strip on the right, just before the line, is the pit. Drive onto it while damaged and slower than 26. The car stops.
 - «Почини сам»: press when the mark is in the green band. Each hit restores 34. Three close a full repair and send the car out. «Выехать» leaves with whatever hull is left. This is the race pit, not the space hold weld.
