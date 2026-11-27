@@ -7,11 +7,11 @@ import { MAX_RACE_LEVEL, loadRaceLevel, raceModeFor, recordRaceWin } from "@/gam
 import { createWorld, paintMap, type Phase } from "@/game/world";
 import { TouchPad, useTouchDevice } from "./touch-pad";
 
-const ITEM_LABEL: Record<ItemKind, string> = {
-  solar: "Солнце",
-  slick: "Плёнка",
-  pulse: "Импульс",
-};
+const ITEM_CARD: { id: ItemKind; name: string; use: string; mark: string }[] = [
+  { id: "solar", name: "Солнце", use: "рывок", mark: "●" },
+  { id: "slick", name: "Плёнка", use: "масло назад", mark: "▬" },
+  { id: "pulse", name: "Импульс", use: "тормоз впереди", mark: "✦" },
+];
 
 function formatTime(t: number) {
   if (!(t > 0)) return "0:00.0";
@@ -46,6 +46,7 @@ const EMPTY: Hud = {
   missed: 0,
   out: false,
   nextGate: -1,
+  hazard: null,
 };
 
 export function ShoalRace({
@@ -277,7 +278,7 @@ export function ShoalRace({
           <p className="mt-4 text-sm text-muted">
             Экипаж Kestrel, Brine и Halo. Победа открывает следующий уровень: соперники быстрее
             {look.kind === "slalom" ? ", ворота уже" : ""}. A влево, D вправо, Shift дрифт, Z ручник
-            {look.items ? ", Ctrl предмет" : ""}. Если упёрся и держишь газ, машина возвращается на дорогу.
+            {look.items ? ", Ctrl предмет" : ""}. Если упёрся и держишь газ, машина возвращается на дорогу. На дороге ловушки и мобы — их объезжай.
           </p>
         </section>
       ) : null}
@@ -343,6 +344,12 @@ export function ShoalRace({
                 Не туда
               </p>
             ) : null}
+            {hud.hazard === "trap" ? (
+              <p className="rounded-full bg-accent px-4 py-1 text-sm font-medium text-fg">Ловушка</p>
+            ) : null}
+            {hud.hazard === "mob" ? (
+              <p className="rounded-full bg-accent px-4 py-1 text-sm font-medium text-fg">Моб</p>
+            ) : null}
             {hud.go > 0 && phase === "race" ? (
               <p className="font-display text-5xl text-primary">Go</p>
             ) : null}
@@ -369,8 +376,28 @@ export function ShoalRace({
               <p className="mt-1 text-xs text-muted">
                 Лучший {best > 0 ? formatTime(best) : "—"}
               </p>
-              <p className="mt-1 text-sm font-medium text-primary">
-                {look.items ? (hud.item ? ITEM_LABEL[hud.item] : "Пусто") : "Без предметов"}
+              <div className="mt-2 grid gap-1 text-left">
+                {ITEM_CARD.map((card) => {
+                  const held = look.items && hud.item === card.id;
+                  return (
+                    <p
+                      key={card.id}
+                      className={
+                        "rounded-lg border px-2 py-1 text-xs " +
+                        (held
+                          ? "border-primary bg-primary/15 font-medium text-primary"
+                          : "border-line text-muted")
+                      }
+                    >
+                      <span className="mr-1">{card.mark}</span>
+                      {card.name}
+                      <span className="mt-0.5 block">{held ? "у тебя · " : ""}{card.use}</span>
+                    </p>
+                  );
+                })}
+              </div>
+              <p className="mt-1 text-xs text-muted">
+                {look.items ? "Ctrl или X — использовать" : "На этой трассе ящиков нет"}
               </p>
             </div>
           </div>

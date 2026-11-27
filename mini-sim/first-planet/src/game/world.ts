@@ -563,6 +563,18 @@ export function createWorld(canvas: HTMLCanvasElement): World {
   const slickGeo = new THREE.CircleGeometry(3.1, 16);
   const slickMat = new THREE.MeshBasicMaterial({ color: 0x1a2428, transparent: true, opacity: 0.72 });
   const slicks: THREE.Mesh[] = [];
+  const trapGeo = new THREE.ConeGeometry(0.72, 0.85, 5);
+  const trapMat = new THREE.MeshStandardMaterial({ color: 0xc47a32, roughness: 0.55 });
+  const trapMeshes: THREE.Mesh[] = [];
+  const mobGeo = new THREE.SphereGeometry(0.82, 10, 8);
+  const mobMat = new THREE.MeshStandardMaterial({ color: 0xe6c15a, emissive: 0x6a4010, emissiveIntensity: 0.4 });
+  const mobMeshes: THREE.Mesh[] = [];
+  const hazardColor = (planet?: string) => {
+    if (planet === "fable") return { trap: 0xff5a2a, mob: 0xffd27a };
+    if (planet === "opus") return { trap: 0x9fd7ff, mob: 0xe7f6ff };
+    if (planet === "first") return { trap: 0xc47a32, mob: 0xe6c15a };
+    return { trap: 0x3d7a88, mob: 0xd4573a };
+  };
   const desired = new THREE.Vector3();
   const look = new THREE.Vector3();
   const lookS = new THREE.Vector3(0, 8, 0);
@@ -853,6 +865,32 @@ export function createWorld(canvas: HTMLCanvasElement): World {
         mesh.visible = Boolean(slick);
         if (!slick) return;
         mesh.position.set(slick.x, ROAD_Y + 0.08, slick.z);
+      });
+
+      const look = hazardColor(race.planet);
+      trapMat.color.setHex(look.trap);
+      mobMat.color.setHex(look.mob);
+      while (trapMeshes.length < race.traps.length) {
+        const mesh = new THREE.Mesh(trapGeo, trapMat);
+        scene.add(mesh);
+        trapMeshes.push(mesh);
+      }
+      trapMeshes.forEach((mesh, i) => {
+        const trap = race.traps[i];
+        mesh.visible = Boolean(trap);
+        if (!trap) return;
+        mesh.position.set(trap.x, ROAD_Y + 0.42, trap.z);
+      });
+      while (mobMeshes.length < race.mobs.length) {
+        const mesh = new THREE.Mesh(mobGeo, mobMat);
+        scene.add(mesh);
+        mobMeshes.push(mesh);
+      }
+      mobMeshes.forEach((mesh, i) => {
+        const mob = race.mobs[i];
+        mesh.visible = Boolean(mob);
+        if (!mob) return;
+        mesh.position.set(mob.x, ROAD_Y + 0.9, mob.z);
       });
 
       water.position.y = 0.2 + Math.sin(elapsed * 0.7) * 0.04;

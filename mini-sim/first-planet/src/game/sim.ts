@@ -51,6 +51,9 @@ export type Car = {
   missed: number;
   /** Slalom: index of the gate this car meets next (-1: find it again after a respawn). */
   gateNext: number;
+  /** Seconds until the next trap or mob can hit this car again. */
+  hazardCd: number;
+  hit: "trap" | "mob" | null;
 };
 
 /** A slalom gate: where along the lap, its centre across the road and its half-width. */
@@ -66,6 +69,18 @@ export type Box = {
 };
 
 export type Slick = { x: number; z: number; life: number; owner: number };
+
+export type Trap = { s: number; x: number; z: number };
+
+export type Mob = {
+  s: number;
+  lat: number;
+  amp: number;
+  phase: number;
+  rate: number;
+  x: number;
+  z: number;
+};
 
 export type DriveInput = {
   throttle: number;
@@ -96,6 +111,7 @@ export type Hud = {
   place: number;
   total: number;
   item: ItemKind | null;
+  hazard: "trap" | "mob" | null;
   drift: number;
   boosting: boolean;
   wrong: boolean;
@@ -175,6 +191,8 @@ function makeCar(
     penalty: 0,
     missed: 0,
     gateNext: 0,
+    hazardCd: 0,
+    hit: null,
   };
 }
 
@@ -196,6 +214,8 @@ export type Race = {
   track: Track;
   cars: Car[];
   boxes: Box[];
+  traps: Trap[];
+  mobs: Mob[];
   slicks: Slick[];
   time: number;
   go: number;
@@ -232,6 +252,50 @@ function layoutGates(track: Track, seed: number, mode: RaceMode): Gate[] {
     gates.push({ s: fraction * track.length, lat: side * reach, half });
   }
   return gates;
+}
+
+/** Traps sit on the road. Mobs walk across it. Both come from the seed, the planet and the level. */
+function layoutHazards(track: Track, seed: number, planet: string | undefined, level: number) {
+  const random = createSeededRandom(seed, "shoal-race-hazards-" + (planet || "coast"));
+  const lv = Math.min(3, Math.max(1, Math.floor(level) || 1));
+  const trapCount = 2 + lv;
+  const mobCount = 1 + lv;
+  const traps: Trap[] = [];
+  for (let i = 0; i < trapCount; i++) {
+    const s = ((i + 0.65) / (trapCount + 1)) * track.length;
+    const p = sampleAt(track, s);
+    const lat = (random() < 0.5 ? -1 : 1) * (0.6 + random() * track.halfWidth * 0.4);
+    traps.push({ s, x: p.x + p.nx * lat, z: p.z + p.nz * lat });
+  }
+  const mobs: Mob[] = [];
+  for (let i = 0; i < mobCount; i++) {
+    const s = ((i + 1) / (mobCount + 1)) * track.length;
+    const amp = track.halfWidth * (0.32 + random() * 0.38);
+    const p = sampleAt(track, s);
+    mobs.push({
+      s,
+      lat: 0,
+      amp,
+      phase: random() * Math.PI * 2,
+      rate: 0.65 + random() * 0.7,
+      x: p.x,
+      z: p.z,
+    });
+  }
+  return { traps, mobs };
+}
+
+function strike(car: Car, kind: "trap" | "mob") {
+  if (car.finished || car.hazardCd > 0) return;
+  car.hazardCd = 1.15;
+  car.hit = kind;
+  if (kind === "trap") {
+    car.speed *= 0.7;
+    car.slick = Math.max(car.slick, 0.55);
+    return;
+  }
+  car.speed *= 0.52;
+  car.lat += (car.lat >= 0 ? 1 : -1) * 3;
 }
 
 /** Slalom: the gate the car meets next and how far ahead it is. */
@@ -335,6 +399,12 @@ function aiDrive(car: Car, race: Race): DriveInput {
       ahead = sampleAt(track, car.s + Math.min(look, Math.max(4, next.d - 2)));
     }
     gateClose = Boolean(next && next.d < 34);
+  }
+  for (const mob of race.mobs) {
+    const aheadOf = forwardDelta(car.s, mob.s, track.length);
+    if (aheadOf > 0 && aheadOf < 28 && Math.abs(mob.lat - line) < 2.4) {
+      line += mob.lat > line ? -2.6 : 2.6;
+    }
   }
   const desired = Math.atan2(
     -(ahead.x + ahead.nx * line - car.x),
@@ -523,6 +593,7 @@ export function createRace(seed = 0, planet?: string, level?: number): Race {
   const mode = raceModeFor(planet, level ?? loadRaceLevel(planet));
   const track = buildTrack(locationSeed, planet, mode.level);
   track.halfWidth = mode.halfWidth;
+  const hazards = layoutHazards(track, locationSeed, planet, mode.level);
   const race: Race = {
     seed: locationSeed,
     planet,
@@ -534,6 +605,8 @@ export function createRace(seed = 0, planet?: string, level?: number): Race {
     track,
     cars: ROSTER.map((spec, i) => makeCar(track, i, spec)),
     boxes: mode.items ? layoutBoxes(track, locationSeed) : [],
+    traps: hazards.traps,
+    mobs: hazards.mobs,
     slicks: [],
     time: 0,
     go: 0,
@@ -559,6 +632,28 @@ export function createRace(seed = 0, planet?: string, level?: number): Race {
             box.cooldown = 11;
             break;
           }
+        }
+      }
+      for (const mob of this.mobs) {
+        mob.phase += dt * mob.rate;
+        mob.lat = Math.sin(mob.phase) * mob.amp;
+        const p = sampleAt(this.track, mob.s);
+        mob.x = p.x + p.nx * mob.lat;
+        mob.z = p.z + p.nz * mob.lat;
+      }
+      for (const car of this.cars) {
+        if (car.hazardCd > 0) car.hazardCd = Math.max(0, car.hazardCd - dt);
+        if (car.hazardCd === 0) car.hit = null;
+        if (car.finished) continue;
+        for (const trap of this.traps) {
+          const dx = car.x - trap.x;
+          const dz = car.z - trap.z;
+          if (dx * dx + dz * dz < 7.2) strike(car, "trap");
+        }
+        for (const mob of this.mobs) {
+          const dx = car.x - mob.x;
+          const dz = car.z - mob.z;
+          if (dx * dx + dz * dz < 5.8) strike(car, "mob");
         }
       }
       this.slicks = this.slicks.filter((slick) => {
@@ -598,6 +693,7 @@ export function createRace(seed = 0, planet?: string, level?: number): Race {
         place: you.place,
         total: this.cars.length,
         item: you.item,
+        hazard: you.hazardCd > 0 ? you.hit : null,
         drift: Math.min(1, you.drift / 1.05),
         boosting: you.boost > 0,
         wrong: you.wrongT > 0.35,
@@ -626,6 +722,8 @@ export function createRace(seed = 0, planet?: string, level?: number): Race {
       this.eliminated = 0;
       this.cars = next.cars;
       this.boxes = next.boxes;
+      this.traps = next.traps;
+      this.mobs = next.mobs;
       this.slicks = [];
       this.time = 0;
       this.go = 0.85;
