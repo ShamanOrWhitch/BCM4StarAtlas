@@ -1,3 +1,12 @@
+## Patch — Mini-Sim 0.16.44: each planet grows its own seeded track (27 November 2026)
+
+- **Main:** this commit. Live site not confirmed. `first-planet/wp-dist` rebuilt.
+- One shared seed was drawing nearly the same oval on every planet. Level did not change the road.
+- Twinsun is a long dune lap, Fable a tighter bend, Opus a stretched switchback. Levels 1–3 add corners and one tighter pinch. Seed 0 with no planet keeps the old loop.
+- A win still opens the next level, and the next start uses that level's road.
+
+---
+
 ## Patch — Mini-Sim 0.16.43: race handbrake and a stuck driver returns to the road (27 November 2026)
 
 - **Main:** `f4710e2`. Live site not confirmed. `first-planet/wp-dist` was rebuilt with this driving change.

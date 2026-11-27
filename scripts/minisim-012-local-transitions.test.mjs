@@ -130,7 +130,7 @@ test("Shoal Race receives its own seed without changing the established track ro
   assert.match(race, /export function createRace\(seed = 0, planet\?: string, level\?: number\)/);
   assert.match(race, /layoutBoxes\(track, locationSeed\)/);
   assert.match(race, /createSeededRandom\(seed, "shoal-race-boxes"\)/);
-  assert.match(track, /export function buildTrack\(seed = 0\)/);
+  assert.match(track, /export function buildTrack\(seed = 0, planet\?: string, level = 1\)/);
   assert.match(component, /createRace\(raceSeed, planet\)/);
   assert.match(embed, /<ShoalRace seed=\{Number\(context\.raceSeed\) >>> 0\}/);
 });

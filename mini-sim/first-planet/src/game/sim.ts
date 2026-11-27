@@ -521,7 +521,7 @@ function eliminate(race: Race) {
 export function createRace(seed = 0, planet?: string, level?: number): Race {
   const locationSeed = Number(seed) >>> 0;
   const mode = raceModeFor(planet, level ?? loadRaceLevel(planet));
-  const track = buildTrack(locationSeed);
+  const track = buildTrack(locationSeed, planet, mode.level);
   track.halfWidth = mode.halfWidth;
   const race: Race = {
     seed: locationSeed,
@@ -618,6 +618,7 @@ export function createRace(seed = 0, planet?: string, level?: number): Race {
     reset() {
       // Same seed and planet; the level may have opened up after a win.
       const next = createRace(this.seed, this.planet);
+      this.track = next.track;
       this.mode = next.mode;
       this.level = next.level;
       this.laps = next.laps;

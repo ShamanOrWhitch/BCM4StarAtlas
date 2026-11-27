@@ -92,33 +92,79 @@ function resample(pts: { x: number; z: number }[], spacing: number) {
   return { pts: out, length };
 }
 
-function controlPoints(seed: number): [number, number][] {
+function mixSeed(seed: number, planet: string, level: number) {
+  let h = (seed >>> 0) ^ 0x9e3779b9;
+  const tag = planet + "#" + level;
+  for (let i = 0; i < tag.length; i++) h = Math.imul(h ^ tag.charCodeAt(i), 16777619);
+  return (h >>> 0) || 1;
+}
+
+type Family = {
+  lobes: number;
+  lobeSpan: number;
+  base: number;
+  baseSpan: number;
+  amp: number;
+  ampSpan: number;
+  squash: number;
+  squashSpan: number;
+  harmonic: number;
+};
+
+// Closed laps stay a positive radius, so a seed cannot cross itself.
+// The numbers are the character of the place, not a copied circuit.
+const FAMILIES: Record<string, Family> = {
+  first: { lobes: 3, lobeSpan: 2, base: 102, baseSpan: 16, amp: 18, ampSpan: 12, squash: 0.7, squashSpan: 0.12, harmonic: 0.28 },
+  fable: { lobes: 7, lobeSpan: 2, base: 68, baseSpan: 10, amp: 16, ampSpan: 10, squash: 0.92, squashSpan: 0.06, harmonic: 0.72 },
+  opus: { lobes: 8, lobeSpan: 2, base: 64, baseSpan: 8, amp: 12, ampSpan: 8, squash: 0.5, squashSpan: 0.08, harmonic: 0.9 },
+  coast: { lobes: 5, lobeSpan: 2, base: 84, baseSpan: 12, amp: 8, ampSpan: 8, squash: 0.86, squashSpan: 0.08, harmonic: 0.22 },
+};
+
+function familyFor(planet?: string): Family {
+  if (planet === "fable" || planet === "opus" || planet === "first") return FAMILIES[planet];
+  return FAMILIES.coast;
+}
+
+function controlPoints(seed: number, planet?: string, level = 1): [number, number][] {
   const nSeed = Number(seed) >>> 0;
-  if (!nSeed) return RAW;
-  let state = nSeed;
+  if (!nSeed && !planet) return RAW;
+  const lv = Math.min(3, Math.max(1, Math.floor(Number(level)) || 1));
+  const family = familyFor(planet);
+  let state = mixSeed(nSeed, planet || "coast", lv);
   const rand = () => {
     state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
     return state / 4294967296;
   };
-  // A positive radius around the origin cannot cross itself, so every seed stays a lap.
-  const lobes = 5 + Math.floor(rand() * 3);
-  const base = 84 + rand() * 14;
-  const amp = 8 + rand() * 10;
+  const lobes = family.lobes + Math.floor(rand() * (family.lobeSpan + 1)) + (lv - 1);
+  const base = family.base + rand() * family.baseSpan + (lv - 1) * 4;
+  const amp = (family.amp + rand() * family.ampSpan) * (1 + (lv - 1) * 0.18);
   const phase = rand() * Math.PI * 2;
-  const squash = 0.86 + rand() * 0.1;
-  const count = 16;
+  const phase2 = rand() * Math.PI * 2;
+  const squash = family.squash + rand() * family.squashSpan;
+  const harmonic = family.harmonic * (1 + (lv - 1) * 0.35);
+  const pinch = (lv - 1) * (0.1 + rand() * 0.08);
+  const pinchAt = rand() * Math.PI * 2;
+  const count = 18;
   const pts: [number, number][] = [];
   for (let i = 0; i < count; i++) {
     const angle = (i / count) * Math.PI * 2;
-    const radius = base + Math.sin(angle * lobes + phase) * amp;
+    let delta = Math.abs(angle - pinchAt);
+    if (delta > Math.PI) delta = Math.PI * 2 - delta;
+    const pinchMul = 1 - pinch * Math.exp(-(delta * delta) / 0.2);
+    const rawWave =
+      Math.sin(angle * lobes + phase) * amp +
+      Math.sin(angle * (lobes + 3) + phase2) * amp * harmonic;
+    const wave = Math.max(-base * 0.42, Math.min(base * 0.42, rawWave));
+    const radius = Math.max(40, (base + wave) * pinchMul);
     pts.push([Math.cos(angle) * radius, Math.sin(angle) * radius * squash]);
   }
   return pts;
 }
 
-export function buildTrack(seed = 0): Track {
+export function buildTrack(seed = 0, planet?: string, level = 1): Track {
   const nSeed = Number(seed) >>> 0;
-  const dense = densify(controlPoints(nSeed));
+  const lv = Math.min(3, Math.max(1, Math.floor(Number(level)) || 1));
+  const dense = densify(controlPoints(nSeed, planet, lv));
   const { pts, length } = resample(dense, 2.4);
   const n = pts.length;
   const samples: Sample[] = [];
