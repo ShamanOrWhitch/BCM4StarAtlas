@@ -73,9 +73,7 @@ export function usdFromBooks(
 
 export function fmtUsd(n: number | null): string {
   if (n == null || !(n > 0)) return "—";
-  if (n >= 1) return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const digits = Math.min(10, Math.max(4, Math.ceil(-Math.log10(n)) + 2));
-  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: digits })}`;
+  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export function marketHref(mint: string, book: "USDC" | "ATLAS" | null): string {

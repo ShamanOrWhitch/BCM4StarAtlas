@@ -77,6 +77,13 @@ function segmentBid(row: ResourceRow, atlasUsd: number | null): number | null {
   return null;
 }
 
+function fmtSpot(n: number | null): string {
+  if (n == null || !(n > 0)) return "—";
+  if (n >= 0.01) return fmtUsd(n);
+  const digits = Math.min(8, Math.ceil(-Math.log10(n)) + 2);
+  return `$${n.toLocaleString("en-US", { maximumFractionDigits: digits })}`;
+}
+
 function fmtCompact(n: number | null): string {
   if (n == null) return "—";
   return n.toLocaleString("ru-RU", { maximumFractionDigits: 0 });
@@ -366,7 +373,7 @@ export function MarketPage() {
                       <td className="px-3 py-2 text-muted">{CLASS_LABEL[row.className] ?? row.className}</td>
                       <td className="px-3 py-2 font-mono text-fg">{fmtUsd(row.ask)}</td>
                       <td className="px-3 py-2 text-muted">{row.book === "ATLAS" ? "стакан ATLAS × курс" : row.book === "USDC" ? "стакан USDC" : "нет продажи"}</td>
-                      <td className="px-3 py-2 font-mono text-muted">{fmtAtlas(segmentBid(row, rate))}</td>
+                      <td className="px-3 py-2 font-mono text-muted">{fmtUsd(segmentBid(row, rate))}</td>
                       <td className={`px-3 py-2 font-mono ${d == null ? "text-faint" : d > 0 ? "text-danger" : "text-ok"}`}>
                         {fmtPct(d)}
                       </td>
@@ -428,7 +435,7 @@ function FloorLift({ rows, floors }: { rows: ResourceRow[]; floors: Record<strin
               <span>
                 <span className="text-ok">от пола {fmtPct(lift)}</span>
                 <span className="text-danger"> · MSRP {fmtPct(discount)}</span>
-                <span className="text-muted"> · пол {fmtAtlas(floors[row.mint] ?? null)}</span>
+                <span className="text-muted"> · пол {fmtUsd(floors[row.mint] ?? null)}</span>
               </span>
             </p>
           ))}
@@ -463,7 +470,7 @@ function SmallHullCheck({ rows, floors }: { rows: ResourceRow[]; floors: Record<
               {row.className} · {row.name}
             </span>
             <span>
-              <span className={lift != null && lift >= 8 ? "text-ok" : "text-faint"}>{fmtAtlas(row.usdcAsk ?? null)} · пол {fmtPct(lift)}</span>
+              <span className={lift != null && lift >= 8 ? "text-ok" : "text-faint"}>{fmtUsd(row.usdcAsk ?? null)} · пол {fmtPct(lift)}</span>
               <span className={discount != null && discount < 0 ? "text-danger" : "text-ok"}> · MSRP {fmtPct(discount)}</span>
             </span>
           </p>
@@ -555,7 +562,7 @@ function ResourceTape({
   return (
     <section className="rounded-xl border border-line bg-surface p-3">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-display text-sm tracking-[0.16em] text-brass uppercase">График ресурса · ATLAS</h2>
+        <h2 className="font-display text-sm tracking-[0.16em] text-brass uppercase">График ресурса · USDC</h2>
         <select
           value={picked}
           onChange={(event) => onMint(event.target.value)}
@@ -601,14 +608,14 @@ function TapeLine({ name, points }: { name: string; points: { t: number; v: numb
   return (
     <figure>
       <figcaption className="mb-1 font-mono text-xs text-muted">
-        {name} {fmtAtlas(last)} ATLAS · {fmtPct(move)}
+        {name} {fmtUsd(last)} · {fmtPct(move)}
       </figcaption>
       <svg viewBox={`0 0 ${w} ${h}`} className="h-32 w-full">
         <text x={w - 4} y="14" textAnchor="end" fill="#8b96a3" fontSize="12">
-          {fmtAtlas(max)}
+          {fmtUsd(max)}
         </text>
         <text x={w - 4} y={h - 4} textAnchor="end" fill="#8b96a3" fontSize="12">
-          {fmtAtlas(min)}
+          {fmtUsd(min)}
         </text>
         <path d={d} fill="none" stroke="#c4a35a" strokeWidth="2" />
       </svg>
@@ -628,7 +635,7 @@ function BookPeek({ row, quote }: { row: ResourceRow; quote: QuoteId }) {
         <p className="text-danger">продавцы · {quote}</p>
         {(asks ?? []).map((level) => (
           <p key={`a-${level.price}`} className="font-mono">
-            {fmtAtlas(level.price)} ×{level.qty}
+            {quote === "USDC" ? fmtUsd(level.price) : fmtAtlas(level.price)} ×{level.qty}
           </p>
         ))}
       </div>
@@ -636,7 +643,7 @@ function BookPeek({ row, quote }: { row: ResourceRow; quote: QuoteId }) {
         <p className="text-ok">ставки · {quote}</p>
         {(bids ?? []).map((level) => (
           <p key={`b-${level.price}`} className="font-mono">
-            {fmtAtlas(level.price)} ×{level.qty}
+            {quote === "USDC" ? fmtUsd(level.price) : fmtAtlas(level.price)} ×{level.qty}
           </p>
         ))}
       </div>
@@ -765,7 +772,7 @@ function TokenCard({ name, quote }: { name: string; quote?: MarketSnap["atlas"] 
   return (
     <article className="rounded-xl border border-line bg-surface p-3">
       <p className="font-display text-[10px] tracking-[0.18em] text-brass uppercase">{name}</p>
-      <p className="mt-1 font-mono text-2xl text-fg">{fmtUsd(quote?.usd ?? null)}</p>
+      <p className="mt-1 font-mono text-2xl text-fg">{fmtSpot(quote?.usd ?? null)}</p>
       <p className="text-sm text-muted">
         24ч {fmtPct(quote?.change24h ?? null)} · в обороте {fmtCompact(quote?.circulating ?? null)}
       </p>

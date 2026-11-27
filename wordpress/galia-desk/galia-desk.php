@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.8.20
+ * Version: 0.8.21
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -1186,6 +1186,10 @@ function galia_desk_shortcode() {
           if (n == null) return "—";
           return Number(n).toLocaleString("ru-RU", { maximumFractionDigits: 6 });
         }
+        function usd(n) {
+          if (n == null || !(Number(n) > 0)) return "—";
+          return "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
         function paint(data) {
           var tokens = root.querySelector("[data-galia-tokens]");
           tokens.innerHTML = ["atlas", "polis"].map(function (key) {
@@ -1199,14 +1203,14 @@ function galia_desk_shortcode() {
           var ships = root.querySelector("[data-galia-ships]");
           if (ships) ships.innerHTML = bubblesHtml("Корабли", data.ships || [], week);
           var rows = (data.resources || []).filter(function (row) { return row.ask != null; });
-          var html = '<table><thead><tr><th>Ресурс</th><th>Класс</th><th>Продажа, ATLAS</th><th>Покупка, ATLAS</th><th>Δ</th></tr></thead><tbody>';
+          var html = '<table><thead><tr><th>Ресурс</th><th>Класс</th><th>Продажа, USDC</th><th>Ставка, USDC</th><th>Δ</th></tr></thead><tbody>';
           rows.forEach(function (row) {
             var d = "—";
             if (week && week[row.mint] && row.ask != null) {
               var pct = ((row.ask - week[row.mint]) / week[row.mint]) * 100;
               d = (pct > 0 ? "+" : "") + pct.toLocaleString("ru-RU", { maximumFractionDigits: 2 }) + "%";
             }
-            html += '<tr><td>' + row.name + '</td><td>' + row.className + '</td><td>' + num(row.ask) + '</td><td>' + num(row.bid) + '</td><td>' + d + '</td></tr>';
+            html += '<tr><td>' + row.name + '</td><td>' + row.className + '</td><td>' + usd(row.ask) + '</td><td>' + usd(row.bid) + '</td><td>' + d + '</td></tr>';
           });
           root.querySelector("[data-galia-table]").innerHTML = html + '</tbody></table>';
           status.textContent = data.gmp === false ? "Стакан с этого хоста не прочитался." : ("Ордеров " + (data.orderCount || 0));
@@ -1235,7 +1239,7 @@ function galia_desk_shortcode() {
             var ring = change == null ? "rgba(232,238,242,.45)" : (change >= 0 ? "#3dba7a" : "#e15b4a");
             var weight = now && now > 0 ? now : max * 0.15;
             var size = Math.round(108 + Math.sqrt(weight / max) * 56);
-            var label = change == null ? (num(now) + (row.usdcAsk != null || row.ask != null ? "" : "")) : ((change > 0 ? "+" : "") + change.toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + "%");
+            var label = change == null ? usd(now) : ((change > 0 ? "+" : "") + change.toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + "%");
             html += '<div class="galia-bubble" style="width:' + size + 'px;height:' + size + 'px;border-color:' + ring + '">';
             if (row.image) html += '<img alt="" src="' + row.image + '" />';
             html += '<span class="galia-bubble-shade"></span><span class="galia-bubble-copy"><b style="color:' + ring + '">' + label + '</b><i>' + row.name + '</i></span></div>';

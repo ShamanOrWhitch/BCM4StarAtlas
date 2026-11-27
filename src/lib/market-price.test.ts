@@ -83,8 +83,8 @@ test("a stored ATLAS conversion still shows in dollars when the client has no ra
   const stored = usdcSegment(aerogel, null);
   assert.equal(stored.usd, aerogel.usdcAsk);
   assert.equal(stored.book, "ATLAS");
-  assert.notEqual(fmtUsd(fresh.usd), "—");
-  assert.match(fmtUsd(fresh.usd), /^\$0\.000000/);
+  assert.equal(fmtUsd(fresh.usd), "$0.00");
+  assert.equal(fmtUsd(1.2), "$1.20");
 });
 
 test("a ship USDC ladder is the dollar price", () => {
