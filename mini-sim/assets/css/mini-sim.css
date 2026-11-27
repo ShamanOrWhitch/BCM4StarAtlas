@@ -1694,6 +1694,31 @@
   pointer-events: auto;
   touch-action: manipulation;
 }
+.bcm-mini-sim .bcm-warp-overlay.is-map-only .bcm-warp-backdrop,
+.bcm-mini-sim .bcm-warp-overlay.is-map-only .bcm-warp-kicker,
+.bcm-mini-sim .bcm-warp-overlay.is-map-only .bcm-warp-card > h2,
+.bcm-mini-sim .bcm-warp-overlay.is-map-only [data-warp-tier-preview],
+.bcm-mini-sim .bcm-warp-overlay.is-map-only .bcm-warp-explainer,
+.bcm-mini-sim .bcm-warp-overlay.is-map-only .bcm-warp-source,
+.bcm-mini-sim .bcm-warp-overlay.is-map-only .bcm-warp-local-area,
+.bcm-mini-sim .bcm-warp-overlay.is-map-only .bcm-warp-galaxy-legend,
+.bcm-mini-sim .bcm-warp-overlay.is-map-only .bcm-warp-sector-list,
+.bcm-mini-sim .bcm-warp-overlay.is-map-only .bcm-warp-manual,
+.bcm-mini-sim .bcm-warp-overlay.is-map-only .bcm-warp-selected,
+.bcm-mini-sim .bcm-warp-overlay.is-map-only .bcm-warp-actions,
+.bcm-mini-sim .bcm-warp-overlay.is-map-only .bcm-warp-footnote,
+.bcm-mini-sim .bcm-warp-overlay.is-map-only .bcm-warp-tube-view {
+  display: none !important;
+}
+.bcm-mini-sim .bcm-warp-overlay.is-map-only .bcm-warp-card {
+  width: min(1100px, 100%);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.bcm-mini-sim .bcm-warp-overlay.is-map-only .bcm-warp-galaxy-map {
+  height: min(78vh, 820px);
+}
 
 .bcm-mini-sim .bcm-warp-galaxy-map-tools {
   display: flex;

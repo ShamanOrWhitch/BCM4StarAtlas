@@ -1,3 +1,11 @@
+## Patch — Mini-Sim 0.16.42: the sector page is only the map (27 November 2026)
+
+- `#/map` no longer opens the Warp menu. Cancel of that menu was what broke the flight.
+- The map stays. A click on a star, a faction station or a landmark enters that sector the same way a finished jump would, without the tunnel.
+- Mini-Sim version is `0.16.42` so the new script and style are not served from the old cache. Live page after upload not confirmed.
+
+---
+
 ## Patch — Desk map uses the 0.16.41 Warp map; work stays on main (27 November 2026)
 
 - Mini-Sim remains **0.16.41**. The desk fixes are on `main`, not on a branch frozen at 0.15.10.

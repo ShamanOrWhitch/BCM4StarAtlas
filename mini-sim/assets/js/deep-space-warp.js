@@ -883,6 +883,7 @@
     let galaxyMapZoom = 1;
     let galaxyMapPoints = [];
     let galaxyCurrentPoint = null;
+    let mapBrowse = false;
     const selectedElement = overlay.querySelector("[data-warp-selected]");
     // Existing SAGE snapshot points reused from src/data/sage-plane.ts.
     // These are reference stars, not fabricated sector coordinates.
@@ -1846,6 +1847,28 @@ function warpSectorPlanetCard(core, x, y, jumps) {
       }
 
       galaxyMapPoints = [];
+      if (mapBrowse) {
+        const visit = (sector, x, y) => {
+          const p = toPoint(x, y);
+          galaxyMapPoints.push({ sector, x: p.x, y: p.y });
+        };
+        if (sageCore && sageCore.stars.length) {
+          sageCore.stars.forEach((star) => visit({
+            id: "star-" + star.x + "-" + star.y, name: star.name, x: star.x, y: star.y, raw: null
+          }, star.x, star.y));
+          sageCore.css.forEach((css) => visit({
+            id: css.id + "-css", name: css.faction, x: css.x, y: css.y, raw: null
+          }, css.x, css.y));
+          (sageCore.landmarks || []).forEach((mark) => visit({
+            id: mark.id, name: mark.name, x: mark.x, y: mark.y, raw: null
+          }, mark.x, mark.y));
+        } else {
+          SAGE_STAR_REFERENCE_POINTS.forEach(([x, y]) => visit({
+            id: "star-" + x + "-" + y, name: x + "," + y, x, y, raw: null
+          }, x, y));
+          SAGE_CSS_REFERENCE_POINTS.forEach((css) => visit(css, css.x, css.y));
+        }
+      }
       galaxyCurrentPoint = null;
       const hasPoint = (node) => node && node.x != null && node.y != null &&
         Number.isFinite(Number(node.x)) && Number.isFinite(Number(node.y)) &&
@@ -1939,9 +1962,12 @@ function warpSectorPlanetCard(core, x, y, jumps) {
         : Infinity;
       // Adjacent dots overlap at overview scale. Zoom in or use the sector list
       // rather than accidentally selecting a hidden neighbor under CURRENT.
-      const targetCanBePicked = galaxyMapZoom >= 4 || currentDistance > 9;
-      if (nearest && best <= 15 && targetCanBePicked) selectTarget(nearest.sector);
-      else galaxyMap.focus({ preventScroll: true });
+      const targetCanBePicked = mapBrowse || galaxyMapZoom >= 4 || currentDistance > 9;
+      const reach = mapBrowse ? 22 : 15;
+      if (nearest && best <= reach && targetCanBePicked) {
+        if (mapBrowse) enterSectorFromMap(nearest.sector);
+        else selectTarget(nearest.sector);
+      } else galaxyMap.focus({ preventScroll: true });
     });
     let previewedSectorId = "";
     function previewMenuDestination(sector) {
@@ -6098,44 +6124,42 @@ return axialRoll + ahead * 0.12 +
       tubeShield.style.width = state.shields + "%";
     }
 
+    function hideMapBrowse() {
+      mapBrowse = false;
+      overlay.classList.remove("is-map-only");
+      overlay.hidden = true;
+      root.classList.remove("bcm-warp-open");
+      launchButton.classList.remove("is-active");
+      const heading = overlay.querySelector(".bcm-warp-heading");
+      if (heading) heading.textContent = "WARP NAVIGATION";
+    }
+
+    function enterSectorFromMap(sector) {
+      hideMapBrowse();
+      state.target = sector;
+      if (isOniCssDestination(sector)) returnToOniCss();
+      else if (loreSectorFor(sector)) arriveAtLoreSector(sector);
+      else if (planetLandmarkFor(sector)) arriveAtPlanetSector(sector);
+      else enterAsteroidMaze();
+    }
+
     window.BCMDeepSpaceWarpShowMap = function () {
       if (root.classList.contains("bcm-warp-maze-active")) return false;
       if (state.mode === "tube" || state.mode === "maze") return false;
-      const engine = api();
-      const running = !!(engine && engine.getRuntime && engine.getRuntime().running);
-      if (running && root.classList.contains("game-active")) {
-        openMap();
-        return true;
-      }
+      mapBrowse = true;
       state.nav = readNavigation();
-      clearWarpDestination();
-      previewedSectorId = "";
-      state.mode = "map";
       state.target = null;
-      state.openedAt = performance.now();
-      state.elapsed = 0;
-      currentElement.textContent = "CURRENT · " + sectorText(state.nav.current);
-      sourceElement.textContent = state.nav.label;
-      sourceElement.classList.toggle("is-preview", !state.nav.live);
-      footnoteElement.textContent = state.nav.live
-        ? "Имена известных секторов берёт SAGE-адаптер. Сетка не режется до 4 сторон: открыты 8 соседей и следующее кольцо. Сам Warp локальный и не двигает корабль в SAGE."
-        : "ONI CSS, X -40, Y 30. Fable теперь здесь, на ONI CSS (раз в сто лет планеты меняются местами). Пустыня Twinsun — сосед на севере, X -40, Y 31. На карте 8 соседей и следующее кольцо. Warp локальный и не двигает флот в блокчейне.";
-      listSectorTargets();
-      renderSectorGrid();
-      renderGalaxyMap();
-      selectedElement.textContent = "DESTINATION NOT SELECTED";
-      startButton.disabled = true;
+      overlay.classList.add("is-map-only");
+      const heading = overlay.querySelector(".bcm-warp-heading");
+      if (heading) heading.textContent = "КАРТА СЕКТОРОВ";
       mapView.hidden = false;
       tubeView.hidden = true;
       tubeResult.hidden = true;
       touchControls.hidden = true;
       overlay.hidden = false;
-      root.classList.add("bcm-warp-open");
-      launchButton.classList.add("is-active");
       overlay.style.pointerEvents = "auto";
-      resizeBackdrop();
+      root.classList.add("bcm-warp-open");
       renderGalaxyMap();
-      startBackdropLoop();
       return true;
     };
 
@@ -6319,7 +6343,10 @@ return axialRoll + ahead * 0.12 +
     }
 
     launchButton.addEventListener("click", openMap);
-    closeButton.addEventListener("click", () => closeOverlay(true));
+    closeButton.addEventListener("click", () => {
+      if (mapBrowse) hideMapBrowse();
+      else closeOverlay(true);
+    });
     cancelButton.addEventListener("click", () => closeOverlay(true));
     startButton.addEventListener("click", showTube);
     tubeRetry.addEventListener("click", showTube);
