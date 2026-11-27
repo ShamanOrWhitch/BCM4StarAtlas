@@ -1,3 +1,11 @@
+## Patch — USDC prices show hundredths only (27 November 2026)
+
+- Item prices in USDC use two decimal places. A fraction of a cent prints as `$0.00`. The ATLAS token rate is not forced to two decimals.
+- Plugin file to replace on the site: `wordpress/galia-desk/galia-desk.php`, version `0.8.21`.
+- **Commit:** `6bf6efa`. Live site not confirmed. Test `market-price.test.ts` 7/7.
+
+---
+
 ## Patch — Dollar tags stay visible (20 November 2026)
 
 - Resources are ATLAS books. Their dollar tag is the best ATLAS ask times the ATLAS/USDC rate, or the dollar the server already stored. It is no longer dropped because the USDC ladder is empty, and a fraction of a cent is not rounded to zero.
