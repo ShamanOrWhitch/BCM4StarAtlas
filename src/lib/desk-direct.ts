@@ -356,7 +356,7 @@ export async function directWallet(owner: string): Promise<WalletScan> {
   const items: WalletItem[] = [];
   const seen = new Set<string>();
   try {
-    for (let page = 1; page <= 4; page += 1) {
+    for (let page = 1; page <= 20; page += 1) {
       const result = await rpc<{ total?: number; items?: Array<Record<string, unknown>> }>("getAssetsByOwner", {
         ownerAddress: owner,
         page,
@@ -388,7 +388,7 @@ export async function directWallet(owner: string): Promise<WalletScan> {
           traits,
         });
       }
-      if (!chunk.length || items.length >= (result.total ?? items.length)) break;
+      if (chunk.length < 100) break;
     }
   } catch (err) {
     warnings.push(err instanceof Error ? err.message : "Реестр NFT не ответил");

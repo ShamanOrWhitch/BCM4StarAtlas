@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BCM Mini Space Simulation
  * Description: Self-contained 6DOF space-labyrinth test for WordPress.
- * Version: 0.16.47
+ * Version: 0.16.48
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BCM_MINI_SIM_VERSION', '0.16.47');
+define('BCM_MINI_SIM_VERSION', '0.16.48');
 define('BCM_MINI_SIM_URL', plugin_dir_url(__FILE__));
 define('BCM_MINI_SIM_PATH', plugin_dir_path(__FILE__));
 define('BCM_MINI_SIM_BACKEND', 'https://bcm4staratlas.onrender.com/api/wallet-scan');
@@ -473,7 +473,7 @@ function bcm_mini_sim_das_wallet_scan($owner) {
     $errors = array();
     $das_ok = false;
 
-    for ($page = 1; $page <= 4; $page++) {
+    for ($page = 1; $page <= 20; $page++) {
         $result = bcm_mini_sim_crew_rpc('getAssetsByOwner', array(
             'ownerAddress' => $owner,
             'page' => $page,
@@ -577,8 +577,7 @@ function bcm_mini_sim_das_wallet_scan($owner) {
             );
         }
 
-        $total = isset($result['total']) ? (int) $result['total'] : count($rows);
-        if (!$rows || count($rows) < 100 || $page * 100 >= $total) {
+        if (!$rows || count($rows) < 100) {
             break;
         }
     }

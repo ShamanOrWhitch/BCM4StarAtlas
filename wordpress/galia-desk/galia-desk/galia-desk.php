@@ -728,7 +728,7 @@ function galia_desk_is_crew($name, $symbol, $traits) {
 
 function galia_desk_assets($owner) {
     $out = array();
-    for ($page = 1; $page <= 3; $page++) {
+    for ($page = 1; $page <= 20; $page++) {
         $json = galia_desk_rpc('getAssetsByOwner', array(
             'ownerAddress' => $owner,
             'page' => $page,
@@ -742,8 +742,7 @@ function galia_desk_assets($owner) {
         foreach ($chunk as $asset) {
             $out[] = $asset;
         }
-        $total = isset($json['result']['total']) ? (int) $json['result']['total'] : count($out);
-        if (count($out) >= $total) {
+        if (count($chunk) < 100) {
             break;
         }
     }

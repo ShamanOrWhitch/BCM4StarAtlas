@@ -266,7 +266,7 @@
     }
 
     let dasOk = false;
-    for (let page = 1; page <= 8; page += 1) {
+    for (let page = 1; page <= 20; page += 1) {
       let result;
       try {
         result = await rpc("getAssetsByOwner", {
@@ -307,8 +307,7 @@
           spec: known?.spec || ""
         });
       });
-      const total = Number(result?.total || 0);
-      if (!rows.length || rows.length < 100 || (total && page * 100 >= total)) break;
+      if (!rows.length || rows.length < 100) break;
     }
 
     if (!dasOk && !crew.length && !inventory.length) {

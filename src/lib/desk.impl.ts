@@ -1,7 +1,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { nameWalletCrew } from "./galaxy-crew";
+import { galaxyCrewByMint, nameWalletCrew, type GalaxyCrewRow } from "./galaxy-crew";
 import type { BookLevel, Candle, FleetPeek, MarketShip, MarketSnap, ProfilePeek, ResourceRow, TapePoint, TokenQuote, WalletItem, WalletScan, WalletTrait } from "./desk-types";
 
 const RPC_URL = "https://api.mainnet-beta.solana.com";
@@ -608,6 +608,33 @@ async function loadCrewCards(): Promise<Map<string, CrewCard>> {
   return byMint;
 }
 
+function cardFromGalaxy(row: GalaxyCrewRow): CrewCard | null {
+  const mint = String(row.dasID ?? "");
+  if (!mint) return null;
+  const traits = [
+    oceanTrait("Openness", row.openness),
+    oceanTrait("Conscientiousness", row.conscientiousness),
+    oceanTrait("Extraversion", row.extraversion),
+    oceanTrait("Agreeableness", row.agreeableness),
+    oceanTrait("Neuroticism", row.neuroticism),
+  ].filter((trait): trait is WalletTrait => trait != null);
+  const aptitudes = row.aptitudes;
+  if (aptitudes && typeof aptitudes === "object") {
+    for (const [name, level] of Object.entries(aptitudes as Record<string, unknown>)) {
+      traits.push({ trait: name, value: String(level ?? "major") });
+    }
+  }
+  if (row.species) traits.push({ trait: "Species", value: String(row.species) });
+  return {
+    mint,
+    name: String(row.name ?? mint.slice(0, 4)),
+    image: String(row.imageUrl ?? ""),
+    rarity: String(row.rarity ?? ""),
+    species: String(row.species ?? ""),
+    traits,
+  };
+}
+
 function crewItem(card: CrewCard, amount: number, image = "", traits: WalletTrait[] = []): WalletItem {
   const layers = traits.filter((row) => /rarity/i.test(row.trait) || row.trait.toLowerCase() === "name");
   const base = (card.traits.length ? card.traits : traits).filter((row) => !/rarity/i.test(row.trait) && row.trait.toLowerCase() !== "name");
@@ -628,8 +655,9 @@ function crewItem(card: CrewCard, amount: number, image = "", traits: WalletTrai
 
 async function assetsOf(owner: string): Promise<Array<{ id: string; name: string; image: string; symbol: string; traits: WalletTrait[] }>> {
   const out: Array<{ id: string; name: string; image: string; symbol: string; traits: WalletTrait[] }> = [];
-  for (let page = 1; page <= 3; page += 1) {
-    let result: { total?: number; items?: Array<Record<string, unknown>> };
+  // A full page means there may be another. `total` has stayed at 96 while the wallet grew past it, so it is not a stop.
+  for (let page = 1; page <= 20; page += 1) {
+    let result: { items?: Array<Record<string, unknown>> };
     try {
       result = await rpc("getAssetsByOwner", {
         ownerAddress: owner,
@@ -655,7 +683,7 @@ async function assetsOf(owner: string): Promise<Array<{ id: string; name: string
         traits: traitsFrom(meta),
       });
     }
-    if (!items.length || out.length >= (result.total ?? out.length)) break;
+    if (items.length < 100) break;
   }
   return out;
 }
@@ -951,8 +979,23 @@ export async function scanWallet(ownerText: string): Promise<WalletScan> {
     if (token.decimals === 0 && token.amount <= 20) pending.push(token);
   }
 
-  const metaTargets = pending.slice(0, 32);
-  const skippedMeta = Math.max(0, pending.length - metaTargets.length);
+  // The unfiltered Galaxy list is only its first page. Ask by mint for every other card, or the count sticks.
+  const looked = await galaxyCrewByMint(
+    pending.map((token) => token.mint),
+    (url) => getJson(url, 15000),
+  ).catch(() => new Map<string, GalaxyCrewRow>());
+  const stillPending: ParsedToken[] = [];
+  for (const token of pending) {
+    const card = cardFromGalaxy(looked.get(token.mint) ?? {});
+    if (!card) {
+      stillPending.push(token);
+      continue;
+    }
+    items.push(crewItem(card, token.amount));
+  }
+
+  const metaTargets = stillPending.slice(0, 32);
+  const skippedMeta = Math.max(0, stillPending.length - metaTargets.length);
   if (metaTargets.length) {
     const pdas = metaTargets.map((token) => {
       const mint = new PublicKey(token.mint);

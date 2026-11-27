@@ -84,6 +84,12 @@ export const SAGE_CSS = [
 
 export type SageCss = (typeof SAGE_CSS)[number];
 
+export type SageLandmark = { id: string; name: string; x: number; y: number; color: string };
+
+export const SAGE_LANDMARKS: SageLandmark[] = [
+  { id: "fable", name: "Fable", x: -36, y: 26, color: "#ff5a2a" },
+];
+
 /** Nearest real stars on the square grid. A one-cell ring around a CSS is empty; the next stars sit a few cells out. */
 export function nearestStars(x: number, y: number, within = 8): Array<SageStar & { dist: number }> {
   return SAGE_STARS.map((star) => ({

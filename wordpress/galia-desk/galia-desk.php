@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.8.24
+ * Version: 0.8.25
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -728,7 +728,7 @@ function galia_desk_is_crew($name, $symbol, $traits) {
 
 function galia_desk_assets($owner) {
     $out = array();
-    for ($page = 1; $page <= 3; $page++) {
+    for ($page = 1; $page <= 20; $page++) {
         $json = galia_desk_rpc('getAssetsByOwner', array(
             'ownerAddress' => $owner,
             'page' => $page,
@@ -742,8 +742,7 @@ function galia_desk_assets($owner) {
         foreach ($chunk as $asset) {
             $out[] = $asset;
         }
-        $total = isset($json['result']['total']) ? (int) $json['result']['total'] : count($out);
-        if (count($out) >= $total) {
+        if (count($chunk) < 100) {
             break;
         }
     }
@@ -1674,7 +1673,7 @@ function galia_desk_globe_markup($full = false) {
     </div>
     <!-- noptimize -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" />
-    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.8.23'); ?>" />
+    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.8.25'); ?>" />
     <script>
       window.GALIA_ASSET = <?php echo wp_json_encode($base); ?>;
       window.GALIA_WP = <?php echo wp_json_encode(array('ajax' => $ajax, 'nonce' => $nonce)); ?>;
@@ -1703,7 +1702,7 @@ function galia_desk_globe_markup($full = false) {
         window.addEventListener("hashchange", deskMap);
       })();
     </script>
-    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.8.23'); ?>"></script>
+    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.8.25'); ?>"></script>
     <!-- /noptimize -->
     <?php
     return ob_get_clean();
