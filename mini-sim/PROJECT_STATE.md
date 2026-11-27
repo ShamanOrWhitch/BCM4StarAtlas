@@ -1,6 +1,6 @@
 ## Patch — Galia 0.8.25 / Mini-Sim 0.16.48: the key count no longer stops at 96 (27 November 2026)
 
-- **Main:** this commit. The live counter was not rechecked after upload.
+- **Main:** `2753287`. Portraits and planet textures restored in `e358a1f` after the bundle rebuild. The live counter was not rechecked after upload.
 - «С ключа · 96» was the scan stopping when `total` said 96, even if the page was still full. Later cards never arrived.
 - The scan now keeps reading while a page has 100 assets, up to 20 pages. Cards missing from Galaxy's first page are asked for by mint.
 - Galia app bundle rebuilt (`wordpress/galia-desk/app`). Render (`desk.impl.ts`) still needs its own deploy before the server path changes.
