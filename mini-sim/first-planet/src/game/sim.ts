@@ -56,6 +56,10 @@ export type Car = {
   hit: "trap" | "mob" | null;
   /** 100 is whole. Traps and mobs chip it. The pit is how it comes back. */
   hull: number;
+  /** 100 pulls cleanly. Low engine weakens throttle and coughs. */
+  engine: number;
+  engineTick: number;
+  misfire: number;
 };
 
 /** A slalom gate: where along the lap, its centre across the road and its half-width. */
@@ -117,6 +121,8 @@ export type Hud = {
   item: ItemKind | null;
   hazard: "trap" | "mob" | null;
   hull: number;
+  engine: number;
+  misfire: boolean;
   pitting: boolean;
   pitNear: boolean;
   drift: number;
@@ -201,6 +207,9 @@ function makeCar(
     hazardCd: 0,
     hit: null,
     hull: 100,
+    engine: 100,
+    engineTick: 0,
+    misfire: 0,
   };
 }
 
@@ -303,11 +312,13 @@ function strike(car: Car, kind: "trap" | "mob") {
   car.hit = kind;
   if (kind === "trap") {
     car.hull = Math.max(0, car.hull - 14);
+    car.engine = Math.max(0, car.engine - 10);
     car.speed *= 0.7;
     car.slick = Math.max(car.slick, 0.55);
     return;
   }
   car.hull = Math.max(0, car.hull - 22);
+  car.engine = Math.max(0, car.engine - 18);
   car.speed *= 0.52;
   car.lat += (car.lat >= 0 ? 1 : -1) * 3;
 }
@@ -472,19 +483,32 @@ function stepCar(car: Car, input: DriveInput, dt: number, race: Race) {
   }
   if (car.boost > 0) {
     car.boost -= dt;
-    if (!car.finished) car.speed += 34 * dt;
+    if (!car.finished) car.speed += 34 * dt * (0.3 + 0.7 * (car.engine / 100));
   }
   if (car.slick > 0) {
     car.slick -= dt;
     car.speed *= Math.exp(-1.5 * dt);
   }
   if (!car.finished && !(race.pitting && car.you)) {
-    car.speed += (input.throttle * 26 - input.brake * 48) * dt;
+    const drive = 0.2 + 0.8 * (car.engine / 100);
+    car.speed += (input.throttle * 26 * drive - input.brake * 48) * dt;
     const coast = input.throttle < 0.05 && input.brake < 0.05;
     car.speed *= Math.exp(-(coast ? 0.42 : 0.18) * dt);
-    const cap = (car.boost > 0 ? 56 : 40) * (0.42 + 0.58 * (car.hull / 100));
+    const cap =
+      (car.boost > 0 ? 56 : 40) *
+      (0.42 + 0.58 * (car.hull / 100)) *
+      (0.5 + 0.5 * (car.engine / 100));
     car.speed = Math.min(cap, Math.max(-12, car.speed));
+    if (car.engine < 40) {
+      car.engineTick += dt;
+      if (car.engineTick > 1.35) {
+        car.engineTick = 0;
+        car.misfire = 0.45;
+        car.speed *= 0.76;
+      }
+    } else car.engineTick = 0;
   }
+  if (car.misfire > 0) car.misfire = Math.max(0, car.misfire - dt);
   if (race.pitting && car.you) car.speed *= Math.exp(-3.4 * dt);
 
   const sp = Math.abs(car.speed);
@@ -689,7 +713,8 @@ export function createRace(seed = 0, planet?: string, level?: number): Race {
       }
       const you = this.cars[0];
       const inside = carInPit(you, this.track, this.pit);
-      if (!this.pitting && you.hull < 98 && you.speed < 26 && inside) this.pitting = true;
+      const hurt = you.hull < 98 || you.engine < 98;
+      if (!this.pitting && hurt && you.speed < 26 && inside) this.pitting = true;
       if (this.pitting && !inside && you.speed > 10) this.pitting = false;
       this.slicks = this.slicks.filter((slick) => {
         slick.life -= dt;
@@ -730,8 +755,10 @@ export function createRace(seed = 0, planet?: string, level?: number): Race {
         item: you.item,
         hazard: you.hazardCd > 0 ? you.hit : null,
         hull: you.hull,
+        engine: you.engine,
+        misfire: you.misfire > 0,
         pitting: this.pitting,
-        pitNear: !this.pitting && you.hull < 98 && forwardDelta(you.s, this.pit.s0, this.track.length) < 90,
+        pitNear: !this.pitting && (you.hull < 98 || you.engine < 98) && forwardDelta(you.s, this.pit.s0, this.track.length) < 90,
         drift: Math.min(1, you.drift / 1.05),
         boosting: you.boost > 0,
         wrong: you.wrongT > 0.35,
@@ -776,8 +803,9 @@ export function createRace(seed = 0, planet?: string, level?: number): Race {
       const you = this.cars[0];
       if (!this.pitting) return you.hull;
       you.hull = Math.min(100, you.hull + 34);
-      if (you.hull >= 100) this.leavePit();
-      return you.hull;
+      you.engine = Math.min(100, you.engine + 34);
+      if (you.hull >= 100 && you.engine >= 100) this.leavePit();
+      return you.engine;
     },
     leavePit() {
       this.pitting = false;

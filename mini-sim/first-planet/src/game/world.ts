@@ -843,8 +843,9 @@ export function createWorld(canvas: HTMLCanvasElement): World {
           kart.rest.visible = !showRunning;
         }
         const hot = car.boost > 0 ? 0.55 : car.drifting ? 0.2 : 0;
-        kart.shell.emissive.setHex(car.color);
-        kart.shell.emissiveIntensity = hot;
+        const cough = car.engine < 45 && Math.sin(elapsed * 28) > 0.15;
+        kart.shell.emissive.setHex(cough ? 0xff6a2a : car.color);
+        kart.shell.emissiveIntensity = cough ? 0.9 : hot;
       });
 
       while (boxes.length < race.boxes.length) {

@@ -48,6 +48,8 @@ const EMPTY: Hud = {
   nextGate: -1,
   hazard: null,
   hull: 100,
+  engine: 100,
+  misfire: false,
   pitting: false,
   pitNear: false,
 };
@@ -356,6 +358,9 @@ export function ShoalRace({
             {hud.pitNear ? (
               <p className="rounded-full bg-primary px-4 py-1 text-sm font-medium text-bg">Пит справа · сбрось скорость</p>
             ) : null}
+            {hud.misfire ? (
+              <p className="rounded-full bg-accent px-4 py-1 text-sm font-medium text-fg">Двигатель сбоит</p>
+            ) : null}
             {hud.go > 0 && phase === "race" ? (
               <p className="font-display text-5xl text-primary">Go</p>
             ) : null}
@@ -373,6 +378,13 @@ export function ShoalRace({
                 <div
                   className="h-full bg-accent"
                   style={{ width: `${Math.round(hud.hull)}%` }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-muted">Двигатель {Math.round(hud.engine)}</p>
+              <div className="mt-1 h-1.5 w-28 overflow-hidden rounded-full bg-bg">
+                <div
+                  className="h-full"
+                  style={{ width: `${Math.round(hud.engine)}%`, background: "#ff6a2a" }}
                 />
               </div>
               <div className="mt-2 h-1.5 w-28 overflow-hidden rounded-full bg-bg">
@@ -436,6 +448,7 @@ export function ShoalRace({
       {phase === "race" && hud.pitting ? (
         <RepairPit
           hull={hud.hull}
+          engine={hud.engine}
           onWeld={(good) => {
             const race = raceRef.current;
             if (!race || !good) return;
@@ -518,10 +531,12 @@ export function ShoalRace({
 
 function RepairPit({
   hull,
+  engine,
   onWeld,
   onLeave,
 }: {
   hull: number;
+  engine: number;
   onWeld: (good: boolean) => void;
   onLeave: () => void;
 }) {
@@ -557,18 +572,18 @@ function RepairPit({
     setMiss(!good);
     onWeld(good);
   }
-  const left = Math.max(0, Math.ceil((100 - hull) / 34));
+  const left = Math.max(0, Math.ceil((100 - Math.min(hull, engine)) / 34));
   return (
     <section data-gamepad-menu className="absolute inset-0 z-30 grid place-items-center bg-bg/50 p-4">
       <div className="w-full max-w-sm rounded-2xl border border-primary bg-surface p-5 text-fg">
         <p className="text-xs tracking-widest text-primary uppercase">Пит</p>
         <h2 className="font-display mt-1 text-4xl leading-none">Почини сам</h2>
-        <p className="mt-2 text-sm text-muted">Жми, когда метка в зелёной полосе. Три точных шва собирают корпус.</p>
+        <p className="mt-2 text-sm text-muted">Жми, когда метка в зелёной полосе. Шов чинит и корпус, и двигатель.</p>
         <div className="relative mt-4 h-10 overflow-hidden rounded-xl border border-line bg-bg">
           <div className="absolute inset-y-0 left-[40%] w-[20%] bg-primary/40" />
           <div className="absolute inset-y-0 w-1 bg-fg" style={{ left: `${needle * 100}%` }} />
         </div>
-        <p className="mt-2 text-sm">{miss ? "Мимо шва" : `Корпус ${Math.round(hull)} · швов ещё ${left}`}</p>
+        <p className="mt-2 text-sm">{miss ? "Мимо шва" : `Корпус ${Math.round(hull)} · двигатель ${Math.round(engine)} · швов ещё ${left}`}</p>
         <div className="mt-4 grid grid-cols-2 gap-2">
           <button type="button" onClick={weld} className="h-12 rounded-xl bg-primary font-medium text-bg">
             Варить

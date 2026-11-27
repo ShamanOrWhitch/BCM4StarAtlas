@@ -1,3 +1,12 @@
+## Patch — Mini-Sim 0.16.47: the engine can be damaged (27 November 2026)
+
+- **Main:** this commit. Live site not confirmed. `first-planet/wp-dist` rebuilt.
+- Hull was the only damage. The engine is now its own bar.
+- A trap takes 10 off the engine, a mob 18. Throttle and boost scale with it. Below 40 the motor coughs about every 1.4 s and the kart flashes.
+- The same pit weld restores 34 to the hull and 34 to the engine. The car leaves when both are full.
+
+---
+
 ## Patch — Mini-Sim 0.16.46: race hull, a pit and a weld you do yourself (27 November 2026)
 
 - **Main:** `dee20bd`, on top of the upload `abd560b`. That upload stays. Its header said `0.15.25`; the version line stays `0.16.46` so the new race files are not cached as an older plugin. Live site not confirmed. `first-planet/wp-dist` rebuilt.
