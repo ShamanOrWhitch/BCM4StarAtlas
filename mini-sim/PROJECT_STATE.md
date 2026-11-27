@@ -1,6 +1,6 @@
 ## Patch — Mini-Sim 0.16.45: traps, mobs and an item panel on the race (27 November 2026)
 
-- **Main:** this commit. Live site not confirmed. `first-planet/wp-dist` rebuilt.
+- **Main:** `ee640da`. Live site not confirmed. `first-planet/wp-dist` rebuilt.
 - The three items were already in the race. The panel only printed one word, and the road had no hazards of its own.
 - Traps sit on the road. Mobs walk across it. Count grows with the level: 3 traps and 2 mobs on level 1, 5 and 4 on level 3. A hit slows the car and shows «Ловушка» or «Моб». The same hazard cannot hit again for 1.15 s.
 - The panel lists Солнце, Плёнка and Импульс with what each one does. The one you hold is marked. Fable still has no item boxes.
