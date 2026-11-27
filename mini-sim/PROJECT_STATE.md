@@ -1,3 +1,11 @@
+## Patch — Sector map on #/map is the Warp map (27 November 2026)
+
+- The black panel was the empty desk block. The sector map is drawn by `deep-space-warp.js` and previously opened only after the sim was running.
+- The file on the site (`0.16.41`) is the one that was patched. `BCMDeepSpaceWarpShowMap` opens that same map. `#/map` hides the desk block and calls it.
+- **Commit:** `6127b71`. Upload `wordpress/galia-desk/galia-desk.php` and `mini-sim/assets/js/deep-space-warp.js`, then clear the Autoptimize cache. Live page after that not confirmed.
+
+---
+
 ## Patch — Map page was a blank panel; SAGE grid is now in the HTML (27 November 2026)
 
 - Live `#/map` after `0.8.22` was a solid `#07090e` rectangle: the empty root, not a drawn map.
