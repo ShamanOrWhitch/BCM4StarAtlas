@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Galia Desk
  * Description: Полный экран Galia и стол цен. Шорткоды [galia_app] и [galia_desk]. Лабиринт не заменяет.
- * Version: 0.8.22
+ * Version: 0.8.23
  * Author: ShamanOrWitch
  * License: GPL-2.0-or-later
  */
@@ -1617,6 +1617,50 @@ function galia_desk_template_include($template) {
 }
 add_filter('template_include', 'galia_desk_template_include');
 
+function galia_desk_sage_fallback() {
+    $colors = array('#e7e4dc', '#e15b4a', '#e6c15a', '#7eb6ff', '#ff8a4a');
+    $stars = array(
+        array(-2, -44, 3), array(10, -41, 2), array(0, -39, 1), array(-10, -37, 4), array(2, -34, 0),
+        array(-15, -33, 1), array(12, -31, 0), array(21, -26, 1), array(-22, -25, 2), array(-8, -24, 0),
+        array(0, -24, 2), array(2, -23, 1), array(31, -19, 4), array(-30, -16, 0), array(-14, -16, 2),
+        array(11, -16, 3), array(23, -12, 0), array(-36, -7, 2), array(16, -5, 2), array(39, -1, 2),
+        array(-16, 0, 0), array(-40, 3, 4), array(-23, 4, 4), array(22, 5, 0), array(44, 10, 2),
+        array(-35, 12, 0), array(25, 14, 2), array(-45, 15, 4), array(-25, 15, 2), array(0, 16, 0),
+        array(35, 16, 4), array(49, 20, 0), array(-28, 21, 0), array(17, 21, 0), array(28, 21, 1),
+        array(-18, 23, 0), array(-9, 24, 2), array(-38, 25, 1), array(38, 25, 1), array(2, 26, 3),
+        array(30, 28, 4), array(-47, 30, 3), array(-40, 30, 1), array(-30, 30, 0), array(40, 30, 3),
+        array(22, 31, 1), array(-22, 32, 2), array(48, 32, 0), array(-42, 35, 1), array(-8, 35, 4),
+        array(42, 35, 2), array(13, 37, 1), array(-19, 40, 3), array(5, 44, 3),
+    );
+    $css = array(
+        array('x' => 0, 'y' => -39, 'name' => 'MUD', 'color' => '#c45c4a'),
+        array('x' => -40, 'y' => 30, 'name' => 'ONI', 'color' => '#7f93c9'),
+        array('x' => 40, 'y' => 30, 'name' => 'Ustur', 'color' => '#c4a35a'),
+    );
+    $px = function ($x) { return 52 + (int) $x; };
+    $py = function ($y) { return 52 - (int) $y; };
+    $dots = '';
+    foreach ($stars as $star) {
+        $dots .= '<circle cx="' . $px($star[0]) . '" cy="' . $py($star[1]) . '" r="1.2" fill="' . $colors[(int) $star[2]] . '"/>';
+    }
+    foreach ($css as $row) {
+        $dots .= '<circle cx="' . $px($row['x']) . '" cy="' . $py($row['y']) . '" r="2.3" fill="' . $row['color'] . '" stroke="#f4efe4" stroke-width="0.4"/>';
+        $dots .= '<text x="' . ($px($row['x']) + 3) . '" y="' . ($py($row['y']) + 1) . '" fill="' . $row['color'] . '" font-size="3.2" font-family="sans-serif">' . $row['name'] . '</text>';
+    }
+    $fx = $px(-39);
+    $fy = $py(31);
+    $dots .= '<polygon points="' . $fx . ',' . ($fy - 2.4) . ' ' . ($fx + 2.4) . ',' . $fy . ' ' . $fx . ',' . ($fy + 2.4) . ' ' . ($fx - 2.4) . ',' . $fy . '" fill="#b48cff" stroke="#f4efe4" stroke-width="0.35"/>';
+    $dots .= '<text x="' . ($fx + 3) . '" y="' . ($fy + 1) . '" fill="#b48cff" font-size="3.2" font-family="sans-serif">Fable</text>';
+    return '<div id="galia-sage-fallback" style="display:none;padding:12px 16px;color:#e8eef2;background:#07090e">'
+        . '<p style="margin:0;font:600 12px sans-serif;letter-spacing:.16em;color:#c4a35a">SAGE · СЕКТОРЫ</p>'
+        . '<p style="margin:4px 0 8px;font:14px sans-serif;color:#8b96a3">Та же сетка, что в Mini-Sim: −50…50, 54 звезды, ONI / MUD / Ustur, Fable −39, 31.</p>'
+        . '<svg viewBox="0 0 104 104" width="100%" style="max-width:720px;display:block;background:#070b12;border:1px solid rgba(196,163,90,.45)">'
+        . '<rect x="2" y="2" width="100" height="100" fill="none" stroke="rgba(196,163,90,.55)"/>'
+        . $dots
+        . '</svg></div>'
+        . '<script>if(location.hash.indexOf("/map")===0){var n=document.getElementById("galia-sage-fallback");if(n)n.style.display="block";}</script>';
+}
+
 function galia_desk_globe_markup($full = false) {
     $base = plugin_dir_url(__FILE__) . 'app/';
     $ajax = admin_url('admin-ajax.php');
@@ -1624,15 +1668,18 @@ function galia_desk_globe_markup($full = false) {
     $height = $full ? '100dvh' : 'min(88vh, 920px)';
     ob_start();
     ?>
-    <div id="galia-root" style="min-height:<?php echo esc_attr($height); ?>;background:#07090e"></div>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" />
-    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.8.22'); ?>" />
+    <div id="galia-root" style="min-height:<?php echo esc_attr($height); ?>;background:#07090e;color:#e8eef2">
+      <?php echo galia_desk_sage_fallback(); ?>
+      <div id="galia-app"></div>
+    </div>
     <!-- noptimize -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="<?php echo esc_url($base . 'app.css?ver=0.8.23'); ?>" />
     <script>
       window.GALIA_ASSET = <?php echo wp_json_encode($base); ?>;
       window.GALIA_WP = <?php echo wp_json_encode(array('ajax' => $ajax, 'nonce' => $nonce)); ?>;
     </script>
-    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.8.22'); ?>"></script>
+    <script type="module" src="<?php echo esc_url($base . 'app.js?ver=0.8.23'); ?>"></script>
     <!-- /noptimize -->
     <?php
     return ob_get_clean();

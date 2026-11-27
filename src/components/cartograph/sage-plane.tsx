@@ -175,6 +175,8 @@ export function SagePlane({
     const { w, h } = sizeOf();
     if (w < 20 || h < 20) return;
     fitted.current = true;
+    const hide = document.getElementById("galia-sage-fallback");
+    if (hide) hide.style.display = "none";
     const span = SAGE_RANGE.max - SAGE_RANGE.min + 6;
     if (next) {
       const css = SAGE_CSS.find((row) => row.faction === next);
