@@ -1,3 +1,12 @@
+## Patch — Map page was a blank panel; SAGE grid is now in the HTML (27 November 2026)
+
+- Live `#/map` after `0.8.22` was a solid `#07090e` rectangle: the empty root, not a drawn map.
+- Plugin `0.8.23` prints the Mini-Sim SAGE grid (54 stars, three CSS, Fable −39, 31) into the page. The app mounts in `#galia-app` and hides that grid only after the canvas has a size.
+- Replace `galia-desk.php`, `app/app.js`, `app/app.css`; add `map-Cxb2N9PX.js` and `scene-CjvRuF-e.js`; remove `map-DsKCBDJz.js` and `scene-BepYCl9e.js`.
+- **Commit:** `2ff6192`. Live site after this upload not confirmed.
+
+---
+
 ## Patch — Desk map opens the Mini-Sim SAGE sector plane (27 November 2026)
 
 - `/map` starts on the SAGE plane (stars, three CSS, Fable at −39, 31), the same map Warp uses. The 3D globe opens from a CSS, and «Секторы SAGE» returns.
