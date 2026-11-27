@@ -1,6 +1,6 @@
 ## Patch — Mini-Sim 0.16.43: race handbrake and a stuck driver returns to the road (27 November 2026)
 
-- **Main:** this commit. Live site not confirmed. `first-planet/wp-dist` was rebuilt with this driving change.
+- **Main:** `f4710e2`. Live site not confirmed. `first-planet/wp-dist` was rebuilt with this driving change.
 - Took two driving ideas from LittleBigRacingAdventure (handbrake separate from the slide, the driver is not left stuck). No LBA assets, names or code.
 - Shoal Race, including Twinsun laps: `Z` or gamepad B is a handbrake. It turns harder and loses speed. It does not store the Shift/A drift boost.
 - If the player's car stays under 2.5 m/s for 2.4 s while the throttle is held, it is put back on the road. Rivals already had their own return.
